@@ -11,9 +11,9 @@
 
 
 
-static hal_stdout_e stdout = HAL_STDOUT_UART;
+static uint8_t stdout = HAL_STDOUT_UART;
 
-inline void hal_set_stdout(hal_stdout_e value) {
+inline void hal_stdout_set_source(hal_stdout_sources_e value) {
 	stdout = value;
 }
 
@@ -48,3 +48,12 @@ int puts(const char * str)
   return 0;
 }
 
+
+
+
+void hal_stdout_send(char* str, unsigned int count) {
+	int i;
+	for (i = 0; i < count; i++) {
+		putchar(str[i]);
+	}
+}

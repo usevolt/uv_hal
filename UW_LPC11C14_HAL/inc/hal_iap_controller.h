@@ -10,16 +10,20 @@
 #ifndef HAL_IAP_CONTROLLER_H_
 #define HAL_IAP_CONTROLLER_H_
 
+#include <stdbool.h>
 
 
 /// @brief: Defines the flash memory sector size in bytes. Make sure this matches the used MCU!
 /// Refer to the manual for correct value
 #define FLASH_SECTOR_SIZE	4096
 
-/// @brief: The start address of flash memory. It is important to set this right in order
+/// @brief: The start address of flash memory. It is important to set this right for
 /// the IAP functions to determinate the right section of flash to be erased and written.
 /// Refer to MCU's manual for the right value.
 #define FLASH_START_ADDRESS 0x00000000
+
+/// @brief: The last sector of flash memory is reserved for non-volatile application data storage.
+#define NON_VOLATILE_MEMORY_START_ADDRESS	0x00007000
 
 /// @brief: Calls IAP commands to activate ISP mode.
 /// The program execution will be stopped instantly,
@@ -75,7 +79,11 @@ hal_iap_status_e hal_erase_and_write_to_flash(unsigned int ram_address,
 		hal_writable_amount_e num_bytes, unsigned int flash_address, unsigned int fosc);
 
 
-
+/// Writes data to flash non-volatile application memory section.
+/// @return: True if writing all data succeeded, false otherwise. Failing to write could
+/// mean that application required to write more memory than the non-volatile application data section
+/// has, or there was not enough RAM.
+bool save_to_non_volatile_memory(void* data, unsigned int length);
 
 
 

@@ -12,12 +12,16 @@
 
 
 typedef enum {
-	HAL_STDOUT_UART = 0,
+	AL_STDOUT_UNDEFINED,
+	HAL_STDOUT_UART,
 	HAL_STDOUT_CAN
-} hal_stdout_e;
+} hal_stdout_sources_e;
 
 /// @brief: Set's putchar's output either UART or CAN
-void hal_set_stdout(hal_stdout_e value);
+void hal_stdout_set_source(hal_stdout_sources_e value);
+
+/// @brief: Sends a non-terminated string via the standard output
+void hal_stdout_send(char* str, unsigned int count);
 
 
 #endif /* HAL_STDOUT_H_ */

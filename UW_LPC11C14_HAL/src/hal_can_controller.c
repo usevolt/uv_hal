@@ -5,6 +5,7 @@
  *      Author: usenius
  */
 
+#include <hal_terminal.h>
 #include "hal_can_controller.h"
 #include "LPC11xx.h"
 #include "stdlib.h"
@@ -14,7 +15,6 @@
 // for debugging can connection
 #include "hal_uart_controller.h"
 #include "hal_reset_controller.h"
-#include "hal_debug.h"
 
 /**************************************************************************
 SDO Abort Codes

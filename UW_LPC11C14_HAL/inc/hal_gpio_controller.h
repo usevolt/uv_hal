@@ -80,6 +80,16 @@ typedef enum {
 	HYSTERESIS_ENABLED = (1 << 5)
 } hal_gpio_input_config_e;
 
+typedef enum {
+	INT_EDGE_SENSITIVE = 0x0,
+	INT_LEVEL_SENSITIVE = 0x1,
+	INT_RISING_EDGE = (0x1 << 1),
+	INT_FALLING_EDGE = (0x0 << 1),
+	INT_BOTH_EDGES = (0x2 << 1),
+	INT_HIGH_LEVEL = (0x1 << 1),
+	INT_LOW_LEVEL = (0x0 << 1),
+	INT_DISABLE = 0xffff
+} hal_gpio_interrupt_config_e;
 
 
 
@@ -94,22 +104,13 @@ void hal_gpio_init_output(hal_gpios_e gpio, bool initial_value);
 /// @param gpio The gpio pin which will be configured
 /// @param configurations OR'red configurations for the pin. This will be written to the gpio's IOCON register.
 // Additional settings such as the mode of the pin can be configured as well.
+/// @param int_configurations: OR'red interrupt configurations on the pin
 /// @example: hal_gpio_init_input(PIO1_9, PULL_UP_ENABLED | HYSTERESIS_ENABLED);
-void hal_gpio_init_input(hal_gpios_e gpio, hal_gpio_input_config_e configurations);
+void hal_gpio_init_input(hal_gpios_e gpio, hal_gpio_input_config_e configurations,
+		hal_gpio_interrupt_config_e int_configurations);
 
 
-typedef enum {
-	INT_EDGE_SENSITIVE = 0x0,
-	INT_LEVEL_SENSITIVE = 0x1,
-	INT_RISING_EDGE = (0x1 << 1),
-	INT_FALLING_EDGE = (0x0 << 1),
-	INT_BOTH_EDGES = (0x2 << 1),
-	INT_HIGH_LEVEL = (0x1 << 1),
-	INT_LOW_LEVEL = (0x0 << 1)
-} hal_gpio_interrupt_config_e;
 
-/// @brief: Set the gpio pin as an interrupt source
-void hal_gpio_init_interrupt(hal_gpios_e gpio, hal_gpio_interrupt_config_e configurations);
 
 /// @brief: Register a callback function to be called when external interrupt occurs
 /// @param callback_function A function pointer to the callback function which will be called

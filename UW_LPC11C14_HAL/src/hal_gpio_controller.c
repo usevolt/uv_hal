@@ -48,7 +48,8 @@ void hal_gpio_init_output(hal_gpios_e gpio, bool initial_value) {
 
 
 
-void hal_gpio_init_input(hal_gpios_e gpio, hal_gpio_input_config_e configurations) {
+void hal_gpio_init_input(hal_gpios_e gpio, hal_gpio_input_config_e configurations,
+		hal_gpio_interrupt_config_e int_configurations) {
 	// set pin direction to input
 	LPC_GPIO_TypeDef* LPC_GPIO;
 	switch (gpio & GPIO_PORT_MASK) {
@@ -70,6 +71,26 @@ void hal_gpio_init_input(hal_gpios_e gpio, hal_gpio_input_config_e configuration
 	LPC_GPIO->DIR &= ~(1 << PIN(gpio));
 	set_iocon(gpio, configurations);
 
+	if (int_configurations == INT_DISABLE) {
+		// disable interrupt
+		LPC_GPIO->IE &= ~(1 << PIN(gpio));
+	}
+	else {
+		// interrupt sense: edge or level sensitive
+		LPC_GPIO->IS = (LPC_GPIO->IS & ~(1 << PIN(gpio))) |
+		((int_configurations & INT_SENSE_MASK) << PIN(gpio));
+		// if pin is configured to trigger interrupt on both edges
+		if ((int_configurations & INT_EVENT_MASK) == INT_BOTH_EDGES) {
+			LPC_GPIO->IBE |= (1 << PIN(gpio));
+		}
+		else {
+			// select interrupt edge or level
+			LPC_GPIO->IEV = (LPC_GPIO->IEV & ~(1 << PIN(gpio))) |
+					(((int_configurations & INT_EVENT_MASK) >> 1) << PIN(gpio));
+		}
+		// enable interrupt
+		LPC_GPIO->IE |= (1 << PIN(gpio));
+	}
 }
 
 
@@ -140,40 +161,6 @@ bool hal_gpio_get_pin(hal_gpios_e gpio) {
 	return (bool) ((LPC_GPIO->DATA & (1 << PIN(gpio))) >> PIN(gpio));
 }
 
-
-void hal_gpio_init_interrupt(hal_gpios_e gpio, hal_gpio_interrupt_config_e configurations) {
-	LPC_GPIO_TypeDef* LPC_GPIO;
-	switch (gpio & GPIO_PORT_MASK) {
-	case GPIO_PORT_0:
-		LPC_GPIO = LPC_GPIO0;
-		break;
-	case GPIO_PORT_1:
-		LPC_GPIO = LPC_GPIO1;
-		break;
-	case GPIO_PORT_2:
-		LPC_GPIO = LPC_GPIO2;
-		break;
-	case GPIO_PORT_3:
-		LPC_GPIO = LPC_GPIO3;
-		break;
-	default:
-		return;
-	}
-	// interrupt sense: edge or level sensitive
-	LPC_GPIO->IS = (LPC_GPIO->IS & ~(1 << PIN(gpio))) |
-	((configurations & INT_SENSE_MASK) << PIN(gpio));
-	// if pin is configured to trigger interrupt on both edges
-	if ((configurations & INT_EVENT_MASK) == INT_BOTH_EDGES) {
-		LPC_GPIO->IBE |= (1 << PIN(gpio));
-	}
-	else {
-		// select interrupt edge or level
-		LPC_GPIO->IEV = (LPC_GPIO->IEV & ~(1 << PIN(gpio))) |
-				(((configurations & INT_EVENT_MASK) >> 1) << PIN(gpio));
-	}
-	// enable interrupt
-	LPC_GPIO->IE |= (1 << PIN(gpio));
-}
 
 
 void hal_gpio_set_interrupt_callback(void (*callback_function)(hal_gpios_e)) {

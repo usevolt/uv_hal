@@ -122,3 +122,8 @@ hal_iap_status_e hal_erase_and_write_to_flash(unsigned int ram_address,
 
 	return status_result[0];
 }
+
+bool save_to_non_volatile_memory(void* data, unsigned int length) {
+
+}
+
