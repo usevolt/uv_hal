@@ -12,9 +12,9 @@
 
 
 typedef enum {
-	AL_STDOUT_UNDEFINED,
-	HAL_STDOUT_UART,
-	HAL_STDOUT_CAN
+	STDOUT_UNDEFINED,
+	STDOUT_UART,
+	STDOUT_CAN
 } hal_stdout_sources_e;
 
 /// @brief: Set's putchar's output either UART or CAN

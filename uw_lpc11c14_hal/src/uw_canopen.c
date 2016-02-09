@@ -16,6 +16,7 @@ typedef struct {
 	unsigned int obj_dict_length;
 	uint16_t heartbeat_time;
 	uint16_t pdo_time;
+	uw_canopen_node_states_e state;
 } this_st;
 
 static this_st _this;
@@ -30,6 +31,12 @@ static this_st _this;
 static void exec_sdo_command(uw_canopen_msg_st* req);
 
 
+
+void uw_canopen_init(uw_canopen_obj_dict_entry_st* obj_dict, unsigned int obj_dict_length) {
+	this->obj_dict = obj_dict;
+	this->obj_dict_length = obj_dict_length;
+	this->state = UW_CANOPEN_STATE_BOOT_UP;
+}
 
 uw_canopen_msg_st uw_canopen_parse_message(uw_can_message_st* message) {
 	uw_canopen_msg_st m;
@@ -125,12 +132,6 @@ void uw_canopen_step(unsigned int step_ms) {
 }
 
 
-void uw_canopen_init(uw_canopen_obj_dict_entry_st* obj_dict, unsigned int obj_dict_length) {
-	this->obj_dict = obj_dict;
-	this->obj_dict_length = obj_dict_length;
-
-}
-
 
 static void exec_sdo_command(uw_canopen_msg_st* req) {
 	int i;
@@ -151,3 +152,6 @@ static void exec_sdo_command(uw_canopen_msg_st* req) {
 	}
 }
 
+void uw_canopen_set_state(uw_canopen_node_states_e state) {
+	this->state = state;
+}

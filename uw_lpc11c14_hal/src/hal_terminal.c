@@ -8,6 +8,8 @@
 
 #include "hal_terminal.h"
 #include "hal_iap.h"
+#include "hal_reset.h"
+#include "uw_canopen.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -32,7 +34,10 @@ static const uw_command_st common_cmds[] = {
 				CMD_RESET,
 				"reset",
 				"Resets the controller instantly.\n\r\
-All unsave modifications will be lost."
+All unsave modifications will be lost.\n\r\
+If 'hard' is given as an argument, the system will use\n\r\
+watchdog timer to make a hardware reset. Else Cortex-M0 software\n\r\
+reset is done."
 		},
 		{
 				CMD_SAVE,
@@ -42,9 +47,7 @@ All unsave modifications will be lost."
 		{
 				CMD_REVERT,
 				"revert",
-				"Reverts the device to it's default settings.\n\r\
-To undo this command, reset the controller.\n\r\
-To keep the changes, save them to non-volatile memory with 'save'"
+				"Reverts all local changes to non-volatile values."
 		},
 		{
 				CMD_SET_SDO,
@@ -72,7 +75,7 @@ Defaults to 'off'"
 		{
 				CMD_SET_STATE,
 				"setstate",
-				"Usage: setstate <stopped/preop/op>\n\r\
+				"Usage: setstate <bootup/stopped/preop/op>\n\r\
 Used to set the device's CANopen state machine to\n\r\
 stopped, pre-operational or operational state."
 		}
@@ -81,20 +84,17 @@ stopped, pre-operational or operational state."
 static void execute_common_cmd(int cmd, char** args);
 
 
-void hal_terminal_init(const uw_command_st* commands, unsigned int count) {
+void hal_terminal_init(const uw_command_st* commands, unsigned int count,
+		void (*callback_function)(int cmd, char** args)) {
 	commands_ptr = commands;
 	commands_count = count;
+	callback = callback_function;
 	int i;
 	for (i = 0; i < TERMINAL_RECEIVE_BUFFER_SIZE; i++) {
 		terminal_receive_buffer[i] = '\0';
 	}
 }
 
-
-
-void hal_terminal_set_callback( void (*callback_function)(int cmd, char** args) ) {
-	callback = callback_function;
-}
 
 
 
@@ -137,12 +137,12 @@ void __hal_terminal_process_rx_msg(char* data, uint8_t data_length, hal_stdout_s
 			terminal_receive_buffer[receive_buffer_index] = '\0';
 			continue;
 		}
-		//if carriage return was received, read command, and clear buffer
+		//if carriage return was received, read command and clear buffer
 		if (data[i] == 0x0D) {
 			int i;
 			int p = 0;
 			//change line
-			printf("\n");
+			printf("\n\r");
 			receive_buffer_index = 0;
 			for (i = 0; i < TERMINAL_RECEIVE_BUFFER_SIZE - 1; i++) {
 				// on '\0' command has ended
@@ -220,6 +220,61 @@ void hal_terminal_disable_isp_entry(bool value) {
 }
 
 static void execute_common_cmd(int cmd, char** args) {
-	printf("Common command received\n\r");
+	uw_canopen_node_states_e state;
+
+	switch (cmd) {
+	case CMD_ENTER_ISP:
+		hal_enter_ISP_mode();
+		break;
+	case CMD_GET_SDO:
+		printf("Command not yet implemented in HAL.\n\r");
+		break;
+	case CMD_PDO_ECHO:
+		printf("Command not yet implemented in HAL.\n\r");
+		break;
+	case CMD_RESET:
+		if (strcmp(args[0], "hard") == 0) {
+			hal_system_reset(true);
+		}
+		else {
+			hal_system_reset(false);
+		}
+		break;
+	case CMD_REVERT:
+		if (__hal_load_previous_non_volatile_data()) {
+			printf("Reverted.\n\r");
+		}
+		break;
+	case CMD_SAVE:
+		if (__hal_save_previous_non_volatile_data()) {
+			printf("Saved.\n\r");
+		}
+		break;
+	case CMD_SET_SDO:
+		printf("Command not yet implemented in HAL.\n\r");
+		break;
+	case CMD_SET_STATE:
+		if (strcmp(args[0], "stopped") == 0) {
+			state = UW_CANOPEN_STATE_STOPPED;
+		}
+		else if (strcmp(args[0], "bootup") == 0) {
+			state = UW_CANOPEN_STATE_BOOT_UP;
+		}
+		else if (strcmp(args[0], "preop") == 0) {
+			state = UW_CANOPEN_STATE_PREOPERATIONAL;
+		}
+		else if (strcmp(args[0], "op") == 0) {
+			state = UW_CANOPEN_STATE_OPERATIONAL;
+		}
+		else {
+			printf("Unknown state '%s'\n\r", args[0]);
+			break;
+		}
+		uw_canopen_set_state(state);
+		printf("Canopen device state set.\n\r");
+		break;
+	default:
+		break;
+	}
 }
 

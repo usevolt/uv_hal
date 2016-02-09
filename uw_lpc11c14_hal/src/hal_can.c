@@ -7,6 +7,7 @@
 
 #include <hal_terminal.h>
 #include "hal_can_controller.h"
+#include "hal_stdout.h"
 #include "LPC11xx.h"
 #include "stdlib.h"
 #include <stdint.h>
@@ -182,7 +183,7 @@ void CAN_rx(uint8_t msg_obj_num) {
 
 	// check if message object was debug rx message
 	if (msg_obj.msgobj == 14) {
-		hal_debug_process_rx_msg(msg_obj.data, msg_obj.data_length);
+		__hal_terminal_process_rx_msg((char*) msg_obj.data, msg_obj.data_length, STDOUT_CAN);
 		// don't call application callback
 		return;
 	}

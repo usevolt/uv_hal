@@ -142,18 +142,8 @@ typedef struct {
 } uw_canopen_msg_st;
 
 
-/// @brief: parses the CAN message and returns the CANopen protocol message from it
-/// @return CANopen message structure
-uw_canopen_msg_st uw_canopen_parse_message(uw_can_message_st* message);
-
-
-/// @brief: The CANopen step function. Makes sure that the txPDO and heartbeat messages
-/// are sent cyclically in a right time step
-void uw_canopen_step(unsigned int step_ms);
-
 
 //************ OBJECT DICTIONARY **************
-
 typedef struct {
 	/// @brief: Index for this CANopen object dictionary entry
 	uint16_t index;
@@ -177,12 +167,31 @@ typedef struct {
 } uw_canopen_obj_dict_entry_st;
 
 
+
+/// @brief: parses the CAN message and returns the CANopen protocol message from it
+/// @return CANopen message structure
+uw_canopen_msg_st uw_canopen_parse_message(uw_can_message_st* message);
+
+
+/// @brief: The CANopen step function. Makes sure that the txPDO and heartbeat messages
+/// are sent cyclically in a right time step
+void uw_canopen_step(unsigned int step_ms);
+
+
+
 /// @brief: Initializes the CANopen node and the object dictionary
 /// @param obj dict: Pointer to the uw_canopen_obj_dict_entry_st array. This will be used as the location
 /// where object dictionary entries are modified.
 /// @param obj_dict_length: The length of the object dictionary, e.g. the number of different indexes.
 void uw_canopen_init(uw_canopen_obj_dict_entry_st* obj_dict, unsigned int obj_dict_length);
 
+
+
+/**** MANUAL INTERFACE *****/
+
+/// @brief: Used to set the device state. Device will start in UW_CANOPEN_BOOT_UP state
+/// and it should move itself to pre-operational state arfter boot up is done.
+void uw_canopen_set_state(uw_canopen_node_states_e state);
 
 
 

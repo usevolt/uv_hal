@@ -62,14 +62,11 @@ typedef enum {
 /// This function should be called before any other terminal functions
 /// @param commands: A pointer to command array containing all commands
 /// @param count: Indicates how many entries there are in commands array
-void hal_terminal_init(const uw_command_st* commands, unsigned int count);
-
-/// @brief: Registers a callback function which is responsible for executing application's
-/// terminal commands. The callback function should take 2 parameters: command enum value and
+/// @param callback: Callback function which will be called when a command has been received.
+/// The callback function should take 2 parameters: command enum value and
 /// user's entered arguments.
-/// @note: If unknown command is received, all available commands are listed and this
-/// callback is not called.
-void hal_terminal_set_callback( void (*callback_function)(int cmd, char** args) );
+void hal_terminal_init(const uw_command_st* commands, unsigned int count,
+		void (*callback_function)(int cmd, char** args));
 
 /// @brief: Returns the number of commands found in command array pointer registered with
 /// a hal_terminal_init_commands function call.

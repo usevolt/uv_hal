@@ -11,7 +11,7 @@
 
 
 
-static uint8_t stdout = HAL_STDOUT_UART;
+static uint8_t stdout = STDOUT_UART;
 
 inline void hal_stdout_set_source(hal_stdout_sources_e value) {
 	stdout = value;
@@ -25,10 +25,10 @@ static uint8_t byte_count = 0;
 void putchar(const char c)
 {
 	switch (stdout) {
-	case HAL_STDOUT_UART:
+	case STDOUT_UART:
 		hal_uart0_send_char(c);
 		break;
-	case HAL_STDOUT_CAN:
+	case STDOUT_CAN:
 		hal_canopen_pdo_msg[CANOPEN_TXPDO4].data[byte_count++] = c;
 		if (byte_count > 8 || c == '\n' || c == '\r') {
 			hal_canopen_pdo_msg[CANOPEN_TXPDO4].data_length = byte_count;

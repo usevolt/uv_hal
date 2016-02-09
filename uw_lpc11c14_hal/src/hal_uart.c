@@ -22,9 +22,8 @@ void UART_IRQHandler (void) {
 	if (callback) {
 		callback(received_char);
 	}
-
 	// call terminal character process function
-	__hal_terminal_process_rx_msg(&received_char, 1, HAL_STDOUT_UART);
+	__hal_terminal_process_rx_msg(&received_char, 1, STDOUT_UART);
 
 }
 
