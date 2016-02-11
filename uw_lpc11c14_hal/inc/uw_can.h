@@ -11,7 +11,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 /// @file: CAN implementation on top of the HAL layer
-/// This is intended for a quick way to change the hardware
+/// Provides the basic CAN interface.
+/// Note that this module takes full ownership of the CAN HAL layer interface.
+/// For example on LPC11C14, this module may use all 32 CAN message objects
+/// as it wants.
 
 
 /// @brief: CAN message basic structure
@@ -44,9 +47,12 @@ typedef enum {
 /// @return: Enum describing if errors were found while sending the message
 uw_can_errors_e uw_can_send(uint32_t id, uint8_t data_length, uint8_t* data);
 
-/// @brief: Alternative way to send a CAN message
+/// @brief: An alternative way to send a CAN message
 /// @return: Enum describing if errors were found while sending the message
 uw_can_errors_e uw_can_send_message(uw_can_message_st* message);
+
+//void uw_can_add_message_callback()
+
 
 
 #endif /* UW_CAN_H_ */

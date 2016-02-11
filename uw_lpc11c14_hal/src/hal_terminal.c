@@ -270,7 +270,7 @@ static void execute_common_cmd(int cmd, char** args) {
 			printf("Unknown state '%s'\n\r", args[0]);
 			break;
 		}
-		uw_canopen_set_state(state);
+		__uw_canopen_set_state(state);
 		printf("Canopen device state set.\n\r");
 		break;
 	default:
