@@ -1,4 +1,7 @@
-uw_lpc11c14_hal/Debug/
-uw_lpc11c14_hal/Release/
 uw_hal/Debug/
+uw_hal/Debug_lpc11c14/
+uw_hal/Debug_lpc1785/
 uw_hal/Release/
+uw_hal/Release_lpc11c14/
+uw_hal/Release_lpc1785/
+
