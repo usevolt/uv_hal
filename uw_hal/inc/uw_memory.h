@@ -12,13 +12,16 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
+#include "uw_errors.h"
 
 #ifdef LPC11C14
 /// @brief: Defines the RAM size in bytes on this contoller
-#define UW_RAM_SIZE_BYTES	8000
+#define RAM_SIZE_BYTES	0x2000
+#define RAM_BASE_ADDRESS 0x10000000
 #elif defined(LPC1785)
 /// @brief: Defines the RAM size in bytes on this contoller
-#define UW_RAM_SIZE_BYTES	64000
+#define RAM_SIZE_BYTES	64000
+#define RAM_BASE_ADDRESS 0x10000000
 #else
 #error "Controller not defined"
 #endif
@@ -119,7 +122,7 @@ typedef enum {
 ///	// save all data between start and end
 /// uw_save_non_volatile_data(&data.start, &data.end);
 ///
-bool uw_save_non_volatile_data(uw_data_start_t *start_ptr, uw_data_end_t *end_ptr);
+uw_errors_e uw_save_non_volatile_data(uw_data_start_t *start_ptr, uw_data_end_t *end_ptr);
 
 /// @brief: Copies data from non-volatile flash memory to another memory location,
 /// usually to RAM.
@@ -136,7 +139,7 @@ bool uw_save_non_volatile_data(uw_data_start_t *start_ptr, uw_data_end_t *end_pt
 /// destination memory where data should be copied.
 /// After copying the data, this will be used to validate if
 /// non-volatile memory contained valid data or if it was undefined.
-bool uw_load_non_volatile_data(uw_data_start_t *start_ptr, uw_data_end_t *end_ptr);
+uw_errors_e uw_load_non_volatile_data(uw_data_start_t *start_ptr, uw_data_end_t *end_ptr);
 
 
 /// @brief: Writes RAM data to flash. Note that the data can be written only a limited
@@ -174,7 +177,7 @@ uw_iap_status_e uw_erase_and_write_to_flash(unsigned int ram_address,
 /// @note: When calling uw_save_non_volatile_data or uw_load_non_volatile_data, the
 /// memory addresses and data lengths are saved and this function just re-saves the same data
 /// to the same location.
-bool __uw_save_previous_non_volatile_data();
+uw_errors_e __uw_save_previous_non_volatile_data();
 
 
 /// @brief: Loads the data from non-volatile memory which was saved or loaded before with
@@ -183,6 +186,6 @@ bool __uw_save_previous_non_volatile_data();
 /// @note: When calling uw_save_non_volatile_data or uw_load_non_volatile_data, the
 /// memory addresses and data lengths are saved and this function just re-loads the same data
 /// from the same location.
-bool __uw_load_previous_non_volatile_data();
+uw_errors_e __uw_load_previous_non_volatile_data();
 
 #endif /* UW_MEMORY_H_ */

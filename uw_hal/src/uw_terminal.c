@@ -51,20 +51,14 @@ reset is done."
 				.instructions = "Reverts all local changes to non-volatile values."
 		},
 		{
-				.id = CMD_SET_SDO,
-				.str = "setsdo",
-				.instructions = "Usage: setsdo <index> <subindex> <value>\n\r\
-Used to write CANopen SDO object manually.\n\r\
+				.id = CMD_SDO,
+				.str = "sdo",
+				.instructions = "Usage: sdo <index> <subindex> <value>\n\r\
+Used to read or write CANopen SDO object manually.\n\r\
 All arguments are evaluated as 10-base integer values.\n\r\
-To define them in 16-base hexadecimals, use '0x' prefix."
-		},
-		{
-				.id = CMD_GET_SDO,
-				.str = "getsdo",
-				.instructions = "Usage: getsdo <index> <subindex>\n\r\
-Used to read CANopen SDO object manually.\n\r\
-Both arguments are evaluated as 10-base integer values.\n\r\
-To define them in 16-base hexadecimals, use '0x' prefix."
+To define them in 16-base hexadecimals, use '0x' prefix.\n\r\
+To read an object, specify the index and subindex but leave value\n\r\
+empty."
 		},
 		{
 				.id = CMD_PDO_ECHO,
@@ -74,17 +68,17 @@ If on, all sent CANopen PDO messages are echoed into terminal.\n\r\
 Defaults to 'off'"
 		},
 		{
-				.id = CMD_SET_STATE,
-				.str = "setstate",
-				.instructions = "Usage: setstate <bootup/stopped/preop/op>\n\r\
-Used to set the device's CANopen state machine to\n\r\
+				.id = CMD_STATE,
+				.str = "state",
+				.instructions = "Usage: state <bootup/stopped/preop/op>\n\r\
+Used to read / write the device's CANopen state machine to\n\r\
 stopped, pre-operational or operational state."
 		},
 		{
 				.id = CMD_STACK_SIZE,
 				.str = "stack",
 				.instructions = "Returns the approximated stack size in percents\n\r\
- realtive to RAM size."
+ relative to RAM size."
 		}
 };
 
@@ -233,7 +227,7 @@ static void execute_common_cmd(int cmd, char** args) {
 	case CMD_ENTER_ISP:
 		uw_enter_ISP_mode();
 		break;
-	case CMD_GET_SDO:
+	case CMD_SDO:
 		printf("Command not yet implemented in HAL.\n\r");
 		break;
 	case CMD_PDO_ECHO:
@@ -257,31 +251,46 @@ static void execute_common_cmd(int cmd, char** args) {
 			printf("Saved.\n\r");
 		}
 		break;
-	case CMD_SET_SDO:
-		printf("Command not yet implemented in HAL.\n\r");
-		break;
-	case CMD_SET_STATE:
+	case CMD_STATE:
 		if (strcmp(args[0], "stopped") == 0) {
-			state = UW_CANOPEN_STATE_STOPPED;
+			state = STATE_STOPPED;
 		}
 		else if (strcmp(args[0], "bootup") == 0) {
-			state = UW_CANOPEN_STATE_BOOT_UP;
+			state = STATE_BOOT_UP;
 		}
 		else if (strcmp(args[0], "preop") == 0) {
-			state = UW_CANOPEN_STATE_PREOPERATIONAL;
+			state = STATE_PREOPERATIONAL;
 		}
 		else if (strcmp(args[0], "op") == 0) {
-			state = UW_CANOPEN_STATE_OPERATIONAL;
+			state = STATE_OPERATIONAL;
 		}
 		else {
-			printf("Unknown state '%s'\n\r", args[0]);
+			char * str;
+			switch (__uw_canopen_get_state()) {
+			case STATE_BOOT_UP:
+				str = "bootup";
+				break;
+			case STATE_OPERATIONAL:
+				str = "operational";
+				break;
+			case STATE_PREOPERATIONAL:
+				str = "preoperational";
+				break;
+			case STATE_STOPPED:
+				str = "stopped";
+				break;
+			default:
+				str = "unknown";
+				break;
+			}
+			printf("Device state: '%s'\n\r", str);
 			break;
 		}
 		__uw_canopen_set_state(state);
 		printf("Canopen device state set.\n\r");
 		break;
 	case CMD_STACK_SIZE:
-		printf("Stack size: %u\%\n\r", uw_get_stack_size());
+		printf("Stack size: %u percent\n\r", uw_get_stack_size());
 		break;
 	default:
 		break;

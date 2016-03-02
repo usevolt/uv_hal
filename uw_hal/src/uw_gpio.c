@@ -15,7 +15,6 @@
 #include "uw_utilities.h"
 
 
-
 #define INT_SENSE_MASK	0x1
 #define INT_EVENT_MASK	0x6
 
@@ -27,7 +26,7 @@ static void set_iocon(uw_gpios_e gpio, unsigned int value);
 static void (*callback)(void*, uw_gpios_e) = 0;
 
 
-void uw_gpio_init_output(uw_gpios_e gpio, bool initial_value) {
+uw_errors_e uw_gpio_init_output(uw_gpios_e gpio, bool initial_value) {
 	set_iocon(gpio, 0);
 	// set pin direction to output
 	LPC_GPIO_TypeDef* LPC_GPIO;
@@ -45,15 +44,17 @@ void uw_gpio_init_output(uw_gpios_e gpio, bool initial_value) {
 		LPC_GPIO = LPC_GPIO3;
 		break;
 	default:
-		return;
+		return ERR_HARDWARE_NOT_SUPPORTED;
 	}
 	LPC_GPIO->DIR |= (1 << PIN(gpio));
 	uw_gpio_set_pin(gpio, initial_value);
+
+	return ERR_NONE;
 }
 
 
 
-void uw_gpio_init_input(uw_gpios_e gpio, uw_gpio_input_config_e configurations,
+uw_errors_e uw_gpio_init_input(uw_gpios_e gpio, uw_gpio_input_config_e configurations,
 		uw_gpio_interrupt_config_e int_configurations) {
 	// set pin direction to input
 	LPC_GPIO_TypeDef* LPC_GPIO;
@@ -71,7 +72,7 @@ void uw_gpio_init_input(uw_gpios_e gpio, uw_gpio_input_config_e configurations,
 		LPC_GPIO = LPC_GPIO3;
 		break;
 	default:
-		return;
+		return ERR_HARDWARE_NOT_SUPPORTED;
 	}
 	LPC_GPIO->DIR &= ~(1 << PIN(gpio));
 	set_iocon(gpio, configurations);
@@ -81,6 +82,8 @@ void uw_gpio_init_input(uw_gpios_e gpio, uw_gpio_input_config_e configurations,
 		LPC_GPIO->IE &= ~(1 << PIN(gpio));
 	}
 	else {
+		// clear all pending interrupts on this pin
+		LPC_GPIO->IC |= (1 << PIN(gpio));
 		// interrupt sense: edge or level sensitive
 		LPC_GPIO->IS = (LPC_GPIO->IS & ~(1 << PIN(gpio))) |
 		((int_configurations & INT_SENSE_MASK) << PIN(gpio));
@@ -96,10 +99,11 @@ void uw_gpio_init_input(uw_gpios_e gpio, uw_gpio_input_config_e configurations,
 		// enable interrupt
 		LPC_GPIO->IE |= (1 << PIN(gpio));
 	}
+	return ERR_NONE;
 }
 
 
-void uw_gpio_set_pin(uw_gpios_e gpio, bool value) {
+uw_errors_e uw_gpio_set_pin(uw_gpios_e gpio, bool value) {
 	//make sure value is either 1 or 0
 	value = value ? 1 : 0;
 	LPC_GPIO_TypeDef* LPC_GPIO;
@@ -117,12 +121,14 @@ void uw_gpio_set_pin(uw_gpios_e gpio, bool value) {
 		LPC_GPIO = LPC_GPIO3;
 		break;
 	default:
-		return;
+		return ERR_HARDWARE_NOT_SUPPORTED;
 	}
 	LPC_GPIO->DATA = (LPC_GPIO->DATA & ~(1 << PIN(gpio))) | (value << PIN(gpio));
+
+	return ERR_NONE;
 }
 
-void uw_gpio_toggle_pin(uw_gpios_e gpio) {
+uw_errors_e uw_gpio_toggle_pin(uw_gpios_e gpio) {
 	LPC_GPIO_TypeDef* LPC_GPIO;
 	switch (gpio & GPIO_PORT_MASK) {
 	case GPIO_PORT_0:
@@ -138,10 +144,11 @@ void uw_gpio_toggle_pin(uw_gpios_e gpio) {
 		LPC_GPIO = LPC_GPIO3;
 		break;
 	default:
-		return;
+		return ERR_HARDWARE_NOT_SUPPORTED;
 	}
 	LPC_GPIO->DATA ^= (1 << PIN(gpio));
 
+	return ERR_NONE;
 }
 
 
@@ -168,7 +175,7 @@ bool uw_gpio_get_pin(uw_gpios_e gpio) {
 
 
 
-void uw_gpio_set_interrupt_callback(void (*callback_function)(void*, uw_gpios_e)) {
+void uw_gpio_add_interrupt_callback(void (*callback_function)(void*, uw_gpios_e)) {
 	callback = callback_function;
 	NVIC_EnableIRQ(EINT0_IRQn);
 	NVIC_EnableIRQ(EINT1_IRQn);

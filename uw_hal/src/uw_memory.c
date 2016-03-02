@@ -71,8 +71,8 @@ void uw_enter_ISP_mode(void) {
 
 
 int uw_get_stack_size(void) {
-	volatile int usage = UW_RAM_SIZE_BYTES - (int) &usage;
-	return 100 * usage / UW_RAM_SIZE_BYTES;
+	volatile int usage = RAM_BASE_ADDRESS + RAM_SIZE_BYTES - (int) &usage;
+	return 100 * usage / RAM_SIZE_BYTES;
 }
 
 
@@ -88,29 +88,30 @@ void uw_get_device_serial(unsigned int dest[4]) {
 	//call IAP
 	iap_entry( command_param, dest );
 
-	printf("result: 0x%x, 0x%x, 0x%x, 0x%x\n\r",
-			dest[0],
-			dest[1],
-			dest[2],
-			dest[3]);
+	// swap the bytes to different order
+	unsigned int swap = dest[0];
+	dest[0] = dest[3];
+	dest[3] = swap;
+	swap = dest[1];
+	dest[1] = dest[2];
+	dest[2] = swap;
+
+	__enable_irq();
 }
 
 
 
-bool uw_save_non_volatile_data(uw_data_start_t *start_ptr, uw_data_end_t *end_ptr) {
+uw_errors_e uw_save_non_volatile_data(uw_data_start_t *start_ptr, uw_data_end_t *end_ptr) {
 	// take up memory locations
 	last_start = start_ptr;
 	last_end = end_ptr;
 	int length = ((unsigned int) end_ptr + sizeof(uw_data_end_t)) - (unsigned int) start_ptr;
 	if (length < 0) {
-		printf("Error: Data start memory location was after end location\n\r");
-		return false;
+		return ERR_END_ADDR_LESS_THAN_START_ADDR;
 	}
 	//calculate the right length
 	else if (length > IAP_BYTES_4096) {
-		printf("Error: Not enought non-volatile memory to save %u \
-bytes of data from address 0x%x\n\r", length, start_ptr);
-		return false;
+		return ERR_NOT_ENOUGH_MEMORY;
 	}
 
 	else if (length > IAP_BYTES_1024) {
@@ -133,17 +134,16 @@ bytes of data from address 0x%x\n\r", length, start_ptr);
 	uw_iap_status_e status = uw_erase_and_write_to_flash((unsigned int) start_ptr,
 			length, NON_VOLATILE_MEMORY_START_ADDRESS, SystemCoreClock);
 	if (status == IAP_CMD_SUCCESS) {
-		return true;
+		return ERR_NONE;
 	}
 	else {
-		printf("\n\rError: Saving data to non-volatile memory failed with error code %u\n\r\
-Refer to uw_iap.h for different error codes.\n\r", status);
-		return false;
+		printf("\n\rError: Saving to non-volatile memory failed with error code %u\n\r", status);
+		return ERR_INTERNAL;
 	}
 }
 
 
-bool uw_load_non_volatile_data(uw_data_start_t *start_ptr, uw_data_end_t *end_ptr) {
+uw_errors_e uw_load_non_volatile_data(uw_data_start_t *start_ptr, uw_data_end_t *end_ptr) {
 	int length = ((unsigned int) end_ptr + sizeof(uw_data_end_t)) - (unsigned int) start_ptr;
 	int i;
 	char* d = (char*) start_ptr;
@@ -162,12 +162,11 @@ bool uw_load_non_volatile_data(uw_data_start_t *start_ptr, uw_data_end_t *end_pt
 	}
 
 	//check both checksums
-	if (end_ptr->end_checksum != CHECKSUM_VALID || start_ptr->start_checksum) {
-		printf("\n\rError: Checksum of loaded data from non-volatile memory didn't match.\n\r\
-The loaded memory locations might have been uninitialized.\n\r");
-		return false;
+	if (end_ptr->end_checksum != CHECKSUM_VALID ||
+			start_ptr->start_checksum != CHECKSUM_VALID) {
+		return ERR_CHECKSUM_NOT_MATCH;
 	}
-	return true;
+	return ERR_NONE;
 }
 
 
@@ -194,8 +193,6 @@ uw_iap_status_e uw_erase_and_write_to_flash(unsigned int ram_address,
 
 	int startSection = (flash_address - FLASH_START_ADDRESS) / FLASH_SECTOR_SIZE;
 	int endSection = (flash_address + num_bytes - FLASH_START_ADDRESS - 1) / FLASH_SECTOR_SIZE;
-	printf("Writing to flash:\n\r   start section: %i\n\r   end section: %i\n\r   num bytes: %i\n\r",
-			startSection, endSection, num_bytes);
 
 	//prepare the flash sections for erase operation
 	command_param[0] = PREPARE_SECTOR;
@@ -251,23 +248,23 @@ uw_iap_status_e uw_erase_and_write_to_flash(unsigned int ram_address,
 
 
 
-bool __uw_save_previous_non_volatile_data() {
+uw_errors_e __uw_save_previous_non_volatile_data() {
 	if (!last_start) {
-		printf("\n\rError: Cannot save data. data source address is not specified.\n\r\
-Make sure that the application calls uw_save_non_volatile_data or\n\r\
-uw_load_non_volatile_data before attempting this.\n\r");
-		return false;
+		/* 	Error: Cannot save data. data source address is not specified.
+			Make sure that the application calls uw_save_non_volatile_data or
+			uw_load_non_volatile_data before attempting this. */
+		return ERR_INTERNAL;
 	}
 	return uw_save_non_volatile_data(last_start, last_end);
 }
 
 
-bool __uw_load_previous_non_volatile_data() {
+uw_errors_e __uw_load_previous_non_volatile_data() {
 	if (!last_start) {
-		printf("\n\rError: Cannot load data. data source address is not specified.\n\r\
-Make sure that the application calls uw_save_non_volatile_data or\n\r\
-uw_load_non_volatile_data before attempting this.\n\r");
-		return false;
+		/* 	Error: Cannot save data. data source address is not specified.
+			Make sure that the application calls uw_save_non_volatile_data or
+			uw_load_non_volatile_data before attempting this. */
+		return ERR_INTERNAL;
 	}
 	return uw_load_non_volatile_data(last_start, last_end);
 }

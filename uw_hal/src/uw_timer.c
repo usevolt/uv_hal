@@ -28,6 +28,7 @@ typedef struct {
 
 	/// @brief: Callback function for all timers
 	void (*timer_callbacks[TIMER_COUNT])(void* user_ptr,
+			uw_timers_e timer,
 			uw_timer_int_sources_e source,
 			unsigned int timer_value);
 	/// @brief: Callback function for tick timer
@@ -45,11 +46,11 @@ static void parse_timer_interrupt(uw_timers_e timer) {
 	// check trough all interrupts and call interrupt handler for all pending interrupts
 	// match 3 interrupt == overflow interrupt
 	if (this->timer[timer]->IR & (1 << 3)) {
-		this->timer_callbacks[timer](__uw_get_user_ptr(),
+		this->timer_callbacks[timer](__uw_get_user_ptr(), timer,
 				INT_SRC_OVERFLOW, this->timer[timer]->MR3);
 	}
 	if (this->timer[timer]->IR & (1 << 4)) {
-		this->timer_callbacks[timer](__uw_get_user_ptr(),
+		this->timer_callbacks[timer](__uw_get_user_ptr(), timer,
 				INT_SRC_CAPTURE, this->timer[timer]->CR0);
 	}
 	// clear all timer interrupts
@@ -60,47 +61,47 @@ static void parse_timer_interrupt(uw_timers_e timer) {
 #endif
 }
 
+// checks if this hardware has a timer of this value
+static uw_errors_e validate_timer(uw_timers_e timer) {
+	if (timer >= TIMER_COUNT) {
+		return ERR_HARDWARE_NOT_SUPPORTED;
+	}
+	return ERR_NONE;
+}
+
+
 /// @brief: Initializes the timer struct
-static void this_init() {
+static void this_init(uw_timers_e timer) {
 #ifdef LPC11C14
-	this->timer[CT16B0] = LPC_TMR16B0;
-	this->timer[CT16B1] = LPC_TMR16B1;
-	this->timer[CT32B0] = LPC_TMR32B0;
-	this->timer[CT32B1] = LPC_TMR32B1;
+	this->timer[TIMER0] = LPC_TMR16B0;
+	this->timer[TIMER1] = LPC_TMR16B1;
+	this->timer[TIMER2] = LPC_TMR32B0;
+	this->timer[TIMER3] = LPC_TMR32B1;
 #elif defined(LPC1785)
 #warning "this_init for lpc1785 is missing"
 #endif
-	int i;
-	for (i = 0; i< TIMER_COUNT; i++) {
-		this->timer_callbacks[i] = NULL;
+	if (validate_timer(timer)) return;
+	this->timer_callbacks[timer] = NULL;
+	if (timer == TICK_TIMER) {
+		this->tick_timer_cycle_time_ms = 0;
+		this->tick_callback = NULL;
 	}
-	this->tick_timer_cycle_time_ms = 0;
-	this->tick_callback = NULL;
-
 }
 
-// checks if this hardware has a timer of this value
-static bool validate_timer(uw_timers_e timer) {
-	if (timer >= TIMER_COUNT) {
-		printf("Warning: Timer %u not found in this hardware\n\r", timer);
-		return false;
-	}
-	return true;
-}
 
 // interrupt handlers
 #ifdef LPC11C14
 void TIMER16_0_IRQHandler(void) {
-	parse_timer_interrupt(CT16B0);
+	parse_timer_interrupt(TIMER0);
 }
 void TIMER16_1_IRQHandler(void) {
-	parse_timer_interrupt(CT16B1);
+	parse_timer_interrupt(TIMER1);
 }
 void TIMER32_0_IRQHandler(void) {
-	parse_timer_interrupt(CT32B0);
+	parse_timer_interrupt(TIMER2);
 }
 void TIMER32_1_IRQHandler(void) {
-	parse_timer_interrupt(CT32B1);
+	parse_timer_interrupt(TIMER3);
 }
 #elif defined(LPC1785)
 
@@ -112,89 +113,69 @@ void TIMER32_1_IRQHandler(void) {
 
 
 
-bool uw_timer_init(uw_timers_e timer, uw_timer_init_modes_e init_mode,
-		unsigned int init_value, unsigned int fosc) {
-	this_init();
-	if (!validate_timer(timer)) return false;
+uw_errors_e uw_timer_init(uw_timers_e timer,
+		float freq, unsigned int fosc) {
+	if (validate_timer(timer)) return validate_timer(timer);
+	this_init(timer);
 
 	//set prescaler depending on in which mode init_value was given
-	unsigned long int prescaler;
-	unsigned int max_value = 0xFFFF;
-	if (timer > CT16B1) {
+	uint64_t prescaler;
+	uint32_t max_value = 0xFFFF;
+	if (timer > TIMER1) {
 		max_value = 0xFFFFFFFF;
 	}
-	switch (init_mode) {
-	case TIMER_PRESCALER:
-		prescaler = init_value;
-		break;
-	case TIMER_OVERFLOW_FREQ_HZ:
-	case TIMER_OVERFLOW_TIME_US:
-		prescaler = (unsigned long int) fosc /
-					((unsigned long int) init_value * max_value) - 1;
-		// now we have prescaler when defined as a frequency
-		if (init_mode == TIMER_OVERFLOW_FREQ_HZ) {
-			break;
-		}
-		// time step is an inverse of the value
-		prescaler = 1000000 / prescaler;
-		break;
-	case TIMER_STEP_FREQ_HZ:
-	case TIMER_STEP_TIME_US:
-		prescaler = (unsigned long int) fosc * (max_value + 1) /
-		((unsigned long int) init_value * max_value) - 1;
-		// now wh have precaler when defined a a frequency
-		if (init_mode == TIMER_STEP_FREQ_HZ) {
-			break;
-		}
-		// time step is an inverse of the value
-		prescaler = 1000000 / prescaler;
-		break;
-	default:
-		printf("Warning: Unknown timer init mode %u\n\r", init_mode);
-		return false;
-	}
-	if (prescaler > max_value) {
-		printf("Warning: Invalid init value in timer initialization. Check that the frequency or\
- step time required is in a valid range.\n\r");
+
+	prescaler = (float) fosc /
+				((float) freq * max_value) - 1;
+	// now we have prescaler when defined as a frequency
+	// if the freq is too high for timer to calculate to it's max value,
+	// decrease the max value accordingly
+	if (prescaler == 0) {
+		max_value = fosc / freq;
 	}
 
+//	printf("max value: 0x%x\n\r", max_value);
+//	printf("prescaler: 0x%x\n\r", prescaler);
+
 #ifdef LPC11C14
+
 	//enable sys clock to the timer module
 	LPC_SYSCON->SYSAHBCLKCTRL |= (1 << (timer + 7));
 
 	// add prescaler
 	this->timer[timer]->PR = prescaler;
 
-	// start timer
-	this->timer[timer]->TCR |= 1 << 0;
+	// reset timer on match 3
+	this->timer[timer]->MCR |= (0b1 << 10);
+
+	// set match 3 to timer max value
+	this->timer[timer]->MR3 = max_value;
+
+	// reset timer value
+	uw_timer_stop(timer);
 
 	#elif defined(LPC1785)
 #warning "uw_timer_init for LPC1785 is missing"
-	return false;
+	return ERR_FUNCTION_NOT_IMPLEMENTED;
 #endif
 
-	return true;
+	return ERR_NONE;
 }
 
 
 
-bool uw_pwm_init(uw_timers_e timer, uw_timer_pwms_e channels,
+uw_errors_e uw_pwm_init(uw_timers_e timer, uw_timer_pwms_e channels,
 		unsigned int freq, unsigned int fosc) {
-	if (!validate_timer(timer)) return false;
-	this_init();
+	if (validate_timer(timer)) return validate_timer(timer);
+	this_init(timer);
 #ifdef LPC11C14
 
 	unsigned long int prescaler;
-	unsigned int max_value = 0xFFFF;
-	if (timer > CT16B1) {
-		max_value = 0xFFFFFFFF;
-	}
+	unsigned int max_value = 1000;
 	prescaler = (unsigned long int) fosc /
 				((unsigned long int) freq * max_value) - 1;
 	if (prescaler > max_value) {
-		printf("Warning: Invalid init value in timer pwm initialization. Check that the \
-frequency required is in a valid range.\n\r");
-		return false;
+		return ERR_FREQ_TOO_HIGH_OR_TOO_LOW;
 	}
 
 	//enable sys clock to the timer module
@@ -209,12 +190,11 @@ frequency required is in a valid range.\n\r");
 	// clear tmr clear and stop for match 0, 1 and 2
 	this->timer[timer]->MCR &= ~0x3FF;
 
-	// generate interrupt and reset timer on match 3
+	// reset timer on match 3
 	this->timer[timer]->MCR |= (0b1 << 10);
 
 	// set match 3 to timer max value
-	// (16-bit timer values will be clamped to 16-bit value)
-	this->timer[timer]->MR3 = 0xFFFFFFFF;
+	this->timer[timer]->MR3 = max_value;
 
 	// start timer
 	this->timer[timer]->TCR |= 1 << 0;
@@ -222,31 +202,30 @@ frequency required is in a valid range.\n\r");
 
 #elif defined(LPC1785)
 #warning "uw_pwm_init for lpc1785 is missing"
-	return false;
+	return ERR_FUNCTION_NOT_IMPLEMENTED;
 #endif
 
-	return true;
+	return ERR_NONE;
 }
 
 
-bool uw_counter_init(uw_timers_e timer, uw_timer_captures_e capture_input,
+uw_errors_e uw_counter_init(uw_timers_e timer, uw_timer_captures_e capture_input,
 		uw_timer_capture_edges_e capture_edge) {
-	if (!validate_timer(timer)) return false;
-	this_init();
+	if (validate_timer(timer)) return validate_timer(timer);
+	this_init(timer);
 #ifdef LPC11C14
-	printf("Error: UW Counter mode not implemented yet in HAL library\n\r");
-	return false;
+	return ERR_NOT_IMPLEMENTED;
 #elif defined(LPC1785)
 #warning "uw_counter_init for lpc1785 is missing"
 	return false;
 #endif
 
-	return true;
+	return ERR_NONE;
 }
 
 
 int uw_timer_get_value(uw_timers_e timer) {
-	validate_timer(timer);
+	if (validate_timer(timer)) return 0;
 #ifdef LPC11C14
 	return this->timer[timer]->TC;
 #elif defined(LPC1785)
@@ -254,25 +233,71 @@ int uw_timer_get_value(uw_timers_e timer) {
 #endif
 }
 
+uw_errors_e uw_timer_start(uw_timers_e timer) {
+	if (validate_timer(timer)) return validate_timer(timer);
+	// start timer
+	this->timer[timer]->TCR |= 1 << 0;
+	return ERR_NONE;
+}
+
+uw_errors_e uw_timer_stop(uw_timers_e timer) {
+	if (validate_timer(timer)) return validate_timer(timer);
+	// stop timer
+	this->timer[timer]->TCR &= ~(1);
+	return ERR_NONE;
+}
 
 
-bool uw_timer_clear(uw_timers_e timer) {
-	if (!validate_timer(timer)) return false;
+uw_errors_e uw_timer_clear(uw_timers_e timer) {
+	if (validate_timer(timer)) return validate_timer(timer);
 	if (timer == TICK_TIMER) {
-		printf("Warning: Can't clear tick timer\n\r");
-		return false;
+		return ERR_UNSUPPORTED_PARAM1_VALUE;
 	}
 #ifdef LPC11C14
 	this->timer[timer]->TC = 0;
 #elif defined(LPC1785)
 #warning "uw_timer_clear for lpc1785 is missing"
 #endif
-	return true;
+	return ERR_NONE;
+}
+
+uw_errors_e uw_timer_set_freq(uw_timers_e timer, float freq, unsigned int fosc) {
+	if (validate_timer(timer)) return validate_timer(timer);
+
+	// stop and clear timer
+	uw_timer_stop(timer);
+	uw_timer_clear(timer);
+
+
+	//set prescaler depending on in which mode init_value was given
+	uint64_t prescaler;
+	uint32_t max_value = 0xFFFF;
+	if (timer > TIMER1) {
+		max_value = 0xFFFFFFFF;
+	}
+
+	prescaler = (float) fosc /
+				((float) freq * max_value) - 1;
+	// now we have prescaler when defined as a frequency
+	// if the freq is too high for timer to calculate to it's max value,
+	// decrease the max value accordingly
+	if (prescaler == 0) {
+		max_value = fosc / freq;
+	}
+
+	// add prescaler
+	this->timer[timer]->PR = prescaler;
+
+	// set match 3 to timer max value
+	this->timer[timer]->MR3 = max_value;
+
+	return ERR_NONE;
 }
 
 
-bool uw_timer_add_capture(uw_timers_e timer, uw_timer_captures_e input) {
-	if (!validate_timer(timer)) return false;
+
+uw_errors_e uw_timer_add_capture(uw_timers_e timer, uw_timer_captures_e input) {
+	if (validate_timer(timer)) return validate_timer(timer);
 #ifdef LPC11C14
 	// clear capture control register to default value
 	this->timer[timer]->CCR = 0;
@@ -284,43 +309,42 @@ bool uw_timer_add_capture(uw_timers_e timer, uw_timer_captures_e input) {
 		this->timer[timer]->CCR |= 0b11;
 	}
 	else {
-		printf("Warning: Unknown capture input %u\n\r", input);
-		return false;
+		return ERR_HARDWARE_NOT_SUPPORTED;
 	}
 	// set enable capture interrupt bit
 	this->timer[timer]->CCR |= (1 << 2);
 	switch (timer) {
-	case CT16B0:
+	case TIMER0:
 		//set TMR16B0CAP0 pin to capture mode
 		LPC_IOCON->PIO0_2 &= ~0b111;
 		LPC_IOCON->PIO0_2 |= 0x2;
 		break;
-	case CT16B1:
+	case TIMER1:
 		LPC_IOCON->PIO1_8 &= ~0b111;
 		LPC_IOCON->PIO1_8 |= 0x1;
 		break;
-	case CT32B0:
+	case TIMER2:
 		LPC_IOCON->PIO1_5 &= ~0b111;
 		LPC_IOCON->PIO1_5 |= 0x2;
 		break;
-	case CT32B1:
+	case TIMER3:
 		LPC_IOCON->R_PIO1_0 &= ~0b111;
 		LPC_IOCON->R_PIO1_0 |= 0x3;
 		break;
 	default:
-		break;
+		return ERR_HARDWARE_NOT_SUPPORTED;
 	}
 	#elif defined(LPC1785)
 #warning "uw_timer_add_capture for lpc1785 is missing"
-	return false;
+	return ERR_FUNCTION_NOT_IMPLEMENTED;
 #endif
 
-	return true;
+	return ERR_NONE;
 }
 
 
-bool uw_pwm_set(uw_timers_e timer, uw_timer_pwms_e channel, unsigned int duty_cycle) {
-	if (!validate_timer(timer)) return false;
+uw_errors_e uw_pwm_set(uw_timers_e timer, uw_timer_pwms_e channel, unsigned int duty_cycle) {
+	if (validate_timer(timer)) return validate_timer(timer);
 #ifdef LPC11C14
 
 	unsigned int max_value = this->timer[timer]->MR3;
@@ -341,46 +365,41 @@ bool uw_pwm_set(uw_timers_e timer, uw_timer_pwms_e channel, unsigned int duty_cy
 		this->timer[timer]->MR2 = value;
 		break;
 	default:
-		printf("Warning: Unknown PWM channel %u\n\r", channel);
-		break;
+		return ERR_HARDWARE_NOT_SUPPORTED;
 	}
 
 	#elif defined(LPC1785)
 #warning "uw_pwm_set for lpc1785 is missing"
-	return false;
+	return ERR_FUNCTION_NOT_IMPLEMENTED;
 #endif
 
-	return true;
+	return ERR_NONE;
 }
 
 
-bool uw_timer_add_callback(uw_timers_e timer, void (*callback_function)
-		(void* user_ptr, uw_timer_int_sources_e source, unsigned int value)) {
-	if (!validate_timer(timer)) return false;
+uw_errors_e uw_timer_add_callback(uw_timers_e timer, void (*callback_function)
+		(void* user_ptr, uw_timers_e timer, uw_timer_int_sources_e source, unsigned int value)) {
+	if (validate_timer(timer)) return validate_timer(timer);
 
 	// enable interrupts on this timer
 	IRQn_Type tmr;
 	switch (timer) {
-	case CT16B0: tmr = TIMER_16_0_IRQn; break;
-	case CT16B1: tmr = TIMER_16_1_IRQn; break;
-	case CT32B0: tmr = TIMER_32_0_IRQn; break;
-	case CT32B1: tmr = TIMER_32_1_IRQn; break;
+	case TIMER0: tmr = TIMER_16_0_IRQn; break;
+	case TIMER1: tmr = TIMER_16_1_IRQn; break;
+	case TIMER2: tmr = TIMER_32_0_IRQn; break;
+	case TIMER3: tmr = TIMER_32_1_IRQn; break;
 	default:
-		return false;
+		return ERR_HARDWARE_NOT_SUPPORTED;
 	}
 	NVIC_EnableIRQ(tmr);
 
-	// generate interrupt and reset timer on match 3
+	// generate interrupt on match 3
 	this->timer[timer]->MCR |= (0b11 << 9);
-
-	// set match 3 to timer max value
-	// (16-bit timer values will be clamped to 16-bit value)
-	this->timer[timer]->MR3 = 0xFFFFFFFF;
 
 	// remember callback function pointer
 	this->timer_callbacks[timer] = callback_function;
 
-	return true;
+	return ERR_NONE;
 }
 
 
@@ -398,17 +417,15 @@ inline void SysTick_Handler(void) {
 
 
 
-bool uw_tick_timer_init(uint32_t freq, uint32_t fosc) {
+uw_errors_e uw_tick_timer_init(uint32_t freq, uint32_t fosc) {
 	//enable timer interrupts
 	NVIC_EnableIRQ(SysTick_IRQn);
 	this->tick_timer_cycle_time_ms = 1000 / freq;
 	if (SysTick_Config(fosc / freq)) {
 		//error happened
-		printf("Tick timer encountered an error. \
-Tried to init with too low or too high frequency?\n\r");
-		return false;
+		return ERR_FREQ_TOO_HIGH_OR_TOO_LOW;
 	}
-	return true;
+	return ERR_NONE;
 
 }
 

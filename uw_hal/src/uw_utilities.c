@@ -64,10 +64,11 @@ void uw_start_delay(unsigned int delay_ms, int* p) {
 
 
 bool uw_delay(unsigned int step_ms, int* p) {
-	if (*p > 0) {
+	if (*p >= step_ms) {
 		*p -= step_ms;
 		return false;
 	}
+	*p = -1;
 	return true;
 }
 
@@ -87,13 +88,11 @@ bool Debug_ParamOnOff (const char* arg, bool current, const char* param)
 }
 
 
-void Debug_PrintMessage (hal_can_msg_obj_st* msg)
+void Debug_PrintMessage (uw_can_message_st* msg)
 {
-	int msgclass = msg->msg_id & 0xFF80;
-	int nodeid   = msg->msg_id & 0x007F;
+	int msgclass = msg->id & 0xFF80;
+	int nodeid   = msg->id & 0x007F;
 	int i;
-
-	printf ("msg obj: %2u, class: ", msg->msgobj);
 
 	switch (msgclass)
 	{
@@ -108,7 +107,7 @@ void Debug_PrintMessage (hal_can_msg_obj_st* msg)
 
 	printf (", data:");
 	for (i = 0; i < msg->data_length; i++)
-		printf(" %u", msg->data[i]);
+		printf(" %u", msg->data_8bit[i]);
 
 	printf("\r\n");
 }

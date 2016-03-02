@@ -35,9 +35,13 @@ typedef struct {
 
 
 typedef enum {
-	UW_CAN_NO_ERROR,
-	UW_CAN_ERROR_HARDWARE_NOT_AVAILABLE,
-	UW_CAN_ERROR_HARDWARE_BUSY
+	CAN_NO_ERROR,
+	CAN_ERROR_HARDWARE_NOT_AVAILABLE,
+	CAN_ERROR_HARDWARE_BUSY,
+	CAN_ERROR_BUS_OFF,
+	CAN_ERROR_PASSIVE,
+	CAN_ERROR_ACTIVE,
+	CAN_ERROR_WARNING
 } uw_can_errors_e;
 
 
@@ -59,7 +63,7 @@ typedef enum {
 /// @brief: A enum describing popular CAN masks used when configuring receive messages.
 enum {
 	/// @brief: Mask where every bit is relevant
-	UW_CAN_MASK_DEFAULT = 0xFFFFFFFF
+	MASK_DEFAULT = 0xFFFFFFFF
 };
 
 /// @brief: Initializes the can module either in synchronous mode or in asynchronous mode.
@@ -85,7 +89,7 @@ bool uw_can_init(uw_can_channels_e channel, unsigned int baudrate, unsigned int 
 ///
 /// @param channel: The CAN channel which is stepped
 /// @param step_ms: The step time in milliseconds
-void uw_can_step(uw_can_channels_e channel, unsigned int step_ms);
+bool uw_can_step(uw_can_channels_e channel, unsigned int step_ms);
 
 
 
@@ -107,11 +111,6 @@ bool uw_can_config_rx_message(uw_can_channels_e channel,
 
 
 
-/// @brief: creates a can message and returns it without sending it.
-///
-/// @pre: none
-uw_can_message_st uw_can_create_message(uint32_t id, uint8_t data_length, uint8_t* data);
-
 
 /// @brief: An alternative way to send a CAN message
 ///
@@ -126,14 +125,13 @@ uw_can_errors_e uw_can_send_message(uw_can_channels_e channel, uw_can_message_st
 
 
 
-/// @brief: Adds a transmit callback function which will be called when a message
-/// is transmitted.
-///
-/// @param callback_function: A function pointer to the callback function. The
-/// function takes 2 arguments: A user pointer (refer to uw_utilities.h) and
-/// a pointer to the CAN message which was sent.
-bool uw_can_add_tx_callback(uw_can_channels_e channel,
-		void (*callback_function)(void *user_ptr, uw_can_message_st *msg));
+
+/// @brief: Returns the CAN 2.0 specification error state. Error active is the normal state.
+uint8_t uw_can_get_error_state(uw_can_channels_e channel);
+
+
+
+bool uw_can_reset(uw_can_channels_e channel);
 
 
 

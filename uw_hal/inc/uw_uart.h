@@ -9,7 +9,9 @@
 #define UW_UART_H_
 
 #include <stdbool.h>
-#include <uw_stdout.h>
+#include <stdint.h>
+#include "uw_stdout.h"
+#include "uw_errors.h"
 
 
 /// @brief: Defines UARTS usable on the target system
@@ -42,34 +44,61 @@ typedef enum {
 } uw_uart_configs_e;
 
 
+
+
 /// @brief: initializes uart
+///
+/// @return: uw_errors_e describing if an error occurred. If succesful, ERR_NONE is returned.
+///
 /// @param uart: The hardware uart module which will be initialized
 /// @param baudRate desired baudrate in 1/s
-bool uw_uart_init(uw_uarts_e uart, uint32_t baudRate);
+uw_errors_e uw_uart_init(uw_uarts_e uart, uint32_t baud_rate);
+
+
+
 
 /// @brief: Configures uart
+///
+/// @return: uw_errors_e describing if an error occurred. If succesful, ERR_NONE is returned.
+///
 /// @note: Calling uw_uart_init initializes uart with 8n1 ( 8 data bytes,
 /// no parity, 1 stop bit). If any other configuration is needed, this
 /// function should be called.
-bool uw_uart_config(uw_uarts_e uart, uw_uart_configs_e configurations);
+///
+/// @param configurations: OR'red uw_uart_configs_e conf options for byte length,
+/// parity, and stop bits. The default without calling this function is 8n1.
+uw_errors_e uw_uart_config(uw_uarts_e uart, uw_uart_configs_e configurations);
+
+
 
 /// @brief: sends 1 character synchronously.
 /// function returns when last character has put into transfer buffer
-bool uw_uart_send_char 	(uw_uarts_e uart, char buffer);
+///
+/// @return: uw_errors_e describing if an error occurred. If succesful, ERR_NONE is returned.
+uw_errors_e uw_uart_send_char 	(uw_uarts_e uart, char buffer);
 
 /// @brief: sends a string synchronously
 /// function returns when last character has put into transfer buffer
+///
+/// @return: uw_errors_e describing if an error occurred. If succesful, ERR_NONE is returned.
+///
 /// @param length How many characters will be sent
-bool uw_uart_send     	(uw_uarts_e uart, char *buffer, uint32_t length);
+uw_errors_e uw_uart_send     	(uw_uarts_e uart, char *buffer, uint32_t length);
 
 /// @brief: sends a string synchronously
 /// function returns when last character has put into transfer buffer.
+///
+/// @return: uw_errors_e describing if an error occurred. If succesful, ERR_NONE is returned.
+///
 /// Sends characters till '\0' is met
 /// String to be send MUST be null-terminated string
-bool uw_uart_send_str		(uw_uarts_e uart, char *buffer);
+uw_errors_e uw_uart_send_str		(uw_uarts_e uart, char *buffer);
 
 /// @brief: Registers a receive callback function when anything is received via uart
-bool uw_uart_add_callback(uw_uarts_e uart, void (*callback_function)(void* user_ptr, char chr));
+///
+/// @return: uw_errors_e describing if an error occurred. If succesful, ERR_NONE is returned.
+///
+uw_errors_e uw_uart_add_callback(uw_uarts_e uart, void (*callback_function)(void* user_ptr, char chr));
 
 
 #endif /* UW_UART_H_ */

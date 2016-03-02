@@ -24,20 +24,20 @@
 #define UW_CANOPEN_NODE_ID_MASK		0x7F
 
 typedef enum {
-	UW_CANOPEN_UNKNOWN_PROTOCOL,
-	UW_CANOPEN_SDO_REQUEST_ID = 	0x600,
-	UW_CANOPEN_SDO_RESPONSE_ID = 	0x580,
-	UW_CANOPEN_TXPDO1_ID = 			0x180,
-	UW_CANOPEN_TXPDO2_ID = 			0x280,
-	UW_CANOPEN_TXPDO3_ID = 			0x380,
-	UW_CANOPEN_TXPDO4_ID = 			0x480,
-	UW_CANOPEN_RXPDO1_ID = 			0x200,
-	UW_CANOPEN_RXPDO2_ID = 			0x300,
-	UW_CANOPEN_RXPDO3_ID = 			0x400,
-	UW_CANOPEN_RXPDO4_ID =			0x500,
-	UW_CANOPEN_BOOTUP_ID = 			0x700,
-	UW_CANOPEN_HEARTBEAT_ID = 		0x700,
-	UW_CANOPEN_NMT_ID = 			0x0
+	UNKNOWN_PROTOCOL,
+	SDO_REQUEST_ID = 	0x600,
+	SDO_RESPONSE_ID = 	0x580,
+	TXPDO1_ID = 			0x180,
+	TXPDO2_ID = 			0x280,
+	TXPDO3_ID = 			0x380,
+	TXPDO4_ID = 			0x480,
+	RXPDO1_ID = 			0x200,
+	RXPDO2_ID = 			0x300,
+	RXPDO3_ID = 			0x400,
+	RXPDO4_ID =			0x500,
+	BOOTUP_ID = 			0x700,
+	HEARTBEAT_ID = 		0x700,
+	NMT_ID = 			0x0
 } uw_canopen_protocol_ids_e;
 
 typedef enum {
@@ -49,10 +49,10 @@ typedef enum {
 
 
 typedef enum {
-	UW_CANOPEN_STATE_BOOT_UP =			0x0,
-	UW_CANOPEN_STATE_STOPPED = 			0x4,
-	UW_CANOPEN_STATE_OPERATIONAL =		0x5,
-	UW_CANOPEN_STATE_PREOPERATIONAL =	0x7F
+	STATE_BOOT_UP =			0x0,
+	STATE_STOPPED = 			0x4,
+	STATE_OPERATIONAL =		0x5,
+	STATE_PREOPERATIONAL =	0x7F
 } uw_canopen_node_states_e;
 
 
@@ -365,6 +365,11 @@ void __uw_canopen_parse_message(uw_can_message_st* message);
 /// @brief: Used to set the device state. Device will start in UW_CANOPEN_BOOT_UP state
 /// and it should move itself to pre-operational state arfter boot up is done.
 void __uw_canopen_set_state(uw_canopen_node_states_e state);
+
+
+/// @brief: Used to get the device state. Device will start in UW_CANOPEN_BOOT_UP state
+/// and it should move itself to pre-operational state arfter boot up is done.
+uw_canopen_node_states_e __uw_canopen_get_state(void);
 
 
 

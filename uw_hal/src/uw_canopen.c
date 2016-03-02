@@ -42,7 +42,7 @@ void uw_canopen_init(uint8_t node_id, uw_canopen_object_st* obj_dict, unsigned i
 		void (*sdo_write_callback)(uw_canopen_object_st* obj_dict_entry)) {
 	this->obj_dict = obj_dict;
 	this->obj_dict_length = obj_dict_length;
-	this->state = UW_CANOPEN_STATE_BOOT_UP;
+	this->state = STATE_BOOT_UP;
 	this->sdo_write_callback = sdo_write_callback;
 	this->node_id = node_id;
 }
@@ -62,7 +62,7 @@ void __uw_canopen_parse_message(uw_can_message_st* message) {
 		m.type = message->id & (~UW_CANOPEN_NODE_ID_MASK);
 
 		switch (message->id & (~UW_CANOPEN_NODE_ID_MASK)) {
-		case UW_CANOPEN_SDO_REQUEST_ID:
+		case SDO_REQUEST_ID:
 			if (message->data_length < 5) {
 				// EMCY message should be sent??
 				// UW_CANOPEN_CORRUPTION_ERROR;
@@ -78,23 +78,23 @@ void __uw_canopen_parse_message(uw_can_message_st* message) {
 		// these protocol messages with this device's node-ID don't cause any
 		// actions. (PDO's are processed regardless of received message's node-ID,
 		// heartbeat message shouldn't be received, only transmitted.
-		case UW_CANOPEN_SDO_RESPONSE_ID:
-		case UW_CANOPEN_TXPDO1_ID:
-		case UW_CANOPEN_TXPDO2_ID:
-		case UW_CANOPEN_TXPDO3_ID:
-		case UW_CANOPEN_TXPDO4_ID:
-		case UW_CANOPEN_RXPDO1_ID:
-		case UW_CANOPEN_RXPDO2_ID:
-		case UW_CANOPEN_RXPDO3_ID:
-		case UW_CANOPEN_RXPDO4_ID:
-		case UW_CANOPEN_HEARTBEAT_ID:
+		case SDO_RESPONSE_ID:
+		case TXPDO1_ID:
+		case TXPDO2_ID:
+		case TXPDO3_ID:
+		case TXPDO4_ID:
+		case RXPDO1_ID:
+		case RXPDO2_ID:
+		case RXPDO3_ID:
+		case RXPDO4_ID:
+		case HEARTBEAT_ID:
 			break;
-		case UW_CANOPEN_NMT_ID:
+		case NMT_ID:
 			m.msg.nmt = message->data_8bit[0];
 			parse_nmt_message(&m);
 			break;
 		default:
-			m.type = UW_CANOPEN_UNKNOWN_PROTOCOL;
+			m.type = UNKNOWN_PROTOCOL;
 		}
 	}
 
@@ -109,6 +109,9 @@ void __uw_canopen_set_state(uw_canopen_node_states_e state) {
 	this->state = state;
 }
 
+uw_canopen_node_states_e __uw_canopen_get_state(void) {
+	return this->state;
+}
 
 
 static void parse_sdo(uw_canopen_msg_st* req) {

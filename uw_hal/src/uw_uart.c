@@ -37,7 +37,6 @@ static this_st _this;
 #ifdef LPC11C14
 void UART_IRQHandler (void) {
 	char received_char = this->uart[UART0]->RBR & 0xFF;
-
 	//call receive callback if it has been registered
 	if (this->callback[UART0]) {
 		this->callback[UART0](__uw_get_user_ptr(), received_char);
@@ -51,31 +50,30 @@ void UART_IRQHandler (void) {
 #endif
 
 
-static bool check_uart(uw_uarts_e uart) {
+static uw_errors_e check_uart(uw_uarts_e uart) {
 	if (uart >= UART_COUNT) {
-		printf("Warning: UART %u not available on %s hardware\n\r", uart, uw_get_hardware_name());
-		return false;
+		return ERR_HARDWARE_NOT_SUPPORTED;
 	}
-	return true;
+	return ERR_NONE;
 }
 
 
-bool uw_uart_add_callback(uw_uarts_e uart, void (*callback_function)(void* user_ptr, char chr)) {
-	if (!check_uart(uart)) return false;
+uw_errors_e uw_uart_add_callback(uw_uarts_e uart, void (*callback_function)(void* user_ptr, char chr)) {
+	if (check_uart(uart)) return check_uart(uart);
 	this->callback[uart] = callback_function;
-	return true;
+	return ERR_NONE;
 }
 
 
-bool uw_uart_init(uw_uarts_e uart, uint32_t baudRate) {
+uw_errors_e uw_uart_init(uw_uarts_e uart, uint32_t baud_rate) {
 #ifdef LPC11C14
 	this->callback[UART0] = 0;
 	this->uart[UART0] = LPC_UART;
 
-	if (!check_uart(uart)) return false;
+	if (check_uart(uart)) return check_uart(uart);
 
-	//set the baudrate
-	uint32_t uart_clock_div = SystemCoreClock / (baudRate * 16);
+	//set the baud_rate
+	uint32_t uart_clock_div = SystemCoreClock / (baud_rate * 16);
 	//uart clock divider is only 8 bits, so discard all values above 255
 	if (uart_clock_div > 0xff) {
 		uart_clock_div = 0xff;
@@ -100,8 +98,8 @@ bool uw_uart_init(uw_uarts_e uart, uint32_t baudRate) {
 	this->uart[UART0]->LCR = 0x03;
 	//baud rate generation: baud_rate = clk / (16 * (U0DLM >> 8 + U0DLL))
 	//from that: U0DLM + U0DLL = clk / (16 * baud_rate)
-//	this->uart[UART0]->DLL = clk / (16 * baudRate);
-//	this->uart[UART0]->DLM = (clk / (16 * baudRate)) >> 8;
+//	this->uart[UART0]->DLL = clk / (16 * baud_rate);
+//	this->uart[UART0]->DLM = (clk / (16 * baud_rate)) >> 8;
 
 	//reset UART FIFOs
 	this->uart[UART0]->FCR |= (0x01 << 1) | (0x01 << 2);
@@ -111,15 +109,15 @@ bool uw_uart_init(uw_uarts_e uart, uint32_t baudRate) {
 	this->uart[UART0]->FCR |= 0x01;
 #elif defined(LPC1785)
 #error "LPC1785 uart init not defined"
-	return false;
+	return ERR_FUNCTION_NOT_IMPLEMENTED;
 #endif
 
-	return true;
+	return ERR_NONE;
 }
 
 
-bool uw_uart_config(uw_uarts_e uart, uw_uart_configs_e config) {
-	if (!check_uart(uart)) return false;
+uw_errors_e uw_uart_config(uw_uarts_e uart, uw_uart_configs_e config) {
+	if (check_uart(uart)) return check_uart(uart);
 
 #ifdef LPC11C14
 	unsigned int c = 0;
@@ -132,44 +130,51 @@ bool uw_uart_config(uw_uarts_e uart, uw_uart_configs_e config) {
 	else if (GET_MASKED(config, UART_PARITY_EVEN)) c |= (0b11 << 3);
 
 	this->uart[UART0]->LCR = c;
-	return true;
+	return ERR_NONE;
 #elif defined(LPC1785)
 #error "LPC1785 uart config not missing"
-	return false;
+	return FUNCTION_NOT_IMPLEMENTED;
 #endif
 }
 
 
-bool uw_uart_send_char(uw_uarts_e uart, char buffer) {
-	if (!check_uart(uart)) return false;
+
+uw_errors_e uw_uart_send_char(uw_uarts_e uart, char buffer) {
+	if (check_uart(uart)) return check_uart(uart);
 
 	/* Wait until we're ready to send */
 	while (!(this->uart[UART0]->LSR & (1 << 6))) ;
 	//send data
 	this->uart[UART0]->THR = buffer;
 
-	return true;
+	return ERR_NONE;
 }
 
-bool uw_uart_send(uw_uarts_e uart, char *buffer, uint32_t length) {
-	if (!check_uart(uart)) return false;
+
+
+uw_errors_e uw_uart_send(uw_uarts_e uart, char *buffer, uint32_t length) {
+	if (check_uart(uart)) return check_uart(uart);
 
 	while (length != 0) {
 		uw_uart_send_char(uart, *buffer);
 		buffer++;
 		length--;
 	}
-	return true;
+	return ERR_NONE;
 }
 
-bool uw_uart_send_str(uw_uarts_e uart, char *buffer) {
-	if (!check_uart(uart)) return false;
+
+
+uw_errors_e uw_uart_send_str(uw_uarts_e uart, char *buffer) {
+	if (check_uart(uart)) return check_uart(uart);
 
 	while (*buffer != '\0') {
 		uw_uart_send_char(uart, *buffer);
 		buffer++;
 	}
 
-	return true;
+	return ERR_NONE;
 }
+
+
 

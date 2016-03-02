@@ -50,10 +50,9 @@ typedef enum {
 	CMD_RESET,
 	CMD_SAVE,
 	CMD_REVERT,
-	CMD_SET_SDO,
-	CMD_GET_SDO,
+	CMD_SDO,
 	CMD_PDO_ECHO,
-	CMD_SET_STATE,
+	CMD_STATE,
 	CMD_STACK_SIZE
 } uw_common_commands_e;
 

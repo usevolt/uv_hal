@@ -10,6 +10,7 @@
 
 
 #include <stdbool.h>
+#include "uw_errors.h"
 
 /// @brief: provides an interface for initializing input and output gpios
 /// as well as reading and writing to them
@@ -100,7 +101,7 @@ typedef enum {
 /// @param gpio The gpio pin which will be configured
 /// @param initial value The initial value which will be written to the gpio pin.
 /// @example: uw_gpio_init_output(PIO1_9, true);
-void uw_gpio_init_output(uw_gpios_e gpio, bool initial_value);
+uw_errors_e uw_gpio_init_output(uw_gpios_e gpio, bool initial_value);
 
 
 /// @brief: Initializes the gpio pin as an input.
@@ -109,7 +110,7 @@ void uw_gpio_init_output(uw_gpios_e gpio, bool initial_value);
 // Additional settings such as the mode of the pin can be configured as well.
 /// @param int_configurations: OR'red interrupt configurations on the pin
 /// @example: uw_gpio_init_input(PIO1_9, PULL_UP_ENABLED | HYSTERESIS_ENABLED);
-void uw_gpio_init_input(uw_gpios_e gpio, uw_gpio_input_config_e configurations,
+uw_errors_e uw_gpio_init_input(uw_gpios_e gpio, uw_gpio_input_config_e configurations,
 		uw_gpio_interrupt_config_e int_configurations);
 
 
@@ -119,15 +120,15 @@ void uw_gpio_init_input(uw_gpios_e gpio, uw_gpio_input_config_e configurations,
 /// @param callback_function: A function pointer to the callback function which will be called
 /// The callback function takes 2 parameter: user pointer (see uw_utilities.h) and gpio pin
 /// which caused the interrupt.
-void uw_gpio_set_interrupt_callback(void (*callback_function)(void * user_ptr, uw_gpios_e));
+void uw_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, uw_gpios_e));
 
 /// @brief: Sets the output value on an output gpio pin
 /// @pre: uw_gpio_init_output should have been called for this pin
-void uw_gpio_set_pin(uw_gpios_e gpio, bool value);
+uw_errors_e uw_gpio_set_pin(uw_gpios_e gpio, bool value);
 
 /// @brief: Toggles the state of the output gpio pin
 /// @pre: uw_gpio_init_output should have been called for this pin
-void uw_gpio_toggle_pin(uw_gpios_e gpio);
+uw_errors_e uw_gpio_toggle_pin(uw_gpios_e gpio);
 
 /// @brief: Gets the input from the input gpio pin.
 /// @pre: uw_gpio_init_input should have been called on this pin.

@@ -10,13 +10,14 @@
 #define UW_UTILITIES_H_
 
 #include "uw_types.h"
-#include "hal_can.h"
+#include "uw_can.h"
 #include <stdbool.h>
 
 
 
-
 #define GetInt16(hibyte,lobyte)		(((uint16_t) hibyte << 8) + (uint16_t) lobyte)
+
+
 
 
 /// @brief: returns the masked value of 'value'
@@ -60,7 +61,7 @@ bool Debug_ParamOnOff (const char* arg, bool current, const char* param);
 
 
 /// @brief:  prints can message contents in debug console
-void Debug_PrintMessage (hal_can_msg_obj_st* msg);
+void Debug_PrintMessage (uw_can_message_st* msg);
 
 
 
