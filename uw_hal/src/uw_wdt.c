@@ -6,13 +6,17 @@
  */
 
 
-
+#ifdef LPC11C14
 #include "LPC11xx.h"
+#elif defined(LPC1785)
+#include "LPC177x_8x.h"
+#endif
 #include "uw_wdt.h"
 
 
 
 void uw_wdt_init(unsigned int time_s, unsigned int fosc) {
+#ifdef LPC11C14
 	//enable clock to wdt
 	LPC_SYSCON->SYSAHBCLKCTRL |= (1 << 15);
 	//select IRC oscillator as the clock source
@@ -37,9 +41,10 @@ void uw_wdt_init(unsigned int time_s, unsigned int fosc) {
 	LPC_WDT->FEED = 0xAA;
 	LPC_WDT->FEED = 0x55;
 	__enable_irq();
-
+#elif defined(LPC1785)
+#warning "Implementation not defined"
+#endif
 }
-
 
 void uw_wdt_update(void) {
 	__disable_irq();

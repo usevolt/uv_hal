@@ -10,6 +10,11 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
+#ifdef LPC11C14
+#include "LPC11xx.h"
+#elif defined(LPC1785)
+#include "LPC177x_8x.h"
+#endif
 
 
 void *user_ptr = NULL;
@@ -127,6 +132,15 @@ char *uw_get_hardware_name() {
 #else
 	#error "Error: Hardware name not specified in uw_utilities.c"
 #endif
+}
+
+
+uw_errors_e uw_set_int_priority(uw_int_sources_e src, unsigned int priority) {
+	if (priority <= INT_LOWEST_PRIORITY) {
+		NVIC_SetPriority(src, priority);
+		return ERR_NONE;
+	}
+	__uw_err_throw(ERR_INT_LEVEL | HAL_MODULE_UTILITIES);
 }
 
 

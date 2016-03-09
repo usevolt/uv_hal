@@ -7,23 +7,37 @@
 
 #include <stdio.h>
 #include <uw_memory.h>
+#ifdef LPC11C14
 #include "LPC11xx.h"
+#elif defined(LPC1785)
+#include "LPC177x_8x.h"
+#endif
 #include "uw_uart.h"
 #include "uw_utilities.h"
 
+
+#ifdef LPC11C14
 /// @brief: Defines the flash memory sector size in bytes. Make sure this matches the used MCU!
 /// Refer to the manual for correct value
-#define FLASH_SECTOR_SIZE	4096
+#define FLASH_SECTOR_SIZE					4096
 
 /// @brief: The start address of flash memory. It is important to set this right for
 /// the IAP functions to determinate the right section of flash to be erased and written.
 /// Refer to MCU's manual for the right value.
-#define FLASH_START_ADDRESS 0x00000000
+#define FLASH_START_ADDRESS 				0x00000000
 
 /// @brief: The last sector of flash memory is reserved for non-volatile application data storage.
 /// @note: IMPORTANT: Make sure that this memory region is not used for anything else!
 #define NON_VOLATILE_MEMORY_START_ADDRESS	0x00007000
+#elif defined(LPC1785)
 
+#define FLASH_FIRST_SECTOR_SIZE				0x1000
+#define FLASH_SECOND_SECTOR_SIZE			0x8000
+#define FLASH_SECOND_SECTOR_SIZE_BEGIN		0x00010000
+#define FLASH_START_ADDRESS 				0x00000000
+#define NON_VOLATILE_MEMORY_START_ADDRESS	0x00038000
+
+#endif
 
 /// @brief: Defines the value which will be save to the checksum memory location when
 /// saving data. Value should'nt be 0 or 0xFFFFFFFF, because those values are likely
@@ -51,6 +65,8 @@ typedef void (*IAP)(unsigned int [],unsigned int[]);
 
 static uw_data_start_t* last_start = NULL;
 static uw_data_end_t *last_end = NULL;
+
+
 
 
 void uw_enter_ISP_mode(void) {
@@ -101,19 +117,27 @@ void uw_get_device_serial(unsigned int dest[4]) {
 
 
 
-uw_errors_e uw_save_non_volatile_data(uw_data_start_t *start_ptr, uw_data_end_t *end_ptr) {
+uw_errors_e uw_memory_save(uw_data_start_t *start_ptr, uw_data_end_t *end_ptr) {
 	// take up memory locations
 	last_start = start_ptr;
 	last_end = end_ptr;
 	int length = ((unsigned int) end_ptr + sizeof(uw_data_end_t)) - (unsigned int) start_ptr;
 	if (length < 0) {
-		return ERR_END_ADDR_LESS_THAN_START_ADDR;
+		__uw_err_throw(ERR_END_ADDR_LESS_THAN_START_ADDR | HAL_MODULE_MEMORY);
 	}
+#ifdef LPC1785
+	else if (length > IAP_BYTES_32768) {
+		__uw_err_throw(ERR_NOT_ENOUGH_MEMORY | HAL_MODULE_MEMORY);
+	}
+#endif
 	//calculate the right length
 	else if (length > IAP_BYTES_4096) {
-		return ERR_NOT_ENOUGH_MEMORY;
+#ifdef LPC11C14
+		__uw_err_throw(ERR_NOT_ENOUGH_MEMORY | HAL_MODULE_MEMORY);
+#elif defined(LPC1785)
+		length = IAP_BYTES_32768;
+#endif
 	}
-
 	else if (length > IAP_BYTES_1024) {
 		length = IAP_BYTES_4096;
 	}
@@ -132,18 +156,18 @@ uw_errors_e uw_save_non_volatile_data(uw_data_start_t *start_ptr, uw_data_end_t 
 	end_ptr->end_checksum = CHECKSUM_VALID;
 
 	uw_iap_status_e status = uw_erase_and_write_to_flash((unsigned int) start_ptr,
-			length, NON_VOLATILE_MEMORY_START_ADDRESS, SystemCoreClock);
+			length, NON_VOLATILE_MEMORY_START_ADDRESS);
 	if (status == IAP_CMD_SUCCESS) {
 		return ERR_NONE;
 	}
 	else {
-		printf("\n\rError: Saving to non-volatile memory failed with error code %u\n\r", status);
-		return ERR_INTERNAL;
+		printf("\n\rerror code %u\n\r", status);
+		__uw_err_throw(ERR_INTERNAL | HAL_MODULE_MEMORY);
 	}
 }
 
 
-uw_errors_e uw_load_non_volatile_data(uw_data_start_t *start_ptr, uw_data_end_t *end_ptr) {
+uw_errors_e uw_memory_load(uw_data_start_t *start_ptr, uw_data_end_t *end_ptr) {
 	int length = ((unsigned int) end_ptr + sizeof(uw_data_end_t)) - (unsigned int) start_ptr;
 	int i;
 	char* d = (char*) start_ptr;
@@ -164,7 +188,7 @@ uw_errors_e uw_load_non_volatile_data(uw_data_start_t *start_ptr, uw_data_end_t 
 	//check both checksums
 	if (end_ptr->end_checksum != CHECKSUM_VALID ||
 			start_ptr->start_checksum != CHECKSUM_VALID) {
-		return ERR_CHECKSUM_NOT_MATCH;
+		__uw_err_throw(ERR_CHECKSUM_NOT_MATCH | HAL_MODULE_MEMORY);
 	}
 	return ERR_NONE;
 }
@@ -172,10 +196,13 @@ uw_errors_e uw_load_non_volatile_data(uw_data_start_t *start_ptr, uw_data_end_t 
 
 
 uw_iap_status_e uw_erase_and_write_to_flash(unsigned int ram_address,
-		uw_writable_amount_e num_bytes, unsigned int flash_address, unsigned int fosc) {
+		uw_writable_amount_e num_bytes, unsigned int flash_address) {
 	//find out the sectors to be erased
 	unsigned int command_param[5];
 	unsigned int status_result[4];
+
+	SystemCoreClockUpdate();
+
 	IAP iap_entry = (IAP) IAP_LOCATION;
 
 	//disable interrupts
@@ -191,8 +218,25 @@ uw_iap_status_e uw_erase_and_write_to_flash(unsigned int ram_address,
 		return IAP_NUM_BYTES_INVALID;
 	}
 
-	int startSection = (flash_address - FLASH_START_ADDRESS) / FLASH_SECTOR_SIZE;
-	int endSection = (flash_address + num_bytes - FLASH_START_ADDRESS - 1) / FLASH_SECTOR_SIZE;
+	int startSection, endSection;
+
+#ifdef LPC11C14
+	startSection = (flash_address - FLASH_START_ADDRESS) / FLASH_SECTOR_SIZE;
+	endSection = (flash_address + num_bytes - FLASH_START_ADDRESS - 1) / FLASH_SECTOR_SIZE;
+#elif defined(LPC1785)
+	if (flash_address >= FLASH_SECOND_SECTOR_SIZE_BEGIN) {
+		// from sector 16 onward the section size is 32 kB
+		startSection = (flash_address - FLASH_START_ADDRESS) /
+				FLASH_SECOND_SECTOR_SIZE + 14;
+		endSection = (flash_address + num_bytes - FLASH_START_ADDRESS - 1) /
+				FLASH_SECOND_SECTOR_SIZE + 14;
+	}
+	else {
+		// first 16 sectors the sector size is 4 kB
+		startSection = (flash_address - FLASH_START_ADDRESS) / FLASH_FIRST_SECTOR_SIZE;
+		endSection = (flash_address + num_bytes - FLASH_START_ADDRESS - 1) / FLASH_FIRST_SECTOR_SIZE;
+	}
+#endif
 
 	//prepare the flash sections for erase operation
 	command_param[0] = PREPARE_SECTOR;
@@ -209,7 +253,7 @@ uw_iap_status_e uw_erase_and_write_to_flash(unsigned int ram_address,
 	command_param[0] = ERASE_SECTOR;
 	command_param[1] = startSection;
 	command_param[2] = endSection;
-	command_param[3] = fosc / 1000;
+	command_param[3] = SystemCoreClock / 1000;
 	iap_entry(command_param, status_result);
 	if (status_result[0] != IAP_CMD_SUCCESS) {
 		__enable_irq();
@@ -232,7 +276,7 @@ uw_iap_status_e uw_erase_and_write_to_flash(unsigned int ram_address,
 	command_param[1] = flash_address;
 	command_param[2] = ram_address;
 	command_param[3] = num_bytes;
-	command_param[4] = fosc / 1000;
+	command_param[4] = SystemCoreClock / 1000;
 
 	iap_entry(command_param, status_result);
 
@@ -253,9 +297,9 @@ uw_errors_e __uw_save_previous_non_volatile_data() {
 		/* 	Error: Cannot save data. data source address is not specified.
 			Make sure that the application calls uw_save_non_volatile_data or
 			uw_load_non_volatile_data before attempting this. */
-		return ERR_INTERNAL;
+		__uw_err_throw(ERR_INTERNAL | HAL_MODULE_MEMORY);
 	}
-	return uw_save_non_volatile_data(last_start, last_end);
+	return uw_memory_save(last_start, last_end);
 }
 
 
@@ -264,7 +308,48 @@ uw_errors_e __uw_load_previous_non_volatile_data() {
 		/* 	Error: Cannot save data. data source address is not specified.
 			Make sure that the application calls uw_save_non_volatile_data or
 			uw_load_non_volatile_data before attempting this. */
-		return ERR_INTERNAL;
+		__uw_err_throw(ERR_INTERNAL | HAL_MODULE_MEMORY);
 	}
-	return uw_load_non_volatile_data(last_start, last_end);
+	return uw_memory_load(last_start, last_end);
 }
+
+
+uw_errors_e __uw_clear_previous_non_volatile_data() {
+	if (!last_start) {
+		__uw_err_throw(ERR_INTERNAL | HAL_MODULE_MEMORY);
+	}
+	last_start->start_checksum = 0;
+	last_end->end_checksum = 0;
+
+	int length = ((unsigned int) last_end + sizeof(uw_data_end_t)) - (unsigned int) last_start;
+	if (length < 0) {
+		__uw_err_throw(ERR_END_ADDR_LESS_THAN_START_ADDR | HAL_MODULE_MEMORY);
+	}
+	//calculate the right length
+	else if (length > IAP_BYTES_4096) {
+		__uw_err_throw(ERR_NOT_ENOUGH_MEMORY | HAL_MODULE_MEMORY);
+	}
+
+	else if (length > IAP_BYTES_1024) {
+		length = IAP_BYTES_4096;
+	}
+	else if (length > IAP_BYTES_512) {
+		length = IAP_BYTES_1024;
+	}
+	else if (length > IAP_BYTES_256) {
+		length = IAP_BYTES_512;
+	}
+	else {
+		length = IAP_BYTES_256;
+	}
+
+	uw_iap_status_e status = uw_erase_and_write_to_flash((unsigned int) last_start,
+			length, NON_VOLATILE_MEMORY_START_ADDRESS);
+	if (status == IAP_CMD_SUCCESS) {
+		return ERR_NONE;
+	}
+	else {
+		__uw_err_throw(ERR_INTERNAL | HAL_MODULE_MEMORY);
+	}
+}
+

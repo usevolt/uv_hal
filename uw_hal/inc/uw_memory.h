@@ -91,6 +91,7 @@ typedef enum {
 	IAP_BYTES_512 = 512,
 	IAP_BYTES_1024 = 1024,
 	IAP_BYTES_4096 = 4096,
+	IAP_BYTES_32768 = 32768,
 	IAP_BYTES_COUNT
 } uw_writable_amount_e;
 
@@ -120,9 +121,9 @@ typedef enum {
 ///		uw_data_end_t end;
 /// } data;
 ///	// save all data between start and end
-/// uw_save_non_volatile_data(&data.start, &data.end);
+/// uw_memory_save(&data.start, &data.end);
 ///
-uw_errors_e uw_save_non_volatile_data(uw_data_start_t *start_ptr, uw_data_end_t *end_ptr);
+uw_errors_e uw_memory_save(uw_data_start_t *start_ptr, uw_data_end_t *end_ptr);
 
 /// @brief: Copies data from non-volatile flash memory to another memory location,
 /// usually to RAM.
@@ -139,7 +140,7 @@ uw_errors_e uw_save_non_volatile_data(uw_data_start_t *start_ptr, uw_data_end_t 
 /// destination memory where data should be copied.
 /// After copying the data, this will be used to validate if
 /// non-volatile memory contained valid data or if it was undefined.
-uw_errors_e uw_load_non_volatile_data(uw_data_start_t *start_ptr, uw_data_end_t *end_ptr);
+uw_errors_e uw_memory_load(uw_data_start_t *start_ptr, uw_data_end_t *end_ptr);
 
 
 /// @brief: Writes RAM data to flash. Note that the data can be written only a limited
@@ -159,7 +160,7 @@ uw_errors_e uw_load_non_volatile_data(uw_data_start_t *start_ptr, uw_data_end_t 
 /// going to be erased before writing.
 /// @param fosc Oscillator frequency in Hz
 uw_iap_status_e uw_erase_and_write_to_flash(unsigned int ram_address,
-		uw_writable_amount_e num_bytes, unsigned int flash_address, unsigned int fosc);
+		uw_writable_amount_e num_bytes, unsigned int flash_address);
 
 
 
@@ -187,5 +188,11 @@ uw_errors_e __uw_save_previous_non_volatile_data();
 /// memory addresses and data lengths are saved and this function just re-loads the same data
 /// from the same location.
 uw_errors_e __uw_load_previous_non_volatile_data();
+
+
+/// @brief: Clears the data from non-volatile memory
+/// Does a soft memory reset. This means that the data is not really cleared, only checksums
+/// are cleared.
+uw_errors_e __uw_clear_previous_non_volatile_data();
 
 #endif /* UW_MEMORY_H_ */

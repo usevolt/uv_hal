@@ -8,7 +8,10 @@
 #include "uw_can.h"
 #include "uw_utilities.h"
 #include <stdio.h>
-
+#ifdef LPC1785
+#include "LPC177x_8x.h"
+#warning "Implementation needs verification for LPC1785"
+#endif
 #ifdef LPC11C14
 #include "LPC11xx.h"
 enum {

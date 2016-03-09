@@ -182,8 +182,10 @@ static int print(char **out, const char *format, va_list args )
 	return pc;
 }
 
+#include <uw_gpio.h>
 int printf(const char *format, ...)
 {
+
         va_list args;
 
         va_start( args, format );

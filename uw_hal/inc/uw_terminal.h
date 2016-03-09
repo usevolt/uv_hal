@@ -46,21 +46,24 @@ typedef struct {
 
 
 typedef enum {
-	CMD_ENTER_ISP,
+	CMD_ISP = 0xF0,
+	CMD_HELP,
 	CMD_RESET,
 	CMD_SAVE,
 	CMD_REVERT,
 	CMD_SDO,
 	CMD_PDO_ECHO,
 	CMD_STATE,
-	CMD_STACK_SIZE
+	CMD_SET_ISP
 } uw_common_commands_e;
 
 /* ------------ PUBLIC FUNCTIONS -----------------*/
 
 /// @brief: Sets the pointer to an array containing all application commands.
 /// This function should be called before any other terminal functions
-/// @param commands: A pointer to command array containing all commands
+///
+/// @param commands: A pointer to command array containing all application commands.
+/// Those commands are appended with uw_common_commands_e common commands.
 /// @param count: Indicates how many entries there are in commands array
 /// @param callback: Callback function which will be called when a command has been received.
 /// The callback function should take 2 parameters: command enum value and
@@ -68,10 +71,14 @@ typedef enum {
 void uw_terminal_init(const uw_command_st* commands, unsigned int count,
 		void (*callback_function)(void* user_ptr, int cmd, char** args));
 
+
+
 /// @brief: Returns the number of commands found in command array pointer registered with
 /// a hal_terminal_init_commands function call.
 /// @pre: hal_terminal_init_commands should have been called to register a command array pointer.
 int uw_terminal_get_commands_count(void);
+
+
 
 ///@brief: Disables or enables ISP mode entry when '?' is received from terminal
 void uw_terminal_disable_isp_entry(bool value);

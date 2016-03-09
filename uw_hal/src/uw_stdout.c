@@ -23,9 +23,12 @@ static uint8_t byte_count = 0;
 
 void putchar(const char c)
 {
+
 	switch (stdout) {
 	case STDOUT_UART:
-		uw_uart_send_char(UART0, c);
+		if (uw_uart_is_initialized(UART0)) {
+			uw_uart_send_char(UART0, c);
+		}
 		break;
 	case STDOUT_CAN:
 //		uw_canopen_pdo_msg[CANOPEN_TXPDO4].data[byte_count++] = c;

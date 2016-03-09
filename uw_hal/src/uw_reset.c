@@ -5,8 +5,11 @@
  *      Author: usenius
  */
 
-
+#ifdef LPC11C14
 #include "LPC11xx.h"
+#elif defined(LPC1785)
+#include "LPC177x_8x.h"
+#endif
 #include "uw_reset.h"
 #include "uw_wdt.h"
 
@@ -14,6 +17,7 @@
 static uw_reset_sources_e reset_source = UW_RESET_COUNT;
 
 uw_reset_sources_e hal_get_reset_source(void) {
+#ifdef LPC11C14
 	//POR reset
 	//external reset pin
 	if ((LPC_SYSCON->SYSRSTSTAT & (1 << 1))) {
@@ -34,6 +38,11 @@ uw_reset_sources_e hal_get_reset_source(void) {
 	//clear all reset data
 	LPC_SYSCON->SYSRSTSTAT = 0xF;
 	return reset_source;
+#elif defined(LPC1785)
+
+#warning "Implementation not defined"
+
+#endif
 }
 
 

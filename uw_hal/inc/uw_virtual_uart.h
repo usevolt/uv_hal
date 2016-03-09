@@ -25,6 +25,16 @@
 /// This is because timer init function must be called once and only once per application
 /// and before adding any callbacks to timers. uw_virtual_uart_init calls uw_timer_init.
 ///
+/// NOTE: Since virtual UART uses only 1 timer to receive and transmit, it's only half-duplex,
+/// e.g. it cannot send and receive bytes at the same time. Transmitting is in a higher priority
+/// than receiving but transmit will never interrupt a receiving byte.
+///
+/// Transmitting with the virtual UART is asynchronous, but not buffered. This means that
+/// one call to uw_virtual_uart_send_str() will return quickly, putting the string
+/// to transmit. The UART will transmit bytes asynchronously on the background.
+/// However, a second call to that same function will wait for the last transmit to finish
+/// before starting to transmit the next string.
+///
 /// @example:
 ///
 /// uw_virtual_uart_st uart;
@@ -48,7 +58,8 @@
 
 #define _uw_timers_e uint16_t
 #define _uw_gpios_e uint32_t
-typedef struct {
+typedef struct uw_virtual_uart_st uw_virtual_uart_st;
+struct uw_virtual_uart_st {
 	/// @brief: A uw_gpios_e variable describing the PIN used as a transmit line
 	_uw_gpios_e tx_io;
 	/// @brief: A uw_gpios_e variable describing the PIN used as a receive line
@@ -63,13 +74,22 @@ typedef struct {
 	/// @brief: Receive callback function pointer. This function will be called when
 	/// data is received. If this is not used, NULL can be assigned.
 	/// @param user_ptr: A user specified application pointer. See uw_utilities.h for details.
-	void (*rx_callback)(void *user_ptr, char);
+	/// @param this: Pointer to this virtual uart module
+	void (*rx_callback)(void *user_ptr, uw_virtual_uart_st *this, char);
+	/// @brief: String transmit callback function pointer. If assigned, this will be called
+	/// when the last byte of a null-terminated string has been transmitted
+	/// @param user_ptr: A user specified application pointer. See uw_utilities.h for details.
+	/// @param this: Pointer to this virtual uart module
+	void (*str_tx_callback)(void *user_ptr, uw_virtual_uart_st *this);
 	/// @brief: Indicates if a byte is being received. This is put to true after start bit
 	/// and cleared after 8 bits have been received.
 	bool receiving;
+	bool transmitting;
 	char byte;
+	// transmit ptr points to the string which will be transmitted
+	char *transmit_ptr;
 	uint8_t bits;
-} uw_virtual_uart_st;
+};
 
 
 
@@ -85,35 +105,34 @@ typedef struct {
 /// @return: uw_errors_e describing if an error occurred. If succesful, ERR_NONE is returned.
 uw_errors_e uw_virtual_uart_init(uw_virtual_uart_st *uart, _uw_gpios_e rx_pin,
 		_uw_gpios_e tx_pin, _uw_timers_e timer, uint16_t baudrate,
-		void (*callback)(void *user_ptr, char));
+		void (*rx_callback)(void *user_ptr, uw_virtual_uart_st *this, char),
+		void (*str_tx_callback)(void *user_ptr, uw_virtual_uart_st *this));
 
 
 
 /// @brief: Sends a char via virtual uart.
 ///
-/// @note: Function returns when the character was sent. Virtual uarts do not support
-/// asynchronous transmissions.
+/// @note: Function returns when first bit of this char is started to transmit.
 ///
 /// @return: uw_errors_e describing if an error occurred. If succesful, ERR_NONE is returned.
-uw_errors_e uw_virtual_uart_send(uw_virtual_uart_st *uart, char c);
+uw_errors_e uw_virtual_uart_send(uw_virtual_uart_st *uart, char *c);
 
 
 
 /// @brief: Sends a null-terminated string via virtual uart.
 ///
-/// @note: Function returns when the whole string was sent. Vitual uarts do not support
-/// asynchronous transmissions.
+/// @note: Function returns when transmitting the string was started. This means that
+/// if there is another string in transmit when calling this, the function will wait
+/// for the last string to finish transmitting and then return.
 ///
 /// @return: uw_errors_e describing if an error occurred. If succesful, ERR_NONE is returned.
 uw_errors_e uw_virtual_uart_send_str(uw_virtual_uart_st *uart, char *str);
 
 
-/// @brief: The user program should call this function when it detects that a byte is being
-/// received. This causes the virtual uart to activate and receive the character.
-/// Usually this is called in a GPIO interrupt handler as well as timer interrupt handler.
+/// @brief: The user program should call this function in both GPIO and timer interrupt routines.
 ///
 /// @return: uw_errors_e describing if an error occurred. If successful, ERR_NONE is returned.
-uw_errors_e uw_virtual_uart_process_rx(uw_virtual_uart_st *uart);
+uw_errors_e uw_virtual_uart_isr(uw_virtual_uart_st *uart);
 
 
 /// @brief: Assign's the last received character to c. If no characters are received since the
@@ -125,5 +144,8 @@ uw_errors_e uw_virtual_uart_process_rx(uw_virtual_uart_st *uart);
 uw_errors_e uw_virtual_uart_get_char(uw_virtual_uart_st *uart, char *c);
 
 
+
+/// @brief: Returns true if uart is ready to send
+bool uw_virtual_uart_ready_to_send(uw_virtual_uart_st *uart);
 
 #endif /* UW_VIRTUAL_UART_H_ */

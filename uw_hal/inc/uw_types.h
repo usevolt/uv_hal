@@ -15,4 +15,5 @@
 #define HAL_VERSION_STR			("2.0")
 
 
+
 #endif /* UW_TYPES_H_ */

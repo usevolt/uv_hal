@@ -26,10 +26,15 @@ static uint8_t receive_buffer_index = 0;
 static bool disable_isp_entry = false;
 static const uw_command_st common_cmds[] = {
 		{
-				.id = CMD_ENTER_ISP,
-				.str = "enterisp",
+				.id = CMD_ISP,
+				.str = "isp",
 				.instructions = "Sets the controller to enter ISP \n\r\
 (In System Programming) mode instantly."
+		},
+		{
+				.id = CMD_HELP,
+				.str = "help",
+				.instructions = "List's all available commands"
 		},
 		{
 				.id = CMD_RESET,
@@ -48,7 +53,9 @@ reset is done."
 		{
 				.id = CMD_REVERT,
 				.str = "revert",
-				.instructions = "Reverts all local changes to non-volatile values."
+				.instructions = "Reverts all changes to factory defaults.\n\r\
+The device need's to be restarted for changes to take effect.\n\r\
+To undo revert, save current values to flash with 'save' command."
 		},
 		{
 				.id = CMD_SDO,
@@ -75,10 +82,10 @@ Used to read / write the device's CANopen state machine to\n\r\
 stopped, pre-operational or operational state."
 		},
 		{
-				.id = CMD_STACK_SIZE,
-				.str = "stack",
-				.instructions = "Returns the approximated stack size in percents\n\r\
- relative to RAM size."
+				.id = CMD_SET_ISP,
+				.str = "setisp",
+				.instructions = "Usage: isp <on/off>\n\r\
+Can be used to disable ISP entry when receiving '?' from the terminal."
 		}
 };
 
@@ -123,19 +130,25 @@ void __uw_terminal_process_rx_msg(char* data, uint8_t data_length, uw_stdout_sou
 		printf("\n\r\n\r**** Warning: Terminal buffer overflow ****\n\r\n\r");
 	}
 
-	//echo back received characters
-	uw_stdout_send(data, data_length);
-
 	// cycle trough received characters
 	unsigned int i;
 	for (i = 0; i < data_length; i++) {
+
+		// echo back received characters
+		uw_stdout_send(&data[i], 1);
+
+		// escape clears the terminal
+		if (data[i] == 0x1B) {
+			uw_stdout_send("\033[2K\r>", 6);
+			receive_buffer_index = 0;
+			continue;
+		}
 
 		// if backspace was received, delete last saved character
 		if (data[i] == 0x08) {
 			if (receive_buffer_index > 0) {
 				receive_buffer_index--;
 			}
-			terminal_receive_buffer[receive_buffer_index] = '\0';
 			continue;
 		}
 		//if carriage return was received, read command and clear buffer
@@ -144,6 +157,13 @@ void __uw_terminal_process_rx_msg(char* data, uint8_t data_length, uw_stdout_sou
 			int p = 0;
 			//change line
 			printf("\n\r");
+			// do nothing if receive buffer was empty
+			if (receive_buffer_index == 0) {
+				printf(">");
+				return;
+			}
+			//replace carriage return with a terminating pointer
+			terminal_receive_buffer[receive_buffer_index] = '\0';
 			receive_buffer_index = 0;
 			for (i = 0; i < TERMINAL_RECEIVE_BUFFER_SIZE - 1; i++) {
 				// on '\0' command has ended
@@ -180,25 +200,14 @@ void __uw_terminal_process_rx_msg(char* data, uint8_t data_length, uw_stdout_sou
 						}
 					}
 					if (!match) {
-						printf("Command '%s' not found. Available commands:\n\r\n\r",
+						printf("Command '%s' not found\n\r",
 								terminal_receive_buffer);
-						for (p = 0; p < sizeof(common_cmds) / sizeof(uw_command_st); p++) {
-							printf("\"%s\"\n\r'%s'\n\r\n\r", common_cmds[p].str,
-									common_cmds[p].instructions);
-						}
-						for (p = 0; p < uw_terminal_get_commands_count(); p++) {
-							printf("\"%s\"\n\r'%s'\n\r\n\r", commands_ptr[p].str,
-									commands_ptr[p].instructions);
-						}
 					}
 				}
 				// printf command prompt character after callback function has been executed
 				printf(">");
 			}
 
-			for (i = 0; i < TERMINAL_RECEIVE_BUFFER_SIZE; i++) {
-				terminal_receive_buffer[i] = '\0';
-			}
 			for (i = 0; i < TERMINAL_ARG_COUNT; i++) {
 				args[i] = &terminal_receive_buffer[TERMINAL_RECEIVE_BUFFER_SIZE - 1];
 			}
@@ -222,10 +231,21 @@ void uw_terminal_disable_isp_entry(bool value) {
 
 static void execute_common_cmd(int cmd, char** args) {
 	uw_canopen_node_states_e state;
+	uint8_t p;
 
 	switch (cmd) {
-	case CMD_ENTER_ISP:
+	case CMD_ISP:
 		uw_enter_ISP_mode();
+		break;
+	case CMD_HELP:
+		for (p = 0; p < sizeof(common_cmds) / sizeof(uw_command_st); p++) {
+			printf("\"%s\"\n\r%s\n\r\n\r", common_cmds[p].str,
+					common_cmds[p].instructions);
+		}
+		for (p = 0; p < uw_terminal_get_commands_count(); p++) {
+			printf("\"%s\"\n\r%s\n\r\n\r", commands_ptr[p].str,
+					commands_ptr[p].instructions);
+		}
 		break;
 	case CMD_SDO:
 		printf("Command not yet implemented in HAL.\n\r");
@@ -242,9 +262,7 @@ static void execute_common_cmd(int cmd, char** args) {
 		}
 		break;
 	case CMD_REVERT:
-		if (__uw_load_previous_non_volatile_data()) {
-			printf("Reverted.\n\r");
-		}
+		printf("%u\n\r", __uw_clear_previous_non_volatile_data());
 		break;
 	case CMD_SAVE:
 		if (__uw_save_previous_non_volatile_data()) {
@@ -283,14 +301,24 @@ static void execute_common_cmd(int cmd, char** args) {
 				str = "unknown";
 				break;
 			}
-			printf("Device state: '%s'\n\r", str);
+			printf("%s\n\r", str);
 			break;
 		}
 		__uw_canopen_set_state(state);
-		printf("Canopen device state set.\n\r");
+		printf("State: %s.\n\r", args[0]);
 		break;
-	case CMD_STACK_SIZE:
-		printf("Stack size: %u percent\n\r", uw_get_stack_size());
+	case CMD_SET_ISP:
+		if (strcmp(args[0], "on") == 0) {
+			uw_terminal_disable_isp_entry(false);
+			printf("isp on\n\r");
+		}
+		else if (strcmp(args[0], "off") == 0) {
+			uw_terminal_disable_isp_entry(true);
+			printf("isp off\n\r");
+		}
+		else {
+			printf("isp %s\n\r", disable_isp_entry ? "off" : "on");
+		}
 		break;
 	default:
 		break;
