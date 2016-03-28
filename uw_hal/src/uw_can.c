@@ -6,13 +6,15 @@
  */
 
 #include "uw_can.h"
+
+
 #include "uw_utilities.h"
 #include <stdio.h>
-#ifdef LPC1785
+#if CONFIG_TARGET_LPC178X
 #include "LPC177x_8x.h"
-#warning "Implementation needs verification for LPC1785"
+#warning "Implementation needs verification for CONFIG_TARGET_LPC178X"
 #endif
-#ifdef LPC11C14
+#if CONFIG_TARGET_LPC11CXX
 #include "LPC11xx.h"
 enum {
 	MSG_OBJ_COUNT = 32
@@ -34,11 +36,11 @@ typedef struct {
 #else
 
 #endif
-#ifdef LPC11C14
+#if CONFIG_TARGET_LPC11CXX
 	uint32_t pending_msg_objs;
 	uint32_t used_msg_objs;
 	int8_t pending_msg_obj_time_limit[MSG_OBJ_COUNT];
-#elif defined(LPC1785)
+#elif CONFIG_TARGET_LPC178X
 
 #endif
 	void (*rx_callback[CAN_COUNT])(void *user_ptr, uw_can_message_st *msg);
@@ -62,9 +64,9 @@ static bool check_channel(uw_can_channels_e channel) {
 
 
 
-// to keep this file clear, first all function are defined for LPC11C14 and
-// after that to LPC1785
-#ifdef LPC11C14
+// to keep this file clear, first all function are defined for CONFIG_TARGET_LPC11CXX and
+// after that to CONFIG_TARGET_LPC178X
+#if CONFIG_TARGET_LPC11CXX
 
 /// @brief: Time limit for pending message objects. If this exceedes, all message objects are
 /// released from pending state.
@@ -143,7 +145,7 @@ typedef struct {
 	uint8_t *val;
 } hal_canopen_obj_dict_entry_st;
 
-// LPC11Cxx C_CAN driver struct. Do not change!
+// CONFIG_TARGET_LPC11CXX C_CAN driver struct. Do not change!
 typedef struct CCAN_CALLBACKS {
 	void (*CAN_rx)(uint8_t msg_obj_num);
 	void (*CAN_tx)(uint8_t msg_obj_num);
@@ -171,7 +173,7 @@ typedef struct {
 
 } CCAN_CANOPENCFG_T;
 
-// LPC11Cxx C_CAN driver struct. Do not change!
+// CONFIG_TARGET_LPC11CXX C_CAN driver struct. Do not change!
 typedef struct CCAN_API {
 	void (*init_can)(uint32_t *can_cfg, uint8_t isr_ena);
 	void (*isr)(void);
@@ -413,7 +415,7 @@ bool uw_can_reset(uw_can_channels_e channel) {
 }
 
 
-#elif defined(LPC1785)
+#elif CONFIG_TARGET_LPC178X
 
 bool uw_can_init(uw_can_channels_e channel, unsigned int baudrate, unsigned int fosc,
 		uw_can_message_st *tx_buffer, unsigned int tx_buffer_size,

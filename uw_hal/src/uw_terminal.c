@@ -6,86 +6,155 @@
  */
 
 
+#include "uw_terminal.h"
+
+
 #include "uw_reset.h"
 #include "uw_canopen.h"
 #include <stdio.h>
 #include <string.h>
-#include "uw_memory.h"
-#include "uw_terminal.h"
 #include "uw_utilities.h"
+#include "uw_uart.h"
+#include "uw_stdout.h"
+#if CONFIG_TARGET_LPC11CXX
+#include "LPC11xx.h"
+#elif CONFIG_TARGET_LPC178X
+#include "LPC177x_8x.h"
+#endif
+#if CONFIG_RTOS
+#include "uw_rtos.h"
+#endif
 
-static const uw_command_st* commands_ptr = 0;
-static int commands_count = 0;
-static void (*callback)(void* user_ptr, int cmd, char** args) = 0;
 
-/// whole command receive buffer
-static char terminal_receive_buffer[TERMINAL_RECEIVE_BUFFER_SIZE];
-/// argument pointers
-static char* args[TERMINAL_ARG_COUNT];
-static uint8_t receive_buffer_index = 0;
-static bool disable_isp_entry = false;
+// extern declarations for uw_memory module's functions
+extern uw_errors_e __uw_save_previous_non_volatile_data();
+extern uw_errors_e __uw_load_previous_non_volatile_data();
+extern uw_errors_e __uw_clear_previous_non_volatile_data();
+extern void uw_enter_ISP_mode(void);
+
+
+typedef struct {
+	const uw_command_st *commands_ptr;
+	uint8_t commands_count;
+	bool disable_isp;
+	uint8_t buffer_index;
+	char buffer[CONFIG_TERMINAL_BUFFER_SIZE];
+	void (*callback)(void *user_ptr, int cmd, char **args);
+
+} this_st;
+
+static this_st _this;
+#define this (&_this)
+
 static const uw_command_st common_cmds[] = {
 		{
 				.id = CMD_ISP,
 				.str = "isp",
-				.instructions = "Sets the controller to enter ISP \n\r\
-(In System Programming) mode instantly."
+				.instructions =
+#if CONFIG_TERMINAL_INSTRUCTIONS
+						"Sets the controller to enter ISP \n\r"
+						"(In System Programming) mode instantly."
+#else
+						""
+#endif
 		},
 		{
 				.id = CMD_HELP,
 				.str = "help",
-				.instructions = "List's all available commands"
+				.instructions =
+#if CONFIG_TERMINAL_INSTRUCTIONS
+						"List's all available commands"
+#else
+						""
+#endif
 		},
 		{
 				.id = CMD_RESET,
 				.str = "reset",
-				.instructions = "Resets the controller instantly.\n\r\
-All unsave modifications will be lost.\n\r\
-If 'hard' is given as an argument, the system will use\n\r\
-watchdog timer to make a hardware reset. Else Cortex-M0 software\n\r\
-reset is done."
+				.instructions =
+#if CONFIG_TERMINAL_INSTRUCTIONS
+						"Usage: reset (hard)"
+						"Resets the controller instantly.\n\r"
+						"All unsave modifications will be lost.\n\r"
+						"If 'hard' is given as an argument, the system will use\n\r"
+						"watchdog timer to make a hardware reset. Else Cortex-M0 software\n\r"
+						"reset is done."
+#else
+						""
+#endif
 		},
 		{
 				.id = CMD_SAVE,
 				.str = "save",
-				.instructions = "Saves application data and settings to non-volatile memory."
+				.instructions =
+#if CONFIG_TERMINAL_INSTRUCTIONS
+						"Saves application data and settings to non-volatile flash memory."
+#else
+						""
+#endif
 		},
 		{
 				.id = CMD_REVERT,
 				.str = "revert",
-				.instructions = "Reverts all changes to factory defaults.\n\r\
-The device need's to be restarted for changes to take effect.\n\r\
-To undo revert, save current values to flash with 'save' command."
+				.instructions =
+#if CONFIG_TERMINAL_INSTRUCTIONS
+						"Reverts all changes to factory defaults.\n\r"
+						"The device need's to be restarted for changes to take effect.\n\r"
+						"To undo revert, save current values to flash with 'save' command."
+#else
+						""
+#endif
 		},
 		{
 				.id = CMD_SDO,
 				.str = "sdo",
-				.instructions = "Usage: sdo <index> <subindex> <value>\n\r\
-Used to read or write CANopen SDO object manually.\n\r\
-All arguments are evaluated as 10-base integer values.\n\r\
-To define them in 16-base hexadecimals, use '0x' prefix.\n\r\
-To read an object, specify the index and subindex but leave value\n\r\
-empty."
+				.instructions =
+#if CONFIG_TERMINAL_INSTRUCTIONS
+						"Usage: sdo <index> <subindex> <value>\n\r"
+						"Used to read or write CANopen SDO object manually.\n\r"
+						"All arguments are evaluated as 10-base integer values.\n\r"
+						"To define them in 16-base hexadecimals, use '0x' prefix.\n\r"
+						"To read an object, specify the index and subindex but leave value\n\r"
+						"empty."
+#else
+						""
+#endif
 		},
 		{
 				.id = CMD_PDO_ECHO,
 				.str = "pdoecho",
-				.instructions = "Usage: pdoecho <on/off>\n\r\
-If on, all sent CANopen PDO messages are echoed into terminal.\n\r\
-Defaults to 'off'"
+				.instructions =
+#if CONFIG_TERMINAL_INSTRUCTIONS
+						"Usage: pdoecho <on/off>\n\r"
+						"If on, all sent CANopen PDO messages are echoed into terminal.\n\r"
+						"Defaults to 'off'"
+#else
+						""
+#endif
 		},
 		{
 				.id = CMD_STATE,
 				.str = "state",
-				.instructions = "Usage: state <bootup/stopped/preop/op>\n\r\
-Used to read / write the device's CANopen state machine to\n\r\
-stopped, pre-operational or operational state."
+				.instructions =
+#if CONFIG_TERMINAL_INSTRUCTIONS
+						"Usage: state <bootup/stopped/preop/op>\n\r"
+						"Used to read / write the device's CANopen state machine to\n\r"
+						"stopped, pre-operational or operational state."
+#else
+						""
+#endif
 		},
 		{
 				.id = CMD_SET_ISP,
 				.str = "setisp",
-				.instructions = "Usage: isp <on/off>\n\r\
-Can be used to disable ISP entry when receiving '?' from the terminal."
+				.instructions =
+#if CONFIG_TERMINAL_INSTRUCTIONS
+						"Usage: isp <on/off>\n\r"
+						"Can be used to disable ISP entry when receiving '?' from the terminal."
+						"ISP mode is still accessible with 'isp' command."
+#else
+						""
+#endif
 		}
 };
 
@@ -94,98 +163,128 @@ static void execute_common_cmd(int cmd, char** args);
 
 void uw_terminal_init(const uw_command_st* commands, unsigned int count,
 		void (*callback_function)(void* user_ptr, int cmd, char** args)) {
-	commands_ptr = commands;
-	commands_count = count;
-	callback = callback_function;
-	int i;
-	for (i = 0; i < TERMINAL_RECEIVE_BUFFER_SIZE; i++) {
-		terminal_receive_buffer[i] = '\0';
-	}
+	this->commands_ptr = commands;
+	this->commands_count = count;
+	this->callback = callback_function;
+	this->buffer_index = 0;
+	this->buffer[0] = '\0';
 }
-
 
 
 
 int uw_terminal_get_commands_count(void) {
-	return commands_count;
+	return this->commands_count;
 }
 
 
 
-void __uw_terminal_process_rx_msg(char* data, uint8_t data_length, uw_stdout_sources_e source) {
+uw_errors_e uw_terminal_step() {
 	// if pointer to commands array is null, terminal is not initialized, so we do nothing
-	if (!commands_ptr) {
-		return;
+	if (!this->commands_ptr) {
+		__uw_err_throw(ERR_NOT_INITIALIZED | HAL_MODULE_TERMINAL);
 	}
-	// redirect printf to the source where message was received
-	uw_stdout_set_source(source);
 
-	//check for buffer overflow
-	if (receive_buffer_index + data_length >= TERMINAL_RECEIVE_BUFFER_SIZE) {
-		int i;
-		for (i = 0; i < TERMINAL_RECEIVE_BUFFER_SIZE; i++) {
-			terminal_receive_buffer[i] = '\0';
+	// cycle trough all received characters
+	char data;
+	char *args[CONFIG_TERMINAL_ARG_COUNT + 1];
+
+	uw_errors_e e;
+	while (true) {
+
+		// redirect printf to the source where message was received
+		if (!(e = uw_uart_get_char(UART0, &data))) {
+			uw_stdout_set_source(STDOUT_UART0);
 		}
-		receive_buffer_index = 0;
-		printf("\n\r\n\r**** Warning: Terminal buffer overflow ****\n\r\n\r");
-	}
+		else {
+//			uw_stdout_set_source(STDOUT_CAN);
+			//todo: CAN message retrieval here
+		}
 
-	// cycle trough received characters
-	unsigned int i;
-	for (i = 0; i < data_length; i++) {
+		// getting an error means that no more data is available
+		if (e) {
+			break;
+		}
+
+		// check for buffer overflows
+		if (this->buffer_index >= CONFIG_TERMINAL_BUFFER_SIZE) {
+			this->buffer_index = 0;
+			__uw_err_throw(ERR_BUFFER_OVERFLOW | HAL_MODULE_TERMINAL);
+		}
 
 		// echo back received characters
-		uw_stdout_send(&data[i], 1);
+		uw_stdout_send(&data, 1);
 
 		// escape clears the terminal
-		if (data[i] == 0x1B) {
+		if (data == 0x1B) {
 			uw_stdout_send("\033[2K\r>", 6);
-			receive_buffer_index = 0;
+			this->buffer_index = 0;
 			continue;
 		}
 
 		// if backspace was received, delete last saved character
-		if (data[i] == 0x08) {
-			if (receive_buffer_index > 0) {
-				receive_buffer_index--;
+		if (data == 0x08) {
+			if (this->buffer_index > 0) {
+				this->buffer_index--;
 			}
 			continue;
 		}
 		//if carriage return was received, read command and clear buffer
-		if (data[i] == 0x0D) {
+		if (data == 0x0D) {
 			int i;
 			int p = 0;
 			//change line
 			printf("\n\r");
 			// do nothing if receive buffer was empty
-			if (receive_buffer_index == 0) {
+			if (this->buffer_index == 0) {
 				printf(">");
-				return;
+				continue;
 			}
-			//replace carriage return with a terminating pointer
-			terminal_receive_buffer[receive_buffer_index] = '\0';
-			receive_buffer_index = 0;
-			for (i = 0; i < TERMINAL_RECEIVE_BUFFER_SIZE - 1; i++) {
-				// on '\0' command has ended
-				if (terminal_receive_buffer[i] == '\0') {
-					break;
+			//replace carriage return with a terminating mark
+			this->buffer[this->buffer_index] = '\0';
+
+			bool multi_arg = false;
+			for (i = 0; i < this->buffer_index; i++) {
+				// '"' mark means a multi-space argument
+
+				// gargarg arg "arg arg"
+				if (i) {
+					if (this->buffer[i] == '"') {
+						if (!multi_arg) {
+							// multi-space argument start, edit arg starting with \0
+							if (this->buffer[i - 1] == '\0') {
+								this->buffer[i] = '\0';
+								args[p - 1] = &this->buffer[i + 1];
+								multi_arg = true;
+							}
+						}
+						else {
+							// multi-space argument end
+							multi_arg = false;
+							this->buffer[i] = '\0';
+						}
+					}
 				}
 				// search for space (argument start)
-				else if (terminal_receive_buffer[i] == ' ') {
-					terminal_receive_buffer[i] = '\0';
-					if (p < TERMINAL_ARG_COUNT) {
-						args[p++] = &terminal_receive_buffer[i + 1];
+				if (!multi_arg && this->buffer[i] == ' ') {
+					this->buffer[i] = '\0';
+					if (p < CONFIG_TERMINAL_ARG_COUNT) {
+						args[p++] = &this->buffer[i + 1];
 					}
 				}
 			}
+			while (p < CONFIG_TERMINAL_ARG_COUNT + 1) {
+				args[p++] = &this->buffer[this->buffer_index];
+			}
+			this->buffer_index = 0;
 
-			if (callback) {
+			if (this->callback) {
 				// find out which command was received by looping trough them
 				int p;
 				bool match = false;
+
 				for (p = 0; p < uw_terminal_get_commands_count(); p++) {
-					if (strcmp(terminal_receive_buffer, commands_ptr[p].str) == 0) {
-						callback(__uw_get_user_ptr(), commands_ptr[p].id, args);
+					if (strcmp(this->buffer, this->commands_ptr[p].str) == 0) {
+						this->callback(__uw_get_user_ptr(), this->commands_ptr[p].id, args);
 						match = true;
 						break;
 					}
@@ -193,7 +292,7 @@ void __uw_terminal_process_rx_msg(char* data, uint8_t data_length, uw_stdout_sou
 				// if no match was found, search common commands
 				if (!match) {
 					for (p = 0; p < sizeof(common_cmds) / sizeof(uw_command_st); p++) {
-						if (strcmp(terminal_receive_buffer, common_cmds[p].str) == 0) {
+						if (strcmp(this->buffer, common_cmds[p].str) == 0) {
 							match = true;
 							execute_common_cmd(common_cmds[p].id, args);
 							break;
@@ -201,32 +300,29 @@ void __uw_terminal_process_rx_msg(char* data, uint8_t data_length, uw_stdout_sou
 					}
 					if (!match) {
 						printf("Command '%s' not found\n\r",
-								terminal_receive_buffer);
+								this->buffer);
 					}
 				}
 				// printf command prompt character after callback function has been executed
 				printf(">");
 			}
-
-			for (i = 0; i < TERMINAL_ARG_COUNT; i++) {
-				args[i] = &terminal_receive_buffer[TERMINAL_RECEIVE_BUFFER_SIZE - 1];
-			}
 			continue;
 		}
 
 		//if questionmark was received, enter isp mode
-		if (data[i] == '?' && !disable_isp_entry) {
+		if (data == '?' && !this->disable_isp) {
 			uw_enter_ISP_mode();
 		}
 
 		// add character to buffer
-		terminal_receive_buffer[receive_buffer_index++] = data[i];
+		this->buffer[this->buffer_index++] = data;
 	}
+	return ERR_NONE;
 }
 
 
 void uw_terminal_disable_isp_entry(bool value) {
-	disable_isp_entry = value;
+	this->disable_isp = value;
 }
 
 static void execute_common_cmd(int cmd, char** args) {
@@ -242,10 +338,12 @@ static void execute_common_cmd(int cmd, char** args) {
 			printf("\"%s\"\n\r%s\n\r\n\r", common_cmds[p].str,
 					common_cmds[p].instructions);
 		}
+#if CONFIG_TERMINAL_INSTRUCTIONS
 		for (p = 0; p < uw_terminal_get_commands_count(); p++) {
-			printf("\"%s\"\n\r%s\n\r\n\r", commands_ptr[p].str,
-					commands_ptr[p].instructions);
+			printf("\"%s\"\n\r%s\n\r\n\r", this->commands_ptr[p].str,
+					this->commands_ptr[p].instructions);
 		}
+#endif
 		break;
 	case CMD_SDO:
 		printf("Command not yet implemented in HAL.\n\r");
@@ -317,7 +415,7 @@ static void execute_common_cmd(int cmd, char** args) {
 			printf("isp off\n\r");
 		}
 		else {
-			printf("isp %s\n\r", disable_isp_entry ? "off" : "on");
+			printf("isp %s\n\r", this->disable_isp ? "off" : "on");
 		}
 		break;
 	default:

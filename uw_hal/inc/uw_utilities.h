@@ -9,11 +9,28 @@
 #ifndef UW_UTILITIES_H_
 #define UW_UTILITIES_H_
 
+
+#include "uw_hal_config.h"
+
+
 #include "uw_types.h"
 #include "uw_can.h"
 #include "uw_errors.h"
+#if CONFIG_TARGET_LPC11CXX
+#include "LPC11xx.h"
+#endif
 #include <stdbool.h>
 
+// interrupt disable and enable functions are specified here only if
+// RTOS is not enabled. Otherwise they are defined in uw_rtos.h
+// For portability reasons, "_ISR" ending macros are also defined.
+// They should be used when disabling interrupts from inside ISR's.
+#if !CONFIG_RTOS
+#define uw_disable_int()		__disable_irq()
+#define uw_disable_int_ISR()	__disable_irq()
+#define uw_enable_int()			__enable_irq()
+#define uw_enable_int_ISR()		__enable_irq()
+#endif
 
 #define GetInt16(hibyte,lobyte)		(((uint16_t) hibyte << 8) + (uint16_t) lobyte)
 
@@ -28,7 +45,6 @@
 
 
 
-int uw_atoi (const char* str);
 
 
 /// @brief: Initializes a delay.
@@ -80,8 +96,38 @@ void uw_set_application_ptr(void *ptr);
 /// @brief: Returns this controller's name as a null-terminated string
 char *uw_get_hardware_name();
 
+/// @brief: A simple ring buffer
+typedef struct {
+	/// @brief: Buffer for holding the data
+	char *buffer;
+	/// @brief: The max size of the buffer in bytes
+	uint16_t buffer_size;
+	/// @brief: Keeps the track of how many elements there are in the buffer
+	uint16_t element_count;
+	/// @brief: Pointer to the head of the data
+	char *head;
+	/// @brief: Pointer to the tail of the data
+	char *tail;
+} uw_ring_buffer_st;
 
-#ifdef LPC11C14
+/// @brief: Initializes the ring buffer
+uw_errors_e uw_ring_buffer_init(uw_ring_buffer_st *buffer_ptr, char *buffer, uint16_t buffer_size);
+
+/// @brief: Adds a new element into the ring buffer
+uw_errors_e uw_ring_buffer_push(uw_ring_buffer_st *buffer, char element);
+
+
+/// @brief: Removes the last element from the ring buffer. The popped
+/// element is stored into 'dest'
+uw_errors_e uw_ring_buffer_pop(uw_ring_buffer_st *buffer, char *dest);
+
+
+/// @brief: Clears the ring buffer to the initial state
+static inline uw_errors_e uw_ring_buffer_clear(uw_ring_buffer_st *buffer) {
+	return uw_ring_buffer_init(buffer, buffer->buffer, buffer->buffer_size);
+}
+
+#if CONFIG_TARGET_LPC11CXX
 /// @brief: Defines the interrupts sources on this hardware
 typedef enum {
 	/******  Cortex-M0 Processor Exceptions Numbers ***************************************************/
@@ -91,7 +137,7 @@ typedef enum {
 	  INT_PENDSV                   = -2,     /*!< 14 Cortex-M0 Pend SV Interrupt                     */
 	  INT_SYSTICK                  = -1,     /*!< 15 Cortex-M0 System Tick Interrupt                 */
 
-	/******  LPC11Cxx or LPC11xx Specific Interrupt Numbers *******************************************************/
+	/******  CONFIG_TARGET_LPC11CXX or LPC11xx Specific Interrupt Numbers *******************************************************/
 	  INT_WAKEUP0                  = 0,        /*!< All I/O pins can be used as wakeup source.       */
 	  INT_WAKEUP1                  = 1,        /*!< There are 13 pins in total for LPC11xx           */
 	  INT_WAKEUP2                  = 2,
@@ -128,7 +174,7 @@ enum {
 	INT_LOWEST_PRIORITY = 3
 };
 
-#elif defined(LPC1785)
+#elif CONFIG_TARGET_LPC178X
 /// @brief: Defines the interrupts sources on this hardware
 typedef enum {
 	/******  Cortex-M3 Processor Exceptions Numbers ***************************************************/

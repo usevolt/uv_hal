@@ -5,19 +5,23 @@
  *      Author: usenius
  */
 
-#ifdef LPC11C14
+
+
+
+#include "uw_reset.h"
+
+#if CONFIG_TARGET_LPC11CXX
 #include "LPC11xx.h"
-#elif defined(LPC1785)
+#elif CONFIG_TARGET_LPC178X
 #include "LPC177x_8x.h"
 #endif
-#include "uw_reset.h"
 #include "uw_wdt.h"
 
 
 static uw_reset_sources_e reset_source = UW_RESET_COUNT;
 
 uw_reset_sources_e hal_get_reset_source(void) {
-#ifdef LPC11C14
+#if CONFIG_TARGET_LPC11CXX
 	//POR reset
 	//external reset pin
 	if ((LPC_SYSCON->SYSRSTSTAT & (1 << 1))) {
@@ -38,7 +42,7 @@ uw_reset_sources_e hal_get_reset_source(void) {
 	//clear all reset data
 	LPC_SYSCON->SYSRSTSTAT = 0xF;
 	return reset_source;
-#elif defined(LPC1785)
+#elif CONFIG_TARGET_LPC178X
 
 #warning "Implementation not defined"
 
@@ -49,12 +53,10 @@ uw_reset_sources_e hal_get_reset_source(void) {
 
 void hal_system_reset(bool hard_reset) {
 	if (hard_reset) {
-		//todo: reset with watchdog timer
-		uw_wdt_init(1, 40000000);
+		uw_wdt_init(1);
 		uw_wdt_reset();
 	}
 	else {
-		//Cortex M0 reset
 		NVIC_SystemReset();
 	}
 }

@@ -5,8 +5,12 @@
  *      Author: usevolt
  */
 
+
 #ifndef HAL_RESET_H_
 #define HAL_RESET_H_
+
+
+#include "uw_hal_config.h"
 
 #include <stdbool.h>
 

@@ -8,12 +8,15 @@
 #ifndef UW_STDOUT_H_
 #define UW_STDOUT_H_
 
+
+#include "uw_hal_config.h"
+
 /// @brief: Defines the standard output for printf and such
 
 
 typedef enum {
 	STDOUT_UNDEFINED,
-	STDOUT_UART,
+	STDOUT_UART0,
 	STDOUT_CAN
 } uw_stdout_sources_e;
 

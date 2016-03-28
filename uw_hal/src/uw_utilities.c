@@ -7,12 +7,13 @@
 
 
 #include "uw_utilities.h"
+
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
-#ifdef LPC11C14
+#if CONFIG_TARGET_LPC11CXX
 #include "LPC11xx.h"
-#elif defined(LPC1785)
+#elif CONFIG_TARGET_LPC178X
 #include "LPC177x_8x.h"
 #endif
 
@@ -20,47 +21,6 @@
 void *user_ptr = NULL;
 
 
-int uw_atoi (const char* str) {
-	int i;
-	int j;
-	int result = 0;
-	int base = 10;
-	if (strstr(str, "0x\0") != NULL) {
-		int k;
-		for (k = 0; str[k] != '\0'; k++) {
-			if (str[k] == 'x') {
-				str = &str[k + 1];
-				break;
-			}
-		}
-		base = 16;
-	}
-
-	//calculate length of received value
-	for (i = 0; str[i] != '\0'; i++) { }
-	j = --i;
-	// count backwards
-	for (; i >= 0; i--) {
-		uint8_t number;
-		// convert hex characters into numbers
-		if ( str[i] >= 'a' && str[i] <= 'f') {
-			number = str[i] - 'a' + 10;
-		}
-		else if (str[i] >= 'A' && str[i] <= 'F') {
-			number = str[i] - 'A' + 10;
-		}
-		else {
-			number = str[i] - '0';
-		}
-		int p;
-		int mult = 1;
-		for (p = 0; p < j - i; p++) {
-			mult *= base;
-		}
-		result += number * mult;
-	}
-	return result;
-}
 
 
 void uw_start_delay(unsigned int delay_ms, int* p) {
@@ -125,14 +85,55 @@ void uw_set_application_ptr(void *ptr) {
 
 
 char *uw_get_hardware_name() {
-#ifdef LPC11C14
-	return "LPC11C14";
-#elif defined(LPC1785)
-	return "LPC1785";
+#if CONFIG_TARGET_LPC11CXX
+	return "CONFIG_TARGET_LPC11CXX";
+#elif CONFIG_TARGET_LPC178X
+	return "CONFIG_TARGET_LPC178X";
 #else
 	#error "Error: Hardware name not specified in uw_utilities.c"
 #endif
 }
+
+
+uw_errors_e uw_ring_buffer_init(uw_ring_buffer_st *buffer_ptr, char *buffer, uint16_t buffer_size) {
+	buffer_ptr->buffer = buffer;
+	buffer_ptr->buffer_size = buffer_size;
+	buffer_ptr->element_count = 0;
+	buffer_ptr->head = buffer_ptr->tail = buffer_ptr->buffer;
+	return ERR_NONE;
+}
+
+
+uw_errors_e uw_ring_buffer_push(uw_ring_buffer_st *buffer, char element) {
+	if (buffer->element_count == buffer->buffer_size) {
+		return uw_err(ERR_BUFFER_OVERFLOW | HAL_MODULE_RING_BUFFER);
+	}
+	*(buffer->head) = element;
+	buffer->head++;
+	if (buffer->head == buffer->buffer + buffer->buffer_size) {
+		buffer->head = buffer->buffer;
+	}
+	buffer->element_count++;
+	return ERR_NONE;
+}
+
+
+uw_errors_e uw_ring_buffer_pop(uw_ring_buffer_st *buffer, char *dest) {
+	if (!buffer->element_count) {
+		return uw_err(ERR_BUFFER_EMPTY | HAL_MODULE_RING_BUFFER);
+	}
+
+	*dest = *(buffer->tail);
+	buffer->tail++;
+	if (buffer->tail == buffer->buffer + buffer->buffer_size) {
+		buffer->tail = buffer->buffer;
+	}
+	buffer->element_count--;
+	return ERR_NONE;
+}
+
+
+
 
 
 uw_errors_e uw_set_int_priority(uw_int_sources_e src, unsigned int priority) {

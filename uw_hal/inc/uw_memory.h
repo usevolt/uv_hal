@@ -8,17 +8,18 @@
 #ifndef UW_MEMORY_H_
 #define UW_MEMORY_H_
 
+#include "uw_hal_config.h"
 
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
 #include "uw_errors.h"
 
-#ifdef LPC11C14
+#if CONFIG_TARGET_LPC11CXX
 /// @brief: Defines the RAM size in bytes on this contoller
 #define RAM_SIZE_BYTES	0x2000
 #define RAM_BASE_ADDRESS 0x10000000
-#elif defined(LPC1785)
+#elif CONFIG_TARGET_LPC178X
 /// @brief: Defines the RAM size in bytes on this contoller
 #define RAM_SIZE_BYTES	64000
 #define RAM_BASE_ADDRESS 0x10000000
@@ -51,13 +52,6 @@ typedef struct {
 /// this function should never return.
 void uw_enter_ISP_mode(void);
 
-
-/// @brief: Returns the approximate stack memory usage. If dynamic memory allocation
-/// is not used, this gives a approximation of applications current memory usage.
-/// @note: This is implementation specific. It assumes that stack starts
-/// from the top of RAM and grows downward.
-/// @return: Percent estimating the RAM usage (0...100)
-int uw_get_stack_size(void);
 
 
 /// @brief: Returns the controller specific serial number assigned by NXP in
@@ -164,35 +158,5 @@ uw_iap_status_e uw_erase_and_write_to_flash(unsigned int ram_address,
 
 
 
-
-
-/****** PROTECTED FUNCTIONS *******/
-/* These functions are meant for hal library's private use and
- * the user software should'nt call them */
-
-
-
-/// @brief: Saves the data to non-volatile memory which was saved or loaded before with
-/// uw_save_non_volatile_data or uw_load_non_volatile_data.
-///
-/// @note: When calling uw_save_non_volatile_data or uw_load_non_volatile_data, the
-/// memory addresses and data lengths are saved and this function just re-saves the same data
-/// to the same location.
-uw_errors_e __uw_save_previous_non_volatile_data();
-
-
-/// @brief: Loads the data from non-volatile memory which was saved or loaded before with
-/// uw_save_non_volatile_data or uw_load_non_volatile_data.
-///
-/// @note: When calling uw_save_non_volatile_data or uw_load_non_volatile_data, the
-/// memory addresses and data lengths are saved and this function just re-loads the same data
-/// from the same location.
-uw_errors_e __uw_load_previous_non_volatile_data();
-
-
-/// @brief: Clears the data from non-volatile memory
-/// Does a soft memory reset. This means that the data is not really cleared, only checksums
-/// are cleared.
-uw_errors_e __uw_clear_previous_non_volatile_data();
 
 #endif /* UW_MEMORY_H_ */

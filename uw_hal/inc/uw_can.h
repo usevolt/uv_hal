@@ -8,12 +8,14 @@
 #ifndef UW_CAN_H_
 #define UW_CAN_H_
 
+#include "uw_hal_config.h"
+
 #include <stdint.h>
 #include <stdbool.h>
 /// @file: CAN implementation on top of the HAL layer
 /// Provides the basic CAN interface.
 /// Note that this module takes full ownership of the CAN HAL layer interface.
-/// For example on LPC11C14, this module may use all 32 CAN message objects
+/// For example on CONFIG_TARGET_LPC11CXX, this module may use all 32 CAN message objects
 /// as it wants.
 
 
@@ -47,10 +49,10 @@ typedef enum {
 
 /// @brief: Describes all the available CAN channels on this hardware
 typedef enum {
-#ifdef LPC11C14
+#if CONFIG_TARGET_LPC11CXX
 	CAN1,
 	CAN_COUNT
-#elif defined(LPC1785)
+#elif CONFIG_TARGET_LPC178X
 	CAN1,
 	CAN2,
 	CAN_COUNT

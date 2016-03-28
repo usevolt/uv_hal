@@ -6,12 +6,13 @@
  */
 
 #include "uw_virtual_uart.h"
+
 #include "uw_timer.h"
 #include "uw_gpio.h"
 #include <stdbool.h>
-#ifdef LPC11C14
+#if CONFIG_TARGET_LPC11CXX
 #include "LPC11xx.h"
-#elif defined(LPC1785)
+#elif CONFIG_TARGET_LPC178X
 #include "LPC177x_8x.h"
 #endif
 
@@ -50,7 +51,7 @@ uw_errors_e uw_virtual_uart_send(uw_virtual_uart_st *uart, char *c) {
 	uart->byte = *c;
 	uart->bits = 0;
 	uw_err_pass(uw_timer_set_freq(uart->timer, uart->baudrate));
-	uw_err_pass(uw_timer_start(uart->timer));
+	uw_timer_start(uart->timer);
 	// start bit is always zero
 	uw_err_pass(uw_gpio_set_pin(uart->tx_io, false));
 
@@ -76,7 +77,7 @@ uw_errors_e uw_virtual_uart_send_str(uw_virtual_uart_st *uart, char *str) {
 	uart->byte = *str;
 	uart->bits = 0;
 	uw_err_pass(uw_timer_set_freq(uart->timer, uart->baudrate));
-	uw_err_pass(uw_timer_start(uart->timer));
+	uw_timer_start(uart->timer);
 	// start bit is always zero
 	uw_err_pass(uw_gpio_set_pin(uart->tx_io, false));
 
@@ -85,8 +86,45 @@ uw_errors_e uw_virtual_uart_send_str(uw_virtual_uart_st *uart, char *str) {
 
 
 uw_errors_e uw_virtual_uart_isr(uw_virtual_uart_st *uart) {
+	// receiving timer interrupts
+	if (uart->receiving) {
+		char bit = uw_gpio_get_pin(uart->rx_io);
+
+		if (uart->bits == 0) {
+			// with first byte modify baudrate
+			uw_err_pass(uw_timer_set_freq(uart->timer, uart->baudrate));
+		}
+		// read coming bytes and increase bit counter by 1
+		uart->byte |= (bit << uart->bits++);
+		// byte read, stop timer and enable interrupts
+		if (uart->bits > 7) {
+			uw_timer_stop(uart->timer);
+			uw_err_pass(uw_gpio_init_input(uart->rx_io, PULL_UP_ENABLED | HYSTERESIS_ENABLED,
+					INT_EDGE_SENSITIVE | INT_FALLING_EDGE));
+			// call receive callback if assigned
+			if (uart->rx_callback) {
+				uart->rx_callback(__uw_get_user_ptr(), uart, uart->byte);
+			}
+			uart->receiving = false;
+		}
+	}
+	// if not receiving, this call was caused by GPIO interrupt
+	else if (!uart->transmitting) {
+		// disable interrupts on this pin
+		// interrupts will be enabled once the byte receiving has been completed
+		uw_err_pass(uw_gpio_init_input(uart->rx_io, PULL_UP_ENABLED | HYSTERESIS_ENABLED,
+				INT_DISABLE));
+		// start GPS timer with 0.75 * baudrate
+		uw_timer_start(uart->timer);
+		uw_err_pass(uw_timer_set_freq(uart->timer, 0.7 * uart->baudrate));
+		// start the timer
+		uw_timer_start(uart->timer);
+		uart->bits = 0;
+		uart->byte = 0;
+		uart->receiving = true;
+	}
 	// transmitting
-	if (uart->transmitting) {
+	else {
 		if (uart->bits < 8) {
 			uw_err_pass(uw_gpio_set_pin(uart->tx_io, uart->byte & (1 << uart->bits++)));
 		}
@@ -109,7 +147,7 @@ uw_errors_e uw_virtual_uart_isr(uw_virtual_uart_st *uart) {
 				uart->transmitting = false;
 				uart->transmit_ptr = NULL;
 				// stop timer
-				uw_err_pass(uw_timer_stop(uart->timer));
+				uw_timer_stop(uart->timer);
 				// enable rx interrupts
 				uw_err_pass(uw_gpio_init_input(uart->rx_io, PULL_UP_ENABLED | HYSTERESIS_ENABLED,
 						INT_EDGE_SENSITIVE | INT_FALLING_EDGE));
@@ -120,43 +158,6 @@ uw_errors_e uw_virtual_uart_isr(uw_virtual_uart_st *uart) {
 			}
 		}
 		return ERR_NONE;
-	}
-	// if not receiving, this call was caused by GPIO interrupt
-	else if (!uart->receiving) {
-		// disable interrupts on this pin
-		// interrupts will be enabled once the byte receiving has been completed
-		uw_err_pass(uw_gpio_init_input(uart->rx_io, PULL_UP_ENABLED | HYSTERESIS_ENABLED,
-				INT_DISABLE));
-		// start GPS timer with 0.75 * baudrate
-		uw_err_pass(uw_timer_set_freq(uart->timer, 0.75f * uart->baudrate));
-		// start the timer
-		uw_err_pass(uw_timer_start(uart->timer));
-		uart->bits = 0;
-		uart->byte = 0;
-		uart->receiving = true;
-	}
-	// otherwise timer caused the interrupt and bit reading is in process
-	else {
-		char bit = uw_gpio_get_pin(uart->rx_io);
-
-		if (uart->bits == 0) {
-			// with first byte modify baudrate
-			uw_err_pass(uw_timer_set_freq(uart->timer, uart->baudrate));
-			uw_err_pass(uw_timer_start(uart->timer));
-		}
-		// read coming bytes and increase bit counter by 1
-		uart->byte |= (bit << uart->bits++);
-		// byte read, stop timer and enable interrupts
-		if (uart->bits > 7) {
-			uw_err_pass(uw_timer_stop(uart->timer));
-			uw_err_pass(uw_gpio_init_input(uart->rx_io, PULL_UP_ENABLED | HYSTERESIS_ENABLED,
-					INT_EDGE_SENSITIVE | INT_FALLING_EDGE));
-			// call receive callback if assigned
-			if (uart->rx_callback) {
-				uart->rx_callback(__uw_get_user_ptr(), uart, uart->byte);
-			}
-			uart->receiving = false;
-		}
 	}
 	return ERR_NONE;
 }

@@ -9,9 +9,12 @@
 #define UW_TERMINAL_H_
 
 
+#include "uw_hal_config.h"
+
 #include <stdint.h>
 #include <stdbool.h>
-#include <uw_stdout.h>
+#include "uw_stdout.h"
+#include "uw_errors.h"
 
 /// @file: A terminal interface which can be used over UART or CAN bus.
 /// HAL layer takes care of parsing and redirecting the messages over UART or CAN.
@@ -23,15 +26,13 @@
 /// The common commands cannot be disabled, but creating a application level command with the same
 /// command name causes terminal to overwrite the common command.
 ///
-/// @note: Note that in order to use UART or CAN as a terminal source, they have to be initialized
+/// Terminal commands should be parsed in the main application loop, not in the ISRs.
+/// When using RTOS, this is already applied. Without RTOS the user must call
+/// uw_uart_exec or uw_can_exec in the application main loop.
+///
+/// NOTE: Note that in order to use UART or CAN as a terminal source, they have to be initialized
 /// correctly. It doesn't matter if this module is initialized before them, but without initializing
 /// the serial interfaces the terminal will never receive any characters sent to it.
-
-
-// terminal command max character length with arguments included
-#define TERMINAL_RECEIVE_BUFFER_SIZE		30
-// terminal command max argument count
-#define TERMINAL_ARG_COUNT					4
 
 
 /// @brief: Structure which defines a single terminal command
@@ -64,6 +65,8 @@ typedef enum {
 ///
 /// @param commands: A pointer to command array containing all application commands.
 /// Those commands are appended with uw_common_commands_e common commands.
+/// @param buffer: The buffer which will be used to the terminal
+/// @param buffer_size: The size of the buffer in bytes.
 /// @param count: Indicates how many entries there are in commands array
 /// @param callback: Callback function which will be called when a command has been received.
 /// The callback function should take 2 parameters: command enum value and
@@ -71,6 +74,10 @@ typedef enum {
 void uw_terminal_init(const uw_command_st* commands, unsigned int count,
 		void (*callback_function)(void* user_ptr, int cmd, char** args));
 
+
+
+/// @brief: Step function should be called cyclically in the application
+uw_errors_e uw_terminal_step();
 
 
 /// @brief: Returns the number of commands found in command array pointer registered with
@@ -86,22 +93,6 @@ void uw_terminal_disable_isp_entry(bool value);
 
 
 
-
-/* ---------- PRIVATE FUNCTIONS ---------------*/
-
-
-/// @brief: Processes rx messages. Parses it and calls the user callback function which
-/// in turn is responsible for executing the command.
-/// @note: This function shouldn't be called by the user application. It is intended for HAL
-/// library's internal use. Also, as the messages coming to this function can
-/// come from multiple serial protocol sources, this function redirects the stdio's printf
-/// to print into the location where it got the message. This causes printf to print into that
-/// source in the future, until message from different source has been received.
-/// @param data: A string of incoming data. Doesn't need to be null-terminated since null
-/// can be included in the data stream.
-/// @param data_length: The length of data in characters
-/// @param source: The serial protocol source where the data is coming from.
-void __uw_terminal_process_rx_msg(char* data, uint8_t data_length, uw_stdout_sources_e source);
 
 
 

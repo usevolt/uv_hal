@@ -2,6 +2,9 @@
 #ifndef UW_FILTERS_H_
 #define UW_FILTERS_H_
 
+
+#include "uw_hal_config.h"
+
 #include "uw_types.h"
 
 

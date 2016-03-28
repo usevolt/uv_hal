@@ -5,14 +5,15 @@
  *      Author: usevolt
  */
 
-#include <uw_stdout.h>
+#include "uw_stdout.h"
+
 
 #include "uw_can.h"
 #include "uw_uart.h"
 
 
 
-static uint8_t stdout = STDOUT_UART;
+static uint8_t stdout = STDOUT_UART0;
 
 inline void uw_stdout_set_source(uw_stdout_sources_e value) {
 	stdout = value;
@@ -21,11 +22,13 @@ inline void uw_stdout_set_source(uw_stdout_sources_e value) {
 
 static uint8_t byte_count = 0;
 
+
+
 void putchar(const char c)
 {
 
 	switch (stdout) {
-	case STDOUT_UART:
+	case STDOUT_UART0:
 		if (uw_uart_is_initialized(UART0)) {
 			uw_uart_send_char(UART0, c);
 		}

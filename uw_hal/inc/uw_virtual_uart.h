@@ -9,6 +9,9 @@
 #define UW_VIRTUAL_UART_H_
 
 
+#include "uw_hal_config.h"
+
+
 #include <stdint.h>
 #include "uw_errors.h"
 #include "uw_utilities.h"
@@ -28,6 +31,9 @@
 /// NOTE: Since virtual UART uses only 1 timer to receive and transmit, it's only half-duplex,
 /// e.g. it cannot send and receive bytes at the same time. Transmitting is in a higher priority
 /// than receiving but transmit will never interrupt a receiving byte.
+///
+/// NOTE: The virtual uart callback will be called form the ISR. The user program should
+/// keep the callback routine as short as possible.
 ///
 /// Transmitting with the virtual UART is asynchronous, but not buffered. This means that
 /// one call to uw_virtual_uart_send_str() will return quickly, putting the string

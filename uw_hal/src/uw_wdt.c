@@ -6,17 +6,19 @@
  */
 
 
-#ifdef LPC11C14
-#include "LPC11xx.h"
-#elif defined(LPC1785)
-#include "LPC177x_8x.h"
-#endif
 #include "uw_wdt.h"
 
+#if CONFIG_TARGET_LPC11CXX
+#include "LPC11xx.h"
+#elif CONFIG_TARGET_LPC178X
+#include "LPC177x_8x.h"
+#endif
 
 
-void uw_wdt_init(unsigned int time_s, unsigned int fosc) {
-#ifdef LPC11C14
+
+void uw_wdt_init(unsigned int time_s) {
+	SystemCoreClockUpdate();
+#if CONFIG_TARGET_LPC11CXX
 	//enable clock to wdt
 	LPC_SYSCON->SYSAHBCLKCTRL |= (1 << 15);
 	//select IRC oscillator as the clock source
@@ -29,7 +31,10 @@ void uw_wdt_init(unsigned int time_s, unsigned int fosc) {
 	LPC_SYSCON->WDTCLKUEN = 1;
 	//set the reloading value
 	///wdt has inner divide-by-4 prescaler
-	unsigned int sck = time_s * (fosc / 16);
+	unsigned int sck = time_s * (SystemCoreClock / 16);
+#elif CONFIG_TARGET_LPC178X
+	unsigned int sck = time_s * (500000 / 4);
+#endif
 	//clamp cycle time to 24-bit value
 	if (sck > 0xFFFFFF) {
 		sck = 0xFFFFFF;
@@ -41,9 +46,6 @@ void uw_wdt_init(unsigned int time_s, unsigned int fosc) {
 	LPC_WDT->FEED = 0xAA;
 	LPC_WDT->FEED = 0x55;
 	__enable_irq();
-#elif defined(LPC1785)
-#warning "Implementation not defined"
-#endif
 }
 
 void uw_wdt_update(void) {
@@ -58,7 +60,7 @@ void uw_wdt_reset(void) {
 	__disable_irq();
 	LPC_WDT->MOD = 3;
 	LPC_WDT->FEED = 0xAA;
-	//any oter write to wdt registers after FEED 0xAA will cause a wdt reset
+	//any otHer write to wdt registers after FEED 0xAA will cause a wdt reset
 	LPC_WDT->MOD = 3;
 	__enable_irq();
 }

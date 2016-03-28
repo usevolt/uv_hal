@@ -27,6 +27,12 @@
 */
 
 #include <stdarg.h>
+#include <string.h>
+#include <ctype.h>
+
+#include "uw_hal_config.h"
+
+
 
 static void printchar(char **str, int c)
 {
@@ -118,7 +124,7 @@ static int printi(char **out, int i, int b, int sg, int width, int pad, int letb
 	return pc + prints (out, s, width, pad);
 }
 
-static int print(char **out, const char *format, va_list args )
+static int print(char **out, const char *format, int count, va_list args )
 {
 	register int width, pad;
 	register int pc = 0;
@@ -189,7 +195,7 @@ int printf(const char *format, ...)
         va_list args;
 
         va_start( args, format );
-        return print( 0, format, args );
+        return print( 0, format, -1, args );
 }
 
 int sprintf(char *out, const char *format, ...)
@@ -197,9 +203,45 @@ int sprintf(char *out, const char *format, ...)
         va_list args;
 
         va_start( args, format );
-        return print( &out, format, args );
+        return print( &out, format, -1, args );
 }
 
+int atoi(const char *nptr) {
+	int8_t base = 10, value, sign = 1;
+	int result = 0;
+	if (*nptr == '-') {
+		sign = -1;
+	}
+	if (strstr(nptr, "0x\0") != 0) {
+		base = 16;
+	}
+	else if (strstr(nptr, "0b\0") != 0) {
+		base = 2;
+	}
+	while (isxdigit(*nptr)) {
+		if (isdigit(*nptr)) {
+			value = *nptr - '0';
+		}
+		else {
+			value = *nptr - 'A' + 10;
+			if (value > 0xF) {
+				value -= 0x20;
+			}
+		}
+		result = result * base + value;
+		nptr++;
+	}
+	return result * sign;
+}
+
+
+int snprintf(char * out, size_t n,
+                    const char * format, ...) {
+    va_list args;
+
+    va_start( args, format );
+    return print( &out, format, (int) n, args );
+}
 
 
 #ifdef TEST_PRINTF

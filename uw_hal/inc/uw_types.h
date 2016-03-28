@@ -2,6 +2,10 @@
 #ifndef UW_TYPES_H_
 #define UW_TYPES_H_
 
+
+
+#include "uw_hal_config.h"
+
 // common includes
 
 #include <stdbool.h>

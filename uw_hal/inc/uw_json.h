@@ -8,6 +8,10 @@
 #ifndef UW_JSON_H_
 #define UW_JSON_H_
 
+
+#include "uw_hal_config.h"
+
+
 /// @file: A lightweight JSON parser capable of creating or parsing JSON strings.
 /// Note that floating points aren't currently supported.
 

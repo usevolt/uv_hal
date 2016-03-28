@@ -9,6 +9,10 @@
 #define UW_WDT_H_
 
 
+#include "uw_hal_config.h"
+
+
+
 /// @brief: Initializes watchdog timer and starts it. After this call the watchdog timer
 /// is locked and cannot be stopped.
 /// WDT clock source is internal RC oscillator
@@ -16,7 +20,7 @@
 /// hal-update_wdt should be called within this time periodically.
 /// The biggest possible value is 0xFFFFFF * (16 / fosc)
 /// @param fosc: System oscillator frequency
-void uw_wdt_init(unsigned int time_s, unsigned int fosc);
+void uw_wdt_init(unsigned int time_s);
 
 
 /// @brief: Loads watchdog timer counter register.

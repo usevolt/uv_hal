@@ -9,6 +9,8 @@
 #define UW_ERRORS_H_
 
 
+#include "uw_hal_config.h"
+
 
 /// @file: Defines all error messages returned by this library's
 /// functions. If no error were detected, ERR_NONE is returned
@@ -49,23 +51,35 @@ typedef enum {
 	/// module for more details.
 	ERR_INTERNAL						= 12,
 	/// @brief: The calculated checksum doesn't match.
-	ERR_CHECKSUM_NOT_MATCH				= 13,
+	ERR_START_CHECKSUM_NOT_MATCH		= 13,
+	ERR_END_CHECKSUM_NOT_MATCH			= 14,
 	/// @brief: No new values written since the last call.
-	ERR_NO_NEW_VALUES					= 14,
+	ERR_NO_NEW_VALUES					= 15,
 	/// @brief: The function, module or peripheral is busy at the moment.
-	ERR_BUSY							= 15,
+	ERR_BUSY							= 16,
 	/// @brief: A undefined error.
-	ERR_UNDEFINED						= 16,
+	ERR_UNDEFINED						= 17,
 	/// @brief: Buffer overflow
-	ERR_BUFFER_OVERFLOW					= 17,
+	ERR_BUFFER_OVERFLOW					= 18,
 	/// @brief: The module, function or peripheral is not responding.
-	ERR_NOT_RESPONDING					= 18,
+	ERR_NOT_RESPONDING					= 19,
 	/// @brief: Recheck the syntax of the function parameters.
-	ERR_SYNTAX							= 19,
+	ERR_SYNTAX							= 20,
 	/// @brief: The data structure or peripheral was not initialized
-	ERR_NOT_INITIALIZED					= 20,
+	ERR_NOT_INITIALIZED					= 21,
 	/// @brief: The interrupt level is not defined on this hardware
-	ERR_INT_LEVEL						= 21,
+	ERR_INT_LEVEL						= 22,
+	/// @brief: The buffer is empty
+	ERR_BUFFER_EMPTY					= 23,
+	/// @brief: Indicates that some settings in uw_hal_config.h were set incorrectly.
+	/// For example trying to initialise a peripheral which was not enabled in uw_hal_config.h
+	ERR_INCORRECT_HAL_CONFIG			= 24,
+	/// @brief: Indicates a stack overflow. This is mainly used by RTOS,
+	/// when a task overflows it's own stack.
+	ERR_STACK_OVERFLOW					= 25,
+	/// @brief: indicates a memory allocation failure. This is mainly used by RTOS,
+	/// when FreeRTOS fails to malloc memory.
+	ERR_MALLOC_FAILURE					= 26,
 	ERR_COUNT
 } _uw_errors_e;
 typedef unsigned int uw_errors_e;
@@ -98,6 +112,8 @@ typedef enum {
 	HAL_MODULE_VIRTUAL_UART = (16 				<< 24),
 	HAL_MODULE_WDT			= (17 				<< 24),
 	HAL_MODULE_UNKNOWN		= (18 				<< 24),
+	HAL_MODULE_RTOS			= (19 				<< 24),
+	HAL_MODULE_RING_BUFFER	= (20				<< 24),
 	USER_MODULE_1			= (100 				<< 24),
 	USER_MODULE_2			= (101 				<< 24),
 	USER_MODULE_3			= (102 				<< 24),

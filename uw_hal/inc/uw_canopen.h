@@ -8,6 +8,8 @@
 #ifndef UW_CANOPEN_H_
 #define UW_CANOPEN_H_
 
+#include "uw_hal_config.h"
+
 #include "uw_can.h"
 
 /// @file: A software CANopen protocol implementation

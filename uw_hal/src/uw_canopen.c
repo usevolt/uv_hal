@@ -8,6 +8,8 @@
 
 
 #include "uw_canopen.h"
+
+
 #include "uw_utilities.h"
 
 /// @brief: A local declaration of static variable structure
