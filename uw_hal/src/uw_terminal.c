@@ -334,16 +334,24 @@ static void execute_common_cmd(int cmd, char** args) {
 		uw_enter_ISP_mode();
 		break;
 	case CMD_HELP:
+		printf("\n\r");
 		for (p = 0; p < sizeof(common_cmds) / sizeof(uw_command_st); p++) {
+#if CONFIG_TERMINAL_INSTRUCTIONS
 			printf("\"%s\"\n\r%s\n\r\n\r", common_cmds[p].str,
 					common_cmds[p].instructions);
+#else
+			printf("\"%s\"\n\r", common_cmds[p].str);
+#endif
 		}
-#if CONFIG_TERMINAL_INSTRUCTIONS
 		for (p = 0; p < uw_terminal_get_commands_count(); p++) {
+#if CONFIG_TERMINAL_INSTRUCTIONS
 			printf("\"%s\"\n\r%s\n\r\n\r", this->commands_ptr[p].str,
 					this->commands_ptr[p].instructions);
-		}
+#else
+			printf("\"%s\"\n\r", this->commands_ptr[p].str);
 #endif
+		}
+		printf("\n\r");
 		break;
 	case CMD_SDO:
 		printf("Command not yet implemented in HAL.\n\r");

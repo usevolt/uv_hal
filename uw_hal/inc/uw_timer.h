@@ -347,51 +347,51 @@ void uw_tick_timer_add_callback(void (*callback_function_ptr)(void* user_ptr, ui
 
 /**** ERRORS OF HARDWARE COMPATIBILITY ******/
 
-//#if (CONFIG_TIMER0 + CONFIG_COUNTER0 > 1)
-//#error "Capture0, timer0 and counter0 cannot be enabled at the same time."
-//#endif
-//#if (CONFIG_TIMER1 + CONFIG_COUNTER1 > 1)
-//#error "Capture1, timer1 and counter1 cannot be enabled at the same time."
-//#endif
-//#if (CONFIG_TIMER2 + CONFIG_COUNTER2 > 1)
-//#error "Capture2, timer2 and counter2 cannot be enabled at the same time."
-//#endif
-//#if (CONFIG_TIMER3 + CONFIG_COUNTER3 > 1)
-//#error "Capture3, timer3 and counter3 cannot be enabled at the same time."
-//#endif
-//#if CONFIG_TARGET_LPC11CXX
-//#if (CONFIG_PWM0 + CONFIG_TIMER0 + CONFIG_COUNTER0 > 1)
-//#error "Capture0, counter0, timer0 and pwm0 cannot be enabled at the same time."
-//#endif
-//#if (CONFIG_PWM1 + CONFIG_TIMER1 + CONFIG_COUNTER1 > 1)
-//#error "Capture1, counter1, timer1 and pwm1 cannot be enabled at the same time."
-//#endif
-//#if (CONFIG_PWM2 + CONFIG_TIMER2 + CONFIG_COUNTER2 > 1)
-//#error "Capture2, counter2, timer2 and pwm2 cannot be enabled at the same time."
-//#endif
-//#if (CONFIG_PWM3 + CONFIG_TIMER3 + CONFIG_COUNTER3 > 1)
-//#error "Capture3, counter3, timer3 and pwm3 cannot be enabled at the same time."
-//#if (CONFIG_PWM0_CHANNEL4 || CONFIG_PWM0_CHANNEL5 || CONFIG_PWM0_CHANNEL6)
-//#error "PWM0 has only 3 channels."
-//#endif
-//#if (CONFIG_PWM1_CHANNEL4 || CONFIG_PWM1_CHANNEL5 || CONFIG_PWM1_CHANNEL6)
-//#error "PWM1 has only 3 channels."
-//#endif
-//#if (CONFIG_PWM2_CHANNEL4 || CONFIG_PWM2_CHANNEL5 || CONFIG_PWM2_CHANNEL6)
-//#error "PWM2 has only 3 channels."
-//#endif
-//#if (CONFIG_PWM3_CHANNEL4 || CONFIG_PWM3_CHANNEL5 || CONFIG_PWM3_CHANNEL6)
-//#error "PWM3 has only 3 channels."
-//#endif
-//#endif
-//#elif CONFIG_TARGET_LPC178X
-//#if (CONFIG_PWM2 || CONFIG_PWM3)
-//#error "PWM modules 2 and 3 not available on LPC178x."
-//#endif
-//#if (CONFIG_PWM2 || CONFIG_PWM3)
-//#error "LPC178x has only 2 PWM modules."
-//#endif
-//#endif
+#if (CONFIG_TIMER0 + CONFIG_COUNTER0 > 1)
+#error "Capture0, timer0 and counter0 cannot be enabled at the same time."
+#endif
+#if (CONFIG_TIMER1 + CONFIG_COUNTER1 > 1)
+#error "Capture1, timer1 and counter1 cannot be enabled at the same time."
+#endif
+#if (CONFIG_TIMER2 + CONFIG_COUNTER2 > 1)
+#error "Capture2, timer2 and counter2 cannot be enabled at the same time."
+#endif
+#if (CONFIG_TIMER3 + CONFIG_COUNTER3 > 1)
+#error "Capture3, timer3 and counter3 cannot be enabled at the same time."
+#endif
+#if CONFIG_TARGET_LPC11CXX
+#if (CONFIG_PWM0 + CONFIG_TIMER0 + CONFIG_COUNTER0 > 1)
+#error "Capture0, counter0, timer0 and pwm0 cannot be enabled at the same time."
+#endif
+#if (CONFIG_PWM1 + CONFIG_TIMER1 + CONFIG_COUNTER1 > 1)
+#error "Capture1, counter1, timer1 and pwm1 cannot be enabled at the same time."
+#endif
+#if (CONFIG_PWM2 + CONFIG_TIMER2 + CONFIG_COUNTER2 > 1)
+#error "Capture2, counter2, timer2 and pwm2 cannot be enabled at the same time."
+#endif
+#if (CONFIG_PWM3 + CONFIG_TIMER3 + CONFIG_COUNTER3 > 1)
+#error "Capture3, counter3, timer3 and pwm3 cannot be enabled at the same time."
+#if (CONFIG_PWM0_CHANNEL4 || CONFIG_PWM0_CHANNEL5 || CONFIG_PWM0_CHANNEL6)
+#error "PWM0 has only 3 channels."
+#endif
+#if (CONFIG_PWM1_CHANNEL4 || CONFIG_PWM1_CHANNEL5 || CONFIG_PWM1_CHANNEL6)
+#error "PWM1 has only 3 channels."
+#endif
+#if (CONFIG_PWM2_CHANNEL4 || CONFIG_PWM2_CHANNEL5 || CONFIG_PWM2_CHANNEL6)
+#error "PWM2 has only 3 channels."
+#endif
+#if (CONFIG_PWM3_CHANNEL4 || CONFIG_PWM3_CHANNEL5 || CONFIG_PWM3_CHANNEL6)
+#error "PWM3 has only 3 channels."
+#endif
+#endif
+#elif CONFIG_TARGET_LPC178X
+#if (CONFIG_PWM2 || CONFIG_PWM3)
+#error "PWM modules 2 and 3 not available on LPC178x."
+#endif
+#if (CONFIG_PWM2 || CONFIG_PWM3)
+#error "LPC178x has only 2 PWM modules."
+#endif
+#endif
 
 
 #endif /* UW_TIMER_H_ */

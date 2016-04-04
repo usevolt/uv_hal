@@ -106,7 +106,7 @@ uw_errors_e uw_ring_buffer_init(uw_ring_buffer_st *buffer_ptr, char *buffer, uin
 
 uw_errors_e uw_ring_buffer_push(uw_ring_buffer_st *buffer, char element) {
 	if (buffer->element_count == buffer->buffer_size) {
-		return uw_err(ERR_BUFFER_OVERFLOW | HAL_MODULE_RING_BUFFER);
+		return uw_err(ERR_BUFFER_OVERFLOW | HAL_MODULE_UTILITIES);
 	}
 	*(buffer->head) = element;
 	buffer->head++;
@@ -120,7 +120,7 @@ uw_errors_e uw_ring_buffer_push(uw_ring_buffer_st *buffer, char element) {
 
 uw_errors_e uw_ring_buffer_pop(uw_ring_buffer_st *buffer, char *dest) {
 	if (!buffer->element_count) {
-		return uw_err(ERR_BUFFER_EMPTY | HAL_MODULE_RING_BUFFER);
+		return uw_err(ERR_BUFFER_EMPTY | HAL_MODULE_UTILITIES);
 	}
 
 	*dest = *(buffer->tail);

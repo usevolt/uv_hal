@@ -39,7 +39,9 @@ typedef struct {
 	uint32_t tick_timer_cycle_time_ms;
 } this_st;
 
-this_st _this;
+this_st _this = {
+		.timer_callbacks = { NULL, NULL, NULL, NULL }
+};
 #define this (&_this)
 
 
@@ -56,32 +58,31 @@ static uw_errors_e validate_timer(uw_timers_e timer) {
 /// @brief: Initializes the timer struct
 static void this_init(uw_timers_e timer) {
 #if CONFIG_TARGET_LPC11CXX
-	this->timer[TIMER0] = LPC_TMR16B0;
-	this->timer[TIMER1] = LPC_TMR16B1;
-	this->timer[TIMER2] = LPC_TMR32B0;
-	this->timer[TIMER3] = LPC_TMR32B1;
+	this->timer[0] = LPC_TMR16B0;
+	this->timer[1] = LPC_TMR16B1;
+	this->timer[2] = LPC_TMR32B0;
+	this->timer[3] = LPC_TMR32B1;
 #elif CONFIG_TARGET_LPC178X
-	this->timer[TIMER0] = LPC_TIM0;
-	this->timer[TIMER1] = LPC_TIM1;
-	this->timer[TIMER2] = LPC_TIM2;
-	this->timer[TIMER3] = LPC_TIM3;
-	this->pwm[PWM0] = LPC_PWM0;
-	this->pwm[PWM1] = LPC_PWM1;
+	this->timer[0] = LPC_TIM0;
+	this->timer[1] = LPC_TIM1;
+	this->timer[2] = LPC_TIM2;
+	this->timer[3] = LPC_TIM3;
+	this->pwm[0] = LPC_PWM0;
+	this->pwm[1] = LPC_PWM1;
 #endif
-	if (validate_timer(timer)) return;
-	this->timer_callbacks[timer] = NULL;
 }
 
 
 // timer interrupt handler
+
 static void parse_timer_interrupt(uw_timers_e timer) {
-#if CONFIG_TARGET_LPC11CXX
-	if (!this->timer_callbacks[timer]) {
-		this->timer[timer]->IR = 0x3F;
-		return;
-	}
+
 	// check trough all interrupts and call interrupt handler for all pending interrupts
 	// match 3 interrupt == overflow interrupt
+	if (!this->timer_callbacks[timer]) {
+		this->timer[timer]->IR = 0x1F;
+		return;
+	}
 	if (this->timer[timer]->IR & (1 << 3)) {
 		this->timer_callbacks[timer](__uw_get_user_ptr(), timer,
 				INT_SRC_OVERFLOW, this->timer[timer]->MR3);
@@ -90,24 +91,10 @@ static void parse_timer_interrupt(uw_timers_e timer) {
 		this->timer_callbacks[timer](__uw_get_user_ptr(), timer,
 				INT_SRC_CAPTURE0, this->timer[timer]->CR0);
 	}
+#if CONFIG_TARGET_LPC11CXX
 	// clear all timer interrupts
 	this->timer[timer]->IR = 0x1F;
-
 #elif CONFIG_TARGET_LPC178X
-	if (!this->timer_callbacks[timer]) {
-		this->timer[timer]->IR = 0x3F;
-		return;
-	}
-	// check trough all interrupts and call interrupt handler for all pending interrupts
-	// match 3 interrupt == overflow interrupt
-	if (this->timer[timer]->IR & (1 << 3)) {
-		this->timer_callbacks[timer](__uw_get_user_ptr(), timer,
-				INT_SRC_OVERFLOW, this->timer[timer]->MR3);
-	}
-	if (this->timer[timer]->IR & (1 << 4)) {
-		this->timer_callbacks[timer](__uw_get_user_ptr(), timer,
-				INT_SRC_CAPTURE0, this->timer[timer]->CR0);
-	}
 	if (this->timer[timer]->IR & (1 << 5)) {
 		this->timer_callbacks[timer](__uw_get_user_ptr(), timer,
 				INT_SRC_CAPTURE1, this->timer[timer]->CR1);
@@ -119,37 +106,132 @@ static void parse_timer_interrupt(uw_timers_e timer) {
 
 // interrupt handlers
 #if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TIMER0
 void TIMER16_0_IRQHandler(void) {
 	parse_timer_interrupt(TIMER0);
 }
+#endif
+#if CONFIG_TIMER1
 void TIMER16_1_IRQHandler(void) {
 	parse_timer_interrupt(TIMER1);
 }
+#endif
+#if CONFIG_TIMER2
 void TIMER32_0_IRQHandler(void) {
 	parse_timer_interrupt(TIMER2);
 }
+#endif
+#if CONFIG_TIMER3
 void TIMER32_1_IRQHandler(void) {
 	parse_timer_interrupt(TIMER3);
 }
+#endif
 #elif CONFIG_TARGET_LPC178X
+#if CONFIG_TIMER0
 void TIMER0_IRQHandler(void) {
 	parse_timer_interrupt(TIMER0);
 }
+#endif
+#if CONFIG_TIMER1
 void TIMER1_IRQHandler(void) {
 	parse_timer_interrupt(TIMER1);
 }
+#endif
+#if CONFIG_TIMER2
 void TIMER2_IRQHandler(void) {
 	parse_timer_interrupt(TIMER2);
 }
+#endif
+#if CONFIG_TIMER3
 void TIMER3_IRQHandler(void) {
 	parse_timer_interrupt(TIMER3);
 }
+#endif
 #endif
 
 
 #if (CONFIG_TIMER0 || CONFIG_TIMER1 || CONFIG_TIMER2 || CONFIG_TIMER3)
 static void init_timer(unsigned int timer, unsigned int freq) {
-#if CONFIG_TARGET_LPC178X
+#if CONFIG_TARGET_LPC11CXX
+	// enable clock to the timer module
+	LPC_SYSCON->SYSAHBCLKCTRL |= (1 << (7 + timer));
+
+	// set frequency
+	uw_timer_set_freq(timer, freq);
+
+	// reset timer value
+	uw_timer_stop(timer);
+	uw_timer_clear(timer);
+
+	// generate interrupt on match 3
+	this->timer[timer]->MCR |= (0b11 << 9);
+
+	// set enable capture interrupt bit
+	this->timer[timer]->CCR |= (1 << 2);
+
+	switch (timer) {
+#if CONFIG_TIMER0
+	case TIMER0:
+#if CONFIG_TIMER0_CAP0_FALLING_EDGES
+		LPC_TMR16B0->CCR |= (0b110);
+#endif
+#if CONFIG_TIMER0_CAP0_RISING_EDGES
+		LPC_TMR16B0->CCR |= 0b101;
+#endif
+#if CONFIG_TIMER0_CAP0_PIO0_2
+		LPC_IOCON->PIO0_2 &= ~0b111;
+		LPC_IOCON->PIO0_2 |= 0x2;
+#endif
+		break;
+#endif
+#if CONFIG_TIMER1
+	case TIMER1:
+#if CONFIG_TIMER1_CAP0_FALLING_EDGES
+		LPC_TMR16B1->CCR |= 0b110;
+#endif
+#if CONFIG_TIMER1_CAP0_RISING_EDGES
+		LPC_TMR16B1->CCR |= 0b101;
+#endif
+#if CONFIG_TIMER1_CAP0_PIO1_8
+		LPC_IOCON->PIO1_8 &= ~0b111;
+		LPC_IOCON->PIO1_8 |= 0x1;
+#endif
+		break;
+#endif
+#if CONFIG_TIMER2
+	case TIMER2:
+#if CONFIG_TIMER2_CAP0_FALLING_EDGES
+		LPC_TMR32B0->CCR |= 0b110;
+#endif
+#if CONFIG_TIMER2_CAP0_RISING_EDGES
+		LPC_TMR32B0->CCR |= 0b101;
+#endif
+#if CONFIG_TIMER2_CAP0_PIO1_5
+		LPC_IOCON->PIO1_5 &= ~0b111;
+		LPC_IOCON->PIO1_5 |= 0x2;
+#endif
+		break;
+#endif
+#if CONFIG_TIMER3
+	case TIMER3:
+#if CONFIG_TIMER3_CAP0_FALLING_EDGES
+		LPC_TMR32B1->CCR |= 0b110;
+#endif
+#if CONFIG_TIMER3_CAP0_RISING_EDGES
+		LPC_TMR32B1->CCR |= 0b101;
+#endif
+#if CONFIG_TIMER3_CAP0_PIO1_0
+		LPC_IOCON->PIO1_0 &= ~0b111;
+		LPC_IOCON->PIO1_0 |= 0x3;
+#endif
+		break;
+#endif
+	default:
+		break;
+	}
+
+
+#elif CONFIG_TARGET_LPC178X
 	// set frequency
 	uw_timer_set_freq(timer, freq);
 
@@ -298,14 +380,116 @@ static void init_timer(unsigned int timer, unsigned int freq) {
 #endif
 }
 #endif
-#if (CONFIG_COUNTER0 || CONFIG_COUNTER1 || CONFIG_COUNTER2 || CONFIG_COUNTER3)
-static void init_counter(unsigned int timer) {
 
-}
-#endif
 #if (CONFIG_PWM0 || CONFIG_PWM1 || CONFIG_PWM2 || CONFIG_PWM3)
 static void init_pwm(unsigned int timer, unsigned int freq) {
+
+#if CONFIG_TARGET_LPC11CXX
+	// enable clock to the timer module
+	LPC_SYSCON->SYSAHBCLKCTRL |= (1 << (7 + timer));
+
+	// set PWM frequency
+	uw_timer_set_freq(timer, freq);
+
+	switch (timer) {
+#if CONFIG_PWM0
+	case PWM0:
+#if CONFIG_PWM0_CHANNEL0
+		LPC_TMR16B0->PWMC |= 0b1;
+		LPC_IOCON->PIO0_8 &= ~0b111;
+		LPC_IOCON->PIO0_8 |= 0x2;
+#endif
+#if CONFIG_PWM0_CHANNEL1
+		LPC_TMR16B0->PWMC |= 0b10;
+		LPC_IOCON->PIO0_9 &= ~0b111;
+		LPC_IOCON->PIO0_9 |= 0x2;
+#endif
+#if CONFIG_PWM0_CHANNEL2
+		LPC_TMR16B0->PWMC |= 0b100;
+		LPC_IOCON->PIO0_10 &= ~0b111;
+		LPC_IOCON->PIO0_10 |= 0x3;
+#endif
+		break;
+#endif
+#if CONFIG_PWM1
+	case PWM1:
+#if CONFIG_PWM1_CHANNEL0
+		LPC_TMR16B1->PWMC |= 0b1;
+		LPC_IOCON->PIO1_9 &= ~0b111;
+		LPC_IOCON->PIO1_9 |= 0x1;
+#endif
+#if CONFIG_PWM1_CHANNEL1
+		LPC_TMR16B1->PWMC |= 0b10;
+		LPC_IOCON->PIO1_10 &= ~0b111;
+		LPC_IOCON->PIO1_10 |= 0x2;
+#endif
+#if CONFIG_PWM1_CHANNEL2
+		LPC_TMR16B1->PWMC |= 0b100;
+#endif
+		break;
+#endif
+#if CONFIG_PWM2
+	case PWM2:
+#if CONFIG_PWM2_CHANNEL0
+		LPC_TMR32B0->PWMC |= 0b1;
+		LPC_IOCON->PIO1_6 &= ~0b111;
+		LPC_IOCON->PIO1_6 |= 0x2;
+#endif
+#if CONFIG_PWM2_CHANNEL1
+		LPC_TMR32B0->PWMC |= 0b10;
+		LPC_IOCON->PIO1_7 &= ~0b111;
+		LPC_IOCON->PIO1_7 |= 0x2;
+#endif
+#if CONFIG_PWM2_CHANNEL2
+		LPC_TMR32B0->PWMC |= 0b100;
+		LPC_IOCON->PIO0_1 &= ~0b111;
+		LPC_IOCON->PIO0_1 |= 0x2;
+#endif
+		break;
+#endif
+#if CONFIG_PWM3
+	case PWM3:
+#if CONFIG_PWM3_CHANNEL0
+		LPC_TMR32B1->PWMC |= 0b1;
+		LPC_IOCON->PIO1_1 &= ~0b111;
+		LPC_IOCON->PIO1_1 |= 0x3;
+#endif
+#if CONFIG_PWM3_CHANNEL1
+		LPC_TMR32B1->PWMC |= 0b10;
+		LPC_IOCON->PIO1_2 &= ~0b111;
+		LPC_IOCON->PIO1_2 |= 0x3;
+#endif
+#if CONFIG_PWM3_CHANNEL2
+		LPC_TMR32B1->PWMC |= 0b100;
+		LPC_IOCON->PIO1_3 &= ~0b111;
+		LPC_IOCON->PIO1_3 |= 0x3;
+#endif
+		break;
+#endif
+	default:
+		break;
+	}
+
+	// set PWM's to zero
+	this->timer[timer]->MR0 = 0;
+	this->timer[timer]->MR1 = 0;
+	this->timer[timer]->MR2 = 0;
+
+	// clear tmr clear and stop for match 0, 1 and 2
+	this->timer[timer]->MCR &= ~0x3FF;
+
+	// reset timer on match 3
+	this->timer[timer]->MCR |= (0b1 << 10);
+
+
+
+	// start timer
+	this->timer[timer]->TCR |= 1 << 0;
+
+#elif CONFIG_TARGET_LPC178X
 #warning "PWM initialization not yet implemented"
+
+#endif
 }
 #endif
 
@@ -314,47 +498,10 @@ uw_errors_e uw_timer_init(uw_timers_e timer, float freq) {
 	this_init(timer);
 	SystemCoreClockUpdate();
 
-#if CONFIG_TARGET_LPC11CXX
-	//set prescaler depending on in which mode init_value was given
-	uint64_t prescaler;
-	uint32_t max_value = 0xFFFF;
-	if (timer > TIMER1) {
-		max_value = 0xFFFFFFFF;
-	}
-	prescaler = (float) SystemCoreClock /
-				((float) freq * max_value) - 1;
-	// now we have prescaler when defined as a frequency
-	// if the freq is too high for timer to calculate to it's max value,
-	// decrease the max value accordingly
-	if (prescaler == 0) {
-		max_value = SystemCoreClock / freq;
-	}
-
-	//enable sys clock to the timer module
-	LPC_SYSCON->SYSAHBCLKCTRL |= (1 << (timer + 7));
-	// add prescaler
-	this->timer[timer]->PR = prescaler;
-	// reset timer on match 3
-	this->timer[timer]->MCR = (0b1 << 10);
-	// set match 3 to timer max value
-	this->timer[timer]->MR3 = max_value;
-	// reset timer value
-	uw_timer_stop(timer);
-	uw_timer_clear(timer);
-
-	// generate interrupt on match 3
-	this->timer[timer]->MCR |= (0b11 << 9);
-
-
-	#elif CONFIG_TARGET_LPC178X
 	switch (timer) {
 #if CONFIG_TIMER0
 	case 0:
 		init_timer(timer, freq);
-		break;
-#elif CONFIG_COUNTER0
-	case 0:
-		init_counter(timer);
 		break;
 #elif CONFIG_PWM0
 	case 0:
@@ -365,10 +512,6 @@ uw_errors_e uw_timer_init(uw_timers_e timer, float freq) {
 	case 1:
 		init_timer(timer, freq);
 		break;
-#elif CONFIG_COUNTER1
-	case 1:
-		init_counter(timer);
-		break;
 #elif CONFIG_PWM1
 	case 1:
 		init_pwm(timer, freq);
@@ -377,10 +520,6 @@ uw_errors_e uw_timer_init(uw_timers_e timer, float freq) {
 #if CONFIG_TIMER2
 	case 2:
 		init_timer(timer, freq);
-		break;
-#elif CONFIG_COUNTER2
-	case 2:
-		init_counter(timer);
 		break;
 #elif CONFIG_PWM2
 	case 2:
@@ -391,10 +530,6 @@ uw_errors_e uw_timer_init(uw_timers_e timer, float freq) {
 	case 3:
 		init_timer(timer, freq);
 		break;
-#elif CONFIG_COUNTER3
-	case 3:
-		init_counter(timer);
-		break;
 #elif CONFIG_PWM3
 	case 3:
 		init_pwm(timer, freq);
@@ -403,8 +538,6 @@ uw_errors_e uw_timer_init(uw_timers_e timer, float freq) {
 	default:
 		__uw_err_throw(ERR_HARDWARE_NOT_SUPPORTED | HAL_MODULE_TIMER);
 	}
-
-#endif
 
 	return ERR_NONE;
 }
@@ -425,9 +558,11 @@ uw_errors_e uw_timer_set_freq(uw_timers_e timer, float freq) {
 	uint64_t prescaler;
 #if CONFIG_TARGET_LPC11CXX
 	uint32_t max_value = 0xFFFF;
+#if (CONFIG_TIMER2 || CONFIG_TIMER3)
 	if (timer > TIMER1) {
 		max_value = 0xFFFFFFFF;
 	}
+#endif
 	prescaler = SystemCoreClock /
 				(freq * max_value) - 1;
 	// now we have prescaler when defined as a frequency
@@ -456,105 +591,14 @@ uw_errors_e uw_timer_set_freq(uw_timers_e timer, float freq) {
 
 
 
-// todo: remove this and put all init things to timer_init
-#if CONFIG_TARGET_LPC11CXX
-uw_errors_e uw_timer_add_capture(uw_timers_e timer, uw_timer_captures_e capture,
-		uw_timer_capture_modes_e input) {
-	if (validate_timer(timer)) return validate_timer(timer);
-	if (capture >= CAPTURE_COUNT) {
-		__uw_err_throw(ERR_UNSUPPORTED_PARAM2_VALUE | HAL_MODULE_TIMER);
-	}
-	// clear capture control register to default value
-	this->timer[timer]->CCR = 0;
 
-	if (input < CAPTURE_BOTH_EDGES) {
-		this->timer[timer]->CCR |= (1 << input);
-	}
-	else if (input < CAPTURE_MODE_COUNT) {
-		this->timer[timer]->CCR |= 0b11;
-	}
-	else {
-		__uw_err_throw(ERR_HARDWARE_NOT_SUPPORTED | HAL_MODULE_TIMER);
-	}
-	// set enable capture interrupt bit
-	this->timer[timer]->CCR |= (1 << 2);
-	switch (timer) {
-	case TIMER0:
-		//set TMR16B0CAP0 pin to capture mode
-		LPC_IOCON->PIO0_2 &= ~0b111;
-		LPC_IOCON->PIO0_2 |= 0x2;
-		break;
-	case TIMER1:
-		LPC_IOCON->PIO1_8 &= ~0b111;
-		LPC_IOCON->PIO1_8 |= 0x1;
-		break;
-	case TIMER2:
-		LPC_IOCON->PIO1_5 &= ~0b111;
-		LPC_IOCON->PIO1_5 |= 0x2;
-		break;
-	case TIMER3:
-		LPC_IOCON->R_PIO1_0 &= ~0b111;
-		LPC_IOCON->R_PIO1_0 |= 0x3;
-		break;
-	default:
-		__uw_err_throw(ERR_UNSUPPORTED_PARAM4_VALUE | HAL_MODULE_TIMER);
-	}
-	return ERR_NONE;
-}
-
-#endif
-
-
-// todo: remove this and put all init things to timer_init
-#if CONFIG_TARGET_LPC11CXX
-uw_errors_e uw_pwm_init(uw_timers_e timer, uw_pwm_channels_e channels,
-		unsigned int freq) {
-	if (validate_timer(timer)) return validate_timer(timer);
-	this_init(timer);
-
-	SystemCoreClockUpdate();
-
-	unsigned long int prescaler;
-	unsigned int max_value = 1000;
-	prescaler = (unsigned long int) SystemCoreClock /
-				((unsigned long int) freq * max_value) - 1;
-	if (prescaler > max_value) {
-		__uw_err_throw(ERR_FREQ_TOO_HIGH_OR_TOO_LOW | HAL_MODULE_TIMER);
-	}
-
-	//enable sys clock to the timer module
-	LPC_SYSCON->SYSAHBCLKCTRL |= (1 << (timer + 7));
-
-	// add prescaler
-	this->timer[timer]->PR = prescaler;
-
-	// enable PWM outputs
-	this->timer[timer]->PWMC = channels;
-
-	// clear tmr clear and stop for match 0, 1 and 2
-	this->timer[timer]->MCR &= ~0x3FF;
-
-	// reset timer on match 3
-	this->timer[timer]->MCR |= (0b1 << 10);
-
-	// set match 3 to timer max value
-	this->timer[timer]->MR3 = max_value;
-
-	// start timer
-	this->timer[timer]->TCR |= 1 << 0;
-
-
-
-	return ERR_NONE;
-}
-#endif
 
 
 uw_errors_e uw_pwm_set(uw_pwms_e pwm, uw_pwm_channels_e channel, unsigned int duty_cycle) {
 #if CONFIG_TARGET_LPC11CXX
-	if (validate_timer(timer)) return validate_timer(timer);
+	if (validate_timer(pwm)) return validate_timer(pwm);
 
-	unsigned int max_value = this->timer[timer]->MR3;
+	unsigned int max_value = this->timer[pwm]->MR3;
 	// clamp duty cycle to max value
 	if (duty_cycle > 1000) {
 		duty_cycle = 1000;
@@ -563,13 +607,13 @@ uw_errors_e uw_pwm_set(uw_pwms_e pwm, uw_pwm_channels_e channel, unsigned int du
 	unsigned int value = max_value / 1000 * (1000 - duty_cycle);
 	switch(channel) {
 	case PWM_CHANNEL_0:
-		this->timer[timer]->MR0 = value;
+		this->timer[pwm]->MR0 = value;
 		break;
 	case PWM_CHANNEL_1:
-		this->timer[timer]->MR1 = value;
+		this->timer[pwm]->MR1 = value;
 		break;
 	case PWM_CHANNEL_2:
-		this->timer[timer]->MR2 = value;
+		this->timer[pwm]->MR2 = value;
 		break;
 	default:
 		__uw_err_throw(ERR_HARDWARE_NOT_SUPPORTED | HAL_MODULE_TIMER);
@@ -616,8 +660,8 @@ void uw_timer_stop(uw_timers_e timer) {
 
 
 void uw_timer_clear(uw_timers_e timer) {
-	this->timer[timer]->TC = 0;
 	this->timer[timer]->PR = 0;
+	this->timer[timer]->TC = 0;
 }
 
 
@@ -671,6 +715,7 @@ uw_errors_e uw_timer_add_callback(uw_timers_e timer, void (*callback_function)
 
 	// remember callback function pointer
 	this->timer_callbacks[timer] = callback_function;
+
 
 	return ERR_NONE;
 }

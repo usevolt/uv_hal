@@ -80,6 +80,9 @@ typedef enum {
 	/// @brief: indicates a memory allocation failure. This is mainly used by RTOS,
 	/// when FreeRTOS fails to malloc memory.
 	ERR_MALLOC_FAILURE					= 26,
+	/// @brief: Possible misconfiguration in uw_hal_config.h. Maybe the
+	/// peripheral was not enabled in uw_hal_config.h?
+	ERR_HAL_CONFIG						= 27,
 	ERR_COUNT
 } _uw_errors_e;
 typedef unsigned int uw_errors_e;
@@ -113,7 +116,6 @@ typedef enum {
 	HAL_MODULE_WDT			= (17 				<< 24),
 	HAL_MODULE_UNKNOWN		= (18 				<< 24),
 	HAL_MODULE_RTOS			= (19 				<< 24),
-	HAL_MODULE_RING_BUFFER	= (20				<< 24),
 	USER_MODULE_1			= (100 				<< 24),
 	USER_MODULE_2			= (101 				<< 24),
 	USER_MODULE_3			= (102 				<< 24),

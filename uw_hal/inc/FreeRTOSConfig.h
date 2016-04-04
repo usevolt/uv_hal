@@ -118,6 +118,7 @@
 #define configQUEUE_REGISTRY_SIZE		10
 #define configGENERATE_RUN_TIME_STATS	0
 
+
 /* Software timer definitions. */
 #define configUSE_TIMERS				1
 #define configTIMER_TASK_PRIORITY		( 2 )
@@ -135,6 +136,10 @@ to exclude the API function. */
 #define INCLUDE_vTaskDelayUntil				1
 #define INCLUDE_vTaskDelay					1
 #define INCLUDE_uxTaskGetStackHighWaterMark	1
+
+#if CONFIG_TARGET_LPC11CXX
+#define configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY	1
+#endif
 
 /* Use the system definition, if there is one */
 #ifdef __NVIC_PRIO_BITS
