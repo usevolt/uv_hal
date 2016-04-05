@@ -61,6 +61,7 @@ typedef enum {
 uw_errors_e uw_adc_init();
 
 
+
 /// @brief: returns the channel'd adc channel value as 32-bit integer
 /// In burst operation this function executes fastly, otherwise the ADC conversion is triggered
 /// and it takes 11 clock cycles to finish.

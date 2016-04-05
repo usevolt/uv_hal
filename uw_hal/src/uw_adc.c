@@ -69,7 +69,7 @@
 #endif
 
 
-uw_errors_e uw_init_adc() {
+uw_errors_e uw_adc_init() {
 #if CONFIG_TARGET_LPC11CXX
 
 #if CONFIG_ADC_CHANNEL0
@@ -191,9 +191,9 @@ uw_errors_e uw_init_adc() {
 
 
 
-int uw_read_adc(uw_adc_channels_e channel) {
-	//check if burst mode is on
+int uw_adc_read(uw_adc_channels_e channel) {
 #if CONFIG_ADC_MODE_CONTINOUS
+	//check if burst mode is on
 //	if ((LPC_ADC->CR >> 16) & 0x1) {
 	//LPC11CXX has 8 channels, so channel has to be less than 8
 	uint8_t i;
@@ -208,6 +208,7 @@ int uw_read_adc(uw_adc_channels_e channel) {
 	}
 	// invalid channel
 	return -1;
+}
 #elif CONFIG_ADC_MODE_STANDARD
 	// if burst mode isn't on, trigger the AD conversion and return the value
 
@@ -237,10 +238,10 @@ int uw_read_adc(uw_adc_channels_e channel) {
 #endif
 }
 
-int uw_read_adc_average(uw_adc_channels_e channel, unsigned int conversion_count) {
+int uw_adc_read_average(uw_adc_channels_e channel, unsigned int conversion_count) {
 	int value = 0, i;
 	for (i = 0; i < conversion_count; i++) {
-		value += uw_read_adc(channel);
+		value += uw_adc_read(channel);
 	}
 	value /= conversion_count;
 	return value;
