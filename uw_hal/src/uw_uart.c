@@ -199,6 +199,7 @@ uw_errors_e uw_uart_init(uw_uarts_e uart) {
 
 	//set the baud_rate
 	uint32_t uart_clock_div = SystemCoreClock / (CONFIG_UART0_BAUDRATE * 16);
+//	uint32_t uart_clock_div = SystemCoreClock / (CONFIG_UART0_BAUDRATE * 16);
 	//uart clock divider is only 8 bits, so discard all values above 255
 	if (uart_clock_div > 0xff) {
 		uart_clock_div = 0xff;
@@ -212,8 +213,8 @@ uw_errors_e uw_uart_init(uw_uarts_e uart) {
 	/* Setup the clock and reset UART0 */
 	//enable clock for uart
 	LPC_SYSCON->SYSAHBCLKCTRL |= (0x01 << 12);
-	//set uart clock divider
-	LPC_SYSCON->UARTCLKDIV = uart_clock_div;
+//	//set uart clock divider
+//	LPC_SYSCON->UARTCLKDIV = uart_clock_div;
 	//enable uart interrupts
 	NVIC_EnableIRQ(UART_IRQn);
 	//enable receive data available interrupt
@@ -245,11 +246,17 @@ uw_errors_e uw_uart_init(uw_uarts_e uart) {
 #else
 #error "No stop bit count specified for UART0"
 #endif
-	this->uart[UART0]->LCR = config;
 	//baud rate generation: baud_rate = clk / (16 * (U0DLM >> 8 + U0DLL))
 	//from that: U0DLM + U0DLL = clk / (16 * baud_rate)
-//	this->uart[UART0]->DLL = clk / (16 * baud_rate);
-//	this->uart[UART0]->DLM = (clk / (16 * baud_rate)) >> 8;
+
+
+	// enable DLAB
+	this->uart[UART0]->LCR |= (1 << 7);
+	this->uart[uart]->DLL = uart_clock_div & 0xFF;
+	this->uart[uart]->DLM = (uart_clock_div >> 8) & 0xFF;
+
+	// disable DLAB and set configs
+	this->uart[UART0]->LCR = config;
 
 	//reset UART FIFOs
 	this->uart[UART0]->FCR |= (0x01 << 1) | (0x01 << 2);
