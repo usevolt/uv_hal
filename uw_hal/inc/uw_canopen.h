@@ -9,11 +9,25 @@
 #define UW_CANOPEN_H_
 
 #include "uw_hal_config.h"
-
+#include "uw_errors.h"
 #include "uw_can.h"
 
 /// @file: A software CANopen protocol implementation
 /// @note: Relies on uw_can.h
+///
+/// DIFFERENCES TO A COMPLETE CANOPEN:
+///
+/// - SDO read and write requests of more than 4 bytes are not implemented
+///
+/// - For array types, sub index 0 returns the max array size, not current size.
+///		e.g. array sizes are constant.
+///
+/// - For all SDO read x bytes requests, response command identifier doesn't indicate
+/// 	exactly how many bytes were returned, the byte 1 is always 0x42.
+///
+/// - For all SDO write x bytes requests, the request is handled assuming that
+/// 	the whole object is being written. E.g. the write byte count is not checked.
+///
 
 
 /// @brief: Usewood Vendor ID.
@@ -21,38 +35,33 @@
 #define USEWOOD_VENDOR_ID	0
 
 
-
-/// @brief: Mask for CAN_ID field's node_id bits
-#define UW_CANOPEN_NODE_ID_MASK		0x7F
+enum {
+	/// @brief: The maximum number of nodes
+	/// The actual max value is this - 1
+	CANOPEN_NODE_COUNT = 0x100,
+	/// @brief: Broadcast messages can be sent with a zero received node_id
+	CANOPEN_BROADCAST = 0
+};
 
 typedef enum {
 	UNKNOWN_PROTOCOL,
-	SDO_REQUEST_ID = 	0x600,
-	SDO_RESPONSE_ID = 	0x580,
-	TXPDO1_ID = 			0x180,
-	TXPDO2_ID = 			0x280,
-	TXPDO3_ID = 			0x380,
-	TXPDO4_ID = 			0x480,
-	RXPDO1_ID = 			0x200,
-	RXPDO2_ID = 			0x300,
-	RXPDO3_ID = 			0x400,
-	RXPDO4_ID =			0x500,
+	SDO_REQUEST_ID = 		0x600,
+	SDO_RESPONSE_ID = 		0x580,
+	SDO_ERROR_ID =			0x80,
+	TXPDO_BEGIN_ID = 		0x180,
+	TXPDO_END_ID =			0x480,
+	RXPDO_BEGIN_ID = 		0x200,
+	RXPDO_END_ID =			0x500,
 	BOOTUP_ID = 			0x700,
-	HEARTBEAT_ID = 		0x700,
-	NMT_ID = 			0x0
+	HEARTBEAT_ID = 			0x700,
+	NMT_ID = 				0x0
 } uw_canopen_protocol_ids_e;
 
-typedef enum {
-	UW_CANOPEN_NO_ERROR = 0,
-	UW_CANOPEN_ERROR_UNKNOWN_PROTOCOL,
-	UW_CANOPEN_UNIMPLEMENTED_PROTOCOL,
-	UW_CANOPEN_CORRUPTION_ERROR
-} uw_canopen_errors_e;
 
 
 typedef enum {
 	STATE_BOOT_UP =			0x0,
-	STATE_STOPPED = 			0x4,
+	STATE_STOPPED = 		0x4,
 	STATE_OPERATIONAL =		0x5,
 	STATE_PREOPERATIONAL =	0x7F
 } uw_canopen_node_states_e;
@@ -61,11 +70,21 @@ typedef enum {
 
 /// @brief: Enumeration of different permissions. Used when defining CANopen objects.
 typedef enum {
-	UW_RO = 1,
-	UW_RW,
-	UW_WO
+	UW_RO = (1 << 0),
+	UW_WO = (1 << 1),
+	UW_RW = 0b11
 } uw_permissions_e;
 typedef uint8_t _uw_permissions_e;
+
+
+/// @brief: Describes all possible NMT commands
+typedef enum {
+	NMT_START_NODE 			= 0x1,
+	NMT_STOP_NODE 			= 0x2,
+	NMT_SET_PREOPERATIONAL 	= 0x80,
+	NMT_RESET_NODE 			= 0x81,
+	NMT_RESET_COM 			= 0x82
+} uw_canopen_nmt_commands_e;
 
 
 /// @brief: Enumeration of different CANopen object types
@@ -77,17 +96,18 @@ typedef uint8_t _uw_permissions_e;
 /// are mapped to object dictionary only with main_index and they use
 /// sub_indexes for indexing the array elements. Index 0 returns the
 /// length of the array.
+#define UW_ARRAY_MASK 	0b11000000
+#define UW_NUMBER_MASK	0b00111111
 typedef enum {
-	UW_UNSIGNED8,
-	UW_UNSIGNED16,
-	UW_UNSIGNED32,
-	UW_ARRAY8,
-	UW_ARRAY16,
-	UW_ARRAY32,
+	UW_UNSIGNED8 = 1,
+	UW_UNSIGNED16 = 2,
+	UW_UNSIGNED32 = 4,
+	UW_ARRAY8 = (1 << 6) + 1,
+	UW_ARRAY16 = (1 << 6) + 2,
+	UW_ARRAY32 = (1 << 6) + 4,
 	UW_PDO_COM_ARRAY = UW_ARRAY16,
 	UW_PDO_MAP_ARRAY = UW_ARRAY32,
-	UW_IDENTITY_ARRAY = UW_ARRAY32,
-	UW_STRING
+	UW_IDENTITY_ARRAY = UW_ARRAY32
 } uw_object_types_e;
 typedef uint8_t _uw_object_types_e;
 
@@ -96,20 +116,51 @@ typedef uint8_t _uw_object_types_e;
 /// CANopen stack doesn't support RTR. Also all PDO's are
 /// asynchronous.
 typedef enum {
-	UW_CANOPEN_PDO_ENABLED = 0,
-	UW_CANOPEN_PDO_DISABLED = 0x80000000,
-	UW_CANOPEN_PDO_RTR_ALLOWED = 0x40000000
+	PDO_ENABLED = 0,
+	PDO_DISABLED = 0x80000000,
+	PDO_RTR_ALLOWED = 0x40000000
 } pdo_cob_id_mapping_e;
 
 
 
+
+
+typedef enum {
+	SDO_ERROR_COMMAND_NOT_VALID = 						0x05040001,
+	SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT = 			0x06010001,
+	SDO_ERROR_ATTEMPT_TO_READ_A_WRITE_ONLY_OBJECT = 	0x06010001,
+	SDO_ERROR_ATTEMPT_TO_WRITE_A_READ_ONLY_OBJECT = 	0x06010002,
+	SDO_ERROR_OBJECT_DOES_NOT_EXIST = 					0x06020000,
+	SDO_ERROR_VALUE_OF_PARAMETER_TOO_HIGH = 			0x06090031,
+	SDO_ERROR_VALUE_OF_PARAMETER_TOO_LOW = 				0x06090032,
+	SDO_ERROR_GENERAL = 								0x08000000
+} uw_sdo_error_codes_e;
+
+
+
+/// @brief: SDO command specifier, e.g. the MSB data byte of the CAN message
+typedef enum {
+	SDO_CMD_READ = 						0x40,
+	SDO_CMD_READ_RESPONSE_1_BYTE =		0x4F,
+	SDO_CMD_READ_RESPONSE_2_BYTES =		0x4B,
+	SDO_CMD_READ_RESPONSE_4_BYTES =		0x43,
+	SDO_CMD_READ_RESPONSE_BYTES =		0x42,
+	SDO_CMD_WRITE_1_BYTE = 				0x2F,
+	SDO_CMD_WRITE_2_BYTES = 			0x2B,
+	SDO_CMD_WRITE_4_BYTES = 			0x23,
+	SDO_CMD_WRITE_BYTES = 				0x22,
+	SDO_CMD_WRITE_RESPONSE =			0x60,
+	SDO_CMD_ERROR = 					0x80
+} _uw_canopen_sdo_commands_e;
+typedef uint8_t uw_canopen_sdo_commands_e;
+
 typedef struct {
+	/// @brief: Request regarding this sdo entry, as a uw_canopen_sdo_commands_e
+	uw_canopen_sdo_commands_e request;
 	/// @brief: Index for this CANopen object dictionary entry
 	uint16_t main_index;
 	/// @brief: Subindex for this CANopen object dictionary entry
 	uint8_t sub_index;
-	/// @brief: Request regarding this sdo entry, as a uw_canopen_sdo_commands_e
-	uint8_t request;
 	/// @brief: Data length for this CANopen object dictionary entry.
 	/// @note: Currently only expedited entries are supported => this has to be betweeen 1 to 4.
 	uint8_t data_length;
@@ -121,69 +172,6 @@ typedef struct {
 	};
 
 } uw_canopen_sdo_message_st;
-
-
-
-typedef enum {
-	UW_SDO_ERROR_COMMAND_NOT_VALID = 					0x05040001,
-	UW_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT = 		0x06010001,
-	UW_SDO_ERROR_ATTEMPT_TO_READ_A_WRITE_ONLY_OBJECT = 	0x06010001,
-	UW_SDO_ERROR_ATTEMPT_TO_WRITE_A_READ_ONLY_OBJECT = 	0x06010002,
-	UW_SDO_ERROR_OBJECT_DOES_NOT_EXIST = 				0x06020000,
-	UW_SDO_ERROR_SUBINDEX_DOES_NOT_EXIST = 				0x06090011,
-	UW_SDO_ERROR_VALUE_OF_PARAMETER_TOO_HIGH = 			0x06090031,
-	UW_SDO_ERROR_VALUE_OF_PARAMETER_TOO_LOW = 			0x06090032,
-	UW_SDO_ERROR_GENERAL = 								0x08000000
-} uw_sdo_error_codes_e;
-
-
-
-typedef enum {
-	UW_SDO_CMD_READ = 					0x40,
-	UW_SDO_CMD_READ_RESPONSE_1_BYTE =	0x4F,
-	UW_SDO_CMD_READ_RESPONSE_2_BYTES =	0x4B,
-	UW_SDO_CMD_READ_RESPONSE_4_BYTES =	0x43,
-	UW_SDO_CMD_READ_RESPONSE_BYTES =	0x42,
-	UW_SDO_CMD_WRITE_1_BYTE = 			0x2F,
-	UW_SDO_CMD_WRITE_2_BYTES = 			0x2B,
-	UW_SDO_CMD_WRITE_4_BYTES = 			0x23,
-	UW_SDO_CMD_WRITE_BYTES = 			0x22,
-	UW_SDO_CMD_WRITE_RESPONSE =			0x60,
-	UW_SDO_CMD_ERROR = 					0x80
-} uw_canopen_sdo_commands_e;
-
-
-
-
-/// @brief: Struct for general CANopen message. This includes all errors,
-/// messsage types, as well as the message itself.
-typedef struct {
-	/// @brief: Tells the type of this message.
-	/// This specifies what errors and message structures are
-	/// stored in the unions.
-	uw_canopen_protocol_ids_e type;
-	/// @brief: Stores the CANopen node_id of the message
-	uint8_t node_id;
-	/// @brief: This holds the message data.
-	/// Refer to the message type to fetch the right message
-	union {
-		uw_canopen_sdo_message_st sdo;
-		struct {
-			union {
-				uint8_t as_8bit[8];
-				uint16_t as_16bit[4];
-				uint32_t as_32bit[2];
-				uint64_t as_64bit;
-			};
-			uint8_t length;
-		} pdo_data;
-		uint8_t nmt;
-		union {
-			uint8_t heartbeat;
-			uint8_t boot_up;
-		};
-	} msg;
-} uw_canopen_msg_st;
 
 
 
@@ -214,19 +202,19 @@ typedef struct {
 } uw_canopen_object_st;
 
 
-/// @brief: Defines a nice way for defining a RXPDO
+/// @brief: a nice way for defining a RXPDO
 /// communication parameters in object dictionary
 typedef struct {
 	/// @brief: COB-ID for this PDO
 	uint16_t cob_id;
 	/// @brief: Transmission type. Currently only asynchronous
-	/// transmissions are supported, so this must be set to 0xFF
+	/// transmissions are supported, so this should be set to 0xFF
 	/// by the application.
 	uint16_t transmission_type;
 } uw_rxpdo_com_parameter_st;
 #define UW_RXPDO_COM_ARRAY_SIZE	2
 
-/// @brief: Defines a nice way for defining a TXPDO
+/// @brief: a nice way for defining a TXPDO
 /// communication parameters in object dictionary
 typedef struct {
 	/// @brief: COB-ID for this PDO
@@ -244,7 +232,7 @@ typedef struct {
 
 
 /// @brief: A nice way for defining object dictionary's identity object
-/// @note: Every CANopen device should specify a identity object at index 0x1018.
+/// @note: Every CANopen device should specify an identity object at index 0x1018.
 /// Difference from Cia 307 CANopen: Serial number is 16 bytes long instead of 4
 typedef struct {
 	/// @brief: CANopen vendor ID. Manufacturer should have a vendor ID specified
@@ -271,6 +259,8 @@ typedef struct {
 	/// @note: This length is in bits!
 	uint8_t length;
 } uw_pdo_mapping_parameter_st;
+
+
 
 
 /**** OBJECT DICTIONARY MANDATORY FIELDS ****/
@@ -309,19 +299,20 @@ typedef struct {
  * 	0x1018.4	Serial number
  *
  *
- * 0x1400 -> Rx PDO communication parameter (mandatory for each PDO used)
+ *
+ * 0x14xx 	Rx PDO communication parameter (mandatory for each PDO used)
  *  0x14xx.0	number of entries (2)
  *  0x14xx.1	RXPDOxx COB-ID
  *  0x14xx.2	transmission type (only asynchronous supported, set to 0xFF)
  *
- * 0x1600 -> Rx PDO Mapping parameter (mandatory for each PDO used)
+ * 0x16xx	Rx PDO Mapping parameter (mandatory for each PDO used)
  *  0x16xx.0	number of mapped objects used
  *  0x16xx.1	1st mapped object
  *  0x16xx.2	2st mapped object
  *  	...
- *  0x16xx.8		8th mapped object
+ *  0x16xx.8	8th mapped object
  *
- * 0x1800 -> Tx PDO communication parameter (mandatory for each PDO used)
+ * 0x18xx	Tx PDO communication parameter (mandatory for each PDO used)
  *  0x18xx.0	number of entries (5)
  *  0x18xx.1	TXPDOxx COB-ID
  *  0x18xx.2	transmission type (only asynchronous supported, set to 0xFF)
@@ -329,32 +320,16 @@ typedef struct {
  *  0x18xx.4	not used
  *  0x18xx.5	Event timer for cyclic transmission
  *
- * 0x1A00 -> Tx PDO Mapping parameter (mandatory for each PDO used)
+ * 0x1Axx	Tx PDO Mapping parameter (mandatory for each PDO used)
  *  0x1Axx.0	number of mapped objects used
  *  0x1Axx.1	1st mapped object
  *  0x1Axx.2	2st mapped object
  *  	...
- *  0x1Axx.8		8th mapped object
+ *  0x1Axx.8	8th mapped object
  *
  */
 
 
-/// @brief: Initializes the CANopen node and the object dictionary
-///
-/// @param node_id: This device's node_id
-/// @param obj_dict: Pointer to the uw_canopen_object_st array.
-/// Object dictionary should be defined by the application.
-/// @param obj_dict_length: The length of the object dictionary,
-/// e.g. the number of different indexes.
-/// @param sdo_write_callback: A function pointer to a callback function which will be called
-/// when a SDO write request was received. If callback function is not required, NULL can be passed.
-void uw_canopen_init(uint8_t node_id, uw_canopen_object_st* obj_dict, unsigned int obj_dict_length,
-		void (*sdo_write_callback)(uw_canopen_object_st* obj_dict_entry));
-
-
-/// @brief: The CANopen step function. Makes sure that the txPDO and heartbeat messages
-/// are sent cyclically in a right time step
-void uw_canopen_step(unsigned int step_ms);
 
 
 /**** PROTECTED FUNCTIONS *****/
@@ -364,15 +339,56 @@ void uw_canopen_step(unsigned int step_ms);
 /// makes the appropriate actions depending on the message received
 void __uw_canopen_parse_message(uw_can_message_st* message);
 
+
+/// @brief: Really sends the sdo message
+///
+/// @param req_response: The CAN message ID field indicating if this SDO is a request, response or error
+/// @param node_id: The destination node's node id
+uw_errors_e __uw_canopen_send_sdo(uw_canopen_sdo_message_st *sdo, uint8_t node_id, unsigned int req_response);
+
+/***** END OF PROTECTED FUNCTIONS ***/
+
+
+
+
+
+/// @brief: Initializes the CANopen node and the object dictionary
+///
+/// @param node_id: Pointer to a variable which holds this device's node_id.
+/// Usually node id is stored in the object dictionary, index 0x100B
+/// @param obj_dict: Pointer to the uw_canopen_object_st array.
+/// Object dictionary should be defined by the application.
+/// @param obj_dict_length: The length of the object dictionary,
+/// e.g. the number of different indexes.
+/// @param sdo_write_callback: A function pointer to a callback function which will be called
+/// when a SDO write request was received. If callback function is not required, NULL can be passed.
+uw_errors_e uw_canopen_init(uw_canopen_object_st* obj_dict, unsigned int obj_dict_length,
+		void (*sdo_write_callback)(uw_canopen_object_st* obj_dict_entry));
+
+
+/// @brief: The CANopen step function. Makes sure that the txPDO and heartbeat messages
+/// are sent cyclically in a right time step
+uw_errors_e uw_canopen_step(unsigned int step_ms);
+
+
 /// @brief: Used to set the device state. Device will start in UW_CANOPEN_BOOT_UP state
-/// and it should move itself to pre-operational state arfter boot up is done.
-void __uw_canopen_set_state(uw_canopen_node_states_e state);
+/// and it should move itself to pre-operational state after boot up is done.
+/// From that point forward the device state is handled by this CANopen stack.
+uw_errors_e uw_canopen_set_state(uw_canopen_node_states_e state);
 
 
 /// @brief: Used to get the device state. Device will start in UW_CANOPEN_BOOT_UP state
 /// and it should move itself to pre-operational state arfter boot up is done.
-uw_canopen_node_states_e __uw_canopen_get_state(void);
+uw_canopen_node_states_e uw_canopen_get_state(void);
 
+
+/// @brief: Sends a SDO message.
+/// The message is sent asynchronously
+///
+/// @param node_id: The destination node's node id
+static inline uw_errors_e uw_canopen_send_sdo(uw_canopen_sdo_message_st *sdo, uint8_t node_id) {
+	return __uw_canopen_send_sdo(sdo, node_id, SDO_REQUEST_ID);
+}
 
 
 #endif /* UW_CANOPEN_H_ */

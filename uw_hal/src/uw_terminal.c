@@ -361,10 +361,10 @@ static void execute_common_cmd(int cmd, char** args) {
 		break;
 	case CMD_RESET:
 		if (strcmp(args[0], "hard") == 0) {
-			hal_system_reset(true);
+			uw_system_reset(true);
 		}
 		else {
-			hal_system_reset(false);
+			uw_system_reset(false);
 		}
 		break;
 	case CMD_REVERT:
@@ -390,7 +390,7 @@ static void execute_common_cmd(int cmd, char** args) {
 		}
 		else {
 			char * str;
-			switch (__uw_canopen_get_state()) {
+			switch (uw_canopen_get_state()) {
 			case STATE_BOOT_UP:
 				str = "bootup";
 				break;
@@ -410,7 +410,7 @@ static void execute_common_cmd(int cmd, char** args) {
 			printf("%s\n\r", str);
 			break;
 		}
-		__uw_canopen_set_state(state);
+		uw_canopen_set_state(state);
 		printf("State: %s.\n\r", args[0]);
 		break;
 	case CMD_SET_ISP:

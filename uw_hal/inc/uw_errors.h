@@ -83,6 +83,14 @@ typedef enum {
 	/// @brief: Possible misconfiguration in uw_hal_config.h. Maybe the
 	/// peripheral was not enabled in uw_hal_config.h?
 	ERR_HAL_CONFIG						= 27,
+	/// @brief: CANopen SDO command request is unknown, SDO message is invalid.
+	ERR_CANOPEN_SDO_CMD_REQUEST			= 28,
+	/// @brief: CANopen node id object dictionary index specified in uw_hal_config.h
+	/// was invalid
+	ERR_CANOPEN_NODE_ID_ENTRY_INVALID 	= 29,
+	/// @brief: CANopen producer heartbeat time object dictionary index
+	/// specified in uw_hal_config.h was invalid
+	ERR_CANOPEN_HEARTBEAT_ENTRY_INVALID = 30,
 	ERR_COUNT
 } _uw_errors_e;
 typedef unsigned int uw_errors_e;

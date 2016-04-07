@@ -20,7 +20,7 @@
 
 static uw_reset_sources_e reset_source = UW_RESET_COUNT;
 
-uw_reset_sources_e hal_get_reset_source(void) {
+uw_reset_sources_e uw_get_reset_source(void) {
 #if CONFIG_TARGET_LPC11CXX
 	//POR reset
 	//external reset pin
@@ -51,7 +51,7 @@ uw_reset_sources_e hal_get_reset_source(void) {
 
 
 
-void hal_system_reset(bool hard_reset) {
+void uw_system_reset(bool hard_reset) {
 	if (hard_reset) {
 		uw_wdt_init(1);
 		uw_wdt_reset();

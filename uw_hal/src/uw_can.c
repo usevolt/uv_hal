@@ -52,13 +52,12 @@ static this_st _this;
 
 
 
-static bool check_channel(uw_can_channels_e channel) {
+static uw_errors_e check_channel(uw_can_channels_e channel) {
 	if (channel < CAN_COUNT) {
-		return true;
+		return ERR_NONE;
 	}
 	else {
-		printf("Error: CAN channel %u don't exist on this hardware\n\r", channel);
-		return false;
+		__uw_err_throw(ERR_HARDWARE_NOT_SUPPORTED | HAL_MODULE_CAN);
 	}
 }
 
@@ -278,10 +277,10 @@ void CAN_IRQHandler(void) {
 
 
 
-bool uw_can_init(uw_can_channels_e channel, unsigned int baudrate, unsigned int fosc,
+uw_errors_e uw_can_init(uw_can_channels_e channel, unsigned int baudrate, unsigned int fosc,
 		uw_can_message_st *tx_buffer, unsigned int tx_buffer_size,
 		uw_can_message_st *rx_buffer, unsigned int rx_buffer_size) {
-	if (!check_channel(channel)) return false;
+	if (check_channel(channel)) return check_channel(channel);
 	uint8_t i;
 	for (i = 0; i < CAN_COUNT; i++) {
 		this->rx_callback[i] = NULL;
@@ -318,14 +317,14 @@ bool uw_can_init(uw_can_channels_e channel, unsigned int baudrate, unsigned int 
 	LPC_CAN->CNTL |= 1 << 7;
 	LPC_CAN->TEST |= 1 << 4;
 #endif
-	return true;
+	return ERR_NONE;
 
 }
 
 
 
-bool uw_can_step(uw_can_channels_e channel, unsigned int step_ms) {
-	if (!check_channel(channel)) return false;
+uw_errors_e uw_can_step(uw_can_channels_e channel, unsigned int step_ms) {
+	if (check_channel(channel)) return check_channel(channel);
 	//check if the pending time limit has been exceeded.
 	// If so, clear the pending message object.
 	uint8_t i;
@@ -338,15 +337,15 @@ bool uw_can_step(uw_can_channels_e channel, unsigned int step_ms) {
 		}
 	}
 
-	return true;
+	return ERR_NONE;
 }
 
 
 
-bool uw_can_config_rx_message(uw_can_channels_e channel,
+uw_errors_e uw_can_config_rx_message(uw_can_channels_e channel,
 		unsigned int id,
 		unsigned int mask) {
-	if (!check_channel(channel)) return false;
+	if (check_channel(channel)) return check_channel(channel);
 
 	// if any message objects are still not in use,
 	// config them with settings requested
@@ -362,13 +361,13 @@ bool uw_can_config_rx_message(uw_can_channels_e channel,
 			};
 		}
 	}
-	return true;
+	return ERR_NONE;
 }
 
 
 
 uw_can_errors_e uw_can_send_message(uw_can_channels_e channel, uw_can_message_st* message) {
-	if (!check_channel(channel)) return false;
+	if (check_channel(channel)) return check_channel(channel);
 
 	hal_can_msg_obj_st obj = {
 			.data_length = message->data_length,
@@ -385,12 +384,12 @@ uw_can_errors_e uw_can_send_message(uw_can_channels_e channel, uw_can_message_st
 	// send the message
 	LPC_CCAN_API->can_transmit(&obj);
 
-	return true;
+	return ERR_NONE;
 }
 
 
 uint8_t uw_can_get_error_state(uw_can_channels_e channel) {
-	if (!check_channel(channel)) return false;
+	if (check_channel(channel)) return check_channel(channel);
 	if (LPC_CAN->STAT & (1 << 7)) {
 		return CAN_ERROR_BUS_OFF;
 	}
@@ -405,49 +404,50 @@ uint8_t uw_can_get_error_state(uw_can_channels_e channel) {
 }
 
 
-bool uw_can_reset(uw_can_channels_e channel) {
-	if (!check_channel(channel)) return false;
+uw_errors_e uw_can_reset(uw_can_channels_e channel) {
+	if (check_channel(channel)) return check_channel(channel);
 	//clearing the C_CAN bit resets C_CAN hardware
 	LPC_SYSCON->PRESETCTRL &= ~(1 << 3);
 	//set bit to de-assert the reset
 	LPC_SYSCON->PRESETCTRL |= (1 << 3);
-	return true;
+	return ERR_NONE;
 }
 
 
 #elif CONFIG_TARGET_LPC178X
 
-bool uw_can_init(uw_can_channels_e channel, unsigned int baudrate, unsigned int fosc,
+uw_errors_e uw_can_init(uw_can_channels_e channel, unsigned int baudrate, unsigned int fosc,
 		uw_can_message_st *tx_buffer, unsigned int tx_buffer_size,
 		uw_can_message_st *rx_buffer, unsigned int rx_buffer_size) {
+	if (check_channel(channel)) return check_channel(channel);
 
-	return true;
+	return ERR_NONE;
 }
 
 
 
-bool uw_can_step(uw_can_channels_e channel, unsigned int step_ms) {
-	if (!check_channel(channel)) return false;
+uw_errors_e uw_can_step(uw_can_channels_e channel, unsigned int step_ms) {
+	if (check_channel(channel)) return check_channel(channel);
 
-	return true;
+	return ERR_NONE;
 }
 
 
 
-bool uw_can_config_rx_message(uw_can_channels_e channel,
+uw_errors_e uw_can_config_rx_message(uw_can_channels_e channel,
 		unsigned int id,
 		unsigned int mask) {
-	if (!check_channel(channel)) return false;
+	if (check_channel(channel)) return check_channel(channel);
 
-	return true;
+	return ERR_NONE;
 }
 
 
 
 uw_can_errors_e uw_can_send_message(uw_can_channels_e channel, uw_can_message_st* message) {
-	if (!check_channel(channel)) return false;
+	if (check_channel(channel)) return check_channel(channel);
 
-	return true;
+	return ERR_NONE;
 }
 
 #else
@@ -457,9 +457,9 @@ uw_can_errors_e uw_can_send_message(uw_can_channels_e channel, uw_can_message_st
 
 
 
-bool uw_can_add_rx_callback(uw_can_channels_e channel,
+uw_errors_e uw_can_add_rx_callback(uw_can_channels_e channel,
 		void (*callback_function)(void *user_ptr, uw_can_message_st *msg)) {
 	if (!check_channel(channel)) return false;
 	this->rx_callback[channel] = callback_function;
-	return true;
+	return ERR_NONE;
 }

@@ -25,11 +25,11 @@ typedef enum {
 
 
 ///@brief: returns the error id indicating what was last reset's reason
-uw_reset_sources_e hal_get_reset_source(void);
+uw_reset_sources_e uw_get_reset_source(void);
 
 
 /// @brief: resets the system via software reset
-void hal_system_reset(bool hard_reset);
+void uw_system_reset(bool hard_reset);
 
 
 #endif /* HAL_RESET_H_ */

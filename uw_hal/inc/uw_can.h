@@ -9,7 +9,7 @@
 #define UW_CAN_H_
 
 #include "uw_hal_config.h"
-
+#include "uw_errors.h"
 #include <stdint.h>
 #include <stdbool.h>
 /// @file: CAN implementation on top of the HAL layer
@@ -81,7 +81,7 @@ enum {
 /// @param channel: The CAN channel to be initialized
 /// @param baudrate: The baudrate in Hz of the CAN bus
 /// @param fosc: The system oscillator frequency in Hz
-bool uw_can_init(uw_can_channels_e channel, unsigned int baudrate, unsigned int fosc,
+uw_errors_e uw_can_init(uw_can_channels_e channel, unsigned int baudrate, unsigned int fosc,
 		uw_can_message_st *tx_buffer, unsigned int tx_buffer_size,
 		uw_can_message_st *rx_buffer, unsigned int rx_buffer_size);
 
@@ -91,7 +91,7 @@ bool uw_can_init(uw_can_channels_e channel, unsigned int baudrate, unsigned int 
 ///
 /// @param channel: The CAN channel which is stepped
 /// @param step_ms: The step time in milliseconds
-bool uw_can_step(uw_can_channels_e channel, unsigned int step_ms);
+uw_errors_e uw_can_step(uw_can_channels_e channel, unsigned int step_ms);
 
 
 
@@ -107,7 +107,7 @@ bool uw_can_step(uw_can_channels_e channel, unsigned int step_ms);
 /// bits from ID, in order to receive many messages with different ID's.
 /// To receive only a single dedicated message, this should be set to 0xFFFFFFFF or
 /// UW_CAN_MASK_DEFAULT
-bool uw_can_config_rx_message(uw_can_channels_e channel,
+uw_errors_e uw_can_config_rx_message(uw_can_channels_e channel,
 		unsigned int id,
 		unsigned int mask);
 
@@ -133,7 +133,7 @@ uint8_t uw_can_get_error_state(uw_can_channels_e channel);
 
 
 
-bool uw_can_reset(uw_can_channels_e channel);
+uw_errors_e uw_can_reset(uw_can_channels_e channel);
 
 
 
@@ -147,7 +147,7 @@ bool uw_can_reset(uw_can_channels_e channel);
 /// @param callback_function: A function pointer to the callback function. The
 /// function takes 2 arguments: A user pointer (refer to uw_utilities.h) and
 /// a pointer to the CAN message which was received.
-bool uw_can_add_rx_callback(uw_can_channels_e channel,
+uw_errors_e uw_can_add_rx_callback(uw_can_channels_e channel,
 		void (*callback_function)(void *user_ptr, uw_can_message_st *msg));
 
 
