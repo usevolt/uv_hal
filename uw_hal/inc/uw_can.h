@@ -19,10 +19,38 @@
 /// as it wants.
 
 
+#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_CAN2
+#error "Hardware doesn't support CAN2 module. Set CONFIG_CAN2 to 0."
+#endif
+#elif CONFIG_TARGET_LPC178X
+#if CONFIG_CAN2
+#if !defined(CONFIG_CAN2_BAUDRATE)
+#error "CONFIG_CAN2_BAUDRATE not defined. It should define the baudrate used for CAN2 module."
+#endif
+#if !defined(CONFIG_CAN2_RX_BUFFER_SIZE)
+#error "CONFIG_CAN2_RX_BUFFER_SIZE not defined. It should define the buffer size used for receiving messages."
+#endif
+#if !defined(CONFIG_CAN2_TX_BUFFER_SIZE)
+#error "CONFIG_CAN2_TX_BUFFER_SIZE not defined. It should define the buffer size used for transmit messages."
+#endif
+#endif
+#endif
+
+#if CONFIG_CAN1
+#if !defined(CONFIG_CAN1_BAUDRATE)
+#error "CONFIG_CAN1_BAUDRATE not defined. It should define the baudrate used for CAN1 module."
+#endif
+#if !defined(CONFIG_CAN1_RX_BUFFER_SIZE)
+#error "CONFIG_CAN1_RX_BUFFER_SIZE not defined. It should define the buffer size used for receiving messages."
+#endif
+#if !defined(CONFIG_CAN1_TX_BUFFER_SIZE)
+#error "CONFIG_CAN1_TX_BUFFER_SIZE not defined. It should define the buffer size used for transmit messages."
+#endif
+#endif
+
 /// @brief: CAN message basic structure
 typedef struct {
-	///@brief: Message id
-	uint32_t id;
 	/// @brief: maximum of 8 Message data bytes
 	union {
 		uint8_t data_8bit[8];
@@ -30,6 +58,8 @@ typedef struct {
 		uint32_t data_32bit[2];
 		uint64_t data_64bit;
 	};
+	///@brief: Message id
+	uint32_t id;
 	/// @brief: Defines how many data bytes this message has
 	uint8_t data_length;
 } uw_can_message_st;
@@ -65,7 +95,7 @@ typedef enum {
 /// @brief: A enum describing popular CAN masks used when configuring receive messages.
 enum {
 	/// @brief: Mask where every bit is relevant
-	MASK_DEFAULT = 0xFFFFFFFF
+	CAN_ID_MASK_DEFAULT = 0xFFFFFFFF
 };
 
 /// @brief: Initializes the can module either in synchronous mode or in asynchronous mode.
@@ -81,9 +111,7 @@ enum {
 /// @param channel: The CAN channel to be initialized
 /// @param baudrate: The baudrate in Hz of the CAN bus
 /// @param fosc: The system oscillator frequency in Hz
-uw_errors_e uw_can_init(uw_can_channels_e channel, unsigned int baudrate, unsigned int fosc,
-		uw_can_message_st *tx_buffer, unsigned int tx_buffer_size,
-		uw_can_message_st *rx_buffer, unsigned int rx_buffer_size);
+uw_errors_e uw_can_init(uw_can_channels_e channel);
 
 
 
@@ -100,6 +128,9 @@ uw_errors_e uw_can_step(uw_can_channels_e channel, unsigned int step_ms);
 /// @note: Without a call to this, the CAN hardware doesn't process any received messages.
 /// For a receive callback function to be called when the message is received,
 /// the wanted message's ID needs to be configured with a call to this function.
+///
+/// The maximum number of messages which can be registered with this is hardware dependent.
+/// If the maximum message count is exceeded, this function returns error from that.
 ///
 /// @param channel: The CAN hardware channel to be configured
 /// @param id: The messages ID which is wanted to be received
@@ -123,7 +154,7 @@ uw_errors_e uw_can_config_rx_message(uw_can_channels_e channel,
 /// @return: Enum describing if errors were found while sending the message
 ///
 /// @pre: uw_can_init should be called
-uw_can_errors_e uw_can_send_message(uw_can_channels_e channel, uw_can_message_st* message);
+uw_errors_e uw_can_send_message(uw_can_channels_e channel, uw_can_message_st* message);
 
 
 

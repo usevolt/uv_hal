@@ -26,7 +26,7 @@ static volatile this_st _this = {
 
 uw_errors_e uw_rtos_add_idle_task(void (*task_function)(void *user_ptr)) {
 	this->idle_task = task_function;
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 

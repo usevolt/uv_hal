@@ -6,7 +6,9 @@
  */
 
 #include "uw_can.h"
-
+#if CONFIG_CANOPEN
+#include "uw_canopen.h"
+#endif
 
 #include "uw_utilities.h"
 #include <stdio.h>
@@ -39,7 +41,11 @@ typedef struct {
 #if CONFIG_TARGET_LPC11CXX
 	uint32_t pending_msg_objs;
 	uint32_t used_msg_objs;
-	int8_t pending_msg_obj_time_limit[MSG_OBJ_COUNT];
+	int8_t pending_msg_obj_time_limit;
+	uw_can_message_st rx_buffer_data[CONFIG_CAN1_RX_BUFFER_SIZE];
+	uw_ring_buffer_st rx_buffer;
+	uw_can_message_st tx_buffer_data[CONFIG_CAN1_TX_BUFFER_SIZE];
+	uw_ring_buffer_st tx_buffer;
 #elif CONFIG_TARGET_LPC178X
 
 #endif
@@ -50,11 +56,11 @@ static this_st _this;
 
 
 
-
+#define TX_MSG_OBJ	31
 
 static uw_errors_e check_channel(uw_can_channels_e channel) {
 	if (channel < CAN_COUNT) {
-		return ERR_NONE;
+		return uw_err(ERR_NONE);
 	}
 	else {
 		__uw_err_throw(ERR_HARDWARE_NOT_SUPPORTED | HAL_MODULE_CAN);
@@ -69,7 +75,7 @@ static uw_errors_e check_channel(uw_can_channels_e channel) {
 
 /// @brief: Time limit for pending message objects. If this exceedes, all message objects are
 /// released from pending state.
-#define PENDING_MSG_OBJ_TIME_LIMIT_MS		50
+#define PENDING_MSG_OBJ_TIME_LIMIT_MS		20
 
 #define CAN_ERROR_NONE 		0x00000000UL
 #define CAN_ERROR_PASS 		0x00000001UL
@@ -83,6 +89,7 @@ static uw_errors_e check_channel(uw_can_channels_e channel) {
 #define CAN_ERROR_CRC 		0x00000100UL
 
 
+static uw_errors_e send_next_msg( void );
 
 void CAN_rx(uint8_t msg_obj_num);
 void CAN_tx(uint8_t msg_obj_num);
@@ -217,13 +224,21 @@ void CAN_rx(uint8_t msg_obj_num) {
 	if (this->rx_callback[CAN1] != NULL) {
 		this->rx_callback[CAN1](__uw_get_user_ptr(), &msg);
 	}
+	// if canopen module is enabled, forward the message there
+#if CONFIG_CANOPEN
+	__uw_canopen_parse_message(&msg);
+#endif
 
 }
 
 void CAN_tx(uint8_t msg_obj_num) {
+	printf("tx");
 	// clear pending msg object
 	this->pending_msg_objs &= ~(1 << msg_obj_num);
-	this->pending_msg_obj_time_limit[msg_obj_num] = 0;
+	this->pending_msg_obj_time_limit = 0;
+
+	// send the next message if there is one in the message buffer
+	send_next_msg();
 }
 
 void CAN_error(uint32_t error_info) {
@@ -269,7 +284,24 @@ void CAN_error(uint32_t error_info) {
 		printf("Device is in CAN error passive state\n\r");
 	}
 }
-
+uint32_t CANOPEN_sdo_exp_read (uint16_t index, uint8_t subindex) {
+	return 0;
+}
+uint32_t CANOPEN_sdo_exp_write(uint16_t index, uint8_t subindex, uint8_t *dat_ptr) {
+	return 0;
+}
+uint32_t CANOPEN_sdo_seg_read(uint16_t index, uint8_t subindex, uint8_t openclose,
+		uint8_t *length, uint8_t *data, uint8_t *last) {
+	return 0;
+}
+uint32_t CANOPEN_sdo_seg_write(uint16_t index, uint8_t subindex, uint8_t openclose,
+		uint8_t length, uint8_t *data, uint8_t *fast_resp) {
+	return 0;
+}
+uint8_t CANOPEN_sdo_req(uint8_t length_req, uint8_t *req_ptr,
+		uint8_t *length_resp, uint8_t *resp_ptr) {
+	return 0;
+}
 
 void CAN_IRQHandler(void) {
 	LPC_CCAN_API->isr();
@@ -277,35 +309,36 @@ void CAN_IRQHandler(void) {
 
 
 
-uw_errors_e uw_can_init(uw_can_channels_e channel, unsigned int baudrate, unsigned int fosc,
-		uw_can_message_st *tx_buffer, unsigned int tx_buffer_size,
-		uw_can_message_st *rx_buffer, unsigned int rx_buffer_size) {
+uw_errors_e uw_can_init(uw_can_channels_e channel) {
 	if (check_channel(channel)) return check_channel(channel);
 	uint8_t i;
 	for (i = 0; i < CAN_COUNT; i++) {
 		this->rx_callback[i] = NULL;
 	}
-	for (i = 0; i < MSG_OBJ_COUNT; i++) {
-		this->pending_msg_obj_time_limit[i] = 0;
-	}
+	this->pending_msg_obj_time_limit = 0;
 	this->pending_msg_objs = 0;
 	this->used_msg_objs = 0;
+	uw_ring_buffer_init(&this->rx_buffer, this->rx_buffer_data,
+			CONFIG_CAN1_RX_BUFFER_SIZE, sizeof(uw_can_message_st));
+	uw_ring_buffer_init(&this->tx_buffer, this->tx_buffer_data,
+			CONFIG_CAN1_TX_BUFFER_SIZE, sizeof(uw_can_message_st));
+	SystemCoreClockUpdate();
 	uint32_t CanApiClkInitTable[] = {
 		//CANCLKDIV register
 		0,
 		//BTR register: TSEG2 = 2, TSEG1 = 1, SJW = 0 (equals to 0x2300)
-		0x2300 + ((fosc / (8 * baudrate) - 1) & 0x3F)
+		0x2300 + ((SystemCoreClock / (8 * CONFIG_CAN1_BAUDRATE) - 1) & 0x3F)
 	};
 	/* Publish CAN Callback Functions */
 	CCAN_CALLBACKS_T callbacks = {
 		CAN_rx,
 		CAN_tx,
 		CAN_error,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		NULL
+		CANOPEN_sdo_exp_read,
+		CANOPEN_sdo_exp_write,
+		CANOPEN_sdo_seg_read,
+		CANOPEN_sdo_seg_write,
+		CANOPEN_sdo_req
 	};
 	LPC_CCAN_API->init_can(&CanApiClkInitTable[0], 1);
 	/* Configure the CAN callback functions */
@@ -317,7 +350,7 @@ uw_errors_e uw_can_init(uw_can_channels_e channel, unsigned int baudrate, unsign
 	LPC_CAN->CNTL |= 1 << 7;
 	LPC_CAN->TEST |= 1 << 4;
 #endif
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 
 }
 
@@ -327,17 +360,19 @@ uw_errors_e uw_can_step(uw_can_channels_e channel, unsigned int step_ms) {
 	if (check_channel(channel)) return check_channel(channel);
 	//check if the pending time limit has been exceeded.
 	// If so, clear the pending message object.
-	uint8_t i;
-	for (i = 0; i < MSG_OBJ_COUNT; i++) {
-		if (this->pending_msg_obj_time_limit[i] < PENDING_MSG_OBJ_TIME_LIMIT_MS) {
-			this->pending_msg_obj_time_limit[i] += step_ms;
+
+	if (this->pending_msg_objs & (1 << TX_MSG_OBJ)) {
+		if (this->pending_msg_obj_time_limit < PENDING_MSG_OBJ_TIME_LIMIT_MS) {
+			this->pending_msg_obj_time_limit += step_ms;
 		}
 		else {
-			this->pending_msg_objs &= ~(1 << i);
+			this->pending_msg_objs &= ~(1 << TX_MSG_OBJ);
+			// send the next message
+			send_next_msg();
 		}
 	}
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
@@ -351,7 +386,7 @@ uw_errors_e uw_can_config_rx_message(uw_can_channels_e channel,
 	// config them with settings requested
 	// the last message object is reserved for sending messages
 	uint8_t i;
-	for (i = 0; i < MSG_OBJ_COUNT - 1; i++) {
+	for (i = 0; i < TX_MSG_OBJ; i++) {
 		// search for a unused message object to be used for receiving the messages
 		if (!GET_MASKED(this->used_msg_objs, (1 << i))) {
 			hal_can_msg_obj_st obj = {
@@ -359,32 +394,53 @@ uw_errors_e uw_can_config_rx_message(uw_can_channels_e channel,
 					.msgobj = i,
 					.mask = mask
 			};
+			LPC_CCAN_API->config_rxmsgobj(&obj);
+			this->used_msg_objs |= (1 << i);
+			return uw_err(ERR_NONE);
 		}
 	}
-	return ERR_NONE;
+	__uw_err_throw(ERR_CAN_RX_MESSAGE_COUNT_FULL | HAL_MODULE_CAN);
 }
 
+static uw_errors_e send_next_msg( void ) {
+	uw_can_message_st msg;
+	uw_ring_buffer_pop(&this->tx_buffer, &msg);
+	if (uw_get_error == ERR_BUFFER_EMPTY) {
+		return uw_err(ERR_NONE);
+	}
 
-
-uw_can_errors_e uw_can_send_message(uw_can_channels_e channel, uw_can_message_st* message) {
-	if (check_channel(channel)) return check_channel(channel);
-
+	// the last MSG OBJ is used for transmitting the messages
 	hal_can_msg_obj_st obj = {
-			.data_length = message->data_length,
-			.msg_id = message->id,
-			.msgobj = MSG_OBJ_COUNT - 1
+			.data_length = msg.data_length,
+			.msg_id = msg.id,
+			.msgobj = TX_MSG_OBJ
 	};
 	uint8_t i;
 	for (i = 0; i < obj.data_length; i++) {
-		obj.data[i] = message->data_8bit[i];
+		obj.data[i] = msg.data_8bit[i];
 	}
 	// mark message object as pending
 	this->pending_msg_objs |= (1 << obj.msgobj);
-	this->pending_msg_obj_time_limit[obj.msgobj] = 0;
+	this->pending_msg_obj_time_limit = 0;
 	// send the message
 	LPC_CCAN_API->can_transmit(&obj);
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
+
+}
+
+uw_errors_e uw_can_send_message(uw_can_channels_e channel, uw_can_message_st* message) {
+	if (check_channel(channel)) return check_channel(channel);
+
+	// put the message into TX buffer
+	uw_errors_e e = uw_ring_buffer_push(&this->tx_buffer, message);
+
+	// if the TX msg obj is ready, send the next message
+	if (!(this->pending_msg_objs & (1 << TX_MSG_OBJ))) {
+		return send_next_msg();
+	}
+
+	__uw_err_throw(e);
 }
 
 
@@ -410,7 +466,7 @@ uw_errors_e uw_can_reset(uw_can_channels_e channel) {
 	LPC_SYSCON->PRESETCTRL &= ~(1 << 3);
 	//set bit to de-assert the reset
 	LPC_SYSCON->PRESETCTRL |= (1 << 3);
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
@@ -421,7 +477,7 @@ uw_errors_e uw_can_init(uw_can_channels_e channel, unsigned int baudrate, unsign
 		uw_can_message_st *rx_buffer, unsigned int rx_buffer_size) {
 	if (check_channel(channel)) return check_channel(channel);
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
@@ -429,7 +485,7 @@ uw_errors_e uw_can_init(uw_can_channels_e channel, unsigned int baudrate, unsign
 uw_errors_e uw_can_step(uw_can_channels_e channel, unsigned int step_ms) {
 	if (check_channel(channel)) return check_channel(channel);
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
@@ -439,7 +495,7 @@ uw_errors_e uw_can_config_rx_message(uw_can_channels_e channel,
 		unsigned int mask) {
 	if (check_channel(channel)) return check_channel(channel);
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
@@ -447,7 +503,7 @@ uw_errors_e uw_can_config_rx_message(uw_can_channels_e channel,
 uw_can_errors_e uw_can_send_message(uw_can_channels_e channel, uw_can_message_st* message) {
 	if (check_channel(channel)) return check_channel(channel);
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 #else
@@ -461,5 +517,5 @@ uw_errors_e uw_can_add_rx_callback(uw_can_channels_e channel,
 		void (*callback_function)(void *user_ptr, uw_can_message_st *msg)) {
 	if (!check_channel(channel)) return false;
 	this->rx_callback[channel] = callback_function;
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }

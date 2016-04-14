@@ -158,7 +158,7 @@ uw_errors_e uw_memory_save(uw_data_start_t *start_ptr, uw_data_end_t *end_ptr) {
 	uw_iap_status_e status = uw_erase_and_write_to_flash((unsigned int) start_ptr,
 			length, NON_VOLATILE_MEMORY_START_ADDRESS);
 	if (status == IAP_CMD_SUCCESS) {
-		return ERR_NONE;
+		return uw_err(ERR_NONE);
 	}
 	else {
 		printf("\n\rerror code %u\n\r", status);
@@ -192,7 +192,7 @@ uw_errors_e uw_memory_load(uw_data_start_t *start_ptr, uw_data_end_t *end_ptr) {
 	else if (end_ptr->end_checksum != CHECKSUM_VALID) {
 		__uw_err_throw(ERR_END_CHECKSUM_NOT_MATCH | HAL_MODULE_MEMORY);
 	}
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
@@ -348,7 +348,7 @@ uw_errors_e __uw_clear_previous_non_volatile_data() {
 	uw_iap_status_e status = uw_erase_and_write_to_flash((unsigned int) last_start,
 			length, NON_VOLATILE_MEMORY_START_ADDRESS);
 	if (status == IAP_CMD_SUCCESS) {
-		return ERR_NONE;
+		return uw_err(ERR_NONE);
 	}
 	else {
 		__uw_err_throw(ERR_INTERNAL | HAL_MODULE_MEMORY);

@@ -36,7 +36,7 @@ uw_errors_e uw_virtual_uart_init(uw_virtual_uart_st *uart, _uw_gpios_e rx_pin,
 	uw_err_pass(uw_gpio_init_input(uart->rx_io, PULL_UP_ENABLED | HYSTERESIS_ENABLED,
 								INT_FALLING_EDGE));
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 uw_errors_e uw_virtual_uart_send(uw_virtual_uart_st *uart, char *c) {

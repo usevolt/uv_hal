@@ -46,7 +46,7 @@ uw_errors_e uw_gpio_init_output(uw_gpios_e gpio, bool initial_value) {
 	LPC_GPIO->DIR |= (1 << PIN(gpio));
 	uw_gpio_set_pin(gpio, initial_value);
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
@@ -123,7 +123,7 @@ uw_errors_e uw_gpio_init_input(uw_gpios_e gpio, uw_gpio_input_config_e configura
 	}
 #endif
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 uw_errors_e uw_gpio_set_pin(uw_gpios_e gpio, bool value) {
@@ -144,7 +144,7 @@ uw_errors_e uw_gpio_set_pin(uw_gpios_e gpio, bool value) {
 	}
 #endif
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 uw_errors_e uw_gpio_toggle_pin(uw_gpios_e gpio) {
@@ -158,7 +158,7 @@ uw_errors_e uw_gpio_toggle_pin(uw_gpios_e gpio) {
 	LPC_GPIO->PIN ^= (1 << PIN(gpio));
 #endif
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 

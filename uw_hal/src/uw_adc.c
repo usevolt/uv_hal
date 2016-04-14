@@ -185,7 +185,7 @@ uw_errors_e uw_adc_init() {
 
 #endif
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 

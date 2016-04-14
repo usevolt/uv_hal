@@ -6,7 +6,7 @@
  */
 
 
-
+#include "uw_can.h"
 #include "uw_canopen.h"
 #include "uw_reset.h"
 #include "uw_utilities.h"
@@ -54,10 +54,11 @@ typedef struct {
 
 /// @brief: A local declaration of static variable structure
 typedef struct {
-	uw_canopen_object_st* obj_dict;
+	const uw_canopen_object_st* obj_dict;
 	unsigned int obj_dict_length;
 	uw_canopen_node_states_e state;
 	void (*sdo_write_callback)(uw_canopen_object_st* obj_dict_entry);
+	int heartbeat_delay;
 } this_st;
 
 static this_st _this;
@@ -79,21 +80,18 @@ static void parse_rxpdo(uw_canopen_msg_st* req);
 static void parse_nmt_message(uw_canopen_msg_st* req);
 
 #define node_id()		(*(find_object(CONFIG_CANOPEN_NODEID_INDEX, 0)->data_ptr))
-#define heartbeat()		(*(find_object(CONFIG_CANOPEN_HEARTBEAT_INDEX, 0)->data_ptr))
 #define is_array(x)		(x & UW_ARRAY_MASK)
 #define get_array_cell_size(x) (x - (1 << 6))
 
 /// @brief: Searches the object dictionary and returns a pointer to found
 /// object. If object couldn't be found, returns NULL.
-static uw_canopen_object_st *find_object(uint16_t index, uint8_t sub_index) {
+static const uw_canopen_object_st *find_object(uint16_t index, uint8_t sub_index) {
 	unsigned int i;
 	for (i = 0; i < this->obj_dict_length; i++) {
 		if (this->obj_dict[i].main_index == index) {
-			// object is of array type
+			// object is of array type and sub index is dont_care
 			if (is_array(this->obj_dict[i].type)) {
-				if (sub_index < this->obj_dict[i].array_max_size) {
-					return &this->obj_dict[i];
-				}
+				return &this->obj_dict[i];
 			}
 			else {
 				if (this->obj_dict[i].sub_index == sub_index) {
@@ -105,33 +103,93 @@ static uw_canopen_object_st *find_object(uint16_t index, uint8_t sub_index) {
 	return NULL;
 }
 
+/// @brief: Can be used to index object which is of type array
+static unsigned int array_index(const uw_canopen_object_st *obj, uint16_t index) {
+	if (index >= obj->array_max_size) {
+		return 0;
+	}
+	// index 0 means the length of this array
+	else if (index == 0) {
+		return obj->array_max_size;
+	}
+	switch (obj->type) {
+	case UW_ARRAY8:
+		return obj->data_ptr[index];
+	case UW_ARRAY16:
+		return ((uint16_t*) obj->data_ptr)[index];
+	case UW_ARRAY32:
+		return ((uint32_t*) obj->data_ptr)[index];
+	default:
+		return 0;
+	}
+}
 
-uw_errors_e uw_canopen_init(uw_canopen_object_st* obj_dict, unsigned int obj_dict_length,
+static unsigned int get_object_value(const uw_canopen_object_st* obj) {
+	if (obj->type == UW_UNSIGNED8) {
+		return *obj->data_ptr;
+	}
+	else if (obj->type == UW_UNSIGNED16) {
+		return *((uint16_t*)obj->data_ptr);
+	}
+	else if (obj->type == UW_UNSIGNED32) {
+		return *((uint32_t*)obj->data_ptr);
+	}
+	else {
+		return 0;
+	}
+}
+
+
+uw_errors_e uw_canopen_init(const uw_canopen_object_st* obj_dict, unsigned int obj_dict_length,
 		void (*sdo_write_callback)(uw_canopen_object_st* obj_dict_entry)) {
 	this->obj_dict = obj_dict;
 	this->obj_dict_length = obj_dict_length;
 	this->state = STATE_BOOT_UP;
 	this->sdo_write_callback = sdo_write_callback;
+	this->heartbeat_delay = 0;
 
 	// check that node id and heartbeat time entries are found
 	// in obj dict
-	uw_canopen_object_st *obj = find_object(CONFIG_CANOPEN_NODEID_INDEX, 0);
+	const uw_canopen_object_st *obj = find_object(CONFIG_CANOPEN_NODEID_INDEX, 0);
 	if (!obj) {
 		__uw_err_throw(ERR_CANOPEN_NODE_ID_ENTRY_INVALID | HAL_MODULE_CANOPEN);
 	}
-	if (! (obj= find_object(CONFIG_CANOPEN_HEARTBEAT_INDEX, 0))) {
+	if (! (obj = find_object(CONFIG_CANOPEN_HEARTBEAT_INDEX, 0))) {
 		__uw_err_throw(ERR_CANOPEN_HEARTBEAT_ENTRY_INVALID| HAL_MODULE_CANOPEN);
 	}
+	uint8_t nodeid = node_id();
 
 	// send boot up message
 	uw_can_message_st msg = {
-			.id = BOOTUP_ID + node_id(),
+			.id = BOOTUP_ID + nodeid,
 			.data_length = 1,
 			.data_8bit[0] = 0
 	};
 	uw_can_send_message(CONFIG_CANOPEN_CHANNEL, &msg);
 
-	return ERR_NONE;
+	// configure receive messages for NMT, SDO and PDO messages for this node id and
+	// broadcast.
+	// NMT broadcasting
+	uw_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, NMT_ID, CAN_ID_MASK_DEFAULT);
+	// NMT node id
+	uw_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, NMT_ID + nodeid, CAN_ID_MASK_DEFAULT);
+	// SDO request broadcasting
+	uw_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, SDO_REQUEST_ID, CAN_ID_MASK_DEFAULT);
+	// SDO request node id
+	uw_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, SDO_REQUEST_ID + nodeid, CAN_ID_MASK_DEFAULT);
+
+	uint8_t i;
+	for (i = 0; i < 255; i++) {
+		// assume that the RXPDO communication parameters contain uw_rxpdo_com_parameter_st types.
+		obj = find_object(CONFIG_CANOPEN_RXPDO_COM_INDEX + i, 0);
+		if (!obj) {
+			break;
+		}
+		uint32_t id = array_index(obj, 1);
+		uw_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, id, CAN_ID_MASK_DEFAULT);
+	}
+
+	return uw_err(ERR_NONE);
 }
 
 uw_errors_e uw_canopen_step(unsigned int step_ms) {
@@ -141,8 +199,26 @@ uw_errors_e uw_canopen_step(unsigned int step_ms) {
 	}
 
 	// send heartbeat message
+	const uw_canopen_object_st* obj = find_object(CONFIG_CANOPEN_HEARTBEAT_INDEX, 0);
+	if (!obj) {
+		__uw_err_throw(ERR_CANOPEN_HEARTBEAT_ENTRY_INVALID | HAL_MODULE_CANOPEN);
+	}
 
-	return ERR_NONE;
+	if (uw_delay(step_ms, &this->heartbeat_delay)) {
+		// send heartbeat msg
+		uw_can_message_st msg = {
+				.id = HEARTBEAT_ID + node_id(),
+				.data_length = 1,
+				.data_8bit[0] = this->state
+		};
+		uw_can_send_message(CONFIG_CANOPEN_CHANNEL, &msg);
+
+		// start the delay again
+		uw_start_delay(get_object_value(obj), &this->heartbeat_delay);
+	}
+
+
+	return uw_err(ERR_NONE);
 }
 
 
@@ -193,7 +269,7 @@ void __uw_canopen_parse_message(uw_can_message_st* message) {
 
 uw_errors_e uw_canopen_set_state(uw_canopen_node_states_e state) {
 	this->state = state;
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 uw_canopen_node_states_e uw_canopen_get_state(void) {
@@ -216,7 +292,7 @@ static void sdo_send_error(uw_canopen_sdo_message_st *msg, uw_sdo_error_codes_e 
 }
 
 static void sdo_send_response(uw_canopen_sdo_message_st *msg, uw_canopen_sdo_commands_e cmd,
-		uint8_t *data, uint8_t data_length) {
+		const uint8_t *data, uint8_t data_length) {
 	// reply message struct
 	uw_canopen_sdo_message_st  reply = {
 			.main_index = msg->main_index,
@@ -233,7 +309,7 @@ static void sdo_send_response(uw_canopen_sdo_message_st *msg, uw_canopen_sdo_com
 }
 
 static void parse_sdo(uw_canopen_msg_st* req) {
-	uw_canopen_object_st *obj = find_object(req->msg.sdo.main_index, req->msg.sdo.sub_index);
+	const uw_canopen_object_st *obj = find_object(req->msg.sdo.main_index, req->msg.sdo.sub_index);
 
 	if (!obj) {
 		sdo_send_error(&req->msg.sdo, SDO_ERROR_OBJECT_DOES_NOT_EXIST);
@@ -270,7 +346,7 @@ static void parse_sdo(uw_canopen_msg_st* req) {
 			req->msg.sdo.request == SDO_CMD_WRITE_4_BYTES ||
 			req->msg.sdo.request == SDO_CMD_WRITE_BYTES) {
 		if (obj->permissions & UW_WO) {
-
+// todo: SDO writing
 		}
 		else {
 			sdo_send_error(&req->msg.sdo, SDO_ERROR_ATTEMPT_TO_WRITE_A_READ_ONLY_OBJECT);
@@ -324,5 +400,5 @@ uw_errors_e __uw_canopen_send_sdo(uw_canopen_sdo_message_st *sdo, uint8_t node_i
 
 	uw_can_send_message(CONFIG_CANOPEN_CHANNEL, &msg);
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }

@@ -86,7 +86,7 @@ static this_st _this = {
 #if (CONFIG_TARGET_LPC11CXX && CONFIG_UART0)
 void UART_IRQHandler (void) {
 	char received_char = this->uart[UART0]->RBR & 0xFF;
-	uw_err_check(uw_ring_buffer_push(&this->buffer[UART0], received_char)) {
+	uw_err_check(uw_ring_buffer_push(&this->buffer[UART0], &received_char)) {
 		if (uw_get_error == ERR_BUFFER_OVERFLOW) {
 			__uw_log_error(__uw_error);
 		}
@@ -175,7 +175,7 @@ static uw_errors_e check_uart(uw_uarts_e uart) {
 		__uw_err_throw(ERR_INCORRECT_HAL_CONFIG | HAL_MODULE_UART);
 
 	}
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
@@ -183,7 +183,7 @@ uw_errors_e uw_uart_add_callback(uw_uarts_e uart,
 		void (*callback_function)(void* user_ptr, uw_uarts_e uart, char chr)) {
 	if (check_uart(uart)) return check_uart(uart);
 	this->callback[uart] = callback_function;
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
@@ -191,7 +191,7 @@ uw_errors_e uw_uart_add_callback(uw_uarts_e uart,
 uw_errors_e uw_uart_init(uw_uarts_e uart) {
 	this->callback[UART0] = 0;
 	this->uart[UART0] = LPC_UART;
-	uw_ring_buffer_init(this->buffer, uart0_rxbuffer, CONFIG_UART0_RX_BUFFER_SIZE);
+	uw_ring_buffer_init(this->buffer, uart0_rxbuffer, CONFIG_UART0_RX_BUFFER_SIZE, sizeof(char));
 
 	if (check_uart(uart)) return check_uart(uart);
 
@@ -199,7 +199,6 @@ uw_errors_e uw_uart_init(uw_uarts_e uart) {
 
 	//set the baud_rate
 	uint32_t uart_clock_div = SystemCoreClock / (CONFIG_UART0_BAUDRATE * 16);
-//	uint32_t uart_clock_div = SystemCoreClock / (CONFIG_UART0_BAUDRATE * 16);
 	//uart clock divider is only 8 bits, so discard all values above 255
 	if (uart_clock_div > 0xff) {
 		uart_clock_div = 0xff;
@@ -597,7 +596,7 @@ uw_errors_e uw_uart_init(uw_uarts_e uart) {
 
 	// this UART is now initialized
 	this->init |= (1 << uart);
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
@@ -638,7 +637,7 @@ uw_errors_e uw_uart_send_char(uw_uarts_e uart, char buffer) {
 	}
 #endif
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
@@ -651,7 +650,7 @@ uw_errors_e uw_uart_send(uw_uarts_e uart, char *buffer, uint32_t length) {
 		buffer++;
 		length--;
 	}
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
@@ -664,7 +663,7 @@ uw_errors_e uw_uart_send_str(uw_uarts_e uart, char *buffer) {
 		buffer++;
 	}
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 

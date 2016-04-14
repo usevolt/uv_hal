@@ -30,6 +30,40 @@
 ///
 
 
+
+#if CONFIG_CANOPEN
+
+
+/* uw_hal_config.h symbol checks */
+#if !defined(CONFIG_CANOPEN_CHANNEL)
+#error "CONFIG_CANOPEN_CHANNEL not defined. It should define which CAN module to use (1, 2, 3, etc)"
+#endif
+#if !defined(CONFIG_CANOPEN_HEARTBEAT_INDEX)
+#error "CONFIG_CANOPEN_HEARTBEAT_INDEX not defined. It should define which object dictionary index\
+ the heartbeat index is."
+#endif
+#if !defined(CONFIG_CANOPEN_NODEID_INDEX)
+#error "CONFIG_CANOPEN_NODEID_INDEX not defined. It should define which object dictionary index\
+ the node id index is."
+#endif
+#if !defined(CONFIG_CANOPEN_TXPDO_COM_INDEX)
+#error "CONFIG_CANOPEN_TXPDO_COM_INDEX not defined. It should define the index from which forward\
+ transmit PDO communication parameters are found."
+#endif
+#if !defined(CONFIG_CANOPEN_TXPDO_MAP_INDEX)
+#error "CONFIG_CANOPEN_TXPDO_MAP_INDEX not defined. It should define the index from which forward\
+ transmit PDO mapping parameters are found."
+#endif
+#if !defined(CONFIG_CANOPEN_RXPDO_COM_INDEX)
+#error "CONFIG_CANOPEN_RXPDO_COM_INDEX not defined. It should define the index from which forward\
+ receive PDO communication parameters are found."
+#endif
+#if !defined(CONFIG_CANOPEN_RXPDO_MAP_INDEX)
+#error "CONFIG_CANOPEN_RXPDO_MAP_INDEX not defined. It should define the index from which forward\
+ receive PDO mapping parameters are found."
+#endif
+
+
 /// @brief: Usewood Vendor ID.
 /// Vendor ID can be got from CiA
 #define USEWOOD_VENDOR_ID	0
@@ -231,6 +265,19 @@ typedef struct {
 #define UW_TXPDO_COM_ARRAY_SIZE	5
 
 
+/// @brief: A nice way for defining a CANopen PDO mapping parameter
+/// PDO mapping parameter object should be an array of these
+typedef struct {
+	/// @brief: Mapped object's main_index
+	uint16_t main_index;
+	/// @brief: Mapped object's sub_index
+	uint8_t sub_index;
+	/// @brief: Mapped bit length
+	/// @note: This length is in bits!
+	uint8_t length;
+} uw_pdo_mapping_parameter_st;
+
+
 /// @brief: A nice way for defining object dictionary's identity object
 /// @note: Every CANopen device should specify an identity object at index 0x1018.
 /// Difference from Cia 307 CANopen: Serial number is 16 bytes long instead of 4
@@ -246,19 +293,6 @@ typedef struct {
 	uint32_t serial_number[4];
 } uw_identity_object_st;
 #define UW_IDENTITY_OBJECT_ARRAY_SIZE	7
-
-
-/// @brief: A nice way for defining a CANopen PDO mapping parameter
-/// PDO mapping parameter object should be an array of these
-typedef struct {
-	/// @brief: Mapped object's main_index
-	uint16_t main_index;
-	/// @brief: Mapped object's sub_index
-	uint8_t sub_index;
-	/// @brief: Mapped bit length
-	/// @note: This length is in bits!
-	uint8_t length;
-} uw_pdo_mapping_parameter_st;
 
 
 
@@ -362,7 +396,7 @@ uw_errors_e __uw_canopen_send_sdo(uw_canopen_sdo_message_st *sdo, uint8_t node_i
 /// e.g. the number of different indexes.
 /// @param sdo_write_callback: A function pointer to a callback function which will be called
 /// when a SDO write request was received. If callback function is not required, NULL can be passed.
-uw_errors_e uw_canopen_init(uw_canopen_object_st* obj_dict, unsigned int obj_dict_length,
+uw_errors_e uw_canopen_init(const uw_canopen_object_st* obj_dict, unsigned int obj_dict_length,
 		void (*sdo_write_callback)(uw_canopen_object_st* obj_dict_entry));
 
 
@@ -390,6 +424,7 @@ static inline uw_errors_e uw_canopen_send_sdo(uw_canopen_sdo_message_st *sdo, ui
 	return __uw_canopen_send_sdo(sdo, node_id, SDO_REQUEST_ID);
 }
 
+#endif
 
 #endif /* UW_CANOPEN_H_ */
 

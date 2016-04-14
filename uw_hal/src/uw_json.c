@@ -21,7 +21,7 @@ static uw_errors_e check_overflow(uw_json_st *json, unsigned int length_req) {
 		__uw_err_throw(ERR_BUFFER_OVERFLOW | HAL_MODULE_JSON);
 	}
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
@@ -41,7 +41,7 @@ uw_errors_e uw_json_init(uw_json_st *json, char *buffer_ptr, unsigned int buffer
 	}
 	*(json->start_ptr + json->buffer_length - count + 1) = '\0';
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
@@ -51,7 +51,7 @@ uw_errors_e uw_json_write_begin(uw_json_st *json) {
 
 	sprintf(json->start_ptr, "{");
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
@@ -82,7 +82,7 @@ uw_errors_e uw_json_write_end(uw_json_st *json, uw_json_errors_e *errors) {
 	}
 	*errors = JSON_ERR_NONE;
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
@@ -93,7 +93,7 @@ uw_errors_e uw_json_begin_object(uw_json_st *json, char *name) {
 
 	snprintf(json->start_ptr + strlen(json->start_ptr), len, "\"%s\":{", name);
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 uw_errors_e uw_json_end_object(uw_json_st *json) {
@@ -105,7 +105,7 @@ uw_errors_e uw_json_end_object(uw_json_st *json) {
 	}
 	strcat(json->start_ptr, "},");
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 uw_errors_e uw_json_begin_array(uw_json_st *json, char *name) {
@@ -115,7 +115,7 @@ uw_errors_e uw_json_begin_array(uw_json_st *json, char *name) {
 
 	snprintf(json->start_ptr + strlen(json->start_ptr), len, "\"%s\":[", name);
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 uw_errors_e uw_json_end_array(uw_json_st *json) {
@@ -127,7 +127,7 @@ uw_errors_e uw_json_end_array(uw_json_st *json) {
 	}
 	strcat(json->start_ptr, "],");
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 uw_errors_e uw_json_add_int(uw_json_st *json, char *name, int value) {
@@ -139,7 +139,7 @@ uw_errors_e uw_json_add_int(uw_json_st *json, char *name, int value) {
 
 	snprintf(json->start_ptr + strlen(json->start_ptr), len, "\"%s\":%s,",
 			name, v);
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 uw_errors_e uw_json_add_string(uw_json_st *json, char *name, char *value) {
@@ -148,7 +148,7 @@ uw_errors_e uw_json_add_string(uw_json_st *json, char *name, char *value) {
 
 	snprintf(json->start_ptr + strlen(json->start_ptr), len, "\"%s\":\"%s\",",
 			name, value);
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 uw_errors_e uw_json_add_bool(uw_json_st *json, char *name, bool value) {
@@ -157,7 +157,7 @@ uw_errors_e uw_json_add_bool(uw_json_st *json, char *name, bool value) {
 
 	snprintf(json->start_ptr + strlen(json->start_ptr), len, "\"%s\":%s,",
 			name, (value) ? "true" : "false");
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 

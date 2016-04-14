@@ -317,7 +317,7 @@ uw_errors_e uw_terminal_step() {
 		// add character to buffer
 		this->buffer[this->buffer_index++] = data;
 	}
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 

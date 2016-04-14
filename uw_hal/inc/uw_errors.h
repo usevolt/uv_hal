@@ -91,6 +91,9 @@ typedef enum {
 	/// @brief: CANopen producer heartbeat time object dictionary index
 	/// specified in uw_hal_config.h was invalid
 	ERR_CANOPEN_HEARTBEAT_ENTRY_INVALID = 30,
+	/// @brief: Indicates that the rx message couldn't be configured to be received,
+	/// because all message objects in the CAN hardware were already used.
+	ERR_CAN_RX_MESSAGE_COUNT_FULL		= 31,
 	ERR_COUNT
 } _uw_errors_e;
 typedef unsigned int uw_errors_e;

@@ -50,7 +50,7 @@ static uw_errors_e validate_timer(uw_timers_e timer) {
 	if (timer >= TIMER_COUNT) {
 		__uw_err_throw(ERR_HARDWARE_NOT_SUPPORTED | HAL_MODULE_TIMER);
 	}
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
@@ -539,7 +539,7 @@ uw_errors_e uw_timer_init(uw_timers_e timer, float freq) {
 		__uw_err_throw(ERR_HARDWARE_NOT_SUPPORTED | HAL_MODULE_TIMER);
 	}
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
@@ -586,7 +586,7 @@ uw_errors_e uw_timer_set_freq(uw_timers_e timer, float freq) {
 	// set match 3 to timer max value
 	this->timer[timer]->MR3 = max_value;
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
@@ -620,7 +620,7 @@ uw_errors_e uw_pwm_set(uw_pwms_e pwm, uw_pwm_channels_e channel, unsigned int du
 	}
 
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 #elif CONFIG_TARGET_LPC178X
 #warning "uw_pwm_set for CONFIG_TARGET_LPC178X is missing"
 #endif
@@ -639,7 +639,7 @@ uw_errors_e uw_counter_init(uw_timers_e timer) {
 	__uw_err_throw(ERR_NOT_IMPLEMENTED | HAL_MODULE_TIMER);
 #endif
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
@@ -717,7 +717,7 @@ uw_errors_e uw_timer_add_callback(uw_timers_e timer, void (*callback_function)
 	this->timer_callbacks[timer] = callback_function;
 
 
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
@@ -744,7 +744,7 @@ uw_errors_e uw_tick_timer_init(uint32_t freq) {
 		//error happened
 		__uw_err_throw(ERR_FREQ_TOO_HIGH_OR_TOO_LOW | HAL_MODULE_TIMER);
 	}
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 
 }
 

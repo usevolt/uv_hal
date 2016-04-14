@@ -95,41 +95,48 @@ char *uw_get_hardware_name() {
 }
 
 
-uw_errors_e uw_ring_buffer_init(uw_ring_buffer_st *buffer_ptr, char *buffer, uint16_t buffer_size) {
+uw_errors_e uw_ring_buffer_init(uw_ring_buffer_st *buffer_ptr, void *buffer,
+		uint16_t buffer_size, uint8_t element_size) {
 	buffer_ptr->buffer = buffer;
 	buffer_ptr->buffer_size = buffer_size;
 	buffer_ptr->element_count = 0;
+	buffer_ptr->element_size = element_size;
 	buffer_ptr->head = buffer_ptr->tail = buffer_ptr->buffer;
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
-uw_errors_e uw_ring_buffer_push(uw_ring_buffer_st *buffer, char element) {
+uw_errors_e uw_ring_buffer_push(uw_ring_buffer_st *buffer, void *element) {
 	if (buffer->element_count == buffer->buffer_size) {
 		return uw_err(ERR_BUFFER_OVERFLOW | HAL_MODULE_UTILITIES);
 	}
-	*(buffer->head) = element;
-	buffer->head++;
-	if (buffer->head == buffer->buffer + buffer->buffer_size) {
+	uint8_t i;
+	for (i = 0; i < buffer->element_size; i++) {
+		*(buffer->head) = *((char*) element + i);
+		buffer->head++;
+	}
+	if (buffer->head == buffer->buffer + buffer->buffer_size * buffer->element_size) {
 		buffer->head = buffer->buffer;
 	}
 	buffer->element_count++;
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
-uw_errors_e uw_ring_buffer_pop(uw_ring_buffer_st *buffer, char *dest) {
+uw_errors_e uw_ring_buffer_pop(uw_ring_buffer_st *buffer, void *dest) {
 	if (!buffer->element_count) {
 		return uw_err(ERR_BUFFER_EMPTY | HAL_MODULE_UTILITIES);
 	}
-
-	*dest = *(buffer->tail);
-	buffer->tail++;
-	if (buffer->tail == buffer->buffer + buffer->buffer_size) {
+	uint8_t i;
+	for (i = 0; i < buffer->element_size; i++) {
+		*((char*)dest + i) = *(buffer->tail);
+		buffer->tail++;
+	}
+	if (buffer->tail == buffer->buffer + buffer->buffer_size * buffer->element_size) {
 		buffer->tail = buffer->buffer;
 	}
 	buffer->element_count--;
-	return ERR_NONE;
+	return uw_err(ERR_NONE);
 }
 
 
@@ -139,7 +146,7 @@ uw_errors_e uw_ring_buffer_pop(uw_ring_buffer_st *buffer, char *dest) {
 uw_errors_e uw_set_int_priority(uw_int_sources_e src, unsigned int priority) {
 	if (priority <= INT_LOWEST_PRIORITY) {
 		NVIC_SetPriority(src, priority);
-		return ERR_NONE;
+		return uw_err(ERR_NONE);
 	}
 	__uw_err_throw(ERR_INT_LEVEL | HAL_MODULE_UTILITIES);
 }

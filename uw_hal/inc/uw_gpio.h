@@ -18,6 +18,12 @@
 
 
 
+#if CONFIG_TARGET_LPC178X
+#define UW_GPIO_SET_MODE(port, pin, mode)	LPC_IOCON->P ## port ## _ ## pin &= 0b111; \
+											LPC_IOCON->P ## port ## _ ## pin |= mode
+#endif
+
+
 
 /// @brief: provides an interface for initializing input and output gpios
 /// as well as reading and writing to them

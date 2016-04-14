@@ -100,10 +100,12 @@ char *uw_get_hardware_name();
 typedef struct {
 	/// @brief: Buffer for holding the data
 	char *buffer;
-	/// @brief: The max size of the buffer in bytes
+	/// @brief: The max size of the buffer in element count
 	uint16_t buffer_size;
 	/// @brief: Keeps the track of how many elements there are in the buffer
 	uint16_t element_count;
+	/// @brief: The element size in bytes
+	uint8_t element_size;
 	/// @brief: Pointer to the head of the data
 	char *head;
 	/// @brief: Pointer to the tail of the data
@@ -111,20 +113,21 @@ typedef struct {
 } uw_ring_buffer_st;
 
 /// @brief: Initializes the ring buffer
-uw_errors_e uw_ring_buffer_init(uw_ring_buffer_st *buffer_ptr, char *buffer, uint16_t buffer_size);
+uw_errors_e uw_ring_buffer_init(uw_ring_buffer_st *buffer_ptr, void *buffer,
+		uint16_t buffer_size, uint8_t element_size);
 
 /// @brief: Adds a new element into the ring buffer
-uw_errors_e uw_ring_buffer_push(uw_ring_buffer_st *buffer, char element);
+uw_errors_e uw_ring_buffer_push(uw_ring_buffer_st *buffer, void *element);
 
 
 /// @brief: Removes the last element from the ring buffer. The popped
 /// element is stored into 'dest'
-uw_errors_e uw_ring_buffer_pop(uw_ring_buffer_st *buffer, char *dest);
+uw_errors_e uw_ring_buffer_pop(uw_ring_buffer_st *buffer, void *dest);
 
 
 /// @brief: Clears the ring buffer to the initial state
 static inline uw_errors_e uw_ring_buffer_clear(uw_ring_buffer_st *buffer) {
-	return uw_ring_buffer_init(buffer, buffer->buffer, buffer->buffer_size);
+	return uw_ring_buffer_init(buffer, buffer->buffer, buffer->buffer_size, buffer->element_size);
 }
 
 #if CONFIG_TARGET_LPC11CXX
