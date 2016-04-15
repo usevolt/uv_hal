@@ -22,9 +22,6 @@
 #define INT_EVENT_MASK	0x6
 
 
-/// @brief: Set's the IOCON value for the pin gpio
-static void set_iocon(uw_gpios_e gpio, uw_gpio_input_config_e value);
-
 /// @brief: Returns the GPIO's port
 static LPC_GPIO_TypeDef* get_port(uw_gpios_e gpio);
 
@@ -37,7 +34,7 @@ static void isr(LPC_GPIO_TypeDef *GPIO, uw_gpios_e port);
 #endif
 
 uw_errors_e uw_gpio_init_output(uw_gpios_e gpio, bool initial_value) {
-	set_iocon(gpio, 0);
+	uw_gpio_configure(gpio, 0);
 	// set pin direction to output
 	LPC_GPIO_TypeDef* LPC_GPIO = get_port(gpio);
 	if (!LPC_GPIO) {
@@ -58,7 +55,7 @@ uw_errors_e uw_gpio_init_input(uw_gpios_e gpio, uw_gpio_input_config_e configura
 		__uw_err_throw(ERR_HARDWARE_NOT_SUPPORTED | HAL_MODULE_GPIO);
 	}
 	LPC_GPIO->DIR &= ~(1 << PIN(gpio));
-	set_iocon(gpio, configurations);
+	uw_gpio_configure(gpio, configurations);
 
 #if CONFIG_TARGET_LPC11CXX
 	if (int_configurations == INT_DISABLE) {
@@ -888,7 +885,7 @@ volatile uint32_t *__uw_gpio_get_iocon(uw_gpios_e gpio) {
 }
 
 
-static void set_iocon(uw_gpios_e gpio, uw_gpio_input_config_e value) {
+void uw_gpio_configure(uw_gpios_e gpio, uw_gpio_input_config_e value) {
 #if CONFIG_TARGET_LPC11CXX
 	switch (gpio) {
 #if (CONFIG_PORT0 | CONFIG_PIO0_0)
@@ -941,11 +938,14 @@ static void set_iocon(uw_gpios_e gpio, uw_gpio_input_config_e value) {
 	table83 ^= GLITCH_FILTER_ENABLED;
 	// usb pins: Only basic GPIO available without any funny configurations
 	uw_gpio_input_config_e table85 = 0;
+	if (table85);
 	// I2C modes not set in GPIO config
-	uw_gpio_input_config_e table87 = value & (INVERSE_POLARITY);
+	uw_gpio_input_config_e table87 = value & (~(SLEW_CONTROL_DISABLED | GLITCH_FILTER_ENABLED));
+	if (table87);
 	// table 89 has all available configurations
 	// bit 7 has to be 1 for normal operation
 	uw_gpio_input_config_e table89 = value | (1 << 7);
+	if (table89);
 
 	switch (gpio) {
 #if (CONFIG_PORT0 | CONFIG_PIO0_12)

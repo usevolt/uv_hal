@@ -110,7 +110,7 @@ static void isr(uw_uarts_e uart) {
 #endif
 	received_char = this->uart[uart]->RBR & 0xFF;
 
-	uw_err_check(uw_ring_buffer_push(&this->buffer[uart], received_char)) {
+	uw_err_check(uw_ring_buffer_push(&this->buffer[uart], &received_char)) {
 		if (uw_get_error == ERR_BUFFER_OVERFLOW) {
 			__uw_log_error(__uw_error);
 		}
@@ -276,7 +276,7 @@ uw_errors_e uw_uart_init(uw_uarts_e uart) {
 	uint32_t lcr = 0;
 #if CONFIG_UART0
 	if (uart == UART0) {
-		uw_ring_buffer_init(&this->buffer[uart], uart0_rxbuffer, CONFIG_UART0_RX_BUFFER_SIZE);
+		uw_ring_buffer_init(&this->buffer[uart], uart0_rxbuffer, CONFIG_UART0_RX_BUFFER_SIZE, sizeof(char));
 #if CONFIG_UART0_DATA_5_BYTES
 #elif CONFIG_UART0_DATA_6_BYTES
 			lcr = 1;

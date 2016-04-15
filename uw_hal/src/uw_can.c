@@ -472,9 +472,8 @@ uw_errors_e uw_can_reset(uw_can_channels_e channel) {
 
 #elif CONFIG_TARGET_LPC178X
 
-uw_errors_e uw_can_init(uw_can_channels_e channel, unsigned int baudrate, unsigned int fosc,
-		uw_can_message_st *tx_buffer, unsigned int tx_buffer_size,
-		uw_can_message_st *rx_buffer, unsigned int rx_buffer_size) {
+uw_errors_e uw_can_init(uw_can_channels_e channel) {
+
 	if (check_channel(channel)) return check_channel(channel);
 
 	return uw_err(ERR_NONE);
@@ -499,8 +498,7 @@ uw_errors_e uw_can_config_rx_message(uw_can_channels_e channel,
 }
 
 
-
-uw_can_errors_e uw_can_send_message(uw_can_channels_e channel, uw_can_message_st* message) {
+uw_errors_e uw_can_send_message(uw_can_channels_e channel, uw_can_message_st* message) {
 	if (check_channel(channel)) return check_channel(channel);
 
 	return uw_err(ERR_NONE);

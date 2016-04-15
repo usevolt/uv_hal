@@ -19,8 +19,13 @@
 
 
 #if CONFIG_TARGET_LPC178X
-#define UW_GPIO_SET_MODE(port, pin, mode)	LPC_IOCON->P ## port ## _ ## pin &= 0b111; \
-											LPC_IOCON->P ## port ## _ ## pin |= mode
+#include "LPC177x_8x.h"
+/// @brief: Sets the GPIO's IOCON register MODE bits to the value given.
+/// @note: This macro is only defined for LPC178x. On LPC11Cxx some
+/// IOCON registers go with a prefix "R_" which makes macro writing difficult
+#define _UW_IOCON_SET_MODE(port, pin, mode)	LPC_IOCON->P ## port ## _ ## pin &= 0b111; \
+LPC_IOCON->P ## port ## _ ## pin |= mode
+#define UW_IOCON_SET_MODE(port, pin, mode) _UW_IOCON_SET_MODE(port, pin, mode)
 #endif
 
 
@@ -122,6 +127,10 @@ uw_errors_e uw_gpio_init_output(uw_gpios_e gpio, bool initial_value);
 /// @example: uw_gpio_init_input(PIO1_9, PULL_UP_ENABLED | HYSTERESIS_ENABLED, INT_DISABLE);
 uw_errors_e uw_gpio_init_input(uw_gpios_e gpio, uw_gpio_input_config_e configurations,
 		uw_gpio_interrupt_config_e int_configurations);
+
+
+/// @brief: Configures the pin's IOCON register with the given configurations
+void uw_gpio_configure(uw_gpios_e gpio, uw_gpio_input_config_e value);
 
 
 
