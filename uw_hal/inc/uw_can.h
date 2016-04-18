@@ -19,6 +19,9 @@
 /// as it wants.
 
 
+#if !defined(CONFIG_CAN_LOG)
+#error "CONFIG_CAN_LOG not defined"
+#endif
 #if CONFIG_TARGET_LPC11CXX
 #if CONFIG_CAN2
 #error "Hardware doesn't support CAN2 module. Set CONFIG_CAN2 to 0."
@@ -98,6 +101,13 @@ enum {
 	CAN_ID_MASK_DEFAULT = 0xFFFFFFFF
 };
 
+typedef enum {
+	/// @brief: CAN 2.0A messages with 11-bit identifier
+	CAN_11_BIT_ID = 0,
+	/// @brief: CAN 2.0B messages with 29-bit identifier
+	CAN_29_BIT_ID = 0x20000000UL
+} uw_can_msg_types_e;
+
 /// @brief: Initializes the can module either in synchronous mode or in asynchronous mode.
 ///
 /// @note: The mode is synchronous if tx_buffer and rx_buffer parameters are set to NULL
@@ -135,12 +145,14 @@ uw_errors_e uw_can_step(uw_can_channels_e channel, unsigned int step_ms);
 /// @param channel: The CAN hardware channel to be configured
 /// @param id: The messages ID which is wanted to be received
 /// @param mask: The mask for message ID. This can be used to mask off unwanted
+/// @param type: The type of the message ID. Either 11-bit or 29-bit identifier is supported.
 /// bits from ID, in order to receive many messages with different ID's.
 /// To receive only a single dedicated message, this should be set to 0xFFFFFFFF or
 /// UW_CAN_MASK_DEFAULT
 uw_errors_e uw_can_config_rx_message(uw_can_channels_e channel,
 		unsigned int id,
-		unsigned int mask);
+		unsigned int mask,
+		uw_can_msg_types_e type);
 
 
 

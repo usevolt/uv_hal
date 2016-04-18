@@ -10,11 +10,16 @@
 #include "uw_canopen.h"
 #include "uw_reset.h"
 #include "uw_utilities.h"
-
+#if CONFIG_CANOPEN_LOG
+#include <stdarg.h>
+#include <stdio.h>
+#endif
 
 
 /// @brief: Mask for CAN_ID field's node_id bits
 #define UW_CANOPEN_NODE_ID_MASK		0x7F
+
+
 
 
 /// @brief: Struct for general CANopen message. This includes all errors,
@@ -148,6 +153,7 @@ uw_errors_e uw_canopen_init(const uw_canopen_object_st* obj_dict, unsigned int o
 	this->sdo_write_callback = sdo_write_callback;
 	this->heartbeat_delay = 0;
 
+
 	// check that node id and heartbeat time entries are found
 	// in obj dict
 	const uw_canopen_object_st *obj = find_object(CONFIG_CANOPEN_NODEID_INDEX, 0);
@@ -170,13 +176,17 @@ uw_errors_e uw_canopen_init(const uw_canopen_object_st* obj_dict, unsigned int o
 	// configure receive messages for NMT, SDO and PDO messages for this node id and
 	// broadcast.
 	// NMT broadcasting
-	uw_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, NMT_ID, CAN_ID_MASK_DEFAULT);
+	uw_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, NMT_ID,
+			CAN_ID_MASK_DEFAULT, CAN_11_BIT_ID);
 	// NMT node id
-	uw_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, NMT_ID + nodeid, CAN_ID_MASK_DEFAULT);
+	uw_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, NMT_ID + nodeid,
+			CAN_ID_MASK_DEFAULT, CAN_11_BIT_ID);
 	// SDO request broadcasting
-	uw_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, SDO_REQUEST_ID, CAN_ID_MASK_DEFAULT);
+	uw_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, SDO_REQUEST_ID,
+			CAN_ID_MASK_DEFAULT, CAN_11_BIT_ID);
 	// SDO request node id
-	uw_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, SDO_REQUEST_ID + nodeid, CAN_ID_MASK_DEFAULT);
+	uw_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, SDO_REQUEST_ID + nodeid,
+			CAN_ID_MASK_DEFAULT, CAN_11_BIT_ID);
 
 	uint8_t i;
 	for (i = 0; i < 255; i++) {
@@ -186,16 +196,22 @@ uw_errors_e uw_canopen_init(const uw_canopen_object_st* obj_dict, unsigned int o
 			break;
 		}
 		uint32_t id = array_index(obj, 1);
-		uw_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, id, CAN_ID_MASK_DEFAULT);
+		uw_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, id,
+				CAN_ID_MASK_DEFAULT, CAN_11_BIT_ID);
 	}
+
+#if CONFIG_CANOPEN_LOG
+	printf("canopen initialized with node id %x\n\r", nodeid);
+#endif
 
 	return uw_err(ERR_NONE);
 }
 
 uw_errors_e uw_canopen_step(unsigned int step_ms) {
-	// PDO handling is done only in operational state
-	if (this->state == STATE_OPERATIONAL) {
 
+	// in stopped state we do nothing
+	if (this->state == STATE_STOPPED) {
+		return uw_err(ERR_NONE);
 	}
 
 	// send heartbeat message
@@ -203,7 +219,6 @@ uw_errors_e uw_canopen_step(unsigned int step_ms) {
 	if (!obj) {
 		__uw_err_throw(ERR_CANOPEN_HEARTBEAT_ENTRY_INVALID | HAL_MODULE_CANOPEN);
 	}
-
 	if (uw_delay(step_ms, &this->heartbeat_delay)) {
 		// send heartbeat msg
 		uw_can_message_st msg = {
@@ -217,6 +232,10 @@ uw_errors_e uw_canopen_step(unsigned int step_ms) {
 		uw_start_delay(get_object_value(obj), &this->heartbeat_delay);
 	}
 
+	// PDO handling is done only in operational state
+	if (this->state != STATE_OPERATIONAL) {
+		return uw_err(ERR_NONE);
+	}
 
 	return uw_err(ERR_NONE);
 }
@@ -297,12 +316,16 @@ static void sdo_send_response(uw_canopen_sdo_message_st *msg, uw_canopen_sdo_com
 	uw_canopen_sdo_message_st  reply = {
 			.main_index = msg->main_index,
 			.sub_index = msg->sub_index,
-			.data_length = data_length,
+			.data_length = 4 + data_length,
 			.request = cmd
 	};
 	uint8_t i = 0;
 	for (i = 0; i < data_length; i++) {
 		reply.data_8bit[i] = data[i];
+	}
+	while (i < 4) {
+		i++;
+		reply.data_8bit[i] = 0;
 	}
 
 	__uw_canopen_send_sdo(&reply, node_id(), SDO_RESPONSE_ID);
@@ -310,15 +333,27 @@ static void sdo_send_response(uw_canopen_sdo_message_st *msg, uw_canopen_sdo_com
 
 static void parse_sdo(uw_canopen_msg_st* req) {
 	const uw_canopen_object_st *obj = find_object(req->msg.sdo.main_index, req->msg.sdo.sub_index);
+#if CONFIG_CANOPEN_LOG
+	printf("SDO received: %x, %x\n\r", req->msg.sdo.main_index, req->msg.sdo.sub_index);
+#endif
 
 	if (!obj) {
+#if CONFIG_CANOPEN_LOG
+	printf("SDO object doesn't exist: %x, %x\n\r", req->msg.sdo.main_index, req->msg.sdo.sub_index);
+#endif
 		sdo_send_error(&req->msg.sdo, SDO_ERROR_OBJECT_DOES_NOT_EXIST);
 		return;
 	}
 	// SDO READ requests...
 	if (req->msg.sdo.request == SDO_CMD_READ) {
+#if CONFIG_CANOPEN_LOG
+			printf("SDO read object %x command received\n\r", req->msg.sdo.main_index);
+#endif
 		// error with read permissions
 		if (!obj->permissions & UW_RO) {
+#if CONFIG_CANOPEN_LOG
+			printf("SDO error: object %x is write only\n\r", req->msg.sdo.main_index);
+#endif
 			sdo_send_error(&req->msg.sdo, SDO_ERROR_ATTEMPT_TO_READ_A_WRITE_ONLY_OBJECT);
 		}
 		// for array type objects
@@ -345,12 +380,25 @@ static void parse_sdo(uw_canopen_msg_st* req) {
 			req->msg.sdo.request == SDO_CMD_WRITE_2_BYTES ||
 			req->msg.sdo.request == SDO_CMD_WRITE_4_BYTES ||
 			req->msg.sdo.request == SDO_CMD_WRITE_BYTES) {
+
+#if CONFIG_CANOPEN_LOG
+			printf("SDO write to object %x command received\n\r", req->msg.sdo.main_index);
+#endif
 		if (obj->permissions & UW_WO) {
 // todo: SDO writing
 		}
 		else {
+#if CONFIG_CANOPEN_LOG
+			printf("SDO error: object %x is write only\n\r", req->msg.sdo.main_index);
+#endif
 			sdo_send_error(&req->msg.sdo, SDO_ERROR_ATTEMPT_TO_WRITE_A_READ_ONLY_OBJECT);
 		}
+	}
+	else {
+#if CONFIG_CANOPEN_LOG
+			printf("SDO error: invalid command %x\n\r", &req->msg.sdo.request);
+#endif
+		sdo_send_error(&req->msg.sdo, SDO_ERROR_CMD_SPECIFIER_NOT_FOUND);
 	}
 
 }
@@ -366,19 +414,35 @@ static void parse_nmt_message(uw_canopen_msg_st* req) {
 	if (req->msg.nmt.node_id == node_id() || !req->msg.nmt.node_id) {
 		switch (req->msg.nmt.command) {
 		case NMT_START_NODE:
+#if CONFIG_CANOPEN_LOG
+			printf("NMT start\n\r");
+#endif
 			uw_canopen_set_state(STATE_OPERATIONAL);
 			break;
 		case NMT_STOP_NODE:
+#if CONFIG_CANOPEN_LOG
+			printf("NMT stop\n\r");
+#endif
 			uw_canopen_set_state(STATE_STOPPED);
 			break;
 		case NMT_SET_PREOPERATIONAL:
+#if CONFIG_CANOPEN_LOG
+			printf("NMT preoperational\n\r");
+#endif
 			uw_canopen_set_state(STATE_PREOPERATIONAL);
 			break;
 		case NMT_RESET_NODE:
+#if CONFIG_CANOPEN_LOG
+			printf("NMT reset\n\r");
+#endif
 			uw_system_reset(false);
 			break;
 		case NMT_RESET_COM:
+#if CONFIG_CANOPEN_LOG
+			printf("NMT reset communication\n\r");
+#endif
 			uw_canopen_init(this->obj_dict, this->obj_dict_length, this->sdo_write_callback);
+			uw_canopen_set_state(STATE_PREOPERATIONAL);
 			break;
 		default:
 			break;
@@ -389,14 +453,13 @@ static void parse_nmt_message(uw_canopen_msg_st* req) {
 uw_errors_e __uw_canopen_send_sdo(uw_canopen_sdo_message_st *sdo, uint8_t node_id, unsigned int req_response) {
 
 	uw_can_message_st msg;
-	printf("Sending SDO...\n\r");
 	msg.id = req_response + node_id;
 	msg.data_8bit[0] = sdo->request;
-	msg.data_8bit[1] = (sdo->main_index >> 8);
-	msg.data_8bit[2] = (uint8_t) sdo->main_index;
+	msg.data_8bit[1] = (uint8_t) sdo->main_index;
+	msg.data_8bit[2] = (uint8_t) (sdo->main_index >> 8);
 	msg.data_8bit[3] = sdo->sub_index;
 	msg.data_32bit[1] = sdo->data_32bit;
-	msg.data_length = sdo->data_length;
+	msg.data_length = 8;
 
 	uw_can_send_message(CONFIG_CANOPEN_CHANNEL, &msg);
 

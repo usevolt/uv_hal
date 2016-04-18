@@ -34,6 +34,9 @@
 #if CONFIG_CANOPEN
 
 
+
+
+
 /* uw_hal_config.h symbol checks */
 #if !defined(CONFIG_CANOPEN_CHANNEL)
 #error "CONFIG_CANOPEN_CHANNEL not defined. It should define which CAN module to use (1, 2, 3, etc)"
@@ -62,7 +65,10 @@
 #error "CONFIG_CANOPEN_RXPDO_MAP_INDEX not defined. It should define the index from which forward\
  receive PDO mapping parameters are found."
 #endif
-
+#if !defined(CONFIG_CANOPEN_LOG)
+#error "CONFIG_CANOPEN_LOG not defined. It should be defined as 0 or 1, depending on if\
+ debug information logging is wanted."
+#endif
 
 /// @brief: Usewood Vendor ID.
 /// Vendor ID can be got from CiA
@@ -167,6 +173,7 @@ typedef enum {
 	SDO_ERROR_OBJECT_DOES_NOT_EXIST = 					0x06020000,
 	SDO_ERROR_VALUE_OF_PARAMETER_TOO_HIGH = 			0x06090031,
 	SDO_ERROR_VALUE_OF_PARAMETER_TOO_LOW = 				0x06090032,
+	SDO_ERROR_CMD_SPECIFIER_NOT_FOUND =					0x05040001,
 	SDO_ERROR_GENERAL = 								0x08000000
 } uw_sdo_error_codes_e;
 

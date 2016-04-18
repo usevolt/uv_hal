@@ -220,6 +220,15 @@ void CAN_rx(uint8_t msg_obj_num) {
 	for (i = 0; i < msg.data_length; i++) {
 		msg.data_8bit[i] = msg_obj.data[i];
 	}
+#if CONFIG_CAN_LOG
+	// log debug info
+	printf("CAN message received\n\r   id: 0x%x\n\r   data length: %u\n\r   data: ", msg.id, msg.data_length);
+	for ( i = 0; i < msg.data_length; i++) {
+		printf("%02x ", msg.data_8bit[i]);
+	}
+	printf("\n\r");
+#endif
+
 	// call application callback if assigned
 	if (this->rx_callback[CAN1] != NULL) {
 		this->rx_callback[CAN1](__uw_get_user_ptr(), &msg);
@@ -232,16 +241,20 @@ void CAN_rx(uint8_t msg_obj_num) {
 }
 
 void CAN_tx(uint8_t msg_obj_num) {
-	printf("tx");
 	// clear pending msg object
 	this->pending_msg_objs &= ~(1 << msg_obj_num);
 	this->pending_msg_obj_time_limit = 0;
+
+#if CONFIG_CAN_LOG
+	printf("CAN message sent.\n\r");
+#endif
 
 	// send the next message if there is one in the message buffer
 	send_next_msg();
 }
 
 void CAN_error(uint32_t error_info) {
+#if CONFIG_CAN_LOG
 	printf("CAN error received:");
 	if (error_info & CAN_ERROR_ACK) {
 		printf(" ACK");
@@ -283,24 +296,7 @@ void CAN_error(uint32_t error_info) {
 	else if (LPC_CAN->STAT & (1 << 5)) {
 		printf("Device is in CAN error passive state\n\r");
 	}
-}
-uint32_t CANOPEN_sdo_exp_read (uint16_t index, uint8_t subindex) {
-	return 0;
-}
-uint32_t CANOPEN_sdo_exp_write(uint16_t index, uint8_t subindex, uint8_t *dat_ptr) {
-	return 0;
-}
-uint32_t CANOPEN_sdo_seg_read(uint16_t index, uint8_t subindex, uint8_t openclose,
-		uint8_t *length, uint8_t *data, uint8_t *last) {
-	return 0;
-}
-uint32_t CANOPEN_sdo_seg_write(uint16_t index, uint8_t subindex, uint8_t openclose,
-		uint8_t length, uint8_t *data, uint8_t *fast_resp) {
-	return 0;
-}
-uint8_t CANOPEN_sdo_req(uint8_t length_req, uint8_t *req_ptr,
-		uint8_t *length_resp, uint8_t *resp_ptr) {
-	return 0;
+#endif
 }
 
 void CAN_IRQHandler(void) {
@@ -334,11 +330,11 @@ uw_errors_e uw_can_init(uw_can_channels_e channel) {
 		CAN_rx,
 		CAN_tx,
 		CAN_error,
-		CANOPEN_sdo_exp_read,
-		CANOPEN_sdo_exp_write,
-		CANOPEN_sdo_seg_read,
-		CANOPEN_sdo_seg_write,
-		CANOPEN_sdo_req
+		NULL,
+		NULL,
+		NULL,
+		NULL,
+		NULL
 	};
 	LPC_CCAN_API->init_can(&CanApiClkInitTable[0], 1);
 	/* Configure the CAN callback functions */
@@ -379,7 +375,8 @@ uw_errors_e uw_can_step(uw_can_channels_e channel, unsigned int step_ms) {
 
 uw_errors_e uw_can_config_rx_message(uw_can_channels_e channel,
 		unsigned int id,
-		unsigned int mask) {
+		unsigned int mask,
+		uw_can_msg_types_e type) {
 	if (check_channel(channel)) return check_channel(channel);
 
 	// if any message objects are still not in use,
@@ -390,9 +387,9 @@ uw_errors_e uw_can_config_rx_message(uw_can_channels_e channel,
 		// search for a unused message object to be used for receiving the messages
 		if (!GET_MASKED(this->used_msg_objs, (1 << i))) {
 			hal_can_msg_obj_st obj = {
-					.msg_id = id,
+					.msg_id = id | type,
 					.msgobj = i,
-					.mask = mask
+					.mask = mask,
 			};
 			LPC_CCAN_API->config_rxmsgobj(&obj);
 			this->used_msg_objs |= (1 << i);
@@ -422,6 +419,14 @@ static uw_errors_e send_next_msg( void ) {
 	// mark message object as pending
 	this->pending_msg_objs |= (1 << obj.msgobj);
 	this->pending_msg_obj_time_limit = 0;
+#if CONFIG_CAN_LOG
+	printf("Sending CAN message\n\r   id: 0x%x\n\r   data:", msg.id);
+	for (i = 0; i < msg.data_length; i++) {
+		printf("%02x ", msg.data_8bit[i]);
+	}
+	printf("\n\r");
+#endif
+
 	// send the message
 	LPC_CCAN_API->can_transmit(&obj);
 
@@ -513,7 +518,8 @@ uw_errors_e uw_can_send_message(uw_can_channels_e channel, uw_can_message_st* me
 
 uw_errors_e uw_can_add_rx_callback(uw_can_channels_e channel,
 		void (*callback_function)(void *user_ptr, uw_can_message_st *msg)) {
-	if (!check_channel(channel)) return false;
+
+	if (check_channel(channel)) return false;
 	this->rx_callback[channel] = callback_function;
 	return uw_err(ERR_NONE);
 }

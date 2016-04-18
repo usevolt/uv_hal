@@ -10,6 +10,8 @@
 #include "uw_emc.h"
 #include "uw_gpio.h"
 
+#if CONFIG_TARGET_LPC178X
+
 
 uw_errors_e uw_emc_init( void ) {
 
@@ -106,3 +108,6 @@ uw_errors_e uw_emc_init( void ) {
 
 	return uw_err(ERR_NONE);
 }
+
+
+#endif

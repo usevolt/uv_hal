@@ -17,6 +17,12 @@
 
 
 
+#if !defined(CONFIG_LOG_ERRORS)
+#error "CONFIG_LOG_ERRORS not defined. It should be defined as 0 or 1, depending if\
+ automatic error logging to stdout is needed."
+#endif
+
+
 
 typedef enum {
 	/// @brief: No errors detected
@@ -97,6 +103,8 @@ typedef enum {
 	ERR_COUNT
 } _uw_errors_e;
 typedef unsigned int uw_errors_e;
+
+
 
 /// @brief: Can be used to mask off the HAL module bits
 #define HAL_MODULE_MASK	(0x00FFFFFF)
@@ -181,11 +189,17 @@ extern uw_errors_e __uw_error;
 
 /// @brief: Logs the error to stdout and returns with it
 /// @note: Used inside this library
-#define __uw_err_throw(err)		__uw_log_error(__uw_error = err); return err;
+#define __uw_err_throw(err)		__uw_log_error_throw(__uw_error = err); return err;
 
 
 /// @brief: Logs the error info string into stdout
 void __uw_log_error(unsigned int err);
+
+static inline void __uw_log_error_throw(unsigned int err) {
+#if CONFIG_LOG_ERRORS
+	__uw_log_error(err);
+#endif
+}
 
 
 #endif /* UW_ERRORS_H_ */
