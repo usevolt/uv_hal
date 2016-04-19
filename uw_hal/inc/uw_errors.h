@@ -21,6 +21,10 @@
 #error "CONFIG_LOG_ERRORS not defined. It should be defined as 0 or 1, depending if\
  automatic error logging to stdout is needed."
 #endif
+#if !defined(CONFIG_INFORMATIVE_ERRORS)
+#error "CONFIG_INFORMATIVE_ERRORS not defined. It should be defined as 1 or 0, depending if\
+ informative error messages are required."
+#endif
 
 
 

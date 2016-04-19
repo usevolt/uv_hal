@@ -108,6 +108,25 @@ static const uw_canopen_object_st *find_object(uint16_t index, uint8_t sub_index
 	return NULL;
 }
 
+static void array_write(const uw_canopen_object_st *obj, uint16_t index, unsigned int value) {
+	if (index >= obj->array_max_size || !index) {
+		return;
+	}
+	switch (obj->type) {
+	case UW_ARRAY8:
+		obj->data_ptr[index] = value;
+		return;
+	case UW_ARRAY16:
+		((uint16_t*)(obj->data_ptr))[index] = value;
+		return;
+	case UW_ARRAY32:
+		((uint32_t*)(obj->data_ptr))[index] = value;
+		return;
+	default:
+		return;
+	}
+}
+
 /// @brief: Can be used to index object which is of type array
 static unsigned int array_index(const uw_canopen_object_st *obj, uint16_t index) {
 	if (index >= obj->array_max_size) {
@@ -381,11 +400,29 @@ static void parse_sdo(uw_canopen_msg_st* req) {
 			req->msg.sdo.request == SDO_CMD_WRITE_4_BYTES ||
 			req->msg.sdo.request == SDO_CMD_WRITE_BYTES) {
 
-#if CONFIG_CANOPEN_LOG
-			printf("SDO write to object %x command received\n\r", req->msg.sdo.main_index);
-#endif
 		if (obj->permissions & UW_WO) {
-// todo: SDO writing
+#if CONFIG_CANOPEN_LOG
+			printf("SDO write to object %x\n\r", req->msg.sdo.main_index);
+#endif
+			// writing to arrays
+			if (is_array(obj->type)) {
+				// writing to array subindex 0 is not permitted as well as overindexing
+				if (req->msg.sdo.sub_index == 0 || req->msg.sdo.sub_index >= obj->array_max_size) {
+					sdo_send_error(&req->msg.sdo, SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
+					return;
+				}
+#if CONFIG_CANOPEN_LOG
+			printf("SDO error: Unsupported access to array type object %x\n\r", req->msg.sdo.main_index);
+#endif
+				array_write(obj, req->msg.sdo.sub_index, req->msg.sdo.data_32bit);
+			}
+			// writing to all other objects
+			uint8_t i;
+			for (i = 0; i < obj->type; i++) {
+				obj->data_ptr[i] = req->msg.sdo.data_8bit[i];
+			}
+			i = 0;
+			sdo_send_response(&req->msg.sdo, SDO_CMD_WRITE_RESPONSE, &i, 1);
 		}
 		else {
 #if CONFIG_CANOPEN_LOG

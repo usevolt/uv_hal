@@ -20,8 +20,11 @@ uw_errors_e uw_emc_init( void ) {
 	// Slew mode disabled
 	unsigned int iocon_value = 0b10001001;
 	// set IOCON registers
+#if CONFIG_EMC_STATIC_RAM
 	LPC_IOCON->P2_14 = iocon_value;		// EMC_CS2
 	LPC_IOCON->P2_15 = iocon_value;		// EMC_CS3
+#endif
+#if CONFIG_EMC_DYNAMIC_RAM
 	LPC_IOCON->P2_16 = iocon_value;		// EMC_CAS
 	LPC_IOCON->P2_17 = iocon_value;		// EMC_RAS
 	LPC_IOCON->P2_18 = iocon_value;		// EMC_CLK0
@@ -34,6 +37,7 @@ uw_errors_e uw_emc_init( void ) {
 	LPC_IOCON->P2_25 = iocon_value;		// EMC_CKE1
 	LPC_IOCON->P2_26 = iocon_value;		// EMC_CKE2
 	LPC_IOCON->P2_27 = iocon_value;		// EMC_CKE3
+#endif
 	LPC_IOCON->P2_28 = iocon_value;		// EMC_DQM0
 	LPC_IOCON->P2_29 = iocon_value;		// EMC_DQM1
 	LPC_IOCON->P2_30 = iocon_value;		// EMC_DQM2
@@ -85,6 +89,7 @@ uw_errors_e uw_emc_init( void ) {
 	LPC_IOCON->P4_12 = iocon_value;		// EMC_A12
 	LPC_IOCON->P4_13 = iocon_value;		// EMC_A13
 	LPC_IOCON->P4_14 = iocon_value;		// EMC_A14
+#if CONFIG_EMC_STATIC_RAM
 	LPC_IOCON->P4_15 = iocon_value;		// EMC_A15
 	LPC_IOCON->P4_16 = iocon_value;		// EMC_A16
 	LPC_IOCON->P4_17 = iocon_value;		// EMC_A17
@@ -95,7 +100,9 @@ uw_errors_e uw_emc_init( void ) {
 	LPC_IOCON->P4_22 = iocon_value;		// EMC_A22
 	LPC_IOCON->P4_23 = iocon_value;		// EMC_A23
 	LPC_IOCON->P4_24 = iocon_value;		// EMC_OE
+#endif
 	LPC_IOCON->P4_25 = iocon_value;		// EMC_WE
+#if CONFIG_EMC_STATIC_RAM
 	LPC_IOCON->P4_26 = iocon_value;		// EMC_BLS0
 	LPC_IOCON->P4_27 = iocon_value;		// EMC_BLS1
 	LPC_IOCON->P4_28 = iocon_value;		// EMC_BLS2
@@ -104,6 +111,7 @@ uw_errors_e uw_emc_init( void ) {
 	LPC_IOCON->P4_31 = iocon_value;		// EMC_CS1
 	LPC_IOCON->P5_0 = iocon_value;		// EMC_A24
 	LPC_IOCON->P5_1 = iocon_value;		// EMC_A25
+#endif
 
 
 	return uw_err(ERR_NONE);

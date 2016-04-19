@@ -15,19 +15,20 @@
 /// @file: A software CANopen protocol implementation
 /// @note: Relies on uw_can.h
 ///
-/// DIFFERENCES TO A COMPLETE CANOPEN:
+/// ###DIFFERENCES TO A COMPLETE CANOPEN:
 ///
-/// - SDO read and write requests of more than 4 bytes are not implemented
+/// * SDO read and write requests of more than 4 bytes are not implemented
 ///
-/// - For array types, sub index 0 returns the max array size, not current size.
+/// * For array types, sub index 0 returns the max array size, not current size.
 ///		e.g. array sizes are constant.
 ///
-/// - For all SDO read x bytes requests, response command identifier doesn't indicate
+/// * For all SDO read x bytes requests, response command identifier doesn't indicate
 /// 	exactly how many bytes were returned, the byte 1 is always 0x42.
 ///
-/// - For all SDO write x bytes requests, the request is handled assuming that
+/// * For all SDO write x bytes requests, the request is handled assuming that
 /// 	the whole object is being written. E.g. the write byte count is not checked.
 ///
+/// * SDO write responses contain only 1 data byte rather than 4, to speed p the communication.
 
 
 

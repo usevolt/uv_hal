@@ -496,7 +496,8 @@ uw_errors_e uw_can_step(uw_can_channels_e channel, unsigned int step_ms) {
 
 uw_errors_e uw_can_config_rx_message(uw_can_channels_e channel,
 		unsigned int id,
-		unsigned int mask) {
+		unsigned int mask,
+		uw_can_msg_types_e type) {
 	if (check_channel(channel)) return check_channel(channel);
 
 	return uw_err(ERR_NONE);

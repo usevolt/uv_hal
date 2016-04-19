@@ -17,6 +17,14 @@
 
 #if (CONFIG_TARGET_LPC178X)
 
+#if !CONFIG_EMC_DYNAMIC_RAM && !CONFIG_EMC_STATIC_RAM
+#error "Either CONFIG_EMC_DYNAMIC_RAM or CONFIG_EMC_STATIC_RAM needs to be defined as 1."
+#endif
+#if !CONFIG_EMC_CHIP_COUNT || CONFIG_EMC_CHIP_COUNT > 4
+#error "CONFIG_EMC_CHIP_COUNT either not defined or set to invalid value. It should be between 1...4."
+#endif
+
+
 uw_errors_e uw_emc_init( void );
 
 /// @brief: Defines the hardware dependent start address of the external memory.
