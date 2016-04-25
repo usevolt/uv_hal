@@ -449,7 +449,7 @@ uw_errors_e uw_can_send_message(uw_can_channels_e channel, uw_can_message_st* me
 }
 
 
-uint8_t uw_can_get_error_state(uw_can_channels_e channel) {
+uw_can_errors_e uw_can_get_error_state(uw_can_channels_e channel) {
 	if (check_channel(channel)) return check_channel(channel);
 	if (LPC_CAN->STAT & (1 << 7)) {
 		return CAN_ERROR_BUS_OFF;

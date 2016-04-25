@@ -13,7 +13,10 @@
 #if CONFIG_CANOPEN_LOG
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 #endif
+extern uw_errors_e __uw_save_previous_non_volatile_data();
+extern uw_errors_e __uw_clear_previous_non_volatile_data();
 
 
 /// @brief: Mask for CAN_ID field's node_id bits
@@ -43,6 +46,7 @@ typedef struct {
 				uint64_t as_64bit;
 			};
 			uint8_t length;
+			unsigned int id;
 		} pdo_data;
 		struct {
 			uint8_t command;
@@ -62,6 +66,7 @@ typedef struct {
 	const uw_canopen_object_st* obj_dict;
 	unsigned int obj_dict_length;
 	uw_canopen_node_states_e state;
+	uint8_t node_id;
 	void (*sdo_write_callback)(uw_canopen_object_st* obj_dict_entry);
 	int heartbeat_delay;
 } this_st;
@@ -86,6 +91,7 @@ static void parse_nmt_message(uw_canopen_msg_st* req);
 
 #define node_id()		(*(find_object(CONFIG_CANOPEN_NODEID_INDEX, 0)->data_ptr))
 #define is_array(x)		(x & UW_ARRAY_MASK)
+#define array_cell_size(x)	(x & (~UW_ARRAY_MASK))
 #define get_array_cell_size(x) (x - (1 << 6))
 
 /// @brief: Searches the object dictionary and returns a pointer to found
@@ -163,6 +169,32 @@ static unsigned int get_object_value(const uw_canopen_object_st* obj) {
 	}
 }
 
+uw_errors_e uw_canopen_pdos_init(uw_pdos_st *pdos, uint8_t node_id) {
+	uint8_t i;
+	for (i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
+		pdos->rxpdo_coms[i].cob_id = PDO_DISABLED + node_id +
+				RXPDO_BEGIN_ID + 0x100 * i;
+		pdos->rxpdo_coms[i].transmission_type = PDO_TRANSMISSION_ASYNC;
+		uint8_t j;
+		for (j = 0; j < UW_RXPDO_COM_ARRAY_SIZE; j++) {
+			pdos->rxpdo_mappings[j][i].main_index = 0;
+			pdos->rxpdo_mappings[j][i].sub_index = 0;
+		}
+	}
+	for (i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
+		pdos->txpdo_coms[i].cob_id = PDO_DISABLED + this->node_id +
+				TXPDO_BEGIN_ID + 0x100 * i;
+		pdos->txpdo_coms[i].transmission_type = PDO_TRANSMISSION_ASYNC;
+		uint8_t j;
+		for (j = 0; j < UW_RXPDO_COM_ARRAY_SIZE; j++) {
+			pdos->txpdo_mappings[j][i].main_index = 0;
+			pdos->txpdo_mappings[j][i].sub_index = 0;
+		}
+	}
+	return uw_err(ERR_NONE);
+}
+
+
 
 uw_errors_e uw_canopen_init(const uw_canopen_object_st* obj_dict, unsigned int obj_dict_length,
 		void (*sdo_write_callback)(uw_canopen_object_st* obj_dict_entry)) {
@@ -171,6 +203,7 @@ uw_errors_e uw_canopen_init(const uw_canopen_object_st* obj_dict, unsigned int o
 	this->state = STATE_BOOT_UP;
 	this->sdo_write_callback = sdo_write_callback;
 	this->heartbeat_delay = 0;
+	this->node_id = node_id();
 
 
 	// check that node id and heartbeat time entries are found
@@ -182,11 +215,10 @@ uw_errors_e uw_canopen_init(const uw_canopen_object_st* obj_dict, unsigned int o
 	if (! (obj = find_object(CONFIG_CANOPEN_HEARTBEAT_INDEX, 0))) {
 		__uw_err_throw(ERR_CANOPEN_HEARTBEAT_ENTRY_INVALID| HAL_MODULE_CANOPEN);
 	}
-	uint8_t nodeid = node_id();
 
 	// send boot up message
 	uw_can_message_st msg = {
-			.id = BOOTUP_ID + nodeid,
+			.id = BOOTUP_ID + this->node_id,
 			.data_length = 1,
 			.data_8bit[0] = 0
 	};
@@ -198,13 +230,13 @@ uw_errors_e uw_canopen_init(const uw_canopen_object_st* obj_dict, unsigned int o
 	uw_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, NMT_ID,
 			CAN_ID_MASK_DEFAULT, CAN_11_BIT_ID);
 	// NMT node id
-	uw_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, NMT_ID + nodeid,
+	uw_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, NMT_ID + this->node_id,
 			CAN_ID_MASK_DEFAULT, CAN_11_BIT_ID);
 	// SDO request broadcasting
 	uw_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, SDO_REQUEST_ID,
 			CAN_ID_MASK_DEFAULT, CAN_11_BIT_ID);
 	// SDO request node id
-	uw_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, SDO_REQUEST_ID + nodeid,
+	uw_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, SDO_REQUEST_ID + this->node_id,
 			CAN_ID_MASK_DEFAULT, CAN_11_BIT_ID);
 
 	uint8_t i;
@@ -220,7 +252,7 @@ uw_errors_e uw_canopen_init(const uw_canopen_object_st* obj_dict, unsigned int o
 	}
 
 #if CONFIG_CANOPEN_LOG
-	printf("canopen initialized with node id %x\n\r", nodeid);
+	printf("canopen initialized with node id %x\n\r", this->node_id);
 #endif
 
 	return uw_err(ERR_NONE);
@@ -241,11 +273,13 @@ uw_errors_e uw_canopen_step(unsigned int step_ms) {
 	if (uw_delay(step_ms, &this->heartbeat_delay)) {
 		// send heartbeat msg
 		uw_can_message_st msg = {
-				.id = HEARTBEAT_ID + node_id(),
+				.id = HEARTBEAT_ID + this->node_id,
 				.data_length = 1,
 				.data_8bit[0] = this->state
 		};
-		uw_can_send_message(CONFIG_CANOPEN_CHANNEL, &msg);
+		if (uw_can_get_error_state(CONFIG_CANOPEN_CHANNEL) == CAN_ERROR_ACTIVE) {
+			uw_can_send_message(CONFIG_CANOPEN_CHANNEL, &msg);
+		}
 
 		// start the delay again
 		uw_start_delay(get_object_value(obj), &this->heartbeat_delay);
@@ -268,7 +302,7 @@ void __uw_canopen_parse_message(uw_can_message_st* message) {
 	m.type = message->id & (~UW_CANOPEN_NODE_ID_MASK);
 
 	// process messages which are addressed to this node OR broadcasted
-	if (node_id() == m.node_id || m.node_id == 0) {
+	if (this->node_id == m.node_id || m.node_id == 0) {
 
 		m.type = message->id & (~UW_CANOPEN_NODE_ID_MASK);
 
@@ -326,7 +360,7 @@ static void sdo_send_error(uw_canopen_sdo_message_st *msg, uw_sdo_error_codes_e 
 			.data_32bit = error
 	};
 
-	__uw_canopen_send_sdo(&reply, node_id(), SDO_ERROR_ID);
+	__uw_canopen_send_sdo(&reply, this->node_id, SDO_ERROR_ID);
 }
 
 static void sdo_send_response(uw_canopen_sdo_message_st *msg, uw_canopen_sdo_commands_e cmd,
@@ -347,7 +381,7 @@ static void sdo_send_response(uw_canopen_sdo_message_st *msg, uw_canopen_sdo_com
 		reply.data_8bit[i] = 0;
 	}
 
-	__uw_canopen_send_sdo(&reply, node_id(), SDO_RESPONSE_ID);
+	__uw_canopen_send_sdo(&reply, this->node_id, SDO_RESPONSE_ID);
 }
 
 static void parse_sdo(uw_canopen_msg_st* req) {
@@ -379,8 +413,18 @@ static void parse_sdo(uw_canopen_msg_st* req) {
 		if (is_array(obj->type)) {
 			// indexing the array
 			if (req->msg.sdo.sub_index) {
-				sdo_send_response(&req->msg.sdo, SDO_CMD_READ_RESPONSE_BYTES,
-						&obj->data_ptr[req->msg.sdo.sub_index - 1], get_array_cell_size(obj->type));
+				if (req->msg.sdo.sub_index <= obj->array_max_size) {
+					sdo_send_response(&req->msg.sdo, SDO_CMD_READ_RESPONSE_BYTES,
+							&obj->data_ptr[(req->msg.sdo.sub_index - 1) * array_cell_size(obj->type)],
+							get_array_cell_size(obj->type));
+				}
+				else {
+#if CONFIG_CANOPEN_LOG
+			printf("SDO error: overindexing object %x with sub-index %x\n\r",
+					req->msg.sdo.main_index, req->msg.sdo.sub_index);
+#endif
+					sdo_send_error(&req->msg.sdo, SDO_ERROR_OBJECT_DOES_NOT_EXIST);
+				}
 			}
 			// index 0 is the array max size
 			else {
@@ -406,7 +450,7 @@ static void parse_sdo(uw_canopen_msg_st* req) {
 #endif
 			// writing to arrays
 			if (is_array(obj->type)) {
-				// writing to array subindex 0 is not permitted as well as overindexing
+				// writing to array subindex 0 as well as overindexing is not permitted
 				if (req->msg.sdo.sub_index == 0 || req->msg.sdo.sub_index >= obj->array_max_size) {
 					sdo_send_error(&req->msg.sdo, SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
 					return;
@@ -423,6 +467,41 @@ static void parse_sdo(uw_canopen_msg_st* req) {
 			}
 			i = 0;
 			sdo_send_response(&req->msg.sdo, SDO_CMD_WRITE_RESPONSE, &i, 1);
+
+			// parameter saving and loading
+#if CONFIG_CANOPEN_STORE_PARAMS_INDEX
+			if (req->msg.sdo.main_index == CONFIG_CANOPEN_STORE_PARAMS_INDEX &&
+					req->msg.sdo.sub_index == 1) {
+				if (obj->data_ptr[0] == 's' &&
+						obj->data_ptr[1] == 'a' &&
+						obj->data_ptr[2] == 'v' &&
+						obj->data_ptr[3] == 'e') {
+#if CONFIG_CANOPEN_LOG
+					printf("Saving settings to flash memory\n\r");
+					*((unsigned int*)obj->data_ptr) = 0;
+					__uw_save_previous_non_volatile_data();
+#endif
+
+				}
+			}
+#endif
+#if CONFIG_CANOPEN_RESTORE_PARAMS_INDEX
+			if (req->msg.sdo.main_index == CONFIG_CANOPEN_RESTORE_PARAMS_INDEX &&
+					req->msg.sdo.sub_index == 1) {
+				if (obj->data_ptr[0] == 'l' &&
+						obj->data_ptr[1] == 'o' &&
+						obj->data_ptr[2] == 'a' &&
+						obj->data_ptr[3] == 'd') {
+#if CONFIG_CANOPEN_LOG
+					printf("Loading factory settings from flash memory\n\r");
+					*((unsigned int*)obj->data_ptr) = 0;
+					__uw_clear_previous_non_volatile_data();
+#endif
+
+				}
+
+			}
+#endif
 		}
 		else {
 #if CONFIG_CANOPEN_LOG
@@ -433,22 +512,78 @@ static void parse_sdo(uw_canopen_msg_st* req) {
 	}
 	else {
 #if CONFIG_CANOPEN_LOG
-			printf("SDO error: invalid command %x\n\r", &req->msg.sdo.request);
+			printf("SDO error: invalid command %x\n\r", req->msg.sdo.request);
 #endif
 		sdo_send_error(&req->msg.sdo, SDO_ERROR_CMD_SPECIFIER_NOT_FOUND);
 	}
 
 }
 
-
 static void parse_rxpdo(uw_canopen_msg_st* req) {
-	// todo: RX pdo parsing
+	uint8_t i;
+	const uw_canopen_object_st *obj;
+	// cycle trough all RXPDO communication parameters
+	for (i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
+		obj = find_object(CONFIG_CANOPEN_RXPDO_COM_INDEX + i, 0);
+		if (obj) {
+			if (array_index(obj, 1) == req->msg.pdo_data.id) {
+				// RXPDO configured with this message's ID has been found
+				obj = find_object(CONFIG_CANOPEN_RXPDO_MAP_INDEX + i, 0);
+				if (!obj) {
+#if CONFIG_CANOPEN_LOG
+					printf("RXPDO error: PDO%u configured with ID %x found but corresponding"
+						" mapping parameter not found.\n\r", i, req->msg.pdo_data.id);
+#endif
+					return;
+				}
+				uint8_t j;
+				uint8_t bytes = 0;
+				// cycle trough all mapping entries used
+				for (j = 1; j < CONFIG_CANOPEN_PDO_MAPPING_COUNT + 1; j++) {
+					unsigned int p = array_index(obj, j);
+					if (p) {
+						// object index which will be written
+						uint16_t index = (p >> 16);
+						// object sub-index which will be written
+						uint8_t subindex = (p >> 8) & 0xFF;
+						// the length of the write operation in bytes
+						uint8_t byte_length = (p & 0xFF) / 8;
+						const uw_canopen_object_st *trg = find_object(index, subindex);
+						if (!trg) {
+#if CONFIG_CANOPEN_LOG
+				printf("RXPDO error: object with index %x and subindex %x not found\n\r", index, subindex);
+#endif
+							break;
+						}
+						if (bytes + byte_length > 8) {
+#if CONFIG_CANOPEN_LOG
+				printf("RXPDO error: PDO mapping length exceeds 8 bytes\n\r");
+#endif
+						}
+						// write bits to the object
+						memcpy(trg->data_ptr, &obj->data_ptr[bytes], byte_length);
+						bytes += byte_length;
+
+
+					}
+					else {
+						// if array index was zero, PDO mappings have been ended and we return.
+						break;
+					}
+				}
+#if CONFIG_CANOPEN_LOG
+				printf("RXPDO with id %x written\n\r", req->msg.pdo_data.id);
+#endif
+				return;
+			}
+		}
+	}
 
 }
 
 static void parse_nmt_message(uw_canopen_msg_st* req) {
 	// check if the NMT message was broadcasted or dedicated to this node
-	if (req->msg.nmt.node_id == node_id() || !req->msg.nmt.node_id) {
+	if (req->msg.nmt.node_id == this->node_id || !req->msg.nmt.node_id) {
 		switch (req->msg.nmt.command) {
 		case NMT_START_NODE:
 #if CONFIG_CANOPEN_LOG

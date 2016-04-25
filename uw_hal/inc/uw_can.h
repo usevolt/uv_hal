@@ -172,7 +172,7 @@ uw_errors_e uw_can_send_message(uw_can_channels_e channel, uw_can_message_st* me
 
 
 /// @brief: Returns the CAN 2.0 specification error state. Error active is the normal state.
-uint8_t uw_can_get_error_state(uw_can_channels_e channel);
+uw_can_errors_e uw_can_get_error_state(uw_can_channels_e channel);
 
 
 

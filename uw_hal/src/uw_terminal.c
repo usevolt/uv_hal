@@ -368,7 +368,8 @@ static void execute_common_cmd(int cmd, char** args) {
 		}
 		break;
 	case CMD_REVERT:
-		printf("%u\n\r", __uw_clear_previous_non_volatile_data());
+		__uw_clear_previous_non_volatile_data();
+		printf("OK\n\r");
 		break;
 	case CMD_SAVE:
 		if (__uw_save_previous_non_volatile_data()) {

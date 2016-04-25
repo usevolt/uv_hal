@@ -29,6 +29,12 @@
 /// 	the whole object is being written. E.g. the write byte count is not checked.
 ///
 /// * SDO write responses contain only 1 data byte rather than 4, to speed p the communication.
+///
+/// * Saving and restoring parameters can be done only with sub-index 1, meaning that
+///   all parameters are saved / restored.
+///
+/// * PDO message mapping lengths must be aligned to bytes. This means that
+///   PDO mapping lengths should be either 8, 16, 32 or 64 bits long.
 
 
 
@@ -69,6 +75,18 @@
 #if !defined(CONFIG_CANOPEN_LOG)
 #error "CONFIG_CANOPEN_LOG not defined. It should be defined as 0 or 1, depending on if\
  debug information logging is wanted."
+#endif
+#if !defined(CONFIG_CANOPEN_RXPDO_COUNT)
+#error "CONFIG_CANOPEN_RXPDO_COUNT not defined. It should define the maximum number of receive\
+ PDO's in this hardware."
+#endif
+#if !defined(CONFIG_CANOPEN_TXPDO_COUNT)
+#error "CONFIG_CANOPEN_TXPDO_COUNT not defined. It should define the maximum number of transmit\
+ PDO's in this hardware."
+#endif
+#if !defined(CONFIG_CANOPEN_PDO_MAPPING_COUNT)
+#error "CONFIG_CANOPEN_PDO_MAPPING_COUNT not defined. It should define the maximum number of\
+ PDO mapping entries available to be mapped to the PDO messages (1...8)."
 #endif
 
 /// @brief: Usewood Vendor ID.
@@ -146,21 +164,11 @@ typedef enum {
 	UW_ARRAY8 = (1 << 6) + 1,
 	UW_ARRAY16 = (1 << 6) + 2,
 	UW_ARRAY32 = (1 << 6) + 4,
-	UW_PDO_COM_ARRAY = UW_ARRAY16,
+	UW_PDO_COM_ARRAY = UW_ARRAY32,
 	UW_PDO_MAP_ARRAY = UW_ARRAY32,
 	UW_IDENTITY_ARRAY = UW_ARRAY32
 } uw_object_types_e;
 typedef uint8_t _uw_object_types_e;
-
-/// @brief: Values for PDO communication parameters
-/// These are used when defining PDO COB-ID's. Currently this
-/// CANopen stack doesn't support RTR. Also all PDO's are
-/// asynchronous.
-typedef enum {
-	PDO_ENABLED = 0,
-	PDO_DISABLED = 0x80000000,
-	PDO_RTR_ALLOWED = 0x40000000
-} pdo_cob_id_mapping_e;
 
 
 
@@ -244,15 +252,36 @@ typedef struct {
 } uw_canopen_object_st;
 
 
+typedef enum {
+	/// @brief: PDO is transmitted asynchronously
+	PDO_TRANSMISSION_ASYNC = 0xFF,
+} _uw_pdo_transmission_types_e;
+typedef uint32_t uw_pdo_transmission_types_e;
+
+
+/// @brief: Values for PDO communication parameters
+/// These are used when defining PDO COB-ID's. Currently this
+/// CANopen stack doesn't support RTR. Also all PDO's are
+/// asynchronous.
+typedef enum {
+	PDO_ENABLED = 0,
+	/// @brief: PDO transmission is disabled. This should be OR'red with the PDO
+	/// communication parameter's COB-ID field.
+	PDO_DISABLED = 0x80000000,
+	PDO_RTR_ALLOWED = 0x40000000
+} pdo_cob_id_mapping_e;
+
+
+
 /// @brief: a nice way for defining a RXPDO
 /// communication parameters in object dictionary
 typedef struct {
 	/// @brief: COB-ID for this PDO
-	uint16_t cob_id;
+	uint32_t cob_id;
 	/// @brief: Transmission type. Currently only asynchronous
 	/// transmissions are supported, so this should be set to 0xFF
 	/// by the application.
-	uint16_t transmission_type;
+	uw_pdo_transmission_types_e transmission_type;
 } uw_rxpdo_com_parameter_st;
 #define UW_RXPDO_COM_ARRAY_SIZE	2
 
@@ -260,17 +289,17 @@ typedef struct {
 /// communication parameters in object dictionary
 typedef struct {
 	/// @brief: COB-ID for this PDO
-	uint16_t cob_id;
+	uint32_t cob_id;
 	/// @brief: Transmission type. Currently only asynchronous
 	/// transmissions are supported, so this must be set to 0xFF
 	/// by the application.
-	uint16_t transmission_type;
-	uint16_t inhibit_time;
-	uint16_t _reserved;
-	uint16_t event_timer;
-	uint16_t _reserved2;
+	uw_pdo_transmission_types_e transmission_type;
+	uint32_t inhibit_time;
+	uint32_t _reserved;
+	uint32_t event_timer;
+	uint32_t _reserved2;
 } uw_txpdo_com_parameter_st;
-#define UW_TXPDO_COM_ARRAY_SIZE	5
+#define UW_TXPDO_COM_ARRAY_SIZE	6
 
 
 /// @brief: A nice way for defining a CANopen PDO mapping parameter
@@ -284,6 +313,18 @@ typedef struct {
 	/// @note: This length is in bits!
 	uint8_t length;
 } uw_pdo_mapping_parameter_st;
+
+
+
+/// @brief: A struct which the user application should use when defining
+/// the object dictionary. A member of this type variable should be
+/// created in a place which can be saved to non-volatile memory
+typedef struct {
+	uw_rxpdo_com_parameter_st rxpdo_coms[CONFIG_CANOPEN_RXPDO_COUNT];
+	uw_pdo_mapping_parameter_st rxpdo_mappings[CONFIG_CANOPEN_PDO_MAPPING_COUNT][CONFIG_CANOPEN_RXPDO_COUNT];
+	uw_txpdo_com_parameter_st txpdo_coms[CONFIG_CANOPEN_TXPDO_COUNT];
+	uw_pdo_mapping_parameter_st txpdo_mappings[CONFIG_CANOPEN_PDO_MAPPING_COUNT][CONFIG_CANOPEN_TXPDO_COUNT];
+} uw_pdos_st;
 
 
 /// @brief: A nice way for defining object dictionary's identity object
@@ -406,6 +447,14 @@ uw_errors_e __uw_canopen_send_sdo(uw_canopen_sdo_message_st *sdo, uint8_t node_i
 /// when a SDO write request was received. If callback function is not required, NULL can be passed.
 uw_errors_e uw_canopen_init(const uw_canopen_object_st* obj_dict, unsigned int obj_dict_length,
 		void (*sdo_write_callback)(uw_canopen_object_st* obj_dict_entry));
+
+
+/// @brief: Initializes the PDO struct to it's initial state. All PDO's are disabled
+/// and set to asynchronous mode, with the ID being the default CANopen PDO ID + NODE-ID.
+///
+/// @note: The user application should configure needed PDO messages after calling this function.
+/// This only ensures that no uninitialized entries remain in the PDO configurations.
+uw_errors_e uw_canopen_pdos_init(uw_pdos_st *pdos, uint8_t node_id);
 
 
 /// @brief: The CANopen step function. Makes sure that the txPDO and heartbeat messages
