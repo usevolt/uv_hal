@@ -6,10 +6,10 @@
  */
 
 
+#include "uw_canopen.h"
 #if CONFIG_CANOPEN
 
 #include "uw_can.h"
-#include "uw_canopen.h"
 #include "uw_reset.h"
 #include "uw_utilities.h"
 #if CONFIG_CANOPEN_LOG
