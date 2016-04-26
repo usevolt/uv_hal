@@ -326,7 +326,9 @@ void uw_terminal_disable_isp_entry(bool value) {
 }
 
 static void execute_common_cmd(int cmd, char** args) {
+#if CONFIG_CANOPEN
 	uw_canopen_node_states_e state;
+#endif
 	uint8_t p;
 
 	switch (cmd) {
@@ -376,6 +378,7 @@ static void execute_common_cmd(int cmd, char** args) {
 			printf("Saved.\n\r");
 		}
 		break;
+#if CONFIG_CANOPEN
 	case CMD_STATE:
 		if (strcmp(args[0], "stopped") == 0) {
 			state = STATE_STOPPED;
@@ -414,6 +417,7 @@ static void execute_common_cmd(int cmd, char** args) {
 		uw_canopen_set_state(state);
 		printf("State: %s.\n\r", args[0]);
 		break;
+#endif
 	case CMD_SET_ISP:
 		if (strcmp(args[0], "on") == 0) {
 			uw_terminal_disable_isp_entry(false);

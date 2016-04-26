@@ -6,6 +6,8 @@
  */
 
 
+#if CONFIG_CANOPEN
+
 #include "uw_can.h"
 #include "uw_canopen.h"
 #include "uw_reset.h"
@@ -637,3 +639,7 @@ uw_errors_e __uw_canopen_send_sdo(uw_canopen_sdo_message_st *sdo, uint8_t node_i
 
 	return uw_err(ERR_NONE);
 }
+
+
+
+#endif
