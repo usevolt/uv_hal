@@ -77,10 +77,14 @@ uw_errors_e uw_json_write_end(uw_json_st *json, uw_json_errors_e *errors) {
 	}
 
 	if (count) {
-		*errors = JSON_ERR_UNTERMINATED_OBJ;
+		if (errors) {
+			*errors = JSON_ERR_UNTERMINATED_OBJ;
+		}
 		__uw_err_throw(ERR_INTERNAL | HAL_MODULE_JSON);
 	}
-	*errors = JSON_ERR_NONE;
+	if (errors) {
+		*errors = JSON_ERR_NONE;
+	}
 
 	return uw_err(ERR_NONE);
 }
@@ -142,6 +146,18 @@ uw_errors_e uw_json_add_int(uw_json_st *json, char *name, int value) {
 	return uw_err(ERR_NONE);
 }
 
+uw_errors_e uw_json_array_add_int(uw_json_st *json, int value) {
+	char v[12];
+	itoa(value, v, 10);
+	unsigned int len = strlen(v) + 1;
+	uw_err_pass(check_overflow(json, len));
+
+	snprintf(json->start_ptr + strlen(json->start_ptr), len, "%s,", v);
+
+	return uw_err(ERR_NONE);
+}
+
+
 uw_errors_e uw_json_add_string(uw_json_st *json, char *name, char *value) {
 	unsigned int len = strlen(name) + strlen(value) + 6;
 	uw_err_pass(check_overflow(json, len));
@@ -151,12 +167,32 @@ uw_errors_e uw_json_add_string(uw_json_st *json, char *name, char *value) {
 	return uw_err(ERR_NONE);
 }
 
+uw_errors_e uw_json_array_add_string(uw_json_st *json, char *value) {
+	unsigned int len = strlen(value) + 3;
+	uw_err_pass(check_overflow(json, len));
+
+	snprintf(json->start_ptr + strlen(json->start_ptr), len, "\"%s\",", value);
+	return uw_err(ERR_NONE);
+}
+
+
 uw_errors_e uw_json_add_bool(uw_json_st *json, char *name, bool value) {
 	unsigned int len = strlen(name) + 9;
 	uw_err_pass(check_overflow(json, len));
 
 	snprintf(json->start_ptr + strlen(json->start_ptr), len, "\"%s\":%s,",
 			name, (value) ? "true" : "false");
+	return uw_err(ERR_NONE);
+}
+
+
+uw_errors_e uw_json_array_add_bool(uw_json_st *json, bool value) {
+	unsigned int len = 6;
+	uw_err_pass(check_overflow(json, len));
+
+	snprintf(json->start_ptr + strlen(json->start_ptr), len, "%s,",
+			(value) ? "true" : "false");
+
 	return uw_err(ERR_NONE);
 }
 
@@ -284,17 +320,17 @@ bool uw_json_get_obj_name(char *object, char **dest, unsigned int dest_length) {
 
 
 static char *get_value_ptr(char *ptr) {
-	while (*ptr != ':' && *ptr++ != '\0') {};
-	if (*ptr++ == '\0') {
-		return NULL;
-	}
+	while (*ptr != ':') {
+		ptr++;
+	};
+	ptr++;
 	return ptr;
 }
 
 
 uw_json_types_e uw_json_get_type(char *object) {
 	object = get_value_ptr(object);
-	if (!object) {
+	if (*object == '\0') {
 		return JSON_UNSUPPORTED;
 	}
 	// object now points to the first character of the value
@@ -314,17 +350,54 @@ uw_json_types_e uw_json_get_type(char *object) {
 }
 
 
+/// @brief: Returns the pointer to the array's 'inedex'th child
+static char *array_index(char *array, unsigned int index) {
+	// as long as the index is not zero, find the next child
+	while (index) {
+		while(*array != ',') {
+			array++;
+		}
+		array++;
+		index--;
+	}
+	return array;
+}
+
+
 int uw_json_get_int(char *object) {
 	return atoi(get_value_ptr(object));
 }
 
 
+int uw_json_array_get_int(char *object, unsigned int index) {
+	return atoi(array_index(object, index));
+}
+
+
 
 bool uw_json_get_string(char *object, char **dest, unsigned int dest_length) {
-	object = get_value_ptr(object);
+	object = get_value_ptr(object) + 1;
 	uint16_t i;
 	for (i = 0; i < dest_length; i++) {
-		if (*object != '"') {
+		if (object[i] != '"') {
+			(*dest)[i] = object[i];
+		}
+		else {
+			(*dest)[i] = '\0';
+			return true;
+		}
+	}
+	// ending here means that the value didn't fit into 'dest'
+	(*dest)[dest_length - 1] = '\0';
+	return false;
+}
+
+
+bool uw_json_array_get_string(char *object, unsigned int index, char **dest, unsigned int dest_length) {
+	object = array_index(object, index) + 1;
+	uint16_t i;
+	for (i = 0; i < dest_length; i++) {
+		if (object[i] != '"') {
 			(*dest)[i] = object[i];
 		}
 		else {
@@ -340,6 +413,17 @@ bool uw_json_get_string(char *object, char **dest, unsigned int dest_length) {
 
 bool uw_json_get_bool(char *object) {
 	object = get_value_ptr(object);
+	if (strncmp(object, "true", 4) == 0) {
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+
+
+bool uw_json_array_get_bool(char *object, unsigned int index) {
+	object = array_index(object, index);
 	if (strncmp(object, "true", 4) == 0) {
 		return true;
 	}

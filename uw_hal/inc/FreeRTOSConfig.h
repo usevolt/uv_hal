@@ -92,15 +92,8 @@
 #elif CONFIG_TARGET_LPC11CXX
 #define configMINIMAL_STACK_SIZE	( ( unsigned short ) 64 )
 #endif
-#if CONFIG_TARGET_LPC178X
-#ifdef __CODE_RED
-#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 16*1024 ) )
-#else
-#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 0 ) )
-#endif
-#elif CONFIG_TARGET_LPC11CXX
-#define configTOTAL_HEAP_SIZE		( ( size_t ) ( 6500 ) )
-#endif
+#define configSUPPORT_DYNAMIC_ALLOCATION	1
+#define configTOTAL_HEAP_SIZE 		CONFIG_RTOS_HEAP_SIZE
 #define configMAX_TASK_NAME_LEN		( 20 )
 #define configUSE_TRACE_FACILITY	1
 #define configUSE_16_BIT_TICKS		0

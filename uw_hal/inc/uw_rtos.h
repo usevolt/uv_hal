@@ -29,6 +29,13 @@
 #include "task.h"
 #include "semphr.h"
 
+
+#if !defined(CONFIG_RTOS_HEAP_SIZE)
+#error "CONFIG_RTOS_HEAP_SIZE not defined. It should define the number of bytes reserved to be used\
+ as a RTOS task memory."
+#endif
+
+
 #define UW_RTOS_MIN_STACK_SIZE 			configMINIMAL_STACK_SIZE
 #define UW_RTOS_IDLE_PRIORITY			tskIDLE_PRIORITY
 
