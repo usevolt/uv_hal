@@ -82,6 +82,8 @@ task.h is included from an application file. */
 #include "timers.h"
 #include "StackMacros.h"
 
+#include "uw_hal_config.h"
+
 /* Lint e961 and e750 are suppressed as a MISRA exception justified because the
 MPU ports require MPU_WRAPPERS_INCLUDED_FROM_API_FILE to be defined for the
 header files above, but not in this file, in order to generate the correct
@@ -112,7 +114,11 @@ functions but without including stdio.h here. */
 /*
  * Defines the size, in words, of the stack allocated to the idle task.
  */
+#if !defined(CONFIG_IDLE_TASK_STACK_SIZE)
 #define tskIDLE_STACK_SIZE	configMINIMAL_STACK_SIZE
+#else
+#define tskIDLE_STACK_SIZE	CONFIG_IDLE_TASK_STACK_SIZE
+#endif
 
 #if( configUSE_PREEMPTION == 0 )
 	/* If the cooperative scheduler is being used then a yield should not be

@@ -78,7 +78,7 @@
  * FreeRTOS API DOCUMENTATION AVAILABLE ON THE FreeRTOS.org WEB SITE.
  *----------------------------------------------------------*/
 #define configUSE_PREEMPTION		1
-#define configUSE_IDLE_HOOK			1
+#define configUSE_IDLE_HOOK			0
 #if CONFIG_TARGET_LPC178X
 #define configMAX_PRIORITIES		( 8 )
 #elif CONFIG_TARGET_LPC11CXX
@@ -90,7 +90,7 @@
 #if CONFIG_TARGET_LPC178X
 #define configMINIMAL_STACK_SIZE	( ( unsigned short ) 128 )
 #elif CONFIG_TARGET_LPC11CXX
-#define configMINIMAL_STACK_SIZE	( ( unsigned short ) 64 )
+#define configMINIMAL_STACK_SIZE	( ( unsigned short ) 48 )
 #endif
 #define configSUPPORT_DYNAMIC_ALLOCATION	1
 #define configTOTAL_HEAP_SIZE 		CONFIG_RTOS_HEAP_SIZE

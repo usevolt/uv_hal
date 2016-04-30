@@ -23,6 +23,35 @@ enum {
 };
 #endif
 
+
+#if CONFIG_TARGET_LPC11CXX
+/// @brief: Basic CAN message data structure
+/// LPC11C22 C_CAN driver struct. Do not change!
+typedef struct {
+	/// @brief: Messages ID and mode.
+	/// Mode defines if message is 11 bit, 29 bit data frame or rtr frame.
+	/// Control bits are OR'red with message ID, for example
+	/// message.msg_id = CAN_MSGOBJ_STD | 0x123;
+	/// Mode is CAN_MSGOBJ_STD by default.
+	uint32_t msg_id;
+	/// @brief: Message ID mask. Multiple ID's can be masked
+	/// to be received into a single message object by masking
+	/// out the least significant bits from message ID. This mask is AND'ed
+	/// with the received messages ID => use 0x7FF is default mask for 11 bit ID's.
+	uint32_t mask;
+	/// @brief: Message data bytes
+	uint8_t data[8];
+	/// @brief: Defines how many bytes of data is sent
+	uint8_t data_length;
+	/// @brief: Defines which hardware message object is used for this message.
+	/// Message objects should not be multiplexed among many messages.
+	/// For receiving multiple messages with a single message object, use mask bits.
+	uint8_t msgobj;
+
+} hal_can_msg_obj_st;
+#endif
+
+
 typedef struct {
 #ifdef CAN_ENABLE_ASYNCHRONOUS_MODE
 #ifdef CAN_TX_BUFFER_SIZE
@@ -37,6 +66,9 @@ typedef struct {
 #endif
 #else
 
+
+
+
 #endif
 #if CONFIG_TARGET_LPC11CXX
 	uint32_t pending_msg_objs;
@@ -46,6 +78,12 @@ typedef struct {
 	uw_ring_buffer_st rx_buffer;
 	uw_can_message_st tx_buffer_data[CONFIG_CAN1_TX_BUFFER_SIZE];
 	uw_ring_buffer_st tx_buffer;
+	// temporary message struct. This can be used instead of local variables
+	// to save stack memory.
+	uw_can_message_st temp_msg;
+	// temporary hal message object to be used when receiving messages
+	// defined here to be global instead of local
+	hal_can_msg_obj_st temp_obj;
 #elif CONFIG_TARGET_LPC178X
 
 #endif
@@ -104,32 +142,7 @@ enum {
 };
 
 
-/************ C_CAN hardware configuration ************************/
 
-/// @brief: Basic CAN message data structure
-/// LPC11C22 C_CAN driver struct. Do not change!
-typedef struct {
-	/// @brief: Messages ID and mode.
-	/// Mode defines if message is 11 bit, 29 bit data frame or rtr frame.
-	/// Control bits are OR'red with message ID, for example
-	/// message.msg_id = CAN_MSGOBJ_STD | 0x123;
-	/// Mode is CAN_MSGOBJ_STD by default.
-	uint32_t msg_id;
-	/// @brief: Message ID mask. Multiple ID's can be masked
-	/// to be received into a single message object by masking
-	/// out the least significant bits from message ID. This mask is AND'ed
-	/// with the received messages ID => use 0x7FF is default mask for 11 bit ID's.
-	uint32_t mask;
-	/// @brief: Message data bytes
-	uint8_t data[8];
-	/// @brief: Defines how many bytes of data is sent
-	uint8_t data_length;
-	/// @brief: Defines which hardware message object is used for this message.
-	/// Message objects should not be multiplexed among many messages.
-	/// For receiving multiple messages with a single message object, use mask bits.
-	uint8_t msgobj;
-
-} hal_can_msg_obj_st;
 
 /// @brief: CANopen object dictionary constant entry
 /// LPC11C22 C_CAN driver struct. Do not change!
@@ -207,35 +220,31 @@ typedef struct ROM_API {
 
 
 void CAN_rx(uint8_t msg_obj_num) {
-	hal_can_msg_obj_st msg_obj;
 	/* Determine which CAN message has been received */
-	msg_obj.msgobj = msg_obj_num;
+	this->temp_obj.msgobj = msg_obj_num;
 	/* Now load up the msg_obj structure with the CAN message */
-	LPC_CCAN_API->can_receive(&msg_obj);
-	uw_can_message_st msg = {
-			.data_length = msg_obj.data_length,
-			.id = msg_obj.msg_id
-	};
+	LPC_CCAN_API->can_receive(&this->temp_obj);
+	this->temp_msg.data_length = this->temp_obj.data_length;
+	this->temp_msg.id = this->temp_obj.msg_id;
 	uint8_t i;
-	for (i = 0; i < msg.data_length; i++) {
-		msg.data_8bit[i] = msg_obj.data[i];
+	for (i = 0; i < this->temp_msg.data_length; i++) {
+		this->temp_msg.data_8bit[i] = this->temp_obj.data[i];
 	}
 #if CONFIG_CAN_LOG
 	// log debug info
-	printf("CAN message received\n\r   id: 0x%x\n\r   data length: %u\n\r   data: ", msg.id, msg.data_length);
-	for ( i = 0; i < msg.data_length; i++) {
-		printf("%02x ", msg.data_8bit[i]);
+	printf("CAN message received\n\r   id: 0x%x\n\r   data length: %u\n\r   data: ",
+			this->temp_msg.id, this->temp_msg.data_length);
+	for ( i = 0; i < this->temp_msg.data_length; i++) {
+		printf("%02x ", this->temp_msg.data_8bit[i]);
 	}
 	printf("\n\r");
 #endif
 
-	// call application callback if assigned
-	if (this->rx_callback[CAN1] != NULL) {
-		this->rx_callback[CAN1](__uw_get_user_ptr(), &msg);
-	}
+	uw_ring_buffer_push(&this->rx_buffer, &this->temp_msg);
+
 	// if canopen module is enabled, forward the message there
 #if CONFIG_CANOPEN
-	__uw_canopen_parse_message(&msg);
+	__uw_canopen_parse_message(&this->temp_msg);
 #endif
 
 }
@@ -254,7 +263,7 @@ void CAN_tx(uint8_t msg_obj_num) {
 }
 
 void CAN_error(uint32_t error_info) {
-#if CONFIG_CAN_LOG
+#if CONFIG_CAN_LOG || CONFIG_CAN_ERROR_LOG
 	printf("CAN error received:");
 	if (error_info & CAN_ERROR_ACK) {
 		printf(" ACK");
@@ -367,6 +376,18 @@ uw_errors_e uw_can_step(uw_can_channels_e channel, unsigned int step_ms) {
 			send_next_msg();
 		}
 	}
+
+	uw_can_message_st msg;
+	while (true) {
+		// call application callback if assigned
+		uw_err_check(uw_ring_buffer_pop(&this->rx_buffer, &msg)) {
+			break;
+		}
+		if (this->rx_callback[CAN1] != NULL) {
+			this->rx_callback[CAN1](__uw_get_user_ptr(), &msg);
+		}
+	}
+
 
 	return uw_err(ERR_NONE);
 }

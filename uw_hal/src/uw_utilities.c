@@ -107,7 +107,7 @@ uw_errors_e uw_ring_buffer_init(uw_ring_buffer_st *buffer_ptr, void *buffer,
 
 
 uw_errors_e uw_ring_buffer_push(uw_ring_buffer_st *buffer, void *element) {
-	if (buffer->element_count == buffer->buffer_size) {
+	if (buffer->element_count >= buffer->buffer_size) {
 		return uw_err(ERR_BUFFER_OVERFLOW | HAL_MODULE_UTILITIES);
 	}
 	uint8_t i;
@@ -128,9 +128,11 @@ uw_errors_e uw_ring_buffer_pop(uw_ring_buffer_st *buffer, void *dest) {
 		return uw_err(ERR_BUFFER_EMPTY | HAL_MODULE_UTILITIES);
 	}
 	uint8_t i;
-	for (i = 0; i < buffer->element_size; i++) {
-		*((char*)dest + i) = *(buffer->tail);
-		buffer->tail++;
+	if (dest) {
+		for (i = 0; i < buffer->element_size; i++) {
+			*((char*)dest + i) = *(buffer->tail);
+			buffer->tail++;
+		}
 	}
 	if (buffer->tail == buffer->buffer + buffer->buffer_size * buffer->element_size) {
 		buffer->tail = buffer->buffer;

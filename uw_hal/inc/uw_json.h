@@ -68,16 +68,24 @@ typedef struct {
 /// @param buffer_ptr: A pointer to a string buffer which contains the JSON to be parsed
 /// OR a string where the constructed json will be saved.
 /// @param buffer_length: The maximum length in bytes of the buffer.
-uw_errors_e uw_json_init(uw_json_st *json, char *buffer_ptr, unsigned int buffer_length);
+uw_errors_e uw_jsonreader_init(uw_json_st *json, char *buffer_ptr, unsigned int buffer_length);
 
+
+/// @brief: Init's a JSON writer. This function should be called before
+/// any other calls
+///
+/// @return: A uw_errors_e value describing possible encountered errors. Refer to
+/// uw_errors_h for more details and error handling.
+///
+/// @param json: A pointer to the JSON object which is used to construct the JSON file.
+/// @param buffer_ptr: A pointer to a string buffer which contains the JSON to be parsed
+/// OR a string where the constructed json will be saved.
+/// @param buffer_length: The maximum length in bytes of the buffer.
+uw_errors_e uw_jsonwriter_init(uw_json_st *json, char *buffer_ptr, unsigned int buffer_length);
 
 
 
 /***** WRITING FUNCTIONS ******/
-
-/// @brief: Should be called after uw_json_init when starting to write JSON file
-/// Can also be used to reset a writing JSON and start over
-uw_errors_e uw_json_write_begin(uw_json_st *json);
 
 
 /// @brief: Should be called as the last function when finishing the writing to JSON.
@@ -88,55 +96,55 @@ uw_errors_e uw_json_write_begin(uw_json_st *json);
 ///
 /// @param errors: A pointer to variable which will be written with a detailed error
 /// encountered. Pass NULL if not used.
-uw_errors_e uw_json_write_end(uw_json_st *json, uw_json_errors_e *errors);
+uw_errors_e uw_jsonwriter_end(uw_json_st *json, uw_json_errors_e *errors);
 
 
 /// @brief: Starts to write a JSON object
 ///
 /// @param name: The name of the object
-uw_errors_e uw_json_begin_object(uw_json_st *json, char *name);
+uw_errors_e uw_jsonwriter_begin_object(uw_json_st *json, char *name);
 
 /// @brief: Ends a write of a JSON object
 ///
 /// @param name: The name of the object
-uw_errors_e uw_json_end_object(uw_json_st *json);
+uw_errors_e uw_jsonwriter_end_object(uw_json_st *json);
 
 /// @brief: Starts to write a JSON array
 ///
 /// @param name: The name of the object
-uw_errors_e uw_json_begin_array(uw_json_st *json, char *name);
+uw_errors_e uw_jsonwriter_begin_array(uw_json_st *json, char *name);
 
 /// @brief: Ends a write of a JSON array
 ///
 /// @param name: The name of the object
-uw_errors_e uw_json_end_array(uw_json_st *json);
+uw_errors_e uw_jsonwriter_end_array(uw_json_st *json);
 
 /// @brief: Writes an integer to a JSON key-value pair
 ///
 /// @param name: The name of the object
 /// @param value: The value
-uw_errors_e uw_json_add_int(uw_json_st *json, char *name, int value);
+uw_errors_e uw_jsonwriter_add_int(uw_json_st *json, char *name, int value);
 
 /// @brief: Writes an integer value to an array
-uw_errors_e uw_json_array_add_int(uw_json_st *json, int value);
+uw_errors_e uw_jsonwriter_array_add_int(uw_json_st *json, int value);
 
 /// @brief: Writes a string to a JSON key-value pair
 ///
 /// @param name: The name of the object
 /// @param value: The value
-uw_errors_e uw_json_add_string(uw_json_st *json, char *name, char *value);
+uw_errors_e uw_jsonwriter_add_string(uw_json_st *json, char *name, char *value);
 
 /// @brief: Writes a string to an array
-uw_errors_e uw_json_array_add_string(uw_json_st *json, char *value);
+uw_errors_e uw_jsonwriter_array_add_string(uw_json_st *json, char *value);
 
 /// @brief: Writes a boolean to a JSON key-value pair
 ///
 /// @param name: The name of the object
 /// @param value: The value
-uw_errors_e uw_json_add_bool(uw_json_st *json, char *name, bool value);
+uw_errors_e uw_jsonwriter_add_bool(uw_json_st *json, char *name, bool value);
 
 /// @brief: Writes a boolean to an array
-uw_errors_e uw_json_array_add_bool(uw_json_st *json, bool value);
+uw_errors_e uw_jsonwriter_array_add_bool(uw_json_st *json, bool value);
 
 
 /***** READING FUNCTIONS ******/
@@ -148,7 +156,7 @@ uw_errors_e uw_json_array_add_bool(uw_json_st *json, bool value);
 /// @param object: Pointer to the object whose siblings are searched.
 /// @param dest: A pointer to a char pointer where a reference to the found sibling
 /// will be stored. If sibling couldn't be found, this function doesn't modify dest at all.
-bool uw_json_get_next_sibling(char *object, char **dest);
+bool uw_jsonreader_get_next_sibling(char *object, char **dest);
 
 
 /// @brief: Gives a pointer pointing to the start to the next child
@@ -159,7 +167,7 @@ bool uw_json_get_next_sibling(char *object, char **dest);
 /// @param child_index: A index number of the child which is requested
 /// @param dest: A pointer to a char pointer where a reference to the found child
 /// will be stored. If sibling couldn't be found, this function doesn't modify dest at all.
-bool uw_json_get_child(char *parent, unsigned int child_index, char **dest);
+bool uw_jsonreader_get_child(char *parent, unsigned int child_index, char **dest);
 
 
 /// @brief: Finds and stores a child object with a key 'key' from 'object' parent to 'dest'.
@@ -177,7 +185,7 @@ bool uw_json_get_child(char *parent, unsigned int child_index, char **dest);
 /// @param dest: If the child is found, it's pointer is stored in here. Otherwise this will be
 /// left untouched. Passing NULL here allows to use this function to only check is a child exists
 /// without getting a pointer to it.
-bool uw_json_find_child(char *parent, char *child_name,
+bool uw_jsonreader_find_child(char *parent, char *child_name,
 		int depth, char **dest);
 
 
@@ -193,42 +201,42 @@ bool uw_json_find_child(char *parent, char *child_name,
 /// @param dest: A pointer to string where the name will be stored.
 /// @param dest_length: The max size of dest. If the name didn't fit dest,
 /// false is returned. However, 'dest_length' bytes will be stored to dest anyway.
-bool uw_json_get_obj_name(char *object, char **dest, unsigned int dest_length);
+bool uw_jsonreader_get_obj_name(char *object, char **dest, unsigned int dest_length);
 
 
 /// @brief: Returns the type of this JSON object
-uw_json_types_e uw_json_get_type(char *object);
+uw_json_types_e uw_jsonreader_get_type(char *object);
 
 
 /// @brief: Returns the object's value as an integer
-int uw_json_get_int(char *object);
+int uw_jsonreader_get_int(char *object);
 
 /// @brief: Returns the array's cell value as an integer
 ///
 /// @note: Do not overindex!
-int uw_json_array_get_int(char *object, unsigned int index);
+int uw_jsonreader_array_get_int(char *object, unsigned int index);
 
 
 /// @brief: Passes the object's value as a null-terminated string to 'dest'
 /// If the string is longer than dest_length (including the termination '\0' char),
 /// returns false.
-bool uw_json_get_string(char *object, char **dest, unsigned int dest_length);
+bool uw_jsonreader_get_string(char *object, char **dest, unsigned int dest_length);
 
 /// @brief: Passes the array cell's value as a null-terminated string to 'dest'
 /// If the string is longer than dest_length, returns false.
 ///
 /// @note: Do not overindex!
-bool uw_json_array_get_string(char *object, unsigned int index, char **dest, unsigned int dest_length);
+bool uw_jsonreader_array_get_string(char *object, unsigned int index, char **dest, unsigned int dest_length);
 
 
 /// @brief: Returns the object's value as a bool
 /// All other values than 'true' are evaluated as false
-bool uw_json_get_bool(char *object);
+bool uw_jsonreader_get_bool(char *object);
 
 /// @brief: Returns the array cell's value as a bool
 ///
 /// @note: Do not overindex!
-bool uw_json_array_get_bool(char *object, unsigned int index);
+bool uw_jsonreader_array_get_bool(char *object, unsigned int index);
 
 
 #endif /* UW_JSON_H_ */

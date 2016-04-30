@@ -83,6 +83,7 @@ static const uw_command_st common_cmds[] = {
 						""
 #endif
 		},
+#if CONFIG_NON_VOLATILE_MEMORY
 		{
 				.id = CMD_SAVE,
 				.str = "save",
@@ -105,6 +106,8 @@ static const uw_command_st common_cmds[] = {
 						""
 #endif
 		},
+#endif
+#if CONFIG_CANOPEN
 		{
 				.id = CMD_SDO,
 				.str = "sdo",
@@ -144,6 +147,7 @@ static const uw_command_st common_cmds[] = {
 						""
 #endif
 		},
+#endif
 		{
 				.id = CMD_SET_ISP,
 				.str = "setisp",
@@ -355,12 +359,6 @@ static void execute_common_cmd(int cmd, char** args) {
 		}
 		printf("\n\r");
 		break;
-	case CMD_SDO:
-		printf("Command not yet implemented in HAL.\n\r");
-		break;
-	case CMD_PDO_ECHO:
-		printf("Command not yet implemented in HAL.\n\r");
-		break;
 	case CMD_RESET:
 		if (strcmp(args[0], "hard") == 0) {
 			uw_system_reset(true);
@@ -369,6 +367,7 @@ static void execute_common_cmd(int cmd, char** args) {
 			uw_system_reset(false);
 		}
 		break;
+#if CONFIG_NON_VOLATILE_MEMORY
 	case CMD_REVERT:
 		__uw_clear_previous_non_volatile_data();
 		printf("OK\n\r");
@@ -378,7 +377,14 @@ static void execute_common_cmd(int cmd, char** args) {
 			printf("Saved.\n\r");
 		}
 		break;
+#endif
 #if CONFIG_CANOPEN
+	case CMD_SDO:
+		printf("Command not yet implemented in HAL.\n\r");
+		break;
+	case CMD_PDO_ECHO:
+		printf("Command not yet implemented in HAL.\n\r");
+		break;
 	case CMD_STATE:
 		if (strcmp(args[0], "stopped") == 0) {
 			state = STATE_STOPPED;

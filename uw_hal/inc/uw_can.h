@@ -22,6 +22,10 @@
 #if !defined(CONFIG_CAN_LOG)
 #error "CONFIG_CAN_LOG not defined"
 #endif
+#if !CONFIG_CAN_LOG && !defined(CONFIG_CAN_ERROR_LOG)
+#error "CONFIG_CAN_ERROR_LOG not defined. When CONFIG_CAN_LOG is set as 0,\
+ CONFIG_CAN_ERROR_LOG should be definded as 0 or 1, to disable or enable error logging."
+#endif
 #if CONFIG_TARGET_LPC11CXX
 #if CONFIG_CAN2
 #error "Hardware doesn't support CAN2 module. Set CONFIG_CAN2 to 0."

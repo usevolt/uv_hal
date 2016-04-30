@@ -50,11 +50,15 @@ typedef enum {
 	CMD_ISP = 0xF0,
 	CMD_HELP,
 	CMD_RESET,
+#if CONFIG_NON_VOLATILE_MEMORY
 	CMD_SAVE,
 	CMD_REVERT,
+#endif
+#if CONFIG_CANOPEN
 	CMD_SDO,
 	CMD_PDO_ECHO,
 	CMD_STATE,
+#endif
 	CMD_SET_ISP
 } uw_common_commands_e;
 

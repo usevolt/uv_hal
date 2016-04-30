@@ -25,7 +25,7 @@ static uw_errors_e check_overflow(uw_json_st *json, unsigned int length_req) {
 }
 
 
-uw_errors_e uw_json_init(uw_json_st *json, char *buffer_ptr, unsigned int buffer_length) {
+uw_errors_e uw_jsonreader_init(uw_json_st *json, char *buffer_ptr, unsigned int buffer_length) {
 	json->start_ptr = buffer_ptr;
  	json->buffer_length = buffer_length;
 	unsigned int count = 0;
@@ -46,16 +46,16 @@ uw_errors_e uw_json_init(uw_json_st *json, char *buffer_ptr, unsigned int buffer
 
 
 
-uw_errors_e uw_json_write_begin(uw_json_st *json) {
-	uw_err_pass(check_overflow(json, 1));
-
+uw_errors_e uw_jsonwriter_init(uw_json_st *json, char *buffer_ptr, unsigned int buffer_length) {
+	json->start_ptr = buffer_ptr;
+ 	json->buffer_length = buffer_length;
 	sprintf(json->start_ptr, "{");
-
 	return uw_err(ERR_NONE);
 }
 
 
-uw_errors_e uw_json_write_end(uw_json_st *json, uw_json_errors_e *errors) {
+
+uw_errors_e uw_jsonwriter_end(uw_json_st *json, uw_json_errors_e *errors) {
 	uw_err_pass(check_overflow(json, 1));
 
 	unsigned int size = strlen(json->start_ptr);
@@ -90,7 +90,7 @@ uw_errors_e uw_json_write_end(uw_json_st *json, uw_json_errors_e *errors) {
 }
 
 
-uw_errors_e uw_json_begin_object(uw_json_st *json, char *name) {
+uw_errors_e uw_jsonwriter_begin_object(uw_json_st *json, char *name) {
 	unsigned int len = strlen(name) + 4;
 
 	uw_err_pass(check_overflow(json, len));
@@ -100,7 +100,7 @@ uw_errors_e uw_json_begin_object(uw_json_st *json, char *name) {
 	return uw_err(ERR_NONE);
 }
 
-uw_errors_e uw_json_end_object(uw_json_st *json) {
+uw_errors_e uw_jsonwriter_end_object(uw_json_st *json) {
 	uw_err_pass(check_overflow(json, 2));
 
 	unsigned int size = strlen(json->start_ptr);
@@ -112,7 +112,7 @@ uw_errors_e uw_json_end_object(uw_json_st *json) {
 	return uw_err(ERR_NONE);
 }
 
-uw_errors_e uw_json_begin_array(uw_json_st *json, char *name) {
+uw_errors_e uw_jsonwriter_begin_array(uw_json_st *json, char *name) {
 	unsigned int len = strlen(name) + 4;
 
 	uw_err_pass(check_overflow(json, len));
@@ -122,7 +122,7 @@ uw_errors_e uw_json_begin_array(uw_json_st *json, char *name) {
 	return uw_err(ERR_NONE);
 }
 
-uw_errors_e uw_json_end_array(uw_json_st *json) {
+uw_errors_e uw_jsonwriter_end_array(uw_json_st *json) {
 	uw_err_pass(check_overflow(json, 2));
 
 	unsigned int size = strlen(json->start_ptr);
@@ -134,7 +134,7 @@ uw_errors_e uw_json_end_array(uw_json_st *json) {
 	return uw_err(ERR_NONE);
 }
 
-uw_errors_e uw_json_add_int(uw_json_st *json, char *name, int value) {
+uw_errors_e uw_jsonwriter_add_int(uw_json_st *json, char *name, int value) {
 	char v[12];
 	itoa(value, v, 10);
 	unsigned int len = 4 + strlen(name) + strlen(v);
@@ -146,7 +146,7 @@ uw_errors_e uw_json_add_int(uw_json_st *json, char *name, int value) {
 	return uw_err(ERR_NONE);
 }
 
-uw_errors_e uw_json_array_add_int(uw_json_st *json, int value) {
+uw_errors_e uw_jsonwriter_array_add_int(uw_json_st *json, int value) {
 	char v[12];
 	itoa(value, v, 10);
 	unsigned int len = strlen(v) + 1;
@@ -158,7 +158,7 @@ uw_errors_e uw_json_array_add_int(uw_json_st *json, int value) {
 }
 
 
-uw_errors_e uw_json_add_string(uw_json_st *json, char *name, char *value) {
+uw_errors_e uw_jsonwriter_add_string(uw_json_st *json, char *name, char *value) {
 	unsigned int len = strlen(name) + strlen(value) + 6;
 	uw_err_pass(check_overflow(json, len));
 
@@ -167,7 +167,7 @@ uw_errors_e uw_json_add_string(uw_json_st *json, char *name, char *value) {
 	return uw_err(ERR_NONE);
 }
 
-uw_errors_e uw_json_array_add_string(uw_json_st *json, char *value) {
+uw_errors_e uw_jsonwriter_array_add_string(uw_json_st *json, char *value) {
 	unsigned int len = strlen(value) + 3;
 	uw_err_pass(check_overflow(json, len));
 
@@ -176,7 +176,7 @@ uw_errors_e uw_json_array_add_string(uw_json_st *json, char *value) {
 }
 
 
-uw_errors_e uw_json_add_bool(uw_json_st *json, char *name, bool value) {
+uw_errors_e uw_jsonwriter_add_bool(uw_json_st *json, char *name, bool value) {
 	unsigned int len = strlen(name) + 9;
 	uw_err_pass(check_overflow(json, len));
 
@@ -186,7 +186,7 @@ uw_errors_e uw_json_add_bool(uw_json_st *json, char *name, bool value) {
 }
 
 
-uw_errors_e uw_json_array_add_bool(uw_json_st *json, bool value) {
+uw_errors_e uw_jsonwriter_array_add_bool(uw_json_st *json, bool value) {
 	unsigned int len = 6;
 	uw_err_pass(check_overflow(json, len));
 
@@ -197,7 +197,7 @@ uw_errors_e uw_json_array_add_bool(uw_json_st *json, bool value) {
 }
 
 
-bool uw_json_get_next_sibling(char *object, char **dest) {
+bool uw_jsonreader_get_next_sibling(char *object, char **dest) {
 	unsigned int count = 0;
 	char *ptr;
 	for (ptr = object; *ptr != '\0'; ptr++) {
@@ -227,11 +227,11 @@ bool uw_json_get_next_sibling(char *object, char **dest) {
 
 
 
-bool uw_json_get_child(char *parent, unsigned int child_index, char **dest) {
+bool uw_jsonreader_get_child(char *parent, unsigned int child_index, char **dest) {
 	unsigned int count = 0, child_count = 0;
 	char *ptr;
 	// check if this object is of type object or array
-	if (uw_json_get_type(parent) >= 0) {
+	if (uw_jsonreader_get_type(parent) >= 0) {
 		return false;
 	}
 
@@ -264,12 +264,12 @@ bool uw_json_get_child(char *parent, unsigned int child_index, char **dest) {
 }
 
 
-bool uw_json_find_child(char *parent, char *child_name,
+bool uw_jsonreader_find_child(char *parent, char *child_name,
 		int depth, char **dest) {
 	unsigned int count = 0, name_len = strlen(child_name);
 	char *ptr;
 	// check if this object is of type object or array
-	if (uw_json_get_type(parent) >= 0) {
+	if (uw_jsonreader_get_type(parent) >= 0) {
 		return false;
 	}
 	for (ptr = parent; *ptr != '\0'; ptr++) {
@@ -304,7 +304,7 @@ bool uw_json_find_child(char *parent, char *child_name,
 
 
 
-bool uw_json_get_obj_name(char *object, char **dest, unsigned int dest_length) {
+bool uw_jsonreader_get_obj_name(char *object, char **dest, unsigned int dest_length) {
 	unsigned int i = 0;
 	object++;
 	while (*object != '"') {
@@ -328,7 +328,7 @@ static char *get_value_ptr(char *ptr) {
 }
 
 
-uw_json_types_e uw_json_get_type(char *object) {
+uw_json_types_e uw_jsonreader_get_type(char *object) {
 	object = get_value_ptr(object);
 	if (*object == '\0') {
 		return JSON_UNSUPPORTED;
@@ -375,7 +375,7 @@ int uw_json_array_get_int(char *object, unsigned int index) {
 
 
 
-bool uw_json_get_string(char *object, char **dest, unsigned int dest_length) {
+bool uw_jsonreader_get_string(char *object, char **dest, unsigned int dest_length) {
 	object = get_value_ptr(object) + 1;
 	uint16_t i;
 	for (i = 0; i < dest_length; i++) {
@@ -393,7 +393,7 @@ bool uw_json_get_string(char *object, char **dest, unsigned int dest_length) {
 }
 
 
-bool uw_json_array_get_string(char *object, unsigned int index, char **dest, unsigned int dest_length) {
+bool uw_jsonreader_array_get_string(char *object, unsigned int index, char **dest, unsigned int dest_length) {
 	object = array_index(object, index) + 1;
 	uint16_t i;
 	for (i = 0; i < dest_length; i++) {
@@ -411,7 +411,7 @@ bool uw_json_array_get_string(char *object, unsigned int index, char **dest, uns
 }
 
 
-bool uw_json_get_bool(char *object) {
+bool uw_jsonreader_get_bool(char *object) {
 	object = get_value_ptr(object);
 	if (strncmp(object, "true", 4) == 0) {
 		return true;
@@ -422,7 +422,7 @@ bool uw_json_get_bool(char *object) {
 }
 
 
-bool uw_json_array_get_bool(char *object, unsigned int index) {
+bool uw_jsonreader_array_get_bool(char *object, unsigned int index) {
 	object = array_index(object, index);
 	if (strncmp(object, "true", 4) == 0) {
 		return true;

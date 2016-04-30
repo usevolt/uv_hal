@@ -68,10 +68,12 @@ typedef enum {
 /// typedef to IAP function
 typedef void (*IAP)(unsigned int [],unsigned int[]);
 
+#if CONFIG_NON_VOLATILE_MEMORY
+
 static uw_data_start_t* last_start = NULL;
 static uw_data_end_t *last_end = NULL;
 
-
+#endif
 
 
 void uw_enter_ISP_mode(void) {
@@ -115,7 +117,7 @@ void uw_get_device_serial(unsigned int dest[4]) {
 	__enable_irq();
 }
 
-
+#if CONFIG_NON_VOLATILE_MEMORY
 
 uw_errors_e uw_memory_save(uw_data_start_t *start_ptr, uw_data_end_t *end_ptr) {
 	// take up memory locations
@@ -355,3 +357,4 @@ uw_errors_e __uw_clear_previous_non_volatile_data() {
 	}
 }
 
+#endif

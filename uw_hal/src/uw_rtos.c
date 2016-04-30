@@ -23,12 +23,12 @@ static volatile this_st _this = {
 
 #define this (&_this)
 
-
+#if configUSE_IDLE_HOOK
 uw_errors_e uw_rtos_add_idle_task(void (*task_function)(void *user_ptr)) {
 	this->idle_task = task_function;
 	return uw_err(ERR_NONE);
 }
-
+#endif
 
 void uw_rtos_task_delay(unsigned int ms) {
 	portTickType xDelayTime;

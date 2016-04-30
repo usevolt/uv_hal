@@ -71,6 +71,7 @@ typedef xQueueHandle		uw_rtos_queue_t;
 
 
 
+#if configUSE_IDLE_HOOK
 /// @brief: e.g. FreeRTOS applicationIdleHook, this function can be used
 /// to add a idle task function. Idle function will be called every time
 /// the application is performing the idle task loop.
@@ -78,7 +79,7 @@ typedef xQueueHandle		uw_rtos_queue_t;
 /// @param task_function: The task function pointer. Takes user_ptr as a parameter.
 /// Refer to uw_utilities.h for more details.
 uw_errors_e uw_rtos_add_idle_task(void (*task_function)(void *user_ptr));
-
+#endif
 
 
 

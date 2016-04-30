@@ -15,6 +15,13 @@
 #include <stdint.h>
 #include "uw_errors.h"
 
+
+#if !defined(CONFIG_NON_VOLATILE_MEMORY)
+#error "CONFIG_NON_VOLATILE_MEMORY should be defined as a 1 or 0, depending\
+ if non volatile memory saving needs to be enabled."
+#endif
+
+
 #if CONFIG_TARGET_LPC11CXX
 /// @brief: Defines the RAM size in bytes on this contoller
 #define RAM_SIZE_BYTES	0x2000

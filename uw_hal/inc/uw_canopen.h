@@ -17,7 +17,7 @@
 ///
 /// ###DIFFERENCES TO A COMPLETE CANOPEN:
 ///
-/// * SDO read and write requests of more than 4 bytes are not implemented
+/// * SDO read and write requests of more than 4 bytes are not implemented (expedited transfer?)
 ///
 /// * For array types, sub index 0 returns the max array size, not current size.
 ///		e.g. array sizes are constant.
@@ -35,6 +35,11 @@
 ///
 /// * PDO message mapping lengths must be aligned to bytes. This means that
 ///   PDO mapping lengths should be either 8, 16, 32 or 64 bits long.
+/// todo: correct this!
+///
+/// * EMCY messages do not provide any error states. It's completely up to the user application
+/// to provide any NMT state changes when detecting errors. However, error listing to
+/// predefined error field is implemented.
 
 
 
@@ -107,6 +112,7 @@ typedef enum {
 	SDO_REQUEST_ID = 		0x600,
 	SDO_RESPONSE_ID = 		0x580,
 	SDO_ERROR_ID =			0x80,
+	EMCY_ID =				0x80,
 	TXPDO_BEGIN_ID = 		0x180,
 	TXPDO_END_ID =			0x480,
 	RXPDO_BEGIN_ID = 		0x200,
@@ -204,6 +210,7 @@ typedef enum {
 } _uw_canopen_sdo_commands_e;
 typedef uint8_t uw_canopen_sdo_commands_e;
 
+
 typedef struct {
 	/// @brief: Request regarding this sdo entry, as a uw_canopen_sdo_commands_e
 	uw_canopen_sdo_commands_e request;
@@ -223,6 +230,63 @@ typedef struct {
 
 } uw_canopen_sdo_message_st;
 
+
+typedef enum {
+	EMCY_NO_ERROR				= 0x0000,
+	EMCY_GENERIC 				= 0x1000,
+	EMCY_CURRENT_GENERIC		= 0x2000,
+	EMCY_CURRENT_INPUT 			= 0x2100,
+	EMCY_CURRENT_DEVICE			= 0x2200,
+	EMCY_CURRENT_OUTPUT			= 0x2300,
+	EMCY_VOLTAGE_GENERIC		= 0x3000,
+	EMCY_VOLTAGE_MAINS			= 0x3100,
+	EMCY_VOLTAGE_DEVICE			= 0x3200,
+	EMCY_VOLTAGE_OUTPUT			= 0x3300,
+	EMCY_TEMP_GENERIC			= 0x4000,
+	EMCY_TEMP_AMBIENT			= 0x4100,
+	EMCY_TEMP_DEVICE			= 0x4200,
+	EMCY_HARDWARE_GENERIC		= 0x5000,
+	EMCY_SOFTWARE_GENERIC		= 0x6000,
+	EMCY_SOFTWARE_INTERNAL		= 0x6100,
+	EMCY_SOFTWARE_USER			= 0x6200,
+	EMCY_DATA_SET_GENERIC		= 0x6300,
+	EMCY_ADDITIONAL_MODULES		= 0x7000,
+	EMCY_MONITORING_GENERIC		= 0x8000,
+	EMCY_COMMUNICATION_GENERIC	= 0x8100,
+	EMCY_CAN_OVERRUN			= 0x8110,
+	EMCY_CAN_ERROR_PASSIVE		= 0x8120,
+	EMCY_LIFE_GUARD_HEARTBEAT	= 0x8130,
+	EMCY_RECOVERED_FROM_BUS_OFF = 0x8140,
+	EMCY_CAN_ID_COLLISION		= 0x8150,
+	EMCY_PROTOCOL_GENERIC		= 0x8200,
+	EMCY_PDO_LENGTH_ERROR		= 0x8210,
+	EMCY_PDO_LENGTH_EXCEEDED	= 0x8220,
+	EMCY_DAM_MPDO_NOT_PROCESSED = 0x8230,
+	EMCY_UNEXPECT_SYNC_LENGTH	= 0x8240,
+	EMCY_RPDO_TIMEOUT			= 0x8250,
+	EMCY_EXTERNAL_ERROR			= 0x9000,
+	EMCY_ADDITIONAL_FUNCTIONS	= 0xF000,
+	EMCY_DEVICE_SPECIFIC		= 0xFF00
+
+
+} _uw_emcy_codes_e;
+typedef _uw_emcy_codes_e uw_emcy_codes_e;
+
+/// @brief: Defines a EMCY message structure.
+/// This is used as a EMCY callback parameter, where
+/// the user application can read the EMCY error codes.
+typedef struct {
+	/// @brief: The sender node ID of this EMCY message
+	uint8_t node_id;
+	/// @brief: CANopen EMCY error code
+	uw_emcy_codes_e error_code;
+	/// @brief: Application dependent error data.
+	/// This can contain any data the application wants.
+	union {
+		uint8_t data_as_8bit[6];
+		uint16_t data_as_16_bit[3];
+	};
+} uw_canopen_emcy_msg_st;
 
 
 
@@ -446,7 +510,8 @@ uw_errors_e __uw_canopen_send_sdo(uw_canopen_sdo_message_st *sdo, uint8_t node_i
 /// @param sdo_write_callback: A function pointer to a callback function which will be called
 /// when a SDO write request was received. If callback function is not required, NULL can be passed.
 uw_errors_e uw_canopen_init(const uw_canopen_object_st* obj_dict, unsigned int obj_dict_length,
-		void (*sdo_write_callback)(uw_canopen_object_st* obj_dict_entry));
+		void (*sdo_write_callback)(uw_canopen_object_st* obj_dict_entry),
+		void (*emcy_callback)(void *user_ptr, uw_canopen_emcy_msg_st *msg));
 
 
 /// @brief: Initializes the PDO struct to it's initial state. All PDO's are disabled
@@ -471,6 +536,11 @@ uw_errors_e uw_canopen_set_state(uw_canopen_node_states_e state);
 /// @brief: Used to get the device state. Device will start in UW_CANOPEN_BOOT_UP state
 /// and it should move itself to pre-operational state arfter boot up is done.
 uw_canopen_node_states_e uw_canopen_get_state(void);
+
+
+/// @brief: Sends an EMCY (emergency) message
+uw_errors_e uw_canopen_emcy_send(uw_canopen_emcy_msg_st *msg);
+
 
 
 /// @brief: Sends a SDO message.

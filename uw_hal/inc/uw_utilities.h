@@ -130,6 +130,11 @@ static inline uw_errors_e uw_ring_buffer_clear(uw_ring_buffer_st *buffer) {
 	return uw_ring_buffer_init(buffer, buffer->buffer, buffer->buffer_size, buffer->element_size);
 }
 
+/// @brief: Returns true if the ring buffer was empty
+static inline bool uw_ring_buffer_empty(uw_ring_buffer_st *buffer) {
+	return !buffer->element_count;
+}
+
 #if CONFIG_TARGET_LPC11CXX
 /// @brief: Defines the interrupts sources on this hardware
 typedef enum {
