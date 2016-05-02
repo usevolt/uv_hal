@@ -23,6 +23,9 @@
 #if !CONFIG_EMC_CHIP_COUNT || CONFIG_EMC_CHIP_COUNT > 4
 #error "CONFIG_EMC_CHIP_COUNT either not defined or set to invalid value. It should be between 1...4."
 #endif
+#if CONFIG_EMC_STATIC_RAM
+#error "EMC static RAM interface not implemented!"
+#endif
 
 
 uw_errors_e uw_emc_init( void );
