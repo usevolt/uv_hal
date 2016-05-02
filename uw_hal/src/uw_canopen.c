@@ -399,24 +399,23 @@ uw_errors_e uw_canopen_emcy_send(uw_canopen_emcy_msg_st *msg) {
 			.data_16bit[2] = msg->data_as_16_bit[1],
 			.data_16bit[3] = msg->data_as_16_bit[2]
 	};
-.ööööööööööööö<za
-	// todo: returning from function before logging error to predefined error register is not good...
+	uw_errors_e err = ERR_NONE;
 
 	uw_err_check(uw_can_send_message(CONFIG_CANOPEN_CHANNEL, &canmsg)) {
 #if CONFIG_CANOPEN_LOG
 	printf("EMCY message sending failed. CAN TX buffer full?\n\r");
 #endif
-		return __uw_error;
+		err = ERR_BUFFER_OVERFLOW | HAL_MODULE_CANOPEN;
 	}
 #if CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX
 	uw_err_check (uw_ring_buffer_push(&this->errors, &msg->error_code)) {
 		// pushing failed, array was full. Discard the oldest error and then put new one
 		uw_ring_buffer_pop(&this->errors, NULL);
 		uw_ring_buffer_push(&this->errors, &msg->error_code);
-		return uw_err(ERR_BUFFER_OVERFLOW | HAL_MODULE_CANOPEN);
+		err = ERR_BUFFER_OVERFLOW | HAL_MODULE_CANOPEN;
 	}
 #endif
-	return uw_err(ERR_NONE);
+	return uw_err(err);
 }
 
 
