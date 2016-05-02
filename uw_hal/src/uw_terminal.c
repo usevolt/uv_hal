@@ -30,6 +30,7 @@
 extern uw_errors_e __uw_save_previous_non_volatile_data();
 extern uw_errors_e __uw_load_previous_non_volatile_data();
 extern uw_errors_e __uw_clear_previous_non_volatile_data();
+extern void canopen_parse_sdo(uw_can_message_st* req);
 extern void uw_enter_ISP_mode(void);
 
 
@@ -380,6 +381,7 @@ static void execute_common_cmd(int cmd, char** args) {
 #endif
 #if CONFIG_CANOPEN
 	case CMD_SDO:
+
 		printf("Command not yet implemented in HAL.\n\r");
 		break;
 	case CMD_PDO_ECHO:
@@ -405,10 +407,10 @@ static void execute_common_cmd(int cmd, char** args) {
 				str = "bootup";
 				break;
 			case STATE_OPERATIONAL:
-				str = "operational";
+				str = "op";
 				break;
 			case STATE_PREOPERATIONAL:
-				str = "preoperational";
+				str = "preop";
 				break;
 			case STATE_STOPPED:
 				str = "stopped";
@@ -421,7 +423,7 @@ static void execute_common_cmd(int cmd, char** args) {
 			break;
 		}
 		uw_canopen_set_state(state);
-		printf("State: %s.\n\r", args[0]);
+		printf("%s\n\r", args[0]);
 		break;
 #endif
 	case CMD_SET_ISP:

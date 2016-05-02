@@ -43,6 +43,10 @@
 
 
 
+#if !defined(CONFIG_CANOPEN)
+#error "CONFIG_CANOPEN should be defined as 1 or 0, depending if CANopen should be enabled or disabled"
+#endif
+
 #if CONFIG_CANOPEN
 
 
@@ -53,29 +57,41 @@
 #if !defined(CONFIG_CANOPEN_CHANNEL)
 #error "CONFIG_CANOPEN_CHANNEL not defined. It should define which CAN module to use (1, 2, 3, etc)"
 #endif
-#if !defined(CONFIG_CANOPEN_HEARTBEAT_INDEX)
-#error "CONFIG_CANOPEN_HEARTBEAT_INDEX not defined. It should define which object dictionary index\
- the heartbeat index is."
+#if !defined(CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX)
+#error "CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX not defined. It should define the index from which\
+ the EMCY error log can be found. Usually 0x1003, or NULL to disable."
 #endif
 #if !defined(CONFIG_CANOPEN_NODEID_INDEX)
 #error "CONFIG_CANOPEN_NODEID_INDEX not defined. It should define which object dictionary index\
- the node id index is."
+ the node id index is. Usually 0x100B, or NULL to disable."
+#endif
+#if !defined(CONFIG_CANOPEN_HEARTBEAT_INDEX)
+#error "CONFIG_CANOPEN_HEARTBEAT_INDEX not defined. It should define which object dictionary index\
+ the heartbeat index is. Usually 0x1017, or NULL to disable."
 #endif
 #if !defined(CONFIG_CANOPEN_TXPDO_COM_INDEX)
 #error "CONFIG_CANOPEN_TXPDO_COM_INDEX not defined. It should define the index from which forward\
- transmit PDO communication parameters are found."
+ transmit PDO communication parameters are found. Usually 0x1800, or NULL to disable."
 #endif
 #if !defined(CONFIG_CANOPEN_TXPDO_MAP_INDEX)
 #error "CONFIG_CANOPEN_TXPDO_MAP_INDEX not defined. It should define the index from which forward\
- transmit PDO mapping parameters are found."
+ transmit PDO mapping parameters are found. Usually 0x1A00, or NULL to disable."
 #endif
 #if !defined(CONFIG_CANOPEN_RXPDO_COM_INDEX)
 #error "CONFIG_CANOPEN_RXPDO_COM_INDEX not defined. It should define the index from which forward\
- receive PDO communication parameters are found."
+ receive PDO communication parameters are found. Usually 0x1400, or NULL to disable."
 #endif
 #if !defined(CONFIG_CANOPEN_RXPDO_MAP_INDEX)
 #error "CONFIG_CANOPEN_RXPDO_MAP_INDEX not defined. It should define the index from which forward\
- receive PDO mapping parameters are found."
+ receive PDO mapping parameters are found. Usually 0x1600, or NULL to disable."
+#endif
+#if !defined(CONFIG_CANOPEN_STORE_PARAMS_INDEX)
+#error "CONFIG_CANOPEN_STORE_PARAMS_INDEX not defined. It should define the index which\
+ saves the settings to flash memory. Usually 0x1010, or NULL to disable."
+#endif
+#if !defined(CONFIG_CANOPEN_RESTORE_PARAMS_INDEX)
+#error "CONFIG_CANOPEN_RESTORE_PARAMS_INDEX not defined. It should define the index which\
+ restores the settings from flash-memory. Usually 0x1011, or NULL to disable."
 #endif
 #if !defined(CONFIG_CANOPEN_LOG)
 #error "CONFIG_CANOPEN_LOG not defined. It should be defined as 0 or 1, depending on if\
@@ -165,8 +181,11 @@ typedef enum {
 #define UW_NUMBER_MASK	0b00111111
 typedef enum {
 	UW_UNSIGNED8 = 1,
+	UW_SIGNED8 = 1,
 	UW_UNSIGNED16 = 2,
+	UW_SIGNED16 = 2,
 	UW_UNSIGNED32 = 4,
+	UW_SIGNED32 = 4,
 	UW_ARRAY8 = (1 << 6) + 1,
 	UW_ARRAY16 = (1 << 6) + 2,
 	UW_ARRAY32 = (1 << 6) + 4,
