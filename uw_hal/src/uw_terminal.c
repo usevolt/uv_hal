@@ -125,18 +125,6 @@ static const uw_command_st common_cmds[] = {
 #endif
 		},
 		{
-				.id = CMD_PDO_ECHO,
-				.str = "pdoecho",
-				.instructions =
-#if CONFIG_TERMINAL_INSTRUCTIONS
-						"Usage: pdoecho <on/off>\n\r"
-						"If on, all sent CANopen PDO messages are echoed into terminal.\n\r"
-						"Defaults to 'off'"
-#else
-						""
-#endif
-		},
-		{
 				.id = CMD_STATE,
 				.str = "state",
 				.instructions =
@@ -151,10 +139,10 @@ static const uw_command_st common_cmds[] = {
 #endif
 		{
 				.id = CMD_SET_ISP,
-				.str = "setisp",
+				.str = "ispenable",
 				.instructions =
 #if CONFIG_TERMINAL_INSTRUCTIONS
-						"Usage: isp <on/off>\n\r"
+						"Usage: ispenable <on/off>\n\r"
 						"Can be used to disable ISP entry when receiving '?' from the terminal."
 						"ISP mode is still accessible with 'isp' command."
 #else
@@ -382,9 +370,6 @@ static void execute_common_cmd(int cmd, char** args) {
 #if CONFIG_CANOPEN
 	case CMD_SDO:
 
-		printf("Command not yet implemented in HAL.\n\r");
-		break;
-	case CMD_PDO_ECHO:
 		printf("Command not yet implemented in HAL.\n\r");
 		break;
 	case CMD_STATE:
