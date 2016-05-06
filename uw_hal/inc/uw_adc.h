@@ -17,9 +17,9 @@
 /// @brief: Defines the ADC conversion max value ( == precision) for this hardware
 enum {
 #if CONFIG_TARGET_LPC11CXX
-	ADC_MAX_VALUE = 1024
+	ADC_MAX_VALUE = 1023
 #elif CONFIG_TARGET_LPC178X
-	ADC_MAX_VALUE = 4096
+	ADC_MAX_VALUE = 4095
 #endif
 };
 

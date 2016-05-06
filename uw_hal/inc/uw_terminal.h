@@ -56,7 +56,6 @@ typedef enum {
 #endif
 #if CONFIG_CANOPEN
 	CMD_SDO,
-	CMD_PDO_ECHO,
 	CMD_STATE,
 #endif
 	CMD_SET_ISP

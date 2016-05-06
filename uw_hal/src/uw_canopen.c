@@ -26,44 +26,6 @@ extern uw_errors_e __uw_clear_previous_non_volatile_data();
 
 
 
-// todo: Reorganize this to minimize memory usage
-//
-/// @brief: Struct for general CANopen message. This includes all errors,
-/// messsage types, as well as the message itself.
-typedef struct {
-	/// @brief: Tells the type of this message.
-	/// This specifies what errors and message structures are
-	/// stored in the unions.
-	uw_canopen_protocol_ids_e type;
-	/// @brief: Stores the CANopen node_id of the message
-	uint8_t node_id;
-	/// @brief: This holds the message data.
-	/// Refer to the message type to fetch the right message
-	union {
-		uw_canopen_emcy_msg_st emcy;
-		uw_canopen_sdo_message_st sdo;
-		struct {
-			union {
-				uint8_t as_8bit[8];
-				uint16_t as_16bit[4];
-				uint32_t as_32bit[2];
-				uint64_t as_64bit;
-			};
-			uint8_t length;
-			unsigned int id;
-		} pdo_data;
-		struct {
-			uint8_t command;
-			uint8_t node_id;
-		} nmt;
-		union {
-			uint8_t heartbeat;
-			uint8_t boot_up;
-		};
-	} msg;
-} uw_canopen_msg_st;
-
-
 
 /// @brief: A local declaration of static variable structure
 typedef struct {
@@ -73,7 +35,7 @@ typedef struct {
 	uint8_t node_id;
 	void (*sdo_write_callback)(uw_canopen_object_st* obj_dict_entry);
 	int heartbeat_delay;
-	uw_canopen_msg_st temp_msg;
+	uw_canopen_emcy_msg_st temp_emcy;
 	void (*emcy_callback)(void *user_ptr, uw_canopen_emcy_msg_st *msg);
 #if CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX
 	uw_ring_buffer_st errors;
@@ -89,14 +51,14 @@ static this_st _this;
 /// the callback function from object dictionary entry.
 /// Possible errors are handled as well and the request message struct error field is updated
 /// correspondly.
-static void parse_sdo(uw_canopen_msg_st* req);
+void canopen_parse_sdo(uw_can_message_st* req);
 
 /// @brief: Executes RXPDO command.
 /// Check's which objects are mapped to the specific PDO and assigns their values accordingly.
-static void parse_rxpdo(uw_canopen_msg_st* req);
+static inline void parse_rxpdo(uw_can_message_st* msg);
 
 /// @brief: Parses the received NMT message and does the actions necessary
-static void parse_nmt_message(uw_canopen_msg_st* req);
+static inline void parse_nmt_message(uw_can_message_st* msg);
 
 #define node_id()		(*(find_object(CONFIG_CANOPEN_NODEID_INDEX, 0)->data_ptr))
 #define is_array(x)		(x & UW_ARRAY_MASK)
@@ -167,10 +129,10 @@ static unsigned int get_object_value(const uw_canopen_object_st* obj) {
 		return *obj->data_ptr;
 	}
 	else if (obj->type == UW_UNSIGNED16) {
-		return *((uint16_t*)obj->data_ptr);
+		return *((uint16_t*) obj->data_ptr);
 	}
 	else if (obj->type == UW_UNSIGNED32) {
-		return *((uint32_t*)obj->data_ptr);
+		return *((uint32_t*) obj->data_ptr);
 	}
 	else {
 		return 0;
@@ -295,7 +257,6 @@ uw_errors_e uw_canopen_step(unsigned int step_ms) {
 	if (this->state == STATE_STOPPED) {
 		return uw_err(ERR_NONE);
 	}
-
 	// send heartbeat message
 	const uw_canopen_object_st* obj = find_object(CONFIG_CANOPEN_HEARTBEAT_INDEX, 0);
 	if (!obj) {
@@ -326,43 +287,34 @@ uw_errors_e uw_canopen_step(unsigned int step_ms) {
 
 
 
+#define msg_node_id(msg)		(msg->id & UW_CANOPEN_NODE_ID_MASK)
+#define msg_type(msg)			(message->id & (~UW_CANOPEN_NODE_ID_MASK))
 
 void __uw_canopen_parse_message(uw_can_message_st* message) {
-	this->temp_msg.node_id = message->id & UW_CANOPEN_NODE_ID_MASK;
-	this->temp_msg.type = message->id & (~UW_CANOPEN_NODE_ID_MASK);
 
 	// process messages which are addressed to this node OR broadcasted
-	if (this->node_id == this->temp_msg.node_id || this->temp_msg.node_id == 0) {
+	if (this->node_id == msg_node_id(message) || msg_node_id(message) == 0) {
 
-		this->temp_msg.type = message->id & (~UW_CANOPEN_NODE_ID_MASK);
-
-		switch (message->id & (~UW_CANOPEN_NODE_ID_MASK)) {
+		switch (msg_type(message)) {
 		case SDO_REQUEST_ID:
 			if (message->data_length < 5) {
 				break;
 			}
-			this->temp_msg.msg.sdo.request = message->data_8bit[0];
-			this->temp_msg.msg.sdo.main_index = message->data_8bit[1] + (message->data_8bit[2] << 8);
-			this->temp_msg.msg.sdo.sub_index = message->data_8bit[3];
-			this->temp_msg.msg.sdo.data_length = message->data_length - 4;
-			this->temp_msg.msg.sdo.data_32bit = message->data_32bit[1];
-			parse_sdo(&this->temp_msg);
+			canopen_parse_sdo(message);
 			break;
 		case NMT_ID:
-			this->temp_msg.msg.nmt.command = message->data_8bit[0];
-			this->temp_msg.msg.nmt.node_id = message->data_8bit[1];
-			parse_nmt_message(&this->temp_msg);
+			parse_nmt_message(message);
 			break;
 		case EMCY_ID:
 			if (this->emcy_callback) {
 				// EMCY message's length should always be 8 bits
 				if (message->data_length == 8) {
-					this->temp_msg.msg.emcy.node_id = message->id & UW_CANOPEN_NODE_ID_MASK;
-					this->temp_msg.msg.emcy.error_code = message->data_16bit[0];
-					this->temp_msg.msg.emcy.data_as_16_bit[0] = message->data_16bit[1];
-					this->temp_msg.msg.emcy.data_as_16_bit[1] = message->data_16bit[2];
-					this->temp_msg.msg.emcy.data_as_16_bit[2] = message->data_16bit[3];
-					this->emcy_callback(__uw_get_user_ptr(), &this->temp_msg.msg.emcy);
+					this->temp_emcy.node_id = message->id & UW_CANOPEN_NODE_ID_MASK;
+					this->temp_emcy.error_code = message->data_16bit[0];
+					this->temp_emcy.data_as_16_bit[0] = message->data_16bit[1];
+					this->temp_emcy.data_as_16_bit[1] = message->data_16bit[2];
+					this->temp_emcy.data_as_16_bit[2] = message->data_16bit[3];
+					this->emcy_callback(__uw_get_user_ptr(), &this->temp_emcy);
 				}
 			}
 			break;
@@ -373,9 +325,7 @@ void __uw_canopen_parse_message(uw_can_message_st* message) {
 
 	// regardless of what kind of message was received, check if it was mapped to any RXPDO
 	// (RXPDO's can be mapped with any kind of message)
-	this->temp_msg.msg.pdo_data.as_64bit = message->data_64bit;
-	this->temp_msg.msg.pdo_data.length = message->data_length;
-	parse_rxpdo(&this->temp_msg);
+	parse_rxpdo(message);
 }
 
 
@@ -419,113 +369,120 @@ uw_errors_e uw_canopen_emcy_send(uw_canopen_emcy_msg_st *msg) {
 }
 
 
+#define sdo_main_index(msg)		((msg->data_8bit[1] << 8) + msg->data_8bit[2])
+#define sdo_sub_index(msg)		(msg->data_8bit[3])
+#define sdo_command(msg)		(msg->data_8bit[0])
+#define sdo_data(msg, index)	(msg->data_8bit[4 + index])
 
 /// @brief: Sends a SDO error response
-static void sdo_send_error(uw_canopen_sdo_message_st *msg, uw_sdo_error_codes_e error) {
-	// reply message struct
-	uw_canopen_sdo_message_st  reply = {
-			.main_index = msg->main_index,
-			.sub_index = msg->sub_index,
-			.data_length = 4,
-			.request = SDO_CMD_ERROR,
-			.data_32bit = error
+static void sdo_send_error(uw_can_message_st *msg, uw_sdo_error_codes_e error) {
+	uw_can_message_st reply = {
+			.id = SDO_ERROR_ID + this->node_id,
+			.data_length = 8,
+			.data_8bit[0] = SDO_CMD_ERROR,
+			.data_8bit[1] =	sdo_main_index(msg),
+			.data_8bit[2] = sdo_main_index(msg) >> 8,
+			.data_8bit[3] = sdo_sub_index(msg),
+			.data_32bit[1] = msg->data_32bit[1]
 	};
-
-	__uw_canopen_send_sdo(&reply, this->node_id, SDO_ERROR_ID);
+	uw_can_send_message(CONFIG_CANOPEN_CHANNEL, &reply);
 }
 
-static void sdo_send_response(uw_canopen_sdo_message_st *msg, uw_canopen_sdo_commands_e cmd,
+static void sdo_send_response(uw_can_message_st *msg, uw_canopen_sdo_commands_e cmd,
 		const uint8_t *data, uint8_t data_length) {
-	// reply message struct
-	uw_canopen_sdo_message_st  reply = {
-			.main_index = msg->main_index,
-			.sub_index = msg->sub_index,
-			.data_length = 4 + data_length,
-			.request = cmd
+	uw_can_message_st reply = {
+			.id = SDO_RESPONSE_ID + this->node_id,
+			.data_length = 8,
+			.data_8bit[0] = cmd,
+			.data_8bit[1] =	sdo_main_index(msg),
+			.data_8bit[2] = sdo_main_index(msg) >> 8,
+			.data_8bit[3] = sdo_sub_index(msg)
 	};
 	uint8_t i = 0;
 	for (i = 0; i < data_length; i++) {
-		reply.data_8bit[i] = data[i];
+		reply.data_8bit[4 + i] = data[i];
 	}
 	while (i < 4) {
 		i++;
 		reply.data_8bit[i] = 0;
 	}
 
-	__uw_canopen_send_sdo(&reply, this->node_id, SDO_RESPONSE_ID);
+	uw_can_send_message(CONFIG_CANOPEN_CHANNEL, &reply);
 }
 
-static void parse_sdo(uw_canopen_msg_st* req) {
-	const uw_canopen_object_st *obj = find_object(req->msg.sdo.main_index, req->msg.sdo.sub_index);
+
+// note that this shouldn't be static since it's called from uw_terminal.c
+void canopen_parse_sdo(uw_can_message_st *msg) {
+	const uw_canopen_object_st *obj = find_object(sdo_main_index(msg), sdo_sub_index(msg));
 #if CONFIG_CANOPEN_LOG
-	printf("SDO received: %x, %x\n\r", req->msg.sdo.main_index, req->msg.sdo.sub_index);
+	printf("SDO received: %x, %x\n\r", sdo_main_index(msg), sdo_sub_index(msg));
 #endif
 
 	if (!obj) {
 #if CONFIG_CANOPEN_LOG
-	printf("SDO object doesn't exist: %x, %x\n\r", req->msg.sdo.main_index, req->msg.sdo.sub_index);
+	printf("SDO object doesn't exist: %x, %x\n\r", sdo_main_index(msg), sdo_sub_index(msg));
 #endif
-		sdo_send_error(&req->msg.sdo, SDO_ERROR_OBJECT_DOES_NOT_EXIST);
+		sdo_send_error(msg, SDO_ERROR_OBJECT_DOES_NOT_EXIST);
 		return;
 	}
 	// SDO READ requests...
-	if (req->msg.sdo.request == SDO_CMD_READ) {
+	if (sdo_command(msg) == SDO_CMD_READ) {
 #if CONFIG_CANOPEN_LOG
-			printf("SDO read object %x command received\n\r", req->msg.sdo.main_index);
+			printf("SDO read object %x command received\n\r", sdo_main_index(msg));
 #endif
 		// error with read permissions
 		if (!obj->permissions & UW_RO) {
 #if CONFIG_CANOPEN_LOG
-			printf("SDO error: object %x is write only\n\r", req->msg.sdo.main_index);
+			printf("SDO error: object %x is write only\n\r", sdo_main_index(msg));
 #endif
-			sdo_send_error(&req->msg.sdo, SDO_ERROR_ATTEMPT_TO_READ_A_WRITE_ONLY_OBJECT);
+			sdo_send_error(msg, SDO_ERROR_ATTEMPT_TO_READ_A_WRITE_ONLY_OBJECT);
 		}
 		// for array type objects
 		if (is_array(obj->type)) {
 			// indexing the array
-			if (req->msg.sdo.sub_index) {
-				if (req->msg.sdo.sub_index <= obj->array_max_size) {
-					sdo_send_response(&req->msg.sdo, SDO_CMD_READ_RESPONSE_BYTES,
-							&obj->data_ptr[(req->msg.sdo.sub_index - 1) * array_element_size(obj->type)],
+			if (sdo_sub_index(msg)) {
+				if (sdo_sub_index(msg) <= obj->array_max_size) {
+					sdo_send_response(msg, SDO_CMD_READ_RESPONSE_BYTES,
+							&obj->data_ptr[(sdo_sub_index(msg) - 1) * array_element_size(obj->type)],
 							array_element_size(obj->type));
 				}
 				else {
 #if CONFIG_CANOPEN_LOG
 			printf("SDO error: overindexing object %x with sub-index %x\n\r",
-					req->msg.sdo.main_index, req->msg.sdo.sub_index);
+					sdo_main_index(msg), sdo_sub_index(msg));
 #endif
-					sdo_send_error(&req->msg.sdo, SDO_ERROR_OBJECT_DOES_NOT_EXIST);
+					sdo_send_error(msg, SDO_ERROR_OBJECT_DOES_NOT_EXIST);
 				}
 			}
 			// index 0 is the array max size
 			else {
-				sdo_send_response(&req->msg.sdo, SDO_CMD_READ_RESPONSE_BYTES,
+				sdo_send_response(msg, SDO_CMD_READ_RESPONSE_BYTES,
 						&obj->array_max_size, 1);
 			}
 		}
 		// normal data
 		else {
 			// obj->type should straight contain the number of bytes
-			sdo_send_response(&req->msg.sdo, SDO_CMD_READ_RESPONSE_BYTES, obj->data_ptr, obj->type);
+			sdo_send_response(msg, SDO_CMD_READ_RESPONSE_BYTES, obj->data_ptr, obj->type);
 		}
 	}
 
 	/*
 	 * all SDO write requests...
 	 */
-	else if (req->msg.sdo.request == SDO_CMD_WRITE_1_BYTE ||
-			req->msg.sdo.request == SDO_CMD_WRITE_2_BYTES ||
-			req->msg.sdo.request == SDO_CMD_WRITE_4_BYTES ||
-			req->msg.sdo.request == SDO_CMD_WRITE_BYTES) {
+	else if (sdo_command(msg) == SDO_CMD_WRITE_1_BYTE ||
+			sdo_command(msg) == SDO_CMD_WRITE_2_BYTES ||
+			sdo_command(msg) == SDO_CMD_WRITE_4_BYTES ||
+			sdo_command(msg) == SDO_CMD_WRITE_BYTES) {
 
 		if (obj->permissions & UW_WO) {
 #if CONFIG_CANOPEN_LOG
-			printf("SDO write to object %x\n\r", req->msg.sdo.main_index);
+			printf("SDO write to object %x\n\r", sdo_main_index(msg));
 #endif
 			// Predefined error register clearing
 #if CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX
-			if (req->msg.sdo.main_index == CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX &&
-					req->msg.sdo.sub_index == 0) {
+			if (sdo_main_index(msg) == CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX &&
+					sdo_sub_index(msg) == 0) {
 				// clear all errors
 				uint8_t i;
 				uw_ring_buffer_clear(&this->errors);
@@ -536,7 +493,7 @@ static void parse_sdo(uw_canopen_msg_st* req) {
 				printf("SDO: cleared errors from predefined error field %x\n\r",
 						CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX);
 #endif
-				sdo_send_response(&req->msg.sdo, SDO_CMD_WRITE_RESPONSE, &i, 1);
+				sdo_send_response(msg, SDO_CMD_WRITE_RESPONSE, &i, 1);
 				return;
 
 			}
@@ -544,27 +501,27 @@ static void parse_sdo(uw_canopen_msg_st* req) {
 			// writing to arrays
 			if (is_array(obj->type)) {
 				// writing to array subindex 0 as well as overindexing is not permitted
-				if (req->msg.sdo.sub_index == 0 || req->msg.sdo.sub_index >= obj->array_max_size) {
-					sdo_send_error(&req->msg.sdo, SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
+				if (sdo_sub_index(msg) == 0 || sdo_sub_index(msg) >= obj->array_max_size) {
+					sdo_send_error(msg, SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
 					return;
 				}
 #if CONFIG_CANOPEN_LOG
-			printf("SDO error: Unsupported access to array type object %x\n\r", req->msg.sdo.main_index);
+			printf("SDO error: Unsupported access to array type object %x\n\r", sdo_main_index(msg));
 #endif
-				array_write(obj, req->msg.sdo.sub_index, req->msg.sdo.data_32bit);
+				array_write(obj, sdo_sub_index(msg), msg->data_32bit[1]);
 			}
 			// writing to all other objects
 			uint8_t i;
 			for (i = 0; i < obj->type; i++) {
-				obj->data_ptr[i] = req->msg.sdo.data_8bit[i];
+				obj->data_ptr[i] = msg->data_8bit[4 + i];
 			}
 			i = 0;
-			sdo_send_response(&req->msg.sdo, SDO_CMD_WRITE_RESPONSE, &i, 1);
+			sdo_send_response(msg, SDO_CMD_WRITE_RESPONSE, &i, 1);
 
 			// parameter saving and loading
 #if CONFIG_CANOPEN_STORE_PARAMS_INDEX
-			if (req->msg.sdo.main_index == CONFIG_CANOPEN_STORE_PARAMS_INDEX &&
-					req->msg.sdo.sub_index == 1) {
+			if (sdo_main_index(msg) == CONFIG_CANOPEN_STORE_PARAMS_INDEX &&
+					sdo_sub_index(msg) == 1) {
 				if (obj->data_ptr[0] == 's' &&
 						obj->data_ptr[1] == 'a' &&
 						obj->data_ptr[2] == 'v' &&
@@ -573,7 +530,7 @@ static void parse_sdo(uw_canopen_msg_st* req) {
 					printf("Saving settings to flash memory\n\r");
 #endif
 					*((unsigned int*)obj->data_ptr) = 0;
-#if !defined(CONFIG_MEMORY)
+#if !defined(CONFIG_NON_VOLATILE_MEMORY)
 #warning "CANopen store parameters object needs CONFIG_MEMORY defined as 1"
 #else
 					__uw_save_previous_non_volatile_data();
@@ -583,8 +540,8 @@ static void parse_sdo(uw_canopen_msg_st* req) {
 			}
 #endif
 #if CONFIG_CANOPEN_RESTORE_PARAMS_INDEX
-			if (req->msg.sdo.main_index == CONFIG_CANOPEN_RESTORE_PARAMS_INDEX &&
-					req->msg.sdo.sub_index == 1) {
+			if (sdo_main_index(msg) == CONFIG_CANOPEN_RESTORE_PARAMS_INDEX &&
+					sdo_sub_index(msg) == 1) {
 				if (obj->data_ptr[0] == 'l' &&
 						obj->data_ptr[1] == 'o' &&
 						obj->data_ptr[2] == 'a' &&
@@ -592,7 +549,7 @@ static void parse_sdo(uw_canopen_msg_st* req) {
 #if CONFIG_CANOPEN_LOG
 					printf("Loading factory settings from flash memory\n\r");
 #endif
-#if !defined(CONFIG_MEMORY)
+#if !defined(CONFIG_NON_VOLATILE_MEMORY)
 #warning "CANopen restore parameters object needs CONFIG_MEMORY defined as 1"
 #else
 					*((unsigned int*)obj->data_ptr) = 0;
@@ -606,34 +563,34 @@ static void parse_sdo(uw_canopen_msg_st* req) {
 		}
 		else {
 #if CONFIG_CANOPEN_LOG
-			printf("SDO error: object %x is write only\n\r", req->msg.sdo.main_index);
+			printf("SDO error: object %x is write only\n\r", sdo_main_index(msg));
 #endif
-			sdo_send_error(&req->msg.sdo, SDO_ERROR_ATTEMPT_TO_WRITE_A_READ_ONLY_OBJECT);
+			sdo_send_error(msg, SDO_ERROR_ATTEMPT_TO_WRITE_A_READ_ONLY_OBJECT);
 		}
 	}
 	else {
 #if CONFIG_CANOPEN_LOG
-			printf("SDO error: invalid command %x\n\r", req->msg.sdo.request);
+			printf("SDO error: invalid command %x\n\r", sdo_command(msg));
 #endif
-		sdo_send_error(&req->msg.sdo, SDO_ERROR_CMD_SPECIFIER_NOT_FOUND);
+		sdo_send_error(msg, SDO_ERROR_CMD_SPECIFIER_NOT_FOUND);
 	}
 
 }
 
-static void parse_rxpdo(uw_canopen_msg_st* req) {
+static inline void parse_rxpdo(uw_can_message_st* msg) {
 	uint8_t i;
 	const uw_canopen_object_st *obj;
 	// cycle trough all RXPDO communication parameters
 	for (i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
 		obj = find_object(CONFIG_CANOPEN_RXPDO_COM_INDEX + i, 0);
 		if (obj) {
-			if (array_index(obj, 1) == req->msg.pdo_data.id) {
+			if (array_index(obj, 1) == msg->id) {
 				// RXPDO configured with this message's ID has been found
 				obj = find_object(CONFIG_CANOPEN_RXPDO_MAP_INDEX + i, 0);
 				if (!obj) {
 #if CONFIG_CANOPEN_LOG
 					printf("RXPDO error: PDO%u configured with ID %x found but corresponding"
-						" mapping parameter not found.\n\r", i, req->msg.pdo_data.id);
+						" mapping parameter not found.\n\r", i, msg->id);
 #endif
 					return;
 				}
@@ -673,7 +630,7 @@ static void parse_rxpdo(uw_canopen_msg_st* req) {
 					}
 				}
 #if CONFIG_CANOPEN_LOG
-				printf("RXPDO with id %x written\n\r", req->msg.pdo_data.id);
+				printf("RXPDO with id %x written\n\r", msg->id);
 #endif
 				return;
 			}
@@ -682,10 +639,13 @@ static void parse_rxpdo(uw_canopen_msg_st* req) {
 
 }
 
-static void parse_nmt_message(uw_canopen_msg_st* req) {
+
+#define nmt_command(msg)		(msg->data_8bit[0])
+#define nmt_target_node(msg)	(msg->data_8bit[1])
+static inline void parse_nmt_message(uw_can_message_st* msg) {
 	// check if the NMT message was broadcasted or dedicated to this node
-	if (req->msg.nmt.node_id == this->node_id || !req->msg.nmt.node_id) {
-		switch (req->msg.nmt.command) {
+	if (nmt_target_node(msg) == this->node_id || !nmt_target_node(msg)) {
+		switch (nmt_target_node(msg)) {
 		case NMT_START_NODE:
 #if CONFIG_CANOPEN_LOG
 			printf("NMT start\n\r");
