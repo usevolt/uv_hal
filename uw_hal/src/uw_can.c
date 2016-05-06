@@ -22,6 +22,9 @@ enum {
 	MSG_OBJ_COUNT = 32
 };
 #endif
+#if CONFIG_CAN_LOG
+extern bool can_log;
+#endif
 
 
 #if CONFIG_TARGET_LPC11CXX
@@ -231,13 +234,15 @@ void CAN_rx(uint8_t msg_obj_num) {
 		this->temp_msg.data_8bit[i] = this->temp_obj.data[i];
 	}
 #if CONFIG_CAN_LOG
-	// log debug info
-	printf("CAN message received\n\r   id: 0x%x\n\r   data length: %u\n\r   data: ",
-			this->temp_msg.id, this->temp_msg.data_length);
-	for ( i = 0; i < this->temp_msg.data_length; i++) {
-		printf("%02x ", this->temp_msg.data_8bit[i]);
+	if (can_log) {
+		// log debug info
+		printf("CAN message received\n\r   id: 0x%x\n\r   data length: %u\n\r   data: ",
+				this->temp_msg.id, this->temp_msg.data_length);
+		for ( i = 0; i < this->temp_msg.data_length; i++) {
+			printf("%02x ", this->temp_msg.data_8bit[i]);
+		}
+		printf("\n\r");
 	}
-	printf("\n\r");
 #endif
 
 	uw_ring_buffer_push(&this->rx_buffer, &this->temp_msg);
@@ -255,7 +260,9 @@ void CAN_tx(uint8_t msg_obj_num) {
 	this->pending_msg_obj_time_limit = 0;
 
 #if CONFIG_CAN_LOG
-	printf("CAN message sent.\n\r");
+	if (can_log) {
+		printf("CAN message sent.\n\r");
+	}
 #endif
 
 	// send the next message if there is one in the message buffer
@@ -441,11 +448,13 @@ static uw_errors_e send_next_msg( void ) {
 	this->pending_msg_objs |= (1 << obj.msgobj);
 	this->pending_msg_obj_time_limit = 0;
 #if CONFIG_CAN_LOG
-	printf("Sending CAN message\n\r   id: 0x%x\n\r   data:", msg.id);
-	for (i = 0; i < msg.data_length; i++) {
-		printf("%02x ", msg.data_8bit[i]);
+	if (can_log) {
+		printf("Sending CAN message\n\r   id: 0x%x\n\r   data:", msg.id);
+		for (i = 0; i < msg.data_length; i++) {
+			printf("%02x ", msg.data_8bit[i]);
+		}
+		printf("\n\r");
 	}
-	printf("\n\r");
 #endif
 
 	// send the message

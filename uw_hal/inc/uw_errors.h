@@ -101,9 +101,13 @@ typedef enum {
 	/// @brief: CANopen producer heartbeat time object dictionary index
 	/// specified in uw_hal_config.h was invalid
 	ERR_CANOPEN_HEARTBEAT_ENTRY_INVALID = 30,
+	/// @brief: The request couldn't be completed because the CANopen stack was
+	/// in a stopped state. In stopped state only NMT and heartbeat messages
+	/// are allowed.
+	ERR_CANOPEN_STACK_IN_STOPPED_STATE 	= 31,
 	/// @brief: Indicates that the rx message couldn't be configured to be received,
 	/// because all message objects in the CAN hardware were already used.
-	ERR_CAN_RX_MESSAGE_COUNT_FULL		= 31,
+	ERR_CAN_RX_MESSAGE_COUNT_FULL		= 32,
 	ERR_COUNT
 } _uw_errors_e;
 typedef unsigned int uw_errors_e;

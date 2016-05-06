@@ -82,6 +82,10 @@ const char *uw_error_strings[] = {
 	"CANopen producer heartbeat time object dictionary index"
 	"specified in uw_hal_config.h was invalid",
 
+	"The request couldn't be completed because the CANopen stack was "
+	"in a stopped state. In stopped state only NMT and heartbeat messages "
+	"are allowed.",
+
 	"Indicates that the rx message couldn't be configured to be received,"
 	"because all message objects in the CAN hardware were already used.",
 

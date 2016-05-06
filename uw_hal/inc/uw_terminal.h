@@ -58,6 +58,12 @@ typedef enum {
 	CMD_SDO,
 	CMD_STATE,
 #endif
+#if CONFIG_CAN_LOG
+	CMD_CAN_LOG,
+#endif
+#if CONFIG_CANOPEN_LOG
+	CMD_CANOPEN_LOG,
+#endif
 	CMD_SET_ISP
 } uw_common_commands_e;
 

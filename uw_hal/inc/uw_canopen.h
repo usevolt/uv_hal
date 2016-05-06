@@ -49,10 +49,6 @@
 
 #if CONFIG_CANOPEN
 
-
-
-
-
 /* uw_hal_config.h symbol checks */
 #if !defined(CONFIG_CANOPEN_CHANNEL)
 #error "CONFIG_CANOPEN_CHANNEL not defined. It should define which CAN module to use (1, 2, 3, etc)"
@@ -93,6 +89,10 @@
 #error "CONFIG_CANOPEN_RESTORE_PARAMS_INDEX not defined. It should define the index which\
  restores the settings from flash-memory. Usually 0x1011, or NULL to disable."
 #endif
+#if !defined(CONFIG_CANOPEN_IDENTITY_INDEX)
+#error "CONFIG_CANOPEN_IDENTITY_INDEX not defined. It should define the index which\
+ stores the identity field. Usually 0x1018, or NULL to disable."
+#endif
 #if !defined(CONFIG_CANOPEN_LOG)
 #error "CONFIG_CANOPEN_LOG not defined. It should be defined as 0 or 1, depending on if\
  debug information logging is wanted."
@@ -109,10 +109,6 @@
 #error "CONFIG_CANOPEN_PDO_MAPPING_COUNT not defined. It should define the maximum number of\
  PDO mapping entries available to be mapped to the PDO messages (1...8)."
 #endif
-
-/// @brief: Usewood Vendor ID.
-/// Vendor ID can be got from CiA
-#define USEWOOD_VENDOR_ID	0
 
 
 enum {
@@ -141,9 +137,18 @@ typedef enum {
 
 
 typedef enum {
+	/// @brief: CANopen stack is in boot up state until
+	/// it has been initialized with uw_canopen_init
 	STATE_BOOT_UP =			0x0,
+	/// @brief: CANopen device is stopped. It can only receive NMT and
+	/// heartbeat messages.
 	STATE_STOPPED = 		0x4,
+	/// @brief: In operational state even PDO messages can be sent
+	/// and transmitted.
 	STATE_OPERATIONAL =		0x5,
+	/// @brief: Configuration state where PDO messages are not sent.
+	/// The device can be configured with SDO messages.
+	/// The device ends up to this state after a call to uw_canopen_init.
 	STATE_PREOPERATIONAL =	0x7F
 } uw_canopen_node_states_e;
 
@@ -200,16 +205,16 @@ typedef uint8_t _uw_object_types_e;
 
 
 typedef enum {
-	SDO_ERROR_COMMAND_NOT_VALID = 						0x05040001,
-	SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT = 			0x06010001,
+	SDO_ERROR_CMD_SPECIFIER_NOT_FOUND =					0x05040001,
+	SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT = 			0x06010000,
 	SDO_ERROR_ATTEMPT_TO_READ_A_WRITE_ONLY_OBJECT = 	0x06010001,
 	SDO_ERROR_ATTEMPT_TO_WRITE_A_READ_ONLY_OBJECT = 	0x06010002,
 	SDO_ERROR_OBJECT_DOES_NOT_EXIST = 					0x06020000,
 	SDO_ERROR_VALUE_OF_PARAMETER_TOO_HIGH = 			0x06090031,
 	SDO_ERROR_VALUE_OF_PARAMETER_TOO_LOW = 				0x06090032,
-	SDO_ERROR_CMD_SPECIFIER_NOT_FOUND =					0x05040001,
 	SDO_ERROR_GENERAL = 								0x08000000
-} uw_sdo_error_codes_e;
+} _uw_sdo_error_codes_e;
+typedef uint32_t uw_sdo_error_codes_e;
 
 
 
@@ -410,6 +415,12 @@ typedef struct {
 } uw_pdos_st;
 
 
+
+#if CONFIG_CANOPEN_IDENTITY_INDEX
+/// @brief: Usewood Vendor ID.
+/// Vendor ID can be got from CiA
+#define USEWOOD_VENDOR_ID	0
+
 /// @brief: A nice way for defining object dictionary's identity object
 /// @note: Every CANopen device should specify an identity object at index 0x1018.
 /// Difference from Cia 307 CANopen: Serial number is 16 bytes long instead of 4
@@ -425,7 +436,7 @@ typedef struct {
 	uint32_t serial_number[4];
 } uw_identity_object_st;
 #define UW_IDENTITY_OBJECT_ARRAY_SIZE	7
-
+#endif
 
 
 
@@ -520,15 +531,17 @@ uw_errors_e __uw_canopen_send_sdo(uw_canopen_sdo_message_st *sdo, uint8_t node_i
 
 /// @brief: Initializes the CANopen node and the object dictionary
 ///
-/// @param node_id: Pointer to a variable which holds this device's node_id.
-/// Usually node id is stored in the object dictionary, index 0x100B
+/// @param node_id: The node-id which is used to initiate the canopen stack. The node ID can be updated
+/// only by restarting the canopen stack.
 /// @param obj_dict: Pointer to the uw_canopen_object_st array.
 /// Object dictionary should be defined by the application.
 /// @param obj_dict_length: The length of the object dictionary,
 /// e.g. the number of different indexes.
 /// @param sdo_write_callback: A function pointer to a callback function which will be called
 /// when a SDO write request was received. If callback function is not required, NULL can be passed.
-uw_errors_e uw_canopen_init(const uw_canopen_object_st* obj_dict, unsigned int obj_dict_length,
+uw_errors_e uw_canopen_init(uint8_t node_id,
+		const uw_canopen_object_st* obj_dict,
+		unsigned int obj_dict_length,
 		void (*sdo_write_callback)(uw_canopen_object_st* obj_dict_entry),
 		void (*emcy_callback)(void *user_ptr, uw_canopen_emcy_msg_st *msg));
 
@@ -569,6 +582,15 @@ uw_errors_e uw_canopen_emcy_send(uw_canopen_emcy_msg_st *msg);
 static inline uw_errors_e uw_canopen_send_sdo(uw_canopen_sdo_message_st *sdo, uint8_t node_id) {
 	return __uw_canopen_send_sdo(sdo, node_id, SDO_REQUEST_ID);
 }
+
+#if CONFIG_CANOPEN_IDENTITY_INDEX
+/// @brief: Initializes the identity object to the right values.
+/// Assigns the vendor_id as Usewood and reads the LPC hardware for unique serial number .
+/// Product code and revision number needs to be specified in the user application.
+void uw_canopen_identity_init(uw_identity_object_st* identity_obj,
+		uint32_t product_code, uint32_t revision_number);
+#endif
+
 
 #endif
 

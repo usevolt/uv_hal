@@ -17,9 +17,15 @@
 #include <stdarg.h>
 #include <stdio.h>
 #endif
+#if CONFIG_CANOPEN_IDENTITY_INDEX
+#include "uw_memory.h"
+#endif
 extern uw_errors_e __uw_save_previous_non_volatile_data();
 extern uw_errors_e __uw_clear_previous_non_volatile_data();
 
+#if CONFIG_CANOPEN_LOG
+extern bool canopen_log;
+#endif
 
 /// @brief: Mask for CAN_ID field's node_id bits
 #define UW_CANOPEN_NODE_ID_MASK		0x7F
@@ -34,15 +40,21 @@ typedef struct {
 	uw_canopen_node_states_e state;
 	uint8_t node_id;
 	void (*sdo_write_callback)(uw_canopen_object_st* obj_dict_entry);
-	int heartbeat_delay;
 	uw_canopen_emcy_msg_st temp_emcy;
 	void (*emcy_callback)(void *user_ptr, uw_canopen_emcy_msg_st *msg);
 #if CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX
 	uw_ring_buffer_st errors;
 #endif
+#if CONFIG_CANOPEN_HEARTBEAT_INDEX
+	// stores the heartbeat object to fasten the step function
+	const uw_canopen_object_st *heartbeat_obj;
+	int heartbeat_delay;
+#endif
 } this_st;
 
-static this_st _this;
+static this_st _this = {
+		.state = STATE_BOOT_UP,
+};
 // A C++ style this-pointer definitions
 #define this 	(&_this)
 
@@ -166,15 +178,14 @@ uw_errors_e uw_canopen_pdos_init(uw_pdos_st *pdos, uint8_t node_id) {
 
 
 
-uw_errors_e uw_canopen_init(const uw_canopen_object_st* obj_dict, unsigned int obj_dict_length,
+uw_errors_e uw_canopen_init(uint8_t node_id, const uw_canopen_object_st* obj_dict, unsigned int obj_dict_length,
 		void (*sdo_write_callback)(uw_canopen_object_st* obj_dict_entry),
 		void (*emcy_callback)(void *user_ptr, uw_canopen_emcy_msg_st *msg)) {
 	this->obj_dict = obj_dict;
 	this->obj_dict_length = obj_dict_length;
-	this->state = STATE_BOOT_UP;
+	this->state = STATE_PREOPERATIONAL;
 	this->sdo_write_callback = sdo_write_callback;
-	this->heartbeat_delay = 0;
-	this->node_id = node_id();
+	this->node_id = node_id;
 	this->emcy_callback = emcy_callback;
 
 
@@ -184,9 +195,13 @@ uw_errors_e uw_canopen_init(const uw_canopen_object_st* obj_dict, unsigned int o
 	if (!obj) {
 		__uw_err_throw(ERR_CANOPEN_NODE_ID_ENTRY_INVALID | HAL_MODULE_CANOPEN);
 	}
+#if CONFIG_CANOPEN_HEARTBEAT_INDEX
 	if (! (obj = find_object(CONFIG_CANOPEN_HEARTBEAT_INDEX, 0))) {
 		__uw_err_throw(ERR_CANOPEN_HEARTBEAT_ENTRY_INVALID| HAL_MODULE_CANOPEN);
 	}
+	this->heartbeat_obj = obj;
+	this->heartbeat_delay = get_object_value(obj);
+#endif
 
 	// configure receive messages for NMT, SDO and PDO messages for this node id and
 	// broadcast.
@@ -222,7 +237,7 @@ uw_errors_e uw_canopen_init(const uw_canopen_object_st* obj_dict, unsigned int o
 #if CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX
 	obj = find_object(CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX, 0);
 #if CONFIG_CANOPEN_LOG
-	if (!obj) {
+	if (!obj && canopen_log) {
 		printf("Predefined error register not exists with CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX"
 				" defined as %x\n\r", CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX);
 	}
@@ -236,7 +251,9 @@ uw_errors_e uw_canopen_init(const uw_canopen_object_st* obj_dict, unsigned int o
 #endif
 
 #if CONFIG_CANOPEN_LOG
-	printf("canopen initialized with node id %x\n\r", this->node_id);
+	if (canopen_log) {
+		printf("canopen initialized with node id %x\n\r", this->node_id);
+	}
 #endif
 
 
@@ -244,7 +261,7 @@ uw_errors_e uw_canopen_init(const uw_canopen_object_st* obj_dict, unsigned int o
 	uw_can_message_st msg = {
 			.id = BOOTUP_ID + this->node_id,
 			.data_length = 1,
-			.data_8bit[0] = 0
+			.data_8bit[0] = (uint8_t) STATE_BOOT_UP
 	};
 	uw_can_send_message(CONFIG_CANOPEN_CHANNEL, &msg);
 
@@ -258,10 +275,6 @@ uw_errors_e uw_canopen_step(unsigned int step_ms) {
 		return uw_err(ERR_NONE);
 	}
 	// send heartbeat message
-	const uw_canopen_object_st* obj = find_object(CONFIG_CANOPEN_HEARTBEAT_INDEX, 0);
-	if (!obj) {
-		__uw_err_throw(ERR_CANOPEN_HEARTBEAT_ENTRY_INVALID | HAL_MODULE_CANOPEN);
-	}
 	if (uw_delay(step_ms, &this->heartbeat_delay)) {
 		// send heartbeat msg
 		uw_can_message_st msg = {
@@ -269,12 +282,17 @@ uw_errors_e uw_canopen_step(unsigned int step_ms) {
 				.data_length = 1,
 				.data_8bit[0] = this->state
 		};
+#if CONFIG_CANOPEN_LOG
+	if (canopen_log) {
+		printf("Heartbeat sent, node ID: %u, state: %x\n\r", this->node_id, this->state);
+	}
+#endif
 		if (uw_can_get_error_state(CONFIG_CANOPEN_CHANNEL) == CAN_ERROR_ACTIVE) {
 			uw_can_send_message(CONFIG_CANOPEN_CHANNEL, &msg);
 		}
 
 		// start the delay again
-		uw_start_delay(get_object_value(obj), &this->heartbeat_delay);
+		uw_start_delay(get_object_value(this->heartbeat_obj), &this->heartbeat_delay);
 	}
 
 	// PDO handling is done only in operational state
@@ -297,7 +315,12 @@ void __uw_canopen_parse_message(uw_can_message_st* message) {
 
 		switch (msg_type(message)) {
 		case SDO_REQUEST_ID:
-			if (message->data_length < 5) {
+			// SDO messages are always 8 bytes long
+			if (message->data_length < 8) {
+				break;
+			}
+			// in stopped state SDO is disabled
+			if (this->state == STATE_STOPPED) {
 				break;
 			}
 			canopen_parse_sdo(message);
@@ -306,6 +329,10 @@ void __uw_canopen_parse_message(uw_can_message_st* message) {
 			parse_nmt_message(message);
 			break;
 		case EMCY_ID:
+			// in stopped state EMCY message handling is disabled
+			if (this->state == STATE_STOPPED) {
+				break;
+			}
 			if (this->emcy_callback) {
 				// EMCY message's length should always be 8 bits
 				if (message->data_length == 8) {
@@ -325,7 +352,9 @@ void __uw_canopen_parse_message(uw_can_message_st* message) {
 
 	// regardless of what kind of message was received, check if it was mapped to any RXPDO
 	// (RXPDO's can be mapped with any kind of message)
-	parse_rxpdo(message);
+	if (this->state == STATE_OPERATIONAL) {
+		parse_rxpdo(message);
+	}
 }
 
 
@@ -341,6 +370,9 @@ uw_canopen_node_states_e uw_canopen_get_state(void) {
 
 
 uw_errors_e uw_canopen_emcy_send(uw_canopen_emcy_msg_st *msg) {
+	if (this->state == STATE_STOPPED) {
+		return uw_err(ERR_CANOPEN_STACK_IN_STOPPED_STATE | HAL_MODULE_CANOPEN);
+	}
 	uw_can_message_st canmsg = {
 			.data_length = 8,
 			.id = EMCY_ID + msg->node_id,
@@ -353,7 +385,9 @@ uw_errors_e uw_canopen_emcy_send(uw_canopen_emcy_msg_st *msg) {
 
 	uw_err_check(uw_can_send_message(CONFIG_CANOPEN_CHANNEL, &canmsg)) {
 #if CONFIG_CANOPEN_LOG
-	printf("EMCY message sending failed. CAN TX buffer full?\n\r");
+	if (canopen_log) {
+		printf("EMCY message sending failed. CAN TX buffer full?\n\r");
+	}
 #endif
 		err = ERR_BUFFER_OVERFLOW | HAL_MODULE_CANOPEN;
 	}
@@ -369,7 +403,7 @@ uw_errors_e uw_canopen_emcy_send(uw_canopen_emcy_msg_st *msg) {
 }
 
 
-#define sdo_main_index(msg)		((msg->data_8bit[1] << 8) + msg->data_8bit[2])
+#define sdo_main_index(msg)		(msg->data_8bit[1] + (msg->data_8bit[2] << 8))
 #define sdo_sub_index(msg)		(msg->data_8bit[3])
 #define sdo_command(msg)		(msg->data_8bit[0])
 #define sdo_data(msg, index)	(msg->data_8bit[4 + index])
@@ -383,7 +417,10 @@ static void sdo_send_error(uw_can_message_st *msg, uw_sdo_error_codes_e error) {
 			.data_8bit[1] =	sdo_main_index(msg),
 			.data_8bit[2] = sdo_main_index(msg) >> 8,
 			.data_8bit[3] = sdo_sub_index(msg),
-			.data_32bit[1] = msg->data_32bit[1]
+			.data_8bit[4] = (uint8_t) error,
+			.data_8bit[5] = (uint8_t) (error >> 8),
+			.data_8bit[6] = (uint8_t) (error >> 16),
+			.data_8bit[7] = (uint8_t) (error >> 24)
 	};
 	uw_can_send_message(CONFIG_CANOPEN_CHANNEL, &reply);
 }
@@ -404,7 +441,7 @@ static void sdo_send_response(uw_can_message_st *msg, uw_canopen_sdo_commands_e 
 	}
 	while (i < 4) {
 		i++;
-		reply.data_8bit[i] = 0;
+		reply.data_8bit[4 + i] = 0;
 	}
 
 	uw_can_send_message(CONFIG_CANOPEN_CHANNEL, &reply);
@@ -415,12 +452,16 @@ static void sdo_send_response(uw_can_message_st *msg, uw_canopen_sdo_commands_e 
 void canopen_parse_sdo(uw_can_message_st *msg) {
 	const uw_canopen_object_st *obj = find_object(sdo_main_index(msg), sdo_sub_index(msg));
 #if CONFIG_CANOPEN_LOG
-	printf("SDO received: %x, %x\n\r", sdo_main_index(msg), sdo_sub_index(msg));
+	if (canopen_log) {
+		printf("SDO received: %x, %x\n\r", sdo_main_index(msg), sdo_sub_index(msg));
+	}
 #endif
 
 	if (!obj) {
 #if CONFIG_CANOPEN_LOG
-	printf("SDO object doesn't exist: %x, %x\n\r", sdo_main_index(msg), sdo_sub_index(msg));
+		if (canopen_log) {
+			printf("SDO object doesn't exist: %x, %x\n\r", sdo_main_index(msg), sdo_sub_index(msg));
+		}
 #endif
 		sdo_send_error(msg, SDO_ERROR_OBJECT_DOES_NOT_EXIST);
 		return;
@@ -428,17 +469,22 @@ void canopen_parse_sdo(uw_can_message_st *msg) {
 	// SDO READ requests...
 	if (sdo_command(msg) == SDO_CMD_READ) {
 #if CONFIG_CANOPEN_LOG
+		if (canopen_log) {
 			printf("SDO read object %x command received\n\r", sdo_main_index(msg));
+		}
 #endif
+
 		// error with read permissions
-		if (!obj->permissions & UW_RO) {
+		if (!(obj->permissions & UW_RO)) {
 #if CONFIG_CANOPEN_LOG
-			printf("SDO error: object %x is write only\n\r", sdo_main_index(msg));
+			if (canopen_log) {
+				printf("SDO error: object %x is write only\n\r", sdo_main_index(msg));
+			}
 #endif
 			sdo_send_error(msg, SDO_ERROR_ATTEMPT_TO_READ_A_WRITE_ONLY_OBJECT);
 		}
 		// for array type objects
-		if (is_array(obj->type)) {
+		else if (is_array(obj->type)) {
 			// indexing the array
 			if (sdo_sub_index(msg)) {
 				if (sdo_sub_index(msg) <= obj->array_max_size) {
@@ -448,8 +494,10 @@ void canopen_parse_sdo(uw_can_message_st *msg) {
 				}
 				else {
 #if CONFIG_CANOPEN_LOG
-			printf("SDO error: overindexing object %x with sub-index %x\n\r",
-					sdo_main_index(msg), sdo_sub_index(msg));
+					if (canopen_log) {
+						printf("SDO error: overindexing object %x with sub-index %x\n\r",
+								sdo_main_index(msg), sdo_sub_index(msg));
+					}
 #endif
 					sdo_send_error(msg, SDO_ERROR_OBJECT_DOES_NOT_EXIST);
 				}
@@ -477,7 +525,9 @@ void canopen_parse_sdo(uw_can_message_st *msg) {
 
 		if (obj->permissions & UW_WO) {
 #if CONFIG_CANOPEN_LOG
-			printf("SDO write to object %x\n\r", sdo_main_index(msg));
+			if (canopen_log) {
+				printf("SDO write to object %x\n\r", sdo_main_index(msg));
+			}
 #endif
 			// Predefined error register clearing
 #if CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX
@@ -490,8 +540,10 @@ void canopen_parse_sdo(uw_can_message_st *msg) {
 					obj->data_ptr[i] = 0;
 				}
 #if CONFIG_CANOPEN_LOG
-				printf("SDO: cleared errors from predefined error field %x\n\r",
-						CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX);
+				if (canopen_log) {
+					printf("SDO: cleared errors from predefined error field %x\n\r",
+							CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX);
+				}
 #endif
 				sdo_send_response(msg, SDO_CMD_WRITE_RESPONSE, &i, 1);
 				return;
@@ -506,7 +558,9 @@ void canopen_parse_sdo(uw_can_message_st *msg) {
 					return;
 				}
 #if CONFIG_CANOPEN_LOG
-			printf("SDO error: Unsupported access to array type object %x\n\r", sdo_main_index(msg));
+				if (canopen_log) {
+					printf("SDO error: Unsupported access to array type object %x\n\r", sdo_main_index(msg));
+				}
 #endif
 				array_write(obj, sdo_sub_index(msg), msg->data_32bit[1]);
 			}
@@ -527,7 +581,9 @@ void canopen_parse_sdo(uw_can_message_st *msg) {
 						obj->data_ptr[2] == 'v' &&
 						obj->data_ptr[3] == 'e') {
 #if CONFIG_CANOPEN_LOG
-					printf("Saving settings to flash memory\n\r");
+					if (canopen_log) {
+						printf("Saving settings to flash memory\n\r");
+					}
 #endif
 					*((unsigned int*)obj->data_ptr) = 0;
 #if !defined(CONFIG_NON_VOLATILE_MEMORY)
@@ -547,7 +603,9 @@ void canopen_parse_sdo(uw_can_message_st *msg) {
 						obj->data_ptr[2] == 'a' &&
 						obj->data_ptr[3] == 'd') {
 #if CONFIG_CANOPEN_LOG
-					printf("Loading factory settings from flash memory\n\r");
+					if (canopen_log) {
+						printf("Loading factory settings from flash memory\n\r");
+					}
 #endif
 #if !defined(CONFIG_NON_VOLATILE_MEMORY)
 #warning "CANopen restore parameters object needs CONFIG_MEMORY defined as 1"
@@ -563,14 +621,18 @@ void canopen_parse_sdo(uw_can_message_st *msg) {
 		}
 		else {
 #if CONFIG_CANOPEN_LOG
-			printf("SDO error: object %x is write only\n\r", sdo_main_index(msg));
+			if (canopen_log) {
+				printf("SDO error: object %x is write only\n\r", sdo_main_index(msg));
+			}
 #endif
 			sdo_send_error(msg, SDO_ERROR_ATTEMPT_TO_WRITE_A_READ_ONLY_OBJECT);
 		}
 	}
 	else {
 #if CONFIG_CANOPEN_LOG
+		if (canopen_log) {
 			printf("SDO error: invalid command %x\n\r", sdo_command(msg));
+		}
 #endif
 		sdo_send_error(msg, SDO_ERROR_CMD_SPECIFIER_NOT_FOUND);
 	}
@@ -589,8 +651,10 @@ static inline void parse_rxpdo(uw_can_message_st* msg) {
 				obj = find_object(CONFIG_CANOPEN_RXPDO_MAP_INDEX + i, 0);
 				if (!obj) {
 #if CONFIG_CANOPEN_LOG
-					printf("RXPDO error: PDO%u configured with ID %x found but corresponding"
-						" mapping parameter not found.\n\r", i, msg->id);
+					if (canopen_log) {
+						printf("RXPDO error: PDO%u configured with ID %x found but corresponding"
+							" mapping parameter not found.\n\r", i, msg->id);
+					}
 #endif
 					return;
 				}
@@ -609,13 +673,18 @@ static inline void parse_rxpdo(uw_can_message_st* msg) {
 						const uw_canopen_object_st *trg = find_object(index, subindex);
 						if (!trg) {
 #if CONFIG_CANOPEN_LOG
-				printf("RXPDO error: object with index %x and subindex %x not found\n\r", index, subindex);
+							if (canopen_log) {
+								printf("RXPDO error: object with index %x and subindex %x not found\n\r",
+										index, subindex);
+							}
 #endif
 							break;
 						}
 #if CONFIG_CANOPEN_LOG
 						if (bytes + byte_length > 8) {
-				printf("RXPDO error: PDO mapping length exceeds 8 bytes\n\r");
+							if (canopen_log) {
+								printf("RXPDO error: PDO mapping length exceeds 8 bytes\n\r");
+							}
 						}
 #endif
 						// write bits to the object
@@ -630,7 +699,9 @@ static inline void parse_rxpdo(uw_can_message_st* msg) {
 					}
 				}
 #if CONFIG_CANOPEN_LOG
-				printf("RXPDO with id %x written\n\r", msg->id);
+				if (canopen_log) {
+					printf("RXPDO with id %x written\n\r", msg->id);
+				}
 #endif
 				return;
 			}
@@ -645,38 +716,47 @@ static inline void parse_rxpdo(uw_can_message_st* msg) {
 static inline void parse_nmt_message(uw_can_message_st* msg) {
 	// check if the NMT message was broadcasted or dedicated to this node
 	if (nmt_target_node(msg) == this->node_id || !nmt_target_node(msg)) {
-		switch (nmt_target_node(msg)) {
+		switch (nmt_command(msg)) {
 		case NMT_START_NODE:
 #if CONFIG_CANOPEN_LOG
-			printf("NMT start\n\r");
+			if (canopen_log) {
+				printf("NMT start\n\r");
+			}
 #endif
 			uw_canopen_set_state(STATE_OPERATIONAL);
 			break;
 		case NMT_STOP_NODE:
 #if CONFIG_CANOPEN_LOG
-			printf("NMT stop\n\r");
+			if (canopen_log) {
+				printf("NMT stop\n\r");
+			}
 #endif
 			uw_canopen_set_state(STATE_STOPPED);
 			break;
 		case NMT_SET_PREOPERATIONAL:
 #if CONFIG_CANOPEN_LOG
-			printf("NMT preoperational\n\r");
+			if (canopen_log) {
+				printf("NMT preoperational\n\r");
+			}
 #endif
 			uw_canopen_set_state(STATE_PREOPERATIONAL);
 			break;
 		case NMT_RESET_NODE:
 #if CONFIG_CANOPEN_LOG
-			printf("NMT reset\n\r");
+			if (canopen_log) {
+				printf("NMT reset\n\r");
+			}
 #endif
 			uw_system_reset(false);
 			break;
 		case NMT_RESET_COM:
 #if CONFIG_CANOPEN_LOG
-			printf("NMT reset communication\n\r");
+			if (canopen_log) {
+				printf("NMT reset communication\n\r");
+			}
 #endif
-			uw_canopen_init(this->obj_dict, this->obj_dict_length,
+			uw_canopen_init(this->node_id, this->obj_dict, this->obj_dict_length,
 					this->sdo_write_callback, this->emcy_callback);
-			uw_canopen_set_state(STATE_PREOPERATIONAL);
 			break;
 		default:
 			break;
@@ -686,6 +766,8 @@ static inline void parse_nmt_message(uw_can_message_st* msg) {
 
 uw_errors_e __uw_canopen_send_sdo(uw_canopen_sdo_message_st *sdo, uint8_t node_id, unsigned int req_response) {
 
+	// to CAN bus bytes are sent as 0, 1, 2, 3 (although CAN should be big-endian)
+	// in CANopen data is little-endian, so for example main-index of 0x1017 is sent as 17 10 bytes
 	uw_can_message_st msg;
 	msg.id = req_response + node_id;
 	msg.data_8bit[0] = sdo->request;
@@ -700,6 +782,15 @@ uw_errors_e __uw_canopen_send_sdo(uw_canopen_sdo_message_st *sdo, uint8_t node_i
 	return uw_err(ERR_NONE);
 }
 
+#if CONFIG_CANOPEN_IDENTITY_INDEX
+void uw_canopen_identity_init(uw_identity_object_st* identity_obj,
+		uint32_t product_code, uint32_t revision_number) {
+	identity_obj->vendor_id = USEWOOD_VENDOR_ID;
+	identity_obj->revision_number = revision_number;
+	identity_obj->product_code = product_code;
+	uw_get_device_serial(identity_obj->serial_number);
+}
+#endif
 
 
 #endif

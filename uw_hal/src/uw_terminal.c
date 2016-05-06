@@ -26,6 +26,17 @@
 #endif
 
 
+#if CONFIG_CAN_LOG
+// enabled can logging
+bool can_log = true;
+#endif
+
+#if CONFIG_CANOPEN_LOG
+// enables canopen logging
+bool canopen_log = true;
+#endif
+
+
 // extern declarations for uw_memory module's functions
 extern uw_errors_e __uw_save_previous_non_volatile_data();
 extern uw_errors_e __uw_load_previous_non_volatile_data();
@@ -135,6 +146,22 @@ static const uw_command_st common_cmds[] = {
 #else
 						""
 #endif
+		},
+#endif
+#if CONFIG_CAN_LOG
+		{
+				.id = CMD_CAN_LOG,
+				.str = "canlog",
+				.instructions = "Enables or disables CAN message logging.\n\r"
+						"Usage: canlog <on/off>"
+		},
+#endif
+#if CONFIG_CANOPEN_LOG
+		{
+				.id = CMD_CANOPEN_LOG,
+				.str = "canopenlog",
+				.instructions = "Enables of disables CANopen message logging.\n\r"
+						"Usage: canopenlog <on/off>"
 		},
 #endif
 		{
@@ -424,6 +451,28 @@ static void execute_common_cmd(int cmd, char** args) {
 			printf("isp %s\n\r", this->disable_isp ? "off" : "on");
 		}
 		break;
+#if CONFIG_CAN_LOG
+	case CMD_CAN_LOG:
+		if (strcmp(args[0], "on") == 0) {
+			can_log = true;
+		}
+		else if (strcmp(args[0], "off") == 0) {
+			can_log = false;
+		}
+		printf("%u\n\r", can_log);
+		break;
+#endif
+#if CONFIG_CANOPEN_LOG
+	case CMD_CANOPEN_LOG:
+		if (strcmp(args[0], "on") == 0) {
+			canopen_log = true;
+		}
+		else if (strcmp(args[0], "off") == 0) {
+			canopen_log = false;
+		}
+		printf("%u\n\r", canopen_log);
+		break;
+#endif
 	default:
 		break;
 	}
