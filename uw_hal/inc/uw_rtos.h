@@ -61,9 +61,9 @@
 #endif
 
 
-typedef xTaskHandle 		uw_rtos_task_t;
-typedef xSemaphoreHandle	uw_rtos_smphr_t;
-typedef xQueueHandle		uw_rtos_queue_t;
+typedef xTaskHandle 		uw_rtos_task_ptr;
+typedef xSemaphoreHandle	uw_rtos_smphr_ptr;
+typedef xQueueHandle		uw_rtos_queue_ptr;
 
 
 
@@ -91,7 +91,7 @@ uw_errors_e uw_rtos_add_idle_task(void (*task_function)(void *user_ptr));
 /// @note: Binary sempahores are good for passing information between tasks and
 /// ISR's. Note that ISR's can only give and tasks can
 /// only take binary semaphores.
-static inline uw_rtos_smphr_t uw_rtos_smphr_create_binary(void) {
+static inline uw_rtos_smphr_ptr uw_rtos_smphr_create_binary(void) {
 	return xSemaphoreCreateBinary();
 }
 
@@ -99,14 +99,14 @@ static inline uw_rtos_smphr_t uw_rtos_smphr_create_binary(void) {
 /// other tasks to take the ownership of the semaphore.
 /// @note: This function shouldn't be called from ISR's!
 /// Use uw_rtos_smprh_give_ISR instead.
-static inline void uw_rtos_smphr_give(uw_rtos_smphr_t handle) {
+static inline void uw_rtos_smphr_give(uw_rtos_smphr_ptr handle) {
 	xSemaphoreGive(handle);
 }
 
 /// @brief: "Gives" or "releases" the semaphore. This makes possible for
 /// other tasks to take the ownership of the semaphore.
 /// @note: This function should be called only from ISR's!
-static inline void uw_rtos_smphr_give_ISR(uw_rtos_smphr_t handle) {
+static inline void uw_rtos_smphr_give_ISR(uw_rtos_smphr_ptr handle) {
 	xSemaphoreGiveFromISR(handle, NULL);
 }
 
@@ -115,7 +115,7 @@ static inline void uw_rtos_smphr_give_ISR(uw_rtos_smphr_t handle) {
 /// false otherwise.
 /// @note: This function shouldn't be called from ISR's!
 /// Use uw_rtos_smprh_give_ISR instead.
-static inline bool uw_rtos_smphr_take(uw_rtos_smphr_t handle, unsigned int max_wait_tick_count) {
+static inline bool uw_rtos_smphr_take(uw_rtos_smphr_ptr handle, unsigned int max_wait_tick_count) {
 	return xSemaphoreTake(handle, max_wait_tick_count);
 }
 
@@ -123,7 +123,7 @@ static inline bool uw_rtos_smphr_take(uw_rtos_smphr_t handle, unsigned int max_w
 /// Unlike xSemaphoreTake(), xSemaphoreTakeFromISR() does not permit a
 /// block time to be specified.
 /// @note: This function should be called only from ISR's!
-static inline bool uw_rtos_smphr_take_ISR(uw_rtos_smphr_t handle) {
+static inline bool uw_rtos_smphr_take_ISR(uw_rtos_smphr_ptr handle) {
 	return xSemaphoreTakeFromISR(handle, NULL);
 }
 
@@ -142,13 +142,13 @@ static inline bool uw_rtos_smphr_take_ISR(uw_rtos_smphr_t handle) {
 ///
 /// @param queue_length: The length of how many items the queue can contain
 /// @param type_length: The byte length of a single item
-static inline uw_rtos_queue_t uw_rtos_queue_create(unsigned int queue_length, uint8_t type_length) {
+static inline uw_rtos_queue_ptr uw_rtos_queue_create(unsigned int queue_length, uint8_t type_length) {
 	return xQueueCreate(queue_length, type_length);
 }
 
 
 /// @brief: Resets (clears) the queue to its original state
-static inline void uw_rtos_queue_reset(uw_rtos_queue_t queue) {
+static inline void uw_rtos_queue_clear(uw_rtos_queue_ptr queue) {
 	xQueueReset(queue);
 }
 
@@ -156,14 +156,14 @@ static inline void uw_rtos_queue_reset(uw_rtos_queue_t queue) {
 /// @brief: Returns true if the queue is full
 /// @note: This function shouldn't be called from ISR's!
 /// Use uw_rtos_queue_is_full_ISR instead!
-static inline bool uw_rtos_queue_is_full(uw_rtos_queue_t queue) {
+static inline bool uw_rtos_queue_is_full(uw_rtos_queue_ptr queue) {
 	return !(uxQueueSpacesAvailable(queue));
 }
 
 
 /// @brief: Returns true if the queue is full
 /// @note: This function should be called only from ISR's!
-static inline bool uw_rtos_queue_is_full_ISR(uw_rtos_queue_t queue) {
+static inline bool uw_rtos_queue_is_full_ISR(uw_rtos_queue_ptr queue) {
 	return xQueueIsQueueFullFromISR(queue);
 }
 
@@ -176,7 +176,7 @@ static inline bool uw_rtos_queue_is_full_ISR(uw_rtos_queue_t queue) {
 /// @param data: A pointer to the item that is to be placed on the queue.
 /// @param ticks_to_wait:  maximum amount of time the task should block waiting
 /// for space to become available on the queue, should it already be full
-static inline bool uw_rtos_queue_push(uw_rtos_queue_t queue, const void * data,
+static inline bool uw_rtos_queue_push(uw_rtos_queue_ptr queue, const void * data,
 		unsigned int ticks_to_wait) {
 	return xQueueSend(queue, data, ticks_to_wait);
 }
@@ -190,7 +190,7 @@ static inline bool uw_rtos_queue_push(uw_rtos_queue_t queue, const void * data,
 /// @param data: A pointer to the item that is to be placed on the queue.
 /// @param ticks_to_wait:  maximum amount of time the task should block waiting
 /// for space to become available on the queue, should it already be full
-static inline bool uw_rtos_queue_push_ISR(uw_rtos_queue_t queue, const void * data) {
+static inline bool uw_rtos_queue_push_ISR(uw_rtos_queue_ptr queue, const void * data) {
 	return xQueueSendToBackFromISR(queue, data, NULL);
 }
 
@@ -205,7 +205,7 @@ static inline bool uw_rtos_queue_push_ISR(uw_rtos_queue_t queue, const void * da
 /// @param data: Pointer to the buffer into which the received item will be copied
 /// @param ticks_to_wait: The maximum amount of time the task should block waiting for an item
 /// to receive should the queue be empty at the time of the call
-static inline bool uw_rtos_queue_pop(uw_rtos_queue_t queue, void *data, unsigned int ticks_to_wait) {
+static inline bool uw_rtos_queue_pop(uw_rtos_queue_ptr queue, void *data, unsigned int ticks_to_wait) {
 	return xQueueReceive(queue, data, ticks_to_wait);
 }
 
@@ -217,7 +217,7 @@ static inline bool uw_rtos_queue_pop(uw_rtos_queue_t queue, void *data, unsigned
 /// @param data: Pointer to the buffer into which the received item will be copied
 /// @param ticks_to_wait: The maximum amount of time the task should block waiting for an item
 /// to receive should the queue be empty at the time of the call
-static inline bool uw_rtos_queue_pop_ISR(uw_rtos_queue_t queue, void *data) {
+static inline bool uw_rtos_queue_pop_ISR(uw_rtos_queue_ptr queue, void *data) {
 	return xQueueCRReceiveFromISR(queue, data, NULL);
 }
 
@@ -259,7 +259,7 @@ static inline void uw_rtos_task_yield(void) {
 /// if task creation failed.
 static inline void uw_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
 		unsigned int stack_depth, void *this_ptr,
-		unsigned int task_priority, uw_rtos_task_t* handle) {
+		unsigned int task_priority, uw_rtos_task_ptr* handle) {
 	xTaskCreate(task_function, (const char * const)task_name, stack_depth,
 			this_ptr, task_priority, handle);
 }
@@ -267,7 +267,7 @@ static inline void uw_rtos_task_create(void (*task_function)(void *this_ptr), ch
 
 /// @brief: Remove a task from the RTOS kernels management. The task being
 /// deleted will be removed from all ready, blocked, suspended and event lists
-static inline void uw_rtos_task_delete(uw_rtos_task_t task) {
+static inline void uw_rtos_task_delete(uw_rtos_task_ptr task) {
 	vTaskDelete(task);
 }
 
