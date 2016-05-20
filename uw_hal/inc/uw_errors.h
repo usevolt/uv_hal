@@ -108,6 +108,12 @@ typedef enum {
 	/// @brief: Indicates that the rx message couldn't be configured to be received,
 	/// because all message objects in the CAN hardware were already used.
 	ERR_CAN_RX_MESSAGE_COUNT_FULL		= 32,
+	/// @brief: TXPDO communication parameter object couldn't be found
+	ERR_CANOPEN_PDO_COM_NOT_FOUND		= 33,
+	/// @brief: TXPDO mapping parameter object couldn't be found
+	ERR_CANOPEN_PDO_MAP_NOT_FOUND		= 34,
+	/// @brief: TXPDO mapping parameter points to an object which doesn't exist
+	ERR_CANOPEN_MAPPED_OBJECT_NOT_FOUND = 35,
 	ERR_COUNT
 } _uw_errors_e;
 typedef unsigned int uw_errors_e;

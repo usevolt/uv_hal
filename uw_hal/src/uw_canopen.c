@@ -31,6 +31,8 @@ extern bool canopen_log;
 #define UW_CANOPEN_NODE_ID_MASK		0x7F
 
 
+/// @brief: Returns true if this PDO message was enabled (bit 31 was not set)
+#define is_pdo_enabled(x)			(!(((uw_txpdo_com_parameter_st*)x)->cob_id & (1 << 31)))
 
 
 /// @brief: A local declaration of static variable structure
@@ -295,10 +297,72 @@ uw_errors_e uw_canopen_step(unsigned int step_ms) {
 		uw_start_delay(get_object_value(this->heartbeat_obj), &this->heartbeat_delay);
 	}
 
-	// PDO handling is done only in operational state
+	// from this point forward is executed only in operational state
 	if (this->state != STATE_OPERATIONAL) {
 		return uw_err(ERR_NONE);
 	}
+
+	// TXPDO handling
+	uint8_t i;
+	const uw_canopen_object_st *obj;
+	const uw_canopen_object_st *map_obj;
+	uw_can_message_st msg;
+	for (i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
+		obj = find_object(CONFIG_CANOPEN_TXPDO_COM_INDEX + i, 0);
+		if (!obj) {
+
+#if CONFIG_CANOPEN_LOG
+			if (canopen_log) {
+				printf("TXPDO communication parameter couldn't be found with id %x\n\r",
+						CONFIG_CANOPEN_TXPDO_COM_INDEX + i);
+			}
+#endif
+			return uw_err(ERR_CANOPEN_PDO_COM_NOT_FOUND);
+		}
+		// if this PDO is enabled, fetch the data from mapping object and send the message
+		if (is_pdo_enabled(obj)) {
+			// fetch the message COB-ID
+			msg.id = ((uw_txpdo_com_parameter_st*) obj)->cob_id;
+			msg.data_length = 8;
+			obj = find_object(CONFIG_CANOPEN_TXPDO_MAP_INDEX + i, 0);
+			if (!obj) {
+#if CONFIG_CANOPEN_LOG
+				if (canopen_log) {
+					printf("TXPDO mapping parameter couldn't found with id %x\n\r",
+							CONFIG_CANOPEN_TXPDO_MAP_INDEX + i);
+				}
+#endif
+				return uw_err(ERR_CANOPEN_PDO_MAP_NOT_FOUND);
+			}
+			uint8_t j;
+			uint8_t byte_count = 0;
+			// cycle trough all mapping parameters and fetch the PDO data
+			for (j = 0; j < CONFIG_CANOPEN_PDO_MAPPING_COUNT; j++) {
+				uw_pdo_mapping_parameter_st *map = &((uw_pdo_mapping_parameter_st*) obj)[i];
+				// if all are zeroes, all data has been mapped to the PDO
+				if (map->main_index == 0 && map->sub_index == 0) {
+					break;
+				}
+				// otherwise map some data to the message
+				map_obj = find_object(map->main_index, map->sub_index);
+				if (!map_obj) {
+#if CONFIG_CANOPEN_LOG
+					if (canopen_log) {
+						printf("TXPDO mapping parameter 0x%x points to a object 0x%x 0x%x which doens't exist\n\r",
+								CONFIG_CANOPEN_TXPDO_MAP_INDEX + i, map->main_index, map->sub_index);
+					}
+#endif
+					return uw_err(ERR_CANOPEN_MAPPED_OBJECT_NOT_FOUND);
+				}
+				if (is_array(map_obj->type)) {
+
+				}
+
+			}
+			uw_can_send_message(CONFIG_CANOPEN_CHANNEL, &msg);
+		}
+	}
+
 
 	return uw_err(ERR_NONE);
 }

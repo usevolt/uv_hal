@@ -89,6 +89,11 @@ const char *uw_error_strings[] = {
 	"Indicates that the rx message couldn't be configured to be received,"
 	"because all message objects in the CAN hardware were already used.",
 
+	"TXPDO communication parameter object couldn't be found",
+
+	"TXPDO mapping parameter object couldn't be found",
+
+	"TXPDO mapping parameter points to an object which doesn't exist"
 
 };
 #endif
