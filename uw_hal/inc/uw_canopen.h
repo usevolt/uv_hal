@@ -379,15 +379,25 @@ typedef struct {
 	/// @brief: COB-ID for this PDO
 	uint32_t cob_id;
 	/// @brief: Transmission type. Currently only asynchronous
-	/// transmissions are supported, so this must be set to 0xFF
+	/// transmissions are supported, so this must be set to PDO_TRANSMISSION_ASYNC
 	/// by the application.
 	uw_pdo_transmission_types_e transmission_type;
+	// currently not supported
 	uint32_t inhibit_time;
+	// reserved data for internal use
 	uint32_t _reserved;
+	// the time delay for sending the PDO messages
 	uint32_t event_timer;
-	uint32_t _reserved2;
 } uw_txpdo_com_parameter_st;
-#define UW_TXPDO_COM_ARRAY_SIZE	6
+#define UW_TXPDO_COM_ARRAY_SIZE	5
+
+/// @brief: Enables the PDO message by clearing the 31'th bit from the cob id
+static inline void canopen_txpdo_enable(uw_txpdo_com_parameter_st *pdo) {
+	(pdo->cob_id &= ~(1 << 31));
+}
+static inline void canopen_rxpdo_enable(uw_rxpdo_com_parameter_st *pdo) {
+	(pdo->cob_id &= ~(1 << 31));
+}
 
 
 /// @brief: A nice way for defining a CANopen PDO mapping parameter

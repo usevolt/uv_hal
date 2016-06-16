@@ -32,7 +32,7 @@ extern bool canopen_log;
 
 
 /// @brief: Returns true if this PDO message was enabled (bit 31 was not set)
-#define is_pdo_enabled(x)			(!(((uw_txpdo_com_parameter_st*)x)->cob_id & (1 << 31)))
+#define is_pdo_enabled(x)			(!(((uw_txpdo_com_parameter_st*)x->data_ptr)->cob_id & (1 << 31)))
 
 
 /// @brief: A local declaration of static variable structure
@@ -99,7 +99,12 @@ static const uw_canopen_object_st *find_object(uint16_t index, uint8_t sub_index
 }
 
 static void array_write(const uw_canopen_object_st *obj, uint16_t index, unsigned int value) {
-	if (index >= obj->array_max_size || !index) {
+	if (index >= obj->array_max_size) {
+#if CONFIG_CANOPEN_LOG
+	if (!obj && canopen_log) {
+		printf("Tried to over index CANopen array object\n\r");
+	}
+#endif
 		return;
 	}
 	switch (obj->type) {
@@ -118,13 +123,15 @@ static void array_write(const uw_canopen_object_st *obj, uint16_t index, unsigne
 }
 
 /// @brief: Can be used to index object which is of type array
-static unsigned int array_index(const uw_canopen_object_st *obj, uint16_t index) {
+static unsigned int array_read(const uw_canopen_object_st *obj, uint16_t index) {
 	if (index >= obj->array_max_size) {
-		return 0;
+#if CONFIG_CANOPEN_LOG
+	if (!obj && canopen_log) {
+		printf("Tried to over-index CAnopen array object %x. Max index %u, indexed with %u.\n\r",
+				obj->main_index, obj->array_max_size, index);
 	}
-	// index 0 means the length of this array
-	else if (index == 0) {
-		return obj->array_max_size;
+#endif
+		return 0;
 	}
 	switch (obj->type) {
 	case UW_ARRAY8:
@@ -160,19 +167,23 @@ uw_errors_e uw_canopen_pdos_init(uw_pdos_st *pdos, uint8_t node_id) {
 				RXPDO_BEGIN_ID + 0x100 * i;
 		pdos->rxpdo_coms[i].transmission_type = PDO_TRANSMISSION_ASYNC;
 		uint8_t j;
-		for (j = 0; j < UW_RXPDO_COM_ARRAY_SIZE; j++) {
+		for (j = 0; j < CONFIG_CANOPEN_PDO_MAPPING_COUNT; j++) {
 			pdos->rxpdo_mappings[j][i].main_index = 0;
 			pdos->rxpdo_mappings[j][i].sub_index = 0;
+			pdos->rxpdo_mappings[j][i].length = 0;
 		}
 	}
 	for (i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
 		pdos->txpdo_coms[i].cob_id = PDO_DISABLED + this->node_id +
 				TXPDO_BEGIN_ID + 0x100 * i;
 		pdos->txpdo_coms[i].transmission_type = PDO_TRANSMISSION_ASYNC;
+		pdos->txpdo_coms[i].event_timer = 0;
+		pdos->txpdo_coms[i].inhibit_time = 0;
 		uint8_t j;
-		for (j = 0; j < UW_RXPDO_COM_ARRAY_SIZE; j++) {
+		for (j = 0; j < CONFIG_CANOPEN_PDO_MAPPING_COUNT; j++) {
 			pdos->txpdo_mappings[j][i].main_index = 0;
 			pdos->txpdo_mappings[j][i].sub_index = 0;
+			pdos->txpdo_mappings[j][i].length = 0;
 		}
 	}
 	return uw_err(ERR_NONE);
@@ -231,7 +242,7 @@ uw_errors_e uw_canopen_init(uint8_t node_id, const uw_canopen_object_st* obj_dic
 		if (!obj) {
 			break;
 		}
-		uint32_t id = array_index(obj, 1);
+		uint32_t id = array_read(obj, 0);
 		uw_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, id,
 				CAN_ID_MASK_DEFAULT, CAN_11_BIT_ID);
 	}
@@ -321,9 +332,37 @@ uw_errors_e uw_canopen_step(unsigned int step_ms) {
 		}
 		// if this PDO is enabled, fetch the data from mapping object and send the message
 		if (is_pdo_enabled(obj)) {
+			/* PDO communication */
+
+			uw_txpdo_com_parameter_st* com = (uw_txpdo_com_parameter_st*) obj->data_ptr;
 			// fetch the message COB-ID
-			msg.id = ((uw_txpdo_com_parameter_st*) obj)->cob_id;
-			msg.data_length = 8;
+			msg.id = com->cob_id;
+
+			// check the transmission type
+			// Currently only asynchronous transmission is implemented
+			if (com->transmission_type != PDO_TRANSMISSION_ASYNC) {
+#if CONFIG_CANOPEN_LOG
+				if (canopen_log) {
+					printf("TXPDO transmission type was not asynchronous. Currently only async transmissions"
+							" are supported.\n\r");
+				}
+#endif
+				continue;
+			}
+
+			// for asynchronous transmissions check the time delay
+			// reserved variable is used as the time counter variable
+			com->_reserved += step_ms;
+			if (com->_reserved >= com->event_timer) {
+				com->_reserved = 0;
+			}
+			else {
+				continue;
+			}
+
+
+			/* PDO mappings */
+
 			obj = find_object(CONFIG_CANOPEN_TXPDO_MAP_INDEX + i, 0);
 			if (!obj) {
 #if CONFIG_CANOPEN_LOG
@@ -338,7 +377,10 @@ uw_errors_e uw_canopen_step(unsigned int step_ms) {
 			uint8_t byte_count = 0;
 			// cycle trough all mapping parameters and fetch the PDO data
 			for (j = 0; j < CONFIG_CANOPEN_PDO_MAPPING_COUNT; j++) {
-				uw_pdo_mapping_parameter_st *map = &((uw_pdo_mapping_parameter_st*) obj)[i];
+
+				// todo: array_read(obj, j) palauttaa 4, kun sen pitäisi palauttaa 100100D
+
+				uw_pdo_mapping_parameter_st *map = (uw_pdo_mapping_parameter_st*) &(((uint32_t*) obj->data_ptr)[j]);
 				// if all are zeroes, all data has been mapped to the PDO
 				if (map->main_index == 0 && map->sub_index == 0) {
 					break;
@@ -348,17 +390,37 @@ uw_errors_e uw_canopen_step(unsigned int step_ms) {
 				if (!map_obj) {
 #if CONFIG_CANOPEN_LOG
 					if (canopen_log) {
-						printf("TXPDO mapping parameter 0x%x points to a object 0x%x 0x%x which doens't exist\n\r",
+						printf("TXPDO mapping parameter 0x%x points to an object 0x%x 0x%x which doens't exist\n\r",
 								CONFIG_CANOPEN_TXPDO_MAP_INDEX + i, map->main_index, map->sub_index);
 					}
 #endif
 					return uw_err(ERR_CANOPEN_MAPPED_OBJECT_NOT_FOUND);
 				}
+				unsigned int value;
 				if (is_array(map_obj->type)) {
-
+					value = array_read(map_obj, map->sub_index - 1);
+				}
+				else {
+					value = get_object_value(map_obj);
+				}
+				uint8_t k;
+				// 8 bytes is the maximum length
+//				printf("byte_count: %u, map length: %u\n\r", byte_count, map->length);
+				if (byte_count + map->length > 8) {
+#if CONFIG_CANOPEN_LOG
+					if (canopen_log) {
+						printf("Mapped %u bytes to TXPDO %u, maximum allowed is 8.\n\r",
+								byte_count + map->length, i);
+					}
+#endif
+					map->length = 0;
+				}
+				for (k = 0; k < map->length; k++) {
+					msg.data_8bit[byte_count++] = ((uint8_t*)(&value))[k];
 				}
 
 			}
+			msg.data_length = byte_count;
 			uw_can_send_message(CONFIG_CANOPEN_CHANNEL, &msg);
 		}
 	}
@@ -500,12 +562,14 @@ static void sdo_send_response(uw_can_message_st *msg, uw_canopen_sdo_commands_e 
 			.data_8bit[3] = sdo_sub_index(msg)
 	};
 	uint8_t i = 0;
-	for (i = 0; i < data_length; i++) {
-		reply.data_8bit[4 + i] = data[i];
+	if (data) {
+		for (i = 0; i < data_length; i++) {
+			reply.data_8bit[4 + i] = data[i];
+		}
 	}
 	while (i < 4) {
-		i++;
 		reply.data_8bit[4 + i] = 0;
+		i++;
 	}
 
 	uw_can_send_message(CONFIG_CANOPEN_CHANNEL, &reply);
@@ -552,9 +616,8 @@ void canopen_parse_sdo(uw_can_message_st *msg) {
 			// indexing the array
 			if (sdo_sub_index(msg)) {
 				if (sdo_sub_index(msg) <= obj->array_max_size) {
-					sdo_send_response(msg, SDO_CMD_READ_RESPONSE_BYTES,
-							&obj->data_ptr[(sdo_sub_index(msg) - 1) * array_element_size(obj->type)],
-							array_element_size(obj->type));
+					uint32_t value = array_read(obj, sdo_sub_index(msg) - 1);
+					sdo_send_response(msg, SDO_CMD_READ_RESPONSE_BYTES, (uint8_t *) &value, 4);
 				}
 				else {
 #if CONFIG_CANOPEN_LOG
@@ -616,25 +679,27 @@ void canopen_parse_sdo(uw_can_message_st *msg) {
 #endif
 			// writing to arrays
 			if (is_array(obj->type)) {
-				// writing to array subindex 0 as well as overindexing is not permitted
-				if (sdo_sub_index(msg) == 0 || sdo_sub_index(msg) >= obj->array_max_size) {
+				// writing to array sub index 0 as well as over indexing is not permitted
+				if (sdo_sub_index(msg) == 0 || sdo_sub_index(msg) - 1 >= obj->array_max_size) {
 					sdo_send_error(msg, SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
-					return;
-				}
 #if CONFIG_CANOPEN_LOG
 				if (canopen_log) {
 					printf("SDO error: Unsupported access to array type object %x\n\r", sdo_main_index(msg));
 				}
 #endif
-				array_write(obj, sdo_sub_index(msg), msg->data_32bit[1]);
+					return;
+				}
+				array_write(obj, sdo_sub_index(msg) - 1, msg->data_32bit[1]);
 			}
-			// writing to all other objects
-			uint8_t i;
-			for (i = 0; i < obj->type; i++) {
-				obj->data_ptr[i] = msg->data_8bit[4 + i];
+			else {
+				// writing to all other objects
+				uint8_t i;
+				for (i = 0; i < obj->type; i++) {
+					obj->data_ptr[i] = msg->data_8bit[4 + i];
+				}
+				i = 0;
 			}
-			i = 0;
-			sdo_send_response(msg, SDO_CMD_WRITE_RESPONSE, &i, 1);
+			sdo_send_response(msg, SDO_CMD_WRITE_RESPONSE, NULL, 0);
 
 			// parameter saving and loading
 #if CONFIG_CANOPEN_STORE_PARAMS_INDEX
@@ -710,7 +775,7 @@ static inline void parse_rxpdo(uw_can_message_st* msg) {
 	for (i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
 		obj = find_object(CONFIG_CANOPEN_RXPDO_COM_INDEX + i, 0);
 		if (obj) {
-			if (array_index(obj, 1) == msg->id) {
+			if (array_read(obj, 0) == msg->id) {
 				// RXPDO configured with this message's ID has been found
 				obj = find_object(CONFIG_CANOPEN_RXPDO_MAP_INDEX + i, 0);
 				if (!obj) {
@@ -725,8 +790,8 @@ static inline void parse_rxpdo(uw_can_message_st* msg) {
 				uint8_t j;
 				uint8_t bytes = 0;
 				// cycle trough all mapping entries used
-				for (j = 1; j < CONFIG_CANOPEN_PDO_MAPPING_COUNT + 1; j++) {
-					unsigned int p = array_index(obj, j);
+				for (j = 0; j < CONFIG_CANOPEN_PDO_MAPPING_COUNT; j++) {
+					unsigned int p = array_read(obj, j);
 					if (p) {
 						// object index which will be written
 						uint16_t index = (p >> 16);
