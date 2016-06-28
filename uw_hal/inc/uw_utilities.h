@@ -27,14 +27,6 @@
 #define CAT5(a, ...) 			PRIMITIVE_CAT5(a, __VA_ARGS__)
 #define PRIMITIVE_CAT5(a, ...) 	a ## __VA_ARGS__
 
-#if !defined(CONFIG_LIBRARY_PREFIX)
-#error "CONFIG_LIBRARY_PREFIX not defined. It should be defined as the required prefix for all HAL library\
- functions. It will be concatenated to all this library's functions and it should follow the C function\
- naming standards."
-#endif
-#define U(x)	CAT(CONFIG_LIBRARY_PREFIX, CAT(_, x))
-#define _U(x)	CAT(_, CAT(CONFIG_LIBRARY_PREFIX, CAT(_, x)))
-#define __U(x)	CAT(__, CAT(CONFIG_LIBRARY_PREFIX, CAT(_, x)))
 
 #include "uw_types.h"
 #include "uw_can.h"
