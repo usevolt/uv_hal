@@ -114,6 +114,8 @@ typedef enum {
 	ERR_CANOPEN_PDO_MAP_NOT_FOUND		= 34,
 	/// @brief: TXPDO mapping parameter points to an object which doesn't exist
 	ERR_CANOPEN_MAPPED_OBJECT_NOT_FOUND = 35,
+	/// @brief: Object dictionary restore defaults function was NULL
+	ERR_CANOPEN_RESTORE_DEFAULTS_NULL	= 36,
 	ERR_COUNT
 } _uw_errors_e;
 typedef unsigned int uw_errors_e;

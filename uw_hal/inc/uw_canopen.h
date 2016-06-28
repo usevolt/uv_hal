@@ -11,6 +11,7 @@
 #include "uw_hal_config.h"
 #include "uw_errors.h"
 #include "uw_can.h"
+#include "uw_utilities.h"
 
 /// @file: A software CANopen protocol implementation
 /// @note: Relies on uw_can.h
@@ -33,13 +34,12 @@
 /// * Saving and restoring parameters can be done only with sub-index 1, meaning that
 ///   all parameters are saved / restored.
 ///
-/// * PDO message mapping lengths must be aligned to bytes. This means that
-///   PDO mapping lengths should be either 8, 16, 32 or 64 bits long.
-/// todo: correct this!
-///
 /// * EMCY messages do not provide any error states. It's completely up to the user application
 /// to provide any NMT state changes when detecting errors. However, error listing to
 /// predefined error field is implemented.
+///
+/// * CANopen communication parameters (0x1000 - 0x1FFF main index space) objects cannot be
+/// mapped to PDO messages. They can only be accessed via SDO messages.
 
 
 
@@ -50,8 +50,17 @@
 #if CONFIG_CANOPEN
 
 /* uw_hal_config.h symbol checks */
-#if !defined(CONFIG_CANOPEN_CHANNEL)
-#error "CONFIG_CANOPEN_CHANNEL not defined. It should define which CAN module to use (1, 2, 3, etc)"
+#if !defined(CONFIG_CANOPEN_DEVICE_TYPE_INDEX)
+#error "CONFIG_CANOPEN_DEVICE_TYPE_INDEX not defined. It should define the index from which\
+ the device type constant should be found. Usually 0x1000 or NULL to disable."
+#endif
+#if !defined(CONFIG_CANOPEN_ERROR_REGISTER_INDEX)
+#error "CONFIG_CANOPEN_ERROR_REGISTER_INDEX not defined. It should define the index from where\
+ the Error register array can be found. Usually 0x1001, or NULL to disable."
+#endif
+#if (CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX && !defined(CONFIG_CANOPEN_PREDEFINED_ERROR_SIZE))
+#error "CONFIG_CANOPEN_PREDEFINED_ERROR_SIZE not defined. It should define the maximum number of\
+ errors which can be saved in the predefined error register."
 #endif
 #if !defined(CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX)
 #error "CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX not defined. It should define the index from which\
@@ -120,18 +129,22 @@ enum {
 };
 
 typedef enum {
-	UNKNOWN_PROTOCOL,
-	SDO_REQUEST_ID = 		0x600,
-	SDO_RESPONSE_ID = 		0x580,
-	SDO_ERROR_ID =			0x80,
-	EMCY_ID =				0x80,
-	TXPDO_BEGIN_ID = 		0x180,
-	TXPDO_END_ID =			0x480,
-	RXPDO_BEGIN_ID = 		0x200,
-	RXPDO_END_ID =			0x500,
-	BOOTUP_ID = 			0x700,
-	HEARTBEAT_ID = 			0x700,
-	NMT_ID = 				0x0
+	CANOPEN_UNKNOWN_PROTOCOL,
+	CANOPEN_SDO_REQUEST_ID = 		0x600,
+	CANOPEN_SDO_RESPONSE_ID = 		0x580,
+	CANOPEN_SDO_ERROR_ID =			0x80,
+	CANOPEN_EMCY_ID =				0x80,
+	CANOPEN_TXPDO1_ID = 			0x180,
+	CANOPEN_TXPDO2_ID = 			0x280,
+	CANOPEN_TXPDO3_ID = 			0x380,
+	CANOPEN_TXPDO4_ID = 			0x480,
+	CANOPEN_RXPDO1_ID = 			0x200,
+	CANOPEN_RXPDO2_ID = 			0x300,
+	CANOPEN_RXPDO3_ID = 			0x400,
+	CANOPEN_RXPDO4_ID = 			0x500,
+	CANOPEN_BOOTUP_ID = 			0x700,
+	CANOPEN_HEARTBEAT_ID = 			0x700,
+	CANOPEN_NMT_ID = 				0x0
 } uw_canopen_protocol_ids_e;
 
 
@@ -139,37 +152,37 @@ typedef enum {
 typedef enum {
 	/// @brief: CANopen stack is in boot up state until
 	/// it has been initialized with uw_canopen_init
-	STATE_BOOT_UP =			0x0,
+	CANOPEN_BOOT_UP =			0x0,
 	/// @brief: CANopen device is stopped. It can only receive NMT and
 	/// heartbeat messages.
-	STATE_STOPPED = 		0x4,
+	CANOPEN_STOPPED = 			0x4,
 	/// @brief: In operational state even PDO messages can be sent
 	/// and transmitted.
-	STATE_OPERATIONAL =		0x5,
+	CANOPEN_OPERATIONAL =		0x5,
 	/// @brief: Configuration state where PDO messages are not sent.
 	/// The device can be configured with SDO messages.
 	/// The device ends up to this state after a call to uw_canopen_init.
-	STATE_PREOPERATIONAL =	0x7F
+	CANOPEN_PREOPERATIONAL =	0x7F
 } uw_canopen_node_states_e;
 
 
 
 /// @brief: Enumeration of different permissions. Used when defining CANopen objects.
 typedef enum {
-	UW_RO = (1 << 0),
-	UW_WO = (1 << 1),
-	UW_RW = 0b11
-} uw_permissions_e;
-typedef uint8_t _uw_permissions_e;
+	CANOPEN_RO = (1 << 0),
+	CANOPEN_WO = (1 << 1),
+	CANOPEN_RW = 0b11
+} _uw_permissions_e;
+typedef uint8_t uw_permissions_e;
 
 
 /// @brief: Describes all possible NMT commands
 typedef enum {
-	NMT_START_NODE 			= 0x1,
-	NMT_STOP_NODE 			= 0x2,
-	NMT_SET_PREOPERATIONAL 	= 0x80,
-	NMT_RESET_NODE 			= 0x81,
-	NMT_RESET_COM 			= 0x82
+	CANOPEN_NMT_START_NODE 			= 0x1,
+	CANOPEN_NMT_STOP_NODE 			= 0x2,
+	CANOPEN_NMT_SET_PREOPERATIONAL 	= 0x80,
+	CANOPEN_NMT_RESET_NODE 			= 0x81,
+	CANOPEN_NMT_RESET_COM 			= 0x82
 } uw_canopen_nmt_commands_e;
 
 
@@ -182,21 +195,18 @@ typedef enum {
 /// are mapped to object dictionary only with main_index and they use
 /// sub_indexes for indexing the array elements. Index 0 returns the
 /// length of the array.
-#define UW_ARRAY_MASK 	0b11000000
-#define UW_NUMBER_MASK	0b00111111
+#define CANOPEN_ARRAY_MASK 	0b11000000
+#define CANOPEN_NUMBER_MASK	0b00111111
 typedef enum {
-	UW_UNSIGNED8 = 1,
-	UW_SIGNED8 = 1,
-	UW_UNSIGNED16 = 2,
-	UW_SIGNED16 = 2,
-	UW_UNSIGNED32 = 4,
-	UW_SIGNED32 = 4,
-	UW_ARRAY8 = (1 << 6) + 1,
-	UW_ARRAY16 = (1 << 6) + 2,
-	UW_ARRAY32 = (1 << 6) + 4,
-	UW_PDO_COM_ARRAY = UW_ARRAY32,
-	UW_PDO_MAP_ARRAY = UW_ARRAY32,
-	UW_IDENTITY_ARRAY = UW_ARRAY32
+	CANOPEN_UNSIGNED8 = 1,
+	CANOPEN_SIGNED8 = 1,
+	CANOPEN_UNSIGNED16 = 2,
+	CANOPEN_SIGNED16 = 2,
+	CANOPEN_UNSIGNED32 = 4,
+	CANOPEN_SIGNED32 = 4,
+	CANOPEN_ARRAY8 = (1 << 6) + 1,
+	CANOPEN_ARRAY16 = (1 << 6) + 2,
+	CANOPEN_ARRAY32 = (1 << 6) + 4
 } uw_object_types_e;
 typedef uint8_t _uw_object_types_e;
 
@@ -205,14 +215,14 @@ typedef uint8_t _uw_object_types_e;
 
 
 typedef enum {
-	SDO_ERROR_CMD_SPECIFIER_NOT_FOUND =					0x05040001,
-	SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT = 			0x06010000,
-	SDO_ERROR_ATTEMPT_TO_READ_A_WRITE_ONLY_OBJECT = 	0x06010001,
-	SDO_ERROR_ATTEMPT_TO_WRITE_A_READ_ONLY_OBJECT = 	0x06010002,
-	SDO_ERROR_OBJECT_DOES_NOT_EXIST = 					0x06020000,
-	SDO_ERROR_VALUE_OF_PARAMETER_TOO_HIGH = 			0x06090031,
-	SDO_ERROR_VALUE_OF_PARAMETER_TOO_LOW = 				0x06090032,
-	SDO_ERROR_GENERAL = 								0x08000000
+	CANOPEN_SDO_ERROR_CMD_SPECIFIER_NOT_FOUND =					0x05040001,
+	CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT = 			0x06010000,
+	CANOPEN_SDO_ERROR_ATTEMPT_TO_READ_A_WRITE_ONLY_OBJECT = 	0x06010001,
+	CANOPEN_SDO_ERROR_ATTEMPT_TO_WRITE_A_READ_ONLY_OBJECT = 	0x06010002,
+	CANOPEN_SDO_ERROR_OBJECT_DOES_NOT_EXIST = 					0x06020000,
+	CANOPEN_SDO_ERROR_VALUE_OF_PARAMETER_TOO_HIGH = 			0x06090031,
+	CANOPEN_SDO_ERROR_VALUE_OF_PARAMETER_TOO_LOW = 				0x06090032,
+	CANOPEN_SDO_ERROR_GENERAL = 								0x08000000
 } _uw_sdo_error_codes_e;
 typedef uint32_t uw_sdo_error_codes_e;
 
@@ -220,19 +230,28 @@ typedef uint32_t uw_sdo_error_codes_e;
 
 /// @brief: SDO command specifier, e.g. the MSB data byte of the CAN message
 typedef enum {
-	SDO_CMD_READ = 						0x40,
-	SDO_CMD_READ_RESPONSE_1_BYTE =		0x4F,
-	SDO_CMD_READ_RESPONSE_2_BYTES =		0x4B,
-	SDO_CMD_READ_RESPONSE_4_BYTES =		0x43,
-	SDO_CMD_READ_RESPONSE_BYTES =		0x42,
-	SDO_CMD_WRITE_1_BYTE = 				0x2F,
-	SDO_CMD_WRITE_2_BYTES = 			0x2B,
-	SDO_CMD_WRITE_4_BYTES = 			0x23,
-	SDO_CMD_WRITE_BYTES = 				0x22,
-	SDO_CMD_WRITE_RESPONSE =			0x60,
-	SDO_CMD_ERROR = 					0x80
+	CANOPEN_SDO_CMD_READ = 						0x40,
+	CANOPEN_SDO_CMD_READ_RESPONSE_1_BYTE =		0x4F,
+	CANOPEN_SDO_CMD_READ_RESPONSE_2_BYTES =		0x4B,
+	CANOPEN_SDO_CMD_READ_RESPONSE_4_BYTES =		0x43,
+	CANOPEN_SDO_CMD_READ_RESPONSE_BYTES =		0x42,
+	CANOPEN_SDO_CMD_WRITE_1_BYTE = 				0x2F,
+	CANOPEN_SDO_CMD_WRITE_2_BYTES = 			0x2B,
+	CANOPEN_SDO_CMD_WRITE_4_BYTES = 			0x23,
+	CANOPEN_SDO_CMD_WRITE_BYTES = 				0x22,
+	CANOPEN_SDO_CMD_WRITE_RESPONSE =			0x60,
+	CANOPEN_SDO_CMD_ERROR = 					0x80
 } _uw_canopen_sdo_commands_e;
 typedef uint8_t uw_canopen_sdo_commands_e;
+
+/// @brief: Defines the indexspaces for CANopen object main indexes.
+/// 0x1000 - 0x1FFF objects are reserved for CANopen communication parameters
+/// and many of them are defined in CiA documents.
+/// 0x2000 - 0x2FFF is mainly for application objects.
+typedef enum {
+	CANOPEN_SDO_COMMUNICATION_INDEXSPACE =		0x1000,
+	CANOPEN_SDO_APPLICATION_INDEXSPACE =		0x2000
+} uw_sdo_mindex_namespaces_e;
 
 
 typedef struct {
@@ -256,45 +275,45 @@ typedef struct {
 
 
 typedef enum {
-	EMCY_NO_ERROR				= 0x0000,
-	EMCY_GENERIC 				= 0x1000,
-	EMCY_CURRENT_GENERIC		= 0x2000,
-	EMCY_CURRENT_INPUT 			= 0x2100,
-	EMCY_CURRENT_DEVICE			= 0x2200,
-	EMCY_CURRENT_OUTPUT			= 0x2300,
-	EMCY_VOLTAGE_GENERIC		= 0x3000,
-	EMCY_VOLTAGE_MAINS			= 0x3100,
-	EMCY_VOLTAGE_DEVICE			= 0x3200,
-	EMCY_VOLTAGE_OUTPUT			= 0x3300,
-	EMCY_TEMP_GENERIC			= 0x4000,
-	EMCY_TEMP_AMBIENT			= 0x4100,
-	EMCY_TEMP_DEVICE			= 0x4200,
-	EMCY_HARDWARE_GENERIC		= 0x5000,
-	EMCY_SOFTWARE_GENERIC		= 0x6000,
-	EMCY_SOFTWARE_INTERNAL		= 0x6100,
-	EMCY_SOFTWARE_USER			= 0x6200,
-	EMCY_DATA_SET_GENERIC		= 0x6300,
-	EMCY_ADDITIONAL_MODULES		= 0x7000,
-	EMCY_MONITORING_GENERIC		= 0x8000,
-	EMCY_COMMUNICATION_GENERIC	= 0x8100,
-	EMCY_CAN_OVERRUN			= 0x8110,
-	EMCY_CAN_ERROR_PASSIVE		= 0x8120,
-	EMCY_LIFE_GUARD_HEARTBEAT	= 0x8130,
-	EMCY_RECOVERED_FROM_BUS_OFF = 0x8140,
-	EMCY_CAN_ID_COLLISION		= 0x8150,
-	EMCY_PROTOCOL_GENERIC		= 0x8200,
-	EMCY_PDO_LENGTH_ERROR		= 0x8210,
-	EMCY_PDO_LENGTH_EXCEEDED	= 0x8220,
-	EMCY_DAM_MPDO_NOT_PROCESSED = 0x8230,
-	EMCY_UNEXPECT_SYNC_LENGTH	= 0x8240,
-	EMCY_RPDO_TIMEOUT			= 0x8250,
-	EMCY_EXTERNAL_ERROR			= 0x9000,
-	EMCY_ADDITIONAL_FUNCTIONS	= 0xF000,
-	EMCY_DEVICE_SPECIFIC		= 0xFF00
+	CANOPEN_EMCY_NO_ERROR				= 0x0000,
+	CANOPEN_EMCY_GENERIC 				= 0x1000,
+	CANOPEN_EMCY_CURRENT_GENERIC		= 0x2000,
+	CANOPEN_EMCY_CURRENT_INPUT 			= 0x2100,
+	CANOPEN_EMCY_CURRENT_DEVICE			= 0x2200,
+	CANOPEN_EMCY_CURRENT_OUTPUT			= 0x2300,
+	CANOPEN_EMCY_VOLTAGE_GENERIC		= 0x3000,
+	CANOPEN_EMCY_VOLTAGE_MAINS			= 0x3100,
+	CANOPEN_EMCY_VOLTAGE_DEVICE			= 0x3200,
+	CANOPEN_EMCY_VOLTAGE_OUTPUT			= 0x3300,
+	CANOPEN_EMCY_TEMP_GENERIC			= 0x4000,
+	CANOPEN_EMCY_TEMP_AMBIENT			= 0x4100,
+	CANOPEN_EMCY_TEMP_DEVICE			= 0x4200,
+	CANOPEN_EMCY_HARDWARE_GENERIC		= 0x5000,
+	CANOPEN_EMCY_SOFTWARE_GENERIC		= 0x6000,
+	CANOPEN_EMCY_SOFTWARE_INTERNAL		= 0x6100,
+	CANOPEN_EMCY_SOFTWARE_USER			= 0x6200,
+	CANOPEN_EMCY_DATA_SET_GENERIC		= 0x6300,
+	CANOPEN_EMCY_ADDITIONAL_MODULES		= 0x7000,
+	CANOPEN_EMCY_MONITORING_GENERIC		= 0x8000,
+	CANOPEN_EMCY_COMMUNICATION_GENERIC	= 0x8100,
+	CANOPEN_EMCY_CAN_OVERRUN			= 0x8110,
+	CANOPEN_EMCY_CAN_ERROR_PASSIVE		= 0x8120,
+	CANOPEN_EMCY_LIFE_GUARD_HEARTBEAT	= 0x8130,
+	CANOPEN_EMCY_RECOVERED_FROM_BUS_OFF = 0x8140,
+	CANOPEN_EMCY_CAN_ID_COLLISION		= 0x8150,
+	CANOPEN_EMCY_PROTOCOL_GENERIC		= 0x8200,
+	CANOPEN_EMCY_PDO_LENGTH_ERROR		= 0x8210,
+	CANOPEN_EMCY_PDO_LENGTH_EXCEEDED	= 0x8220,
+	CANOPEN_EMCY_DAM_MPDO_NOT_PROCESSED = 0x8230,
+	CANOPEN_EMCY_UNEXPECT_SYNC_LENGTH	= 0x8240,
+	CANOPEN_EMCY_RPDO_TIMEOUT			= 0x8250,
+	CANOPEN_EMCY_EXTERNAL_ERROR			= 0x9000,
+	CANOPEN_EMCY_ADDITIONAL_FUNCTIONS	= 0xF000,
+	CANOPEN_EMCY_DEVICE_SPECIFIC		= 0xFF00
 
 
 } _uw_emcy_codes_e;
-typedef _uw_emcy_codes_e uw_emcy_codes_e;
+typedef uint16_t uw_emcy_codes_e;
 
 /// @brief: Defines a EMCY message structure.
 /// This is used as a EMCY callback parameter, where
@@ -325,7 +344,7 @@ typedef struct {
 	/// @note: For object of type UW_ARRAY this is dont-care
 	uint8_t sub_index;
 	/// @brief: Data type for this CANopen object dictionary entry.
-	_uw_object_types_e type;
+	_U(object_types_e) type;
 	/// @brief: Pointer to the location where data of this object is saved
 	uint8_t* data_ptr;
 	/// @brief: Type for this CANopen object dictionary entry
@@ -342,7 +361,7 @@ typedef struct {
 
 typedef enum {
 	/// @brief: PDO is transmitted asynchronously
-	PDO_TRANSMISSION_ASYNC = 0xFF,
+	CANOPEN_PDO_TRANSMISSION_ASYNC = 0xFF,
 } _uw_pdo_transmission_types_e;
 typedef uint32_t uw_pdo_transmission_types_e;
 
@@ -352,11 +371,11 @@ typedef uint32_t uw_pdo_transmission_types_e;
 /// CANopen stack doesn't support RTR. Also all PDO's are
 /// asynchronous.
 typedef enum {
-	PDO_ENABLED = 0,
+	CANOPEN_PDO_ENABLED = 0,
 	/// @brief: PDO transmission is disabled. This should be OR'red with the PDO
 	/// communication parameter's COB-ID field.
-	PDO_DISABLED = 0x80000000,
-	PDO_RTR_ALLOWED = 0x40000000
+	CANOPEN_PDO_DISABLED = 0x80000000,
+	CANOPEN_PDO_RTR_ALLOWED = 0x40000000
 } pdo_cob_id_mapping_e;
 
 
@@ -371,7 +390,6 @@ typedef struct {
 	/// by the application.
 	uw_pdo_transmission_types_e transmission_type;
 } uw_rxpdo_com_parameter_st;
-#define UW_RXPDO_COM_ARRAY_SIZE	2
 
 /// @brief: a nice way for defining a TXPDO
 /// communication parameters in object dictionary
@@ -389,15 +407,6 @@ typedef struct {
 	// the time delay for sending the PDO messages
 	uint32_t event_timer;
 } uw_txpdo_com_parameter_st;
-#define UW_TXPDO_COM_ARRAY_SIZE	5
-
-/// @brief: Enables the PDO message by clearing the 31'th bit from the cob id
-static inline void canopen_txpdo_enable(uw_txpdo_com_parameter_st *pdo) {
-	(pdo->cob_id &= ~(1 << 31));
-}
-static inline void canopen_rxpdo_enable(uw_rxpdo_com_parameter_st *pdo) {
-	(pdo->cob_id &= ~(1 << 31));
-}
 
 
 /// @brief: A nice way for defining a CANopen PDO mapping parameter
@@ -413,16 +422,14 @@ typedef struct {
 } uw_pdo_mapping_parameter_st;
 
 
+/// @brief: Enables the PDO message by clearing the 31'th bit from the cob id
+static inline void canopen_txpdo_enable(uw_txpdo_com_parameter_st *pdo) {
+	(pdo->cob_id &= ~(1 << 31));
+}
+static inline void canopen_rxpdo_enable(uw_rxpdo_com_parameter_st *pdo) {
+	(pdo->cob_id &= ~(1 << 31));
+}
 
-/// @brief: A struct which the user application should use when defining
-/// the object dictionary. A member of this type variable should be
-/// created in a place which can be saved to non-volatile memory
-typedef struct {
-	uw_rxpdo_com_parameter_st rxpdo_coms[CONFIG_CANOPEN_RXPDO_COUNT];
-	uw_pdo_mapping_parameter_st rxpdo_mappings[CONFIG_CANOPEN_PDO_MAPPING_COUNT][CONFIG_CANOPEN_RXPDO_COUNT];
-	uw_txpdo_com_parameter_st txpdo_coms[CONFIG_CANOPEN_TXPDO_COUNT];
-	uw_pdo_mapping_parameter_st txpdo_mappings[CONFIG_CANOPEN_PDO_MAPPING_COUNT][CONFIG_CANOPEN_TXPDO_COUNT];
-} uw_pdos_st;
 
 
 
@@ -447,6 +454,90 @@ typedef struct {
 } uw_identity_object_st;
 #define UW_IDENTITY_OBJECT_ARRAY_SIZE	7
 #endif
+
+
+/// @brief: CANopen communication parameters in the object dictionary
+typedef struct {
+#if CONFIG_CANOPEN_DEVICE_TYPE_INDEX
+	uint32_t device_type;
+#endif
+#if CONFIG_CANOPEN_ERROR_REGISTER_INDEX
+	uint8_t error_register;
+#endif
+#if CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX
+	uint32_t predefined_errors[CONFIG_CANOPEN_PREDEFINED_ERROR_SIZE];
+#endif
+#if CONFIG_CANOPEN_NODEID_INDEX
+	uint8_t node_id;
+#endif
+#if CONFIG_CANOPEN_STORE_PARAMS_INDEX
+	uint32_t store_params;
+#endif
+#if CONFIG_CANOPEN_RESTORE_PARAMS_INDEX
+	uint32_t restore_params;
+#endif
+#if CONFIG_CANOPEN_HEARTBEAT_INDEX
+	uint16_t heartbeat_time;
+#endif
+#if CONFIG_CANOPEN_IDENTITY_INDEX
+	uw_identity_object_st identity;
+#endif
+#if CONFIG_CANOPEN_TXPDO_COM_INDEX && CONFIG_CANOPEN_TXPDO_MAP_INDEX
+	uw_txpdo_com_parameter_st txpdo_coms[CONFIG_CANOPEN_TXPDO_COUNT];
+	uw_pdo_mapping_parameter_st txpdo_mappings[CONFIG_CANOPEN_TXPDO_COUNT][CONFIG_CANOPEN_PDO_MAPPING_COUNT];
+#endif
+#if CONFIG_CANOPEN_RXPDO_COM_INDEX && CONFIG_CANOPEN_RXPDO_MAP_INDEX
+	uw_rxpdo_com_parameter_st rxpdo_coms[CONFIG_CANOPEN_RXPDO_COUNT];
+	uw_pdo_mapping_parameter_st rxpdo_mappings[CONFIG_CANOPEN_RXPDO_COUNT][CONFIG_CANOPEN_PDO_MAPPING_COUNT];
+#endif
+
+} uw_canopen_communication_params_st;
+
+
+/// @brief: The CANopen object dictionary structure. Used in uw_canopen_st
+typedef struct {
+	// CANopen communication params defined here in HAL
+	uw_canopen_communication_params_st com_params;
+
+	// application specific parameters defined by the user application
+	const uw_canopen_object_st *app_parameters;
+
+	// the length of the app parameters
+	uint16_t app_parameters_length;
+
+} uw_canopen_object_dict_st;
+
+
+/// @brief: The main CANopen data structure.
+/// A variable of this struct type should be created in a
+/// RAM section which can be saved to the non-volatile flash. This way
+/// CANopen configurations can be saved with the STORE_PARAMETERS object
+typedef struct {
+	/// @brief: The object dictionary
+	uw_canopen_object_dict_st obj_dict;
+
+	/// @brief: The state of this CANopen node
+	uw_canopen_node_states_e state;
+
+	/// @brief: SDO write callback function
+	void (*sdo_write_callback)(uw_canopen_object_st* obj_dict_entry);
+
+	/// @brief: EMCY callback function
+	void (*emcy_callback)(void *user_ptr, uw_canopen_emcy_msg_st *msg);
+
+	/// @brief: Temporary EMCY message for internal use
+	uw_canopen_emcy_msg_st temp_emcy;
+
+	/// @brief: The CAN channel
+	uw_can_channels_e can_channel;
+
+#if CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX
+	uw_ring_buffer_st errors;
+#endif
+
+	int heartbeat_delay;
+
+} uw_canopen_st;
 
 
 
@@ -519,87 +610,60 @@ typedef struct {
 
 
 
-/**** PROTECTED FUNCTIONS *****/
-/* These are meant only for  hal library's private use and user application shouldn't call these */
-
-/// @brief: parses the CAN message and
-/// makes the appropriate actions depending on the message received
-void __uw_canopen_parse_message(uw_can_message_st* message);
-
-
-/// @brief: Really sends the sdo message
-///
-/// @param req_response: The CAN message ID field indicating if this SDO is a request, response or error
-/// @param node_id: The destination node's node id
-uw_errors_e __uw_canopen_send_sdo(uw_canopen_sdo_message_st *sdo, uint8_t node_id, unsigned int req_response);
-
-/***** END OF PROTECTED FUNCTIONS ***/
-
-
-
-
-
 /// @brief: Initializes the CANopen node and the object dictionary
 ///
 /// @param node_id: The node-id which is used to initiate the canopen stack. The node ID can be updated
 /// only by restarting the canopen stack.
-/// @param obj_dict: Pointer to the uw_canopen_object_st array.
-/// Object dictionary should be defined by the application.
-/// @param obj_dict_length: The length of the object dictionary,
-/// e.g. the number of different indexes.
+/// @param obj_dict: Pointer to the uw_canopen_object_st array containing the application specific objects
+/// @param obj_dict_length: The length of the object array in objects
+/// @param can_channel: The CAN channel which this CANopen instance uses
+/// @param restore_defaults_callback: A callback function which restores the application parameter
+/// object values to their default values. Implementing this is mandatory in order to ensure
+/// correct CANopen behaviour.
 /// @param sdo_write_callback: A function pointer to a callback function which will be called
 /// when a SDO write request was received. If callback function is not required, NULL can be passed.
-uw_errors_e uw_canopen_init(uint8_t node_id,
-		const uw_canopen_object_st* obj_dict,
-		unsigned int obj_dict_length,
+/// @param emcy_callback Callback function which is called when an EMCY message sent by any node
+/// in the CAN-bus is received.
+uw_errors_e uw_canopen_init(uw_canopen_st *me,
+		const uw_canopen_object_st *obj_dict,
+		uint16_t obj_dict_length,
+		uw_can_channels_e can_channel,
 		void (*sdo_write_callback)(uw_canopen_object_st* obj_dict_entry),
 		void (*emcy_callback)(void *user_ptr, uw_canopen_emcy_msg_st *msg));
 
 
-/// @brief: Initializes the PDO struct to it's initial state. All PDO's are disabled
-/// and set to asynchronous mode, with the ID being the default CANopen PDO ID + NODE-ID.
-///
-/// @note: The user application should configure needed PDO messages after calling this function.
-/// This only ensures that no uninitialized entries remain in the PDO configurations.
-uw_errors_e uw_canopen_pdos_init(uw_pdos_st *pdos, uint8_t node_id);
+/// @brief: Restores the object dictionary communication settings to their defaults.
+/// Note that this doesn't restore application dependent objects to their default values by its own.
+/// However, it does call restore_defaults() function pointer which should be defined by the application
+/// to restore the application parameters to their default values.
+uw_errors_e uw_canopen_restore_defaults(uw_canopen_st *me);
 
 
 /// @brief: The CANopen step function. Makes sure that the txPDO and heartbeat messages
 /// are sent cyclically in a right time step
-uw_errors_e uw_canopen_step(unsigned int step_ms);
+uw_errors_e uw_canopen_step(uw_canopen_st *me, unsigned int step_ms);
 
 
 /// @brief: Used to set the device state. Device will start in UW_CANOPEN_BOOT_UP state
 /// and it should move itself to pre-operational state after boot up is done.
 /// From that point forward the device state is handled by this CANopen stack.
-uw_errors_e uw_canopen_set_state(uw_canopen_node_states_e state);
+uw_errors_e uw_canopen_set_state(uw_canopen_st *me, uw_canopen_node_states_e state);
 
 
 /// @brief: Used to get the device state. Device will start in UW_CANOPEN_BOOT_UP state
 /// and it should move itself to pre-operational state arfter boot up is done.
-uw_canopen_node_states_e uw_canopen_get_state(void);
+uw_canopen_node_states_e uw_canopen_get_state(uw_canopen_st *me);
 
 
 /// @brief: Sends an EMCY (emergency) message
-uw_errors_e uw_canopen_emcy_send(uw_canopen_emcy_msg_st *msg);
+uw_errors_e uw_canopen_emcy_send(uw_canopen_st *me, uw_canopen_emcy_msg_st *msg);
 
-
-
-/// @brief: Sends a SDO message.
-/// The message is sent asynchronously
+/// @brief: Sends an SDO request to another node
 ///
+/// @param sdo: The SDO message data structure which is sent.
 /// @param node_id: The destination node's node id
-static inline uw_errors_e uw_canopen_send_sdo(uw_canopen_sdo_message_st *sdo, uint8_t node_id) {
-	return __uw_canopen_send_sdo(sdo, node_id, SDO_REQUEST_ID);
-}
+uw_errors_e uw_canopen_send_sdo(uw_canopen_st *me, uw_canopen_sdo_message_st *sdo, uint8_t node_id);
 
-#if CONFIG_CANOPEN_IDENTITY_INDEX
-/// @brief: Initializes the identity object to the right values.
-/// Assigns the vendor_id as Usewood and reads the LPC hardware for unique serial number .
-/// Product code and revision number needs to be specified in the user application.
-void uw_canopen_identity_init(uw_identity_object_st* identity_obj,
-		uint32_t product_code, uint32_t revision_number);
-#endif
 
 
 #endif

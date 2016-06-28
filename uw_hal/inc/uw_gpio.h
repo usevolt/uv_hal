@@ -18,7 +18,7 @@
 
 
 
-#if CONFIG_TARGET_LPC178X
+#if CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
 /// @brief: Sets the GPIO's IOCON register MODE bits to the value given.
 /// @note: This macro is only defined for LPC178x. On LPC11Cxx some
@@ -34,7 +34,7 @@ LPC_IOCON->P ## port ## _ ## pin |= mode
 /// as well as reading and writing to them
 
 
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 #define GPIO_PORT_MASK	0xC0000000
 #define GPIO_PIN_MASK	0x3FFFFFFF
 
@@ -46,7 +46,7 @@ LPC_IOCON->P ## port ## _ ## pin |= mode
 #define GPIO_PORT_2		(0x2 << 30)
 #define GPIO_PORT_3		(0x3 << 30)
 
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 #define GPIO_PORT_MASK	0xE0000000
 #define GPIO_PIN_MASK	0x1FFFFFFF
 
@@ -67,13 +67,13 @@ LPC_IOCON->P ## port ## _ ## pin |= mode
 
 
 typedef enum {
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	PULL_UP_DISABLED = 0,
 	PULL_DOWN_ENABLED = (1 << 3),
 	PULL_UP_ENABLED = (1 << 4),
 	REPEATER_MODE = (0b11 << 3),
 	HYSTERESIS_ENABLED = (1 << 5)
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 	PULL_UP_DISABLED = 0,
 	PULL_DOWN_ENABLED = (1 << 3),
 	PULL_UP_ENABLED = (1 << 4),
@@ -88,7 +88,7 @@ typedef enum {
 
 typedef enum {
 	INT_EDGE_SENSITIVE = 0x0,
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	INT_LEVEL_SENSITIVE = 0x1,
 	INT_RISING_EDGE = (0x1 << 1),
 	INT_FALLING_EDGE = (0x0 << 1),
@@ -96,7 +96,7 @@ typedef enum {
 	INT_HIGH_LEVEL = (0x1 << 1),
 	INT_LOW_LEVEL = (0x0 << 1),
 	INT_DISABLE = 0xffff
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 	INT_RISING_EDGE = (0x1 << 0),
 	INT_FALLING_EDGE = (0x1 << 1),
 	INT_BOTH_EDGES = (0x2),
@@ -161,7 +161,7 @@ volatile uint32_t *__uw_gpio_get_iocon(uw_gpios_e gpio);
 
 enum uw_gpios_e {
 	PIO_UNDEFINED = 0,
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 #if (CONFIG_PORT0 | CONFIG_PIO0_0)
 	PIO0_0 = GPIO_PORT_0 | 0,
 #endif
@@ -282,7 +282,7 @@ enum uw_gpios_e {
 #if (CONFIG_PORT3 | CONFIG_PIO3_3)
 	PIO3_3 = GPIO_PORT_3 | 3
 #endif
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 #if (CONFIG_PORT0 | CONFIG_PIO0_0)
 	PIO0_0 = GPIO_PORT_0 | 0,
 #endif

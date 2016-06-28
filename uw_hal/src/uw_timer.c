@@ -12,17 +12,17 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "uw_utilities.h"
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 #include "LPC11xx.h"
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
 #endif
 
 typedef struct {
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	/// @brief: All timer pointers on this hardware for easier access
 	LPC_TMR_TypeDef* timer[TIMER_COUNT];
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 	LPC_TIM_TypeDef* timer[TIMER_COUNT];
 	LPC_PWM_TypeDef* pwm[PWM_COUNT];
 #else
@@ -57,12 +57,12 @@ static uw_errors_e validate_timer(uw_timers_e timer) {
 
 /// @brief: Initializes the timer struct
 static void this_init(uw_timers_e timer) {
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	this->timer[0] = LPC_TMR16B0;
 	this->timer[1] = LPC_TMR16B1;
 	this->timer[2] = LPC_TMR32B0;
 	this->timer[3] = LPC_TMR32B1;
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 	this->timer[0] = LPC_TIM0;
 	this->timer[1] = LPC_TIM1;
 	this->timer[2] = LPC_TIM2;
@@ -91,10 +91,10 @@ static void parse_timer_interrupt(uw_timers_e timer) {
 		this->timer_callbacks[timer](__uw_get_user_ptr(), timer,
 				INT_SRC_CAPTURE0, this->timer[timer]->CR0);
 	}
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	// clear all timer interrupts
 	this->timer[timer]->IR = 0x1F;
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 	if (this->timer[timer]->IR & (1 << 5)) {
 		this->timer_callbacks[timer](__uw_get_user_ptr(), timer,
 				INT_SRC_CAPTURE1, this->timer[timer]->CR1);
@@ -105,7 +105,7 @@ static void parse_timer_interrupt(uw_timers_e timer) {
 }
 
 // interrupt handlers
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 #if CONFIG_TIMER0
 void TIMER16_0_IRQHandler(void) {
 	parse_timer_interrupt(TIMER0);
@@ -126,7 +126,7 @@ void TIMER32_1_IRQHandler(void) {
 	parse_timer_interrupt(TIMER3);
 }
 #endif
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 #if CONFIG_TIMER0
 void TIMER0_IRQHandler(void) {
 	parse_timer_interrupt(TIMER0);
@@ -152,7 +152,7 @@ void TIMER3_IRQHandler(void) {
 
 #if (CONFIG_TIMER0 || CONFIG_TIMER1 || CONFIG_TIMER2 || CONFIG_TIMER3)
 static void init_timer(unsigned int timer, unsigned int freq) {
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	// enable clock to the timer module
 	LPC_SYSCON->SYSAHBCLKCTRL |= (1 << (7 + timer));
 
@@ -231,7 +231,7 @@ static void init_timer(unsigned int timer, unsigned int freq) {
 	}
 
 
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 	// set frequency
 	uw_timer_set_freq(timer, freq);
 
@@ -384,7 +384,7 @@ static void init_timer(unsigned int timer, unsigned int freq) {
 #if (CONFIG_PWM0 || CONFIG_PWM1 || CONFIG_PWM2 || CONFIG_PWM3)
 static void init_pwm(unsigned int timer, unsigned int freq) {
 
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	// enable clock to the timer module
 	LPC_SYSCON->SYSAHBCLKCTRL |= (1 << (7 + timer));
 
@@ -486,7 +486,7 @@ static void init_pwm(unsigned int timer, unsigned int freq) {
 	// start timer
 	this->timer[timer]->TCR |= 1 << 0;
 
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 #warning "PWM initialization not yet implemented"
 
 #endif
@@ -556,7 +556,7 @@ uw_errors_e uw_timer_set_freq(uw_timers_e timer, float freq) {
 
 	//set prescaler depending on in which mode init_value was given
 	uint64_t prescaler;
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	uint32_t max_value = 0xFFFF;
 #if (CONFIG_TIMER2 || CONFIG_TIMER3)
 	if (timer > TIMER1) {
@@ -571,7 +571,7 @@ uw_errors_e uw_timer_set_freq(uw_timers_e timer, float freq) {
 	if (prescaler == 0) {
 		max_value = SystemCoreClock / freq;
 	}
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 	uint32_t max_value = 0xFFFFFFFF;
 	prescaler = PeripheralClock /
 				( freq * max_value) - 1;
@@ -595,7 +595,7 @@ uw_errors_e uw_timer_set_freq(uw_timers_e timer, float freq) {
 
 
 uw_errors_e uw_pwm_set(uw_pwms_e pwm, uw_pwm_channels_e channel, unsigned int duty_cycle) {
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	if (validate_timer(pwm)) return validate_timer(pwm);
 
 	unsigned int max_value = this->timer[pwm]->MR3;
@@ -621,8 +621,8 @@ uw_errors_e uw_pwm_set(uw_pwms_e pwm, uw_pwm_channels_e channel, unsigned int du
 
 
 	return uw_err(ERR_NONE);
-#elif CONFIG_TARGET_LPC178X
-#warning "uw_pwm_set for CONFIG_TARGET_LPC178X is missing"
+#elif CONFIG_TARGET_LPC1785
+#warning "uw_pwm_set for CONFIG_TARGET_LPC1785 is missing"
 #endif
 }
 
@@ -632,10 +632,10 @@ uw_errors_e uw_pwm_set(uw_pwms_e pwm, uw_pwm_channels_e channel, unsigned int du
 uw_errors_e uw_counter_init(uw_timers_e timer) {
 	if (validate_timer(timer)) return validate_timer(timer);
 	this_init(timer);
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	__uw_err_throw(ERR_NOT_IMPLEMENTED | HAL_MODULE_TIMER);
-#elif CONFIG_TARGET_LPC178X
-#warning "uw_counter_init for CONFIG_TARGET_LPC178X is missing"
+#elif CONFIG_TARGET_LPC1785
+#warning "uw_counter_init for CONFIG_TARGET_LPC1785 is missing"
 	__uw_err_throw(ERR_NOT_IMPLEMENTED | HAL_MODULE_TIMER);
 #endif
 
@@ -681,7 +681,7 @@ uw_errors_e uw_timer_add_callback(uw_timers_e timer, void (*callback_function)
 	// enable interrupts on this timer
 	IRQn_Type tmr;
 	switch (timer) {
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 #if (CONFIG_TIMER0 || CONFIG_COUNTER0)
 	case 0: tmr = TIMER_16_0_IRQn; break;
 #endif
@@ -694,7 +694,7 @@ uw_errors_e uw_timer_add_callback(uw_timers_e timer, void (*callback_function)
 #if (CONFIG_TIMER3 || CONFIG_COUNTER3)
 	case 3: tmr = TIMER_32_1_IRQn; break;
 #endif
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 #if (CONFIG_TIMER0 || CONFIG_COUNTER0)
 	case 0: tmr = TIMER0_IRQn; break;
 #endif

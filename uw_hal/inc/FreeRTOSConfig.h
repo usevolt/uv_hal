@@ -61,9 +61,9 @@
 
 #ifndef __IASMARM__
 /* For SystemCoreClock */
-#if CONFIG_TARGET_LPC178X
+#if CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
-#elif CONFIG_TARGET_LPC11CXX
+#elif CONFIG_TARGET_LPC11C14
 #include "LPC11xx.h"
 #endif
 #endif
@@ -79,17 +79,17 @@
  *----------------------------------------------------------*/
 #define configUSE_PREEMPTION		1
 #define configUSE_IDLE_HOOK			0
-#if CONFIG_TARGET_LPC178X
+#if CONFIG_TARGET_LPC1785
 #define configMAX_PRIORITIES		( 8 )
-#elif CONFIG_TARGET_LPC11CXX
+#elif CONFIG_TARGET_LPC11C14
 #define configMAX_PRIORITIES		( ( unsigned portBASE_TYPE ) 5 )
 #endif
 #define configUSE_TICK_HOOK			0
 #define configCPU_CLOCK_HZ			( ( unsigned long ) SystemCoreClock )
 #define configTICK_RATE_HZ			( ( portTickType ) 1000 )
-#if CONFIG_TARGET_LPC178X
+#if CONFIG_TARGET_LPC1785
 #define configMINIMAL_STACK_SIZE	( ( unsigned short ) 128 )
-#elif CONFIG_TARGET_LPC11CXX
+#elif CONFIG_TARGET_LPC11C14
 #define configMINIMAL_STACK_SIZE	( ( unsigned short ) 48 )
 #endif
 #define configSUPPORT_DYNAMIC_ALLOCATION	1
@@ -130,7 +130,7 @@ to exclude the API function. */
 #define INCLUDE_vTaskDelay					1
 #define INCLUDE_uxTaskGetStackHighWaterMark	1
 
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 #define configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY	1
 #endif
 

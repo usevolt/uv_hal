@@ -10,9 +10,9 @@
 
 
 #include <stdio.h>
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 #include "LPC11xx.h"
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
 #endif
 #include "uw_utilities.h"
@@ -28,7 +28,7 @@ static LPC_GPIO_TypeDef* get_port(uw_gpios_e gpio);
 // callback function
 static void (*callback)(void*, uw_gpios_e) = 0;
 
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 // interrupt handler routine
 static void isr(LPC_GPIO_TypeDef *GPIO, uw_gpios_e port);
 #endif
@@ -57,7 +57,7 @@ uw_errors_e uw_gpio_init_input(uw_gpios_e gpio, uw_gpio_input_config_e configura
 	LPC_GPIO->DIR &= ~(1 << PIN(gpio));
 	uw_gpio_configure(gpio, configurations);
 
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	if (int_configurations == INT_DISABLE) {
 		// disable interrupt
 		LPC_GPIO->IE &= ~(1 << PIN(gpio));
@@ -80,7 +80,7 @@ uw_errors_e uw_gpio_init_input(uw_gpios_e gpio, uw_gpio_input_config_e configura
 		// enable interrupt
 		LPC_GPIO->IE |= (1 << PIN(gpio));
 	}
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 
 
 	unsigned int port = PORT(gpio);
@@ -130,9 +130,9 @@ uw_errors_e uw_gpio_set_pin(uw_gpios_e gpio, bool value) {
 	if (!LPC_GPIO) {
 		__uw_err_throw(ERR_HARDWARE_NOT_SUPPORTED | HAL_MODULE_GPIO);
 	}
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	LPC_GPIO->DATA = (LPC_GPIO->DATA & ~(1 << PIN(gpio))) | (value << PIN(gpio));
-#elif defined (CONFIG_TARGET_LPC178X)
+#elif defined (CONFIG_TARGET_LPC1785)
 	if (value) {
 		LPC_GPIO->SET |= (1 << PIN(gpio));
 	}
@@ -149,9 +149,9 @@ uw_errors_e uw_gpio_toggle_pin(uw_gpios_e gpio) {
 	if (!LPC_GPIO) {
 		__uw_err_throw(ERR_HARDWARE_NOT_SUPPORTED | HAL_MODULE_GPIO);
 	}
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	LPC_GPIO->DATA ^= (1 << PIN(gpio));
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 	LPC_GPIO->PIN ^= (1 << PIN(gpio));
 #endif
 
@@ -164,9 +164,9 @@ bool uw_gpio_get_pin(uw_gpios_e gpio) {
 	if (!LPC_GPIO) {
 		__uw_err_throw(ERR_HARDWARE_NOT_SUPPORTED | HAL_MODULE_GPIO);
 	}
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	return (bool) ((LPC_GPIO->DATA & (1 << PIN(gpio))) >> PIN(gpio));
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 	return (bool) ((LPC_GPIO->PIN & (1 << PIN(gpio))) >> PIN(gpio));
 #endif
 }
@@ -175,17 +175,17 @@ bool uw_gpio_get_pin(uw_gpios_e gpio) {
 
 void uw_gpio_add_interrupt_callback(void (*callback_function)(void*, uw_gpios_e)) {
 	callback = callback_function;
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	NVIC_EnableIRQ(EINT0_IRQn);
 	NVIC_EnableIRQ(EINT1_IRQn);
 	NVIC_EnableIRQ(EINT2_IRQn);
 	NVIC_EnableIRQ(EINT3_IRQn);
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 	NVIC_EnableIRQ(GPIO_IRQn);
 #endif
 }
 
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 
 void PIOINT0_IRQHandler (void) {
 	isr(LPC_GPIO0, GPIO_PORT_0);
@@ -222,7 +222,7 @@ static void isr(LPC_GPIO_TypeDef *GPIO, uw_gpios_e port) {
 	__NOP();
 }
 
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 
 void GPIO_IRQHandler(void) {
 	int i = 0;
@@ -258,7 +258,7 @@ void GPIO_IRQHandler(void) {
 #endif
 
 volatile uint32_t *__uw_gpio_get_iocon(uw_gpios_e gpio) {
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	switch (gpio) {
 #if (CONFIG_PORT0 | CONFIG_PIO0_0)
 		case PIO0_0: return &LPC_IOCON->RESET_PIO0_0;
@@ -382,7 +382,7 @@ volatile uint32_t *__uw_gpio_get_iocon(uw_gpios_e gpio) {
 #endif
 		default: return NULL;
 	}
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 	switch (gpio) {
 #if (CONFIG_PORT0 | CONFIG_PIO0_0)
 	case PIO0_0: return &LPC_IOCON->P0_0;
@@ -886,7 +886,7 @@ volatile uint32_t *__uw_gpio_get_iocon(uw_gpios_e gpio) {
 
 
 void uw_gpio_configure(uw_gpios_e gpio, uw_gpio_input_config_e value) {
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	switch (gpio) {
 #if (CONFIG_PORT0 | CONFIG_PIO0_0)
 		case PIO0_0:
@@ -926,8 +926,8 @@ void uw_gpio_configure(uw_gpios_e gpio, uw_gpio_input_config_e value) {
 #endif
 		default: *__uw_gpio_get_iocon(gpio) = value; break;
 	}
-#elif CONFIG_TARGET_LPC178X
-	/* Refer to the CONFIG_TARGET_LPC178X manual for info about these tables */
+#elif CONFIG_TARGET_LPC1785
+	/* Refer to the CONFIG_TARGET_LPC1785 manual for info about these tables */
 	// glitch filter is not supported
 	uw_gpio_input_config_e table81 = value & (~(GLITCH_FILTER_ENABLED));
 	// hysteresis is not supported
@@ -1034,7 +1034,7 @@ static LPC_GPIO_TypeDef* get_port(uw_gpios_e gpio) {
 		return LPC_GPIO2;
 	case GPIO_PORT_3:
 		return LPC_GPIO3;
-#if CONFIG_TARGET_LPC178X
+#if CONFIG_TARGET_LPC1785
 	case GPIO_PORT_4:
 		return LPC_GPIO4;
 	case GPIO_PORT_5:

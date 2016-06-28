@@ -11,9 +11,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 #include "LPC11xx.h"
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
 #endif
 #include "uw_memory.h"
@@ -24,7 +24,7 @@
 
 
 // errors if UARTs which do not exist have been enabled
-#if (CONFIG_TARGET_LPC11CXX)
+#if (CONFIG_TARGET_LPC11C14)
 #if (!CONFIG_UART0)
 #warning "UART0 not enabled. Since UART0 is the only UART in LPC11Cxx, it\
 is recommended to be enabled."
@@ -83,7 +83,7 @@ static this_st _this = {
 
 
 //UART interrupt handlers
-#if (CONFIG_TARGET_LPC11CXX && CONFIG_UART0)
+#if (CONFIG_TARGET_LPC11C14 && CONFIG_UART0)
 void UART_IRQHandler (void) {
 	char received_char = this->uart[UART0]->RBR & 0xFF;
 	uw_err_check(uw_ring_buffer_push(&this->buffer[UART0], &received_char)) {
@@ -96,7 +96,7 @@ void UART_IRQHandler (void) {
 		this->callback[UART0](__uw_get_user_ptr(), UART0, received_char);
 	}
 }
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 static void isr(uw_uarts_e uart) {
 	char received_char;
 #if CONFIG_UART1
@@ -187,7 +187,7 @@ uw_errors_e uw_uart_add_callback(uw_uarts_e uart,
 }
 
 
-#if (CONFIG_TARGET_LPC11CXX && CONFIG_UART0)
+#if (CONFIG_TARGET_LPC11C14 && CONFIG_UART0)
 uw_errors_e uw_uart_init(uw_uarts_e uart) {
 	this->callback[UART0] = 0;
 	this->uart[UART0] = LPC_UART;
@@ -263,7 +263,7 @@ uw_errors_e uw_uart_init(uw_uarts_e uart) {
 	/* Enable UART0 */
 	this->uart[UART0]->TER |= (0x01 << 7);
 	this->uart[UART0]->FCR |= 0x01;
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 uw_errors_e uw_uart_init(uw_uarts_e uart) {
 
 	uw_err_pass(check_uart(uart));
@@ -610,12 +610,12 @@ uw_errors_e uw_uart_send_char(uw_uarts_e uart, char buffer) {
 		__uw_err_throw(ERR_NOT_INITIALIZED | HAL_MODULE_UART);
 	}
 
-#if (CONFIG_TARGET_LPC11CXX && CONFIG_UART0)
+#if (CONFIG_TARGET_LPC11C14 && CONFIG_UART0)
 	/* Wait until we're ready to send */
 	while (!(this->uart[UART0]->LSR & (1 << 6))) ;
 	//send data
 	this->uart[UART0]->THR = buffer;
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 	/* Wait until we're ready to send */
 	switch (uart) {
 #if CONFIG_UART1

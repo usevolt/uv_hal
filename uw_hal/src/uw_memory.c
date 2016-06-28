@@ -9,9 +9,9 @@
 
 
 #include <stdio.h>
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 #include "LPC11xx.h"
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
 #endif
 #include "uw_uart.h"
@@ -21,7 +21,7 @@
 #include "uw_rtos.h"
 #endif
 
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 /// @brief: Defines the flash memory sector size in bytes. Make sure this matches the used MCU!
 /// Refer to the manual for correct value
 #define FLASH_SECTOR_SIZE					4096
@@ -34,7 +34,7 @@
 /// @brief: The last sector of flash memory is reserved for non-volatile application data storage.
 /// @note: IMPORTANT: Make sure that this memory region is not used for anything else!
 #define NON_VOLATILE_MEMORY_START_ADDRESS	0x00007000
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 
 #define FLASH_FIRST_SECTOR_SIZE				0x1000
 #define FLASH_SECOND_SECTOR_SIZE			0x8000
@@ -127,16 +127,16 @@ uw_errors_e uw_memory_save(uw_data_start_t *start_ptr, uw_data_end_t *end_ptr) {
 	if (length < 0) {
 		__uw_err_throw(ERR_END_ADDR_LESS_THAN_START_ADDR | HAL_MODULE_MEMORY);
 	}
-#if CONFIG_TARGET_LPC178X
+#if CONFIG_TARGET_LPC1785
 	else if (length > IAP_BYTES_32768) {
 		__uw_err_throw(ERR_NOT_ENOUGH_MEMORY | HAL_MODULE_MEMORY);
 	}
 #endif
 	//calculate the right length
 	else if (length > IAP_BYTES_4096) {
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 		__uw_err_throw(ERR_NOT_ENOUGH_MEMORY | HAL_MODULE_MEMORY);
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 		length = IAP_BYTES_32768;
 #endif
 	}
@@ -224,10 +224,10 @@ uw_iap_status_e uw_erase_and_write_to_flash(unsigned int ram_address,
 
 	int startSection, endSection;
 
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	startSection = (flash_address - FLASH_START_ADDRESS) / FLASH_SECTOR_SIZE;
 	endSection = (flash_address + num_bytes - FLASH_START_ADDRESS - 1) / FLASH_SECTOR_SIZE;
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 	if (flash_address >= FLASH_SECOND_SECTOR_SIZE_BEGIN) {
 		// from sector 16 onward the section size is 32 kB
 		startSection = (flash_address - FLASH_START_ADDRESS) /

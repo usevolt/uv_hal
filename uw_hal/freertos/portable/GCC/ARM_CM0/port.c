@@ -74,7 +74,7 @@
 #include "uw_hal_config.h"
 
 
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 
 
 

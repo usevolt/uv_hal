@@ -17,16 +17,16 @@
 
 /// @brief: Defines the ADC conversion max value ( == precision) for this hardware
 enum {
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	ADC_MAX_VALUE = 1023
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 	ADC_MAX_VALUE = 4095
 #endif
 };
 
 /// @brief: Defines all ADC channels available on specific hardware
 typedef enum {
-#if CONFIG_TARGET_LPC11CXX || CONFIG_TARGET_LPC178X
+#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1785
 #if CONFIG_ADC_CHANNEL0
 	ADC_CHN_0 = (1 << 0),
 #endif
@@ -66,8 +66,8 @@ uw_errors_e uw_adc_init();
 /// @brief: returns the channel'd adc channel value as 32-bit integer
 /// In burst operation this function executes fastly, otherwise the ADC conversion is triggered
 /// and it takes 11 clock cycles to finish.
-/// For CONFIG_TARGET_LPC11CXX ADC has a 10 bit resolution -> return value is 0 - 1024.
-/// For CONFIG_TARGET_LPC178X ADC has a 12 bit resolution -> return value is 0 - 4096.
+/// For CONFIG_TARGET_LPC11C14 ADC has a 10 bit resolution -> return value is 0 - 1024.
+/// For CONFIG_TARGET_LPC1785 ADC has a 12 bit resolution -> return value is 0 - 4096.
 ///
 /// @return: Value from the adc, 0 ... ADC_MAX_VALUE
 /// @param channel to be returned. Should be ADC_CHN_0, ADC_CHN_1, etc etc.
@@ -80,7 +80,7 @@ int uw_adc_read(uw_adc_channels_e channel);
 /// 'conversion_count' times.
 /// In burst operation this function executes fastly, otherwise the ADC conversion is triggered
 /// and it takes 11 clock cycles to finish.
-/// for CONFIG_TARGET_LPC11CXX adc has a 10 bit resolution -> return value is 0 - 1024
+/// for CONFIG_TARGET_LPC11C14 adc has a 10 bit resolution -> return value is 0 - 1024
 /// @return: Value from the adc, 0 ... ADC_MAX_VALUE
 /// @param channel to be returned. Should be ADC_CHN_0, ADC_CHN_1, etc etc.
 /// invalid channels return -1.

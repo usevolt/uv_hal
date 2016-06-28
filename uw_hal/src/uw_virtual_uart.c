@@ -10,9 +10,9 @@
 #include "uw_timer.h"
 #include "uw_gpio.h"
 #include <stdbool.h>
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 #include "LPC11xx.h"
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
 #endif
 

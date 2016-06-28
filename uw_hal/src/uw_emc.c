@@ -10,7 +10,7 @@
 #include "uw_emc.h"
 #include "uw_gpio.h"
 
-#if CONFIG_TARGET_LPC178X
+#if CONFIG_TARGET_LPC1785
 
 
 uw_errors_e uw_emc_init( void ) {

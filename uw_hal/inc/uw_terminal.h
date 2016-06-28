@@ -54,10 +54,6 @@ typedef enum {
 	CMD_SAVE,
 	CMD_REVERT,
 #endif
-#if CONFIG_CANOPEN
-	CMD_SDO,
-	CMD_STATE,
-#endif
 #if CONFIG_CAN_LOG
 	CMD_CAN_LOG,
 #endif

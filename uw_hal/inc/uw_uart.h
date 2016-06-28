@@ -21,12 +21,12 @@
 /// @brief: Defines UARTS usable on the target system
 /// @note: All systems must define UART_COUNT member which defines the maximum number of UARTs.
 typedef enum {
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 #if CONFIG_UART0
 	UART0		= 0,
 #endif
 	UART_COUNT 	= 1
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 #if CONFIG_UART0
 	UART0 		= 0,
 #endif

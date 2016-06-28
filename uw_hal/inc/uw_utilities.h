@@ -12,14 +12,155 @@
 
 #include "uw_hal_config.h"
 
+#define CAT(a, ...) 			PRIMITIVE_CAT(a, __VA_ARGS__)
+#define PRIMITIVE_CAT(a, ...) 	a ## __VA_ARGS__
+
+
+/// @brief: Meant for internal use by REPEATx macros. User can use these if some problems occur
+/// with nested calls to CAT macro.
+#define CAT2(a, ...) 			PRIMITIVE_CAT2(a, __VA_ARGS__)
+#define PRIMITIVE_CAT2(a, ...) 	a ## __VA_ARGS__
+#define CAT3(a, ...) 			PRIMITIVE_CAT3(a, __VA_ARGS__)
+#define PRIMITIVE_CAT3(a, ...) 	a ## __VA_ARGS__
+#define CAT4(a, ...) 			PRIMITIVE_CAT4(a, __VA_ARGS__)
+#define PRIMITIVE_CAT4(a, ...) 	a ## __VA_ARGS__
+#define CAT5(a, ...) 			PRIMITIVE_CAT5(a, __VA_ARGS__)
+#define PRIMITIVE_CAT5(a, ...) 	a ## __VA_ARGS__
+
+#if !defined(CONFIG_LIBRARY_PREFIX)
+#error "CONFIG_LIBRARY_PREFIX not defined. It should be defined as the required prefix for all HAL library\
+ functions. It will be concatenated to all this library's functions and it should follow the C function\
+ naming standards."
+#endif
+#define U(x)	CAT(CONFIG_LIBRARY_PREFIX, CAT(_, x))
+#define _U(x)	CAT(_, CAT(CONFIG_LIBRARY_PREFIX, CAT(_, x)))
+#define __U(x)	CAT(__, CAT(CONFIG_LIBRARY_PREFIX, CAT(_, x)))
 
 #include "uw_types.h"
 #include "uw_can.h"
 #include "uw_errors.h"
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 #include "LPC11xx.h"
 #endif
 #include <stdbool.h>
+
+/// @brief: Preprocessor CAT macro. Concatenates two arguments into one.
+/// @example: CAT(A, 5)
+///		      -> A5
+
+
+
+#define M_REPEAT1_(X) X(0)
+#define M_REPEAT2_(X) M_REPEAT1_(X) X(1)
+#define M_REPEAT3_(X) M_REPEAT2_(X) X(2)
+#define M_REPEAT4_(X) M_REPEAT3_(X) X(3)
+#define M_REPEAT5_(X) M_REPEAT4_(X) X(4)
+#define M_REPEAT6_(X) M_REPEAT5_(X) X(5)
+#define M_REPEAT7_(X) M_REPEAT6_(X) X(6)
+#define M_REPEAT8_(X) M_REPEAT7_(X) X(7)
+#define M_REPEAT9_(X) M_REPEAT8_(X) X(8)
+#define M_REPEAT10_(X) M_REPEAT9_(X) X(9)
+#define M_REPEAT11_(X) M_REPEAT10_(X) X(10)
+#define M_REPEAT12_(X) M_REPEAT11_(X) X(11)
+#define M_REPEAT13_(X) M_REPEAT12_(X) X(12)
+#define M_REPEAT14_(X) M_REPEAT13_(X) X(13)
+#define M_REPEAT15_(X) M_REPEAT14_(X) X(14)
+#define M_REPEAT16_(X) M_REPEAT15_(X) X(15)
+#define M_REPEAT17_(X) M_REPEAT16_(X) X(16)
+#define M_REPEAT18_(X) M_REPEAT17_(X) X(17)
+#define M_REPEAT19_(X) M_REPEAT18_(X) X(18)
+#define M_REPEAT20_(X) M_REPEAT19_(X) X(19)
+
+/// @brief: Repeat macro. Can be used to repeat a function call multiple times.
+///
+/// @note: Function should take the repeat count as an parameter. If more parameters
+/// are needed, the user should define one more macro which takes care of the actual
+/// function call and give that macro as a parameter to REPEAT macro. When nested
+/// with itself, CAT-macros don't expand the right way. When writing nested macros
+/// with REPEAT, user should use according REPEATx with different REPEAT-nesting levels
+/// to ensure the right expandation of CAT-macros.
+#define REPEAT(count, func)		CAT2(M_REPEAT, CAT2(count, _(func)))
+#define REPEAT2(count, func)	CAT3(M_REPEAT, CAT3(count, _(func)))
+#define REPEAT3(count, func)	CAT4(M_REPEAT, CAT4(count, _(func)))
+#define REPEAT4(count, func)	CAT5(M_REPEAT, CAT5(count, _(func)))
+
+
+#define M_REPEAT1_ARG(X, ARG) X(0, ARG)
+#define M_REPEAT2_ARG(X, ARG) M_REPEAT1_ARG(X, ARG) X(1, ARG)
+#define M_REPEAT3_ARG(X, ARG) M_REPEAT2_ARG(X, ARG) X(2, ARG)
+#define M_REPEAT4_ARG(X, ARG) M_REPEAT3_ARG(X, ARG) X(3, ARG)
+#define M_REPEAT5_ARG(X, ARG) M_REPEAT4_ARG(X, ARG) X(4, ARG)
+#define M_REPEAT6_ARG(X, ARG) M_REPEAT5_ARG(X, ARG) X(5, ARG)
+#define M_REPEAT7_ARG(X, ARG) M_REPEAT6_ARG(X, ARG) X(6, ARG)
+#define M_REPEAT8_ARG(X, ARG) M_REPEAT7_ARG(X, ARG) X(7, ARG)
+#define M_REPEAT9_ARG(X, ARG) M_REPEAT8_ARG(X, ARG) X(8, ARG)
+#define M_REPEAT10_ARG(X, ARG) M_REPEAT9_ARG(X, ARG) X(9, ARG)
+#define M_REPEAT11_ARG(X, ARG) M_REPEAT10_ARG(X, ARG) X(10, ARG)
+#define M_REPEAT12_ARG(X, ARG) M_REPEAT11_ARG(X, ARG) X(11, ARG)
+#define M_REPEAT13_ARG(X, ARG) M_REPEAT12_ARG(X, ARG) X(12, ARG)
+#define M_REPEAT14_ARG(X, ARG) M_REPEAT13_ARG(X, ARG) X(13, ARG)
+#define M_REPEAT15_ARG(X, ARG) M_REPEAT14_ARG(X, ARG) X(14, ARG)
+#define M_REPEAT16_ARG(X, ARG) M_REPEAT15_ARG(X, ARG) X(15, ARG)
+#define M_REPEAT17_ARG(X, ARG) M_REPEAT16_ARG(X, ARG) X(16, ARG)
+#define M_REPEAT18_ARG(X, ARG) M_REPEAT17_ARG(X, ARG) X(17, ARG)
+#define M_REPEAT19_ARG(X, ARG) M_REPEAT18_ARG(X, ARG) X(18, ARG)
+#define M_REPEAT20_ARG(X, ARG) M_REPEAT19_ARG X(19, ARG)
+
+/// @brief: Repeat macro with an argument. The argument is given to the
+/// repeated function. The function should take two arguments, first the index and next the argument.
+#define REPEAT_ARG(count, func, arg)		CAT2(M_REPEAT, CAT2(count, _ARG(func, arg)))
+#define REPEAT_ARG2(count, func, arg)		CAT3(M_REPEAT, CAT3(count, _ARG(func, arg)))
+#define REPEAT_ARG3(count, func, arg)		CAT4(M_REPEAT, CAT3(count, _ARG(func, arg)))
+#define REPEAT_ARG4(count, func, arg)		CAT5(M_REPEAT, CAT3(count, _ARG(func, arg)))
+
+
+#define INC(x) PRIMITIVE_CAT(INC_, x)
+#define INC_0 1
+#define INC_1 2
+#define INC_2 3
+#define INC_3 4
+#define INC_4 5
+#define INC_5 6
+#define INC_6 7
+#define INC_7 8
+#define INC_8 9
+#define INC_9 10
+#define INC_10 11
+#define INC_11 12
+#define INC_12 13
+#define INC_13 14
+#define INC_14 15
+#define INC_15 16
+#define INC_16 17
+#define INC_17 18
+#define INC_18 19
+#define INC_19 20
+#define INC_20 20
+
+#define DEC(x) PRIMITIVE_CAT(DEC_, x)
+#define DEC_0 0
+#define DEC_1 0
+#define DEC_2 1
+#define DEC_3 2
+#define DEC_4 3
+#define DEC_5 4
+#define DEC_6 5
+#define DEC_7 6
+#define DEC_8 7
+#define DEC_9 8
+#define DEC_10 9
+#define DEC_11 10
+#define DEC_12 11
+#define DEC_13 12
+#define DEC_14 13
+#define DEC_15 14
+#define DEC_16 15
+#define DEC_17 16
+#define DEC_18 17
+#define DEC_19 18
+#define DEC_20 19
+
+
 
 // interrupt disable and enable functions are specified here only if
 // RTOS is not enabled. Otherwise they are defined in uw_rtos.h
@@ -113,6 +254,10 @@ typedef struct {
 } uw_ring_buffer_st;
 
 /// @brief: Initializes the ring buffer
+/// @param buffer_ptr: Pointer to the ring buffer structure
+/// @param buffer: Pointer to the memory location where the raw data is to be stored
+/// @param buffer_size: The size of the buffer in bytes
+/// @param element_size: The size of the individual element in bytes
 uw_errors_e uw_ring_buffer_init(uw_ring_buffer_st *buffer_ptr, void *buffer,
 		uint16_t buffer_size, uint8_t element_size);
 
@@ -135,7 +280,7 @@ static inline bool uw_ring_buffer_empty(uw_ring_buffer_st *buffer) {
 	return !buffer->element_count;
 }
 
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 /// @brief: Defines the interrupts sources on this hardware
 typedef enum {
 	/******  Cortex-M0 Processor Exceptions Numbers ***************************************************/
@@ -145,7 +290,7 @@ typedef enum {
 	  INT_PENDSV                   = -2,     /*!< 14 Cortex-M0 Pend SV Interrupt                     */
 	  INT_SYSTICK                  = -1,     /*!< 15 Cortex-M0 System Tick Interrupt                 */
 
-	/******  CONFIG_TARGET_LPC11CXX or LPC11xx Specific Interrupt Numbers *******************************************************/
+	/******  CONFIG_TARGET_LPC11C14 or LPC11xx Specific Interrupt Numbers *******************************************************/
 	  INT_WAKEUP0                  = 0,        /*!< All I/O pins can be used as wakeup source.       */
 	  INT_WAKEUP1                  = 1,        /*!< There are 13 pins in total for LPC11xx           */
 	  INT_WAKEUP2                  = 2,
@@ -182,7 +327,7 @@ enum {
 	INT_LOWEST_PRIORITY = 3
 };
 
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 /// @brief: Defines the interrupts sources on this hardware
 typedef enum {
 	/******  Cortex-M3 Processor Exceptions Numbers ***************************************************/

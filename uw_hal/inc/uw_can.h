@@ -15,7 +15,7 @@
 /// @file: CAN implementation on top of the HAL layer
 /// Provides the basic CAN interface.
 /// Note that this module takes full ownership of the CAN HAL layer interface.
-/// For example on CONFIG_TARGET_LPC11CXX, this module may use all 32 CAN message objects
+/// For example on CONFIG_TARGET_LPC11C14, this module may use all 32 CAN message objects
 /// as it wants.
 
 
@@ -26,11 +26,11 @@
 #error "CONFIG_CAN_ERROR_LOG not defined. When CONFIG_CAN_LOG is set as 0,\
  CONFIG_CAN_ERROR_LOG should be definded as 0 or 1, to disable or enable error logging."
 #endif
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 #if CONFIG_CAN2
 #error "Hardware doesn't support CAN2 module. Set CONFIG_CAN2 to 0."
 #endif
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 #if CONFIG_CAN2
 #if !defined(CONFIG_CAN2_BAUDRATE)
 #error "CONFIG_CAN2_BAUDRATE not defined. It should define the baudrate used for CAN2 module."
@@ -86,10 +86,10 @@ typedef enum {
 
 /// @brief: Describes all the available CAN channels on this hardware
 typedef enum {
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	CAN1,
 	CAN_COUNT
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 	CAN1,
 	CAN2,
 	CAN_COUNT
@@ -173,6 +173,14 @@ uw_errors_e uw_can_config_rx_message(uw_can_channels_e channel,
 uw_errors_e uw_can_send_message(uw_can_channels_e channel, uw_can_message_st* message);
 
 
+/// @brief: Pops the lastly received message from the RX buffer and returns it in
+/// *message* parameter
+///
+/// @note: This function pop's the last message out from the RX buffer, after which
+/// the message cannot be retrieved anymore.
+///
+/// @param message: Pointer to the message data structure where the received message will be copied.
+uw_errors_e uw_can_fetch_message(uw_can_channels_e channel, uw_can_message_st *message);
 
 
 /// @brief: Returns the CAN 2.0 specification error state. Error active is the normal state.
@@ -195,7 +203,7 @@ uw_errors_e uw_can_reset(uw_can_channels_e channel);
 /// function takes 2 arguments: A user pointer (refer to uw_utilities.h) and
 /// a pointer to the CAN message which was received.
 uw_errors_e uw_can_add_rx_callback(uw_can_channels_e channel,
-		void (*callback_function)(void *user_ptr, uw_can_message_st *msg));
+		void (*callback_function)(void *user_ptr));
 
 
 //void uw_can_add_message_callback()

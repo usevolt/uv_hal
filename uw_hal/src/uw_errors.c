@@ -93,8 +93,9 @@ const char *uw_error_strings[] = {
 
 	"TXPDO mapping parameter object couldn't be found",
 
-	"TXPDO mapping parameter points to an object which doesn't exist"
+	"TXPDO mapping parameter points to an object which doesn't exist",
 
+	"Object dictionary restore defaults function was NULL"
 };
 #endif
 

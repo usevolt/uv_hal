@@ -8,9 +8,9 @@
 
 #include "uw_wdt.h"
 
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 #include "LPC11xx.h"
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
 #endif
 
@@ -18,7 +18,7 @@
 
 void uw_wdt_init(unsigned int time_s) {
 	SystemCoreClockUpdate();
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	//enable clock to wdt
 	LPC_SYSCON->SYSAHBCLKCTRL |= (1 << 15);
 	//select IRC oscillator as the clock source
@@ -32,7 +32,7 @@ void uw_wdt_init(unsigned int time_s) {
 	//set the reloading value
 	///wdt has inner divide-by-4 prescaler
 	unsigned int sck = time_s * (SystemCoreClock / 16);
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 	unsigned int sck = time_s * (500000 / 4);
 #endif
 	//clamp cycle time to 24-bit value

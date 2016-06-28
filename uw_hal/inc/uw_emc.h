@@ -15,7 +15,7 @@
 #include "uw_hal_config.h"
 #include "uw_errors.h"
 
-#if (CONFIG_TARGET_LPC178X)
+#if (CONFIG_TARGET_LPC1785)
 
 #if !CONFIG_EMC_DYNAMIC_RAM && !CONFIG_EMC_STATIC_RAM
 #error "Either CONFIG_EMC_DYNAMIC_RAM or CONFIG_EMC_STATIC_RAM needs to be defined as 1."

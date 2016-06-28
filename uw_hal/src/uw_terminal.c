@@ -16,9 +16,9 @@
 #include "uw_utilities.h"
 #include "uw_uart.h"
 #include "uw_stdout.h"
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 #include "LPC11xx.h"
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
 #endif
 #if CONFIG_RTOS
@@ -41,7 +41,6 @@ bool canopen_log = true;
 extern uw_errors_e __uw_save_previous_non_volatile_data();
 extern uw_errors_e __uw_load_previous_non_volatile_data();
 extern uw_errors_e __uw_clear_previous_non_volatile_data();
-extern void canopen_parse_sdo(uw_can_message_st* req);
 extern void uw_enter_ISP_mode(void);
 
 
@@ -114,35 +113,6 @@ static const uw_command_st common_cmds[] = {
 						"Reverts all changes to factory defaults.\n\r"
 						"The device need's to be restarted for changes to take effect.\n\r"
 						"To undo revert, save current values to flash with 'save' command."
-#else
-						""
-#endif
-		},
-#endif
-#if CONFIG_CANOPEN
-		{
-				.id = CMD_SDO,
-				.str = "sdo",
-				.instructions =
-#if CONFIG_TERMINAL_INSTRUCTIONS
-						"Usage: sdo <index> <subindex> <value>\n\r"
-						"Used to read or write CANopen SDO object manually.\n\r"
-						"All arguments are evaluated as 10-base integer values.\n\r"
-						"To define them in 16-base hexadecimals, use '0x' prefix.\n\r"
-						"To read an object, specify the index and subindex but leave value\n\r"
-						"empty."
-#else
-						""
-#endif
-		},
-		{
-				.id = CMD_STATE,
-				.str = "state",
-				.instructions =
-#if CONFIG_TERMINAL_INSTRUCTIONS
-						"Usage: state <bootup/stopped/preop/op>\n\r"
-						"Used to read / write the device's CANopen state machine to\n\r"
-						"stopped, pre-operational or operational state."
 #else
 						""
 #endif
@@ -392,50 +362,6 @@ static void execute_common_cmd(int cmd, char** args) {
 		if (__uw_save_previous_non_volatile_data()) {
 			printf("Saved.\n\r");
 		}
-		break;
-#endif
-#if CONFIG_CANOPEN
-	case CMD_SDO:
-
-		printf("Command not yet implemented in HAL.\n\r");
-		break;
-	case CMD_STATE:
-		if (strcmp(args[0], "stopped") == 0) {
-			state = STATE_STOPPED;
-		}
-		else if (strcmp(args[0], "bootup") == 0) {
-			state = STATE_BOOT_UP;
-		}
-		else if (strcmp(args[0], "preop") == 0) {
-			state = STATE_PREOPERATIONAL;
-		}
-		else if (strcmp(args[0], "op") == 0) {
-			state = STATE_OPERATIONAL;
-		}
-		else {
-			char * str;
-			switch (uw_canopen_get_state()) {
-			case STATE_BOOT_UP:
-				str = "bootup";
-				break;
-			case STATE_OPERATIONAL:
-				str = "op";
-				break;
-			case STATE_PREOPERATIONAL:
-				str = "preop";
-				break;
-			case STATE_STOPPED:
-				str = "stopped";
-				break;
-			default:
-				str = "unknown";
-				break;
-			}
-			printf("%s\n\r", str);
-			break;
-		}
-		uw_canopen_set_state(state);
-		printf("%s\n\r", args[0]);
 		break;
 #endif
 	case CMD_SET_ISP:

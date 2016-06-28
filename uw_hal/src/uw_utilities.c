@@ -11,9 +11,9 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 #include "LPC11xx.h"
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
 #endif
 
@@ -85,10 +85,10 @@ void uw_set_application_ptr(void *ptr) {
 
 
 char *uw_get_hardware_name() {
-#if CONFIG_TARGET_LPC11CXX
-	return "CONFIG_TARGET_LPC11CXX";
-#elif CONFIG_TARGET_LPC178X
-	return "CONFIG_TARGET_LPC178X";
+#if CONFIG_TARGET_LPC11C14
+	return "CONFIG_TARGET_LPC11C14";
+#elif CONFIG_TARGET_LPC1785
+	return "CONFIG_TARGET_LPC1785";
 #else
 	#error "Error: Hardware name not specified in uw_utilities.c"
 #endif

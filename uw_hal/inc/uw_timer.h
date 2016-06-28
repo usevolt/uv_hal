@@ -23,7 +23,7 @@
 typedef enum {
 	INT_SRC_OVERFLOW,
 	INT_SRC_CAPTURE0,
-#if CONFIG_TARGET_LPC178X
+#if CONFIG_TARGET_LPC1785
 	INT_SRC_CAPTURE1,
 #endif
 	INT_SRC_COUNTER,
@@ -34,12 +34,12 @@ typedef enum {
 /// @brief: Defines match outputs for pwm signals
 /// @note: MATCH 3 is used as an overflow detection on all timers
 typedef enum {
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	MATCH_0 = 0,
 	MATCH_1,
 	MATCH_2,
 	MATCH_COUNT
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 	MATCH_0 = 0,
 	MATCH_1,
 	MATCH_2,
@@ -54,9 +54,9 @@ typedef enum {
 	PWM_CHANNEL_0 = 0,
 	PWM_CHANNEL_1,
 	PWM_CHANNEL_2,
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	PWM_CHANNEL_COUNT = 3
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 	PWM_CHANNEL_3,
 	PWM_CHANNEL_4,
 	PWM_CHANNEL_5,
@@ -68,7 +68,7 @@ typedef enum {
 /// @brief: Defines the capture inputs on this hardware
 typedef enum {
 	CAPTURE0,
-#if CONFIG_TARGET_LPC178X
+#if CONFIG_TARGET_LPC1785
 	CAPTURE1,
 #endif
 	CAPTURE_COUNT
@@ -76,12 +76,12 @@ typedef enum {
 
 
 typedef enum {
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	CAPTURE_RISING_EDGE = 0,
 	CAPTURE_FALLING_EDGE,
 	CAPTURE_BOTH_EDGES,
 	CAPTURE_MODE_COUNT
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 	CAPTURE_RISING_EDGE = 0,
 	CAPTURE_FALLING_EDGE,
 	CAPTURE_BOTH_EDGES,
@@ -132,15 +132,15 @@ typedef enum {
 #if CONFIG_PWM1
 	PWM1 = 1,
 #endif
-#if (CONFIG_TARGET_LPC11CXX && CONFIG_PWM2)
+#if (CONFIG_TARGET_LPC11C14 && CONFIG_PWM2)
 	PWM2 = 2,
 #endif
-#if (CONFIG_TARGET_LPC11CXX && CONFIG_PWM3)
+#if (CONFIG_TARGET_LPC11C14 && CONFIG_PWM3)
 	PWM3 = 3,
 #endif
-#if CONFIG_TARGET_LPC178X
+#if CONFIG_TARGET_LPC1785
 	PWM_COUNT = 2
-#elif CONFIG_TARGET_LPC11CXX
+#elif CONFIG_TARGET_LPC11C14
 	PWM_COUNT = 4
 #endif
 } uw_pwms_e;
@@ -359,7 +359,7 @@ void uw_tick_timer_add_callback(void (*callback_function_ptr)(void* user_ptr, ui
 #if (CONFIG_TIMER3 + CONFIG_COUNTER3 > 1)
 #error "Capture3, timer3 and counter3 cannot be enabled at the same time."
 #endif
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 #if (CONFIG_PWM0 + CONFIG_TIMER0 + CONFIG_COUNTER0 > 1)
 #error "Capture0, counter0, timer0 and pwm0 cannot be enabled at the same time."
 #endif
@@ -384,7 +384,7 @@ void uw_tick_timer_add_callback(void (*callback_function_ptr)(void* user_ptr, ui
 #error "PWM3 has only 3 channels."
 #endif
 #endif
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 #if (CONFIG_PWM2 || CONFIG_PWM3)
 #error "PWM modules 2 and 3 not available on LPC178x."
 #endif

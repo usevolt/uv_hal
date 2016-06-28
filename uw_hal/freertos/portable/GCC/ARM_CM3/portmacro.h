@@ -78,7 +78,7 @@ extern "C" {
 
 #include "uw_hal_config.h"
 
-#if CONFIG_TARGET_LPC178X
+#if CONFIG_TARGET_LPC1785
 
 /*-----------------------------------------------------------
  * Port specific definitions.

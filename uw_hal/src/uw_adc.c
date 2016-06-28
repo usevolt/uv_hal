@@ -9,14 +9,14 @@
 
 #include <stdio.h>
 #include "uw_uart.h"
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 #include "LPC11xx.h"
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
 #endif
 
 
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 ///controller specific initializations for AD pins
 //set pin as analog pin, disable pull up resistor and set to analog mode
 #define ADC_CHN_0_INIT		LPC_IOCON->R_PIO0_11 |= 0x02; \
@@ -42,7 +42,7 @@
 
 #define ADC_CHN_7_INIT		LPC_IOCON->PIO1_11 |= 0x01; \
 							LPC_IOCON->PIO1_11 &= ~((1 << 7) | (0b11 << 3))
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 #define ADC_CHN_0_INIT		LPC_IOCON->P0_23 &= ~(0b111 | (1 << 7)); \
 							LPC_IOCON->P0_23 |= (0b001)
 
@@ -70,7 +70,7 @@
 
 
 uw_errors_e uw_adc_init() {
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 
 #if CONFIG_ADC_CHANNEL0
 	ADC_CHN_0_INIT;
@@ -122,7 +122,7 @@ uw_errors_e uw_adc_init() {
 	LPC_ADC->CR &= ~(1 << 16);
 #endif
 
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 	// put ADC off
 	LPC_ADC->CR &= ~(1 << 21);
 
@@ -162,7 +162,7 @@ uw_errors_e uw_adc_init() {
 	LPC_ADC->CR |= (((SystemCoreClock / 12000000) + 1) & 0xFF) << 8;
 
 #if CONFIG_ADC_MODE_CONTINOUS
-	//disable interrupts as noted on CONFIG_TARGET_LPC178X manual
+	//disable interrupts as noted on CONFIG_TARGET_LPC1785 manual
 	LPC_ADC->INTEN &= ~(0xFF);
 	//set adc channels
 	//mask of irrelevant bits from channels-variable
@@ -199,9 +199,9 @@ int uw_adc_read(uw_adc_channels_e channel) {
 	uint8_t i;
 	for (i = 0; i < ADC_CHN_COUNT; i++) {
 		if (channel & (1 << i)) {
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 			return (LPC_ADC->DR[i] >> 6) & 0x3FF;
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 			return (LPC_ADC->DR[i] >> 4) & 0xFFF;
 #endif
 		}
@@ -229,9 +229,9 @@ int uw_adc_read(uw_adc_channels_e channel) {
 	//wait until the conversion is finished
 	while (!(LPC_ADC->STAT & (1 << 16)));
 	//read the acquired value
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 	value = (LPC_ADC->DR[(LPC_ADC->GDR >> 24) & 0b111] >> 6) & 0x3FF;
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 	value = (LPC_ADC->DR[(LPC_ADC->GDR >> 24) & 0b111] >> 4) & 0xFFF;
 #endif
 	return value;

@@ -22,11 +22,11 @@
 #endif
 
 
-#if CONFIG_TARGET_LPC11CXX
+#if CONFIG_TARGET_LPC11C14
 /// @brief: Defines the RAM size in bytes on this contoller
 #define RAM_SIZE_BYTES	0x2000
 #define RAM_BASE_ADDRESS 0x10000000
-#elif CONFIG_TARGET_LPC178X
+#elif CONFIG_TARGET_LPC1785
 /// @brief: Defines the RAM size in bytes on this contoller
 #define RAM_SIZE_BYTES	64000
 #define RAM_BASE_ADDRESS 0x10000000
