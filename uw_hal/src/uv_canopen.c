@@ -57,6 +57,7 @@ if (canopen_log) { \
 #define PDO_MAPPING_LENGTH(pdo, mapping)	(CAT(CONFIG_CANOPEN_, CAT(pdo, CAT(mapping, _LEN))))
 
 
+
 /// @brief: Initializes a pdo mapping.
 /// @param pdo: The index number of the pdo to be initialized, starting from zero.
 /// @param mapping: The index number of the mapping to be initialized, starting from zero.
@@ -125,10 +126,12 @@ static inline void parse_nmt_message(uv_canopen_st *me, uv_can_message_st* msg);
 
 #define NODE_ID					(this->obj_dict.com_params.node_id)
 #define IS_ARRAY(x)				(x & CANOPEN_ARRAY_MASK)
-#define ARRAY_ELEMENT_SIZE(x)	(x & (~CANOPEN_ARRAY_MASK))
+//#define ARRAY_ELEMENT_SIZE(x)	(x & (~CANOPEN_ARRAY_MASK))
+#define GET_OBJECT_SIZE(obj_ptr)	(CANOPEN_NUMBER_MASK & obj_ptr->type)
 
 #define MSG_NODE_ID(msg)		((msg)->id & CANOPEN_NODE_ID_MASK)
 #define MSG_TYPE(msg)			((msg)->id & (~CANOPEN_NODE_ID_MASK))
+
 
 
 /// @brief: Searches the user application portion of the object dictionary and
@@ -152,7 +155,7 @@ static const uv_canopen_object_st *find_object(uv_canopen_st *me, uint16_t index
 }
 
 static void array_write(const uv_canopen_object_st *obj, uint16_t index, unsigned int value) {
-	if (index >= obj->array_max_size) {
+	if (index > obj->array_max_size) {
 #if CONFIG_CANOPEN_LOG
 	if (!obj && canopen_log) {
 		printf("Tried to over index CANopen array object\n\r");
@@ -160,12 +163,12 @@ static void array_write(const uv_canopen_object_st *obj, uint16_t index, unsigne
 #endif
 		return;
 	}
-	memcpy(obj->data_ptr, &value, CANOPEN_NUMBER_MASK & obj->type);
+	memcpy(obj->data_ptr + GET_OBJECT_SIZE(obj) * index, &value, GET_OBJECT_SIZE(obj));
 }
 
 /// @brief: Can be used to index object which is of type array
 static unsigned int array_read(const uv_canopen_object_st *obj, uint16_t index) {
-	if (index >= obj->array_max_size) {
+	if (index > obj->array_max_size) {
 #if CONFIG_CANOPEN_LOG
 	if (!obj && canopen_log) {
 		printf("Tried to over-index CAnopen array object %x. Max index %u, indexed with %u.\n\r",
@@ -175,7 +178,7 @@ static unsigned int array_read(const uv_canopen_object_st *obj, uint16_t index) 
 		return 0;
 	}
 	unsigned int value;
-	memcpy(&value, obj->data_ptr, CANOPEN_NUMBER_MASK & obj->type);
+	memcpy(&value, obj->data_ptr + GET_OBJECT_SIZE(obj) * index, GET_OBJECT_SIZE(obj));
 	return value;
 }
 
@@ -364,8 +367,6 @@ uv_errors_e uv_canopen_step(uv_canopen_st *me, unsigned int step_ms) {
 				.data_8bit[0] = this->state
 		};
 
-		DEBUG_LOG("Heartbeat sent, node ID: %u, state: %x\n\r", NODE_ID, this->state);
-
 		if (uv_can_get_error_state(this->can_channel) == CAN_ERROR_ACTIVE) {
 			uv_can_send_message(this->can_channel, &msg);
 		}
@@ -521,6 +522,9 @@ static void sdo_send_error(uv_canopen_st *me, uv_can_message_st *msg, uv_sdo_err
 			.data_8bit[6] = (uint8_t) (error >> 16),
 			.data_8bit[7] = (uint8_t) (error >> 24)
 	};
+	DEBUG_LOG("SDO returned an error: %x %x %x %x %x %x %x %x\n\r",
+			reply.data_8bit[0], reply.data_8bit[1], reply.data_8bit[2], reply.data_8bit[3],
+			reply.data_8bit[4], reply.data_8bit[5], reply.data_8bit[6], reply.data_8bit[7]);
 	uv_can_send_message(this->can_channel, &reply);
 }
 
@@ -545,6 +549,11 @@ static void sdo_send_response(uv_canopen_st *me, uv_can_message_st *msg, uv_cano
 		i++;
 	}
 
+	DEBUG_LOG("Sent response with data: %x %x %x %x %x %x %x %x\n\r", reply.data_8bit[0],
+			reply.data_8bit[1], reply.data_8bit[2], reply.data_8bit[3],
+			reply.data_8bit[4], reply.data_8bit[5], reply.data_8bit[6],
+			reply.data_8bit[7]);
+
 	uv_can_send_message(this->can_channel, &reply);
 }
 
@@ -558,6 +567,7 @@ static void canopen_parse_sdo(uv_canopen_st *me, uv_can_message_st *msg) {
 		sdo_send_error(this, msg, CANOPEN_SDO_ERROR_OBJECT_DOES_NOT_EXIST);
 		return;
 	}
+
 	// SDO READ requests...
 	if (SDO_CMD(msg) == CANOPEN_SDO_CMD_READ) {
 		DEBUG_LOG("SDO read object %x command received\n\r", SDO_MINDEX(msg));
@@ -611,7 +621,7 @@ static void canopen_parse_sdo(uv_canopen_st *me, uv_can_message_st *msg) {
 				// clear all errors
 				uint8_t i;
 				uv_ring_buffer_clear(&this->errors);
-				for (i = 0; i < obj->array_max_size * ARRAY_ELEMENT_SIZE(obj->type); i++) {
+				for (i = 0; i < obj->array_max_size * GET_OBJECT_SIZE(obj); i++) {
 					obj->data_ptr[i] = 0;
 				}
 				DEBUG_LOG("SDO: cleared errors from predefined error field %x\n\r",
