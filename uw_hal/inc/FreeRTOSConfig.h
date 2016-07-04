@@ -54,7 +54,7 @@
 #ifndef FREERTOS_CONFIG_H
 #define FREERTOS_CONFIG_H
 
-#include "uw_hal_config.h"
+#include "uv_hal_config.h"
 
 #if CONFIG_RTOS
 

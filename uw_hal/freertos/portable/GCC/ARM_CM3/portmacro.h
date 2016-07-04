@@ -76,7 +76,7 @@ extern "C" {
 #endif
 
 
-#include "uw_hal_config.h"
+#include "uv_hal_config.h"
 
 #if CONFIG_TARGET_LPC1785
 

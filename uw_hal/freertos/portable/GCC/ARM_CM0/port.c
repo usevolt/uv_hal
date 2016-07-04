@@ -71,7 +71,7 @@
  * Implementation of functions defined in portable.h for the ARM CM0 port.
  *----------------------------------------------------------*/
 
-#include "uw_hal_config.h"
+#include "uv_hal_config.h"
 
 
 #if CONFIG_TARGET_LPC11C14
