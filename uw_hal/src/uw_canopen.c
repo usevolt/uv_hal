@@ -68,6 +68,15 @@ if (canopen_log) { \
 	me->obj_dict.com_params.txpdo_mappings[pdo][mapping].length = \
 		PDO_MAPPING_LENGTH(TXPDO(pdo), MAPPING(mapping));
 
+#define RXPDO_MAPPING_INIT(mapping, pdo)	\
+	me->obj_dict.com_params.rxpdo_mappings[pdo][mapping].main_index = \
+		PDO_MAPPING_MINDEX(RXPDO(pdo), MAPPING(mapping)); \
+	me->obj_dict.com_params.rxpdo_mappings[pdo][mapping].sub_index = \
+		PDO_MAPPING_SINDEX(RXPDO(pdo), MAPPING(mapping)); \
+	me->obj_dict.com_params.rxpdo_mappings[pdo][mapping].length = \
+		PDO_MAPPING_LENGTH(RXPDO(pdo), MAPPING(mapping));
+
+
 /// @brief: Initializes one TXPDO message. Works as a wrapper when
 /// using REPEAT macro from utilities.h. Relies on uw_canopen_st* type variable 'me',
 #define TXPDO_INIT(x)	\
@@ -78,7 +87,11 @@ if (canopen_log) { \
 
 /// @brief: Initializes one RXPDO message. Works as a wrapper when
 /// using REPEAT macro from utilities.h. Relies on uw_canopen_st* type variable 'me'.
-#define RXPDO_INIT(x) 	rxpdo_init(me, x)
+#define RXPDO_INIT(x) 	\
+		me->obj_dict.com_params.rxpdo_coms[x].cob_id = PDO_COB_ID(RXPDO(x)); \
+		me->obj_dict.com_params.rxpdo_coms[x].transmission_type = PDO_TTYPE(RXPDO(x)); \
+		REPEAT_ARG2(CONFIG_CANOPEN_PDO_MAPPING_COUNT, RXPDO_MAPPING_INIT, x);
+
 
 /// @brief: Configures the HW CAN message object to receive this RXPDO
 #define RXPDO_CONFIG_MESSAGE_OBJ(x) \
@@ -224,6 +237,9 @@ uw_errors_e uw_canopen_init(uw_canopen_st *me,
 
 	DEBUG_LOG("canopen initialized with node id %x\n\r", NODE_ID);
 
+#if CONFIG_CANOPEN_HEARTBEAT_INDEX
+	uw_start_delay(this->obj_dict.com_params.heartbeat_time, &this->heartbeat_delay);
+#endif
 
 
 	// send boot up message
@@ -258,35 +274,12 @@ uw_errors_e uw_canopen_restore_defaults(uw_canopen_st *me) {
 	this->obj_dict.com_params.store_params = 0;
 #endif
 
+	// configure TXPDO's to their default values
 	REPEAT(CONFIG_CANOPEN_TXPDO_COUNT, TXPDO_INIT);
-// todo: RXPDO initialization
-//	// configure RXPDO's to their default values
-//	for (i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
-//		this->obj_dict.com_params.rxpdo_coms[i].cob_id = PDO_ID(RXPDO(1));
-//		pdos->rxpdo_coms[i].transmission_type = PDO_TTYPE(RXPDO(1));
-//		uint8_t j;
-//		for (j = 0; j < CONFIG_CANOPEN_PDO_MAPPING_COUNT; j++) {
-//			pdos->rxpdo_mappings[j][i].main_index = PDO_MAPPING_MINDEX(RXPDO(1), MAPPING(1));
-//			pdos->rxpdo_mappings[j][i].sub_index = PDO_MAPPING_SINDEX(RXPDO(1), MAPPING(1));
-//			pdos->rxpdo_mappings[j][i].length = PDO_MAPPING_LENGTH(RXPDO(1), MAPPING(1));
-//		}
-//	}
-//
-	// todo: TXPDO initialization
-//	// configure TXPDO's to their default values
-//	for (i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
-//		pdos->txpdo_coms[i].cob_id = PDO_DISABLED + this->node_id +
-//				TXPDO_BEGIN_ID + 0x100 * i;
-//		pdos->txpdo_coms[i].transmission_type = PDO_TRANSMISSION_ASYNC;
-//		pdos->txpdo_coms[i].event_timer = 0;
-//		pdos->txpdo_coms[i].inhibit_time = 0;
-//		uint8_t j;
-//		for (j = 0; j < CONFIG_CANOPEN_PDO_MAPPING_COUNT; j++) {
-//			pdos->txpdo_mappings[j][i].main_index = 0;
-//			pdos->txpdo_mappings[j][i].sub_index = 0;
-//			pdos->txpdo_mappings[j][i].length = 0;
-//		}
-//	}
+
+	// configure RXPDO's to their default values
+	REPEAT(CONFIG_CANOPEN_RXPDO_COUNT, RXPDO_INIT);
+
 
 	// lastly initialize all volatile data
 	uw_canopen_init(this, this->obj_dict.app_parameters, this->obj_dict.app_parameters_length,
@@ -448,7 +441,6 @@ uw_errors_e uw_canopen_step(uw_canopen_st *me, unsigned int step_ms) {
 				}
 				uint8_t k;
 				// 8 bytes is the maximum length
-//				printf("byte_count: %u, map length: %u\n\r", byte_count, map->length);
 				if (byte_count + map->length > 8) {
 					DEBUG_LOG("Mapped %u bytes to TXPDO %u, maximum allowed is 8.\n\r",
 								byte_count + map->length, i);

@@ -528,6 +528,8 @@ typedef struct {
 	/// @brief: Temporary EMCY message for internal use
 	uw_canopen_emcy_msg_st temp_emcy;
 
+
+
 	/// @brief: The CAN channel
 	uw_can_channels_e can_channel;
 
