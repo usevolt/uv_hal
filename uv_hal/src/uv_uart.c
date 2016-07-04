@@ -199,10 +199,10 @@ uv_errors_e uv_uart_init(uv_uarts_e uart) {
 
 	//set the baud_rate
 	uint32_t uart_clock_div = SystemCoreClock / (CONFIG_UART0_BAUDRATE * 16);
-	//uart clock divider is only 8 bits, so discard all values above 255
-	if (uart_clock_div > 0xff) {
-		uart_clock_div = 0xff;
-	}
+//	//uart clock divider is only 8 bits, so discard all values above 255
+//	if (uart_clock_div > 0xff) {
+//		uart_clock_div = 0xff;
+//	}
 
 	// set TX and RX pins
 	LPC_IOCON->PIO1_6 = 0b110001;
@@ -263,6 +263,8 @@ uv_errors_e uv_uart_init(uv_uarts_e uart) {
 	/* Enable UART0 */
 	this->uart[UART0]->TER |= (0x01 << 7);
 	this->uart[UART0]->FCR |= 0x01;
+
+
 #elif CONFIG_TARGET_LPC1785
 uv_errors_e uv_uart_init(uv_uarts_e uart) {
 
@@ -596,6 +598,7 @@ uv_errors_e uv_uart_init(uv_uarts_e uart) {
 
 	// this UART is now initialized
 	this->init |= (1 << uart);
+
 	return uv_err(ERR_NONE);
 }
 
