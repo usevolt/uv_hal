@@ -71,7 +71,7 @@
  * Implementation of functions defined in portable.h for the ARM CM4F port.
  *----------------------------------------------------------*/
 
-#include "uw_hal_config.h"
+#include "uv_hal_config.h"
 
 #if CONFIG_TARGET
 
