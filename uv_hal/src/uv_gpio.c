@@ -41,7 +41,7 @@ uv_errors_e uv_gpio_init_output(uv_gpios_e gpio, bool initial_value) {
 		__uv_err_throw(ERR_HARDWARE_NOT_SUPPORTED | HAL_MODULE_GPIO);
 	}
 	LPC_GPIO->DIR |= (1 << PIN(gpio));
-	uv_gpio_set_pin(gpio, initial_value);
+	uv_gpio_set(gpio, initial_value);
 
 	return uv_err(ERR_NONE);
 }
