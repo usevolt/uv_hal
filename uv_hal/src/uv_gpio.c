@@ -123,7 +123,7 @@ uv_errors_e uv_gpio_init_input(uv_gpios_e gpio, uv_gpio_input_config_e configura
 	return uv_err(ERR_NONE);
 }
 
-uv_errors_e uv_gpio_set_pin(uv_gpios_e gpio, bool value) {
+uv_errors_e uv_gpio_set(uv_gpios_e gpio, bool value) {
 	//make sure value is either 1 or 0
 	value = value ? 1 : 0;
 	LPC_GPIO_TypeDef* LPC_GPIO = get_port(gpio);
@@ -144,7 +144,7 @@ uv_errors_e uv_gpio_set_pin(uv_gpios_e gpio, bool value) {
 	return uv_err(ERR_NONE);
 }
 
-uv_errors_e uv_gpio_toggle_pin(uv_gpios_e gpio) {
+uv_errors_e uv_gpio_toggle(uv_gpios_e gpio) {
 	LPC_GPIO_TypeDef* LPC_GPIO = get_port(gpio);
 	if (!LPC_GPIO) {
 		__uv_err_throw(ERR_HARDWARE_NOT_SUPPORTED | HAL_MODULE_GPIO);
@@ -159,7 +159,7 @@ uv_errors_e uv_gpio_toggle_pin(uv_gpios_e gpio) {
 }
 
 
-bool uv_gpio_get_pin(uv_gpios_e gpio) {
+bool uv_gpio_get(uv_gpios_e gpio) {
 	LPC_GPIO_TypeDef* LPC_GPIO = get_port(gpio);
 	if (!LPC_GPIO) {
 		__uv_err_throw(ERR_HARDWARE_NOT_SUPPORTED | HAL_MODULE_GPIO);

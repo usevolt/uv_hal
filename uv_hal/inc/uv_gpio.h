@@ -142,15 +142,15 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, u
 
 /// @brief: Sets the output value on an output gpio pin
 /// @pre: uv_gpio_init_output should have been called for this pin
-uv_errors_e uv_gpio_set_pin(uv_gpios_e gpio, bool value);
+uv_errors_e uv_gpio_set(uv_gpios_e gpio, bool value);
 
 /// @brief: Toggles the state of the output gpio pin
 /// @pre: uv_gpio_init_output should have been called for this pin
-uv_errors_e uv_gpio_toggle_pin(uv_gpios_e gpio);
+uv_errors_e uv_gpio_toggle(uv_gpios_e gpio);
 
 /// @brief: Gets the input from the input gpio pin.
 /// @pre: uv_gpio_init_input should have been called on this pin.
-bool uv_gpio_get_pin(uv_gpios_e gpio);
+bool uv_gpio_get(uv_gpios_e gpio);
 
 
 /// @brief: Returns the pin's IOCON register
@@ -160,7 +160,6 @@ volatile uint32_t *__uv_gpio_get_iocon(uv_gpios_e gpio);
 
 
 enum uv_gpios_e {
-	PIO_UNDEFINED = 0,
 #if CONFIG_TARGET_LPC11C14
 #if (CONFIG_PORT0 | CONFIG_PIO0_0)
 	PIO0_0 = GPIO_PORT_0 | 0,
@@ -280,8 +279,9 @@ enum uv_gpios_e {
 	PIO3_2 = GPIO_PORT_3 | 2,
 #endif
 #if (CONFIG_PORT3 | CONFIG_PIO3_3)
-	PIO3_3 = GPIO_PORT_3 | 3
+	PIO3_3 = GPIO_PORT_3 | 3,
 #endif
+
 #elif CONFIG_TARGET_LPC1785
 #if (CONFIG_PORT0 | CONFIG_PIO0_0)
 	PIO0_0 = GPIO_PORT_0 | 0,
@@ -776,11 +776,13 @@ enum uv_gpios_e {
 	PIO5_3 = GPIO_PORT_5 | 3,
 #endif
 #if (CONFIG_PORT5 | CONFIG_PIO5_4)
-	PIO5_4 = GPIO_PORT_5 | 4
+	PIO5_4 = GPIO_PORT_5 | 4,
 #endif
+	PIO_UNDEFINED = 0
 
 #endif
 };
+
 
 
 #endif /* UW_GPIO_H_ */
