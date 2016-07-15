@@ -29,7 +29,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
-
+#include <stdint.h>
 #include "uv_hal_config.h"
 
 
@@ -188,7 +188,6 @@ int print(char **out, const char *format, int count, va_list args )
 	return pc;
 }
 
-#include <uv_gpio.h>
 int printf(const char *format, ...)
 {
 

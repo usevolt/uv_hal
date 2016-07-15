@@ -35,6 +35,15 @@
 /// the serial interfaces the terminal will never receive any characters sent to it.
 
 
+
+/* ASCII special character values which can be used in terminal printing */
+#define CLRL			"\x1B[K"
+#define CLRS			"\x1B[2J"
+#define ENDL			"\n\r"
+
+
+
+
 /// @brief: Structure which defines a single terminal command
 typedef struct {
 	/// @brief: Unique enumeration value for this command.
