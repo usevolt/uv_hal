@@ -20,7 +20,10 @@
 #error "CONFIG_NON_VOLATILE_MEMORY should be defined as a 1 or 0, depending\
  if non volatile memory saving needs to be enabled."
 #endif
-
+#if !defined(CONFIG_NON_VOLATILE_START_ADDR)
+#error "CONFIG_NON_VOLATILE_START_ADDR not defined. It should contain the start\
+ address for the non-volatile memory region."
+#endif
 
 #if CONFIG_TARGET_LPC11C14
 /// @brief: Defines the RAM size in bytes on this contoller
