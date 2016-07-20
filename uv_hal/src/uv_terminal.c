@@ -219,7 +219,7 @@ uv_errors_e uv_terminal_step() {
 			continue;
 		}
 		//if carriage return was received, read command and clear buffer
-		if (data == 0x0D) {
+		if (data == 0x0D || data == 0x0A) {
 			int i;
 			int p = 0;
 			//change line

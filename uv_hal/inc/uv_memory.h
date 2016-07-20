@@ -25,6 +25,8 @@
  address for the non-volatile memory region."
 #endif
 
+
+
 #if CONFIG_TARGET_LPC11C14
 /// @brief: Defines the RAM size in bytes on this contoller
 #define RAM_SIZE_BYTES	0x2000
