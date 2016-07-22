@@ -95,7 +95,9 @@ const char *uv_error_strings[] = {
 
 	"TXPDO mapping parameter points to an object which doesn't exist",
 
-	"Object dictionary restore defaults function was NULL"
+	"Object dictionary restore defaults function was NULL",
+
+	"Callback function not assigned"
 };
 #endif
 

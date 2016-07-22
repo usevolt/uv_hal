@@ -116,6 +116,8 @@ typedef enum {
 	ERR_CANOPEN_MAPPED_OBJECT_NOT_FOUND = 35,
 	/// @brief: Object dictionary restore defaults function was NULL
 	ERR_CANOPEN_RESTORE_DEFAULTS_NULL	= 36,
+	/// @brief: Callback function not assigned to function, module, peripheral, etc
+	ERR_CALLBACK_NOT_ASSIGNED  			= 37,
 	ERR_COUNT
 } _uv_errors_e;
 typedef unsigned int uv_errors_e;

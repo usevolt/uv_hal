@@ -13,6 +13,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdarg.h>
 #include "uv_stdout.h"
 #include "uv_errors.h"
 
@@ -22,13 +23,17 @@
 /// which executes the received command from the user.
 ///
 /// Some commands common for all CANopen based controllers are already defined in hal_terminal.c
-/// These include entering ISP-mode, resetting the mcu and interfacing with CANopen object dictionary.
+/// These include entering ISP-mode and resetting the mcu.
 /// The common commands cannot be disabled, but creating a application level command with the same
 /// command name causes terminal to overwrite the common command.
 ///
-/// Terminal commands should be parsed in the main application loop, not in the ISRs.
-/// When using RTOS, this is already applied. Without RTOS the user must call
-/// uv_uart_exec or uv_can_exec in the application main loop.
+/// If CONFIG_TERMINAL_DEDICATED_CALLBACKS is enabled, every command takes their own callback function.
+/// This also changes how the arguments are passed to the callbacks. If CONFIG_TERMINAL_DEDICATED_CALLBACKS
+/// is 1, the callbacks should be variadic functions which take va_list as a parameter.
+/// The given arguments are parsed as integers by default, or as strings if enclosed with " " characters,
+/// and pointers to them are given as va_arg arguments to the callback.
+/// If CONFIG_TERMINAL_DEDICATED_CALLBACKS is 0, the arguments entered from the command line are not parsed
+/// and the arguments are passed to the global callback function as strings.
 ///
 /// NOTE: Note that in order to use UART or CAN as a terminal source, they have to be initialized
 /// correctly. It doesn't matter if this module is initialized before them, but without initializing
@@ -69,16 +74,17 @@ typedef struct {
 	char* str;
 	/// @brief: A descriptive info from this command. Tells the user how to use command, etc etc.
 	char* instructions;
-#if CONFIG_TERMINAL_DEDICATED_CALLBACKS
 	/// @brief: A callback function which will be called if this command was called
-	void (*callback)(void*, int, char**);
-#endif
+	void (*callback)(void*, unsigned int, unsigned int, ...);
 } uv_command_st;
 
 
 typedef enum {
 	CMD_ISP = 0xF0,
 	CMD_HELP,
+#if CONFIG_TERMINAL_INSTRUCTIONS
+	CMD_MAN,
+#endif
 	CMD_RESET,
 #if CONFIG_NON_VOLATILE_MEMORY
 	CMD_SAVE,
@@ -93,7 +99,7 @@ typedef enum {
 	CMD_SET_ISP
 } uv_common_commands_e;
 
-/* ------------ PUBLIC FUNCTIONS -----------------*/
+
 
 /// @brief: Sets the pointer to an array containing all application commands.
 /// This function should be called before any other terminal functions
@@ -103,12 +109,7 @@ typedef enum {
 /// @param buffer: The buffer which will be used to the terminal
 /// @param buffer_size: The size of the buffer in bytes.
 /// @param count: Indicates how many entries there are in commands array
-/// @param callback: Callback function which will be called when a command has been received.
-/// The callback function should take 2 parameters: command enum value and
-/// user's entered arguments. If CONFIG_TERMINAL_DEDICATED_CALLBACKS is set to 1,
-/// this callback is used for all commands which do not specify their own callbacks.
-void uv_terminal_init(const uv_command_st* commands, unsigned int count,
-		void (*callback_function)(void* user_ptr, int cmd, char** args));
+void uv_terminal_init(const uv_command_st* commands, unsigned int count);
 
 
 /// @brief: Step function should be called cyclically in the application
@@ -119,7 +120,6 @@ uv_errors_e uv_terminal_step();
 /// a hal_terminal_init_commands function call.
 /// @pre: hal_terminal_init_commands should have been called to register a command array pointer.
 int uv_terminal_get_commands_count(void);
-
 
 
 ///@brief: Disables or enables ISP mode entry when '?' is received from terminal
