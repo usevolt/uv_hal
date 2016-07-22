@@ -241,7 +241,7 @@ uv_errors_e uv_canopen_init(uv_canopen_st *me,
 	DEBUG_LOG("canopen initialized with node id %x\n\r", NODE_ID);
 
 #if CONFIG_CANOPEN_HEARTBEAT_INDEX
-	uv_start_delay(this->obj_dict.com_params.heartbeat_time, &this->heartbeat_delay);
+	uv_delay_init(this->obj_dict.com_params.heartbeat_time, &this->heartbeat_delay);
 #endif
 
 
@@ -372,7 +372,7 @@ uv_errors_e uv_canopen_step(uv_canopen_st *me, unsigned int step_ms) {
 		}
 
 		// start the delay again
-		uv_start_delay(this->obj_dict.com_params.heartbeat_time, &this->heartbeat_delay);
+		uv_delay_init(this->obj_dict.com_params.heartbeat_time, &this->heartbeat_delay);
 	}
 #endif
 

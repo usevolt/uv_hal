@@ -22,22 +22,6 @@ void *user_ptr = NULL;
 
 
 
-
-void uv_start_delay(unsigned int delay_ms, int* p) {
-	*p = delay_ms;
-}
-
-
-bool uv_delay(unsigned int step_ms, int* p) {
-	if (*p >= step_ms) {
-		*p -= step_ms;
-		return false;
-	}
-	*p = -1;
-	return true;
-}
-
-
 bool Debug_ParamOnOff (const char* arg, bool current, const char* param)
 {
 	bool state = true - current;

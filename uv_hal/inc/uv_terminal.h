@@ -35,6 +35,23 @@
 /// the serial interfaces the terminal will never receive any characters sent to it.
 
 
+#if !defined(CONFIG_TERMINAL_DEDICATED_CALLBACKS)
+#error "CONFIG_TERMINAL_DEDICATED_CALLBACKS not defined. It should be defined as 1 or 0, depending\
+ if callback functions should be dedicated individually for every command. Setting this to 0\
+ saves memory by having only one callback for all commands, but is inefficient on bigger applications."
+#endif
+#if !defined(CONFIG_TERMINAL_BUFFER_SIZE)
+#error "CONFIG_TERMINAL_BUFFER_SIZE not defined. It should define the maximum buffer size for\
+ the terminal in bytes. Note that the buffer has to be big enough to fit all command arguments."
+#endif
+#if !defined(CONFIG_TERMINAL_ARG_COUNT)
+#error "CONFIG_TERMINAL_ARG_COUNT not defined. It should define the maximum argument count for terminal."
+#endif
+#if !defined(CONFIG_TERMINAL_INSTRUCTIONS)
+#error "CONFIG_TERMINAL_INSTRUCTIONS not defined. It should be defined as 1 or 0, depending if instructions\
+ for terminal commands are to be included in the build. Instructions are more intuitive but require memory."
+#endif
+
 
 /* ASCII special character values which can be used in terminal printing */
 #define CLRL			"\x1B[K"
@@ -52,6 +69,10 @@ typedef struct {
 	char* str;
 	/// @brief: A descriptive info from this command. Tells the user how to use command, etc etc.
 	char* instructions;
+#if CONFIG_TERMINAL_DEDICATED_CALLBACKS
+	/// @brief: A callback function which will be called if this command was called
+	void (*callback)(void*, int, char**);
+#endif
 } uv_command_st;
 
 
@@ -84,10 +105,10 @@ typedef enum {
 /// @param count: Indicates how many entries there are in commands array
 /// @param callback: Callback function which will be called when a command has been received.
 /// The callback function should take 2 parameters: command enum value and
-/// user's entered arguments.
+/// user's entered arguments. If CONFIG_TERMINAL_DEDICATED_CALLBACKS is set to 1,
+/// this callback is used for all commands which do not specify their own callbacks.
 void uv_terminal_init(const uv_command_st* commands, unsigned int count,
 		void (*callback_function)(void* user_ptr, int cmd, char** args));
-
 
 
 /// @brief: Step function should be called cyclically in the application
@@ -105,7 +126,9 @@ int uv_terminal_get_commands_count(void);
 void uv_terminal_disable_isp_entry(bool value);
 
 
-
+/// @brief: Parses a boolean value and returns it.
+/// "on", "true", "1" are evaluated as true, otherwise returns false
+bool uv_terminal_parse_bool(char *arg);
 
 
 

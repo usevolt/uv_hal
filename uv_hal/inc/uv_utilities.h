@@ -183,7 +183,9 @@
 /// @brief: Initializes a delay.
 /// @param delay_ms The desired length of the delay
 /// @param p A pointer to variable which will hold the current delay count
-void uv_start_delay(unsigned int delay_ms, int* p);
+static inline void uv_delay_init(unsigned int delay_ms, int* p) {
+	*p = delay_ms;
+}
 
 /// @brief: Delay function. Can be used to create different delays in a discrete cyclical step function system.
 /// @param delay_ms The length of the delay in ms.
@@ -199,7 +201,14 @@ void uv_start_delay(unsigned int delay_ms, int* p);
 ///				...
 ///			}
 /// 	}
-bool uv_delay(unsigned int step_ms, int* p);
+static inline bool uv_delay(unsigned int step_ms, int* p) {
+	if (*p >= step_ms) {
+		*p -= step_ms;
+		return false;
+	}
+	*p = -1;
+	return true;
+}
 
 
 /// @brief:  function to ease debug console coding for on/off parameters

@@ -51,7 +51,6 @@ typedef struct {
 	uint8_t buffer_index;
 	char buffer[CONFIG_TERMINAL_BUFFER_SIZE];
 	void (*callback)(void *user_ptr, int cmd, char **args);
-
 } this_st;
 
 static this_st _this;
@@ -153,9 +152,9 @@ static void execute_common_cmd(int cmd, char** args);
 
 void uv_terminal_init(const uv_command_st* commands, unsigned int count,
 		void (*callback_function)(void* user_ptr, int cmd, char** args)) {
+	this->callback = callback_function;
 	this->commands_ptr = commands;
 	this->commands_count = count;
-	this->callback = callback_function;
 	this->buffer_index = 0;
 	this->buffer[0] = '\0';
 }
@@ -235,8 +234,6 @@ uv_errors_e uv_terminal_step() {
 			bool multi_arg = false;
 			for (i = 0; i < this->buffer_index; i++) {
 				// '"' mark means a multi-space argument
-
-				// gargarg arg "arg arg"
 				if (i) {
 					if (this->buffer[i] == '"') {
 						if (!multi_arg) {
@@ -274,7 +271,16 @@ uv_errors_e uv_terminal_step() {
 
 				for (p = 0; p < uv_terminal_get_commands_count(); p++) {
 					if (strcmp(this->buffer, this->commands_ptr[p].str) == 0) {
-						this->callback(__uv_get_user_ptr(), this->commands_ptr[p].id, args);
+#if CONFIG_TERMINAL_DEDICATED_CALLBACKS
+						if (this->commands_ptr[p].callback) {
+							this->commands_ptr[p].callback(__uv_get_user_ptr(), this->commands_ptr[p].id, args);
+						}
+						else {
+#endif
+							this->callback(__uv_get_user_ptr(), this->commands_ptr[p].id, args);
+#if CONFIG_TERMINAL_DEDICATED_CALLBACKS
+						}
+#endif
 						match = true;
 						break;
 					}
@@ -316,11 +322,7 @@ void uv_terminal_disable_isp_entry(bool value) {
 }
 
 static void execute_common_cmd(int cmd, char** args) {
-#if CONFIG_CANOPEN
-	uv_canopen_node_states_e state;
-#endif
 	uint8_t p;
-
 	switch (cmd) {
 	case CMD_ISP:
 		uv_enter_ISP_mode();
@@ -402,5 +404,14 @@ static void execute_common_cmd(int cmd, char** args) {
 	default:
 		break;
 	}
+}
+
+
+
+bool uv_terminal_parse_bool(char *arg) {
+	if (strcmp(arg, "on") == 0 || strcmp(arg, "true") == 0 || strcmp(arg, "1") == 0) {
+		return true;
+	}
+	return false;
 }
 
