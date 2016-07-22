@@ -40,11 +40,6 @@
 /// the serial interfaces the terminal will never receive any characters sent to it.
 
 
-#if !defined(CONFIG_TERMINAL_DEDICATED_CALLBACKS)
-#error "CONFIG_TERMINAL_DEDICATED_CALLBACKS not defined. It should be defined as 1 or 0, depending\
- if callback functions should be dedicated individually for every command. Setting this to 0\
- saves memory by having only one callback for all commands, but is inefficient on bigger applications."
-#endif
 #if !defined(CONFIG_TERMINAL_BUFFER_SIZE)
 #error "CONFIG_TERMINAL_BUFFER_SIZE not defined. It should define the maximum buffer size for\
  the terminal in bytes. Note that the buffer has to be big enough to fit all command arguments."

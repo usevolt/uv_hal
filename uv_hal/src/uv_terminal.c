@@ -39,11 +39,10 @@ bool canopen_log = true;
 #endif
 
 
-#if CONFIG_TERMINAL_DEDICATED_CALLBACKS
 #define ECHO(x...)				x
 #define _ARG(x)					ECHO(, argv[x])
 #define REPEAT_ARGS()			REPEAT(CONFIG_TERMINAL_ARG_COUNT, _ARG)
-#endif
+
 
 // extern declarations for uv_memory module's functions
 extern uv_errors_e __uv_save_previous_non_volatile_data();
@@ -63,7 +62,6 @@ typedef struct {
 static this_st _this;
 #define this (&_this)
 
-#if CONFIG_TERMINAL_DEDICATED_CALLBACKS
 void uv_terminal_isp_callb(void *me, unsigned int cmd, unsigned int args, ...);
 void uv_terminal_help_callb(void *me, unsigned int cmd, unsigned int args, ...);
 #if CONFIG_TERMINAL_INSTRUCTIONS
@@ -75,7 +73,6 @@ void uv_terminal_save_callb(void *me, unsigned int cmd, unsigned int args, ...);
 void uv_terminal_revert_callb(void *me, unsigned int cmd, unsigned int args, ...);
 #endif
 void uv_terminal_ispenable_callb(void *me, unsigned int cmd, unsigned int args, ...);
-#endif
 
 static const uv_command_st common_cmds[] = {
 		{
