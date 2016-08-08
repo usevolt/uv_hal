@@ -210,12 +210,15 @@ int atoi(const char *nptr) {
 	int result = 0;
 	if (*nptr == '-') {
 		sign = -1;
+		nptr++;
 	}
 	if (strstr(nptr, "0x\0") != 0) {
 		base = 16;
+		nptr += 2;
 	}
 	else if (strstr(nptr, "0b\0") != 0) {
 		base = 2;
+		nptr += 2;
 	}
 	while (isxdigit(*nptr)) {
 		if (isdigit(*nptr)) {

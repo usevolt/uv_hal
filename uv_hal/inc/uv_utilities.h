@@ -154,17 +154,6 @@
 
 
 
-// interrupt disable and enable functions are specified here only if
-// RTOS is not enabled. Otherwise they are defined in uv_rtos.h
-// For portability reasons, "_ISR" ending macros are also defined.
-// They should be used when disabling interrupts from inside ISR's.
-#if !CONFIG_RTOS
-#define uv_disable_int()		__disable_irq()
-#define uv_disable_int_ISR()	__disable_irq()
-#define uv_enable_int()			__enable_irq()
-#define uv_enable_int_ISR()		__enable_irq()
-#endif
-
 #define GetInt16(hibyte,lobyte)		(((uint16_t) hibyte << 8) + (uint16_t) lobyte)
 
 

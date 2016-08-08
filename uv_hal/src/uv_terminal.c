@@ -396,9 +396,9 @@ void uv_terminal_ispenable_callb(void *me, unsigned int cmd, unsigned int args, 
 	else {
 		va_list(l);
 		va_start(l, args);
-		int *i = va_arg(l, int*);
-		printf("%x\n\r", *i);
-		this->disable_isp = !(*i);
+		int i = va_arg(l, int);
+		printf("%x\n\r", i);
+		this->disable_isp = !(i);
 		va_end(l);
 	}
 }
