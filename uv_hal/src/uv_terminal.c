@@ -142,7 +142,7 @@ static const uv_command_st common_cmds[] = {
 				.instructions =
 #if CONFIG_TERMINAL_INSTRUCTIONS
 						"Reverts all changes to factory defaults.\n\r"
-						"The device need's to be restarted for changes to take effect.\n\r"
+						"The device needs to be restarted for changes to take effect.\n\r"
 						"To undo revert, save current values to flash with 'save' command."
 #else
 						""
@@ -379,12 +379,12 @@ void uv_terminal_reset_callb(void *me, unsigned int cmd, unsigned int args, ...)
 }
 #if CONFIG_NON_VOLATILE_MEMORY
 void uv_terminal_save_callb(void *me, unsigned int cmd, unsigned int args, ...) {
-	if (__uv_save_previous_non_volatile_data()) {
+	if (!__uv_save_previous_non_volatile_data()) {
 		printf("saved\n\r");
 	}
 }
 void uv_terminal_revert_callb(void *me, unsigned int cmd, unsigned int args, ...) {
-	if (__uv_load_previous_non_volatile_data()) {
+	if (!__uv_load_previous_non_volatile_data()) {
 		printf("reverted\n\r");
 	}
 }
