@@ -109,11 +109,9 @@ static void isr(uv_uarts_e uart) {
 	else
 #endif
 	received_char = this->uart[uart]->RBR & 0xFF;
-
-	uv_err_check(uv_ring_buffer_push(&this->buffer[uart], &received_char)) {
-		if (uv_get_error == ERR_BUFFER_OVERFLOW) {
-			__uv_log_error(__uv_error);
-		}
+	uv_errors_e e = uv_ring_buffer_push(&this->buffer[uart], &received_char);
+	if (UV_ERR_GET(e)) {
+		__uv_log_error(__uv_error);
 	}
 	// call callback
 	if (this->callback[uart]) {
