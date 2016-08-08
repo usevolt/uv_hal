@@ -423,7 +423,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 static uv_errors_e send_next_msg( void ) {
 	uv_can_message_st msg;
 	uv_ring_buffer_pop(&this->tx_buffer, &msg);
-	if (uv_get_error == ERR_BUFFER_EMPTY) {
+	if (uv_get_error() == ERR_BUFFER_EMPTY) {
 		return uv_err(ERR_NONE);
 	}
 

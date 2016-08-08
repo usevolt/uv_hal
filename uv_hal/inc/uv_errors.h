@@ -118,6 +118,11 @@ typedef enum {
 	ERR_CANOPEN_RESTORE_DEFAULTS_NULL	= 36,
 	/// @brief: Callback function not assigned to function, module, peripheral, etc
 	ERR_CALLBACK_NOT_ASSIGNED  			= 37,
+	/// @brief: Invalid data byte
+	ERR_INVALID_DATA					= 38,
+	/// @brief: Not acknowledge received
+	ERR_NACK							= 39,
+
 	ERR_COUNT
 } _uv_errors_e;
 typedef unsigned int uv_errors_e;
@@ -153,6 +158,7 @@ typedef enum {
 	HAL_MODULE_WDT			= (17 				<< 24),
 	HAL_MODULE_UNKNOWN		= (18 				<< 24),
 	HAL_MODULE_RTOS			= (19 				<< 24),
+	HAL_MODULE_I2C			= (20				<< 24),
 	USER_MODULE_1			= (100 				<< 24),
 	USER_MODULE_2			= (101 				<< 24),
 	USER_MODULE_3			= (102 				<< 24),
@@ -172,12 +178,14 @@ typedef enum {
 /// return uv_error(ERR_NOT_INITIALIZED | USER_MODULE_1);
 #define uv_err(err) (__uv_error = err)
 
+#define UV_ERR_GET(x)			(x & HAL_MODULE_MASK)
+#define UV_ERR_SOURCE_GET(x) 	((x & (~HAL_MODULE_MASK)) >> 24)
 
 /// @brief: Returns the error by masking of the module which caused it
-#define uv_get_error  (__uv_error & HAL_MODULE_MASK)
+#define uv_get_error()  (__uv_error & HAL_MODULE_MASK)
 
 /// @brief: Returns the module which caused the error
-#define uv_get_error_source ((__uv_error & (~HAL_MODULE_MASK)) >> 24)
+#define uv_get_error_source() ((__uv_error & (~HAL_MODULE_MASK)) >> 24)
 
 
 

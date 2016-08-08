@@ -87,7 +87,7 @@ static this_st _this = {
 void UART_IRQHandler (void) {
 	char received_char = this->uart[UART0]->RBR & 0xFF;
 	uv_err_check(uv_ring_buffer_push(&this->buffer[UART0], &received_char)) {
-		if (uv_get_error == ERR_BUFFER_OVERFLOW) {
+		if (uv_get_error() == ERR_BUFFER_OVERFLOW) {
 			__uv_log_error(__uv_error);
 		}
 	}

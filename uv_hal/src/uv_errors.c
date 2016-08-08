@@ -97,15 +97,19 @@ const char *uv_error_strings[] = {
 
 	"Object dictionary restore defaults function was NULL",
 
-	"Callback function not assigned"
+	"Callback function not assigned",
+
+	"Invalid data byte",
+
+	"Not acknowledge received"
 };
 #endif
 
-void __uv_log_error(unsigned int err) {
+void __uv_log_error(uv_errors_e err) {
 
 	if (err) {
 		printf("\n\r**** Error %u from module %u (uv_errors.h for details) **** \n\r",
-				uv_get_error, uv_get_error_source);
+				UV_ERR_GET(err), UV_ERR_SOURCE_GET(err));
 #if CONFIG_INFORMATIVE_ERRORS
 		if ((err & HAL_MODULE_MASK) < sizeof(uv_error_strings) / sizeof(char*)) {
 			printf("***%s***", uv_error_strings[err & HAL_MODULE_MASK]);
