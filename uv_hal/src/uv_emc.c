@@ -6,9 +6,12 @@
  */
 
 
-
 #include "uv_emc.h"
+#include "uv_utilities.h"
 #include "uv_gpio.h"
+#include <stdio.h>
+#include <string.h>
+#include <uv_terminal.h>
 #if CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
 #endif
@@ -19,131 +22,145 @@
 #if CONFIG_TARGET_LPC1785
 
 
+
+#if CONFIG_EMC_SDRAM_2 || CONFIG_EMC_SDRAM_3 || CONFIG_EMC_SDRAM_4
+#warning "uv_emc module not tested on multiple SDRAM chips!"
+#endif
+
+
 uv_errors_e uv_emc_init( void ) {
 
 
-	// mode: EMC,
-	// hysteresis enabled,
-	// Slew mode disabled
-	unsigned int iocon_value = 0b10001001;
-	// set IOCON registers
-#if CONFIG_EMC_STATIC_RAM
-	LPC_IOCON->P2_14 = iocon_value;		// EMC_CS2
-	LPC_IOCON->P2_15 = iocon_value;		// EMC_CS3
-#endif
-#if CONFIG_EMC_DYNAMIC_RAM
-	LPC_IOCON->P2_16 = iocon_value;		// EMC_CAS
-	LPC_IOCON->P2_17 = iocon_value;		// EMC_RAS
-	LPC_IOCON->P2_18 = iocon_value;		// EMC_CLK0
-	LPC_IOCON->P2_19 = iocon_value;		// EMC_CLK1
-	LPC_IOCON->P2_20 = iocon_value;		// EMC_DYCS0
-	LPC_IOCON->P2_21 = iocon_value;		// EMC_DYCS1
-	LPC_IOCON->P2_22 = iocon_value;		// EMC_DYCS2
-	LPC_IOCON->P2_23 = iocon_value;		// EMC_DYCS3
-	LPC_IOCON->P2_24 = iocon_value;		// EMC_CKE0
-	LPC_IOCON->P2_25 = iocon_value;		// EMC_CKE1
-	LPC_IOCON->P2_26 = iocon_value;		// EMC_CKE2
-	LPC_IOCON->P2_27 = iocon_value;		// EMC_CKE3
-#endif
-	LPC_IOCON->P2_28 = iocon_value;		// EMC_DQM0
-	LPC_IOCON->P2_29 = iocon_value;		// EMC_DQM1
-	LPC_IOCON->P2_30 = iocon_value;		// EMC_DQM2
-	LPC_IOCON->P2_31 = iocon_value;		// EMC_DQM3
-	LPC_IOCON->P3_0 = iocon_value;		// EMC_D0
-	LPC_IOCON->P3_1 = iocon_value;		// EMC_D1
-	LPC_IOCON->P3_2 = iocon_value;		// EMC_D2
-	LPC_IOCON->P3_3 = iocon_value;		// EMC_D3
-	LPC_IOCON->P3_4 = iocon_value;		// EMC_D4
-	LPC_IOCON->P3_5 = iocon_value;		// EMC_D5
-	LPC_IOCON->P3_6 = iocon_value;		// EMC_D6
-	LPC_IOCON->P3_7 = iocon_value;		// EMC_D7
-	LPC_IOCON->P3_8 = iocon_value;		// EMC_D8
-	LPC_IOCON->P3_9 = iocon_value;		// EMC_D9
-	LPC_IOCON->P3_10 = iocon_value;		// EMC_D10
-	LPC_IOCON->P3_11 = iocon_value;		// EMC_D11
-	LPC_IOCON->P3_12 = iocon_value;		// EMC_D12
-	LPC_IOCON->P3_13 = iocon_value;		// EMC_D13
-	LPC_IOCON->P3_14 = iocon_value;		// EMC_D14
-	LPC_IOCON->P3_15 = iocon_value;		// EMC_D15
-	LPC_IOCON->P3_16 = iocon_value;		// EMC_D16
-	LPC_IOCON->P3_17 = iocon_value;		// EMC_D17
-	LPC_IOCON->P3_18 = iocon_value;		// EMC_D18
-	LPC_IOCON->P3_19 = iocon_value;		// EMC_D19
-	LPC_IOCON->P3_20 = iocon_value;		// EMC_D20
-	LPC_IOCON->P3_21 = iocon_value;		// EMC_D21
-	LPC_IOCON->P3_22 = iocon_value;		// EMC_D22
-	LPC_IOCON->P3_23 = iocon_value;		// EMC_D23
-	LPC_IOCON->P3_24 = iocon_value;		// EMC_D24
-	LPC_IOCON->P3_25 = iocon_value;		// EMC_D25
-	LPC_IOCON->P3_26 = iocon_value;		// EMC_D26
-	LPC_IOCON->P3_27 = iocon_value;		// EMC_D27
-	LPC_IOCON->P3_28 = iocon_value;		// EMC_D28
-	LPC_IOCON->P3_29 = iocon_value;		// EMC_D29
-	LPC_IOCON->P3_30 = iocon_value;		// EMC_D30
-	LPC_IOCON->P3_31 = iocon_value;		// EMC_D31
-	LPC_IOCON->P4_0 = iocon_value;		// EMC_A0
-	LPC_IOCON->P4_1 = iocon_value;		// EMC_A1
-	LPC_IOCON->P4_2 = iocon_value;		// EMC_A2
-	LPC_IOCON->P4_3 = iocon_value;		// EMC_A3
-	LPC_IOCON->P4_4 = iocon_value;		// EMC_A4
-	LPC_IOCON->P4_5 = iocon_value;		// EMC_A5
-	LPC_IOCON->P4_6 = iocon_value;		// EMC_A6
-	LPC_IOCON->P4_7 = iocon_value;		// EMC_A7
-	LPC_IOCON->P4_8 = iocon_value;		// EMC_A8
-	LPC_IOCON->P4_9 = iocon_value;		// EMC_A9
-	LPC_IOCON->P4_10 = iocon_value;		// EMC_A10
-	LPC_IOCON->P4_11 = iocon_value;		// EMC_A11
-	LPC_IOCON->P4_12 = iocon_value;		// EMC_A12
-	LPC_IOCON->P4_13 = iocon_value;		// EMC_A13
-	LPC_IOCON->P4_14 = iocon_value;		// EMC_A14
-#if CONFIG_EMC_STATIC_RAM
-	LPC_IOCON->P4_15 = iocon_value;		// EMC_A15
-	LPC_IOCON->P4_16 = iocon_value;		// EMC_A16
-	LPC_IOCON->P4_17 = iocon_value;		// EMC_A17
-	LPC_IOCON->P4_18 = iocon_value;		// EMC_A18
-	LPC_IOCON->P4_19 = iocon_value;		// EMC_A19
-	LPC_IOCON->P4_20 = iocon_value;		// EMC_A20
-	LPC_IOCON->P4_21 = iocon_value;		// EMC_A21
-	LPC_IOCON->P4_22 = iocon_value;		// EMC_A22
-	LPC_IOCON->P4_23 = iocon_value;		// EMC_A23
-	LPC_IOCON->P4_24 = iocon_value;		// EMC_OE
-#endif
-	LPC_IOCON->P4_25 = iocon_value;		// EMC_WE
-#if CONFIG_EMC_STATIC_RAM
-	LPC_IOCON->P4_26 = iocon_value;		// EMC_BLS0
-	LPC_IOCON->P4_27 = iocon_value;		// EMC_BLS1
-	LPC_IOCON->P4_28 = iocon_value;		// EMC_BLS2
-	LPC_IOCON->P4_29 = iocon_value;		// EMC_BLS3
-	LPC_IOCON->P4_30 = iocon_value;		// EMC_CS0
-	LPC_IOCON->P4_31 = iocon_value;		// EMC_CS1
-	LPC_IOCON->P5_0 = iocon_value;		// EMC_A24
-	LPC_IOCON->P5_1 = iocon_value;		// EMC_A25
-#endif
-
-
-	// ensure that the power to the EMC module is on
-	LPC_SC->PCONP |= (1 << 11);
-	// clock divide
 	LPC_SC->EMCCLKSEL = CONFIG_EMC_CLOCK_DIV_HALF;
 
-	// todo: EMC clock calibration not implemented. If memory corruption on
-	//	different temperatures happen, it should be implemented.
+	LPC_SC->PCONP      |= 0x00000800;
+	LPC_SC->EMCDLYCTL   = 0x00001010;
+	LPC_EMC->Control    = 0x00000001;
+	LPC_EMC->Config     = 0x00000000;
 
+	LPC_IOCON->P2_16 |= 0x201; // CAS
+	LPC_IOCON->P2_17 |= 0x201; // RAS
+	LPC_IOCON->P2_18 |= 0x201; // RAM clk
+#if CONFIG_EMC_SDRAM_1
+	LPC_IOCON->P2_20 |= 0x201; // DYSC0
+	LPC_IOCON->P2_24 |= 0x201; // CLKEN0
+#endif
+#if CONFIG_EMC_SDRAM_2
+	LPC_IOCON->P2_21 |= 0x201; // DYSC1
+	LPC_IOCON->P2_25 |= 0x201; // CLKEN1
+#endif
+#if CONFIG_EMC_SDRAM_3
+	LPC_IOCON->P2_22 |= 0x201; // DYSC2
+	LPC_IOCON->P2_26 |= 0x201; // CLKEN2
+#endif
+#if CONFIG_EMC_SDRAM_4
+	LPC_IOCON->P2_23 |= 0x201; // DYSC3
+	LPC_IOCON->P2_27 |= 0x201; // CLKEN3
+#endif
+	LPC_IOCON->P2_28 |= 0x201; // LDQM
+	LPC_IOCON->P2_29 |= 0x201; // UDQM
+	// D0-15
+	LPC_IOCON->P3_0 |= 0x201;
+	LPC_IOCON->P3_1 |= 0x201;
+	LPC_IOCON->P3_2 |= 0x201;
+	LPC_IOCON->P3_3 |= 0x201;
+	LPC_IOCON->P3_4 |= 0x201;
+	LPC_IOCON->P3_5 |= 0x201;
+	LPC_IOCON->P3_6 |= 0x201;
+	LPC_IOCON->P3_7 |= 0x201;
+	LPC_IOCON->P3_8 |= 0x201;
+	LPC_IOCON->P3_9 |= 0x201;
+	LPC_IOCON->P3_10 |= 0x201;
+	LPC_IOCON->P3_11 |= 0x201;
+	LPC_IOCON->P3_12 |= 0x201;
+	LPC_IOCON->P3_13 |= 0x201;
+	LPC_IOCON->P3_14 |= 0x201;
+	LPC_IOCON->P3_15 |= 0x201;
+	//A0-13
+	LPC_IOCON->P4_0 |= 0x201;
+	LPC_IOCON->P4_1 |= 0x201;
+	LPC_IOCON->P4_2 |= 0x201;
+	LPC_IOCON->P4_3 |= 0x201;
+	LPC_IOCON->P4_4 |= 0x201;
+	LPC_IOCON->P4_5 |= 0x201;
+	LPC_IOCON->P4_6 |= 0x201;
+	LPC_IOCON->P4_7 |= 0x201;
+	LPC_IOCON->P4_8 |= 0x201;
+	LPC_IOCON->P4_9 |= 0x201;
+	LPC_IOCON->P4_10 |= 0x201;
+	LPC_IOCON->P4_11 |= 0x201;
+	LPC_IOCON->P4_13 |= 0x201; // BA0
+	LPC_IOCON->P4_14 |= 0x201; // BA1
 
-	// todo: Setting of EMC delay control register (EMCDLYCTL) to fine tune
-	// control signals to memory chips
+	LPC_IOCON->P4_25 |= 0x201; // WE
 
-	// enable EMC in normal power mode and set normal memory map
-	LPC_EMC->Control = 0b001;
+	LPC_EMC->DynamicConfig0 = (CONFIG_EMC_SDRAM_AM0 << 7) + (CONFIG_EMC_SDRAM_AM1 << 14);
+	LPC_EMC->DynamicRasCas0 = CONFIG_EMC_SDRAM_RAS + (CONFIG_EMC_SDRAM_CAS << 8);
+	LPC_EMC->DynamicRP         = 0x00000003;
+	LPC_EMC->DynamicRAS        = 0x00000006;
+	LPC_EMC->DynamicSREX       = 0x0000000A;
+	LPC_EMC->DynamicAPR        = 0x00000005;
+	LPC_EMC->DynamicDAL        = 0x00000006;
+	LPC_EMC->DynamicWR         = 0x00000002;
+	LPC_EMC->DynamicRC         = 0x00000008;
+	LPC_EMC->DynamicRFC        = 0x00000008;
+	LPC_EMC->DynamicXSR        = 0x0000000A;
+	LPC_EMC->DynamicRRD        = 0x00000002;
+	LPC_EMC->DynamicMRD        = 0x00000003;
 
-	// enable dynamic memory, CLKOUT runs continously, enter self refresh mode at start up
-	LPC_EMC->DynamicControl = 0b00000110;
+	_delay_ms(100);   /* wait 100ms */
+	LPC_EMC->DynamicControl    = 0x00000183; /* Issue NOP command */
+	_delay_ms(200);   /* wait 200ms */
+	LPC_EMC->DynamicControl    = 0x00000103; /* Issue PALL command */
+	LPC_EMC->DynamicRefresh    = 0x00000002; /* ( n * 16 ) -> 32 clock cycles */
 
+	volatile uint32_t i, dwtemp;
+	for(i = 0; i < 0x80; i++);           /* wait 128 AHB clock cycles */
 
+	//Timing for 120MHz Bus
+	LPC_EMC->DynamicRefresh = CONFIG_EMC_SDRAM_REFRESH;
+	LPC_EMC->DynamicControl    = 0x00000083; /* Issue MODE command */
 
+	//Timing for 48/60/72MHZ Bus
+	dwtemp = *((volatile uint32_t *)(EMC_SDRAM_1 | CONFIG_EMC_SDRAM_MODE_REGISTER));
+//	dwtemp = *((volatile uint32_t *)(EMC_SDRAM_1 | (0x33<<(13))));
+	LPC_EMC->DynamicControl    = 0x00000000; /* Issue NORMAL command */
+	if (dwtemp) {}
+
+	//[re]enable buffers
+	LPC_EMC->DynamicConfig0    |= 0x00080000; // Buffer enable
+	_delay_ms(100);
 
 	return uv_err(ERR_NONE);
 }
+
+
+
+void NMI_Handler(void) {
+	printf(CLRL "NMI\r");
+	_delay_ms(100);
+}
+void HardFault_Handler(void) {
+	printf(CLRL "HardFault\r");
+	_delay_ms(100);
+}
+void MemManage_Handler(void) {
+	printf(CLRL "MemManage\r");
+	_delay_ms(100);
+}
+void BusFault_Handler(void) {
+	printf(CLRL "BusFault\r");
+	_delay_ms(100);
+}
+void UsageFault_Handler(void) {
+	printf(CLRL "UsageFault\r");
+	_delay_ms(100);
+}
+void IntDefaultHandler(void) {
+	printf(CLRL "Default\r");
+	_delay_ms(100);
+}
+
 
 
 #endif

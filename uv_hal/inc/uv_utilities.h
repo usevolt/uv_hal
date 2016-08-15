@@ -379,6 +379,11 @@ enum {
 };
 #endif
 
+
+/// @brief: "Dumm" delay function. Uses __NOP()'s to wait for the given time.
+void _delay_ms (uint16_t ms);
+
+
 /// @bref: Set's the interrupt sources priority. If the priority is not available on
 /// the hardware, an error is returned and logged to stdout.
 uv_errors_e uv_set_int_priority(uv_int_sources_e, unsigned int priority);

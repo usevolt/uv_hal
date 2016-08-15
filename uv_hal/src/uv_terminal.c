@@ -92,7 +92,7 @@ static const uv_command_st common_cmds[] = {
 				.str = "help",
 				.instructions =
 #if CONFIG_TERMINAL_INSTRUCTIONS
-						"List's all available commands"
+						"Lists all available commands"
 #else
 						""
 #endif

@@ -127,6 +127,15 @@ uv_errors_e uv_ring_buffer_pop(uv_ring_buffer_st *buffer, void *dest) {
 
 
 
+void _delay_ms (uint16_t ms)
+{
+	uint16_t delay;
+	volatile uint32_t i;
+	for (delay = ms; delay > 0; delay--) {
+		for (i = 0; i > SystemCoreClock / 1000; i++){};
+	}
+}
+
 
 
 uv_errors_e uv_set_int_priority(uv_int_sources_e src, unsigned int priority) {
