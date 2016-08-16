@@ -129,10 +129,11 @@ uv_errors_e uv_ring_buffer_pop(uv_ring_buffer_st *buffer, void *dest) {
 
 void _delay_ms (uint16_t ms)
 {
-	uint16_t delay;
+	volatile uint16_t delay;
 	volatile uint32_t i;
 	for (delay = ms; delay > 0; delay--) {
-		for (i = 0; i > SystemCoreClock / 1000; i++){};
+		// with code optimization this is not at all precise!
+		for (i = 0; i < SystemCoreClock / 15000; i++){ __NOP(); }
 	}
 }
 

@@ -54,7 +54,6 @@ extern void uv_enter_ISP_mode(void);
 typedef struct {
 	const uv_command_st *commands_ptr;
 	uint8_t commands_count;
-	bool disable_isp;
 	uint8_t buffer_index;
 	char buffer[CONFIG_TERMINAL_BUFFER_SIZE];
 } this_st;
@@ -108,22 +107,6 @@ static const uv_command_st common_cmds[] = {
 				, .callback = uv_terminal_man_callb
 		},
 #endif
-		{
-				.id = CMD_RESET,
-				.str = "reset",
-				.instructions =
-#if CONFIG_TERMINAL_INSTRUCTIONS
-						"Usage: reset (1/0)"
-						"Resets the controller instantly.\n\r"
-						"All unsave modifications will be lost.\n\r"
-						"If 1 is given as an argument, the system will use\n\r"
-						"watchdog timer to make a hardware reset. Else software\n\r"
-						"reset is done."
-#else
-						""
-#endif
-				, .callback = uv_terminal_reset_callb
-		},
 #if CONFIG_NON_VOLATILE_MEMORY
 		{
 				.id = CMD_SAVE,
@@ -149,20 +132,23 @@ static const uv_command_st common_cmds[] = {
 #endif
 				, .callback = uv_terminal_revert_callb
 		},
-#endif
 		{
-				.id = CMD_SET_ISP,
-				.str = "ispenable",
+				.id = CMD_RESET,
+				.str = "reset",
 				.instructions =
 #if CONFIG_TERMINAL_INSTRUCTIONS
-						"Usage: ispenable <on/off>\n\r"
-						"Can be used to disable ISP entry when receiving '?' from the terminal."
-						"ISP mode is still accessible with 'isp' command."
+						"Usage: reset (1/0)"
+						"Resets the controller instantly.\n\r"
+						"All unsave modifications will be lost.\n\r"
+						"If 1 is given as an argument, the system will use\n\r"
+						"watchdog timer to make a hardware reset. Else software\n\r"
+						"reset is done."
 #else
 						""
 #endif
-				, .callback = uv_terminal_ispenable_callb
+				, .callback = uv_terminal_reset_callb
 		}
+#endif
 };
 
 
@@ -171,6 +157,21 @@ void uv_terminal_init(const uv_command_st* commands, unsigned int count) {
 	this->commands_count = count;
 	this->buffer_index = 0;
 	this->buffer[0] = '\0';
+
+	// delay of half a second on start up.
+	// Makes entering ISP mode possible on startup before freeRTOS scheduler is started
+	_delay_ms(500);
+	char c;
+
+	uv_errors_e e;
+	while (true) {
+		if ((e = uv_uart_get_char(UART0, &c))) {
+			return;
+		}
+		if (c == '?') {
+			uv_enter_ISP_mode();
+		}
+	}
 }
 
 
@@ -311,20 +312,10 @@ uv_errors_e uv_terminal_step() {
 			continue;
 		}
 
-		//if questionmark was received, enter isp mode
-		if (data == '?' && !this->disable_isp) {
-			uv_enter_ISP_mode();
-		}
-
 		// add character to buffer
 		this->buffer[this->buffer_index++] = data;
 	}
 	return uv_err(ERR_NONE);
-}
-
-
-void uv_terminal_disable_isp_entry(bool value) {
-	this->disable_isp = value;
 }
 
 void uv_terminal_isp_callb(void *me, unsigned int cmd, unsigned int args, ...) {
@@ -389,20 +380,6 @@ void uv_terminal_revert_callb(void *me, unsigned int cmd, unsigned int args, ...
 	}
 }
 #endif
-void uv_terminal_ispenable_callb(void *me, unsigned int cmd, unsigned int args, ...) {
-	if (!args) {
-		printf("isp: %u\n\r", !this->disable_isp);
-	}
-	else {
-		va_list(l);
-		va_start(l, args);
-		int i = va_arg(l, int);
-		printf("%x\n\r", i);
-		this->disable_isp = !(i);
-		va_end(l);
-	}
-}
-
 
 
 bool uv_terminal_parse_bool(char *arg) {
