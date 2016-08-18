@@ -16,8 +16,19 @@
 #include <stdint.h>
 
 
-/// @brief: The time which the button needs to be pressed to trigger the long press event
-#define BUTTON_LONG_PRESS_TIME_MS			1000
+
+#if !defined(CONFIG_BUTTON_LONG_PRESS_TIME_MS)
+#error "CONFIG_BUTTON_LONG_PRESS_TIME_MS should define the time in milliseconds which it takes to trigger a \
+long press event."
+#endif
+#if !defined(CONFIG_BUTTON_SEQUENTAL_PRESS_TIME_MS)
+#error "CONFIG_BUTTON_SEQUENTAL_PRESS_TIME_MS should define the time in milliseconds which it takes to trigger\
+ a sequental presses."
+#endif
+#if !defined(CONFIG_BUTTON_SEQ_PRESS_ACCELERATION)
+#error "CONFIG_BUTTON_SEQ_PRESS_ACCELERATION should define the acceleration for sequental presses.\
+ Set as 0 to disable acceleration."
+#endif
 
 
 /// @brief: Structure for buttons.
@@ -36,6 +47,7 @@ typedef struct {
 	bool is_long_press;
 	uv_gpios_e gpio;
 	int delay;
+	uint32_t press_count;
 } uv_button_st;
 
 
