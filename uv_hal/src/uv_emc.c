@@ -94,6 +94,8 @@ uv_errors_e uv_emc_init( void ) {
 
 	LPC_IOCON->P4_25 |= 0x201; // WE
 
+	LPC_EMC->DynamicReadConfig = 1;
+
 	LPC_EMC->DynamicConfig0 = (CONFIG_EMC_SDRAM_AM0 << 7) + (CONFIG_EMC_SDRAM_AM1 << 14);
 	LPC_EMC->DynamicRasCas0 = CONFIG_EMC_SDRAM_RAS + (CONFIG_EMC_SDRAM_CAS << 8);
 	LPC_EMC->DynamicRP         = 0x00000003;
@@ -117,13 +119,10 @@ uv_errors_e uv_emc_init( void ) {
 	volatile uint32_t i, dwtemp;
 	for(i = 0; i < 0x80; i++);           /* wait 128 AHB clock cycles */
 
-	//Timing for 120MHz Bus
 	LPC_EMC->DynamicRefresh = CONFIG_EMC_SDRAM_REFRESH;
 	LPC_EMC->DynamicControl    = 0x00000083; /* Issue MODE command */
 
-	//Timing for 48/60/72MHZ Bus
 	dwtemp = *((volatile uint32_t *)(EMC_SDRAM_1 | CONFIG_EMC_SDRAM_MODE_REGISTER));
-//	dwtemp = *((volatile uint32_t *)(EMC_SDRAM_1 | (0x33<<(13))));
 	LPC_EMC->DynamicControl    = 0x00000000; /* Issue NORMAL command */
 	if (dwtemp) {}
 
@@ -134,32 +133,6 @@ uv_errors_e uv_emc_init( void ) {
 	return uv_err(ERR_NONE);
 }
 
-
-
-void NMI_Handler(void) {
-	printf(CLRL "NMI\r");
-	_delay_ms(100);
-}
-void HardFault_Handler(void) {
-	printf(CLRL "HardFault\r");
-	_delay_ms(100);
-}
-void MemManage_Handler(void) {
-	printf(CLRL "MemManage\r");
-	_delay_ms(100);
-}
-void BusFault_Handler(void) {
-	printf(CLRL "BusFault\r");
-	_delay_ms(100);
-}
-void UsageFault_Handler(void) {
-	printf(CLRL "UsageFault\r");
-	_delay_ms(100);
-}
-void IntDefaultHandler(void) {
-	printf(CLRL "Default\r");
-	_delay_ms(100);
-}
 
 
 

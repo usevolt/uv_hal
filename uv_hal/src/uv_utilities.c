@@ -7,6 +7,7 @@
 
 
 #include "uv_utilities.h"
+#include "uv_terminal.h"
 
 #include <stdint.h>
 #include <string.h>
@@ -152,3 +153,30 @@ uv_errors_e uv_set_int_priority(uv_int_sources_e src, unsigned int priority) {
 void *__uv_get_user_ptr() {
 	return user_ptr;
 }
+
+
+void NMI_Handler(void) {
+	printf(CLRL "NMI\r");
+	_delay_ms(100);
+}
+void HardFault_Handler(void) {
+	printf(CLRL "HardFault\r");
+	_delay_ms(100);
+}
+void MemManage_Handler(void) {
+	printf(CLRL "MemManage\r");
+	_delay_ms(100);
+}
+void BusFault_Handler(void) {
+	printf(CLRL "BusFault\r");
+	_delay_ms(100);
+}
+void UsageFault_Handler(void) {
+	printf(CLRL "UsageFault\r");
+	_delay_ms(100);
+}
+void IntDefaultHandler(void) {
+	printf(CLRL "Default\r");
+	_delay_ms(100);
+}
+

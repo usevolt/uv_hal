@@ -80,7 +80,7 @@ static const uv_command_st common_cmds[] = {
 				.instructions =
 #if CONFIG_TERMINAL_INSTRUCTIONS
 						"Sets the controller to enter ISP \n\r"
-						"(In System Programming) mode instantly."
+						"mode instantly."
 #else
 						""
 #endif

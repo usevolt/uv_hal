@@ -10,6 +10,8 @@
 
 
 #include "uv_hal_config.h"
+
+#if CONFIG_BUTTON
 #include "uv_utilities.h"
 #include "uv_gpio.h"
 #include <stdbool.h>
@@ -74,5 +76,6 @@ uv_errors_e uv_button_init(uv_button_st *b, uv_gpios_e gpio, bool invert);
 /// @brief: Should be called every step cycle
 uv_errors_e uv_button_step(uv_button_st *b, unsigned int step_ms);
 
+#endif
 
 #endif /* UV_HAL_INC_UV_BUTTON_H_ */

@@ -17,6 +17,10 @@
 
 /// @file: Interface for external RAM memory.
 /// NOTE: Currently only 16-bit SDRAM is supported!
+///
+/// NOTE: The EMC module might cause unexpected hard faults depending on what optimizations are enabled.
+/// The hard faults are usually related to executing terminal commands: The command array pointer is somehow
+/// corrupted, it doesnt point to the start of the command array.
 
 #if (CONFIG_TARGET_LPC1785)
 

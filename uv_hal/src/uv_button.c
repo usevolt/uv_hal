@@ -8,6 +8,9 @@
 
 #include "uv_button.h"
 
+#if CONFIG_BUTTON
+
+
 #define this (b)
 
 
@@ -71,3 +74,4 @@ uv_errors_e uv_button_step(uv_button_st *b, unsigned int step_ms) {
 	return uv_err(ERR_NONE);
 }
 
+#endif
