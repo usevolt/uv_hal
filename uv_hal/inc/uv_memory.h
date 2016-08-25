@@ -20,19 +20,19 @@
 #error "CONFIG_NON_VOLATILE_MEMORY should be defined as a 1 or 0, depending\
  if non volatile memory saving needs to be enabled."
 #endif
-#if !defined(CONFIG_NON_VOLATILE_START_ADDR)
-#error "CONFIG_NON_VOLATILE_START_ADDR not defined. It should contain the start\
- address for the non-volatile memory region."
+#if !defined(__UV_PROJECT_NAME)
+#error "__UV_PROJECT_NAME should be defined with this project's and build's names. Usually the best way is to\
+ define it in project include paths and symbols (eclipse project settings) with the ${projName},\
+ '_' and ${configName} variables.\
+ This way the name is automatically updated for new projects."
 #endif
 
-
-
 #if CONFIG_TARGET_LPC11C14
-/// @brief: Defines the RAM size in bytes on this contoller
+/// @brief: Defines the RAM size in bytes on this controller
 #define RAM_SIZE_BYTES	0x2000
 #define RAM_BASE_ADDRESS 0x10000000
 #elif CONFIG_TARGET_LPC1785
-/// @brief: Defines the RAM size in bytes on this contoller
+/// @brief: Defines the RAM size in bytes on this controller
 #define RAM_SIZE_BYTES	64000
 #define RAM_BASE_ADDRESS 0x10000000
 #else
@@ -44,6 +44,15 @@
 /// non-volatile data section. Define a variable of this type as the
 /// first variable in the data section.
 typedef struct {
+	/// @brief: Project name pointer. Points to the flash memory location which
+	/// contains the project name. Project name is configured with the __UV_PROJECT_NAME preprocessor symbol.
+	/// With Eclipse projects the easiest way is to define __UV_PROJECT_NAME in project include paths and symbols
+	/// with the ${projname} variable.
+	const char *project_name;
+	/// @brief: Pointer to the build date and time string. This comes from the gcc __DATE__ and __TIME__ symbols.
+	const char *build_date;
+	/// @brief: Project unique hash value. Can be used as to identify different projects from each other.
+	uint16_t project_name_crc;
 	/// @brief: Checksum to identify if data between start and end
 	/// was uninitialized or changed from what was found in non-volatile memory.
 	uint32_t start_checksum;
@@ -100,6 +109,23 @@ typedef enum {
 	IAP_BYTES_32768 = 32768,
 	IAP_BYTES_COUNT
 } uv_writable_amount_e;
+
+
+/// @brief: Returns the project name saved in the non-volatile memory
+static inline const char *uv_memory_get_project_name(uv_data_start_t *start_ptr) {
+	return start_ptr->project_name;
+}
+
+/// @brief: Returns the project name crc value saved in the non-volatile memory
+static inline uint16_t uv_memory_get_project_name_crc(uv_data_start_t *start_ptr) {
+	return start_ptr->project_name_crc;
+}
+
+/// @brief: Returns the project building date saved in the non-volatile memory
+static inline const char *uv_memory_get_project_date(uv_data_start_t *start_ptr) {
+	return start_ptr->build_date;
+}
+
 
 
 /// @brief: Writes data to flash non-volatile application memory section. Depends on SystemCoreClock to
@@ -167,6 +193,8 @@ uv_errors_e uv_memory_load(uv_data_start_t *start_ptr, uv_data_end_t *end_ptr);
 /// @param fosc Oscillator frequency in Hz
 uv_iap_status_e uv_erase_and_write_to_flash(unsigned int ram_address,
 		uv_writable_amount_e num_bytes, unsigned int flash_address);
+
+
 
 
 

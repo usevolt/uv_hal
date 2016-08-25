@@ -9,6 +9,7 @@
 
 
 #include <stdio.h>
+#include <string.h>
 #if CONFIG_TARGET_LPC11C14
 #include "LPC11xx.h"
 #elif CONFIG_TARGET_LPC1785
@@ -20,7 +21,6 @@
 #ifdef CONFIG_RTOS
 #include "uv_rtos.h"
 #endif
-
 #if CONFIG_TARGET_LPC11C14
 /// @brief: Defines the flash memory sector size in bytes. Make sure this matches the used MCU!
 /// Refer to the manual for correct value
@@ -40,7 +40,7 @@
 #define FLASH_SECOND_SECTOR_SIZE			0x8000
 #define FLASH_SECOND_SECTOR_SIZE_BEGIN		0x00010000
 #define FLASH_START_ADDRESS 				0x00000000
-#define NON_VOLATILE_MEMORY_START_ADDRESS	CONFIG_NON_VOLATILE_START_ADDR
+#define NON_VOLATILE_MEMORY_START_ADDRESS	0x00001000
 
 #endif
 
@@ -73,7 +73,34 @@ typedef void (*IAP)(unsigned int [],unsigned int[]);
 static uv_data_start_t* last_start = NULL;
 static uv_data_end_t *last_end = NULL;
 
+
+static const char *projname = STRINGIFY(__UV_PROJECT_NAME);
+static const char *datetime = __DATE__ " " __TIME__;
+
 #endif
+
+
+static uint16_t calc_crc(const uint8_t *data, int32_t len)
+{
+	uint8_t i;
+	uint16_t crc = 0;
+
+	while(--len >= 0) {
+		i = 8;
+		crc = crc ^ (((uint16_t)*data++) << 8);
+
+		do {
+			if (crc & 0x8000) {
+				crc = crc << 1 ^ 0x1021;
+			}
+			else {
+				crc = crc << 1;
+			}
+		}
+		while(--i);
+	}
+	return crc;
+}
 
 
 void uv_enter_ISP_mode(void) {
@@ -155,6 +182,10 @@ uv_errors_e uv_memory_save(uv_data_start_t *start_ptr, uv_data_end_t *end_ptr) {
 
 	// add the right value to data checksum
 	start_ptr->start_checksum = CHECKSUM_VALID;
+	start_ptr->project_name = projname;
+	start_ptr->project_name_crc =
+			calc_crc((const uint8_t *) start_ptr->project_name, strlen(start_ptr->project_name));
+	start_ptr->build_date = datetime;
 	end_ptr->end_checksum = CHECKSUM_VALID;
 
 	uv_iap_status_e status = uv_erase_and_write_to_flash((unsigned int) start_ptr,
