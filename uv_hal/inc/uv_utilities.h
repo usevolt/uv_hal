@@ -28,6 +28,10 @@
 #define PRIMITIVE_CAT5(a, ...) 	a ## __VA_ARGS__
 
 
+#define _STRINGIFY(x)		#x
+#define STRINGIFY(x)		_STRINGIFY(x)
+
+
 #include "uv_types.h"
 #include "uv_can.h"
 #include "uv_errors.h"
