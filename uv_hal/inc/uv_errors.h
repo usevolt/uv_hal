@@ -159,6 +159,8 @@ typedef enum {
 	HAL_MODULE_UNKNOWN		= (18 				<< 24),
 	HAL_MODULE_RTOS			= (19 				<< 24),
 	HAL_MODULE_I2C			= (20				<< 24),
+	HAL_MODULE_SPI			= (21				<< 24),
+	HAL_MODULE_EEPROM		= (22				<< 24),
 	USER_MODULE_1			= (100 				<< 24),
 	USER_MODULE_2			= (101 				<< 24),
 	USER_MODULE_3			= (102 				<< 24),

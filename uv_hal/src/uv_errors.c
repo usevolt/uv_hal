@@ -106,13 +106,12 @@ const char *uv_error_strings[] = {
 #endif
 
 void __uv_log_error(uv_errors_e err) {
-
 	if (err) {
 		printf("\n\r**** Error %u from module %u (uv_errors.h for details) **** \n\r",
 				UV_ERR_GET(err), UV_ERR_SOURCE_GET(err));
 #if CONFIG_INFORMATIVE_ERRORS
 		if ((err & HAL_MODULE_MASK) < sizeof(uv_error_strings) / sizeof(char*)) {
-			printf("***%s***", uv_error_strings[err & HAL_MODULE_MASK]);
+//			printf("***%s***", uv_error_strings[err & HAL_MODULE_MASK]);
 		}
 		else {
 			printf("*** Index overflow in error strings***\n\r");
