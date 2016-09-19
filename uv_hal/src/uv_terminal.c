@@ -28,17 +28,6 @@
 #endif
 
 
-#if CONFIG_CAN_LOG
-// enabled can logging
-bool can_log = true;
-#endif
-
-#if CONFIG_CANOPEN_LOG
-// enables canopen logging
-bool canopen_log = true;
-#endif
-
-
 
 // extern declarations for uv_memory module's functions
 extern uv_errors_e __uv_save_previous_non_volatile_data();
@@ -55,8 +44,8 @@ typedef struct {
 	argument_st args[CONFIG_TERMINAL_ARG_COUNT];
 } this_st;
 
-static volatile this_st _this;
-#define this (&_this)
+this_st _terminal;
+#define this (&_terminal)
 
 void uv_terminal_isp_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 void uv_terminal_help_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
@@ -70,7 +59,7 @@ void uv_terminal_revert_callb(void *me, unsigned int cmd, unsigned int args, arg
 #endif
 void uv_terminal_ispenable_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 
-static const volatile uv_command_st common_cmds[] = {
+const uv_command_st common_cmds[] = {
 		{
 				.id = CMD_ISP,
 				.str = "isp",
@@ -155,6 +144,7 @@ void uv_terminal_init(const uv_command_st* commands, unsigned int count) {
 	this->buffer_index = 0;
 	this->buffer[0] = '\0';
 
+#if CONFIG_TARGET_LPC11C14
 	// delay of half a second on start up.
 	// Makes entering ISP mode possible on startup before freeRTOS scheduler is started
 	_delay_ms(500);
@@ -169,6 +159,7 @@ void uv_terminal_init(const uv_command_st* commands, unsigned int count) {
 			uv_enter_ISP_mode();
 		}
 	}
+#endif
 }
 
 
@@ -267,8 +258,10 @@ uv_errors_e uv_terminal_step() {
 				if (!string_arg && this->buffer[i] == ' ') {
 					this->buffer[i] = '\0';
 					if (p < CONFIG_TERMINAL_ARG_COUNT) {
+						// integer argument found
 						this->args[p].type = INTEGER;
-						this->args[p].value = (void*) atoi((char*) &this->buffer[i + 1]);
+//						strtol(this->buffer, "jj", 10);
+						this->args[p].number = atoi((char*) &this->buffer[i + 1]);
 						p++;
 					}
 				}

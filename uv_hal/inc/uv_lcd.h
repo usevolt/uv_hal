@@ -185,7 +185,7 @@
 #endif
 
 /// @brief: Width of the LCD in pixels
-#define LCD_W_PX		CONFIG_LCD_BITS_PER_PIXEL
+#define LCD_W_PX		CONFIG_LCD_PIXELS_PER_LINE
 
 /// @brief: Height of the LCD in pixels
 #define LCD_H_PX		CONFIG_LCD_LINES_PER_PANEL
@@ -196,22 +196,58 @@
 /// @brief: Converts from relative 0.0f - 1.0f height to actual pixel height
 #define LCD_H(rel_h)	(LCD_H_PX * rel_h)
 
+#if (CONFIG_LCD_BITS_PER_PIXEL != LCD_24_BPP)
+#error "Incorrect bits per pixel setting. Only RGB888 (24-bits) format is implemented"
+#endif
+
+/// @brief: Color type. All colors are given in RGB888.
+typedef int32_t color_t;
+enum {
+	COLOR_BLACK = 0x000000,
+	COLOR_WHITE = 0xFFFFFF,
+	COLOR_BLUE = 0x0000FF,
+	COLOR_RED = 0xFF0000,
+	COLOR_GREEN = 0x00FF00
+};
+
 /// @brief: Initializes the LCD module
 uv_errors_e uv_lcd_tft_init(void);
 
 /// @brief: Sets the specific pixels from the LCD. Note that for performance reasons
 /// the function doesnt check for overindexing.
 /// @pre: *x* and *y* should be smaller than the LCD maximum size.
-void uv_lcd_draw_pixel(uint32_t x, uint32_t y, uint32_t color);
+void uv_lcd_draw_pixel(uint32_t x, uint32_t y, color_t color);
 
-/// @brief: Draws a rectangle on the screen
+/// @brief: Draws a solid color rectangle on the screen
 ///
 /// @param x: The X coordinate of the left-top corner of the rectangle
 /// @param y: The Y coordinate of the left-top corner of the rectangle
 /// @param width: The width of the rectangle in pixels
 /// @param height: The height of the rectangle in pixels
 /// @param color: The color of the rectangle
-void uv_lcd_draw_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t color);
+void uv_lcd_draw_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height, color_t color);
+
+/// @brief: Draws a solid color frame on the screen
+///
+/// @param x: The X coordinate of the left-top corner of the frame
+/// @param y: The Y coordinate of the left-top corner of the frame
+/// @param width: The width of the frame in pixels
+/// @param height: The height of the frame in pixels
+/// @param border: The thickness of the frame
+/// @param color: The color of the frame
+void uv_lcd_draw_frame(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t border, color_t color);
+
+
+/// @brief: Draws a vertical gradient rectangle to the display
+///
+/// @param x: The X coordinate of the left-top corner of the rectangle
+/// @param y: The Y coordinate of the left-top corner of the rectangle
+/// @param width: The width of the rectangle in pixels
+/// @param height: The height of the rectangle in pixels
+/// @param t_color: Top color
+/// @param b_color: Bottom color
+void uv_lcd_draw_v_gradient(uint32_t x, uint32_t y, uint32_t width, uint32_t height, color_t t_color, color_t b_color);
+
 
 #endif
 
