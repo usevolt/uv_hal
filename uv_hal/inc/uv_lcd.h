@@ -17,7 +17,9 @@
 #include "LPC177x_8x.h"
 #endif
 
-
+#if !defined(CONFIG_LCD_RGB_TO_BGR)
+#error "CONFIG_LCD_RGB_TO_BGR should be defined as 1 or 0 depending if the red and blue color space should be swapped"
+#endif
 #if !defined(CONFIG_LCD_FREQ)
 #error "CONFIG_LCD_FREQ should define the LCD clock frequency in Hz"
 #endif

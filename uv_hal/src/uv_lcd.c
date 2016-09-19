@@ -73,6 +73,7 @@ uv_errors_e uv_lcd_tft_init(void) {
 	LPC_LCD->LE    = (0    << 16) |       // LCDLE Enabled: 1, Disabled: 0
 				     (9    <<  0) ;       // Line-end delay: LCDCLK clocks - 1
 	LPC_LCD->CTRL  = (1    << 11) |       // LCD Power Enable
+					 (CONFIG_LCD_RGB_TO_BGR << 8) |	//RGB or BGR color space
 				     (1    <<  5) |       // 0 = STN display, 1: TFT display
 				     (CONFIG_LCD_BITS_PER_PIXEL <<  1) ;       // Bits per pixel: 24bpp
 	volatile uint16_t i;
@@ -94,11 +95,16 @@ void uv_lcd_draw_pixel(uint32_t x, uint32_t y, color_t value) {
 }
 
 
+#define draw_hline(x, y, length, color)	do{uint32_t hlinei; \
+		LCD_PIXEL_TYPE *hlineptr = (LCD_PIXEL_TYPE*)(CONFIG_LCD_BUFFER_ADDRESS) + y * LCD_W_PX + x; \
+		for (hlinei = 0; hlinei < length; hlinei++) { \
+			*(hlineptr++) = color;\
+		} }while(0)\
+
 void uv_lcd_draw_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height, color_t color) {
 	uint32_t j;
 	for (j = y; j < y + height; j++) {
-		memset((LCD_PIXEL_TYPE*)(CONFIG_LCD_BUFFER_ADDRESS) + j * LCD_W_PX + x,
-				color, width * sizeof(LCD_PIXEL_TYPE));
+		draw_hline(x, j, width, color);
 	}
 }
 
@@ -117,8 +123,7 @@ void uv_lcd_draw_v_gradient(uint32_t x, uint32_t y, uint32_t width,
 	for (i = 0; i < height; i++) {
 		float rel = i / height;
 		c = t_color + (t_color - b_color) * rel;
-		memset((LCD_PIXEL_TYPE*)(CONFIG_LCD_BUFFER_ADDRESS) + (y + i) * LCD_W_PX + x,
-				c, width * sizeof(LCD_PIXEL_TYPE));
+		draw_hline(x, y + i, width, c);
 	}
 }
 

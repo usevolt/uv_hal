@@ -19,13 +19,18 @@ inline void uv_stdout_set_source(uv_stdout_sources_e value) {
 	stdout = value;
 }
 
-
+int outbyte(int c) {
+	if (uv_uart_is_initialized(UART0)) {
+		uv_uart_send_char(UART0, c);
+	}
+	return 1;
+}
 
 
 
 void uv_stdout_send(char* str, unsigned int count) {
 	int i;
 	for (i = 0; i < count; i++) {
-		putchar(str[i]);
+		outbyte(str[i]);
 	}
 }

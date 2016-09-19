@@ -260,8 +260,8 @@ uv_errors_e uv_terminal_step() {
 					if (p < CONFIG_TERMINAL_ARG_COUNT) {
 						// integer argument found
 						this->args[p].type = INTEGER;
-//						strtol(this->buffer, "jj", 10);
-						this->args[p].number = atoi((char*) &this->buffer[i + 1]);
+						this->args[p].number = strtol((char*) &this->buffer[i + 1], NULL, 0);
+						printf("arg: %i\n\r", (int) this->args[p].number);
 						p++;
 					}
 				}
