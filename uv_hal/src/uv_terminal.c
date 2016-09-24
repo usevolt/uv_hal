@@ -28,21 +28,6 @@
 #endif
 
 
-#if CONFIG_CAN_LOG
-// enabled can logging
-bool can_log = true;
-#endif
-
-#if CONFIG_CANOPEN_LOG
-// enables canopen logging
-bool canopen_log = true;
-#endif
-
-
-#define ECHO(x...)				x
-#define _ARG(x)					ECHO(, argv[x])
-#define REPEAT_ARGS()			REPEAT(CONFIG_TERMINAL_ARG_COUNT, _ARG)
-
 
 // extern declarations for uv_memory module's functions
 extern uv_errors_e __uv_save_previous_non_volatile_data();
@@ -56,24 +41,25 @@ typedef struct {
 	uint8_t commands_count;
 	uint8_t buffer_index;
 	char buffer[CONFIG_TERMINAL_BUFFER_SIZE];
+	argument_st args[CONFIG_TERMINAL_ARG_COUNT];
 } this_st;
 
-static this_st _this;
-#define this (&_this)
+this_st _terminal;
+#define this (&_terminal)
 
-void uv_terminal_isp_callb(void *me, unsigned int cmd, unsigned int args, ...);
-void uv_terminal_help_callb(void *me, unsigned int cmd, unsigned int args, ...);
+void uv_terminal_isp_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
+void uv_terminal_help_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 #if CONFIG_TERMINAL_INSTRUCTIONS
-void uv_terminal_man_callb(void *me, unsigned int cmd, unsigned int args, ...);
+void uv_terminal_man_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 #endif
-void uv_terminal_reset_callb(void *me, unsigned int cmd, unsigned int args, ...);
+void uv_terminal_reset_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 #if CONFIG_NON_VOLATILE_MEMORY
-void uv_terminal_save_callb(void *me, unsigned int cmd, unsigned int args, ...);
-void uv_terminal_revert_callb(void *me, unsigned int cmd, unsigned int args, ...);
+void uv_terminal_save_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
+void uv_terminal_revert_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 #endif
-void uv_terminal_ispenable_callb(void *me, unsigned int cmd, unsigned int args, ...);
+void uv_terminal_ispenable_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 
-static const uv_command_st common_cmds[] = {
+const uv_command_st common_cmds[] = {
 		{
 				.id = CMD_ISP,
 				.str = "isp",
@@ -158,6 +144,7 @@ void uv_terminal_init(const uv_command_st* commands, unsigned int count) {
 	this->buffer_index = 0;
 	this->buffer[0] = '\0';
 
+#if CONFIG_TARGET_LPC11C14
 	// delay of half a second on start up.
 	// Makes entering ISP mode possible on startup before freeRTOS scheduler is started
 	_delay_ms(500);
@@ -172,6 +159,7 @@ void uv_terminal_init(const uv_command_st* commands, unsigned int count) {
 			uv_enter_ISP_mode();
 		}
 	}
+#endif
 }
 
 
@@ -190,8 +178,6 @@ uv_errors_e uv_terminal_step() {
 
 	// cycle trough all received characters
 	char data;
-	// arguments can be either integers or strings
-	void *argv[CONFIG_TERMINAL_ARG_COUNT + 1];
 
 	uv_errors_e e;
 	while (true) {
@@ -256,7 +242,8 @@ uv_errors_e uv_terminal_step() {
 							// multi-space argument start, edit arg starting with \0
 							if (this->buffer[i - 1] == '\0') {
 								this->buffer[i] = '\0';
-								argv[p - 1] = &this->buffer[i + 1];
+								this->args[p - 1].type = STRING;
+								this->args[p - 1].value = (char*) &this->buffer[i + 1];
 								string_arg = true;
 							}
 						}
@@ -271,7 +258,10 @@ uv_errors_e uv_terminal_step() {
 				if (!string_arg && this->buffer[i] == ' ') {
 					this->buffer[i] = '\0';
 					if (p < CONFIG_TERMINAL_ARG_COUNT) {
-						argv[p] = (void*) atoi(&this->buffer[i + 1]);
+						// integer argument found
+						this->args[p].type = INTEGER;
+						this->args[p].number = strtol((char*) &this->buffer[i + 1], NULL, 0);
+						printf("arg: %i\n\r", (int) this->args[p].number);
 						p++;
 					}
 				}
@@ -283,10 +273,10 @@ uv_errors_e uv_terminal_step() {
 			bool match = false;
 
 			for (q = 0; q < uv_terminal_get_commands_count(); q++) {
-				if (strcmp(this->buffer, this->commands_ptr[q].str) == 0) {
+				if (strcmp((const char*) this->buffer, (const char*) this->commands_ptr[q].str) == 0) {
 					if (this->commands_ptr[q].callback) {
 						this->commands_ptr[q].callback(__uv_get_user_ptr(),
-								this->commands_ptr[q].id, p REPEAT_ARGS());
+								(int) this->commands_ptr[q].id, p, (argument_st*) this->args);
 					}
 					match = true;
 					break;
@@ -295,9 +285,10 @@ uv_errors_e uv_terminal_step() {
 			// if no match was found, search common commands
 			if (!match) {
 				for (q = 0; q < sizeof(common_cmds) / sizeof(uv_command_st); q++) {
-					if (strcmp(this->buffer, common_cmds[q].str) == 0) {
+					if (strcmp((char*) this->buffer, (char*) common_cmds[q].str) == 0) {
 						match = true;
-						common_cmds[q].callback(__uv_get_user_ptr(), common_cmds[q].id, p REPEAT_ARGS());
+						common_cmds[q].callback(__uv_get_user_ptr(), (int) common_cmds[q].id, p,
+								(argument_st*) this->args);
 						break;
 					}
 				}
@@ -318,10 +309,10 @@ uv_errors_e uv_terminal_step() {
 	return uv_err(ERR_NONE);
 }
 
-void uv_terminal_isp_callb(void *me, unsigned int cmd, unsigned int args, ...) {
+void uv_terminal_isp_callb(void *me, unsigned int cmd, unsigned int args, argument_st *argv) {
 	uv_enter_ISP_mode();
 }
-void uv_terminal_help_callb(void *me, unsigned int cmd, unsigned int args, ...) {
+void uv_terminal_help_callb(void *me, unsigned int cmd, unsigned int args, argument_st *argv) {
 	printf("\n\r");
 	int p;
 	for (p = 0; p < sizeof(common_cmds) / sizeof(uv_command_st); p++) {
@@ -332,20 +323,16 @@ void uv_terminal_help_callb(void *me, unsigned int cmd, unsigned int args, ...) 
 	}
 }
 #if CONFIG_TERMINAL_INSTRUCTIONS
-void uv_terminal_man_callb(void *me, unsigned int cmd, unsigned int args, ...) {
-	va_list l;
-	va_start(l, args);
-	char *str = va_arg(l, char*);
-	va_end(l);
+void uv_terminal_man_callb(void *me, unsigned int cmd, unsigned int args, argument_st *argv) {
 	int i;
 	for (i = 0; i < this->commands_count; i++) {
-		if (strcmp(str, this->commands_ptr[i].str) == 0) {
+		if (strcmp(argv[0].str, this->commands_ptr[i].str) == 0) {
 			printf("\n\r%s:\n\r%s\n\r\n\r", this->commands_ptr[i].str, this->commands_ptr[i].instructions);
 			return;
 		}
 	}
 	for (i = 0; i < sizeof(common_cmds) / sizeof(uv_command_st); i++) {
-		if (strcmp(str, common_cmds[i].str) == 0) {
+		if (strcmp(argv[0].str, common_cmds[i].str) == 0) {
 			printf("\n\r%s:\n\r%s\n\r\n\r", common_cmds[i].str, common_cmds[i].instructions);
 			return;
 		}
@@ -353,28 +340,25 @@ void uv_terminal_man_callb(void *me, unsigned int cmd, unsigned int args, ...) {
 	printf("Give a command name as a string argument\n\r");
 }
 #endif
-void uv_terminal_reset_callb(void *me, unsigned int cmd, unsigned int args, ...) {
+void uv_terminal_reset_callb(void *me, unsigned int cmd, unsigned int args, argument_st *argv) {
 	if (!args) {
 		uv_system_reset(false);
 	}
-	va_list l;
-	va_start(l, args);
-	if (va_arg(l, int)) {
+	if (argv[0].number) {
 		uv_system_reset(true);
 	}
 	else {
 		uv_system_reset(false);
 	}
-	va_end(l);
 
 }
 #if CONFIG_NON_VOLATILE_MEMORY
-void uv_terminal_save_callb(void *me, unsigned int cmd, unsigned int args, ...) {
+void uv_terminal_save_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv) {
 	if (!__uv_save_previous_non_volatile_data()) {
 		printf("saved\n\r");
 	}
 }
-void uv_terminal_revert_callb(void *me, unsigned int cmd, unsigned int args, ...) {
+void uv_terminal_revert_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv) {
 	if (!__uv_load_previous_non_volatile_data()) {
 		printf("reverted\n\r");
 	}

@@ -23,16 +23,18 @@
 	If not, uncomment the define below and
 	replace outbyte(c) by your own function call.
 
-#define putchar(c) outbyte(c)
 */
+#define putchar(c) outbyte(c)
 
 #include <stdarg.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdint.h>
+#include <uv_uart.h>
 #include "uv_hal_config.h"
 
 
+extern int outbyte(int c);
 
 static void printchar(char **str, int c)
 {
@@ -205,36 +207,39 @@ int sprintf(char *out, const char *format, ...)
         return print( &out, format, -1, args );
 }
 
-int atoi(const char *nptr) {
-	int8_t base = 10, value, sign = 1;
-	int result = 0;
-	if (*nptr == '-') {
-		sign = -1;
-		nptr++;
-	}
-	if (strstr(nptr, "0x\0") != 0) {
-		base = 16;
-		nptr += 2;
-	}
-	else if (strstr(nptr, "0b\0") != 0) {
-		base = 2;
-		nptr += 2;
-	}
-	while (isxdigit(*nptr)) {
-		if (isdigit(*nptr)) {
-			value = *nptr - '0';
-		}
-		else {
-			value = *nptr - 'A' + 10;
-			if (value > 0xF) {
-				value -= 0x20;
-			}
-		}
-		result = result * base + value;
-		nptr++;
-	}
-	return result * sign;
-}
+//int strtol(const char *nptr, char **ptr, int base) {
+//	base = 10;
+//	int value, sign = 1;
+//	int result = 0;
+//	if (*nptr == '-') {
+//		sign = -1;
+//		nptr++;
+//	}
+//	if (strstr(nptr, "0x\0") != 0) {
+//		base = 16;
+//		nptr += 2;
+//	}
+//	else if (strstr(nptr, "0b\0") != 0) {
+//		base = 2;
+//		nptr += 2;
+//	}
+//	printf("base: %u\n\r", base);
+//	while (isxdigit(*nptr)) {
+//		if (isdigit(*nptr)) {
+//			printf("d");
+//			value = *nptr - '0';
+//		}
+//		else {
+//			value = *nptr - 'A' + 10;
+//			if (value > 0xF) {
+//				value -= 0x20;
+//			}
+//		}
+//		result = result * base + value;
+//		nptr++;
+//	}
+//	return result * sign;
+//}
 
 
 int snprintf(char * out, size_t n,

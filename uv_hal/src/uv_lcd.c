@@ -8,6 +8,7 @@
 
 #include "uv_lcd.h"
 #include "uv_emc.h"
+#include <string.h>
 
 #if CONFIG_LCD
 
@@ -72,6 +73,7 @@ uv_errors_e uv_lcd_tft_init(void) {
 	LPC_LCD->LE    = (0    << 16) |       // LCDLE Enabled: 1, Disabled: 0
 				     (9    <<  0) ;       // Line-end delay: LCDCLK clocks - 1
 	LPC_LCD->CTRL  = (1    << 11) |       // LCD Power Enable
+					 (CONFIG_LCD_RGB_TO_BGR << 8) |	//RGB or BGR color space
 				     (1    <<  5) |       // 0 = STN display, 1: TFT display
 				     (CONFIG_LCD_BITS_PER_PIXEL <<  1) ;       // Bits per pixel: 24bpp
 	volatile uint16_t i;
@@ -81,25 +83,49 @@ uv_errors_e uv_lcd_tft_init(void) {
 
 	LPC_LCD->CTRL |= (1 <<  0);           /* LCD enable */
 
+	uv_lcd_draw_rect(0, 0, LCD_W(1.0f), LCD_H(1.0f), 0);
+
 	return uv_err(ERR_NONE);
 
 }
 
 
-void uv_lcd_draw_pixel(uint32_t x, uint32_t y, uint32_t value) {
+void uv_lcd_draw_pixel(uint32_t x, uint32_t y, color_t value) {
 	*(((LCD_PIXEL_TYPE *)(CONFIG_LCD_BUFFER_ADDRESS)) + y * CONFIG_LCD_PIXELS_PER_LINE + x) = value;
 }
 
 
-void uv_lcd_draw_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t color) {
-	int i,j;
+#define draw_hline(x, y, length, color)	do{uint32_t hlinei; \
+		LCD_PIXEL_TYPE *hlineptr = (LCD_PIXEL_TYPE*)(CONFIG_LCD_BUFFER_ADDRESS) + y * LCD_W_PX + x; \
+		for (hlinei = 0; hlinei < length; hlinei++) { \
+			*(hlineptr++) = color;\
+		} }while(0)\
+
+void uv_lcd_draw_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height, color_t color) {
+	uint32_t j;
 	for (j = y; j < y + height; j++) {
-		for (i = x; i < x + width; i++) {
-			*(((LCD_PIXEL_TYPE *)(CONFIG_LCD_BUFFER_ADDRESS)) + j * CONFIG_LCD_PIXELS_PER_LINE + i) = color;
-		}
+		draw_hline(x, j, width, color);
 	}
 }
 
+void uv_lcd_draw_frame(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t border, color_t color) {
+	uv_lcd_draw_rect(x, y, width, border, color);
+	uv_lcd_draw_rect(x + width - border, y + border, border, height - border, color);
+	uv_lcd_draw_rect(x, y + border, border, height - border, color);
+	uv_lcd_draw_rect(x, y + height - border, width, border, color);
+}
+
+
+void uv_lcd_draw_v_gradient(uint32_t x, uint32_t y, uint32_t width,
+		uint32_t height, color_t t_color, color_t b_color) {
+	uint32_t i;
+	color_t c;
+	for (i = 0; i < height; i++) {
+		float rel = i / height;
+		c = t_color + (t_color - b_color) * rel;
+		draw_hline(x, y + i, width, c);
+	}
+}
 
 
 #endif

@@ -61,6 +61,28 @@
 
 
 
+/// @brief: Defines the type of the argument
+enum {
+	UNDEFINED = 0,
+	INTEGER,
+	STRING
+};
+typedef uint8_t type_t;
+
+/// @brief: A single argument struct
+typedef struct {
+	/// @brief: Union which contains the actual argument
+	union {
+		/// @brief: Generic way for returning the "value". Depends on the type of this argument
+		/// if this is a pointer to a string or an integer.
+		void *value;
+		char *str;
+		int32_t number;
+	};
+	type_t type;
+} argument_st;
+
+
 /// @brief: Structure which defines a single terminal command
 typedef struct {
 	/// @brief: Unique enumeration value for this command.
@@ -70,7 +92,7 @@ typedef struct {
 	/// @brief: A descriptive info from this command. Tells the user how to use command, etc etc.
 	char* instructions;
 	/// @brief: A callback function which will be called if this command was called
-	void (*callback)(void*, unsigned int, unsigned int, ...);
+	void (*callback)(void*, unsigned int, unsigned int, argument_st *);
 } uv_command_st;
 
 
