@@ -261,7 +261,7 @@ uv_errors_e uv_terminal_step() {
 						// integer argument found
 						this->args[p].type = INTEGER;
 						this->args[p].number = strtol((char*) &this->buffer[i + 1], NULL, 0);
-						printf("arg: %i\n\r", (int) this->args[p].number);
+//						printf("arg: %i\n\r", (int) this->args[p].number);
 						p++;
 					}
 				}

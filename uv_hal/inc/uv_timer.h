@@ -194,32 +194,6 @@ uv_errors_e uv_counter_init(uv_timers_e timer);
 
 
 
-/// @brief: Initializes a timer/counter module as a pwm output and starts it.
-/// To use the module as a generic timer or counter, use uv_timer_init or
-/// uv_counter_init functions instead.
-///
-/// @note: This function should be called only once per application. Reinitializing
-/// the timer may cause a hard fault interrupt!
-///
-/// @return: error enum defined in uv_errors.h. Returned errors are evaluated into
-/// true value, no errors evaluate into 0.
-///
-/// @param pwm: Selects the timer/pwm module which will be initialized. Available values depend
-/// on hardware used.
-/// @param: pwm_channels: OR'red PWM channels to be initialized.
-/// The PWM channels are initialized with a 0 % duty cycle. To change the channel
-/// configuration, call uv_pwm_conf_channel function.
-/// @param freq: The frequency of the PWM channels in Hz. All channels use the same frequency.
-static inline uv_errors_e uv_pwm_init(uv_pwms_e pwm, uv_pwm_channels_e channels,
-		unsigned int freq) {
-				return uv_timer_init(pwm, freq);
-};
-
-
-
-
-
-
 /// @brief: Starts the timer from the timer current value
 ///
 /// @param timer: Selects the timer which will be initialized. Available values depend
@@ -284,26 +258,6 @@ uv_errors_e uv_timer_set_freq(uv_timers_e timer, float freq);
 /// on hardware used.
 int uv_timer_get_value(uv_timers_e timer);
 static inline int uv_counter_get_value(uv_timers_e timer) { return uv_timer_get_value(timer); }
-
-
-
-
-
-
-/// @brief: Sets the pwm channel's duty cycle
-///
-/// @pre: The timer is initialized with uv_pwm_init function
-///
-/// @return: error enum defined in uv_errors.h. Returned errors are evaluated into
-/// true value, no errors evaluate into 0.
-///
-/// @param pwm: Selects the timer/pwm module which will be initialized. Available values depend
-/// on hardware used.
-/// @param channel: the used timer's PWM channel to be configured. Available values are
-/// hardware dependant
-/// @param duty_cycle: The PWM output's duty cycle. Value should be between 0 and 1000.
-/// Other values are clamped to valid range and a warning message is logged to stdout.
-uv_errors_e uv_pwm_set(uv_pwms_e pwm, uv_pwm_channels_e channel, unsigned int duty_cycle);
 
 
 

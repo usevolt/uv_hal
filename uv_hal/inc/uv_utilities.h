@@ -46,6 +46,7 @@
 
 
 
+#define M_REPEAT0_(X)
 #define M_REPEAT1_(X) X(0)
 #define M_REPEAT2_(X) M_REPEAT1_(X) X(1)
 #define M_REPEAT3_(X) M_REPEAT2_(X) X(2)
@@ -81,6 +82,7 @@
 #define REPEAT4(count, func)	CAT5(M_REPEAT, CAT5(count, _(func)))
 
 
+#define M_REPEAT0_ARG(X, ARG)
 #define M_REPEAT1_ARG(X, ARG) X(0, ARG)
 #define M_REPEAT2_ARG(X, ARG) M_REPEAT1_ARG(X, ARG) X(1, ARG)
 #define M_REPEAT3_ARG(X, ARG) M_REPEAT2_ARG(X, ARG) X(2, ARG)
@@ -170,6 +172,9 @@
 
 
 
+/// @brief: Macro which can be used to inherit objects from this class.
+/// HAS TO BE DECLARED IN THE BEGINNING OF THE STRUCT, BEFORE ANY MEMBER VARIABLES.
+#define EXTENDS(x)	x super
 
 
 

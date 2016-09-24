@@ -8,8 +8,11 @@
 #ifndef UW_UI_H_
 #define UW_UI_H_
 
+#include "ui/uv_button.h"
+#include "ui/uv_slider.h"
+#include "ui/uv_window.h"
+#include "ui/uv_display.h"
 #include "ui/ugui.h"
-#include "ui/uslider.h"
 
 
 #endif /* UW_UI_H_ */

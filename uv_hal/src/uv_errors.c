@@ -101,7 +101,9 @@ const char *uv_error_strings[] = {
 
 	"Invalid data byte",
 
-	"Not acknowledge received"
+	"Not acknowledge received",
+
+	"Value too high"
 };
 #endif
 

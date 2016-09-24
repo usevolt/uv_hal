@@ -14,7 +14,6 @@
 #include <stdio.h>
 #if CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
-#warning "Implementation needs verification for CONFIG_TARGET_LPC1785"
 #endif
 #if CONFIG_TARGET_LPC11C14
 #include "LPC11xx.h"

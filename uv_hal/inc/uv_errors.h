@@ -122,7 +122,8 @@ typedef enum {
 	ERR_INVALID_DATA					= 38,
 	/// @brief: Not acknowledge received
 	ERR_NACK							= 39,
-
+	/// @brief: Value too high
+	ERR_VALUE_TOO_HIGH					= 40,
 	ERR_COUNT
 } _uv_errors_e;
 typedef unsigned int uv_errors_e;
@@ -161,6 +162,7 @@ typedef enum {
 	HAL_MODULE_I2C			= (20				<< 24),
 	HAL_MODULE_SPI			= (21				<< 24),
 	HAL_MODULE_EEPROM		= (22				<< 24),
+	HAL_MODULE_PWM			= (23				<< 24),
 	USER_MODULE_1			= (100 				<< 24),
 	USER_MODULE_2			= (101 				<< 24),
 	USER_MODULE_3			= (102 				<< 24),

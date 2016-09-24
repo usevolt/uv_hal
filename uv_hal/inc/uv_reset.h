@@ -24,10 +24,6 @@ typedef enum {
 } uv_reset_sources_e;
 
 
-///@brief: returns the error id indicating what was last reset's reason
-uv_reset_sources_e uv_get_reset_source(void);
-
-
 /// @brief: resets the system via software reset
 void uv_system_reset(bool hard_reset);
 

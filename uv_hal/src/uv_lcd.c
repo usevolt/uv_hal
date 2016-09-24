@@ -13,6 +13,9 @@
 #if CONFIG_LCD
 
 
+lcd_line_t *lcd = (lcd_line_t *) CONFIG_LCD_BUFFER_ADDRESS;
+
+
 uv_errors_e uv_lcd_tft_init(void) {
 	// initialize the GPIO pins
 	CONFIG_LCD_PWR_IOCON;
@@ -90,13 +93,15 @@ uv_errors_e uv_lcd_tft_init(void) {
 }
 
 
-void uv_lcd_draw_pixel(uint32_t x, uint32_t y, color_t value) {
-	*(((LCD_PIXEL_TYPE *)(CONFIG_LCD_BUFFER_ADDRESS)) + y * CONFIG_LCD_PIXELS_PER_LINE + x) = value;
+void uv_lcd_step(uint16_t step_ms, uv_touch_st *touch) {
+
 }
 
 
+
+
 #define draw_hline(x, y, length, color)	do{uint32_t hlinei; \
-		LCD_PIXEL_TYPE *hlineptr = (LCD_PIXEL_TYPE*)(CONFIG_LCD_BUFFER_ADDRESS) + y * LCD_W_PX + x; \
+		LCD_PIXEL_TYPE *hlineptr = &lcd[y][x]; \
 		for (hlinei = 0; hlinei < length; hlinei++) { \
 			*(hlineptr++) = color;\
 		} }while(0)\

@@ -6,6 +6,6 @@
  */
 
 
-#include "ui/uslider.h"
+#include <ui/uv_slider.h>
 #include "ui/ugui.h"
 

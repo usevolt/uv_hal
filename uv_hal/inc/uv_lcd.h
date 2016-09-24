@@ -198,6 +198,7 @@
 /// @brief: Converts from relative 0.0f - 1.0f height to actual pixel height
 #define LCD_H(rel_h)	(LCD_H_PX * rel_h)
 
+
 #if (CONFIG_LCD_BITS_PER_PIXEL != LCD_24_BPP)
 #error "Incorrect bits per pixel setting. Only RGB888 (24-bits) format is implemented"
 #endif
@@ -212,13 +213,61 @@ enum {
 	COLOR_GREEN = 0x00FF00
 };
 
+/// @brief: Lists all different touchscreen actions
+enum {
+	/// @brief: User pressed down the touchscreen
+	/// x and y variables contain the local coordinates of the press
+	LCD_PRESSED,
+	/// @brief: User pressed the touchscreen long without moving
+	/// x and y variables contain the local coordinates of the long press
+	LCD_LONG_PRESSED,
+	/// @brief: User released from the touchscreen
+	/// x and y variables contain the local coordinates of the release
+	LCD_RELEASED,
+	/// @brief: User clicked on the touchscreen without moving
+	/// x and y variables contain the local coordinates of the click
+	LCD_CLICKED,
+	/// @brief: User is dragging the finger on the touchscreen
+	/// x and y variables contain the drag offset from the last step cycle
+	LCD_DRAG
+};
+typedef uint8_t uv_touch_action_e;
+
+
+
+/// @brief: Touchscreen touch structure. All object's receive their
+/// touching actions via this structure as a step function parameter.
+typedef struct {
+	/// @brief: Defines the action type
+	uv_touch_action_e action;
+	/// @brief: local X coordinate. Contains different information depending on the action.
+	uint16_t x;
+	/// @brief: local Y coordinate. Contains different information depending on the action.
+	uint16_t y;
+} uv_touch_st;
+
+
+
+
+/// @brief: pointer to the display. Pixels are oriented as [y][x] two dimensional array
+typedef LCD_PIXEL_TYPE lcd_line_t[CONFIG_LCD_PIXELS_PER_LINE];
+extern lcd_line_t *lcd;
+
+
 /// @brief: Initializes the LCD module
 uv_errors_e uv_lcd_tft_init(void);
+
+/// @brief: The step function should be called every step cycle
+///
+/// @param touch: Pointer to the touchscreen structure where touchscreen event will be returned.
+void uv_lcd_step(uint16_t step_ms, uv_touch_st *touch);
 
 /// @brief: Sets the specific pixels from the LCD. Note that for performance reasons
 /// the function doesnt check for overindexing.
 /// @pre: *x* and *y* should be smaller than the LCD maximum size.
-void uv_lcd_draw_pixel(uint32_t x, uint32_t y, color_t color);
+static inline void uv_lcd_draw_pixel(uint32_t x, uint32_t y, color_t color) {
+	lcd[y][x] = color;
+}
 
 /// @brief: Draws a solid color rectangle on the screen
 ///

@@ -123,8 +123,8 @@ uv_errors_e uv_emc_init( void ) {
 	LPC_EMC->DynamicControl    = 0x00000083; /* Issue MODE command */
 
 	dwtemp = *((volatile uint32_t *)(EMC_SDRAM_1 | CONFIG_EMC_SDRAM_MODE_REGISTER));
-	LPC_EMC->DynamicControl    = 0x00000000; /* Issue NORMAL command */
 	if (dwtemp) {}
+	LPC_EMC->DynamicControl    = 0x00000000; /* Issue NORMAL command */
 
 	//[re]enable buffers
 	LPC_EMC->DynamicConfig0    |= 0x00080000; // Buffer enable

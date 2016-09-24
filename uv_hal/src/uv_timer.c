@@ -24,7 +24,6 @@ typedef struct {
 	LPC_TMR_TypeDef* timer[TIMER_COUNT];
 #elif CONFIG_TARGET_LPC1785
 	LPC_TIM_TypeDef* timer[TIMER_COUNT];
-	LPC_PWM_TypeDef* pwm[PWM_COUNT];
 #else
 #error "No controller defined"
 #endif
@@ -67,8 +66,6 @@ static void this_init(uv_timers_e timer) {
 	this->timer[1] = LPC_TIM1;
 	this->timer[2] = LPC_TIM2;
 	this->timer[3] = LPC_TIM3;
-	this->pwm[0] = LPC_PWM0;
-	this->pwm[1] = LPC_PWM1;
 #endif
 }
 
@@ -381,117 +378,6 @@ static void init_timer(unsigned int timer, unsigned int freq) {
 }
 #endif
 
-#if (CONFIG_PWM0 || CONFIG_PWM1 || CONFIG_PWM2 || CONFIG_PWM3)
-static void init_pwm(unsigned int timer, unsigned int freq) {
-
-#if CONFIG_TARGET_LPC11C14
-	// enable clock to the timer module
-	LPC_SYSCON->SYSAHBCLKCTRL |= (1 << (7 + timer));
-
-	// set PWM frequency
-	uv_timer_set_freq(timer, freq);
-
-	switch (timer) {
-#if CONFIG_PWM0
-	case PWM0:
-#if CONFIG_PWM0_CHANNEL0
-		LPC_TMR16B0->PWMC |= 0b1;
-		LPC_IOCON->PIO0_8 &= ~0b111;
-		LPC_IOCON->PIO0_8 |= 0x2;
-#endif
-#if CONFIG_PWM0_CHANNEL1
-		LPC_TMR16B0->PWMC |= 0b10;
-		LPC_IOCON->PIO0_9 &= ~0b111;
-		LPC_IOCON->PIO0_9 |= 0x2;
-#endif
-#if CONFIG_PWM0_CHANNEL2
-		LPC_TMR16B0->PWMC |= 0b100;
-		LPC_IOCON->PIO0_10 &= ~0b111;
-		LPC_IOCON->PIO0_10 |= 0x3;
-#endif
-		break;
-#endif
-#if CONFIG_PWM1
-	case PWM1:
-#if CONFIG_PWM1_CHANNEL0
-		LPC_TMR16B1->PWMC |= 0b1;
-		LPC_IOCON->PIO1_9 &= ~0b111;
-		LPC_IOCON->PIO1_9 |= 0x1;
-#endif
-#if CONFIG_PWM1_CHANNEL1
-		LPC_TMR16B1->PWMC |= 0b10;
-		LPC_IOCON->PIO1_10 &= ~0b111;
-		LPC_IOCON->PIO1_10 |= 0x2;
-#endif
-#if CONFIG_PWM1_CHANNEL2
-		LPC_TMR16B1->PWMC |= 0b100;
-#endif
-		break;
-#endif
-#if CONFIG_PWM2
-	case PWM2:
-#if CONFIG_PWM2_CHANNEL0
-		LPC_TMR32B0->PWMC |= 0b1;
-		LPC_IOCON->PIO1_6 &= ~0b111;
-		LPC_IOCON->PIO1_6 |= 0x2;
-#endif
-#if CONFIG_PWM2_CHANNEL1
-		LPC_TMR32B0->PWMC |= 0b10;
-		LPC_IOCON->PIO1_7 &= ~0b111;
-		LPC_IOCON->PIO1_7 |= 0x2;
-#endif
-#if CONFIG_PWM2_CHANNEL2
-		LPC_TMR32B0->PWMC |= 0b100;
-		LPC_IOCON->PIO0_1 &= ~0b111;
-		LPC_IOCON->PIO0_1 |= 0x2;
-#endif
-		break;
-#endif
-#if CONFIG_PWM3
-	case PWM3:
-#if CONFIG_PWM3_CHANNEL0
-		LPC_TMR32B1->PWMC |= 0b1;
-		LPC_IOCON->PIO1_1 &= ~0b111;
-		LPC_IOCON->PIO1_1 |= 0x3;
-#endif
-#if CONFIG_PWM3_CHANNEL1
-		LPC_TMR32B1->PWMC |= 0b10;
-		LPC_IOCON->PIO1_2 &= ~0b111;
-		LPC_IOCON->PIO1_2 |= 0x3;
-#endif
-#if CONFIG_PWM3_CHANNEL2
-		LPC_TMR32B1->PWMC |= 0b100;
-		LPC_IOCON->PIO1_3 &= ~0b111;
-		LPC_IOCON->PIO1_3 |= 0x3;
-#endif
-		break;
-#endif
-	default:
-		break;
-	}
-
-	// set PWM's to zero
-	this->timer[timer]->MR0 = 0;
-	this->timer[timer]->MR1 = 0;
-	this->timer[timer]->MR2 = 0;
-
-	// clear tmr clear and stop for match 0, 1 and 2
-	this->timer[timer]->MCR &= ~0x3FF;
-
-	// reset timer on match 3
-	this->timer[timer]->MCR |= (0b1 << 10);
-
-
-
-	// start timer
-	this->timer[timer]->TCR |= 1 << 0;
-
-#elif CONFIG_TARGET_LPC1785
-#warning "PWM initialization not yet implemented"
-
-#endif
-}
-#endif
 
 uv_errors_e uv_timer_init(uv_timers_e timer, float freq) {
 	if (validate_timer(timer)) return validate_timer(timer);
@@ -503,36 +389,20 @@ uv_errors_e uv_timer_init(uv_timers_e timer, float freq) {
 	case 0:
 		init_timer(timer, freq);
 		break;
-#elif CONFIG_PWM0
-	case 0:
-		init_pwm(timer, freq);
-		break;
 #endif
 #if CONFIG_TIMER1
 	case 1:
 		init_timer(timer, freq);
-		break;
-#elif CONFIG_PWM1
-	case 1:
-		init_pwm(timer, freq);
 		break;
 #endif
 #if CONFIG_TIMER2
 	case 2:
 		init_timer(timer, freq);
 		break;
-#elif CONFIG_PWM2
-	case 2:
-		init_pwm(timer, freq);
-		break;
 #endif
 #if CONFIG_TIMER3
 	case 3:
 		init_timer(timer, freq);
-		break;
-#elif CONFIG_PWM3
-	case 3:
-		init_pwm(timer, freq);
 		break;
 #endif
 	default:
@@ -594,50 +464,12 @@ uv_errors_e uv_timer_set_freq(uv_timers_e timer, float freq) {
 
 
 
-uv_errors_e uv_pwm_set(uv_pwms_e pwm, uv_pwm_channels_e channel, unsigned int duty_cycle) {
-#if CONFIG_TARGET_LPC11C14
-	if (validate_timer(pwm)) return validate_timer(pwm);
-
-	unsigned int max_value = this->timer[pwm]->MR3;
-	// clamp duty cycle to max value
-	if (duty_cycle > 1000) {
-		duty_cycle = 1000;
-	}
-	// calculate register value from duty cycle
-	unsigned int value = max_value / 1000 * (1000 - duty_cycle);
-	switch(channel) {
-	case PWM_CHANNEL_0:
-		this->timer[pwm]->MR0 = value;
-		break;
-	case PWM_CHANNEL_1:
-		this->timer[pwm]->MR1 = value;
-		break;
-	case PWM_CHANNEL_2:
-		this->timer[pwm]->MR2 = value;
-		break;
-	default:
-		__uv_err_throw(ERR_HARDWARE_NOT_SUPPORTED | HAL_MODULE_TIMER);
-	}
-
-
-	return uv_err(ERR_NONE);
-#elif CONFIG_TARGET_LPC1785
-#warning "uv_pwm_set for CONFIG_TARGET_LPC1785 is missing"
-#endif
-}
-
-
 
 
 uv_errors_e uv_counter_init(uv_timers_e timer) {
 	if (validate_timer(timer)) return validate_timer(timer);
 	this_init(timer);
-#if CONFIG_TARGET_LPC11C14
 	__uv_err_throw(ERR_NOT_IMPLEMENTED | HAL_MODULE_TIMER);
-#elif CONFIG_TARGET_LPC1785
-#warning "uv_counter_init for CONFIG_TARGET_LPC1785 is missing"
-	__uv_err_throw(ERR_NOT_IMPLEMENTED | HAL_MODULE_TIMER);
-#endif
 
 	return uv_err(ERR_NONE);
 }
