@@ -8,6 +8,8 @@
 
 #include "uv_eeprom.h"
 
+#if CONFIG_EEPROM
+
 uv_errors_e uv_eeprom_init(void) {
 	// enable power
 	LPC_EEPROM->PWRDWN = 0;
@@ -100,6 +102,6 @@ uv_errors_e uv_eeprom_read(unsigned char *dest, uint16_t len, uint16_t eeprom_ad
 
 
 
-
+#endif
 
 

@@ -10,10 +10,6 @@
 #include "uv_hal_config.h"
 #include "uv_utilities.h"
 
-#if !defined(CONFIG_I2C)
-#error "CONFIG_I2C should be defined as 1 or 0, enabling or disabling the I2C module"
-#endif
-
 #if CONFIG_I2C
 
 #if !defined(CONFIG_I2C_TX_BUFFER_LEN)
