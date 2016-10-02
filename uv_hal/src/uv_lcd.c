@@ -106,30 +106,18 @@ void uv_lcd_step(uint16_t step_ms, uv_touch_st *touch) {
 			*(hlineptr++) = color;\
 		} }while(0)\
 
-void uv_lcd_draw_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height, color_t color) {
+void uv_lcd_draw_rect(int32_t x, int32_t y, uint32_t width, uint32_t height, color_t color) {
 	uint32_t j;
 	for (j = y; j < y + height; j++) {
 		draw_hline(x, j, width, color);
 	}
 }
 
-void uv_lcd_draw_frame(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t border, color_t color) {
+void uv_lcd_draw_frame(int32_t x, int32_t y, uint32_t width, uint32_t height, uint32_t border, color_t color) {
 	uv_lcd_draw_rect(x, y, width, border, color);
 	uv_lcd_draw_rect(x + width - border, y + border, border, height - border, color);
 	uv_lcd_draw_rect(x, y + border, border, height - border, color);
 	uv_lcd_draw_rect(x, y + height - border, width, border, color);
-}
-
-
-void uv_lcd_draw_v_gradient(uint32_t x, uint32_t y, uint32_t width,
-		uint32_t height, color_t t_color, color_t b_color) {
-	uint32_t i;
-	color_t c;
-	for (i = 0; i < height; i++) {
-		float rel = i / height;
-		c = t_color + (t_color - b_color) * rel;
-		draw_hline(x, y + i, width, c);
-	}
 }
 
 

@@ -39,15 +39,19 @@ uv_errors_e uv_eeprom_write(unsigned char *data, uint16_t len, uint16_t eeprom_a
 	uint8_t page = eeprom_addr % _UV_EEPROM_PAGE_SIZE;
 	// buffer to hold the data previously on this page
 	// if the writing operation was not started on the top of the page
-	unsigned char page_buffer[page];
+	uint8_t page_buffer[page];
 	uint16_t i;
 	// copy the previous data to buffer
 	uv_eeprom_read(page_buffer, page, eeprom_addr - page);
+
+	// copy buffer to the EEPROM write register
+	// clear the write/read status bit
+	LPC_EEPROM->INT_CLR_STATUS |= (1 << 26);
+	// write 8-byte
+	LPC_EEPROM->CMD = 0x3;
+	// set the write address
+	LPC_EEPROM->ADDR = eeprom_addr - page;
 	for (i = 0; i < page; i++) {
-		// write 8-byte
-		LPC_EEPROM->CMD = 0x3;
-		// set the write address
-		LPC_EEPROM->ADDR = eeprom_addr - page;
 		// write data to the page register
 		LPC_EEPROM->WDATA = page_buffer[i];
 	}
@@ -65,7 +69,7 @@ uv_errors_e uv_eeprom_write(unsigned char *data, uint16_t len, uint16_t eeprom_a
 		// increase page counter
 		page++;
 
-		// if the page is full or the lsat byte was written, write the data to the EEPROM
+		// if the page is full or the last byte was written, write the data to the EEPROM
 		if (page >= _UV_EEPROM_PAGE_SIZE || i == len - 1) {
 			while(!(LPC_EEPROM->INT_STATUS & (1 << 26)));
 			// flash the page register to EEPROM
@@ -87,8 +91,10 @@ uv_errors_e uv_eeprom_read(unsigned char *dest, uint16_t len, uint16_t eeprom_ad
 	if (eeprom_addr + len > _UV_EEPROM_SIZE) {
 		return uv_err(ERR_NOT_ENOUGH_MEMORY | HAL_MODULE_EEPROM);
 	}
+	// set the reading address
 	LPC_EEPROM->ADDR = eeprom_addr;
 	LPC_EEPROM->INT_CLR_STATUS |= (1 << 26);
+	// read the data
 	uint16_t i;
 	for (i = 0; i < len; i++) {
 		LPC_EEPROM->CMD = 0;

@@ -11,13 +11,18 @@
 
 #define this ((uv_display_st*) me)
 
-void uv_display_init(void *me, uv_ui_object_st *objects, uv_window_style_st *style) {
+void uv_display_init(void *me, uv_ui_object_st **objects, const uv_window_style_st *style) {
 	uv_window_init(me, objects, style);
 	// display fills the whole screen
 	uv_ui_get_bb(me)->x = 0;
 	uv_ui_get_bb(me)->y = 0;
 	uv_ui_get_bb(me)->width = LCD_W_PX;
 	uv_ui_get_bb(me)->height = LCD_H_PX;
+	uv_ui_refresh(&this->super.super);
 }
 
 
+
+void uv_display_step(void *me, uint32_t step_ms) {
+	uv_window_step(&((uv_display_st*)me)->super, step_ms);
+}

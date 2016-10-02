@@ -265,7 +265,7 @@ void uv_lcd_step(uint16_t step_ms, uv_touch_st *touch);
 /// @brief: Sets the specific pixels from the LCD. Note that for performance reasons
 /// the function doesnt check for overindexing.
 /// @pre: *x* and *y* should be smaller than the LCD maximum size.
-static inline void uv_lcd_draw_pixel(uint32_t x, uint32_t y, color_t color) {
+static inline void uv_lcd_draw_pixel(int32_t x, int32_t y, color_t color) {
 	lcd[y][x] = color;
 }
 
@@ -276,7 +276,7 @@ static inline void uv_lcd_draw_pixel(uint32_t x, uint32_t y, color_t color) {
 /// @param width: The width of the rectangle in pixels
 /// @param height: The height of the rectangle in pixels
 /// @param color: The color of the rectangle
-void uv_lcd_draw_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height, color_t color);
+void uv_lcd_draw_rect(int32_t x, int32_t y, uint32_t width, uint32_t height, color_t color);
 
 /// @brief: Draws a solid color frame on the screen
 ///
@@ -286,18 +286,8 @@ void uv_lcd_draw_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height, c
 /// @param height: The height of the frame in pixels
 /// @param border: The thickness of the frame
 /// @param color: The color of the frame
-void uv_lcd_draw_frame(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t border, color_t color);
+void uv_lcd_draw_frame(int32_t x, int32_t y, uint32_t width, uint32_t height, uint32_t border, color_t color);
 
-
-/// @brief: Draws a vertical gradient rectangle to the display
-///
-/// @param x: The X coordinate of the left-top corner of the rectangle
-/// @param y: The Y coordinate of the left-top corner of the rectangle
-/// @param width: The width of the rectangle in pixels
-/// @param height: The height of the rectangle in pixels
-/// @param t_color: Top color
-/// @param b_color: Bottom color
-void uv_lcd_draw_v_gradient(uint32_t x, uint32_t y, uint32_t width, uint32_t height, color_t t_color, color_t b_color);
 
 
 #endif

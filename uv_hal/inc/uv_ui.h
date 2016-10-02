@@ -12,7 +12,8 @@
 #include "ui/uv_slider.h"
 #include "ui/uv_window.h"
 #include "ui/uv_display.h"
-#include "ui/ugui.h"
+#include "ui/uv_ui_styles.h"
+#include "ui/uv_label.h"
 
 
 #endif /* UW_UI_H_ */

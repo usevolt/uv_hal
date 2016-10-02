@@ -85,7 +85,7 @@ static inline void uv_ui_object_init(uv_ui_object_st *me, uv_ui_object_st *paren
 	this->parent = parent;
 	this->step_callb = step_callb;
 	this->visible = visible;
-	this->refresh = false;
+	this->refresh = true;
 	if (visible) uv_ui_refresh(this);
 }
 
