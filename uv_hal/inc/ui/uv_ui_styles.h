@@ -15,6 +15,7 @@
 #include <uv_hal_config.h>
 #include <uv_lcd.h>
 
+#if CONFIG_LCD
 
 #ifndef CONFIG_UI_WINDOW_STYLES_COUNT
 #define CONFIG_UI_WINDOW_STYLES_COUNT				1
@@ -39,6 +40,8 @@ extern const uv_window_style_st uv_window_styles[CONFIG_UI_WINDOW_STYLES_COUNT];
 
 #ifndef CONFIG_UI_WINDOW_FRAME_THICKNESS_1
 #define CONFIG_UI_WINDOW_FRAME_THICKNESS_1			3
+#endif
+
 #endif
 
 #endif /* UV_HAL_INC_UI_UV_UI_STYLES_H_ */

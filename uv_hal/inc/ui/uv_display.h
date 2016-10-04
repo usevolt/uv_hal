@@ -14,6 +14,8 @@
 #include "uv_window.h"
 
 
+#if CONFIG_LCD
+
 /// @brief: Main display class. This represents a whole display.
 typedef struct {
 	EXTENDS(uv_window_st);
@@ -34,5 +36,7 @@ static inline void uv_display_add(void *me, uv_window_st *window,
 	uv_window_add(me, window, x, y, width, height, visible, step_callb);
 }
 
+
+#endif
 
 #endif /* UV_HAL_INC_UI_UV_DISPLAY_H_ */

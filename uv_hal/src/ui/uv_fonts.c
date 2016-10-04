@@ -8,6 +8,7 @@
 #include "uv_hal_config.h"
 #include "ui/ugui.h"
 
+#if CONFIG_LCD
 
 #if CONFIG_UI_FONT_4X6
 const unsigned char font_4x6[256][6]={
@@ -4234,3 +4235,4 @@ const unsigned char font_32x53[256][212]={
    const UG_FONT FONT_32X53 = {(unsigned char*)font_32x53,32,53};
 #endif
 
+#endif

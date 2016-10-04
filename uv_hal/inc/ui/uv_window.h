@@ -18,6 +18,7 @@
 
 
 
+#if CONFIG_LCD
 
 /// @brief: A window GUI element. Window is an holder of other objects.
 /// Inherits from the uv_ui_object_st.
@@ -81,5 +82,6 @@ static inline void uv_window_add(uv_window_st *this, void *object,
 			x, y, width, height, visible, step_callb);
 }
 
+#endif
 
 #endif

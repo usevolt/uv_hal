@@ -13,6 +13,8 @@
 #include "uv_utilities.h"
 #if CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
+#elif CONFIG_TARGET_LPC11C14
+#include "LPC11xx.h"
 #endif
 
 
@@ -22,6 +24,7 @@
 #if !defined(CONFIG_PWM_FREQ)
 #error "CONFIG_PWM_FREQ should define the PWM frequency in Hz"
 #endif
+
 
 #if CONFIG_TARGET_LPC1785
 #if !defined(CONFIG_PWM0_1) && \
@@ -95,6 +98,91 @@
 #if CONFIG_PWM1_6
 #define PWM1_6				&LPC_PWM1->MR6
 #endif
+
+#elif CONFIG_TARGET_LPC11C14
+
+#if !defined(CONFIG_PWM0_1) && \
+!defined(CONFIG_PWM0_2) && \
+!defined(CONFIG_PWM0_3) && \
+!defined(CONFIG_PWM1_1) && \
+!defined(CONFIG_PWM1_2) && \
+!defined(CONFIG_PWM2_1) && \
+!defined(CONFIG_PWM2_2) && \
+!defined(CONFIG_PWM2_3) && \
+!defined(CONFIG_PWM3_1) && \
+!defined(CONFIG_PWM3_2) && \
+!defined(CONFIG_PWM3_3)
+#error "Enable at least 1 PWM output by defining CONFIG_PWMx_CHx macros"
+#endif
+
+
+#if CONFIG_PWM0_1
+#define PWM0_1				&LPC_TMR16B0->MR0
+#endif
+
+#if CONFIG_PWM0_2
+#define PWM0_2				&LPC_TMR16B0->MR1
+#endif
+
+#if CONFIG_PWM0_3
+#define PWM0_3				&LPC_TMR16B0->MR2
+#endif
+
+#if CONFIG_PWM1_1
+#define PWM1_1				&LPC_TMR16B1->MR0
+#endif
+
+#if CONFIG_PWM1_2
+#define PWM1_2				&LPC_TMR16B1->MR1
+#endif
+
+#if CONFIG_PWM2_1
+#define PWM2_1				&LPC_TMR32B0->MR0
+#endif
+
+#if CONFIG_PWM2_2
+#define PWM2_2				&LPC_TMR32B0->MR1
+#endif
+
+#if CONFIG_PWM2_3
+#define PWM2_3				&LPC_TMR32B0->MR3
+#endif
+
+#if CONFIG_PWM3_1
+#define PWM3_1				&LPC_TMR32B1->MR0
+#endif
+
+#if CONFIG_PWM3_2
+#define PWM3_2				&LPC_TMR32B1->MR1
+#endif
+
+#if CONFIG_PWM3_3
+#define PWM3_3				&LPC_TMR32B1->MR2
+#endif
+
+// shortcut macros for checking if the PWM is enabled
+#if (CONFIG_PWM0_1 || \
+		CONFIG_PWM0_2 || \
+		CONFIG_PWM0_3)
+#define CONFIG_PWM0			1
+#endif
+#if (CONFIG_PWM1_1 || \
+		CONFIG_PWM1_2)
+#define CONFIG_PWM1			1
+#endif
+#if (CONFIG_PWM2_1 || \
+		CONFIG_PWM2_2 || \
+		CONFIG_PWM2_3)
+#define CONFIG_PWM2			1
+#endif
+#if (CONFIG_PWM3_1 || \
+		CONFIG_PWM3_2 || \
+		CONFIG_PWM3_3)
+#define CONFIG_PWM3			1
+#endif
+
+#endif
+
 /// @brief: Variable to separate different PWM channels from each other
 /// Possible values are PWM channel macros defined upper.
 typedef volatile uint32_t* uv_pwm_channel_t;
@@ -118,6 +206,7 @@ static inline uv_errors_e uv_pwm_set(uv_pwm_channel_t chn, uint16_t value) {
 	if (value >= PWM_MAX_VALUE) {
 		value = PWM_MAX_VALUE;
 	}
+#if CONFIG_TARGET_LPC1785
 	*chn = PWM_MAX_VALUE - value;
 #if CONFIG_PWM0
 	LPC_PWM0->LER = 0x7F;
@@ -126,13 +215,14 @@ static inline uv_errors_e uv_pwm_set(uv_pwm_channel_t chn, uint16_t value) {
 	LPC_PWM1->LER = 0x7F;
 #endif
 
+#elif CONFIG_TARGET_LPC11C14
+	*chn = PWM_MAX_VALUE - value;
+#endif
+
 	return uv_err(ERR_NONE);
 }
 
 
-#else
-#error "This target doesn't have a PWM peripheral"
-#endif
 
 #endif
 

@@ -8,3 +8,7 @@
 
 #include <ui/uv_button.h>
 
+#if CONFIG_LCD
+
+
+#endif

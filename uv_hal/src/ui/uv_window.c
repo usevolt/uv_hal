@@ -9,6 +9,8 @@
 #include <ui/uv_window.h>
 
 
+#if CONFIG_LCD
+
 
 
 #define this	((uv_window_st*) me)
@@ -48,3 +50,6 @@ void uv_window_step(void *me, uint16_t step_ms) {
 		}
 	}
 }
+
+
+#endif

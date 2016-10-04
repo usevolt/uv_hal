@@ -8,7 +8,12 @@
 
 #include "uv_pwm.h"
 
+
+#if CONFIG_PWM
+
 uv_errors_e uv_pwm_init() {
+
+#if CONFIG_TARGET_LPC1785
 	// enable power
 #if CONFIG_PWM0
 	LPC_SC->PCONP |= (1 << 5);
@@ -103,8 +108,88 @@ uv_errors_e uv_pwm_init() {
 	LPC_PWM1->TCR |= (1 << 3) | (1 << 0);
 #endif
 
+#elif CONFIG_TARGET_LPC11C14
+#if CONFIG_PWM0_1
+	LPC_IOCON->PIO0_8 = 0x2;
+	LPC_TMR16B0->MR0 = 0;
+#endif
+#if CONFIG_PWM0_2
+	LPC_IOCON->PIO0_9 = 0x2;
+	LPC_TMR16B0->MR1 = 0;
+#endif
+#if CONFIG_PWM0_3
+	LPC_IOCON->SWCLK_PIO0_10 = 0x3;
+	LPC_TMR16B0->MR2 = 0;
+#endif
+#if CONFIG_PWM1_1
+	LPC_IOCON->PIO1_9 = 0x1;
+	LPC_TMR16B1->MR0 = 0;
+#endif
+#if CONFIG_PWM1_2
+	LPC_IOCON->PIO1_10 = 0x2 | (1 << 7);
+	LPC_TMR16B1->MR1 = 0;
+#endif
+#if CONFIG_PWM2_1
+	LPC_IOCON->PIO1_6 = 0x2;
+	LPC_TMR32B0->MR0 = 0;
+#endif
+#if CONFIG_PWM2_2
+	LPC_IOCON->PIO1_7 = 0x2;
+	LPC_TMR32B0->MR1 = 0;
+#endif
+#if CONFIG_PWM2_3
+	LPC_IOCON->R_PIO0_11 = 0x3 | (1 << 7);
+	LPC_TMR32B0->MR3 = 0;
+#endif
+#if CONFIG_PWM3_1
+	LPC_IOCON->R_PIO1_1 = 0x3 | (1 << 7);
+	LPC_TMR32B1->MR0 = 0;
+#endif
+#if CONFIG_PWM3_2
+	LPC_IOCON->R_PIO1_2 = 0x3 | (1 << 7);
+	LPC_TMR32B1->MR1 = 0;
+#endif
+#if CONFIG_PWM3_3
+	LPC_IOCON->SWDIO_PIO1_3 = 0x3 | (1 << 7);
+	LPC_TMR32B1->MR2 = 0;
+#endif
+
+#if CONFIG_PWM0
+	LPC_SYSCON->SYSAHBCLKCTRL |= (1 << 7);
+	LPC_TMR16B0->TCR = 0x2;
+	LPC_TMR16B0->PR = (SystemCoreClock / PWM_MAX_VALUE) / CONFIG_PWM_FREQ;
+	LPC_TMR16B0->MCR = (1 << 10);
+	LPC_TMR16B0->MR3 = PWM_MAX_VALUE;
+	LPC_TMR16B0->CTCR = 0;
+	LPC_TMR16B0->PWMC = (1 << 3);
+#if CONFIG_PWM0_1
+	LPC_TMR16B0->PWMC |= (1 << 0);
+#endif
+#if CONFIG_PWM0_2
+	LPC_TMR16B0->PWMC |= (1 << 1);
+#endif
+#if CONFIG_PWM0_3
+	LPC_TMR16B0->PWMC |= (1 << 2);
+#endif
+	LPC_TMR16B0->TCR = 0x1;
+#endif
+#if CONFIG_PWM1
+	LPC_SYSCON->SYSAHBCLKCTRL |= (1 << 8);
+
+#endif
+#if CONFIG_PWM2
+	LPC_SYSCON->SYSAHBCLKCTRL |= (1 << 9);
+
+#endif
+#if CONFIG_PWM3
+	LPC_SYSCON->SYSAHBCLKCTRL |= (1 << 10);
+
+#endif
+
+#endif
 
 	return uv_err(ERR_NONE);
 }
 
 
+#endif

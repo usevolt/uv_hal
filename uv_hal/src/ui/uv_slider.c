@@ -9,3 +9,6 @@
 #include <ui/uv_slider.h>
 #include "ui/ugui.h"
 
+#if CONFIG_LCD
+
+#endif
