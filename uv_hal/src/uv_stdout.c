@@ -8,21 +8,34 @@
 #include "uv_stdout.h"
 
 
+#if CONFIG_TERMINAL_CAN
 #include "uv_can.h"
+#include "uv_terminal.h"
+#include "uv_memory.h"
+#endif
+#if CONFIG_TERMINAL_UART
 #include "uv_uart.h"
+#endif
 
 
 
-static uint8_t stdout = STDOUT_UART0;
 
-inline void uv_stdout_set_source(uv_stdout_sources_e value) {
-	stdout = value;
-}
+
 
 int outbyte(int c) {
+#if CONFIG_TERMINAL_UART
 	if (uv_uart_is_initialized(UART0)) {
 		uv_uart_send_char(UART0, c);
 	}
+#endif
+#if CONFIG_TERMINAL_CAN
+	uv_can_message_st msg = {
+			.id = UV_TERMINAL_CAN_PREFIX + uv_get_crc(),
+			.data_length = 1,
+			.data_8bit[0] = c
+	};
+	while (uv_can_send_message(CAN1, &msg));
+#endif
 	return 1;
 }
 

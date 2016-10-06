@@ -11,6 +11,10 @@
 #endif
 
 #include "uv_utilities.h"
+#if CONFIG_TERMINAL_CAN
+#include "uv_terminal.h"
+#include "uv_memory.h"
+#endif
 #include <stdio.h>
 #if CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
@@ -86,6 +90,11 @@ typedef struct {
 	uv_ring_buffer_st rx_buffer;
 	uv_can_message_st tx_buffer_data[CONFIG_CAN1_TX_BUFFER_SIZE];
 	uv_ring_buffer_st tx_buffer;
+
+#if CONFIG_TERMINAL_CAN
+	uv_ring_buffer_st char_buffer;
+	char char_buffer_data[CONFIG_TERMINAL_BUFFER_SIZE];
+#endif
 	void (*rx_callback[CAN_COUNT])(void *user_ptr);
 } this_st;
 static this_st _this;
@@ -224,7 +233,7 @@ void CAN_rx(uint8_t msg_obj_num) {
 	/* Now load up the msg_obj structure with the CAN message */
 	LPC_CCAN_API->can_receive(&this->temp_obj);
 	this->temp_msg.data_length = this->temp_obj.data_length;
-	this->temp_msg.id = this->temp_obj.msg_id;
+	this->temp_msg.id = this->temp_obj.msg_id & ~CAN_ID_EXT;
 	uint8_t i;
 	for (i = 0; i < this->temp_msg.data_length; i++) {
 		this->temp_msg.data_8bit[i] = this->temp_obj.data[i];
@@ -238,6 +247,19 @@ void CAN_rx(uint8_t msg_obj_num) {
 			printf("%02x ", this->temp_msg.data_8bit[i]);
 		}
 		printf("\n\r");
+	}
+#endif
+
+
+
+#if CONFIG_TERMINAL_CAN
+	// terminal characters are sent to their specific buffer
+	if (this->temp_msg.id == UV_TERMINAL_CAN_PREFIX + uv_get_crc()) {
+		uint8_t i;
+		for (i = 0; i < this->temp_msg.data_length; i++) {
+			uv_ring_buffer_push(&this->char_buffer, (char*) &this->temp_msg.data_8bit[i]);
+		}
+		return;
 	}
 #endif
 
@@ -353,6 +375,11 @@ uv_errors_e uv_can_init(uv_can_channels_e channel) {
 	LPC_CAN->CNTL |= 1 << 7;
 	LPC_CAN->TEST |= 1 << 4;
 #endif
+
+#if CONFIG_TERMINAL_CAN
+	uv_ring_buffer_init(&this->char_buffer, this->char_buffer_data, CONFIG_TERMINAL_BUFFER_SIZE, sizeof(char));
+	uv_can_config_rx_message(CAN1, UV_TERMINAL_CAN_PREFIX + uv_get_crc(), CAN_ID_MASK_DEFAULT, CAN_ID_EXT);
+#endif
 	return uv_err(ERR_NONE);
 
 }
@@ -360,7 +387,6 @@ uv_errors_e uv_can_init(uv_can_channels_e channel) {
 
 
 uv_errors_e uv_can_step(uv_can_channels_e channel, unsigned int step_ms) {
-	if (check_channel(channel)) return check_channel(channel);
 	//check if the pending time limit has been exceeded.
 	// If so, clear the pending message object.
 
@@ -397,7 +423,6 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		unsigned int id,
 		unsigned int mask,
 		uv_can_msg_types_e type) {
-	if (check_channel(channel)) return check_channel(channel);
 
 	// if any message objects are still not in use,
 	// config them with settings requested
@@ -464,10 +489,9 @@ uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* me
 
 	// if the TX msg obj is ready, send the next message
 	if (!(this->pending_msg_objs & (1 << TX_MSG_OBJ))) {
-		return send_next_msg();
+		send_next_msg();
 	}
-
-	__uv_err_throw(e);
+	return e;
 }
 
 
@@ -502,6 +526,12 @@ uv_errors_e uv_can_reset(uv_can_channels_e channel) {
 	LPC_SYSCON->PRESETCTRL |= (1 << 3);
 	return uv_err(ERR_NONE);
 }
+
+#if CONFIG_TERMINAL_CAN
+uv_errors_e uv_can_get_char(char *dest) {
+	return uv_ring_buffer_pop(&this->char_buffer, dest);
+}
+#endif
 
 
 #elif CONFIG_TARGET_LPC1785

@@ -63,6 +63,7 @@
 
 typedef xTaskHandle 		uv_rtos_task_ptr;
 typedef xSemaphoreHandle	uv_rtos_smphr_ptr;
+typedef xSemaphoreHandle	uv_mutex_ptr;
 typedef xQueueHandle		uv_rtos_queue_ptr;
 
 
@@ -94,6 +95,9 @@ uv_errors_e uv_rtos_add_idle_task(void (*task_function)(void *user_ptr));
 static inline uv_rtos_smphr_ptr uv_rtos_smphr_create_binary(void) {
 	return xSemaphoreCreateBinary();
 }
+static inline uv_mutex_ptr uv_rtos_mutex_create(void) {
+	return xSemaphoreCreateMutex();
+}
 
 /// @brief: "Gives" or "releases" the semaphore. This makes possible for
 /// other tasks to take the ownership of the semaphore.
@@ -102,6 +106,9 @@ static inline uv_rtos_smphr_ptr uv_rtos_smphr_create_binary(void) {
 static inline void uv_rtos_smphr_give(uv_rtos_smphr_ptr handle) {
 	xSemaphoreGive(handle);
 }
+static inline void uv_rtos_mutex_unlock(uv_mutex_ptr mutex) {
+	xSemaphoreGive(mutex);
+}
 
 /// @brief: "Gives" or "releases" the semaphore. This makes possible for
 /// other tasks to take the ownership of the semaphore.
@@ -109,14 +116,20 @@ static inline void uv_rtos_smphr_give(uv_rtos_smphr_ptr handle) {
 static inline void uv_rtos_smphr_give_ISR(uv_rtos_smphr_ptr handle) {
 	xSemaphoreGiveFromISR(handle, NULL);
 }
+static inline void uv_rtos_mutex_unlock_ISR(uv_mutex_ptr mutex) {
+	xSemaphoreGiveFromISR(mutex, NULL);
+}
 
 /// @brief: Attempts to take the ownership of the semaphore. The function
 /// waits 'max_wait_tick_count' ticks and returns true if the semaphore could be taken,
 /// false otherwise.
 /// @note: This function shouldn't be called from ISR's!
 /// Use uv_rtos_smprh_give_ISR instead.
-static inline bool uv_rtos_smphr_take(uv_rtos_smphr_ptr handle, unsigned int max_wait_tick_count) {
-	return xSemaphoreTake(handle, max_wait_tick_count);
+static inline void uv_rtos_smphr_take(uv_rtos_smphr_ptr handle) {
+	while (!xSemaphoreTake(handle, 0xFFFFFFFF));
+}
+static inline void uv_rtos_mutex_lock(uv_mutex_ptr mutex) {
+	while (!xSemaphoreTake(mutex, 0xFFFFFFFF));
 }
 
 /// @brief:A version of xSemaphoreTake() that can be called from an ISR.
@@ -126,8 +139,9 @@ static inline bool uv_rtos_smphr_take(uv_rtos_smphr_ptr handle, unsigned int max
 static inline bool uv_rtos_smphr_take_ISR(uv_rtos_smphr_ptr handle) {
 	return xSemaphoreTakeFromISR(handle, NULL);
 }
-
-
+static inline bool uv_rtos_mutex_lock_ISR(uv_mutex_ptr mutex) {
+	return xSemaphoreTakeFromISR(mutex, NULL);
+}
 
 
 

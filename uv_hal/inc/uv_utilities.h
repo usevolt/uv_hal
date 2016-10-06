@@ -209,22 +209,6 @@ static inline bool uv_delay(unsigned int step_ms, int* p) {
 }
 
 
-/// @brief:  function to ease debug console coding for on/off parameters
-/// arg:     command line argument, eg args[0]
-/// current: current value of the on/off parameter
-/// param:   name of the param for console feedback print
-/// example:
-///    Worklights = Debug_ParamOnOff (args[0], Worklights, "work lights")
-///    parses command "work off"
-///    prints "turning work lights off"
-bool Debug_ParamOnOff (const char* arg, bool current, const char* param);
-
-
-/// @brief:  prints can message contents in debug console
-void Debug_PrintMessage (uv_can_message_st* msg);
-
-
-
 /// @brief: Set's the user's application pointer.
 /// User can set a pointer to any variable which will be passed to all this library's
 /// callback functions. This makes it easier to write object oriented code, since

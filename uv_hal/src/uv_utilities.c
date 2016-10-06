@@ -23,44 +23,6 @@ void *user_ptr = NULL;
 
 
 
-bool Debug_ParamOnOff (const char* arg, bool current, const char* param)
-{
-	bool state = true - current;
-
-	if (strcmp(arg, "on") == 0)
-		state = true;
-	else if (strcmp(arg, "off") == 0)
-		state = false;
-
-	printf ("turning %s %s\r\n", param, state ? "on" : "off");
-
-	return state;
-}
-
-
-void Debug_PrintMessage (uv_can_message_st* msg)
-{
-	int msgclass = msg->id & 0xFF80;
-	int nodeid   = msg->id & 0x007F;
-	int i;
-
-	switch (msgclass)
-	{
-	case 0x000:	printf ("nmt"); break;
-	case 0x180:	printf ("pdo"); break;
-	case 0x580:	printf ("sdo"); break;
-	case 0x700: printf("heartbeat"); break;
-	default:	printf ("%03x", msgclass); break;
-	}
-
-	printf (", node: %3u", nodeid);
-
-	printf (", data:");
-	for (i = 0; i < msg->data_length; i++)
-		printf(" %u", msg->data_8bit[i]);
-
-	printf("\r\n");
-}
 
 
 

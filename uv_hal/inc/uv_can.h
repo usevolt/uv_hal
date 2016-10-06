@@ -108,8 +108,10 @@ enum {
 typedef enum {
 	/// @brief: CAN 2.0A messages with 11-bit identifier
 	CAN_11_BIT_ID = 0,
+	CAN_ID_STD = CAN_11_BIT_ID,
 	/// @brief: CAN 2.0B messages with 29-bit identifier
-	CAN_29_BIT_ID = 0x20000000UL
+	CAN_29_BIT_ID = 0x20000000UL,
+	CAN_ID_EXT = CAN_29_BIT_ID
 } uv_can_msg_types_e;
 
 /// @brief: Initializes the can module either in synchronous mode or in asynchronous mode.
@@ -149,10 +151,10 @@ uv_errors_e uv_can_step(uv_can_channels_e channel, unsigned int step_ms);
 /// @param channel: The CAN hardware channel to be configured
 /// @param id: The messages ID which is wanted to be received
 /// @param mask: The mask for message ID. This can be used to mask off unwanted
-/// @param type: The type of the message ID. Either 11-bit or 29-bit identifier is supported.
 /// bits from ID, in order to receive many messages with different ID's.
 /// To receive only a single dedicated message, this should be set to 0xFFFFFFFF or
-/// UW_CAN_MASK_DEFAULT
+/// CAN_ID_MASK_DEFAULT
+/// @param type: The type of the message ID. Either 11-bit or 29-bit identifier is supported.
 uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		unsigned int id,
 		unsigned int mask,
@@ -206,7 +208,16 @@ uv_errors_e uv_can_add_rx_callback(uv_can_channels_e channel,
 		void (*callback_function)(void *user_ptr));
 
 
-//void uv_can_add_message_callback()
+#if CONFIG_TERMINAL_CAN
+/// @brief: Gets the next character from the CAN FIFO receive buffer.
+/// This is used with terminal CAN redirection, to receive characters to the terminal.
+///
+/// @param dest: Pointer to the char where received character will be saved.
+/// @return: Error if no more characters have been received
+uv_errors_e uv_can_get_char(char *dest);
+#endif
+
+
 
 
 #endif /* UW_CAN_H_ */

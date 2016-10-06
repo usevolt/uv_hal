@@ -51,7 +51,7 @@ typedef struct {
 	const char *project_name;
 	/// @brief: Pointer to the build date and time string. This comes from the gcc __DATE__ and __TIME__ symbols.
 	const char *build_date;
-	/// @brief: Project unique hash value. Can be used as to identify different projects from each other.
+	/// @brief: Project unique hash value. Can be used to identify different projects from each other.
 	uint16_t project_name_crc;
 	/// @brief: Checksum to identify if data between start and end
 	/// was uninitialized or changed from what was found in non-volatile memory.
@@ -127,6 +127,10 @@ static inline const char *uv_memory_get_project_date(uv_data_start_t *start_ptr)
 }
 
 
+extern const char *uv_projname;
+extern const char *uv_datetime;
+
+
 
 /// @brief: Writes data to flash non-volatile application memory section. Depends on SystemCoreClock to
 /// determine the clock frequency of application.
@@ -196,6 +200,14 @@ uv_iap_status_e uv_erase_and_write_to_flash(unsigned int ram_address,
 
 
 
+/// @brief: Sets the CRC to the start_st structure.
+/// @pre: uv_load or uv_save function should be called
+void uv_set_crc(uint16_t crc);
+
+
+/// @brief: Returns the CRC to the start_st structure.
+/// @pre: uv_load or uv_save function should be called
+uint16_t uv_get_crc();
 
 
 
