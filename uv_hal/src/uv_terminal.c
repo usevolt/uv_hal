@@ -48,6 +48,7 @@ this_st _terminal;
 #define this (&_terminal)
 
 void uv_terminal_help_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
+void uv_terminal_dev_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 #if CONFIG_TERMINAL_INSTRUCTIONS
 void uv_terminal_man_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 #endif
@@ -69,6 +70,17 @@ const uv_command_st common_cmds[] = {
 						""
 #endif
 				, .callback = uv_terminal_help_callb
+		},
+		{
+				.id = CMD_DEV,
+				.str = "dev",
+				.instructions =
+#if CONFIG_TERMINAL_INSTRUCTIONS
+						"Logs the device name and build date"
+#else
+						""
+#endif
+				, .callback = uv_terminal_dev_callb
 		},
 #if CONFIG_TERMINAL_INSTRUCTIONS
 		{
@@ -145,25 +157,10 @@ void uv_terminal_init(const uv_command_st* commands, unsigned int count) {
 	this->buffer_index = 0;
 	this->buffer[0] = '\0';
 
-#if CONFIG_TARGET_LPC11C14
-	// delay of half a second on start up.
-	// Makes entering ISP mode possible on startup before freeRTOS scheduler is started
-	_delay_ms(500);
-	char c;
-
-	uv_errors_e e;
-	while (true) {
-		if ((e = uv_uart_get_char(UART0, &c))) {
-			break;
-		}
-		if (c == '?') {
-			uv_enter_ISP_mode();
-		}
-	}
-
 	// print device name and build date
 	printf("%s\n\rBuild on %s\n\r", uv_projname, uv_datetime);
-#endif
+
+
 }
 
 
@@ -320,6 +317,10 @@ void uv_terminal_help_callb(void *me, unsigned int cmd, unsigned int args, argum
 		printf("\"%s\"\n\r", this->commands_ptr[p].str);
 	}
 }
+void uv_terminal_dev_callb(void *me, unsigned int cmd, unsigned int args, argument_st *argv) {
+	printf("%s Build on %s\n\r", uv_projname, uv_datetime);
+}
+
 #if CONFIG_TERMINAL_INSTRUCTIONS
 void uv_terminal_man_callb(void *me, unsigned int cmd, unsigned int args, argument_st *argv) {
 	int i;

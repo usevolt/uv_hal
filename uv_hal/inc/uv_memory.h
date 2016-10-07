@@ -211,4 +211,13 @@ uint16_t uv_get_crc();
 
 
 
+/// @brief: Usage of these should be acoided if possible
+uv_errors_e __uv_save_previous_non_volatile_data();
+
+/// @brief: Usage of these should be acoided if possible
+uv_errors_e __uv_load_previous_non_volatile_data();
+
+
+
+
 #endif /* UW_MEMORY_H_ */

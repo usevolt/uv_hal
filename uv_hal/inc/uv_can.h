@@ -18,6 +18,8 @@
 /// For example on CONFIG_TARGET_LPC11C14, this module may use all 32 CAN message objects
 /// as it wants.
 
+#if CONFIG_CAN
+
 
 #if !defined(CONFIG_CAN_LOG)
 #error "CONFIG_CAN_LOG not defined"
@@ -56,6 +58,17 @@
 #endif
 #endif
 
+
+typedef enum {
+	/// @brief: CAN 2.0A messages with 11-bit identifier
+	CAN_11_BIT_ID = 0,
+	CAN_STD = CAN_11_BIT_ID,
+	/// @brief: CAN 2.0B messages with 29-bit identifier
+	CAN_29_BIT_ID = 0x20000000UL,
+	CAN_EXT = CAN_29_BIT_ID
+} uv_can_msg_types_e;
+
+
 /// @brief: CAN message basic structure
 typedef struct {
 	/// @brief: maximum of 8 Message data bytes
@@ -69,17 +82,18 @@ typedef struct {
 	uint32_t id;
 	/// @brief: Defines how many data bytes this message has
 	uint8_t data_length;
+	/// @brief: The type of the message. Either 29 or 11 bit (extended or standard)
+	uv_can_msg_types_e type;
 } uv_can_message_st;
 
 
 
 typedef enum {
-	CAN_NO_ERROR,
+	CAN_ERROR_ACTIVE = 0,
 	CAN_ERROR_HARDWARE_NOT_AVAILABLE,
 	CAN_ERROR_HARDWARE_BUSY,
 	CAN_ERROR_BUS_OFF,
 	CAN_ERROR_PASSIVE,
-	CAN_ERROR_ACTIVE,
 	CAN_ERROR_WARNING
 } uv_can_errors_e;
 
@@ -105,15 +119,6 @@ enum {
 	CAN_ID_MASK_DEFAULT = 0xFFFFFFFF
 };
 
-typedef enum {
-	/// @brief: CAN 2.0A messages with 11-bit identifier
-	CAN_11_BIT_ID = 0,
-	CAN_ID_STD = CAN_11_BIT_ID,
-	/// @brief: CAN 2.0B messages with 29-bit identifier
-	CAN_29_BIT_ID = 0x20000000UL,
-	CAN_ID_EXT = CAN_29_BIT_ID
-} uv_can_msg_types_e;
-
 /// @brief: Initializes the can module either in synchronous mode or in asynchronous mode.
 ///
 /// @note: The mode is synchronous if tx_buffer and rx_buffer parameters are set to NULL
@@ -121,13 +126,7 @@ typedef enum {
 /// will return after the message was sent.
 /// In asynchronous mode, call to transmit functions wil cause the message to be queued in
 /// the transmit buffer and it will be sent some time later.
-///
-/// @pre: none
-///
-/// @param channel: The CAN channel to be initialized
-/// @param baudrate: The baudrate in Hz of the CAN bus
-/// @param fosc: The system oscillator frequency in Hz
-uv_errors_e uv_can_init(uv_can_channels_e channel);
+uv_errors_e uv_can_init();
 
 
 
@@ -172,7 +171,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 /// @return: Enum describing if errors were found while sending the message
 ///
 /// @pre: uv_can_init should be called
-uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message);
+uv_can_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message);
 
 
 /// @brief: Pops the lastly received message from the RX buffer and returns it in
@@ -191,6 +190,8 @@ uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel);
 
 
 uv_errors_e uv_can_reset(uv_can_channels_e channel);
+
+
 
 
 
@@ -218,6 +219,11 @@ uv_errors_e uv_can_get_char(char *dest);
 #endif
 
 
+
+void _uv_can_hal_step(unsigned int step_ms);
+
+
+#endif
 
 
 #endif /* UW_CAN_H_ */

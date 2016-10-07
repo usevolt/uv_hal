@@ -17,6 +17,13 @@
 #include "uv_stdout.h"
 #include "uv_errors.h"
 
+#if CONFIG_UART0 || CONFIG_UART1 || CONFIG_UART2 || CONFIG_UART3
+#define CONFIG_UART			1
+#endif
+
+
+
+#if CONFIG_UART
 
 /// @brief: Defines UARTS usable on the target system
 /// @note: All systems must define UART_COUNT member which defines the maximum number of UARTs.
@@ -102,5 +109,6 @@ uv_errors_e uv_uart_add_callback(uv_uarts_e uart,
 /// @brief: Returns whether or not the uart is initialized.
 bool uv_uart_is_initialized(uv_uarts_e uart);
 
+#endif
 
 #endif /* UW_UART_H_ */

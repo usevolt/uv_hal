@@ -19,6 +19,7 @@
 
 
 
+void uv_spi_init(void);
 
 
 #endif

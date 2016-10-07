@@ -15,6 +15,7 @@
 #include "LPC177x_8x.h"
 #endif
 
+#if CONFIG_ADC
 
 #if CONFIG_TARGET_LPC11C14
 ///controller specific initializations for AD pins
@@ -109,18 +110,8 @@ uv_errors_e uv_adc_init() {
 	//mask off irrelevant bits, then left-shift the result to CLKDIV place.
 	LPC_ADC->CR |= ((SystemCoreClock / 9000000) & 0xFF) << 8;
 
-#if CONFIG_ADC_MODE_CONTINOUS
-	//disable interrupts as noted on LPC11C22 manual
-	LPC_ADC->INTEN &= ~(0xFF);
-	//set adc channels
-	//mask of irrelevant bits from channels-variable
-	LPC_ADC->CR |= channels & 0xff;
-	//set adc to burst mode
-	LPC_ADC->CR |= (1 << 16);
-#elif CONFIG_ADC_MODE_STANDARD
 	//set adc to software controlled mode
 	LPC_ADC->CR &= ~(1 << 16);
-#endif
 
 #elif CONFIG_TARGET_LPC1785
 	// put ADC off
@@ -161,27 +152,12 @@ uv_errors_e uv_adc_init() {
 	//mask off irrelevant bits, then left-shift the result to CLKDIV place.
 	LPC_ADC->CR |= (((SystemCoreClock / 12000000) + 1) & 0xFF) << 8;
 
-#if CONFIG_ADC_MODE_CONTINOUS
-	//disable interrupts as noted on CONFIG_TARGET_LPC1785 manual
-	LPC_ADC->INTEN &= ~(0xFF);
-	//set adc channels
-	//mask of irrelevant bits from channels-variable
-	LPC_ADC->CR &= ~(0xFF);
-	LPC_ADC->CR |= channels & 0xff;
-	//set adc to burst mode
-	LPC_ADC->CR |= (1 << 16);
-	// clear start bits
-	LPC_ADC->CR &= ~(0b111 << 24);
-	// set ADC ON
-	LPC_ADC->CR |= (1 << 21);
-#elif CONFIG_ADC_MODE_STANDARD
 	//set adc to software controlled mode
 	LPC_ADC->CR &= ~(1 << 16);
 	// dont start ADC now
 	LPC_ADC->CR &= ~(0b111 << 24);
 	// ADC ON
 	LPC_ADC->CR|= (1 << 21);
-#endif
 
 #endif
 
@@ -192,24 +168,6 @@ uv_errors_e uv_adc_init() {
 
 
 int uv_adc_read(uv_adc_channels_e channel) {
-#if CONFIG_ADC_MODE_CONTINOUS
-	//check if burst mode is on
-//	if ((LPC_ADC->CR >> 16) & 0x1) {
-	//LPC11CXX has 8 channels, so channel has to be less than 8
-	uint8_t i;
-	for (i = 0; i < ADC_CHN_COUNT; i++) {
-		if (channel & (1 << i)) {
-#if CONFIG_TARGET_LPC11C14
-			return (LPC_ADC->DR[i] >> 6) & 0x3FF;
-#elif CONFIG_TARGET_LPC1785
-			return (LPC_ADC->DR[i] >> 4) & 0xFFF;
-#endif
-		}
-	}
-	// invalid channel
-	return -1;
-}
-#elif CONFIG_ADC_MODE_STANDARD
 	// if burst mode isn't on, trigger the AD conversion and return the value
 
 	// check if the channel is valid
@@ -235,7 +193,6 @@ int uv_adc_read(uv_adc_channels_e channel) {
 	value = (LPC_ADC->DR[(LPC_ADC->GDR >> 24) & 0b111] >> 4) & 0xFFF;
 #endif
 	return value;
-#endif
 }
 
 int uv_adc_read_average(uv_adc_channels_e channel, unsigned int conversion_count) {
@@ -247,4 +204,4 @@ int uv_adc_read_average(uv_adc_channels_e channel, unsigned int conversion_count
 	return value;
 }
 
-
+#endif

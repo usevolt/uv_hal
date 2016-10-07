@@ -7,3 +7,13 @@
 
 
 #include "uv_spi.h"
+
+
+#if CONFIG_SPI
+
+void uv_spi_init(void) {
+
+}
+
+
+#endif

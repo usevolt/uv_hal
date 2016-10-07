@@ -14,6 +14,8 @@
 #include "uv_errors.h"
 #include <stdbool.h>
 
+#if CONFIG_ADC
+
 
 /// @brief: Defines the ADC conversion max value ( == precision) for this hardware
 enum {
@@ -117,5 +119,7 @@ uv_errors_e uv_adc_add_callback(
 
 
 ***/
+
+#endif
 
 #endif /* UW_ADC_H_ */

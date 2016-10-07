@@ -6,16 +6,21 @@
  */
 
 #include "uv_can.h"
+
+#if CONFIG_CAN
+
 #if CONFIG_CANOPEN
 #include "uv_canopen.h"
 #endif
 
 #include "uv_utilities.h"
+#include "uv_rtos.h"
 #if CONFIG_TERMINAL_CAN
 #include "uv_terminal.h"
 #include "uv_memory.h"
 #endif
 #include <stdio.h>
+#include <string.h>
 #if CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
 #endif
@@ -28,6 +33,8 @@ enum {
 #if CONFIG_CAN_LOG
 extern bool can_log;
 #endif
+
+#include "uv_uart.h"
 
 
 #if CONFIG_TARGET_LPC11C14
@@ -74,9 +81,7 @@ typedef struct {
 
 #endif
 #if CONFIG_TARGET_LPC11C14
-	uint32_t pending_msg_objs;
 	uint32_t used_msg_objs;
-	int8_t pending_msg_obj_time_limit;
 	// temporary message struct. This can be used instead of local variables
 	// to save stack memory.
 	uv_can_message_st temp_msg;
@@ -86,23 +91,25 @@ typedef struct {
 #elif CONFIG_TARGET_LPC1785
 
 #endif
+	bool init;
 	uv_can_message_st rx_buffer_data[CONFIG_CAN1_RX_BUFFER_SIZE];
 	uv_ring_buffer_st rx_buffer;
-	uv_can_message_st tx_buffer_data[CONFIG_CAN1_TX_BUFFER_SIZE];
-	uv_ring_buffer_st tx_buffer;
-
+	int16_t tx_pending;
 #if CONFIG_TERMINAL_CAN
 	uv_ring_buffer_st char_buffer;
 	char char_buffer_data[CONFIG_TERMINAL_BUFFER_SIZE];
 #endif
 	void (*rx_callback[CAN_COUNT])(void *user_ptr);
+
 } this_st;
-static this_st _this;
+static this_st _this = {
+		.init = false
+};
 #define this (&_this)
 
 
 
-#define TX_MSG_OBJ	31
+#define TX_MSG_OBJ	1
 
 static uv_errors_e check_channel(uv_can_channels_e channel) {
 	if (channel < CAN_COUNT) {
@@ -121,7 +128,7 @@ static uv_errors_e check_channel(uv_can_channels_e channel) {
 
 /// @brief: Time limit for pending message objects. If this exceedes, all message objects are
 /// released from pending state.
-#define PENDING_MSG_OBJ_TIME_LIMIT_MS		20
+#define PENDING_MSG_OBJ_TIME_LIMIT_MS		8
 
 #define CAN_ERROR_NONE 		0x00000000UL
 #define CAN_ERROR_PASS 		0x00000001UL
@@ -135,7 +142,6 @@ static uv_errors_e check_channel(uv_can_channels_e channel) {
 #define CAN_ERROR_CRC 		0x00000100UL
 
 
-static uv_errors_e send_next_msg( void );
 
 void CAN_rx(uint8_t msg_obj_num);
 void CAN_tx(uint8_t msg_obj_num);
@@ -233,7 +239,7 @@ void CAN_rx(uint8_t msg_obj_num) {
 	/* Now load up the msg_obj structure with the CAN message */
 	LPC_CCAN_API->can_receive(&this->temp_obj);
 	this->temp_msg.data_length = this->temp_obj.data_length;
-	this->temp_msg.id = this->temp_obj.msg_id & ~CAN_ID_EXT;
+	this->temp_msg.id = this->temp_obj.msg_id & ~CAN_EXT;
 	uint8_t i;
 	for (i = 0; i < this->temp_msg.data_length; i++) {
 		this->temp_msg.data_8bit[i] = this->temp_obj.data[i];
@@ -268,18 +274,13 @@ void CAN_rx(uint8_t msg_obj_num) {
 }
 
 void CAN_tx(uint8_t msg_obj_num) {
-	// clear pending msg object
-	this->pending_msg_objs &= ~(1 << msg_obj_num);
-	this->pending_msg_obj_time_limit = 0;
-
+	this->tx_pending = 0;
 #if CONFIG_CAN_LOG
 	if (can_log) {
 		printf("CAN message sent.\n\r");
 	}
 #endif
 
-	// send the next message if there is one in the message buffer
-	send_next_msg();
 }
 
 void CAN_error(uint32_t error_info) {
@@ -334,19 +335,18 @@ void CAN_IRQHandler(void) {
 
 
 
-uv_errors_e uv_can_init(uv_can_channels_e channel) {
-	if (check_channel(channel)) return check_channel(channel);
+
+
+uv_errors_e uv_can_init() {
 	uint8_t i;
 	for (i = 0; i < CAN_COUNT; i++) {
 		this->rx_callback[i] = NULL;
 	}
-	this->pending_msg_obj_time_limit = 0;
-	this->pending_msg_objs = 0;
-	this->used_msg_objs = 0;
+	this->init = true;
+	this->tx_pending = 0;
+	this->used_msg_objs = (1 << TX_MSG_OBJ);
 	uv_ring_buffer_init(&this->rx_buffer, this->rx_buffer_data,
 			CONFIG_CAN1_RX_BUFFER_SIZE, sizeof(uv_can_message_st));
-	uv_ring_buffer_init(&this->tx_buffer, this->tx_buffer_data,
-			CONFIG_CAN1_TX_BUFFER_SIZE, sizeof(uv_can_message_st));
 	SystemCoreClockUpdate();
 	uint32_t CanApiClkInitTable[] = {
 		//CANCLKDIV register
@@ -378,7 +378,7 @@ uv_errors_e uv_can_init(uv_can_channels_e channel) {
 
 #if CONFIG_TERMINAL_CAN
 	uv_ring_buffer_init(&this->char_buffer, this->char_buffer_data, CONFIG_TERMINAL_BUFFER_SIZE, sizeof(char));
-	uv_can_config_rx_message(CAN1, UV_TERMINAL_CAN_PREFIX + uv_get_crc(), CAN_ID_MASK_DEFAULT, CAN_ID_EXT);
+	uv_can_config_rx_message(CAN1, UV_TERMINAL_CAN_PREFIX + uv_get_crc(), CAN_ID_MASK_DEFAULT, CAN_EXT);
 #endif
 	return uv_err(ERR_NONE);
 
@@ -387,19 +387,6 @@ uv_errors_e uv_can_init(uv_can_channels_e channel) {
 
 
 uv_errors_e uv_can_step(uv_can_channels_e channel, unsigned int step_ms) {
-	//check if the pending time limit has been exceeded.
-	// If so, clear the pending message object.
-
-	if (this->pending_msg_objs & (1 << TX_MSG_OBJ)) {
-		if (this->pending_msg_obj_time_limit < PENDING_MSG_OBJ_TIME_LIMIT_MS) {
-			this->pending_msg_obj_time_limit += step_ms;
-		}
-		else {
-			this->pending_msg_objs &= ~(1 << TX_MSG_OBJ);
-			// send the next message
-			send_next_msg();
-		}
-	}
 
 	if (this->rx_callback[CAN1] != NULL) {
 		while (true) {
@@ -428,7 +415,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 	// config them with settings requested
 	// the last message object is reserved for sending messages
 	uint8_t i;
-	for (i = 0; i < TX_MSG_OBJ; i++) {
+	for (i = 0; i < 32; i++) {
 		// search for a unused message object to be used for receiving the messages
 		if (!GET_MASKED(this->used_msg_objs, (1 << i))) {
 			hal_can_msg_obj_st obj = {
@@ -444,54 +431,34 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 	__uv_err_throw(ERR_CAN_RX_MESSAGE_COUNT_FULL | HAL_MODULE_CAN);
 }
 
-static uv_errors_e send_next_msg( void ) {
-	uv_can_message_st msg;
-	uv_ring_buffer_pop(&this->tx_buffer, &msg);
-	if (uv_get_error() == ERR_BUFFER_EMPTY) {
-		return uv_err(ERR_NONE);
+
+uv_can_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message) {
+	if (check_channel(channel)) return check_channel(channel);
+	else if (!this->init) {
+		return uv_err(ERR_NOT_INITIALIZED | HAL_MODULE_CAN);
+	}
+
+	// if tx object is pending, try to wait for the HAl task to release the pending msg obj
+	while (this->tx_pending > 0) {
+		uv_rtos_task_yield();
 	}
 
 	// the last MSG OBJ is used for transmitting the messages
 	hal_can_msg_obj_st obj = {
-			.data_length = msg.data_length,
-			.msg_id = msg.id,
-			.msgobj = TX_MSG_OBJ
+			.data_length = message->data_length,
+			.msg_id = message->id | message->type,
+			.msgobj = TX_MSG_OBJ,
 	};
 	uint8_t i;
 	for (i = 0; i < obj.data_length; i++) {
-		obj.data[i] = msg.data_8bit[i];
+		obj.data[i] = message->data_8bit[i];
 	}
-	// mark message object as pending
-	this->pending_msg_objs |= (1 << obj.msgobj);
-	this->pending_msg_obj_time_limit = 0;
-#if CONFIG_CAN_LOG
-	if (can_log) {
-		printf("Sending CAN message\n\r   id: 0x%x\n\r   data:", msg.id);
-		for (i = 0; i < msg.data_length; i++) {
-			printf("%02x ", msg.data_8bit[i]);
-		}
-		printf("\n\r");
-	}
-#endif
 
 	// send the message
 	LPC_CCAN_API->can_transmit(&obj);
+	this->tx_pending = PENDING_MSG_OBJ_TIME_LIMIT_MS;
 
-	return uv_err(ERR_NONE);
-
-}
-
-uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message) {
-	if (check_channel(channel)) return check_channel(channel);
-
-	// put the message into TX buffer
-	uv_errors_e e = uv_ring_buffer_push(&this->tx_buffer, message);
-
-	// if the TX msg obj is ready, send the next message
-	if (!(this->pending_msg_objs & (1 << TX_MSG_OBJ))) {
-		send_next_msg();
-	}
-	return e;
+	return uv_can_get_error_state(channel);
 }
 
 
@@ -600,3 +567,16 @@ uv_errors_e uv_can_add_rx_callback(uv_can_channels_e channel,
 	this->rx_callback[channel] = callback_function;
 	return uv_err(ERR_NONE);
 }
+
+
+/// @brief: Inner hal step function which is called in rtos hal task
+void _uv_can_hal_step(unsigned int step_ms) {
+	if (this->tx_pending > 0)
+		this->tx_pending -= step_ms;
+	else this->tx_pending = 0;
+}
+
+
+
+
+#endif

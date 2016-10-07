@@ -19,4 +19,9 @@
 void uv_stdout_send(char* str, unsigned int count);
 
 
+#if CONFIG_TERMINAL_CAN
+/// @brief: Will be called in the HAL task function.
+void _uv_stdout_hal_step(unsigned int step_ms);
+#endif
+
 #endif /* UW_STDOUT_H_ */

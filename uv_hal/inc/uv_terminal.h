@@ -106,6 +106,7 @@ typedef struct {
 
 typedef enum {
 	CMD_HELP,
+	CMD_DEV,
 #if CONFIG_TERMINAL_INSTRUCTIONS
 	CMD_MAN,
 #endif

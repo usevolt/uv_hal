@@ -244,7 +244,6 @@ uv_errors_e uv_canopen_init(uv_canopen_st *me,
 	uv_delay_init(this->obj_dict.com_params.heartbeat_time, &this->heartbeat_delay);
 #endif
 
-
 	// send boot up message
 	uv_can_message_st msg = {
 			.id = CANOPEN_BOOTUP_ID + NODE_ID,
@@ -267,7 +266,10 @@ uv_errors_e uv_canopen_restore_defaults(uv_canopen_st *me) {
 	this->obj_dict.com_params.identity.vendor_id = CONFIG_CANOPEN_VENDOR_ID;
 	this->obj_dict.com_params.identity.revision_number = CONFIG_CANOPEN_REVISION_CODE;
 	this->obj_dict.com_params.identity.product_code = CONFIG_CANOPEN_PRODUCT_CODE;
-	uv_get_device_serial(this->obj_dict.com_params.identity.serial_number);
+
+	// todo: Does reading serial corrupt stack?
+//		uv_get_device_serial(this->obj_dict.com_params.identity.serial_number);
+
 #endif
 	this->obj_dict.com_params.node_id = CONFIG_CANOPEN_DEFAULT_NODE_ID;
 #if CONFIG_CANOPEN_RESTORE_PARAMS_INDEX

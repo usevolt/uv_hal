@@ -15,6 +15,8 @@
 #include "uv_hal_config.h"
 #include "uv_errors.h"
 
+
+#if CONFIG_EMC
 /// @file: Interface for external RAM memory.
 /// NOTE: Currently only 16-bit SDRAM is supported!
 ///
@@ -94,6 +96,7 @@ uv_errors_e uv_emc_init( void );
 
 
 
+#endif
 
 #endif
 

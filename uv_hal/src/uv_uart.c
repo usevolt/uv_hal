@@ -8,6 +8,8 @@
 #include "uv_uart.h"
 
 
+#if CONFIG_UART
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -683,3 +685,4 @@ bool uv_uart_is_initialized(uv_uarts_e uart) {
 }
 
 
+#endif

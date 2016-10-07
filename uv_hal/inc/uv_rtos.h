@@ -12,7 +12,6 @@
 #include "uv_hal_config.h"
 #include <stdbool.h>
 
-#if CONFIG_RTOS
 
 /// @file: A wrapper for FreeRTOS real time operating system.
 /// Only usable in builds which defined CONFIG_RTOS preprocessor symbol
@@ -37,7 +36,7 @@
 
 
 #define UV_RTOS_MIN_STACK_SIZE 			configMINIMAL_STACK_SIZE
-#define UV_RTOS_IDLE_PRIORITY			tskIDLE_PRIORITY
+#define UV_RTOS_IDLE_PRIORITY			(tskIDLE_PRIORITY + 1)
 
 /// @brief: The tick timer period time in ms
 #define UV_RTOS_TICK_PERIOD_MS			portTICK_PERIOD_MS
@@ -70,6 +69,19 @@ typedef xQueueHandle		uv_rtos_queue_ptr;
 
 
 
+/// @brief: Initializes the real time OS. Basicly sets up a HAL task which takes care
+/// of several hal module step functions
+///
+/// @param device: Pointer to the main application data structure. This is the struct which will
+/// be given as the **me** parameter to the HAL library's callback functions.
+void uv_init(void *device);
+
+extern bool rtos_init;
+/// @brief: Returns true when the rtos HAL task is succesfully running and all peripherals should be
+/// initialized.
+static inline bool uv_rtos_initialized() {
+	return rtos_init;
+}
 
 
 #if configUSE_IDLE_HOOK
@@ -310,7 +322,6 @@ static inline void uv_rtos_end_scheduler(void) {
 
 
 
-#endif
 
 
 #endif /* CONFIG_RTOS_H_ */

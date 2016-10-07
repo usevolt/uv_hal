@@ -20,7 +20,7 @@
 
 void uv_system_reset(bool hard_reset) {
 	if (hard_reset) {
-		uv_wdt_init(1);
+		uv_wdt_init();
 		uv_wdt_reset();
 	}
 	else {
