@@ -14,6 +14,36 @@
 #include "uv_errors.h"
 #include <stdbool.h>
 
+/// @brief: Initializes an ADC pin to function as an analog channel
+#define ADC_INIT(chn)	CAT(chn, _INIT)
+
+#define ADC_0_INIT		LPC_IOCON->P0_23 &= ~(0b111 | (1 << 7)); \
+							LPC_IOCON->P0_23 |= (0b001)
+
+#define ADC_1_INIT		LPC_IOCON->P0_24 &= ~(0b111 | (1 << 7)); \
+							LPC_IOCON->P0_24 |= (0b001)
+
+#define ADC_2_INIT		LPC_IOCON->P0_25 &= ~(0b111 | (1 << 7)); \
+							LPC_IOCON->P0_25 |= (0b001)
+
+#define ADC_3_INIT		LPC_IOCON->P0_26 &= ~(0b111 | (1 << 7) | (1 << 16)); \
+							LPC_IOCON->P0_26 |= (0b001)
+
+#define ADC_4_INIT		LPC_IOCON->P1_30 &= ~(0b111 | (1 << 7)); \
+							LPC_IOCON->P1_30 |= (0b011)
+
+#define ADC_5_INIT		LPC_IOCON->P1_31 &= ~(0b111 | (1 << 7)); \
+							LPC_IOCON->P1_31 |= (0b011)
+
+#define ADC_6_INIT		LPC_IOCON->P0_12 &= ~(0b111 | (1 << 7)); \
+							LPC_IOCON->P0_12 |= (0b011)
+
+#define ADC_7_INIT		LPC_IOCON->P0_13 &= ~(0b111 | (1 << 7)); \
+							LPC_IOCON->P0_13 |= (0b011)
+
+
+
+
 
 /// @brief: Defines the ADC conversion max value ( == precision) for this hardware
 enum {
@@ -28,30 +58,30 @@ enum {
 typedef enum {
 #if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1785
 #if CONFIG_ADC_CHANNEL0
-	ADC_CHN_0 = (1 << 0),
+	ADC_0 = (1 << 0),
 #endif
 #if CONFIG_ADC_CHANNEL1
-	ADC_CHN_1 = (1 << 1),
+	ADC_1 = (1 << 1),
 #endif
 #if CONFIG_ADC_CHANNEL2
-	ADC_CHN_2 = (1 << 2),
+	ADC_2 = (1 << 2),
 #endif
 #if CONFIG_ADC_CHANNEL3
-	ADC_CHN_3 = (1 << 3),
+	ADC_3 = (1 << 3),
 #endif
 #if CONFIG_ADC_CHANNEL4
-	ADC_CHN_4 = (1 << 4),
+	ADC_4 = (1 << 4),
 #endif
 #if CONFIG_ADC_CHANNEL5
-	ADC_CHN_5 = (1 << 5),
+	ADC_5 = (1 << 5),
 #endif
 #if CONFIG_ADC_CHANNEL6
-	ADC_CHN_6 = (1 << 6),
+	ADC_6 = (1 << 6),
 #endif
 #if CONFIG_ADC_CHANNEL7
-	ADC_CHN_7 = (1 << 7),
+	ADC_7 = (1 << 7),
 #endif
-	ADC_CHN_COUNT = 8
+	ADC_COUNT = 8
 #endif
 } uv_adc_channels_e;
 

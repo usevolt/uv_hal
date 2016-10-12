@@ -15,17 +15,21 @@
 #include <stdbool.h>
 
 typedef enum {
-	UW_RESET_POR = 0,
-	UW_RESET_EXTERNAL_PIN,
-	UW_RESET_WATCHDOG,
-	UW_RESET_BROWN_OUT,
-	UW_RESET_SOFTWARE,
-	UW_RESET_COUNT
+	UV_RESET_POR = 0,
+	UV_RESET_EXTERNAL,
+	UV_RESET_WATCHDOG,
+	UV_RESET_BROWN_OUT,
+	UV_RESET_SOFTWARE,
+	UV_RESET_LOCKUP,
+	UV_RESET_COUNT
 } uv_reset_sources_e;
 
 
 /// @brief: resets the system via software reset
 void uv_system_reset(bool hard_reset);
 
+
+/// @brief: Returns the reset source
+uv_reset_sources_e uv_reset_get_source();
 
 #endif /* HAL_RESET_H_ */

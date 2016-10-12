@@ -42,30 +42,6 @@
 
 #define ADC_CHN_7_INIT		LPC_IOCON->PIO1_11 |= 0x01; \
 							LPC_IOCON->PIO1_11 &= ~((1 << 7) | (0b11 << 3))
-#elif CONFIG_TARGET_LPC1785
-#define ADC_CHN_0_INIT		LPC_IOCON->P0_23 &= ~(0b111 | (1 << 7)); \
-							LPC_IOCON->P0_23 |= (0b001)
-
-#define ADC_CHN_1_INIT		LPC_IOCON->P0_24 &= ~(0b111 | (1 << 7)); \
-							LPC_IOCON->P0_24 |= (0b001)
-
-#define ADC_CHN_2_INIT		LPC_IOCON->P0_25 &= ~(0b111 | (1 << 7)); \
-							LPC_IOCON->P0_25 |= (0b001)
-
-#define ADC_CHN_3_INIT		LPC_IOCON->P0_26 &= ~(0b111 | (1 << 7) | (1 << 16)); \
-							LPC_IOCON->P0_26 |= (0b001)
-
-#define ADC_CHN_4_INIT		LPC_IOCON->P1_30 &= ~(0b111 | (1 << 7)); \
-							LPC_IOCON->P1_30 |= (0b011)
-
-#define ADC_CHN_5_INIT		LPC_IOCON->P1_31 &= ~(0b111 | (1 << 7)); \
-							LPC_IOCON->P1_31 |= (0b011)
-
-#define ADC_CHN_6_INIT		LPC_IOCON->P0_12 &= ~(0b111 | (1 << 7)); \
-							LPC_IOCON->P0_12 |= (0b011)
-
-#define ADC_CHN_7_INIT		LPC_IOCON->P0_13 &= ~(0b111 | (1 << 7)); \
-							LPC_IOCON->P0_13 |= (0b011)
 #endif
 
 
@@ -123,32 +99,30 @@ uv_errors_e uv_adc_init() {
 #endif
 
 #elif CONFIG_TARGET_LPC1785
-	// put ADC off
-	LPC_ADC->CR &= ~(1 << 21);
 
 #if CONFIG_ADC_CHANNEL0
-	ADC_CHN_0_INIT;
+	ADC_0_INIT;
 #endif
 #if CONFIG_ADC_CHANNEL1
-	ADC_CHN_1_INIT;
+	ADC_1_INIT;
 #endif
 #if CONFIG_ADC_CHANNEL2
-	ADC_CHN_2_INIT;
+	ADC_2_INIT;
 #endif
 #if CONFIG_ADC_CHANNEL3
-	ADC_CHN_3_INIT;
+	ADC_3_INIT;
 #endif
 #if CONFIG_ADC_CHANNEL4
-	ADC_CHN_4_INIT;
+	ADC_4_INIT;
 #endif
 #if CONFIG_ADC_CHANNEL5
-	ADC_CHN_5_INIT;
+	ADC_5_INIT;
 #endif
 #if CONFIG_ADC_CHANNEL6
-	ADC_CHN_6_INIT;
+	ADC_6_INIT;
 #endif
 #if CONFIG_ADC_CHANNEL7
-	ADC_CHN_7_INIT;
+	ADC_7_INIT;
 #endif
 
 	//enable clock to the adc
@@ -180,7 +154,7 @@ uv_errors_e uv_adc_init() {
 	// dont start ADC now
 	LPC_ADC->CR &= ~(0b111 << 24);
 	// ADC ON
-	LPC_ADC->CR|= (1 << 21);
+	LPC_ADC->CR |= (1 << 21);
 #endif
 
 #endif

@@ -9,11 +9,29 @@
 #include "uv_lcd.h"
 #include "uv_emc.h"
 #include <string.h>
+#if CONFIG_LCD_TOUCHSCREEN
+#include "uv_adc.h"
+#include "uv_gpio.h"
+#endif
 
 #if CONFIG_LCD
 
 
 lcd_line_t *lcd = (lcd_line_t *) CONFIG_LCD_BUFFER_ADDRESS;
+typedef struct {
+	uint16_t x;
+	uint16_t y;
+} point_st;
+
+#define POINTS_LEN	2
+typedef struct {
+	point_st points[POINTS_LEN];
+	uint8_t index;
+} touchscreen_st;
+
+static touchscreen_st ts = {
+		.index = 0
+};
 
 
 uv_errors_e uv_lcd_tft_init(void) {
@@ -88,6 +106,12 @@ uv_errors_e uv_lcd_tft_init(void) {
 
 	uv_lcd_draw_rect(0, 0, LCD_W(1.0f), LCD_H(1.0f), 0);
 
+	// initialize touchscreen ADC channels
+#if CONFIG_LCD_TOUCHSCREEN
+	uv_adc_init();
+
+#endif
+
 	return uv_err(ERR_NONE);
 
 }
@@ -120,5 +144,51 @@ void uv_lcd_draw_frame(int32_t x, int32_t y, uint32_t width, uint32_t height, ui
 	uv_lcd_draw_rect(x, y + height - border, width, border, color);
 }
 
+
+
+
+
+#if CONFIG_LCD_TOUCHSCREEN
+
+void uv_lcd_touch_calib(uint16_t x, uint16_t y) {
+	if (ts.index < POINTS_LEN - 1) {
+		ts.points[ts.index].x = x;
+		ts.points[ts.index++].y = y;
+	}
+}
+
+
+void uv_lcd_touch_calib_clear(void) {
+	ts.index = 0;
+}
+
+
+bool uv_lcd_touch_get(int16_t *x, int16_t *y) {
+	// first get X coordinate
+	ADC_INIT(CONFIG_LCD_Y_T_ADC);
+	ADC_INIT(CONFIG_LCD_Y_B_ADC);
+	uv_gpio_init_output(CONFIG_LCD_X_L_GPIO, 0);
+	uv_gpio_init_output(CONFIG_LCD_X_R_GPIO, 1);
+	int x_val = uv_adc_read_average(CONFIG_LCD_Y_T_ADC, 100);
+	int y_val = uv_adc_read_average(CONFIG_LCD_Y_B_ADC, 100);
+//
+//	// then get the Y coordinate
+//	ADC_INIT(CONFIG_LCD_X_L_ADC);
+//	ADC_INIT(CONFIG_LCD_X_R_ADC);
+//	uv_gpio_init_output(CONFIG_LCD_Y_T_GPIO, 0);
+//	uv_gpio_init_output(CONFIG_LCD_Y_B_GPIO, 1);
+//	int y_val = uv_adc_read_average(CONFIG_LCD_X_L_ADC, 100);
+
+	// minimize current consumption by setting all outputs to low
+//	uv_gpio_set(CONFIG_LCD_Y_B_GPIO, 0);
+
+	// print relative values
+	printf("x: %i, y: %i\n\r", x_val, y_val);
+
+	return false;
+}
+
+
+#endif
 
 #endif

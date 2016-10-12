@@ -163,7 +163,24 @@
 #if !defined(CONFIG_LCD_VD23_IOCON)
 #error "CONFIG_LCD_VD23_IOCON should define the IO configuration settings for this LCD pin."
 #endif
-
+#if CONFIG_LCD_TOUCHSCREEN
+#if !defined(CONFIG_LCD_X_L_ADC) || !defined(CONFIG_LCD_X_L_GPIO)
+#error "CONFIG_LCD_X_L_ADC should define the ADC channel used to X Left input and\
+ CONFIG_LCD_X_L_GPIO should define the same GPIO pin."
+#endif
+#if !defined(CONFIG_LCD_X_R_ADC) || !defined(CONFIG_LCD_X_R_GPIO)
+#error "CONFIG_LCD_X_R_ADC should define the ADC channel used for X Right input and\
+ CONFIG_LCD_X_R_GPIO should define the same GPIO pin."
+#endif
+#if !defined(CONFIG_LCD_Y_T_ADC) || !defined(CONFIG_LCD_Y_T_GPIO)
+#error "CONFIG_LCD_Y_T_ADC should define the ADC channel used for Y Top input and\
+ CONFIG_LCD_Y_T_GPIO should define the same GPIO pin."
+#endif
+#if !defined(CONFIG_LCD_Y_B_ADC) || !defined(CONFIG_LCD_Y_B_GPIO)
+#error "CONFIG_LCD_Y_B_ADC should define the ADC channel used for Y Bottom input and\
+ CONFIG_LCD_Y_B_GPIO should define the same GPIO pin."
+#endif
+#endif
 
 /// @brief: Values used for CONFIG_LCD_BITS_PER_PIXEL configuration define
 #define LCD_1_BPP			0
@@ -288,6 +305,25 @@ void uv_lcd_draw_rect(int32_t x, int32_t y, uint32_t width, uint32_t height, col
 /// @param color: The color of the frame
 void uv_lcd_draw_frame(int32_t x, int32_t y, uint32_t width, uint32_t height, uint32_t border, color_t color);
 
+
+#if CONFIG_LCD_TOUCHSCREEN
+
+/// @brief: Calibrates the touchscreen. The calibration should be called twice, each with
+/// different positions, i.e. top left corner and bottom right corner.
+/// The calibration algorithm takes the current pressing point and
+/// sets it to correspond the pixel position given
+void uv_lcd_touch_calib(uint16_t x, uint16_t y);
+
+/// @brief: Clears all calibrations. For proper calibration sequence this should be called first
+/// and after that uv_lcd_touch_calib should be called twice when the user presses the touchscreen.
+void uv_lcd_touch_calib_clear(void);
+
+
+/// @brief: Returns true if the user touches the touchscreen. Also if the touchscreen has been
+/// correctly configured, returns the position of the touch in pixels.
+bool uv_lcd_touch_get(int16_t *x, int16_t *y);
+
+#endif
 
 
 #endif
