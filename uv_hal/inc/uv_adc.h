@@ -14,6 +14,13 @@
 #include "uv_errors.h"
 #include <stdbool.h>
 
+#if CONFIG_TARGET_LPC1785
+
+enum {
+	ADC_PULL_UP_ENABLED = (1 << 4),
+	ADC_PULL_DOWN_ENABLED = (1 << 3),
+};
+
 /// @brief: Initializes an ADC pin to function as an analog channel
 #define ADC_INIT(chn)	CAT(chn, _INIT)
 
@@ -41,6 +48,20 @@
 #define ADC_7_INIT		LPC_IOCON->P0_13 &= ~(0b111 | (1 << 7)); \
 							LPC_IOCON->P0_13 |= (0b011)
 
+/// @brief: Pull up & pull down configuration macros. These should be used
+/// only to enable pull up & pull down resistors on AD pins, if necessary.
+#define ADC_CONF(adc, confs) CAT(adc, _CONF(confs))
+
+#define ADC_0_CONF(confs) LPC_IOCON->P0_23 |= confs
+#define ADC_1_CONF(confs) LPC_IOCON->P0_24 |= confs
+#define ADC_2_CONF(confs) LPC_IOCON->P0_25 |= confs
+#define ADC_3_CONF(confs) LPC_IOCON->P0_26 |= confs
+#define ADC_4_CONF(confs) LPC_IOCON->P0_30 |= confs
+#define ADC_5_CONF(confs) LPC_IOCON->P0_31 |= confs
+#define ADC_6_CONF(confs) LPC_IOCON->P0_12 |= confs
+#define ADC_7_CONF(confs) LPC_IOCON->P0_13 |= confs
+
+#endif
 
 
 

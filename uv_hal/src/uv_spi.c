@@ -7,3 +7,10 @@
 
 
 #include "uv_spi.h"
+
+#if CONFIG_SPI
+
+
+
+
+#endif

@@ -10,7 +10,7 @@
 #include "uv_ui.h"
 #include <string.h>
 
-#define this ((uv_label_st*)me)
+#define this ((uv_uilabel_st*)me)
 
 
 static inline int get_bit(uint8_t *base, uint16_t i) {
@@ -41,7 +41,7 @@ static inline void draw_char(int16_t x, int16_t y, const uv_font_st *font, char 
 
 
 /// @brief: Draws one line of text
-static inline void draw_line(int16_t x, int16_t y, uint16_t width, const uv_font_st *font,
+static inline void draw_line(int16_t x, int16_t y, const uv_font_st *font,
 		char *str, color_t color, alignment_e align) {
 	uint16_t len = 0, i;
 	for (i = 0; i < strlen(str); i++) {
@@ -53,10 +53,10 @@ static inline void draw_line(int16_t x, int16_t y, uint16_t width, const uv_font
 		}
 	}
 	if (align & ALIGN_H_CENTER) {
-		x = x + width / 2 - len * font->char_width / 2;
+		x = x - len * font->char_width / 2;
 	}
 	else if (align & ALIGN_H_RIGHT) {
-		x = x + width - len * font->char_width;
+		x = x - len * font->char_width;
 	}
 	for (i = 0; i < len; i++) {
 		draw_char(x, y, font, str[i], color);
@@ -65,46 +65,62 @@ static inline void draw_line(int16_t x, int16_t y, uint16_t width, const uv_font
 }
 
 
-void uv_label_step(void *me, uint16_t step_ms) {
+void uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 	// do nothing if refresh is not called
 	// (label is a static object, it doesn't have any animations, etc.
 	if (!this->super.refresh) {
 		return;
 	}
 
-	uint16_t len = strlen(this->str);
+	uint16_t x = uv_ui_get_xglobal(this),
+			y = uv_ui_get_yglobal(this);
+	if (this->align & ALIGN_H_CENTER) {
+		x += uv_ui_get_bb(this)->width / 2;
+	}
+	else if (this->align & ALIGN_H_RIGHT) {
+		x += uv_ui_get_bb(this)->width;
+	}
+	if (this->align & ALIGN_V_CENTER) {
+		y += uv_ui_get_bb(this)->height / 2;
+	}
+	else if (this->align & ALIGN_V_BOTTOM) {
+		y += uv_ui_get_bb(this)->height;
+	}
+
+	_uv_ui_draw_text(x, y, this->font, this->align, this->color, this->str);
+
+}
+
+
+void _uv_ui_draw_text(uint16_t x, uint16_t y, const uv_font_st *font,
+		alignment_e align, color_t color, char *str) {
+
+	uint16_t len = strlen(str);
 	uint16_t line_count = 1;
 	uint16_t i;
-	int16_t y = 0;
+	int16_t yy = 0;
 	// calculate line count
 	for (i = 0; i < len; i++) {
-		if (this->str[i] == '\n') {
+		if (str[i] == '\n') {
 			line_count++;
 		}
 	}
 
-	// calculate min height from line count and update the width of the label according to that
-	uint16_t min_w = line_count * this->font->char_height;
-	if (uv_ui_get_bb(me)->height < min_w) {
-		uv_ui_get_bb(me)->height = min_w;
+	if (align & ALIGN_V_CENTER) {
+		yy = y - line_count * font->char_height / 2;
 	}
-
-	if (this->align & ALIGN_V_CENTER) {
-		y = uv_ui_get_bb(me)->y + uv_ui_get_bb(me)->height / 2 - line_count * this->font->char_height / 2;
-	}
-	else if (this->align & ALIGN_V_BOTTOM) {
-		y = uv_ui_get_bb(me)->y + uv_ui_get_bb(me)->height - line_count * this->font->char_height;
+	else if (align & ALIGN_V_BOTTOM) {
+		yy = y - line_count * font->char_height;
 	}
 
 	i = 0;
-	while(this->str[i] != '\0') {
-		while(this->str[i] == '\n' || this->str[i] == '\r') {
+	while(str[i] != '\0') {
+		while(str[i] == '\n' || str[i] == '\r') {
 			i++;
 		}
-		draw_line(uv_ui_get_xglobal(me), uv_ui_get_yglobal(me) + y, uv_ui_get_bb(me)->width,
-				this->font, &this->str[i], this->color, this->align);
-		y += this->font->char_height;
-		while(this->str[i] != '\n' && this->str[i] != '\r' && this->str[i] != '\0') {
+		draw_line(x, y + yy, font, &str[i], color, align);
+		yy += font->char_height;
+		while(str[i] != '\n' && str[i] != '\r' && str[i] != '\0') {
 			i++;
 		}
 	}

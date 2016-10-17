@@ -6,12 +6,12 @@
  */
 
 
-#include <ui/uv_window.h>
+#include <ui/uv_uiwindow.h>
 
 
 
 
-#define this	((uv_window_st*) me)
+#define this	((uv_uiwindow_st*) me)
 
 
 
@@ -30,8 +30,8 @@ static void redraw(void *me) {
 
 
 
-void uv_window_step(void *me, uint16_t step_ms) {
-	if (((uv_ui_object_st*)this)->refresh) {
+void uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
+	if (((uv_uiobject_st*)this)->refresh) {
 		// first redraw this window
 		redraw(this);
 		// then request redraw all children objects
@@ -45,7 +45,7 @@ void uv_window_step(void *me, uint16_t step_ms) {
 	uint16_t i;
 	for (i = 0; i < this->objects_count; i++) {
 		if (this->objects[i]->visible) {
-			this->objects[i]->step_callb(this->objects[i], step_ms);
+			this->objects[i]->step_callb(this->objects[i], touch, step_ms);
 
 #if CONFIG_UI_DRAW_BOUDING_BOXES
 			if (this->objects[i]->refresh) {

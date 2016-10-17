@@ -180,6 +180,10 @@
 #error "CONFIG_LCD_Y_B_ADC should define the ADC channel used for Y Bottom input and\
  CONFIG_LCD_Y_B_GPIO should define the same GPIO pin."
 #endif
+#if !defined(CONFIG_LCD_TOUCH_THRESHOLD)
+#error "CONFIG_LCD_TOUCH_THRESHOLD should defined the threshold value wich is used to detect\
+ if the screen is touched or not. ADC converter value smaller than this is recognized as a touch."
+#endif
 #endif
 
 /// @brief: Values used for CONFIG_LCD_BITS_PER_PIXEL configuration define
@@ -220,51 +224,34 @@
 #error "Incorrect bits per pixel setting. Only RGB888 (24-bits) format is implemented"
 #endif
 
+
+/// @brief: Converts RGB888 color to used color space.
+/// For compatibility all colors should be defined with this macro.
+#define C(x)	(x)
+
 /// @brief: Color type. All colors are given in RGB888.
 typedef int32_t color_t;
 enum {
-	COLOR_BLACK = 0x000000,
-	COLOR_WHITE = 0xFFFFFF,
-	COLOR_BLUE = 0x0000FF,
-	COLOR_RED = 0xFF0000,
-	COLOR_GREEN = 0x00FF00
+	COLOR_BLACK = C(0x000000),
+	COLOR_WHITE = C(0xFFFFFF),
+	COLOR_BLUE = C(0x0000FF),
+	COLOR_RED = C(0xFF0000),
+	COLOR_GREEN = C(0x00FF00)
 };
 
-/// @brief: Lists all different touchscreen actions
-enum {
-	/// @brief: User pressed down the touchscreen
-	/// x and y variables contain the local coordinates of the press
-	LCD_PRESSED,
-	/// @brief: User pressed the touchscreen long without moving
-	/// x and y variables contain the local coordinates of the long press
-	LCD_LONG_PRESSED,
-	/// @brief: User released from the touchscreen
-	/// x and y variables contain the local coordinates of the release
-	LCD_RELEASED,
-	/// @brief: User clicked on the touchscreen without moving
-	/// x and y variables contain the local coordinates of the click
-	LCD_CLICKED,
-	/// @brief: User is dragging the finger on the touchscreen
-	/// x and y variables contain the drag offset from the last step cycle
-	LCD_DRAG
-};
-typedef uint8_t uv_touch_action_e;
 
+/// @brief: Returns the color multiplied to be darker by the amount of *mult*
+/// Negative multiplier results in darker color
+color_t uv_cmult(color_t c, float mult);
 
-
-/// @brief: Touchscreen touch structure. All object's receive their
-/// touching actions via this structure as a step function parameter.
-typedef struct {
-	/// @brief: Defines the action type
-	uv_touch_action_e action;
-	/// @brief: local X coordinate. Contains different information depending on the action.
-	uint16_t x;
-	/// @brief: local Y coordinate. Contains different information depending on the action.
-	uint16_t y;
-} uv_touch_st;
-
-
-
+/// @brief: Returns the color multiplied to be darker by the amount of *mult*
+static inline color_t uv_cdarker(color_t c, float mult) {
+	return uv_cmult(c, 1 / mult);
+}
+/// @brief: Returns the color multiplied to be lighter by the amount of *mult*
+static inline color_t uv_clighter(color_t c, float mult) {
+	return uv_cmult(c, mult);
+}
 
 /// @brief: pointer to the display. Pixels are oriented as [y][x] two dimensional array
 typedef LCD_PIXEL_TYPE lcd_line_t[CONFIG_LCD_PIXELS_PER_LINE];
@@ -274,10 +261,6 @@ extern lcd_line_t *lcd;
 /// @brief: Initializes the LCD module
 uv_errors_e uv_lcd_tft_init(void);
 
-/// @brief: The step function should be called every step cycle
-///
-/// @param touch: Pointer to the touchscreen structure where touchscreen event will be returned.
-void uv_lcd_step(uint16_t step_ms, uv_touch_st *touch);
 
 /// @brief: Sets the specific pixels from the LCD. Note that for performance reasons
 /// the function doesnt check for overindexing.
@@ -322,6 +305,7 @@ void uv_lcd_touch_calib_clear(void);
 /// @brief: Returns true if the user touches the touchscreen. Also if the touchscreen has been
 /// correctly configured, returns the position of the touch in pixels.
 bool uv_lcd_touch_get(int16_t *x, int16_t *y);
+
 
 #endif
 

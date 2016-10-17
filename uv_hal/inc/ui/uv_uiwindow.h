@@ -5,14 +5,14 @@
  *      Author: usevolt
  */
 
-#ifndef UV_HAL_INC_UI_UV_WINDOW_H_
-#define UV_HAL_INC_UI_UV_WINDOW_H_
+#ifndef UV_HAL_INC_UI_UV_UIWINDOW_H_
+#define UV_HAL_INC_UI_UV_UIWINDOW_H_
 
 
 
+#include <ui/uv_uiobject.h>
 #include <uv_hal_config.h>
 #include "uv_utilities.h"
-#include "ui/uv_object.h"
 #include "uv_lcd.h"
 #include "ui/uv_ui_styles.h"
 
@@ -24,21 +24,21 @@
 
 
 /// @brief: A window GUI element. Window is an holder of other objects.
-/// Inherits from the uv_ui_object_st.
+/// Inherits from the uv_uiobject_st.
 typedef struct {
-	EXTENDS(uv_ui_object_st);
+	EXTENDS(uv_uiobject_st);
 
 	/// @brief: Array which holds the objects. The alignment of the objects is
 	/// determined by the order which they reside in this array.
 	/// The first index is the back-most object,
 	/// and the last index is the top-most object on the display.
-	uv_ui_object_st **objects;
+	uv_uiobject_st **objects;
 	/// @brief: Object array length
 	uint16_t objects_count;
 	/// @brief: The GUI style attached to this window.
-	/// Refer to uv_window_styles_st in uv_ui_styles.h for more info.
-	const uv_window_style_st *style;
-} uv_window_st;
+	/// Refer to uv_uiwindow_styles_st in uv_ui_styles.h for more info.
+	const uv_uiwindow_style_st *style;
+} uv_uiwindow_st;
 
 
 
@@ -48,15 +48,15 @@ typedef struct {
 ///
 /// @note: The step function also takes care of showing the window on the display.
 /// Only those windows step functions should be called which are currently shown on the display.
-void uv_window_step(void *me, uint16_t step_ms);
+void uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms);
 
 
 
 
 /// @brief: initializes the window
-static inline void uv_window_init(uv_window_st *this,
-		uv_ui_object_st **object_array, const uv_window_style_st * style) {
-	uv_ui_object_init((uv_ui_object_st*) this, NULL, 0, 0, 0, 0, false, uv_window_step);
+static inline void uv_uiwindow_init(uv_uiwindow_st *this,
+		uv_uiobject_st **object_array, const uv_uiwindow_style_st * style) {
+	uv_uiobject_init((uv_uiobject_st*) this);
 	this->objects = object_array;
 	this->objects_count = 0;
 	this->style = style;
@@ -82,10 +82,10 @@ static inline void uv_window_init(uv_window_st *this,
 /// @param step_callb: Pointer to the appropriate object type's step function.
 /// Note that this is the only thing which the window uses to distinguish different
 /// object types from each other.
-static inline void uv_window_add(uv_window_st *this, void *object,
+static inline void uv_uiwindow_add(uv_uiwindow_st *this, void *object,
 		uint16_t x, uint16_t y, uint16_t width, uint16_t height, bool visible,
-		void (*step_callb)(void*, uint16_t)) {
-	uv_ui_object_init(object, (uv_ui_object_st*) this,
+		void (*step_callb)(void*, uv_touch_st*, uint16_t)) {
+	uv_uiobject_add(object, (uv_uiobject_st*) this,
 			x, y, width, height, visible, step_callb);
 	this->objects[this->objects_count++] = object;
 }

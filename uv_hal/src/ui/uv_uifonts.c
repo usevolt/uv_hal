@@ -5,8 +5,8 @@
  *      Author: usevolt
  */
 
+#include <ui/uv_uilabel.h>
 #include "uv_hal_config.h"
-#include "ui/uv_label.h"
 
 #if CONFIG_UI_FONT_4X6
 const unsigned char font_4x6[256][6]={
