@@ -74,8 +74,8 @@ static uv_data_start_t* last_start = NULL;
 static uv_data_end_t *last_end = NULL;
 
 
-static const char *projname = STRINGIFY(__UV_PROJECT_NAME);
-static const char *datetime = __DATE__ " " __TIME__;
+const char *uv_projname = STRINGIFY(__UV_PROJECT_NAME);
+const char *uv_datetime = __DATE__ " " __TIME__;
 
 #endif
 
@@ -181,10 +181,14 @@ uv_errors_e uv_memory_save(uv_data_start_t *start_ptr, uv_data_end_t *end_ptr) {
 
 	// add the right value to data checksum
 	start_ptr->start_checksum = CHECKSUM_VALID;
-	start_ptr->project_name = projname;
-	start_ptr->project_name_crc =
-			calc_crc((const uint8_t *) start_ptr->project_name, strlen(start_ptr->project_name));
-	start_ptr->build_date = datetime;
+	start_ptr->project_name = uv_projname;
+	// calculate CRC only if it was zero.
+	// Otherwise custom CRC has been set and it shouldn't be overwritten
+	if (!start_ptr->project_name_crc) {
+		start_ptr->project_name_crc =
+				calc_crc((const uint8_t *) start_ptr->project_name, strlen(start_ptr->project_name));
+	}
+	start_ptr->build_date = uv_datetime;
 	end_ptr->end_checksum = CHECKSUM_VALID;
 
 	uv_iap_status_e status = uv_erase_and_write_to_flash((unsigned int) start_ptr,
@@ -388,3 +392,14 @@ uv_errors_e __uv_clear_previous_non_volatile_data() {
 }
 
 #endif
+
+void uv_set_crc(uint16_t crc) {
+	if (last_start) {
+		last_start->project_name_crc = crc;
+	}
+}
+
+uint16_t uv_get_crc() {
+		return *((uint16_t*)(NON_VOLATILE_MEMORY_START_ADDRESS + 8));
+	return 0;
+}

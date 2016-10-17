@@ -103,7 +103,9 @@ const char *uv_error_strings[] = {
 
 	"Not acknowledge received",
 
-	"Value too high"
+	"Value too high",
+
+	"Index overflow"
 };
 #endif
 

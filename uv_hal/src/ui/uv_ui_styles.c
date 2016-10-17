@@ -9,6 +9,8 @@
 #include "ui/uv_ui_styles.h"
 
 
+#if CONFIG_LCD
+
 #define WINDOW_STYLE(x)		,{\
 	.main_color= CAT(CONFIG_UI_WINDOW_COLOR_, INC(INC(x))), \
 				.frame_color = CAT(CONFIG_UI_WINDOW_FRAME_COLOR_, INC(INC(x))), \
@@ -43,3 +45,7 @@ const uv_uibutton_style_st uv_uibutton_styles[CONFIG_UI_BUTTON_STYLES_COUNT] = {
 		}
 		REPEAT(DEC(CONFIG_UI_BUTTON_STYLES_COUNT), BUTTON_STYLE)
 };
+
+
+
+#endif

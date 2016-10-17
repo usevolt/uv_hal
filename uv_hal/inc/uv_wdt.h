@@ -13,14 +13,17 @@
 
 
 
+
+#if CONFIG_WDT
+#if !CONFIG_WDT_CYCLE_S
+#error "CONFIG_WDT_CYCLE_S should define the watchdog timer cycle time in seconds."
+#endif
+
+
 /// @brief: Initializes watchdog timer and starts it. After this call the watchdog timer
 /// is locked and cannot be stopped.
 /// WDT clock source is internal RC oscillator
-/// @param: time_s Desired watchdock timer cycle time in seconds. To prevent system reset
-/// hal-update_wdt should be called within this time periodically.
-/// The biggest possible value is 0xFFFFFF * (16 / fosc)
-/// @param fosc: System oscillator frequency
-void uv_wdt_init(unsigned int time_s);
+void uv_wdt_init(void);
 
 
 /// @brief: Loads watchdog timer counter register.
@@ -31,5 +34,7 @@ void uv_wdt_update(void);
 /// @brief: Clears wdt counter register and forces a hard reset
 void uv_wdt_reset(void);
 
+
+#endif
 
 #endif /* UW_WDT_H_ */

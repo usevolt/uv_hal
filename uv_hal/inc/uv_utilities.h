@@ -209,22 +209,6 @@ static inline bool uv_delay(unsigned int step_ms, int* p) {
 }
 
 
-/// @brief:  function to ease debug console coding for on/off parameters
-/// arg:     command line argument, eg args[0]
-/// current: current value of the on/off parameter
-/// param:   name of the param for console feedback print
-/// example:
-///    Worklights = Debug_ParamOnOff (args[0], Worklights, "work lights")
-///    parses command "work off"
-///    prints "turning work lights off"
-bool Debug_ParamOnOff (const char* arg, bool current, const char* param);
-
-
-/// @brief:  prints can message contents in debug console
-void Debug_PrintMessage (uv_can_message_st* msg);
-
-
-
 /// @brief: Set's the user's application pointer.
 /// User can set a pointer to any variable which will be passed to all this library's
 /// callback functions. This makes it easier to write object oriented code, since
@@ -278,6 +262,119 @@ static inline uv_errors_e uv_ring_buffer_clear(uv_ring_buffer_st *buffer) {
 static inline bool uv_ring_buffer_empty(uv_ring_buffer_st *buffer) {
 	return !buffer->element_count;
 }
+
+
+
+/// @brief: Simple vector data structure.
+/// Pushing or popping data to the back of vector is fast, from front is slow.
+typedef struct {
+	uint8_t *buffer;
+	uint16_t buffer_size;
+	uint16_t len;
+	uint8_t element_size;
+} uv_vector_st;
+
+#define UV_VECTOR_INIT(buf, bf_size, el_size)	{.len = 0,\
+	.element_size = el_size, \
+	.buffer_size = bf_size, \
+	.buffer = buf }
+
+/// @brief: Initializes a vector
+///
+/// @param buffer: Pointer to the data buffer
+/// @param buffer_size: The size of the buffer in elements
+/// @param element_size: The size of the element in bytes
+static inline void uv_vector_init(uv_vector_st *this, void *buffer,
+		uint16_t buffer_size, uint8_t element_size) {
+	this->len = 0;
+	this->element_size = element_size;
+	this->buffer_size = buffer_size;
+	this->buffer = buffer;
+}
+
+
+/// @brief: Adds a new element to the back of the vector. This is a relatively
+/// fast operation.
+///
+/// @param dest: Pointer to where form the data is copied
+uv_errors_e uv_vector_push_back(uv_vector_st *this, void *src);
+
+
+/// @brief: Adds a new element to the front of the vector. This is a relatively
+/// slow operation since all other elements have to be moved.
+///
+/// @param dest: Pointer to where form the data is copied
+uv_errors_e uv_vector_push_front(uv_vector_st *this, void *src);
+
+
+/// @brief: inserts data to any index in the vector
+uv_errors_e uv_vector_insert(uv_vector_st *this, uint16_t index, void *src);
+
+
+/// @brief: Removes the last element from the vector. This is a relatively
+/// fast operation.
+///
+/// @param dest: Pointer to the destination address where the data is copied
+uv_errors_e uv_vector_pop_back(uv_vector_st *this, void *dest);
+
+
+/// @brief: Removes the first element from the vector. This is a slow operation
+/// since all the other elements have to be moved.
+///
+/// @param dest: Pointer to the destination address where the data is copied
+uv_errors_e uv_vector_pop_front(uv_vector_st *this, void *dest);
+
+
+/// @brief: Erases an element from any index of the vector
+uv_errors_e uv_vector_remove(uv_vector_st *this, uint16_t index);
+
+
+/// @brief: Returns the pointer to the *index*'th element of the vector
+///
+/// @note: Doesn't check for buffer overflows!
+static inline void *uv_vector_at(uv_vector_st *this, uint16_t index) {
+	return &this->buffer[index * this->element_size];
+}
+
+/// @brief: Returns the current length of the vector, e.g. the element count
+static inline uint16_t uv_vector_size(uv_vector_st *this) {
+	return this->len;
+}
+
+/// @brief: Empties the whole vector
+static inline void uv_vector_clear(uv_vector_st *this) {
+	this->len = 0;
+}
+
+
+/// @brief: Linear interpolation for floating points.
+///
+/// @param t: "Lerping scale". Should be between 0.0f ... 1.0f
+/// @param a: The value at t=0.0f
+/// @param b: The value at t=1.0f
+static inline float uv_lerpf(float t, float a, float b) {
+	return (1-t)*a + t*b;
+}
+
+/// @brief: Linear interpolation for integers.
+///
+/// @param t: "Lerping scale". Should be between 0 ... 1000
+/// @param a: The value at t=0
+/// @param b: The value at t=1000
+static inline float uv_lerpi(int t, int a, int b) {
+	return ((1000-t)*a + t*b) / 1000;
+}
+
+
+/// @brief: Returns the relative value of t in relation to a and b.
+/// Typical use case: a = min value, b = max value, t = value between. Returns the relative
+/// value of t.
+///
+/// @note: Should be min <= t <= max and min != max
+static inline float uv_relf(float t, float min, float max) {
+	return (t-min)/(max-min);
+}
+
 
 #if CONFIG_TARGET_LPC11C14
 /// @brief: Defines the interrupts sources on this hardware

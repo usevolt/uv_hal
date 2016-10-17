@@ -124,6 +124,8 @@ typedef enum {
 	ERR_NACK							= 39,
 	/// @brief: Value too high
 	ERR_VALUE_TOO_HIGH					= 40,
+	/// @brief: index overflow
+	ERR_INDEX_OVERFLOW					= 41,
 	ERR_COUNT
 } _uv_errors_e;
 typedef unsigned int uv_errors_e;

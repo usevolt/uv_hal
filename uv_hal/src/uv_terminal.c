@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include "uv_utilities.h"
+#include "uv_memory.h"
 #include "uv_uart.h"
 #include "uv_stdout.h"
 #if CONFIG_TARGET_LPC11C14
@@ -33,7 +34,6 @@
 extern uv_errors_e __uv_save_previous_non_volatile_data();
 extern uv_errors_e __uv_load_previous_non_volatile_data();
 extern uv_errors_e __uv_clear_previous_non_volatile_data();
-extern void uv_enter_ISP_mode(void);
 
 
 typedef struct {
@@ -47,8 +47,8 @@ typedef struct {
 this_st _terminal;
 #define this (&_terminal)
 
-void uv_terminal_isp_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 void uv_terminal_help_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
+void uv_terminal_dev_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 #if CONFIG_TERMINAL_INSTRUCTIONS
 void uv_terminal_man_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 #endif
@@ -57,21 +57,9 @@ void uv_terminal_reset_callb(void *me, unsigned int cmd, unsigned int args, argu
 void uv_terminal_save_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 void uv_terminal_revert_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 #endif
-void uv_terminal_ispenable_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
+void uv_terminal_crc_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 
 const uv_command_st common_cmds[] = {
-		{
-				.id = CMD_ISP,
-				.str = "isp",
-				.instructions =
-#if CONFIG_TERMINAL_INSTRUCTIONS
-						"Sets the controller to enter ISP \n\r"
-						"mode instantly."
-#else
-						""
-#endif
-				, .callback = uv_terminal_isp_callb
-		},
 		{
 				.id = CMD_HELP,
 				.str = "help",
@@ -82,6 +70,17 @@ const uv_command_st common_cmds[] = {
 						""
 #endif
 				, .callback = uv_terminal_help_callb
+		},
+		{
+				.id = CMD_DEV,
+				.str = "dev",
+				.instructions =
+#if CONFIG_TERMINAL_INSTRUCTIONS
+						"Logs the device name and build date"
+#else
+						""
+#endif
+				, .callback = uv_terminal_dev_callb
 		},
 #if CONFIG_TERMINAL_INSTRUCTIONS
 		{
@@ -110,7 +109,8 @@ const uv_command_st common_cmds[] = {
 				.str = "revert",
 				.instructions =
 #if CONFIG_TERMINAL_INSTRUCTIONS
-						"Reverts all changes to factory defaults.\n\r"
+						"Reverts all changes except the device CRC number to factory defaults.\n\r"
+						"To reset the device CRC, set it to 0 with a command 'crc 0'.\n\r"
 						"The device needs to be restarted for changes to take effect.\n\r"
 						"To undo revert, save current values to flash with 'save' command."
 #else
@@ -133,8 +133,21 @@ const uv_command_st common_cmds[] = {
 						""
 #endif
 				, .callback = uv_terminal_reset_callb
-		}
+		},
 #endif
+		{
+				.id = CMD_CRC,
+				.str = "crc",
+				.instructions =
+#if CONFIG_TERMINAL_INSTRUCTIONS
+						"Sets the device CRC, which is used with a CAN-terminal"
+						"as an ID. Defaults to CRC constructed from the project name."
+						"Usage: crc (number)"
+#else
+						""
+#endif
+				, .callback = uv_terminal_crc_callb
+		}
 };
 
 
@@ -144,22 +157,10 @@ void uv_terminal_init(const uv_command_st* commands, unsigned int count) {
 	this->buffer_index = 0;
 	this->buffer[0] = '\0';
 
-#if CONFIG_TARGET_LPC11C14
-	// delay of half a second on start up.
-	// Makes entering ISP mode possible on startup before freeRTOS scheduler is started
-	_delay_ms(500);
-	char c;
+	// print device name and build date
+	printf("%s\n\rBuild on %s\n\r", uv_projname, uv_datetime);
 
-	uv_errors_e e;
-	while (true) {
-		if ((e = uv_uart_get_char(UART0, &c))) {
-			return;
-		}
-		if (c == '?') {
-			uv_enter_ISP_mode();
-		}
-	}
-#endif
+
 }
 
 
@@ -183,15 +184,12 @@ uv_errors_e uv_terminal_step() {
 	while (true) {
 
 		// redirect printf to the source where message was received
-		if (!(e = uv_uart_get_char(UART0, &data))) {
-			uv_stdout_set_source(STDOUT_UART0);
-		}
-		else {
-//			uv_stdout_set_source(STDOUT_CAN);
-			//todo: CAN message retrieval here
-		}
+		e = uv_uart_get_char(UART0, &data);
 
-		// getting an error means that no more data is available
+		// getting an error means that no more data is available on uart. Try CAN
+		if (e) {
+			e = uv_can_get_char(&data);
+		}
 		if (e) {
 			break;
 		}
@@ -309,9 +307,6 @@ uv_errors_e uv_terminal_step() {
 	return uv_err(ERR_NONE);
 }
 
-void uv_terminal_isp_callb(void *me, unsigned int cmd, unsigned int args, argument_st *argv) {
-	uv_enter_ISP_mode();
-}
 void uv_terminal_help_callb(void *me, unsigned int cmd, unsigned int args, argument_st *argv) {
 	printf("\n\r");
 	int p;
@@ -322,6 +317,10 @@ void uv_terminal_help_callb(void *me, unsigned int cmd, unsigned int args, argum
 		printf("\"%s\"\n\r", this->commands_ptr[p].str);
 	}
 }
+void uv_terminal_dev_callb(void *me, unsigned int cmd, unsigned int args, argument_st *argv) {
+	printf("%s Build on %s\n\r", uv_projname, uv_datetime);
+}
+
 #if CONFIG_TERMINAL_INSTRUCTIONS
 void uv_terminal_man_callb(void *me, unsigned int cmd, unsigned int args, argument_st *argv) {
 	int i;
@@ -365,6 +364,16 @@ void uv_terminal_revert_callb(void *me, unsigned int cmd, unsigned int args, arg
 }
 #endif
 
+void uv_terminal_crc_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv) {
+	if (args) {
+		uv_set_crc(argv[0].number);
+		printf("%x\n\r", (unsigned int) argv[0].number);
+		return;
+	}
+	printf("%x\n\r", uv_get_crc());
+}
+
+
 
 bool uv_terminal_parse_bool(char *arg) {
 	if (strcmp(arg, "on") == 0 || strcmp(arg, "true") == 0 || strcmp(arg, "1") == 0) {
@@ -372,3 +381,5 @@ bool uv_terminal_parse_bool(char *arg) {
 	}
 	return false;
 }
+
+

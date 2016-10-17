@@ -23,46 +23,6 @@ void *user_ptr = NULL;
 
 
 
-bool Debug_ParamOnOff (const char* arg, bool current, const char* param)
-{
-	bool state = true - current;
-
-	if (strcmp(arg, "on") == 0)
-		state = true;
-	else if (strcmp(arg, "off") == 0)
-		state = false;
-
-	printf ("turning %s %s\r\n", param, state ? "on" : "off");
-
-	return state;
-}
-
-
-void Debug_PrintMessage (uv_can_message_st* msg)
-{
-	int msgclass = msg->id & 0xFF80;
-	int nodeid   = msg->id & 0x007F;
-	int i;
-
-	switch (msgclass)
-	{
-	case 0x000:	printf ("nmt"); break;
-	case 0x180:	printf ("pdo"); break;
-	case 0x580:	printf ("sdo"); break;
-	case 0x700: printf("heartbeat"); break;
-	default:	printf ("%03x", msgclass); break;
-	}
-
-	printf (", node: %3u", nodeid);
-
-	printf (", data:");
-	for (i = 0; i < msg->data_length; i++)
-		printf(" %u", msg->data_8bit[i]);
-
-	printf("\r\n");
-}
-
-
 
 void uv_set_application_ptr(void *ptr) {
 	user_ptr = ptr;
@@ -125,6 +85,77 @@ uv_errors_e uv_ring_buffer_pop(uv_ring_buffer_st *buffer, void *dest) {
 	buffer->element_count--;
 	return uv_err(ERR_NONE);
 }
+
+
+uv_errors_e uv_vector_push_back(uv_vector_st *this, void *data) {
+	if (this->len >= this->buffer_size) {
+		return uv_err(ERR_BUFFER_OVERFLOW | HAL_MODULE_UTILITIES);
+	}
+	memcpy(&this->buffer[this->len * this->element_size], data, this->element_size);
+	this->len++;
+	return uv_err(ERR_NONE);
+}
+
+
+uv_errors_e uv_vector_push_front(uv_vector_st *this, void *data) {
+	if (this->len >= this->buffer_size) {
+		return uv_err(ERR_BUFFER_OVERFLOW | HAL_MODULE_UTILITIES);
+	}
+	memmove(this->buffer + this->element_size, this->buffer, this->element_size);
+	memcpy(this->buffer, data, this->element_size);
+	this->len--;
+	return uv_err(ERR_NONE);
+}
+
+uv_errors_e uv_vector_insert(uv_vector_st *this, uint16_t index, void *src) {
+	if (this->len >= this->buffer_size) {
+		return uv_err(ERR_BUFFER_OVERFLOW | HAL_MODULE_UTILITIES);
+	}
+	if (this->len <= index) {
+		return uv_err(ERR_INDEX_OVERFLOW | HAL_MODULE_UTILITIES);
+	}
+	memmove(this->buffer + index * this->element_size + this->element_size,
+			this->buffer + index * this->element_size, this->element_size);
+	memcpy(this->buffer + index * this->element_size, src, this->element_size);
+
+	return uv_err(ERR_NONE);
+}
+
+
+uv_errors_e uv_vector_pop_back(uv_vector_st *this, void *data) {
+	if (!this->len) {
+		return uv_err(ERR_BUFFER_EMPTY | HAL_MODULE_UTILITIES);
+	}
+	memcpy(data, &this->buffer[(this->len - 1) * this->element_size], this->element_size);
+	this->len--;
+	return uv_err(ERR_NONE);
+}
+
+
+uv_errors_e uv_vector_pop_front(uv_vector_st *this, void *data) {
+	if (!this->len) {
+		return uv_err(ERR_BUFFER_EMPTY | HAL_MODULE_UTILITIES);
+	}
+	memcpy(data, this->buffer, this->element_size);
+	memmove(this->buffer, this->buffer + this->element_size, this->element_size);
+	this->len--;
+	return uv_err(ERR_NONE);
+}
+
+
+
+uv_errors_e uv_vector_remove(uv_vector_st *this, uint16_t index) {
+	if (this->len <= index) {
+		return uv_err(ERR_INDEX_OVERFLOW | HAL_MODULE_UTILITIES);
+	}
+	memmove(this->buffer + index * this->element_size,
+			this->buffer + index * this->element_size + this->element_size,
+			this->element_size);
+	this->len--;
+	return uv_err(ERR_NONE);
+}
+
+
 
 
 

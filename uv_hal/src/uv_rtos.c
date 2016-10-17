@@ -10,6 +10,13 @@
 
 #include "uv_uart.h"
 #include "uv_utilities.h"
+#include "uv_memory.h"
+#if CONFIG_WDT
+#include "uv_wdt.h"
+#endif
+#if CONFIG_ADC
+#include "uv_adc.h"
+#endif
 
 typedef struct {
 	void (*idle_task)(void *user_ptr);
@@ -22,6 +29,13 @@ static volatile this_st _this = {
 };
 
 #define this (&_this)
+
+
+/// @brief: Task function which takes care of calling several hal librarys module
+/// hal step functions
+void hal_task(void *);
+
+
 
 #if configUSE_IDLE_HOOK
 uv_errors_e uv_rtos_add_idle_task(void (*task_function)(void *user_ptr)) {
@@ -75,3 +89,96 @@ void vApplicationTickHook(void) {
 	}
 }
 
+
+bool rtos_init = false;
+
+
+
+void uv_init(void *device) {
+	uv_set_application_ptr(device);
+
+#if CONFIG_WDT
+	uv_wdt_init();
+#endif
+
+#if CONFIG_ADC
+	uv_adc_init();
+#endif
+
+#if CONFIG_UART0
+	uv_uart_init(UART0);
+#endif
+#if CONFIG_UART1
+	uv_uart_init(UART1);
+#endif
+#if CONFIG_UART2
+	uv_uart_init(UART2);
+#endif
+#if CONFI_UART3
+	uv_uart_init(UART3);
+#endif
+
+#if CONFIG_CAN
+	uv_can_init();
+#endif
+
+#if CONFIG_SPI
+	uv_spi_init();
+#endif
+
+#if CONFIG_LCD
+	uv_lcd_init();
+#endif
+
+#if CONFIG_PWM
+	uv_pwm_init();
+#endif
+
+#if CONFIG_EEPROM
+	uv_eeprom_init();
+#endif
+
+#if CONFIG_EMC
+	uv_emc_init();
+#endif
+
+
+#if CONFIG_TARGET_LPC11C14
+	// delay of half a second on start up.
+	// Makes entering ISP mode possible on startup before freeRTOS scheduler is started
+	_delay_ms(500);
+	char c;
+
+	uv_errors_e e;
+	while (true) {
+		if ((e = uv_uart_get_char(UART0, &c))) {
+			break;
+		}
+		if (c == '?') {
+			uv_enter_ISP_mode();
+		}
+	}
+#endif
+
+
+	uv_rtos_task_create(hal_task, "uv_hal", UV_RTOS_MIN_STACK_SIZE, NULL, 0xFFFF, NULL);
+}
+
+
+
+void hal_task(void *nullptr) {
+	uint16_t step_ms = 2;
+	rtos_init = true;
+
+	while (true) {
+#if CONFIG_CAN
+	_uv_can_hal_step(step_ms);
+#endif
+
+#if CONFIG_TERMINAL_CAN
+	_uv_stdout_hal_step(step_ms);
+#endif
+	uv_rtos_task_delay(step_ms);
+	}
+
+}

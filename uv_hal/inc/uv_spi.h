@@ -47,6 +47,7 @@
 #error "CONFIG_SPIO2_BAUDRATE should define the desired baudrate in Hz"
 #endif
 
+void uv_spi_init(void);
 
 typedef enum {
 	SPI0,

@@ -259,7 +259,7 @@ extern lcd_line_t *lcd;
 
 
 /// @brief: Initializes the LCD module
-uv_errors_e uv_lcd_tft_init(void);
+uv_errors_e uv_lcd_init(void);
 
 
 /// @brief: Sets the specific pixels from the LCD. Note that for performance reasons

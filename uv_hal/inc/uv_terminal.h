@@ -51,13 +51,21 @@
 #error "CONFIG_TERMINAL_INSTRUCTIONS not defined. It should be defined as 1 or 0, depending if instructions\
  for terminal commands are to be included in the build. Instructions are more intuitive but require memory."
 #endif
-
+#if !CONFIG_TERMINAL_UART && !CONFIG_TERMINAL_CAN
+#error "either CONFIG_TERMINAL_UART or CONFIG_TERMINAL_CAN has to be defined as 1, to redirect printf to\
+ corresponding peripherals."
+#endif
 
 /* ASCII special character values which can be used in terminal printing */
 #define CLRL			"\x1B[K"
 #define CLRS			"\x1B[2J"
 #define ENDL			"\n\r"
 
+
+/// @brief: Prefix for CAN message ID's used for command line interface.
+/// The actual CAN ID consists of this and a device specific ID number,
+/// which is constructed as a crc from the project name
+#define UV_TERMINAL_CAN_PREFIX		(0x1556 << 16)
 
 
 
@@ -97,25 +105,21 @@ typedef struct {
 
 
 typedef enum {
-	CMD_ISP = 0xF0,
 	CMD_HELP,
+	CMD_DEV,
 #if CONFIG_TERMINAL_INSTRUCTIONS
 	CMD_MAN,
 #endif
-	CMD_RESET,
 #if CONFIG_NON_VOLATILE_MEMORY
 	CMD_SAVE,
 	CMD_REVERT,
 #endif
-#if CONFIG_CAN_LOG
-	CMD_CAN_LOG,
-#endif
-#if CONFIG_CANOPEN_LOG
-	CMD_CANOPEN_LOG,
-#endif
-	CMD_SET_ISP
+	CMD_RESET,
+	CMD_CRC
 } uv_common_commands_e;
 
+
+extern void uv_enter_ISP_mode();
 
 
 /// @brief: Sets the pointer to an array containing all application commands.
@@ -139,15 +143,14 @@ uv_errors_e uv_terminal_step();
 int uv_terminal_get_commands_count(void);
 
 
-///@brief: Disables or enables ISP mode entry when '?' is received from terminal
-void uv_terminal_disable_isp_entry(bool value);
-
-
 /// @brief: Parses a boolean value and returns it.
 /// "on", "true", "1" are evaluated as true, otherwise returns false
 bool uv_terminal_parse_bool(char *arg);
 
 
+
+/// @brief: Adds a character to the RX buffer
+void _uv_terminal_add_rx_buffer(char c);
 
 
 

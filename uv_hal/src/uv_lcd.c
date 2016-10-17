@@ -36,7 +36,7 @@ static touchscreen_st ts = {
 };
 
 
-uv_errors_e uv_lcd_tft_init(void) {
+uv_errors_e uv_lcd_init(void) {
 	// initialize the GPIO pins
 	CONFIG_LCD_PWR_IOCON;
 	CONFIG_LCD_DCLK_IOCON;

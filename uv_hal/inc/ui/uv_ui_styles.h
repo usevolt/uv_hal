@@ -14,7 +14,12 @@
 
 #include <uv_hal_config.h>
 #include <uv_lcd.h>
+<<<<<<< HEAD
 #include "ui/uv_uifont.h"
+=======
+
+#if CONFIG_LCD
+>>>>>>> 08f4e6180df4b48e162e74f624ab4d11a34674b4
 
 #ifndef CONFIG_UI_WINDOW_STYLES_COUNT
 #define CONFIG_UI_WINDOW_STYLES_COUNT				1
@@ -44,6 +49,7 @@ extern const uv_uiwindow_style_st uv_uiwindow_styles[CONFIG_UI_WINDOW_STYLES_COU
 #define CONFIG_UI_WINDOW_FRAME_THICKNESS_1			3
 #endif
 
+<<<<<<< HEAD
 
 typedef struct {
 	color_t main_color;
@@ -68,6 +74,8 @@ extern const uv_uibutton_style_st uv_uibutton_styles[CONFIG_UI_BUTTON_STYLES_COU
 #endif
 #ifndef CONFIG_UI_BUTTON_TEXT_FONT_1
 #define CONFIG_UI_BUTTON_TEXT_FONT_1			font_5X12
+=======
+>>>>>>> 08f4e6180df4b48e162e74f624ab4d11a34674b4
 #endif
 
 #endif /* UV_HAL_INC_UI_UV_UI_STYLES_H_ */

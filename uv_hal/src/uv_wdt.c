@@ -14,9 +14,10 @@
 #include "LPC177x_8x.h"
 #endif
 
+#if CONFIG_WDT
 
 
-void uv_wdt_init(unsigned int time_s) {
+void uv_wdt_init(void) {
 	SystemCoreClockUpdate();
 #if CONFIG_TARGET_LPC11C14
 	//enable clock to wdt
@@ -31,9 +32,9 @@ void uv_wdt_init(unsigned int time_s) {
 	LPC_SYSCON->WDTCLKUEN = 1;
 	//set the reloading value
 	///wdt has inner divide-by-4 prescaler
-	unsigned int sck = time_s * (SystemCoreClock / 16);
+	unsigned int sck = CONFIG_WDT_CYCLE_S * (SystemCoreClock / 16);
 #elif CONFIG_TARGET_LPC1785
-	unsigned int sck = time_s * (500000 / 4);
+	unsigned int sck = CONFIG_WDT_CYCLE_S * (500000 / 4);
 #endif
 	//clamp cycle time to 24-bit value
 	if (sck > 0xFFFFFF) {
@@ -65,3 +66,4 @@ void uv_wdt_reset(void) {
 	__enable_irq();
 }
 
+#endif

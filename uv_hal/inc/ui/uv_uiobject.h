@@ -14,7 +14,7 @@
 #include "uv_utilities.h"
 #include "uv_lcd.h"
 
-
+#if CONFIG_LCD
 
 /// @brief: Struct for individual object's bounding box.
 typedef struct {
@@ -189,4 +189,6 @@ static inline uint16_t uv_ui_get_yglobal(void *me) {
 
 #undef this
 
-#endif /* UV_HAL_INC_UI_UV_UIOBJECT_H_ */
+#endif
+
+#endif /* UV_HAL_INC_UI_UV_OBJECT_H_ */

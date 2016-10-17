@@ -14,6 +14,7 @@
 #include "uv_errors.h"
 #include <stdbool.h>
 
+<<<<<<< HEAD
 #if CONFIG_TARGET_LPC1785
 
 enum {
@@ -64,6 +65,9 @@ enum {
 #endif
 
 
+=======
+#if CONFIG_ADC
+>>>>>>> 08f4e6180df4b48e162e74f624ab4d11a34674b4
 
 
 /// @brief: Defines the ADC conversion max value ( == precision) for this hardware
@@ -168,5 +172,7 @@ uv_errors_e uv_adc_add_callback(
 
 
 ***/
+
+#endif
 
 #endif /* UW_ADC_H_ */

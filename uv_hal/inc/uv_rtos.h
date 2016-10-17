@@ -12,7 +12,6 @@
 #include "uv_hal_config.h"
 #include <stdbool.h>
 
-#if CONFIG_RTOS
 
 /// @file: A wrapper for FreeRTOS real time operating system.
 /// Only usable in builds which defined CONFIG_RTOS preprocessor symbol
@@ -37,7 +36,7 @@
 
 
 #define UV_RTOS_MIN_STACK_SIZE 			configMINIMAL_STACK_SIZE
-#define UV_RTOS_IDLE_PRIORITY			tskIDLE_PRIORITY
+#define UV_RTOS_IDLE_PRIORITY			(tskIDLE_PRIORITY + 1)
 
 /// @brief: The tick timer period time in ms
 #define UV_RTOS_TICK_PERIOD_MS			portTICK_PERIOD_MS
@@ -63,12 +62,26 @@
 
 typedef xTaskHandle 		uv_rtos_task_ptr;
 typedef xSemaphoreHandle	uv_rtos_smphr_ptr;
+typedef xSemaphoreHandle	uv_mutex_ptr;
 typedef xQueueHandle		uv_rtos_queue_ptr;
 
 
 
 
 
+/// @brief: Initializes the real time OS. Basicly sets up a HAL task which takes care
+/// of several hal module step functions
+///
+/// @param device: Pointer to the main application data structure. This is the struct which will
+/// be given as the **me** parameter to the HAL library's callback functions.
+void uv_init(void *device);
+
+extern bool rtos_init;
+/// @brief: Returns true when the rtos HAL task is succesfully running and all peripherals should be
+/// initialized.
+static inline bool uv_rtos_initialized() {
+	return rtos_init;
+}
 
 
 #if configUSE_IDLE_HOOK
@@ -94,6 +107,9 @@ uv_errors_e uv_rtos_add_idle_task(void (*task_function)(void *user_ptr));
 static inline uv_rtos_smphr_ptr uv_rtos_smphr_create_binary(void) {
 	return xSemaphoreCreateBinary();
 }
+static inline uv_mutex_ptr uv_rtos_mutex_create(void) {
+	return xSemaphoreCreateMutex();
+}
 
 /// @brief: "Gives" or "releases" the semaphore. This makes possible for
 /// other tasks to take the ownership of the semaphore.
@@ -102,6 +118,9 @@ static inline uv_rtos_smphr_ptr uv_rtos_smphr_create_binary(void) {
 static inline void uv_rtos_smphr_give(uv_rtos_smphr_ptr handle) {
 	xSemaphoreGive(handle);
 }
+static inline void uv_rtos_mutex_unlock(uv_mutex_ptr mutex) {
+	xSemaphoreGive(mutex);
+}
 
 /// @brief: "Gives" or "releases" the semaphore. This makes possible for
 /// other tasks to take the ownership of the semaphore.
@@ -109,14 +128,20 @@ static inline void uv_rtos_smphr_give(uv_rtos_smphr_ptr handle) {
 static inline void uv_rtos_smphr_give_ISR(uv_rtos_smphr_ptr handle) {
 	xSemaphoreGiveFromISR(handle, NULL);
 }
+static inline void uv_rtos_mutex_unlock_ISR(uv_mutex_ptr mutex) {
+	xSemaphoreGiveFromISR(mutex, NULL);
+}
 
 /// @brief: Attempts to take the ownership of the semaphore. The function
 /// waits 'max_wait_tick_count' ticks and returns true if the semaphore could be taken,
 /// false otherwise.
 /// @note: This function shouldn't be called from ISR's!
 /// Use uv_rtos_smprh_give_ISR instead.
-static inline bool uv_rtos_smphr_take(uv_rtos_smphr_ptr handle, unsigned int max_wait_tick_count) {
-	return xSemaphoreTake(handle, max_wait_tick_count);
+static inline void uv_rtos_smphr_take(uv_rtos_smphr_ptr handle) {
+	while (!xSemaphoreTake(handle, 0xFFFFFFFF));
+}
+static inline void uv_rtos_mutex_lock(uv_mutex_ptr mutex) {
+	while (!xSemaphoreTake(mutex, 0xFFFFFFFF));
 }
 
 /// @brief:A version of xSemaphoreTake() that can be called from an ISR.
@@ -126,8 +151,9 @@ static inline bool uv_rtos_smphr_take(uv_rtos_smphr_ptr handle, unsigned int max
 static inline bool uv_rtos_smphr_take_ISR(uv_rtos_smphr_ptr handle) {
 	return xSemaphoreTakeFromISR(handle, NULL);
 }
-
-
+static inline bool uv_rtos_mutex_lock_ISR(uv_mutex_ptr mutex) {
+	return xSemaphoreTakeFromISR(mutex, NULL);
+}
 
 
 
@@ -296,7 +322,6 @@ static inline void uv_rtos_end_scheduler(void) {
 
 
 
-#endif
 
 
 #endif /* CONFIG_RTOS_H_ */
