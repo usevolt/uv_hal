@@ -266,14 +266,9 @@ uv_errors_e uv_canopen_restore_defaults(uv_canopen_st *me) {
 	this->obj_dict.com_params.identity.vendor_id = CONFIG_CANOPEN_VENDOR_ID;
 	this->obj_dict.com_params.identity.revision_number = CONFIG_CANOPEN_REVISION_CODE;
 	this->obj_dict.com_params.identity.product_code = CONFIG_CANOPEN_PRODUCT_CODE;
-<<<<<<< HEAD
-	uv_get_device_serial((unsigned int*) this->obj_dict.com_params.identity.serial_number);
-=======
-
 	// todo: Does reading serial corrupt stack?
 //		uv_get_device_serial(this->obj_dict.com_params.identity.serial_number);
 
->>>>>>> 08f4e6180df4b48e162e74f624ab4d11a34674b4
 #endif
 	this->obj_dict.com_params.node_id = CONFIG_CANOPEN_DEFAULT_NODE_ID;
 #if CONFIG_CANOPEN_RESTORE_PARAMS_INDEX

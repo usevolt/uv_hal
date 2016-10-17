@@ -11,6 +11,12 @@
 #include "uv_uart.h"
 #include "uv_utilities.h"
 #include "uv_memory.h"
+#include "uv_lcd.h"
+#include "uv_spi.h"
+#include "uv_pwm.h"
+#include "uv_eeprom.h"
+#include "uv_emc.h"
+#include "uv_rtc.h"
 #if CONFIG_WDT
 #include "uv_wdt.h"
 #endif
@@ -98,49 +104,54 @@ void uv_init(void *device) {
 	uv_set_application_ptr(device);
 
 #if CONFIG_WDT
-	uv_wdt_init();
+	_uv_wdt_init();
 #endif
 
 #if CONFIG_ADC
-	uv_adc_init();
+	_uv_adc_init();
 #endif
 
 #if CONFIG_UART0
-	uv_uart_init(UART0);
+	_uv_uart_init(UART0);
 #endif
 #if CONFIG_UART1
-	uv_uart_init(UART1);
+	_uv_uart_init(UART1);
 #endif
 #if CONFIG_UART2
-	uv_uart_init(UART2);
+	_uv_uart_init(UART2);
 #endif
 #if CONFI_UART3
-	uv_uart_init(UART3);
+	_uv_uart_init(UART3);
 #endif
 
 #if CONFIG_CAN
-	uv_can_init();
+	_uv_can_init();
 #endif
 
 #if CONFIG_SPI
-	uv_spi_init();
+	_uv_spi_init();
 #endif
 
 #if CONFIG_LCD
-	uv_lcd_init();
+	_uv_lcd_init();
 #endif
 
 #if CONFIG_PWM
-	uv_pwm_init();
+	_uv_pwm_init();
 #endif
 
 #if CONFIG_EEPROM
-	uv_eeprom_init();
+	_uv_eeprom_init();
 #endif
 
 #if CONFIG_EMC
-	uv_emc_init();
+	_uv_emc_init();
 #endif
+
+#if CONFIG_RTC
+	_uv_rtc_init();
+#endif
+
 
 
 #if CONFIG_TARGET_LPC11C14

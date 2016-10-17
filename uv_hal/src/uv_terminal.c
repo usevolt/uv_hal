@@ -187,9 +187,11 @@ uv_errors_e uv_terminal_step() {
 		e = uv_uart_get_char(UART0, &data);
 
 		// getting an error means that no more data is available on uart. Try CAN
+#if CONFIG_TERMINAL_CAN
 		if (e) {
 			e = uv_can_get_char(&data);
 		}
+#endif
 		if (e) {
 			break;
 		}

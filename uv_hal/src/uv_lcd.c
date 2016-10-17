@@ -36,7 +36,7 @@ static touchscreen_st ts = {
 };
 
 
-uv_errors_e uv_lcd_init(void) {
+uv_errors_e _uv_lcd_init(void) {
 	// initialize the GPIO pins
 	CONFIG_LCD_PWR_IOCON;
 	CONFIG_LCD_DCLK_IOCON;
@@ -110,7 +110,7 @@ uv_errors_e uv_lcd_init(void) {
 
 	// initialize touchscreen ADC channels
 #if CONFIG_LCD_TOUCHSCREEN
-	uv_adc_init();
+	_uv_adc_init();
 
 #endif
 

@@ -9,7 +9,13 @@
 #define UV_HAL_INC_UV_SPI_H_
 
 
-#include "uv_hal_config.h"
+#include <uv_hal_config.h>
+
+
+#if CONFIG_SPIO0
+
+#endif
+
 #if (CONFIG_SPIO0 || CONFIG_SPIO1 || CONFIG_SPIO2)
 #define CONFIG_SPI			1
 
@@ -47,7 +53,7 @@
 #error "CONFIG_SPIO2_BAUDRATE should define the desired baudrate in Hz"
 #endif
 
-void uv_spi_init(void);
+void _uv_spi_init(void);
 
 typedef enum {
 	SPI0,

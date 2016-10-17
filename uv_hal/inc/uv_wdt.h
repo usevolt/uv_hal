@@ -23,7 +23,7 @@
 /// @brief: Initializes watchdog timer and starts it. After this call the watchdog timer
 /// is locked and cannot be stopped.
 /// WDT clock source is internal RC oscillator
-void uv_wdt_init(void);
+void _uv_wdt_init(void);
 
 
 /// @brief: Loads watchdog timer counter register.

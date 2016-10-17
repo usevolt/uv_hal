@@ -83,7 +83,7 @@ static this_st _this;
 
 
 
-uv_errors_e uv_i2c_init(i2c_e i2c) {
+uv_errors_e _uv_i2c_init(i2c_e i2c) {
 	this->state = IDLE;
 	this->byte_count = 0;
 	this->dest = NULL;

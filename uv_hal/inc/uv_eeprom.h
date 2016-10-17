@@ -24,15 +24,13 @@
 ///
 /// @param entry_len: Length of the circular buffer entry in bytes.
 /// If EEPROM circular buffer is not used, this has no meaning
-uv_errors_e uv_eeprom_init(uint16_t entry_len);
+uv_errors_e _uv_eeprom_init();
 
 
 /// @brief: Returns the size of the EEPROM data in bytes
 static inline uint16_t uv_eeprom_size(void) {
 	return _UV_EEPROM_SIZE;
 }
-
-
 /// @brief: Writes data to the EEPROM memory.
 ///
 /// @note: The function returns when the last data was saved to the memory
@@ -64,6 +62,11 @@ uv_errors_e uv_eeprom_read(unsigned char *dest, uint16_t len, uint16_t eeprom_ad
  * EEPROM CIRCULAR BUFFER FUNCTIONS
  *
  */
+
+
+/// @brief: Sets the entry length in bytes. This needs to be called only if
+/// EEPROM ring buffer functions are used
+void uv_eeprom_init_circular_buffer(uint16_t entry_len);
 
 
 

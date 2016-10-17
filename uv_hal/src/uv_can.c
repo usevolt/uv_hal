@@ -337,7 +337,7 @@ void CAN_IRQHandler(void) {
 
 
 
-uv_errors_e uv_can_init() {
+uv_errors_e _uv_can_init() {
 	uint8_t i;
 	for (i = 0; i < CAN_COUNT; i++) {
 		this->rx_callback[i] = NULL;
@@ -503,13 +503,10 @@ uv_errors_e uv_can_get_char(char *dest) {
 
 #elif CONFIG_TARGET_LPC1785
 
-uv_errors_e uv_can_init(uv_can_channels_e channel) {
-	if (check_channel(channel)) return check_channel(channel);
+uv_errors_e _uv_can_init() {
 
 	uv_ring_buffer_init(&this->rx_buffer, this->rx_buffer_data,
 			CONFIG_CAN1_RX_BUFFER_SIZE, sizeof(uv_can_message_st));
-	uv_ring_buffer_init(&this->tx_buffer, this->tx_buffer_data,
-			CONFIG_CAN1_TX_BUFFER_SIZE, sizeof(uv_can_message_st));
 
 	return uv_err(ERR_NONE);
 }
@@ -534,7 +531,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 }
 
 
-uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message) {
+uv_can_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message) {
 	if (check_channel(channel)) return check_channel(channel);
 
 	return uv_err(ERR_NONE);

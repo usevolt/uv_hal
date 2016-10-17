@@ -92,7 +92,7 @@ typedef enum {
 
 
 
-uv_errors_e uv_emc_init( void );
+uv_errors_e _uv_emc_init( void );
 
 
 

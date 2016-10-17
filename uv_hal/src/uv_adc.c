@@ -46,7 +46,7 @@
 #endif
 
 
-uv_errors_e uv_adc_init() {
+uv_errors_e _uv_adc_init() {
 #if CONFIG_TARGET_LPC11C14
 
 #if CONFIG_ADC_CHANNEL0
@@ -131,12 +131,7 @@ uv_errors_e uv_adc_init() {
 	// dont start ADC now
 	LPC_ADC->CR &= ~(0b111 << 24);
 	// ADC ON
-<<<<<<< HEAD
-	LPC_ADC->CR |= (1 << 21);
-#endif
-=======
 	LPC_ADC->CR|= (1 << 21);
->>>>>>> 08f4e6180df4b48e162e74f624ab4d11a34674b4
 
 #endif
 

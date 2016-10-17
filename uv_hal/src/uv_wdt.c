@@ -17,7 +17,7 @@
 #if CONFIG_WDT
 
 
-void uv_wdt_init(void) {
+void _uv_wdt_init(void) {
 	SystemCoreClockUpdate();
 #if CONFIG_TARGET_LPC11C14
 	//enable clock to wdt

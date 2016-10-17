@@ -29,7 +29,7 @@ typedef struct {
 
 
 /// @brief: Inits the real time clock.
-void uv_rtc_init();
+void _uv_rtc_init();
 
 
 

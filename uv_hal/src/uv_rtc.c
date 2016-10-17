@@ -17,7 +17,7 @@
 
 
 
-void uv_rtc_init() {
+void _uv_rtc_init() {
 	LPC_SC->PCONP |= (1 << 9);
 	// disable the clock counters for initialization
 	LPC_RTC->CCR = 1;

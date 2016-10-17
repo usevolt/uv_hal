@@ -20,8 +20,10 @@
 
 void uv_system_reset(bool hard_reset) {
 	if (hard_reset) {
-		uv_wdt_init();
+#if CONFIG_WDT
+		_uv_wdt_init();
 		uv_wdt_reset();
+#endif
 	}
 	else {
 		NVIC_SystemReset();

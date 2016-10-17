@@ -23,7 +23,7 @@ typedef struct {
 static this_st _this;
 #define this (&_this)
 
-uv_errors_e uv_eeprom_init(uint16_t entry_len) {
+uv_errors_e _uv_eeprom_init(void) {
 	// enable power
 	LPC_EEPROM->PWRDWN = 0;
 
@@ -35,32 +35,6 @@ uv_errors_e uv_eeprom_init(uint16_t entry_len) {
 			(((unsigned long int) 55 * SystemCoreClock / 1000000000) << 8) |		// min 55 ns
 			(((unsigned long int) 35 * SystemCoreClock / 1000000000) << 16);		// min 35 ns
 
-	this->entry_len = entry_len + sizeof(uint16_t);
-
-	// todo: find first and last entries
-	uint16_t i;
-	uint16_t min_index = -1;
-	uint16_t max_index = 1;
-	this->back_addr = this->front_addr = 0;
-	uint16_t index;
-	for (i = 0; i <= _UV_EEPROM_SIZE - this->entry_len; i += this->entry_len) {
-		uv_eeprom_read((unsigned char*) &index, sizeof(uint16_t), i + this->entry_len - sizeof(uint16_t));
-		if (index == 0) {
-			continue;
-		}
-		// smallest index is at the front
-		if (index < min_index) {
-			this->front_addr = i;
-			min_index = index;
-		}
-		// biggest index is at the back
-		if (index > max_index) {
-			this->back_addr = i;
-			max_index = index;
-		}
-		printf("index %u\n\r", index);
-
-	}
 	// clear eeprom int bits. For some reason leaving these may cause IAP programming to
 	// end with a BUSY error code
 	LPC_EEPROM->INT_CLR_STATUS = ((1 << 26) | (1 << 28));
@@ -140,6 +114,35 @@ uv_errors_e uv_eeprom_read(unsigned char *dest, uint16_t len, uint16_t eeprom_ad
 	return uv_err(ERR_NONE);
 }
 
+void uv_eeprom_init_circular_buffer(uint16_t entry_len) {
+	uint16_t i;
+	uint16_t min_index = -1;
+	uint16_t max_index = 1;
+
+	this->entry_len = entry_len + sizeof(uint16_t);
+
+	this->back_addr = this->front_addr = 0;
+	uint16_t index;
+	for (i = 0; i <= _UV_EEPROM_SIZE - this->entry_len; i += this->entry_len) {
+		uv_eeprom_read((unsigned char*) &index, sizeof(uint16_t), i + this->entry_len - sizeof(uint16_t));
+		if (index == 0) {
+			continue;
+		}
+		// smallest index is at the front
+		if (index < min_index) {
+			this->front_addr = i;
+			min_index = index;
+		}
+		// biggest index is at the back
+		if (index > max_index) {
+			this->back_addr = i;
+			max_index = index;
+		}
+		printf("index %u\n\r", index);
+
+	}
+
+}
 
 
 uv_errors_e uv_eeprom_push_back(unsigned char *src) {

@@ -62,7 +62,7 @@ typedef enum {
 /// @return: uv_errors_e describing if an error occurred. If succesful, ERR_NONE is returned.
 ///
 /// @param uart: The hardware uart module which will be initialized
-uv_errors_e uv_uart_init(uv_uarts_e uart);
+uv_errors_e _uv_uart_init(uv_uarts_e uart);
 
 
 

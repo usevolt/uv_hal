@@ -196,7 +196,7 @@ typedef volatile uint32_t* uv_pwm_channel_t;
 
 
 /// @brief: Initializes the PWM modules
-uv_errors_e uv_pwm_init();
+uv_errors_e _uv_pwm_init();
 
 /// @brief: Sets the PWM channels output.
 ///
