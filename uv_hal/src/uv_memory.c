@@ -197,7 +197,6 @@ uv_errors_e uv_memory_save(uv_data_start_t *start_ptr, uv_data_end_t *end_ptr) {
 		return uv_err(ERR_NONE);
 	}
 	else {
-		printf("\n\rerror code %u\n\r", status);
 		__uv_err_throw(ERR_INTERNAL | HAL_MODULE_MEMORY);
 	}
 }
@@ -324,6 +323,7 @@ uv_iap_status_e uv_erase_and_write_to_flash(unsigned int ram_address,
 	//enable interrupts
 	__enable_irq();
 
+	printf("Flashed %u bytes\n\r", num_bytes);
 
 	return status_result[0];
 }

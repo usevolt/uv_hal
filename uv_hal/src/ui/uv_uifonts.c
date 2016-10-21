@@ -5,6 +5,7 @@
  *      Author: usevolt
  */
 
+#include <ui/uv_uilabel.h>
 #include "uv_hal_config.h"
 #include "ui/ugui.h"
 
@@ -4187,52 +4188,52 @@ const unsigned char font_32x53[256][212]={
 #endif
 
 #if CONFIG_UI_FONT_4X6
-   const UG_FONT FONT_4X6 = {(unsigned char*)font_4x6,4,6};
+   const uv_font_st font_4X6 = {(unsigned char*)font_4x6,4,6};
 #endif
 #if CONFIG_UI_FONT_5X8
-   const UG_FONT FONT_5X8 = {(unsigned char*)font_5x8,5,8};
+   const uv_font_st font_5X8 = {(unsigned char*)font_5x8,5,8};
 #endif
 #if CONFIG_UI_FONT_5X12
-   const UG_FONT FONT_5X12 = {(unsigned char*)font_5x12,5,12};
+   const uv_font_st font_5X12 = {(unsigned char*)font_5x12,5,12};
 #endif
 #if CONFIG_UI_FONT_6X8
-   const UG_FONT FONT_6X8 = {(unsigned char*)font_6x8,6,8};
+   const uv_font_st font_6X8 = {(unsigned char*)font_6x8,6,8};
 #endif
 #if CONFIG_UI_FONT_6X10
-   const UG_FONT FONT_6X10 = {(unsigned char*)font_6x10,6,10};
+   const uv_font_st font_6X10 = {(unsigned char*)font_6x10,6,10};
 #endif
 #if CONFIG_UI_FONT_7X12
-   const UG_FONT FONT_7X12 = {(unsigned char*)font_7x12,7,12};
+   const uv_font_st font_7X12 = {(unsigned char*)font_7x12,7,12};
 #endif
 #if CONFIG_UI_FONT_8X8
-   const UG_FONT FONT_8X8 = {(unsigned char*)font_8x8,8,8};
+   const uv_font_st font_8X8 = {(unsigned char*)font_8x8,8,8};
 #endif
 #if CONFIG_UI_FONT_8X12
-   const UG_FONT FONT_8X12 = {(unsigned char*)font_8x12,8,12};
+   const uv_font_st font_8X12 = {(unsigned char*)font_8x12,8,12};
 #endif
 #if CONFIG_UI_FONT_8X14
-   const UG_FONT FONT_8X14 = {(unsigned char*)font_8x14,8,14};
+   const uv_font_st font_8X14 = {(unsigned char*)font_8x14,8,14};
 #endif
 #if CONFIG_UI_FONT_10X16
-   const UG_FONT FONT_10X16 = {(unsigned char*)font_10x16,10,16};
+   const uv_font_st font_10X16 = {(unsigned char*)font_10x16,10,16};
 #endif
 #if CONFIG_UI_FONT_12X16
-   const UG_FONT FONT_12X16 = {(unsigned char*)font_12x16,12,16};
+   const uv_font_st font_12X16 = {(unsigned char*)font_12x16,12,16};
 #endif
 #if CONFIG_UI_FONT_12X20
-   const UG_FONT FONT_12X20 = {(unsigned char*)font_12x20,12,20};
+   const uv_font_st font_12X20 = {(unsigned char*)font_12x20,12,20};
 #endif
 #if CONFIG_UI_FONT_16X26
-   const UG_FONT FONT_16X26 = {(unsigned char*)font_16x26,16,26};
+   const uv_font_st font_16X26 = {(unsigned char*)font_16x26,16,26};
 #endif
 #if CONFIG_UI_FONT_22X36
-   const UG_FONT FONT_22X36 = {(unsigned char*)font_22x36,22,36};
+   const uv_font_st font_22X36 = {(unsigned char*)font_22x36,22,36};
 #endif
 #if CONFIG_UI_FONT_24X40
-   const UG_FONT FONT_24X40 = {(unsigned char*)font_24x40,24,40};
+   const uv_font_st font_24X40 = {(unsigned char*)font_24x40,24,40};
 #endif
 #if CONFIG_UI_FONT_32X53
-   const UG_FONT FONT_32X53 = {(unsigned char*)font_32x53,32,53};
+   const uv_font_st font_32X53 = {(unsigned char*)font_32x53,32,53};
 #endif
 
 #endif

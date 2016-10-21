@@ -44,7 +44,7 @@ typedef enum {
 
 /// @brief: Initializes the I2C module
 /// This should be called before any other function
-uv_errors_e uv_i2c_init(i2c_e i2c);
+uv_errors_e _uv_i2c_init(i2c_e i2c);
 
 
 

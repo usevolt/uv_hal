@@ -21,15 +21,16 @@
 #define _UV_EEPROM_PAGE_SIZE	64
 
 /// @brief: Initializes the EEPROM memory
-uv_errors_e uv_eeprom_init(void);
+///
+/// @param entry_len: Length of the circular buffer entry in bytes.
+/// If EEPROM circular buffer is not used, this has no meaning
+uv_errors_e _uv_eeprom_init();
 
 
 /// @brief: Returns the size of the EEPROM data in bytes
-static inline uint16_t uv_eeprom_get_size(void) {
+static inline uint16_t uv_eeprom_size(void) {
 	return _UV_EEPROM_SIZE;
 }
-
-
 /// @brief: Writes data to the EEPROM memory.
 ///
 /// @note: The function returns when the last data was saved to the memory
@@ -50,6 +51,60 @@ uv_errors_e uv_eeprom_write(unsigned char *data, uint16_t len, uint16_t eeprom_a
 /// @param len: Indicates how many bytes of data should be read
 /// @param eeprom_addr: The EEPROM address from which forward the data is read
 uv_errors_e uv_eeprom_read(unsigned char *dest, uint16_t len, uint16_t eeprom_addr);
+
+
+
+
+
+
+/*
+ *
+ * EEPROM CIRCULAR BUFFER FUNCTIONS
+ *
+ */
+
+
+/// @brief: Sets the entry length in bytes. This needs to be called only if
+/// EEPROM ring buffer functions are used
+void uv_eeprom_init_circular_buffer(uint16_t entry_len);
+
+
+
+/// @brief: Pushes new data to the end of the EEPROM circular buffer
+///
+/// @note: This takes ownership of the whole EEPROM memory and it shouldn't be used
+/// for anything else
+///
+/// @return Error if the memory was full and couln't push any more
+uv_errors_e uv_eeprom_push_back(unsigned char *src);
+
+
+/// @brief: Deletes the newest entry from the EEPROM circular buffer
+///
+/// @note: This takes ownership of the whole EEPROM memory and it shouldn't be used
+/// for anything else
+///
+/// @return Error if the memory was empty and couln't remove anything
+uv_errors_e uv_eeprom_pop_back(unsigned char *dest);
+
+
+
+/// @brief: Deletes the oldest entry from the EEPROM circular buffer
+///
+/// @note: This takes ownership of the whole EEPROM memory and it shouldn't be used
+/// for anything else
+///
+/// @return Error if the memory was empty and couln't remove anything
+uv_errors_e uv_eeprom_pop_front(unsigned char *dest);
+
+
+
+/// @brief: Returns the index'th recent data. 0 means the newest.
+uv_errors_e uv_eeprom_at(unsigned char *dest, uint16_t index);
+
+
+/// @brief: Clears the whole EEPROM memory to zeroes
+void uv_eeprom_clear();
 
 
 #endif

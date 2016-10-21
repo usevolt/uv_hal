@@ -266,7 +266,7 @@ uv_errors_e uv_uart_init(uv_uarts_e uart) {
 
 
 #elif CONFIG_TARGET_LPC1785
-uv_errors_e uv_uart_init(uv_uarts_e uart) {
+uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 
 	uv_err_pass(check_uart(uart));
 

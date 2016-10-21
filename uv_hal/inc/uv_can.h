@@ -126,7 +126,7 @@ enum {
 /// will return after the message was sent.
 /// In asynchronous mode, call to transmit functions wil cause the message to be queued in
 /// the transmit buffer and it will be sent some time later.
-uv_errors_e uv_can_init();
+uv_errors_e _uv_can_init();
 
 
 

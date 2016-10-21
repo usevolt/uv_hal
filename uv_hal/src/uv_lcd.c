@@ -9,14 +9,34 @@
 #include "uv_lcd.h"
 #include "uv_emc.h"
 #include <string.h>
+#if CONFIG_LCD_TOUCHSCREEN
+#include "uv_adc.h"
+#include "uv_gpio.h"
+#include "uv_filters.h"
+#endif
 
 #if CONFIG_LCD
 
 
 lcd_line_t *lcd = (lcd_line_t *) CONFIG_LCD_BUFFER_ADDRESS;
+typedef struct {
+	uint16_t x;
+	uint16_t y;
+} point_st;
+
+#define POINTS_LEN	2
+typedef struct {
+	point_st points[POINTS_LEN];
+	uint8_t index;
+
+} touchscreen_st;
+
+static touchscreen_st ts = {
+		.index = 0
+};
 
 
-uv_errors_e uv_lcd_init(void) {
+uv_errors_e _uv_lcd_init(void) {
 	// initialize the GPIO pins
 	CONFIG_LCD_PWR_IOCON;
 	CONFIG_LCD_DCLK_IOCON;
@@ -88,16 +108,42 @@ uv_errors_e uv_lcd_init(void) {
 
 	uv_lcd_draw_rect(0, 0, LCD_W(1.0f), LCD_H(1.0f), 0);
 
+	// initialize touchscreen ADC channels
+#if CONFIG_LCD_TOUCHSCREEN
+	_uv_adc_init();
+
+#endif
+
 	return uv_err(ERR_NONE);
 
 }
 
 
-void uv_lcd_step(uint16_t step_ms, uv_touch_st *touch) {
 
+
+color_t uv_cmult(color_t c, float ppt) {
+#if CONFIG_LCD_BITS_PER_PIXEL == LCD_24_BPP
+	color_t t = 0;
+	int32_t e;
+	e = ((c & (0b11 << 4)) >> 4) * ppt;
+	if (e > 0xFF) e = 0xFF;
+	else if (e < 0) e = 0;
+	t += (e << 4);
+	e = ((c & (0b11 << 2)) >> 2) * ppt;
+	if (e > 0xFF) e = 0xFF;
+	else if (e < 0) e = 0;
+	t += (e << 2);
+	e = ((c & (0b11))) * ppt;
+	if (e > 0xFF) e = 0xFF;
+	else if (e < 0) e = 0;
+	t += e;
+	return t;
+
+
+#else
+#error "Color darker multiplication needs definition"
+#endif
 }
-
-
 
 
 #define draw_hline(x, y, length, color)	do{uint32_t hlinei; \
@@ -106,14 +152,14 @@ void uv_lcd_step(uint16_t step_ms, uv_touch_st *touch) {
 			*(hlineptr++) = color;\
 		} }while(0)\
 
-void uv_lcd_draw_rect(uint32_t x, uint32_t y, uint32_t width, uint32_t height, color_t color) {
+void uv_lcd_draw_rect(int32_t x, int32_t y, uint32_t width, uint32_t height, color_t color) {
 	uint32_t j;
 	for (j = y; j < y + height; j++) {
 		draw_hline(x, j, width, color);
 	}
 }
 
-void uv_lcd_draw_frame(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t border, color_t color) {
+void uv_lcd_draw_frame(int32_t x, int32_t y, uint32_t width, uint32_t height, uint32_t border, color_t color) {
 	uv_lcd_draw_rect(x, y, width, border, color);
 	uv_lcd_draw_rect(x + width - border, y + border, border, height - border, color);
 	uv_lcd_draw_rect(x, y + border, border, height - border, color);
@@ -121,16 +167,67 @@ void uv_lcd_draw_frame(uint32_t x, uint32_t y, uint32_t width, uint32_t height, 
 }
 
 
-void uv_lcd_draw_v_gradient(uint32_t x, uint32_t y, uint32_t width,
-		uint32_t height, color_t t_color, color_t b_color) {
-	uint32_t i;
-	color_t c;
-	for (i = 0; i < height; i++) {
-		float rel = i / height;
-		c = t_color + (t_color - b_color) * rel;
-		draw_hline(x, y + i, width, c);
+
+
+
+#if CONFIG_LCD_TOUCHSCREEN
+
+void uv_lcd_touch_calib(uint16_t x, uint16_t y) {
+	if (ts.index < POINTS_LEN - 1) {
+		ts.points[ts.index].x = x;
+		ts.points[ts.index++].y = y;
 	}
 }
 
+
+void uv_lcd_touch_calib_clear(void) {
+	ts.index = 0;
+}
+
+
+bool uv_lcd_touch_get(int16_t *x, int16_t *y) {
+	// first detect if the display is touched at all
+	ADC_INIT(CONFIG_LCD_Y_T_ADC);
+	ADC_INIT(CONFIG_LCD_Y_B_ADC);
+	ADC_CONF(CONFIG_LCD_Y_T_ADC, ADC_PULL_UP_ENABLED);
+	ADC_CONF(CONFIG_LCD_Y_B_ADC, ADC_PULL_UP_ENABLED);
+	uv_gpio_init_output(CONFIG_LCD_X_R_GPIO, 0);
+	uv_gpio_init_output(CONFIG_LCD_X_L_GPIO, 0);
+	if (uv_adc_read_average(CONFIG_LCD_Y_T_ADC, 100) > CONFIG_LCD_TOUCH_THRESHOLD) {
+		return false;
+	}
+
+	// then get the X coordinate
+	ADC_INIT(CONFIG_LCD_Y_T_ADC);
+	ADC_INIT(CONFIG_LCD_Y_B_ADC);
+	uv_gpio_init_output(CONFIG_LCD_X_R_GPIO, 1);
+	uv_gpio_init_output(CONFIG_LCD_X_L_GPIO, 0);
+	int x_val = uv_adc_read_average(CONFIG_LCD_Y_T_ADC, 10);
+
+	// then get the Y coordinate
+	ADC_INIT(CONFIG_LCD_X_L_ADC);
+	ADC_INIT(CONFIG_LCD_X_R_ADC);
+	ADC_CONF(CONFIG_LCD_X_L_ADC, ADC_PULL_UP_ENABLED);
+	ADC_CONF(CONFIG_LCD_X_R_ADC, ADC_PULL_UP_ENABLED);
+	uv_gpio_init_output(CONFIG_LCD_Y_T_GPIO, 0);
+	uv_gpio_init_output(CONFIG_LCD_Y_B_GPIO, 1);
+	int y_val = uv_adc_read_average(CONFIG_LCD_X_L_ADC, 10);
+
+	*x = x_val;
+	*y = y_val;
+
+	// initialize pins to default values for next call
+	ADC_INIT(CONFIG_LCD_Y_T_ADC);
+	ADC_INIT(CONFIG_LCD_Y_B_ADC);
+	ADC_CONF(CONFIG_LCD_Y_T_ADC, ADC_PULL_UP_ENABLED);
+	ADC_CONF(CONFIG_LCD_Y_B_ADC, ADC_PULL_UP_ENABLED);
+	uv_gpio_init_output(CONFIG_LCD_X_R_GPIO, 0);
+	uv_gpio_init_output(CONFIG_LCD_X_L_GPIO, 0);
+
+	return true;
+}
+
+
+#endif
 
 #endif

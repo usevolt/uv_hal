@@ -11,7 +11,7 @@
 
 #if CONFIG_PWM
 
-uv_errors_e uv_pwm_init() {
+uv_errors_e _uv_pwm_init() {
 
 #if CONFIG_TARGET_LPC1785
 	// enable power

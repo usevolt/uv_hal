@@ -81,6 +81,7 @@ void uv_stdout_send(char* str, unsigned int count) {
 
 
 void _uv_stdout_hal_step(unsigned int step_ms) {
+#if CONFIG_TERMINAL_CAN
 	if (uv_vector_size(&can_vec) == 0) {
 		return;
 	}
@@ -90,4 +91,5 @@ void _uv_stdout_hal_step(unsigned int step_ms) {
 	else {
 		send_can_msg();
 	}
+#endif
 }
