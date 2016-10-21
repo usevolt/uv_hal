@@ -63,24 +63,18 @@ const uv_command_st common_cmds[] = {
 		{
 				.id = CMD_HELP,
 				.str = "help",
-				.instructions =
 #if CONFIG_TERMINAL_INSTRUCTIONS
-						"Lists all available commands"
-#else
-						""
+				.instructions = "Lists all available commands" ,
 #endif
-				, .callback = uv_terminal_help_callb
+				.callback = uv_terminal_help_callb
 		},
 		{
 				.id = CMD_DEV,
 				.str = "dev",
-				.instructions =
 #if CONFIG_TERMINAL_INSTRUCTIONS
-						"Logs the device name and build date"
-#else
-						""
+				.instructions = "Logs the device name and build date" ,
 #endif
-				, .callback = uv_terminal_dev_callb
+				.callback = uv_terminal_dev_callb
 		},
 #if CONFIG_TERMINAL_INSTRUCTIONS
 		{
@@ -88,65 +82,56 @@ const uv_command_st common_cmds[] = {
 				.str = "man",
 				.instructions =
 						"Gives information from the command. Give the command name as the argument.\n\r"
-						"Usage: man \"<command_name>\""
-				, .callback = uv_terminal_man_callb
+						"Usage: man \"<command_name>\"",
+				.callback = uv_terminal_man_callb
 		},
 #endif
 #if CONFIG_NON_VOLATILE_MEMORY
 		{
 				.id = CMD_SAVE,
 				.str = "save",
-				.instructions =
 #if CONFIG_TERMINAL_INSTRUCTIONS
-						"Saves application data and settings to non-volatile flash memory."
-#else
-						""
+				.instructions = "Saves application data and settings to non-volatile flash memory." ,
 #endif
-				, .callback = uv_terminal_save_callb
+				.callback = uv_terminal_save_callb
 		},
 		{
 				.id = CMD_REVERT,
 				.str = "revert",
-				.instructions =
 #if CONFIG_TERMINAL_INSTRUCTIONS
+				.instructions =
 						"Reverts all changes except the device CRC number to factory defaults.\n\r"
 						"To reset the device CRC, set it to 0 with a command 'crc 0'.\n\r"
 						"The device needs to be restarted for changes to take effect.\n\r"
-						"To undo revert, save current values to flash with 'save' command."
-#else
-						""
+						"To undo revert, save current values to flash with 'save' command." ,
 #endif
-				, .callback = uv_terminal_revert_callb
+				.callback = uv_terminal_revert_callb
 		},
 		{
 				.id = CMD_RESET,
 				.str = "reset",
-				.instructions =
 #if CONFIG_TERMINAL_INSTRUCTIONS
+				.instructions =
 						"Usage: reset (1/0)"
 						"Resets the controller instantly.\n\r"
 						"All unsave modifications will be lost.\n\r"
 						"If 1 is given as an argument, the system will use\n\r"
 						"watchdog timer to make a hardware reset. Else software\n\r"
-						"reset is done."
-#else
-						""
+						"reset is done." ,
 #endif
-				, .callback = uv_terminal_reset_callb
+				.callback = uv_terminal_reset_callb
 		},
 #endif
 		{
 				.id = CMD_CRC,
 				.str = "crc",
-				.instructions =
 #if CONFIG_TERMINAL_INSTRUCTIONS
+				.instructions =
 						"Sets the device CRC, which is used with a CAN-terminal"
 						"as an ID. Defaults to CRC constructed from the project name."
-						"Usage: crc (number)"
-#else
-						""
+						"Usage: crc (number)" ,
 #endif
-				, .callback = uv_terminal_crc_callb
+				.callback = uv_terminal_crc_callb
 		}
 };
 
@@ -358,7 +343,7 @@ void uv_terminal_save_callb(void *me, unsigned int cmd, unsigned int args, argum
 	}
 }
 void uv_terminal_revert_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv) {
-	if (!__uv_load_previous_non_volatile_data()) {
+	if (!__uv_clear_previous_non_volatile_data()) {
 		printf("reverted\n\r");
 	}
 }

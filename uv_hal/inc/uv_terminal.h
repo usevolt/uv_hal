@@ -97,8 +97,10 @@ typedef struct {
 	uint16_t id;
 	/// @brief: String which needs to be entered in serial port to execute this command
 	char* str;
+#if CONFIG_TERMINAL_INSTRUCTIONS
 	/// @brief: A descriptive info from this command. Tells the user how to use command, etc etc.
 	char* instructions;
+#endif
 	/// @brief: A callback function which will be called if this command was called
 	void (*callback)(void*, unsigned int, unsigned int, argument_st *);
 } uv_command_st;

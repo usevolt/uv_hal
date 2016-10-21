@@ -77,7 +77,6 @@ uv_errors_e uv_adc_init();
 int uv_adc_read(uv_adc_channels_e channel);
 
 
-#if CONFIG_ADC_MODE_STANDARD
 /// @brief: returns the channel'd adc channel value as 32-bit integer averaged by
 /// 'conversion_count' times.
 /// In burst operation this function executes fastly, otherwise the ADC conversion is triggered
@@ -89,7 +88,6 @@ int uv_adc_read(uv_adc_channels_e channel);
 /// @param conversion_count: The amount of AD conversions to be done and averaged.
 int uv_adc_read_average(uv_adc_channels_e channel, unsigned int conversion_count);
 
-#endif
 
 /*** YET UNIMPLEMENTED METHODS
 

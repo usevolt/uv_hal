@@ -53,20 +53,20 @@ int Average_Step (T_Average *avr, int val)
 
 // ---------------------------       moving average filter       ---------------------------
 
-void MovingAver_Init (T_MovingAver *avr, int cnt)
+void uv_moving_aver_init (uv_moving_aver_st *avr, int cnt)
 {
 	avr->Sum = 0;
 	avr->Count = cnt;
 	avr->CurCount = 0;
 }
 
-void MovingAver_Reset (T_MovingAver *avr)
+void uv_moving_aver_reset (uv_moving_aver_st *avr)
 {
 	avr->Sum = 0;
 	avr->CurCount = 0;
 }
 
-int MovingAver_Step (T_MovingAver *avr, int val)
+int uv_moving_aver_step (uv_moving_aver_st *avr, int val)
 {
 	avr->Sum += val;
 	avr->CurCount += 1;

@@ -182,9 +182,9 @@ uv_errors_e uv_memory_save(uv_data_start_t *start_ptr, uv_data_end_t *end_ptr) {
 	// add the right value to data checksum
 	start_ptr->start_checksum = CHECKSUM_VALID;
 	start_ptr->project_name = uv_projname;
-	// calculate CRC only if it was zero.
+	// calculate CRC only if it was zero or 0xFFFF, which could mean an uninitialized value.
 	// Otherwise custom CRC has been set and it shouldn't be overwritten
-	if (!start_ptr->project_name_crc) {
+	if (!start_ptr->project_name_crc || start_ptr->project_name_crc == 0xFFFF) {
 		start_ptr->project_name_crc =
 				calc_crc((const uint8_t *) start_ptr->project_name, strlen(start_ptr->project_name));
 	}
