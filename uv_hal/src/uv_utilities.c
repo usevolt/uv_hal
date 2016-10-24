@@ -22,8 +22,6 @@
 void *user_ptr = NULL;
 
 
-
-
 void uv_set_application_ptr(void *ptr) {
 	user_ptr = ptr;
 }
@@ -115,8 +113,9 @@ uv_errors_e uv_vector_insert(uv_vector_st *this, uint16_t index, void *src) {
 		return uv_err(ERR_INDEX_OVERFLOW | HAL_MODULE_UTILITIES);
 	}
 	memmove(this->buffer + index * this->element_size + this->element_size,
-			this->buffer + index * this->element_size, this->element_size);
+			this->buffer + index * this->element_size, this->element_size * (this->len - index));
 	memcpy(this->buffer + index * this->element_size, src, this->element_size);
+	this->len++;
 
 	return uv_err(ERR_NONE);
 }
@@ -150,7 +149,7 @@ uv_errors_e uv_vector_remove(uv_vector_st *this, uint16_t index) {
 	}
 	memmove(this->buffer + index * this->element_size,
 			this->buffer + index * this->element_size + this->element_size,
-			this->element_size);
+			this->element_size * (this->len - index));
 	this->len--;
 	return uv_err(ERR_NONE);
 }

@@ -376,6 +376,10 @@ static inline float uv_relf(float t, float min, float max) {
 }
 
 
+static inline float uv_reli(int t, int min, int max) {
+	return 1000 * (t-min)/(max-min);
+}
+
 #if CONFIG_TARGET_LPC11C14
 /// @brief: Defines the interrupts sources on this hardware
 typedef enum {
@@ -493,7 +497,6 @@ void _delay_ms (uint16_t ms);
 /// @bref: Set's the interrupt sources priority. If the priority is not available on
 /// the hardware, an error is returned and logged to stdout.
 uv_errors_e uv_set_int_priority(uv_int_sources_e, unsigned int priority);
-
 
 
 

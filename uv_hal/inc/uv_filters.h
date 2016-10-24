@@ -42,11 +42,11 @@ typedef struct
 	int Sum;
 	int Count;
 	int CurCount;
-} T_MovingAver;
+} uv_moving_aver_st;
 
-void MovingAver_Init (T_MovingAver *avr, int cnt);
-void MovingAver_Reset (T_MovingAver *avr);
-int  MovingAver_Step (T_MovingAver *avr, int val);
+void uv_moving_aver_init (uv_moving_aver_st *avr, int cnt);
+void uv_moving_aver_reset (uv_moving_aver_st *avr);
+int  uv_moving_aver_step (uv_moving_aver_st *avr, int val);
 
 
 // ---------------------------       bounds filter       ---------------------------
