@@ -132,8 +132,8 @@ void uv_init(void *device) {
 	_uv_spi_init();
 #endif
 
-#if CONFIG_LCD
-	_uv_lcd_init();
+#if CONFIG_EMC
+	_uv_emc_init();
 #endif
 
 #if CONFIG_PWM
@@ -144,8 +144,8 @@ void uv_init(void *device) {
 	_uv_eeprom_init();
 #endif
 
-#if CONFIG_EMC
-	_uv_emc_init();
+#if CONFIG_LCD
+	_uv_lcd_init();
 #endif
 
 #if CONFIG_RTC
@@ -170,7 +170,6 @@ void uv_init(void *device) {
 		}
 	}
 #endif
-
 
 	uv_rtos_task_create(hal_task, "uv_hal", UV_RTOS_MIN_STACK_SIZE, NULL, 0xFFFF, NULL);
 }

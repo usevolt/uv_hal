@@ -19,6 +19,7 @@
 
 
 lcd_line_t *lcd = (lcd_line_t *) CONFIG_LCD_BUFFER_ADDRESS;
+#if CONFIG_LCD_TOUCHSCREEN
 typedef struct {
 	uint16_t x;
 	uint16_t y;
@@ -34,7 +35,7 @@ typedef struct {
 static touchscreen_st ts = {
 		.index = 0
 };
-
+#endif
 
 uv_errors_e _uv_lcd_init(void) {
 	// initialize the GPIO pins

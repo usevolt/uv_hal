@@ -25,8 +25,10 @@ void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uiwindow_sty
 
 void uv_uidisplay_step(void *me, uint32_t step_ms) {
 	// get touch data from the LCD
+#if CONFIG_LCD_TOUCHSCREEN
 	int16_t x, y, touch;
 	touch = uv_lcd_touch_get(&x, &y);
+#endif
 	uv_touch_st t;
 
 
