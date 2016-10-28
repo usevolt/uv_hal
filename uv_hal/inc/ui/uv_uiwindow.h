@@ -84,11 +84,17 @@ static inline void uv_uiwindow_init(uv_uiwindow_st *this,
 /// Note that this is the only thing which the window uses to distinguish different
 /// object types from each other.
 static inline void uv_uiwindow_add(uv_uiwindow_st *this, void *object,
-		uint16_t x, uint16_t y, uint16_t width, uint16_t height, bool visible,
+		uint16_t x, uint16_t y, uint16_t width, uint16_t height,
 		void (*step_callb)(void*, uv_touch_st*, uint16_t)) {
 	uv_uiobject_add(object, (uv_uiobject_st*) this,
-			x, y, width, height, visible, step_callb);
+			x, y, width, height, step_callb);
 	this->objects[this->objects_count++] = object;
+}
+
+
+/// @brief: Clears the object buffer memory clearing the whole window
+static inline void uv_uiwindow_clear(uv_uiwindow_st *this) {
+	this->objects_count = 0;
 }
 
 #endif

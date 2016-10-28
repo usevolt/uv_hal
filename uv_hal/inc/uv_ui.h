@@ -14,6 +14,8 @@
 #include <ui/uv_uislider.h>
 #include <ui/uv_uiwindow.h>
 #include "ui/uv_ui_styles.h"
+#include "ui/uv_uilist.h"
+#include "ui/uv_uikeyboard.h"
 
 
 #endif /* UW_UI_H_ */

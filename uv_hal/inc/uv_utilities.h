@@ -160,8 +160,6 @@
 
 
 
-#define GetInt16(hibyte,lobyte)		(((uint16_t) hibyte << 8) + (uint16_t) lobyte)
-
 
 
 
@@ -271,7 +269,7 @@ typedef struct {
 	uint8_t *buffer;
 	uint16_t buffer_size;
 	uint16_t len;
-	uint8_t element_size;
+	uint16_t element_size;
 } uv_vector_st;
 
 #define UV_VECTOR_INIT(buf, bf_size, el_size)	{.len = 0,\
@@ -285,7 +283,7 @@ typedef struct {
 /// @param buffer_size: The size of the buffer in elements
 /// @param element_size: The size of the element in bytes
 static inline void uv_vector_init(uv_vector_st *this, void *buffer,
-		uint16_t buffer_size, uint8_t element_size) {
+		uint16_t buffer_size, uint16_t element_size) {
 	this->len = 0;
 	this->element_size = element_size;
 	this->buffer_size = buffer_size;
@@ -341,6 +339,11 @@ static inline uint16_t uv_vector_size(uv_vector_st *this) {
 	return this->len;
 }
 
+/// @brief: Returns the maximum size of the vector
+static inline uint16_t uv_vector_max_size(uv_vector_st *this) {
+	return this->buffer_size;
+}
+
 /// @brief: Empties the whole vector
 static inline void uv_vector_clear(uv_vector_st *this) {
 	this->len = 0;
@@ -372,13 +375,33 @@ static inline float uv_lerpi(int t, int a, int b) {
 ///
 /// @note: Should be min <= t <= max and min != max
 static inline float uv_relf(float t, float min, float max) {
+	if (min == max) return 0;
 	return (t-min)/(max-min);
 }
 
 
+/// @brief: Returns the relative value (parts per thousand) of t in relation to a and b.
+/// Typical use case: a = min value, b = max value, t = value between. Returns the relative
+/// value of t.
+///
+/// @note: Should be min <= t <= max and min != max
 static inline float uv_reli(int t, int min, int max) {
+	if (min == max) return 0;
 	return 1000 * (t-min)/(max-min);
 }
+
+/// @brief: Returns the bigger argument
+static inline int uv_maxi(int a, int b) {
+	return (a > b) ? a : b;
+}
+
+/// @brief: Returns the smaller argument
+static inline int uv_mini(int a, int b) {
+	return (a < b) ? a : b;
+}
+
+
+
 
 #if CONFIG_TARGET_LPC11C14
 /// @brief: Defines the interrupts sources on this hardware

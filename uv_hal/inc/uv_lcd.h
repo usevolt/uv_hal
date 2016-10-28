@@ -214,10 +214,10 @@
 #define LCD_H_PX		CONFIG_LCD_LINES_PER_PANEL
 
 /// @brief: Converts from relative 0.0f - 1.0f width to actual pixel width
-#define LCD_W(rel_w)	(LCD_W_PX * rel_w)
+#define LCD_W(rel_w)	(LCD_W_PX * (rel_w))
 
 /// @brief: Converts from relative 0.0f - 1.0f height to actual pixel height
-#define LCD_H(rel_h)	(LCD_H_PX * rel_h)
+#define LCD_H(rel_h)	(LCD_H_PX * (rel_h))
 
 
 #if (CONFIG_LCD_BITS_PER_PIXEL != LCD_24_BPP)
@@ -230,15 +230,26 @@
 #define C(x)	(x)
 
 /// @brief: Color type. All colors are given in RGB888.
+///
+/// @note: Alpha channel is inverted: 0 means fully visible,
+/// 0xFF means fully transparent
+typedef struct {
+	uint8_t b;
+	uint8_t g;
+	uint8_t r;
+	uint8_t a;
+} rgb_st;
 typedef int32_t color_t;
-enum {
-	COLOR_BLACK = C(0x000000),
-	COLOR_WHITE = C(0xFFFFFF),
-	COLOR_BLUE = C(0x0000FF),
-	COLOR_RED = C(0xFF0000),
-	COLOR_GREEN = C(0x00FF00)
-};
 
+/// brief: Converts color_t to rgb_st
+static inline rgb_st uv_ctorgb(color_t c) {
+	return *((rgb_st*) &c);
+}
+
+/// @brief: Converts rgb_st to color_t
+static inline color_t uv_rgbtoc(rgb_st rgb) {
+	return *((color_t*) &rgb);
+}
 
 /// @brief: Returns the color multiplied to be darker by the amount of *mult*
 /// Negative multiplier results in darker color
@@ -253,6 +264,24 @@ static inline color_t uv_clighter(color_t c, float mult) {
 	return uv_cmult(c, mult);
 }
 
+/// @brief: Helper macro for easier calls to LCD drawing functions as well as
+/// GUI functions. Calculates x so that the created component will be
+/// created horizontally center aligned around (x,y) point.
+///
+/// @example:
+///	// will draw rectangle from (-50, 50) to (150,200)
+///	uv_lcd_draw_rect(UI_ALIGN_H_CENTER(50, 50, 200, 200));
+#define UI_ALIGN_H_CENTER(x, y, width, height)	(x) - ((width)/2), (y), (width), (height)
+
+#define UI_ALIGN_V_CENTER(x, y, width, height)	(x), (y) - ((height) / 2), (width), (height)
+
+#define UI_ALIGN_CENTER(x, y, width, height)	(x) - ((width)/2), (y) - ((height) / 2), (width), (height)
+
+/// @brief: Desaturates the color
+///
+/// @param mult: 0.0f returns the same color as c, 1.0f returns fully desaturated value.
+//color_t uv_cdesat(color_t c, float mult);
+
 /// @brief: pointer to the display. Pixels are oriented as [y][x] two dimensional array
 typedef LCD_PIXEL_TYPE lcd_line_t[CONFIG_LCD_PIXELS_PER_LINE];
 extern lcd_line_t *lcd;
@@ -266,6 +295,7 @@ uv_errors_e _uv_lcd_init(void);
 /// the function doesnt check for overindexing.
 /// @pre: *x* and *y* should be smaller than the LCD maximum size.
 static inline void uv_lcd_draw_pixel(int32_t x, int32_t y, color_t color) {
+	if (x < 0 || y < 0 || x > LCD_W_PX || y > LCD_H_PX) return;
 	lcd[y][x] = color;
 }
 

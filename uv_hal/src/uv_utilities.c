@@ -125,7 +125,9 @@ uv_errors_e uv_vector_pop_back(uv_vector_st *this, void *data) {
 	if (!this->len) {
 		return uv_err(ERR_BUFFER_EMPTY | HAL_MODULE_UTILITIES);
 	}
-	memcpy(data, &this->buffer[(this->len - 1) * this->element_size], this->element_size);
+	if (data) {
+		memcpy(data, &this->buffer[(this->len - 1) * this->element_size], this->element_size);
+	}
 	this->len--;
 	return uv_err(ERR_NONE);
 }
@@ -135,7 +137,9 @@ uv_errors_e uv_vector_pop_front(uv_vector_st *this, void *data) {
 	if (!this->len) {
 		return uv_err(ERR_BUFFER_EMPTY | HAL_MODULE_UTILITIES);
 	}
-	memcpy(data, this->buffer, this->element_size);
+	if (data) {
+		memcpy(data, this->buffer, this->element_size);
+	}
 	memmove(this->buffer, this->buffer + this->element_size, this->element_size);
 	this->len--;
 	return uv_err(ERR_NONE);

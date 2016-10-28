@@ -47,6 +47,7 @@ typedef struct {
 	const uv_font_st *font;
 	/// @brief: Text color
 	color_t color;
+	color_t bg_color;
 	/// @brief: Null-terminated string which will be shown on the screen
 	char *str;
 	/// @brief: Label alignment
@@ -73,21 +74,28 @@ static inline void uv_uilabel_set_color(void *me, color_t c) {
 	this->color = c;
 }
 
+/// @brief: Sets the background color
+static inline void uv_uilabel_set_bg_color(void *me, color_t c) {
+	uv_ui_refresh(me);
+	this->bg_color = c;
+}
+
 
 static inline void uv_uilabel_init(void *me, const uv_font_st *font,
-		alignment_e alignment, color_t color, char *str) {
+		alignment_e alignment, color_t color, color_t bgcolor, char *str) {
 	uv_uiobject_init((void*) this);
 	this->font = font;
 	this->str = str;
 	this->align = alignment;
 	this->color = color;
+	this->bg_color = bgcolor;
 }
 
 
 /// @brief: Draws raw text on the screen.
 /// Should be used only inside this hal library
 void _uv_ui_draw_text(uint16_t x, uint16_t y, const uv_font_st *font,
-		alignment_e align, color_t color, char *str);
+		alignment_e align, color_t color, color_t bgcolor, char *str);
 
 
 #undef this

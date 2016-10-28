@@ -18,7 +18,7 @@ void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uiwindow_sty
 	uv_ui_get_bb(me)->y = 0;
 	uv_ui_get_bb(me)->width = LCD_W_PX;
 	uv_ui_get_bb(me)->height = LCD_H_PX;
-	uv_ui_refresh(&this->super.super);
+	uv_ui_refresh_parent(this);
 }
 
 

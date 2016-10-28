@@ -21,17 +21,22 @@ static inline int get_bit(uint8_t *base, uint16_t i) {
 
 
 /// @brief: Draws a single character on the screen
-static inline void draw_char(int16_t x, int16_t y, const uv_font_st *font, char c, color_t color) {
+static inline void draw_char(int16_t x, int16_t y, const uv_font_st *font, char c, color_t color, color_t bgcolor) {
 	// NOTE: fonts store pixels as bits!
-	uint16_t i, j, k = 0, cc;
-	uint16_t char_len = (font->char_height * font->char_width / 8) +
-			((font->char_height * font->char_width) % 8 != 0);
-	cc = (uint8_t) c;
-	// k is a index number
+	uint16_t i, j, k = 0;
+	uint16_t char_width_bytes = ((font->char_width / 8) + ((font->char_width % 8) != 0));
+	uint16_t char_len = char_width_bytes * font->char_height;
+	// k is an index number
 	for (j = 0; j < font->char_height; j++) {
+		// p is a reference to character's current row
+		uint8_t *p = (uint8_t*) &font->p[c * char_len + j * char_width_bytes];
+		k = 0;
 		for (i = 0; i < font->char_width; i++) {
-			if (get_bit((uint8_t*) &font->p[cc * char_len], k)) {
+			if (get_bit(p, k)) {
 				uv_lcd_draw_pixel(x + i, y + j, color);
+			}
+			else if ((bgcolor & 0xFF000000) != 0xFF000000) {
+				uv_lcd_draw_pixel(x + i, y + j, bgcolor);
 			}
 			k++;
 		}
@@ -42,7 +47,7 @@ static inline void draw_char(int16_t x, int16_t y, const uv_font_st *font, char 
 
 /// @brief: Draws one line of text
 static inline void draw_line(int16_t x, int16_t y, const uv_font_st *font,
-		char *str, color_t color, alignment_e align) {
+		char *str, color_t color, color_t bgcolor, alignment_e align) {
 	uint16_t len = 0, i;
 	for (i = 0; i < strlen(str); i++) {
 		if (str[i] == '\n' || str[i] == '\r') {
@@ -59,7 +64,7 @@ static inline void draw_line(int16_t x, int16_t y, const uv_font_st *font,
 		x = x - len * font->char_width;
 	}
 	for (i = 0; i < len; i++) {
-		draw_char(x, y, font, str[i], color);
+		draw_char(x, y, font, str[i], color, bgcolor);
 		x += font->char_width;
 	}
 }
@@ -87,14 +92,14 @@ void uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 		y += uv_ui_get_bb(this)->height;
 	}
 
-	_uv_ui_draw_text(x, y, this->font, this->align, this->color, this->str);
+	uv_lcd_draw_rect(x, y, uv_uibb(this)->width, uv_uibb(this)->height, this->bg_color);
+	_uv_ui_draw_text(x, y, this->font, this->align, this->color, this->bg_color, this->str);
 
 }
 
 
 void _uv_ui_draw_text(uint16_t x, uint16_t y, const uv_font_st *font,
-		alignment_e align, color_t color, char *str) {
-
+		alignment_e align, color_t color, color_t bgcolor, char *str) {
 	uint16_t len = strlen(str);
 	uint16_t line_count = 1;
 	uint16_t i;
@@ -107,10 +112,10 @@ void _uv_ui_draw_text(uint16_t x, uint16_t y, const uv_font_st *font,
 	}
 
 	if (align & ALIGN_V_CENTER) {
-		yy = y - line_count * font->char_height / 2;
+		yy = -line_count * font->char_height / 2;
 	}
 	else if (align & ALIGN_V_BOTTOM) {
-		yy = y - line_count * font->char_height;
+		yy = -line_count * font->char_height;
 	}
 
 	i = 0;
@@ -118,7 +123,7 @@ void _uv_ui_draw_text(uint16_t x, uint16_t y, const uv_font_st *font,
 		while(str[i] == '\n' || str[i] == '\r') {
 			i++;
 		}
-		draw_line(x, y + yy, font, &str[i], color, align);
+		draw_line(x, y + yy, font, &str[i], color, bgcolor, align);
 		yy += font->char_height;
 		while(str[i] != '\n' && str[i] != '\r' && str[i] != '\0') {
 			i++;

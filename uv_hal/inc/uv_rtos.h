@@ -107,8 +107,8 @@ uv_errors_e uv_rtos_add_idle_task(void (*task_function)(void *user_ptr));
 static inline uv_rtos_smphr_ptr uv_rtos_smphr_create_binary(void) {
 	return xSemaphoreCreateBinary();
 }
-static inline uv_mutex_ptr uv_rtos_mutex_create(void) {
-	return xSemaphoreCreateMutex();
+static inline void uv_rtos_mutex_init(uv_mutex_ptr* mutex) {
+	*mutex = xSemaphoreCreateMutex();
 }
 
 /// @brief: "Gives" or "releases" the semaphore. This makes possible for
@@ -118,8 +118,8 @@ static inline uv_mutex_ptr uv_rtos_mutex_create(void) {
 static inline void uv_rtos_smphr_give(uv_rtos_smphr_ptr handle) {
 	xSemaphoreGive(handle);
 }
-static inline void uv_rtos_mutex_unlock(uv_mutex_ptr mutex) {
-	xSemaphoreGive(mutex);
+static inline void uv_rtos_mutex_unlock(uv_mutex_ptr *mutex) {
+	xSemaphoreGive(*mutex);
 }
 
 /// @brief: "Gives" or "releases" the semaphore. This makes possible for
@@ -140,8 +140,8 @@ static inline void uv_rtos_mutex_unlock_ISR(uv_mutex_ptr mutex) {
 static inline void uv_rtos_smphr_take(uv_rtos_smphr_ptr handle) {
 	while (!xSemaphoreTake(handle, 0xFFFFFFFF));
 }
-static inline void uv_rtos_mutex_lock(uv_mutex_ptr mutex) {
-	while (!xSemaphoreTake(mutex, 0xFFFFFFFF));
+static inline void uv_rtos_mutex_lock(uv_mutex_ptr *mutex) {
+	while (!xSemaphoreTake(*mutex, 0xFFFFFFFF));
 }
 
 /// @brief:A version of xSemaphoreTake() that can be called from an ISR.

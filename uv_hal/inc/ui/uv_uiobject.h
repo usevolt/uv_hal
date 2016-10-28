@@ -89,6 +89,10 @@ typedef struct uv_uiobject_st {
 	/// redrawn on the next step cycle.
 	/// @note: It depends on the object if this feature is implemented or not.
 	bool refresh;
+	/// @brief: Normally true. If the object has a enabled/disable functionality,
+	/// this flag is used to determine if the object is enabled. Usually disabled
+	/// objects appear with less saturation
+	bool enabled;
 } uv_uiobject_st;
 
 
@@ -107,18 +111,24 @@ static inline void uv_bounding_box_init(uv_bounding_box_st *bb,
 #define this ((uv_uiobject_st*) me)
 
 
-/// @brief: Sets the refresh request to this object.
-/// If the object has a parent, this requests refresh from the parent.
+/// @brief: Sets the refresh request to this object. If the object's
+/// dimensions doesn't change, this is enough to update the screen.
 ///
 /// @param this: Pointer to uv_uiobject_st casted to void*.
 static inline void uv_ui_refresh(void *me) {
+	this->refresh = true;
+}
+
+/// @brief: Refreshes the object's parent. With this it is guaranteed that
+/// everything gets refreshed the right way, but this has more overheat than uv_ui_refresh.
+static inline void uv_ui_refresh_parent(void *me) {
 	if (this->parent) this->parent->refresh = true;
 	this->refresh = true;
 }
 
 
 /// @brief: Initializes an object
-static inline void uv_uiobject_init(uv_uiobject_st *me) {
+static inline void uv_uiobject_init(void *me) {
 	uv_bounding_box_init(&this->bb, 0, 0, 0, 0);
 	this->parent = NULL;
 	this->step_callb = NULL;
@@ -127,15 +137,15 @@ static inline void uv_uiobject_init(uv_uiobject_st *me) {
 }
 
 /// @brief: To be used when adding objects to windows
-static inline void uv_uiobject_add(uv_uiobject_st *me, uv_uiobject_st *parent,
-		uint16_t x, uint16_t y, uint16_t width, uint16_t height, bool visible,
+static inline void uv_uiobject_add(void *me, void *parent,
+		uint16_t x, uint16_t y, uint16_t width, uint16_t height,
 		void (*step_callb)(void*, uv_touch_st*, uint16_t)) {
 	uv_bounding_box_init(&this->bb, x, y, width, height);
 	this->parent = parent;
 	this->step_callb = step_callb;
-	this->visible = visible;
+	this->visible = true;
 	this->refresh = true;
-	if (visible) uv_ui_refresh(this);
+	uv_ui_refresh_parent(this);
 }
 
 
@@ -144,7 +154,7 @@ static inline void uv_uiobject_add(uv_uiobject_st *me, uv_uiobject_st *parent,
 /// @param this: Pointer to uv_uiobject_st casted to void*.
 static inline void uv_ui_hide(void *me) {
 	this->visible = false;
-	uv_ui_refresh(this);
+	uv_ui_refresh_parent(this);
 }
 
 
@@ -153,6 +163,20 @@ static inline void uv_ui_hide(void *me) {
 /// @param this: Pointer to uv_uiobject_st casted to void*.
 static inline void uv_ui_show(void *me) {
 	this->visible = true;
+	uv_ui_refresh_parent(this);
+}
+
+/// @brief: Enabled the object. This functionality might not be implemented
+/// on all obejcts.
+static inline void uv_ui_enable(void *me) {
+	this->enabled = true;
+	uv_ui_refresh(this);
+}
+
+/// @brief: Disables the object. This functionality might not be implemented
+/// on all objects
+static inline void uv_ui_disable(void *me) {
+	this->enabled = false;
 	uv_ui_refresh(this);
 }
 
@@ -160,6 +184,9 @@ static inline void uv_ui_show(void *me) {
 ///
 /// @param this: Pointer to uv_uiobject_st casted to void*.
 static inline uv_bounding_box_st* uv_ui_get_bb(void *me) {
+	return &this->bb;
+}
+static inline uv_bounding_box_st *uv_uibb(void *me) {
 	return &this->bb;
 }
 

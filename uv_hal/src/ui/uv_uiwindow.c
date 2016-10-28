@@ -37,7 +37,7 @@ void uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 		// then request redraw all children objects
 		uint16_t i;
 		for (i = 0; i < this->objects_count; i++) {
-			uv_ui_refresh(this->objects[i]);
+			uv_ui_refresh_parent(this->objects[i]);
 		}
 		this->super.refresh = false;
 	}

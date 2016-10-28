@@ -12,6 +12,11 @@
 #include "uv_utilities.h"
 #if CONFIG_EEPROM
 
+#ifndef CONFIG_EEPROM_RING_BUFFER_END_ADDR
+#error "CONFIG_EEPROM_RING_BUFFER_END_ADDR should define the end EEPROM address of the ring buffer.\
+ Ring buffer starts from address 0."
+#endif
+
 #if CONFIG_TARGET_LPC11C14
 #error "LPC11C14 doesn't have an EEPROM memory. Please undefine CONFIG_EEPROM or set it to 0."
 #elif CONFIG_TARGET_LPC1785

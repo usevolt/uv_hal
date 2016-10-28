@@ -107,7 +107,7 @@ uv_errors_e _uv_lcd_init(void) {
 
 	LPC_LCD->CTRL |= (1 <<  0);           /* LCD enable */
 
-	uv_lcd_draw_rect(0, 0, LCD_W(1.0f), LCD_H(1.0f), 0);
+	uv_lcd_draw_rect(0, 0, LCD_W(1.0f), LCD_H(1.0f), C(0));
 
 	// initialize touchscreen ADC channels
 #if CONFIG_LCD_TOUCHSCREEN
@@ -119,26 +119,38 @@ uv_errors_e _uv_lcd_init(void) {
 
 }
 
+//color_t uv_cdesat(color_t c, float mult) {
+//	return c;
+//	if (mult < 0.0001 && mult > -0.0001) return c;
+//	rgb_st rgb = uv_ctorgb(c);
+//	rgb_st r;
+//	int32_t intensity = 0.3 * rgb.r + 0.6 * rgb.g + 0.1 * rgb.b;
+//	r.r = uv_lerpf(mult, rgb.r, intensity);
+//	r.g = uv_lerpf(mult, rgb.g, intensity);
+//	r.b = uv_lerpf(mult, rgb.b, intensity);
+//	return uv_rgbtoc(r);
+//}
 
 
 
 color_t uv_cmult(color_t c, float ppt) {
 #if CONFIG_LCD_BITS_PER_PIXEL == LCD_24_BPP
-	color_t t = 0;
+	rgb_st t = *((rgb_st*)&c);
+	rgb_st tt = {};
 	int32_t e;
-	e = ((c & (0b11 << 4)) >> 4) * ppt;
+	e = t.r * ppt;
 	if (e > 0xFF) e = 0xFF;
 	else if (e < 0) e = 0;
-	t += (e << 4);
-	e = ((c & (0b11 << 2)) >> 2) * ppt;
+	tt.r = e;
+	e = t.g * ppt;
 	if (e > 0xFF) e = 0xFF;
 	else if (e < 0) e = 0;
-	t += (e << 2);
-	e = ((c & (0b11))) * ppt;
+	tt.g = e;
+	e = t.b * ppt;
 	if (e > 0xFF) e = 0xFF;
 	else if (e < 0) e = 0;
-	t += e;
-	return t;
+	tt.b = e;
+	return *((color_t*) &tt);
 
 
 #else
@@ -146,14 +158,18 @@ color_t uv_cmult(color_t c, float ppt) {
 #endif
 }
 
-
 #define draw_hline(x, y, length, color)	do{uint32_t hlinei; \
 		LCD_PIXEL_TYPE *hlineptr = &lcd[y][x]; \
 		for (hlinei = 0; hlinei < length; hlinei++) { \
-			*(hlineptr++) = color;\
+			*(hlineptr++) = *((int32_t*) &color);\
 		} }while(0)\
 
 void uv_lcd_draw_rect(int32_t x, int32_t y, uint32_t width, uint32_t height, color_t color) {
+	if (x < 0) x = 0;
+	if (y < 0) y = 0;
+	if (x > LCD_W_PX || y > LCD_H_PX) return;
+	if (x + width > LCD_W_PX) width = LCD_W_PX - x;
+	if (y + height > LCD_H_PX) height = LCD_H_PX - y;
 	uint32_t j;
 	for (j = y; j < y + height; j++) {
 		draw_hline(x, j, width, color);

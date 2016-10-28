@@ -38,6 +38,11 @@ typedef struct {
 #define this ((uv_uibutton_st*)me)
 
 /// @brief: Initializes the button
+///
+/// @param text: The text which is displayed on the button
+/// @param style: Pointer to the button style used
+/// @param callb: Callback which will be called when the button is pressed. The parameters are:
+/// Pointer to this button object and the state of this button
 static inline void uv_uibutton_init(void *me, char *text, const uv_uibutton_style_st *style,
 		void (*callb)(void *, uibutton_state_e)) {
 	uv_uiobject_init(me);

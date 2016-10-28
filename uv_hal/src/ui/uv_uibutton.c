@@ -12,7 +12,7 @@
 #define this ((uv_uibutton_st*)me)
 
 
-static void draw(void *me, uint16_t step_ms) {
+static inline void draw(void *me, uint16_t step_ms) {
 	uint8_t scale = 1;
 	if (this->state != BUTTON_UP) {
 		scale = 2;
@@ -22,11 +22,11 @@ static void draw(void *me, uint16_t step_ms) {
 			uv_cdarker(this->style->main_color, scale));
 	uv_lcd_draw_frame(uv_ui_get_xglobal(this), uv_ui_get_yglobal(this),
 			uv_ui_get_bb(this)->width, uv_ui_get_bb(this)->height,
-			this->style->frame_thickness, uv_cdarker(this->style->main_color, scale));
+			this->style->frame_thickness, uv_cdarker(this->style->frame_color, scale));
 
 	_uv_ui_draw_text(uv_ui_get_xglobal(this) + uv_ui_get_bb(this)->width / 2,
 			uv_ui_get_yglobal(this) + uv_ui_get_bb(this)->height / 2,
-			this->style->text_font, ALIGN_CENTER, this->style->text_color, this->text);
+			this->style->text_font, ALIGN_CENTER, this->style->text_color, this->style->main_color, this->text);
 }
 
 void uv_uibutton_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
