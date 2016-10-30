@@ -18,139 +18,46 @@
 
 #if CONFIG_LCD
 
-#ifndef CONFIG_UI_WINDOW_STYLES_COUNT
-#define CONFIG_UI_WINDOW_STYLES_COUNT				1
+
+#ifndef CONFIG_UI_STYLES_COUNT
+#error "CONFIG_UI_STYLES_COUNT should declare the count of UI generic styles."
 #endif
 
-/// @brief: GUI window style struct
+/// @brief: Generic style structure for UI
 typedef struct {
-	color_t main_color;
-	color_t frame_color;
-	uint8_t frame_thickness;
-} uv_uiwindow_style_st;
-extern const uv_uiwindow_style_st uv_uiwindow_styles[CONFIG_UI_WINDOW_STYLES_COUNT];
+	color_t active_bg_c;
+	color_t active_fg_c;
+	color_t active_frame_c;
+	color_t active_font_c;
+	color_t inactive_bg_c;
+	color_t inactive_fg_c;
+	color_t inactive_frame_c;
+	color_t inactive_font_c;
+	color_t window_c;
+	const uv_font_st *font;
 
-#ifndef CONFIG_UI_WINDOW_COLOR_1
-#define CONFIG_UI_WINDOW_COLOR_1 					C(0x888888)
-#endif
+} uv_uistyle_st;
+extern const uv_uistyle_st uv_uistyles[CONFIG_UI_STYLES_COUNT];
 
-#ifndef CONFIG_UI_WINDOW_FRAME_COLOR_1
-#define CONFIG_UI_WINDOW_FRAME_COLOR_1				C(0x222222)
-#endif
-
-#ifndef CONFIG_UI_WINDOW_FRAME_THICKNESS_1
-#define CONFIG_UI_WINDOW_FRAME_THICKNESS_1			3
-#endif
-
-
-
-
-#ifndef CONFIG_UI_BUTTON_STYLES_COUNT
-#define CONFIG_UI_BUTTON_STYLES_COUNT				1
-#endif
-
-typedef struct {
-	color_t main_color;
-	color_t frame_color;
-	uint8_t frame_thickness;
-	color_t text_color;
-	const uv_font_st *text_font;
-} uv_uibutton_style_st;
-extern const uv_uibutton_style_st uv_uibutton_styles[CONFIG_UI_BUTTON_STYLES_COUNT];
-
-#ifndef CONFIG_UI_BUTTON_COLOR_1
-#define CONFIG_UI_BUTTON_COLOR_1				C(0xbbbbbb)
-#endif
-#ifndef CONFIG_UI_BUTTON_FRAME_COLOR_1
-#define CONFIG_UI_BUTTON_FRAME_COLOR_1			C(0x333333)
-#endif
-#ifndef CONFIG_UI_BUTTON_FRAME_THICKNESS_1
-#define CONFIG_UI_BUTTON_FRAME_THICKNESS_1		0x2
-#endif
-#ifndef CONFIG_UI_BUTTON_TEXT_COLOR_1
-#define CONFIG_UI_BUTTON_TEXT_COLOR_1			C(0xeeeeee)
-#endif
-#ifndef CONFIG_UI_BUTTON_TEXT_FONT_1
-#define CONFIG_UI_BUTTON_TEXT_FONT_1			font_5X12
-#endif
+/* Example configuration:
+#define CONFIG_UI_STYLE_ACTIVE_BG_C_1			C(0x222222)
+#define CONFIG_UI_STYLE_ACTIVE_FG_C_1			C(0x222222)
+#define CONFIG_UI_STYLE_ACTIVE_FRAME_C_1		C(0x222222)
+#define CONFIG_UI_STYLE_ACTIVE_FONT_C_1			C(0x222222)
+#define CONFIG_UI_STYLE_INACTIVE_BG_C_1			C(0x222222)
+#define CONFIG_UI_STYLE_INACTIVE_FG_C_1			C(0x222222)
+#define CONFIG_UI_STYLE_INACTIVE_FRAME_C_1		C(0x222222)
+#define CONFIG_UI_STYLE_INACTIVE_FONT_C_1		C(0x222222)
+#define CONFIG_UI_STYLE_FONT_1					font_5X12
+#define CONFIG_UI_STYLE_WINDOW_C_1				C(0x000000)
+*/
 
 
 
-#ifndef CONFIG_UI_LIST_STYLES_COUNT
-#define CONFIG_UI_LIST_STYLES_COUNT					1
-#endif
-
-typedef struct {
-	color_t main_color;
-	color_t highlight_color;
-	color_t frame_color;
-	uint8_t frame_thickness;
-	color_t text_color;
-	const uv_font_st *text_font;
-} uv_uilist_style_st;
-extern const uv_uilist_style_st uv_uilist_styles[CONFIG_UI_LIST_STYLES_COUNT];
-
-#ifndef CONFIG_UI_LIST_COLOR_1
-#define CONFIG_UI_LIST_COLOR_1					C(0x001100)
-#endif
-#ifndef CONFIG_UI_LIST_HIGHLIGHT_COLOR_1
-#define CONFIG_UI_LIST_HIGHLIGHT_COLOR_1		C(0x005500)
-#endif
-#ifndef CONFIG_UI_LIST_FRAME_COLOR_1
-#define CONFIG_UI_LIST_FRAME_COLOR_1			C(0x009900)
-#endif
-#ifndef CONFIG_UI_LIST_FRAME_THICKNESS_1
-#define CONFIG_UI_LIST_FRAME_THICKNESS_1		1
-#endif
-#ifndef CONFIG_UI_LIST_TEXT_COLOR_1
-#define CONFIG_UI_LIST_TEXT_COLOR_1				C(0xFFFFFF)
-#endif
-#ifndef CONFIG_UI_LIST_TEXT_FONT_1
-#define CONFIG_UI_LIST_TEXT_FONT_1				font_5X12
-#endif
 
 
 
-#ifndef CONFIG_UI_SLIDER_STYLES_COUNT
-#define CONFIG_UI_SLIDER_STYLES_COUNT			1
-#endif
 
-typedef struct {
-	color_t bg_color;
-	color_t handle_color;
-	color_t frame_color;
-	uint8_t frame_thickness;
-	int16_t width;
-	int16_t handle_width;
-	color_t text_color;
-	const uv_font_st *text_font;
-} uv_uislider_style_st;
-extern const uv_uislider_style_st uv_uislider_styles[CONFIG_UI_SLIDER_STYLES_COUNT];
-
-#ifndef CONFIG_UI_SLIDER_BG_COLOR_1
-#define CONFIG_UI_SLIDER_BG_COLOR_1				C(0x001100)
-#endif
-#ifndef CONFIG_UI_SLIDER_HANDLE_COLOR_1
-#define CONFIG_UI_SLIDER_HANDLE_COLOR_1			C(0x005500)
-#endif
-#ifndef CONFIG_UI_SLIDER_FRAME_COLOR_1
-#define CONFIG_UI_SLIDER_FRAME_COLOR_1			C(0x008800)
-#endif
-#ifndef CONFIG_UI_SLIDER_FRAME_THICKNESS_1
-#define CONFIG_UI_SLIDER_FRAME_THICKNESS_1		1
-#endif
-#ifndef CONFIG_UI_SLIDER_WIDTH_1
-#define CONFIG_UI_SLIDER_WIDTH_1				30
-#endif
-#ifndef CONFIG_UI_SLIDER_HANDLE_WIDTH_1
-#define CONFIG_UI_SLIDER_HANDLE_WIDTH_1			50
-#endif
-#ifndef CONFIG_UI_SLIDER_TEXT_COLOR_1
-#define CONFIG_UI_SLIDER_TEXT_COLOR_1			C(0xFFFFFF)
-#endif
-#ifndef CONFIG_UI_SLIDER_TEXT_FONT_1
-#define CONFIG_UI_SLIDER_TEXT_FONT_1			font_5X12
-#endif
 
 
 
@@ -194,6 +101,8 @@ extern const uv_uikeyboard_style_st uv_uikeyboard_styles[CONFIG_UI_KEYBOARD_STYL
 #ifndef CONFIG_UI_KEYBOARD_TEXT_FONT_1
 #define CONFIG_UI_KEYBOARD_TEXT_FONT_1			font_5X12
 #endif
+
+
 
 
 #endif

@@ -14,9 +14,9 @@
 #include "uv_utilities.h"
 
 enum {
-	BUTTON_UP = 0,
-	BUTTON_CLICKED,
-	BUTTON_LONGPRESSED
+	UIBUTTON_UP = 0,
+	UIBUTTON_CLICKED,
+	UIBUTTON_LONGPRESSED
 };
 typedef uint8_t uibutton_state_e;
 
@@ -29,7 +29,7 @@ typedef struct {
 	void (*callb)(void *, uibutton_state_e);
 	uibutton_state_e state;
 	char *text;
-	const uv_uibutton_style_st *style;
+	const uv_uistyle_st *style;
 } uv_uibutton_st;
 
 #ifdef this
@@ -43,10 +43,10 @@ typedef struct {
 /// @param style: Pointer to the button style used
 /// @param callb: Callback which will be called when the button is pressed. The parameters are:
 /// Pointer to this button object and the state of this button
-static inline void uv_uibutton_init(void *me, char *text, const uv_uibutton_style_st *style,
+static inline void uv_uibutton_init(void *me, char *text, const uv_uistyle_st *style,
 		void (*callb)(void *, uibutton_state_e)) {
 	uv_uiobject_init(me);
-	this->state = BUTTON_UP;
+	this->state = UIBUTTON_UP;
 	this->style = style;
 	this->text = text;
 	this->callb = callb;

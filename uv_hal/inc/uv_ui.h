@@ -16,6 +16,8 @@
 #include "ui/uv_ui_styles.h"
 #include "ui/uv_uilist.h"
 #include "ui/uv_uikeyboard.h"
+#include "ui/uv_uitabwindow.h"
+#include "ui/uv_uiprogressbar.h"
 
 
 #endif /* UW_UI_H_ */

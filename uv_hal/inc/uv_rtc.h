@@ -32,7 +32,6 @@ typedef struct {
 void _uv_rtc_init();
 
 
-
 /// @brief: Returns the current time to *dest*.
 void uv_rtc_get_time(uv_time_st *dest);
 

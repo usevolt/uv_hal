@@ -25,9 +25,29 @@ void _uv_rtc_init() {
 	// disable calibration
 	LPC_RTC->CALIBRATION = 0;
 
+	// check that all values are more or less right values
+	if (LPC_RTC->YEAR > 2100) {
+		LPC_RTC->YEAR = 2000;
+	}
+	if (LPC_RTC->MONTH > 12) {
+		LPC_RTC->MONTH = 1;
+	}
+	if (LPC_RTC->DOM > 31) {
+		LPC_RTC->DOM = 31;
+	}
+	if (LPC_RTC->HOUR > 24) {
+		LPC_RTC->HOUR = 1;
+	}
+	if (LPC_RTC->MIN >= 60) {
+		LPC_RTC->MIN = 0;
+	}
+	if (LPC_RTC->SEC >= 60) {
+		LPC_RTC->SEC = 0;
+	}
+
+
 
 }
-
 
 
 void uv_rtc_get_time(uv_time_st *dest) {

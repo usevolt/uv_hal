@@ -20,12 +20,7 @@ static void redraw(void *me) {
 
 	uv_lcd_draw_rect(uv_ui_get_xglobal(this), uv_ui_get_yglobal(this),
 			uv_ui_get_bb(this)->width, uv_ui_get_bb(this)->height,
-			this->style->main_color);
-	if (this->style->frame_thickness) {
-		uv_lcd_draw_frame(uv_ui_get_xglobal(this), uv_ui_get_yglobal(this),
-				uv_ui_get_bb(this)->width, uv_ui_get_bb(this)->height,
-				this->style->frame_thickness, this->style->frame_color);
-	}
+			this->style->window_c);
 }
 
 

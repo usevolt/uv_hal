@@ -24,7 +24,7 @@ typedef struct {
 
 
 /// @brief: initializes the display
-void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uiwindow_style_st *style);
+void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *style);
 
 
 

@@ -13,7 +13,7 @@
 #include <uv_hal_config.h>
 #include "uv_utilities.h"
 #include "ui/uv_uifont.h"
-
+#include <string.h>
 
 /* Alignments */
 enum {
@@ -63,6 +63,9 @@ void uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms);
 
 /// @brief: Set's the text of all objects which are inherited from uv_uilabel_st
 static inline void uv_uilabel_set_text(void *me, char *str) {
+	if (strcmp(str, this->str) == 0) {
+		return;
+	}
 	uv_ui_refresh(me);
 	this->str = str;
 }
@@ -70,12 +73,18 @@ static inline void uv_uilabel_set_text(void *me, char *str) {
 
 /// @brief: Sets the color of the label text
 static inline void uv_uilabel_set_color(void *me, color_t c) {
+	if (this->color == c) {
+		return;
+	}
 	uv_ui_refresh(me);
 	this->color = c;
 }
 
 /// @brief: Sets the background color
 static inline void uv_uilabel_set_bg_color(void *me, color_t c) {
+	if (this->bg_color == c) {
+		return;
+	}
 	uv_ui_refresh(me);
 	this->bg_color = c;
 }
@@ -83,7 +92,7 @@ static inline void uv_uilabel_set_bg_color(void *me, color_t c) {
 
 static inline void uv_uilabel_init(void *me, const uv_font_st *font,
 		alignment_e alignment, color_t color, color_t bgcolor, char *str) {
-	uv_uiobject_init((void*) this);
+	uv_uiobject_init(this);
 	this->font = font;
 	this->str = str;
 	this->align = alignment;

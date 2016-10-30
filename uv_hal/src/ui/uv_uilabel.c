@@ -92,7 +92,8 @@ void uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 		y += uv_ui_get_bb(this)->height;
 	}
 
-	uv_lcd_draw_rect(x, y, uv_uibb(this)->width, uv_uibb(this)->height, this->bg_color);
+	if (!(this->bg_color & 0xFF000000))
+		uv_lcd_draw_rect(x, y, uv_uibb(this)->width, uv_uibb(this)->height, this->bg_color);
 	_uv_ui_draw_text(x, y, this->font, this->align, this->color, this->bg_color, this->str);
 
 }

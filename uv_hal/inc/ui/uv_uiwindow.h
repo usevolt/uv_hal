@@ -38,7 +38,7 @@ typedef struct {
 	uint16_t objects_count;
 	/// @brief: The GUI style attached to this window.
 	/// Refer to uv_uiwindow_styles_st in uv_ui_styles.h for more info.
-	const uv_uiwindow_style_st *style;
+	const uv_uistyle_st *style;
 } uv_uiwindow_st;
 
 
@@ -52,11 +52,15 @@ typedef struct {
 void uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms);
 
 
+#ifdef this
+#undef this
+#endif
+#define this ((uv_uiwindow_st *)me)
 
 
 /// @brief: initializes the window
-static inline void uv_uiwindow_init(uv_uiwindow_st *this,
-		uv_uiobject_st **object_array, const uv_uiwindow_style_st * style) {
+static inline void uv_uiwindow_init(void *me,
+		uv_uiobject_st **object_array, const uv_uistyle_st * style) {
 	uv_uiobject_init((uv_uiobject_st*) this);
 	this->objects = object_array;
 	this->objects_count = 0;
@@ -83,7 +87,7 @@ static inline void uv_uiwindow_init(uv_uiwindow_st *this,
 /// @param step_callb: Pointer to the appropriate object type's step function.
 /// Note that this is the only thing which the window uses to distinguish different
 /// object types from each other.
-static inline void uv_uiwindow_add(uv_uiwindow_st *this, void *object,
+static inline void uv_uiwindow_add(void *me, void *object,
 		uint16_t x, uint16_t y, uint16_t width, uint16_t height,
 		void (*step_callb)(void*, uv_touch_st*, uint16_t)) {
 	uv_uiobject_add(object, (uv_uiobject_st*) this,
@@ -93,9 +97,11 @@ static inline void uv_uiwindow_add(uv_uiwindow_st *this, void *object,
 
 
 /// @brief: Clears the object buffer memory clearing the whole window
-static inline void uv_uiwindow_clear(uv_uiwindow_st *this) {
+static inline void uv_uiwindow_clear(void *me) {
 	this->objects_count = 0;
 }
+
+#undef this
 
 #endif
 

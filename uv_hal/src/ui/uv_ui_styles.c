@@ -11,89 +11,40 @@
 
 #if CONFIG_LCD
 
-#define WINDOW_STYLE(x)		,{\
-	.main_color= CAT(CONFIG_UI_WINDOW_COLOR_, INC(INC(x))), \
-				.frame_color = CAT(CONFIG_UI_WINDOW_FRAME_COLOR_, INC(INC(x))), \
-				.frame_thickness = CAT(CONFIG_UI_WINDOW_FRAME_THICKNESS_, INC(INC(x))) \
-		}
 
-const uv_uiwindow_style_st uv_uiwindow_styles[CONFIG_UI_WINDOW_STYLES_COUNT] = {
-		{
-				.main_color= CONFIG_UI_WINDOW_COLOR_1,
-				.frame_color = CONFIG_UI_WINDOW_FRAME_COLOR_1,
-				.frame_thickness = CONFIG_UI_WINDOW_FRAME_THICKNESS_1
-		}
-		REPEAT(DEC(CONFIG_UI_WINDOW_STYLES_COUNT), WINDOW_STYLE)
-
-};
-
-
-#define BUTTON_STYLE(x)		,{\
-			.main_color = CAT(CONFIG_UI_BUTTON_COLOR_, INC(INC(x))), \
-			.frame_color = CAT(CONFIG_UI_BUTTON_FRAME_COLOR_, INC(INC(x))), \
-			.frame_thickness = CAT(CONFIG_UI_BUTTON_FRAME_THICKNESS_, INC(INC(x))), \
-			.text_color = CAT(CONFIG_UI_BUTTON_TEXT_COLOR_, INC(INC(x))), \
-			.text_font = & CAT(CONFIG_UI_BUTTON_TEXT_FONT_, INC(INC(x))) \
-		}
-const uv_uibutton_style_st uv_uibutton_styles[CONFIG_UI_BUTTON_STYLES_COUNT] = {
-		{
-				.main_color = CONFIG_UI_BUTTON_COLOR_1,
-				.frame_color = CONFIG_UI_BUTTON_FRAME_COLOR_1,
-				.frame_thickness = CONFIG_UI_BUTTON_FRAME_THICKNESS_1,
-				.text_color = CONFIG_UI_BUTTON_TEXT_COLOR_1,
-				.text_font = & CONFIG_UI_BUTTON_TEXT_FONT_1
-		}
-		REPEAT(DEC(CONFIG_UI_BUTTON_STYLES_COUNT), BUTTON_STYLE)
-};
-
-
-
-
-#define LIST_STYLE(x)			,{\
-		.main_color = CAT(CONFIG_UI_LIST_COLOR_, INC(INC(x))), \
-		.highlight_color = CAT(CONFIG_UI_LIST_HIGHLIGHT_COLOR_, INC(INC(x))), \
-		.frame_color = CAT(CONFIG_UI_LIST_FRAME_COLOR_, INC(INC(x))), \
-		.frame_thickness = CAT(CONFIG_UI_LIST_FRAME_THICKNESS_, INC(INC(x))), \
-		.text_color = CAT(CONFIG_UI_LIST_TEXT_COLOR_, INC(INC(x))), \
-		.text_font = & CAT(CONFIG_UI_LIST_TEXT_FONT_, INC(INC(x))) \
+#define STYLE(x)			,{\
+		.active_bg_c = CAT(CONFIG_UI_STYLE_ACTIVE_BG_C_, INC(INC(x))), \
+		.active_fg_c = CAT(CONFIG_UI_STYLE_ACTIVE_FG_C_, INC(INC(x))), \
+		.active_frame_c = CAT(CONFIG_UI_STYLE_ACTIVE_FRAME_C_, INC(INC(x))), \
+		.active_font_c = CAT(CONFIG_UI_STYLE_ACTIVE_FONT_C_, INC(INC(x))), \
+		.inactive_bg_c = CAT(CONFIG_UI_STYLE_INACTIVE_BG_C_, INC(INC(x))), \
+		.inactive_fg_c = CAT(CONFIG_UI_STYLE_INACTIVE_FG_C_, INC(INC(x))), \
+		.inactive_frame_c = CAT(CONFIG_UI_STYLE_INACTIVE_FRAME_C_, INC(INC(x))), \
+		.inactive_font_c = CAT(CONFIG_UI_STYLE_INACTIVE_FONT_C_, INC(INC(x))), \
+		.font = & CAT(CONFIG_UI_STYLE_FONT_, INC(INC(x))), \
+		.window_c = CAT(CONFIG_UI_STYLE_WINDOW_C_, INC(INC(x))) \
 	}
-const uv_uilist_style_st uv_uilist_styles[CONFIG_UI_LIST_STYLES_COUNT] = {
+const uv_uistyle_st uv_uistyles[CONFIG_UI_STYLES_COUNT] = {
 		{
-				.main_color = CONFIG_UI_LIST_COLOR_1,
-				.highlight_color = CONFIG_UI_LIST_HIGHLIGHT_COLOR_1,
-				.frame_color = CONFIG_UI_LIST_FRAME_COLOR_1,
-				.frame_thickness = CONFIG_UI_LIST_FRAME_THICKNESS_1,
-				.text_color = CONFIG_UI_LIST_TEXT_COLOR_1,
-				.text_font = & CONFIG_UI_LIST_TEXT_FONT_1
+				.active_bg_c = CONFIG_UI_STYLE_ACTIVE_BG_C_1,
+				.active_fg_c = CONFIG_UI_STYLE_ACTIVE_FG_C_1,
+				.active_frame_c = CONFIG_UI_STYLE_ACTIVE_FRAME_C_1,
+				.active_font_c = CONFIG_UI_STYLE_ACTIVE_FONT_C_1,
+				.inactive_bg_c = CONFIG_UI_STYLE_INACTIVE_BG_C_1,
+				.inactive_fg_c = CONFIG_UI_STYLE_INACTIVE_FG_C_1,
+				.inactive_frame_c = CONFIG_UI_STYLE_INACTIVE_FRAME_C_1,
+				.inactive_font_c = CONFIG_UI_STYLE_INACTIVE_FONT_C_1,
+				.font = & CONFIG_UI_STYLE_FONT_1,
+				.window_c = CONFIG_UI_STYLE_WINDOW_C_1
 		}
-		REPEAT(DEC(CONFIG_UI_LIST_STYLES_COUNT), LIST_STYLE)
+		REPEAT(DEC(CONFIG_UI_STYLES_COUNT), STYLE)
 };
 
 
 
-#define SLIDER_STYLE(x)			,{\
-		.bg_color = CAT(CONFIG_UI_SLIDER_BG_COLOR_, INC(INC(x))), \
-		.handle_color = CAT(CONFIG_UI_SLIDER_HANDLE_COLOR_, INC(INC(x))), \
-		.frame_color = CAT(CONFIG_UI_SLIDER_FRAME_COLOR_, INC(INC(x))), \
-		.frame_thickness = CAT(CONFIG_UI_SLIDER_FRAME_THICKNESS_, INC(INC(x))), \
-		.width = CAT(CONFIG_UI_SLIDER_WIDTH_, INC(INC(x))), \
-		.handle_width = CAT(CONFIG_UI_SLIDER_WIDTH_, INC(INC(x))), \
-		.text_color = CAT(CONFIG_UI_SLIDER_TEXT_COLOR_, INC(INC(x))), \
-		.text_font = & CAT(CONFIG_UI_SLIDER_TEXT_FONT_, INC(INC(x))) \
-	}
-const uv_uislider_style_st uv_uislider_styles[CONFIG_UI_SLIDER_STYLES_COUNT] = {
-		{
-				.bg_color = CONFIG_UI_SLIDER_BG_COLOR_1,
-				.handle_color = CONFIG_UI_SLIDER_HANDLE_COLOR_1,
-				.frame_color = CONFIG_UI_SLIDER_FRAME_COLOR_1,
-				.frame_thickness = CONFIG_UI_SLIDER_FRAME_THICKNESS_1,
-				.width = CONFIG_UI_SLIDER_WIDTH_1,
-				.handle_width = CONFIG_UI_SLIDER_HANDLE_WIDTH_1,
-				.text_color = CONFIG_UI_SLIDER_TEXT_COLOR_1,
-				.text_font = & CONFIG_UI_SLIDER_TEXT_FONT_1
-		}
-		REPEAT(DEC(CONFIG_UI_SLIDER_STYLES_COUNT), SLIDER_STYLE)
-};
+
+
+
 
 
 
@@ -120,6 +71,7 @@ const uv_uikeyboard_style_st uv_uikeyboard_styles[CONFIG_UI_KEYBOARD_STYLES_COUN
 		}
 		REPEAT(DEC(CONFIG_UI_KEYBOARD_STYLES_COUNT), KEYBOARD_STYLE)
 };
+
 
 
 #endif

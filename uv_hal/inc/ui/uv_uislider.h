@@ -14,6 +14,11 @@
 
 #if CONFIG_LCD
 
+#if !CONFIG_UI_SLIDER_WIDTH
+#error "CONFIG_UI_SLIDER_WIDTH should define the slider *width*. For horizontal slider this means the height.\
+ Also handle height is taken from this value."
+#endif
+
 
 /// @brief: Slider is a vertical or horizontal slider with a value
 typedef struct {
@@ -30,7 +35,7 @@ typedef struct {
 	bool horizontal;
 	/// @brief: Value changed-callback
 	void (*callb)(void *me, int16_t value);
-	const uv_uislider_style_st *style;
+	const uv_uistyle_st *style;
 } uv_uislider_st;
 
 #ifdef this
@@ -47,7 +52,7 @@ typedef struct {
 /// @param callb: The callback which is called when the value is changed. Parameter: pointer to
 /// this slider structure, the current value
 static inline void uv_uislider_init(void *me, int16_t min_value, int16_t max_value, int16_t current_value,
-		const uv_uislider_style_st *style, void (*callb)(void *, int16_t)) {
+		const uv_uistyle_st *style, void (*callb)(void *, int16_t)) {
 	uv_uiobject_init(this);
 	this->min_val = min_value;
 	this->max_val = max_value;

@@ -11,7 +11,7 @@
 
 #define this ((uv_uidisplay_st*) me)
 
-void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uiwindow_style_st *style) {
+void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *style) {
 	uv_uiwindow_init(me, objects, style);
 	// display fills the whole screen
 	uv_ui_get_bb(me)->x = 0;

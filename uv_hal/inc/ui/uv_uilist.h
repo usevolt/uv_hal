@@ -15,6 +15,10 @@
 
 #if CONFIG_LCD
 
+#if !CONFIG_UI_LIST_ENTRY_HEIGHT
+#error "CONFIG_UI_LIST_ENTRY_HEIGHT should define the height of a single entry in list in pixels"
+#endif
+
 
 /// @brief: List is a selectable vertical list of label entries
 typedef struct {
@@ -25,7 +29,7 @@ typedef struct {
 	/// @brief: Index of the currently selected index
 	int16_t selected_index;
 	/// @brief: UI style
-	const uv_uilist_style_st *style;
+	const uv_uistyle_st *style;
 } uv_uilist_st;
 
 
@@ -41,7 +45,7 @@ typedef struct {
 /// @param buffer_len: The length of the buffer in elements
 /// @param style: The UI style attached to this list
 static inline void uv_uilist_init(void *me, char **buffer,
-		uint16_t buffer_len, const uv_uilist_style_st *style) {
+		uint16_t buffer_len, const uv_uistyle_st *style) {
 	uv_uiobject_init(me);
 	this->selected_index = -1;
 	uv_vector_init(&this->entries, buffer, buffer_len, sizeof(char*));
