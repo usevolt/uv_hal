@@ -29,6 +29,9 @@ void _uv_rtc_init() {
 	if (LPC_RTC->YEAR > 2100) {
 		LPC_RTC->YEAR = 2000;
 	}
+	else if (LPC_RTC->YEAR < 2000) {
+		LPC_RTC->YEAR = 2000;
+	}
 	if (LPC_RTC->MONTH > 12) {
 		LPC_RTC->MONTH = 1;
 	}

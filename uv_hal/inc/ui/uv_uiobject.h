@@ -19,13 +19,13 @@
 /// @brief: Struct for individual object's bounding box.
 typedef struct {
 	/// @brief: local left-most GLOBAL x coordinate relative to the parent
-	uint16_t x;
+	int16_t x;
 	/// @brief: Local top-most y-coordinate relative to the parent
-	uint16_t y;
+	int16_t y;
 	/// @brief: Width, growing to right
-	uint16_t width;
+	int16_t width;
 	/// @brief: Height, growing to bottom
-	uint16_t height;
+	int16_t height;
 } uv_bounding_box_st;
 
 

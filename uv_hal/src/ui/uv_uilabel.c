@@ -133,3 +133,15 @@ void _uv_ui_draw_text(uint16_t x, uint16_t y, const uv_font_st *font,
 }
 
 
+int16_t uv_ui_text_width_px(char *str, const uv_font_st *font) {
+	int16_t len = 0;
+	char *c = str;
+	while (*c != '\0') {
+		len++;
+		if (*c == '\n' || *c == '\r') len = 0;
+		c++;
+	}
+	return len * font->char_width;
+}
+
+

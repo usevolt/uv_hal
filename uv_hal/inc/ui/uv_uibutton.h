@@ -59,6 +59,11 @@ static inline void uv_uibutton_set_text(void *me, char *text) {
 	this->super.refresh = true;
 }
 
+/// @brief: Returns the button text
+static inline char *uv_uibutton_get_text(void *me) {
+	return this->text;
+}
+
 
 /// @brief: Step function should be called every step cycle
 void uv_uibutton_step(void *me, uv_touch_st *touch, uint16_t step_ms);

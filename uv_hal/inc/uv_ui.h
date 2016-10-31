@@ -18,6 +18,6 @@
 #include "ui/uv_uikeyboard.h"
 #include "ui/uv_uitabwindow.h"
 #include "ui/uv_uiprogressbar.h"
-
+#include "ui/uv_uilayout.h"
 
 #endif /* UW_UI_H_ */

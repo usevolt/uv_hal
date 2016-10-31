@@ -21,7 +21,7 @@ static void draw(void *me) {
 	int16_t active_tab_w = 0;
 
 	for (int16_t i = 0; i < this->tab_count; i++) {
-		tab_w = strlen(this->tab_names[i]) * this->super.style->font->char_width + 10;
+		tab_w = uv_ui_text_width_px((char *)this->tab_names[i], this->super.style->font) + 10;
 		if (tab_w < CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH) tab_w = CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH;
 		if (this->active_tab != i) {
 
