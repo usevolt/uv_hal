@@ -9,6 +9,7 @@
 #define UW_UI_H_
 
 #include <ui/uv_uibutton.h>
+#include "ui/uv_uitogglebutton.h"
 #include <ui/uv_uidisplay.h>
 #include <ui/uv_uilabel.h>
 #include <ui/uv_uislider.h>

@@ -150,6 +150,7 @@ uv_errors_e uv_memory_save(uv_data_start_t *start_ptr, uv_data_end_t *end_ptr) {
 	last_start = start_ptr;
 	last_end = end_ptr;
 	int length = ((unsigned int) end_ptr + sizeof(uv_data_end_t)) - (unsigned int) start_ptr;
+	printf("Flashing %u bytes\n\r", length);
 	if (length < 0) {
 		__uv_err_throw(ERR_END_ADDR_LESS_THAN_START_ADDR | HAL_MODULE_MEMORY);
 	}
@@ -322,8 +323,6 @@ uv_iap_status_e uv_erase_and_write_to_flash(unsigned int ram_address,
 
 	//enable interrupts
 	__enable_irq();
-
-	printf("Flashed %u bytes\n\r", num_bytes);
 
 	return status_result[0];
 }

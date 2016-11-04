@@ -117,8 +117,8 @@ static inline int16_t uv_uislider_get_max_value(void *me) {
 
 /// @brief: Sets the current value
 static inline void uv_uislider_set_value(void *me, int16_t value) {
+	if (value != this->cur_val) uv_ui_refresh(this);
 	this->cur_val = value;
-	uv_ui_refresh(this);
 }
 
 /// @brief: Returns the current value

@@ -13,6 +13,14 @@
 #define this ((uv_uilist_st*)me)
 
 
+void uv_uilist_init(void *me, char **buffer, uint16_t buffer_len, const uv_uistyle_st *style) {
+	uv_uiobject_init(me);
+	this->selected_index = -1;
+	uv_vector_init(&this->entries, buffer, buffer_len, sizeof(char*));
+	this->style = style;
+}
+
+
 void uv_uilist_recalc_height(void *me) {
 	if (uv_uibb(this)->height <
 			uv_vector_size(&this->entries) * CONFIG_UI_LIST_ENTRY_HEIGHT) {
@@ -46,13 +54,15 @@ static void draw(void *me) {
 				this->style->inactive_bg_c, *((char**) uv_vector_at(&this->entries, i)));
 		y += entry_height - 1;
 	}
-	uv_lcd_draw_rect(x, sely, uv_ui_get_bb(this)->width, entry_height, this->style->active_bg_c);
+	if (this->selected_index >= 0) {
+		uv_lcd_draw_rect(x, sely, uv_ui_get_bb(this)->width, entry_height, this->style->active_bg_c);
 
-	uv_lcd_draw_frame(x, sely, uv_uibb(this)->width, entry_height, 1, this->style->active_frame_c);
+		uv_lcd_draw_frame(x, sely, uv_uibb(this)->width, entry_height, 1, this->style->active_frame_c);
 
-	_uv_ui_draw_text(x + uv_uibb(this)->width / 2, sely + entry_height / 2,
-			this->style->font, ALIGN_CENTER, this->style->active_font_c,
-			this->style->active_bg_c, *((char**) uv_vector_at(&this->entries, this->selected_index)));
+		_uv_ui_draw_text(x + uv_uibb(this)->width / 2, sely + entry_height / 2,
+				this->style->font, ALIGN_CENTER, this->style->active_font_c,
+				this->style->active_bg_c, *((char**) uv_vector_at(&this->entries, this->selected_index)));
+	}
 }
 
 

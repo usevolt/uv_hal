@@ -330,7 +330,7 @@ uv_errors_e uv_vector_remove(uv_vector_st *this, uint16_t index);
 /// @brief: Returns the pointer to the *index*'th element of the vector
 ///
 /// @note: Doesn't check for buffer overflows!
-static inline void *uv_vector_at(uv_vector_st *this, uint16_t index) {
+static inline void *uv_vector_at(uv_vector_st *this, int16_t index) {
 	return &this->buffer[index * this->element_size];
 }
 

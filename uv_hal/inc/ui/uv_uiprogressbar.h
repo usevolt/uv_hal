@@ -89,13 +89,18 @@ static inline void uv_uiprogressbar_set_vertical(void *me) {
 /// @brief: Sets the progressbar current value.
 ///
 /// @param value: Value from 0 to 1000, e.g. part-per-thousands
-static inline void uv_uiprogressbar_value(void *me, uint16_t value) {
+static inline void uv_uiprogressbar_set_value(void *me, uint16_t value) {
 	if (value > this->max_val) value = this->max_val;
 	else if (value < this->min_val) value = this->min_val;
 	if (this->value != value) {
 		uv_ui_refresh(this);
 		this->value = value;
 	}
+}
+
+/// @brief: Getter for the value
+static inline int16_t uv_uiprogressbar_get_value(void *me) {
+	return this->value;
 }
 
 /// @brief: Sets the limit color. When the value is below *limit*,

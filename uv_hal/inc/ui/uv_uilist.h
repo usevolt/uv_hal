@@ -42,15 +42,9 @@ typedef struct {
 ///
 /// @param me: Pointer to the list structure
 /// @param buffer: List of strings, e.g. (char*)-array
-/// @param buffer_len: The length of the buffer in elements
+/// @param buffer_len: The maximum length of the buffer in elements
 /// @param style: The UI style attached to this list
-static inline void uv_uilist_init(void *me, char **buffer,
-		uint16_t buffer_len, const uv_uistyle_st *style) {
-	uv_uiobject_init(me);
-	this->selected_index = -1;
-	uv_vector_init(&this->entries, buffer, buffer_len, sizeof(char*));
-	this->style = style;
-}
+void uv_uilist_init(void *me, char **buffer, uint16_t buffer_len, const uv_uistyle_st *style);
 
 
 /// @brief: Step function is called every frame. It is also used to distinguish
@@ -66,6 +60,11 @@ void uv_uilist_recalc_height(void *me);
 /// is selected, returns -1.
 static inline int16_t uv_uilist_get_selected(void *me) {
 	return this->selected_index;
+}
+
+/// @brief: Returns the current list entry count
+static inline int16_t uv_uilist_get_count(void *me) {
+	return uv_vector_size(&this->entries);
 }
 
 /// @brief: Selects an entry from the list
