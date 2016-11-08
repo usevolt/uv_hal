@@ -124,21 +124,22 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, u
 ///
 /// @param gpio: uv_gpios_e pin to be configured
 #define uv_gpio_set(gpio, value)	\
-	(port(CAT(gpio, _port))->PIN = (port(CAT(gpio, _port))->PIN & ~(1 << CAT(gpio, _pin))) | (value << CAT(gpio, _pin)))
+	(port(CAT(CAT(GPIO_, gpio), _port))->PIN = (port(CAT(CAT(GPIO_, gpio), _port))->PIN \
+			& ~(1 << CAT(CAT(GPIO_, gpio), _pin))) | (value << CAT(CAT(GPIO_, gpio), _pin)))
 
 
 /// @brief: Toggles an output pin
 ///
 /// @param gpio: uv_gpios_e pin to be configured
 #define uv_gpio_toggle(gpio) \
-	(port(CAT(gpio, _port))->PIN ^= (1 << CAT(gpio, _pin)))
+	(port(CAT(CAT(GPIO_, gpio), _port))->PIN ^= (1 << CAT(CAT(GPIO_, gpio), _pin)))
 
 
 /// @brief: Returns the state of the input GPIO pin
 ///
 /// @param gpio: uv_gpios_e pin to be configured
 #define uv_gpio_get(gpio) \
-	((CAT(gpio, _port)->PIN & ~(1 << CAT(gpio, _pin))) >> CAT(gpio, _pin))
+	((CAT(CAT(GPIO_, gpio), _port)->PIN & ~(1 << CAT(CAT(GPIO_, gpio), _pin))) >> CAT(CAT(GPIO_, gpio), _pin))
 
 
 
@@ -148,7 +149,7 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, u
 /// @param initial_val: True of false, the initial output value
 #define uv_gpio_init_output(gpio, initial_val) \
 	uv_gpio_configure(gpio, 0); \
-	port(CAT(gpio, _port))->DIR |= (1 << CAT(gpio, _pin)); \
+	port(CAT(CAT(GPIO_, gpio), _port))->DIR |= (1 << CAT(CAT(GPIO_, gpio), _pin)); \
 	uv_gpio_set(gpio, initial_val)
 
 
@@ -185,7 +186,7 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, u
 ///
 /// @note: Only to be used inside this HAL library!
 #define uv_gpio_configure(gpio, input_config)\
-	(CAT(gpio, _config(input_config)))
+	(CAT(CAT(GPIO_, gpio), _config(input_config)))
 
 
 

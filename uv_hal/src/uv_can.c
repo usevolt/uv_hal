@@ -62,7 +62,6 @@ typedef struct {
 	uint8_t msgobj;
 
 } hal_can_msg_obj_st;
-#endif
 
 
 typedef struct {
@@ -80,7 +79,6 @@ typedef struct {
 #else
 
 #endif
-#if CONFIG_TARGET_LPC11C14
 	uint32_t used_msg_objs;
 	// temporary message struct. This can be used instead of local variables
 	// to save stack memory.
@@ -88,9 +86,6 @@ typedef struct {
 	// temporary hal message object to be used when receiving messages
 	// defined here to be global instead of local
 	hal_can_msg_obj_st temp_obj;
-#elif CONFIG_TARGET_LPC1785
-
-#endif
 	bool init;
 	uv_can_message_st rx_buffer_data[CONFIG_CAN1_RX_BUFFER_SIZE];
 	uv_ring_buffer_st rx_buffer;
@@ -101,11 +96,34 @@ typedef struct {
 #endif
 	void (*rx_callback[CAN_COUNT])(void *user_ptr);
 
-} this_st;
-static this_st _this = {
+} can_st;
+#elif CONFIG_TARGET_LPC1785
+typedef struct {
+	bool init;
+	void (*rx_callback[CAN_COUNT])(void *user_ptr);
+#if CONFIG_CAN1
+	uv_can_message_st rx_buffer_data1[CONFIG_CAN1_RX_BUFFER_SIZE];
+#endif
+#if CONFIG_CAN2
+	uv_can_message_st rx_buffer_data2[CONFIG_CAN2_RX_BUFFER_SIZE];
+#endif
+	uv_ring_buffer_st rx_buffer[CAN_COUNT];
+
+
+#if CONFIG_TERMINAL_CAN
+	uv_ring_buffer_st char_buffer;
+	char char_buffer_data[CONFIG_TERMINAL_BUFFER_SIZE];
+#endif
+
+} can_st;
+
+#endif
+
+
+static can_st _can = {
 		.init = false
 };
-#define this (&_this)
+#define this (&_can)
 
 
 
@@ -462,7 +480,7 @@ uv_can_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st
 }
 
 
-uv_errors_e uv_can_fetch_message(uv_can_channels_e channel, uv_can_message_st *message) {
+uv_errors_e uv_can_pop_message(uv_can_channels_e channel, uv_can_message_st *message) {
 	if (check_channel(channel)) return check_channel(channel);
 
 	return uv_ring_buffer_pop(&this->rx_buffer, message);
@@ -505,8 +523,55 @@ uv_errors_e uv_can_get_char(char *dest) {
 
 uv_errors_e _uv_can_init() {
 
-	uv_ring_buffer_init(&this->rx_buffer, this->rx_buffer_data,
+#if CONFIG_CAN1
+	uv_ring_buffer_init(&this->rx_buffer[0], this->rx_buffer_data1,
 			CONFIG_CAN1_RX_BUFFER_SIZE, sizeof(uv_can_message_st));
+	this->rx_callback[0] = NULL;
+
+	// enable power to the peripheral
+	LPC_SC->PCONP |= (1 << 13);
+
+	// configure the IO pins
+#if CONFIG_CAN1_TX_PIN == PIO0_1
+	LPC_IOCON->P0_1 = 1;
+#elif CONFIG_CAN1_TX_PIN == PIO0_22
+	LPC_IOCON->P0_22 = 0b100;
+#endif
+#if CONFIG_CAN1_RX_PIN == PIO0_0
+	LPC_IOCON->P0_0 = 1;
+#elif CONFIG_CAN1_RX_PIN == PIO0_21
+	LPC_IOCON->P0_21 = 0b100;
+#endif
+
+	// enter reset mode
+	LPC_CAN1->MOD |= 1;
+	// normal mode, transmit priority to CAN IDs, no sleep mode,
+	LPC_CAN1->MOD &= (0b1011111 << 1);
+
+#endif
+#if CONFIG_CAN2
+	uv_ring_buffer_init(&this->rx_buffer[1], this->rx_buffer_data2,
+			CONFIG_CAN2_RX_BUFFER_SIZE, sizeof(uv_can_message_st));
+
+	this->rx_callback[1] = NULL;
+
+	LPC_SC->PCONP |= (1 << 14);
+
+#if CONFIG_CAN2_TX_PIN == PIO0_5
+	LPC_IOCON->P0_5 = 0b10;
+#elif CONFIG_CAN2_TX_PIN == PIO2_8
+	LPC_IOCON->P2_8 = 1;
+#endif
+#if CONFIG_CAN2_RX_PIN == PIO0_4
+	LPC_IOCON->P0_4 = 0b10;
+#elif CONFIG_CAN2_RX_PIN == PIO2_7
+	LPC_IOCON->P2_7 = 1;
+#endif
+
+#endif
+
+
+	this->init = true;
 
 	return uv_err(ERR_NONE);
 }
@@ -514,7 +579,7 @@ uv_errors_e _uv_can_init() {
 
 
 uv_errors_e uv_can_step(uv_can_channels_e channel, unsigned int step_ms) {
-	if (check_channel(channel)) return check_channel(channel);
+	if (!this->init) return uv_err(ERR_NOT_INITIALIZED | HAL_MODULE_CAN);
 
 	return uv_err(ERR_NONE);
 }
@@ -523,21 +588,24 @@ uv_errors_e uv_can_step(uv_can_channels_e channel, unsigned int step_ms) {
 
 uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		unsigned int id,
-		unsigned int mask,
 		uv_can_msg_types_e type) {
-	if (check_channel(channel)) return check_channel(channel);
 
-	return uv_err(ERR_NONE);
+}
+
+uv_errors_e uv_can_config_rx_message_range(uv_can_channels_e channel,
+		unsigned int start_id,
+		unsigned int end_id,
+		uv_can_msg_types_e type) {
+
 }
 
 
 uv_can_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message) {
-	if (check_channel(channel)) return check_channel(channel);
 
 	return uv_err(ERR_NONE);
 }
 
-uv_errors_e uv_can_fetch_message(uv_can_channels_e channel, uv_can_message_st *message) {
+uv_errors_e uv_can_pop_message(uv_can_channels_e channel, uv_can_message_st *message) {
 
 	return uv_ring_buffer_pop(&this->rx_buffer, message);
 }
@@ -568,9 +636,11 @@ uv_errors_e uv_can_add_rx_callback(uv_can_channels_e channel,
 
 /// @brief: Inner hal step function which is called in rtos hal task
 void _uv_can_hal_step(unsigned int step_ms) {
+#if CONFIG_TARGET_LPC11C14
 	if (this->tx_pending > 0)
 		this->tx_pending -= step_ms;
 	else this->tx_pending = 0;
+#endif
 }
 
 

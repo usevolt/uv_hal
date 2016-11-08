@@ -10,6 +10,7 @@
 
 #include "uv_hal_config.h"
 #include "uv_errors.h"
+#include "uv_gpio.h"
 #include <stdint.h>
 #include <stdbool.h>
 /// @file: CAN implementation on top of the HAL layer
@@ -32,20 +33,6 @@
 #if CONFIG_CAN2
 #error "Hardware doesn't support CAN2 module. Set CONFIG_CAN2 to 0."
 #endif
-#elif CONFIG_TARGET_LPC1785
-#if CONFIG_CAN2
-#if !defined(CONFIG_CAN2_BAUDRATE)
-#error "CONFIG_CAN2_BAUDRATE not defined. It should define the baudrate used for CAN2 module."
-#endif
-#if !defined(CONFIG_CAN2_RX_BUFFER_SIZE)
-#error "CONFIG_CAN2_RX_BUFFER_SIZE not defined. It should define the buffer size used for receiving messages."
-#endif
-#if !defined(CONFIG_CAN2_TX_BUFFER_SIZE)
-#error "CONFIG_CAN2_TX_BUFFER_SIZE not defined. It should define the buffer size used for transmit messages."
-#endif
-#endif
-#endif
-
 #if CONFIG_CAN1
 #if !defined(CONFIG_CAN1_BAUDRATE)
 #error "CONFIG_CAN1_BAUDRATE not defined. It should define the baudrate used for CAN1 module."
@@ -57,6 +44,55 @@
 #error "CONFIG_CAN1_TX_BUFFER_SIZE not defined. It should define the buffer size used for transmit messages."
 #endif
 #endif
+#elif CONFIG_TARGET_LPC1785
+#if CONFIG_CAN1
+#if !defined(CONFIG_CAN1_BAUDRATE)
+#error "CONFIG_CAN1_BAUDRATE not defined. It should define the baudrate used for CAN1 module."
+#endif
+#if !defined(CONFIG_CAN1_RX_BUFFER_SIZE)
+#error "CONFIG_CAN1_RX_BUFFER_SIZE not defined. It should define the buffer size used for receiving messages."
+#endif
+#if !defined(CONFIG_CAN1_TX_BUFFER_SIZE)
+#error "CONFIG_CAN1_TX_BUFFER_SIZE not defined. It should define the buffer size used for transmit messages."
+#endif
+#if !defined(CONFIG_CAN1_TX_PIN)
+#error "CONFIG_CAN1_TX_PIN should define the GPIO pin used as the CAN1 transmit pin"
+#endif
+#if !defined(CONFIG_CAN1_RX_PIN)
+#error "CONFIG_CAN1_RX_PIN should define the GPIO pin used as the CAN1 receive pin"
+#endif
+#if CONFIG_CAN1_TX_PIN != PIO0_1 && CONFIG_CAN1_TX_PIN != PIO0_22
+#error "CONFIG_CAN1_TX_PIN can be PIO0_1 or PIO0_22"
+#endif
+#if CONFIG_CAN1_RX_PIN != PIO0_0 && CONFIG_CAN1_RX_PIN != PIO0_21
+#error "CONFIG_CAN1_RX_PIN can be PIO0_0 or PIO0_21"
+#endif
+#endif
+#if CONFIG_CAN2
+#if !defined(CONFIG_CAN2_BAUDRATE)
+#error "CONFIG_CAN2_BAUDRATE not defined. It should define the baudrate used for CAN2 module."
+#endif
+#if !defined(CONFIG_CAN2_RX_BUFFER_SIZE)
+#error "CONFIG_CAN2_RX_BUFFER_SIZE not defined. It should define the buffer size used for receiving messages."
+#endif
+#if !defined(CONFIG_CAN2_TX_BUFFER_SIZE)
+#error "CONFIG_CAN2_TX_BUFFER_SIZE not defined. It should define the buffer size used for transmit messages."
+#endif
+#if !defined(CONFIG_CAN2_TX_PIN)
+#error "CONFIG_CAN2_TX_PIN should define the GPIO pin used as the CAN2 transmit pin"
+#endif
+#if !defined(CONFIG_CAN2_RX_PIN)
+#error "CONFIG_CAN2_RX_PIN should define the GPIO pin used as the CAN2 receive pin"
+#endif
+#if CONFIG_CAN2_TX_PIN != PIO0_5 && CONFIG_CAN2_TX_PIN != PIO2_8
+#error "CONFIG_CAN2_TX_PIN can be PIO0_5 or PIO2_8"
+#endif
+#if CONFIG_CAN2_RX_PIN != PIO0_4 && CONFIG_CAN2_RX_PIN != PIO2_7
+#error "CONFIG_CAN2_RX_PIN can be PIO0_4 or PIO2_7"
+#endif
+#endif
+#endif
+
 
 
 typedef enum {
@@ -154,11 +190,38 @@ uv_errors_e uv_can_step(uv_can_channels_e channel, unsigned int step_ms);
 /// To receive only a single dedicated message, this should be set to 0xFFFFFFFF or
 /// CAN_ID_MASK_DEFAULT
 /// @param type: The type of the message ID. Either 11-bit or 29-bit identifier is supported.
+#if CONFIG_TARGET_LPC11C14
 uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		unsigned int id,
 		unsigned int mask,
 		uv_can_msg_types_e type);
+#elif CONFIG_TARGET_LPC1785
+/// @brief: Configures the CAN hardware to receive the messages with the given ID.
+///
+/// @note: Without a call to this, the CAN hardware doesn't process any received messages.
+/// For a receive callback function to be called when the message is received,
+/// the wanted message's ID needs to be configured with a call to this function.
+///
+/// The maximum number of messages which can be registered with this is hardware dependent.
+/// If the maximum message count is exceeded, this function returns error from that.
+///
+/// @param channel: The CAN hardware channel to be configured
+/// @param id: The messages ID which is wanted to be received
+/// @param type: The type of the message ID. Either 11-bit or 29-bit identifier is supported.
+uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
+		unsigned int id,
+		uv_can_msg_types_e type);
 
+/// @brief: Configures the CAN hardware to receive a range of messages.
+/// All messages with the ID between *start_id* and *end_id* are received.
+///
+/// @param start_id: The smallest message ID to be received
+/// @param end_id: The biggest message ID to be received.
+uv_errors_e uv_can_config_rx_message_range(uv_can_channels_e channel,
+		unsigned int start_id,
+		unsigned int end_id,
+		uv_can_msg_types_e type);
+#endif
 
 
 
@@ -181,15 +244,12 @@ uv_can_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st
 /// the message cannot be retrieved anymore.
 ///
 /// @param message: Pointer to the message data structure where the received message will be copied.
-uv_errors_e uv_can_fetch_message(uv_can_channels_e channel, uv_can_message_st *message);
+uv_errors_e uv_can_pop_message(uv_can_channels_e channel, uv_can_message_st *message);
 
 
 /// @brief: Returns the CAN 2.0 specification error state. Error active is the normal state.
 uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel);
 
-
-
-uv_errors_e uv_can_reset(uv_can_channels_e channel);
 
 
 

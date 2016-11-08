@@ -95,10 +95,15 @@ if (canopen_log) { \
 
 
 /// @brief: Configures the HW CAN message object to receive this RXPDO
+#if CONFIG_TARGET_LPC11C14
 #define RXPDO_CONFIG_MESSAGE_OBJ(x) \
 		uv_can_config_rx_message(this->can_channel, this->obj_dict.com_params.rxpdo_coms[x].cob_id, \
 			CAN_ID_MASK_DEFAULT, CAN_11_BIT_ID);
-
+#elif CONFIG_TARGET_LPC1785
+#define RXPDO_CONFIG_MESSAGE_OBJ(x) \
+		uv_can_config_rx_message(this->can_channel, this->obj_dict.com_params.rxpdo_coms[x].cob_id\
+			, CAN_11_BIT_ID);
+#endif
 
 /// @brief: Clear's the x'th predefined error to zero. Useful for initializing the error register
 #define PREDEFINED_ERROR_CLEAR(x)	\
@@ -206,6 +211,7 @@ uv_errors_e uv_canopen_init(uv_canopen_st *me,
 	this->can_channel = can_channel;
 
 	// configure receive messages for NMT, SDO and PDO messages for this node id and broadcast
+#if CONFIG_TARGET_LPC11C14
 	// NMT broadcasting
 	uv_can_config_rx_message(this->can_channel, CANOPEN_NMT_ID,
 			CAN_ID_MASK_DEFAULT, CAN_11_BIT_ID);
@@ -222,6 +228,20 @@ uv_errors_e uv_canopen_init(uv_canopen_st *me,
 	if (emcy_callback) {
 		uv_can_config_rx_message(this->can_channel, CANOPEN_EMCY_ID, 0xFFFFFF00, CAN_11_BIT_ID);
 	}
+#elif CONFIG_TARGET_LPC1785
+	// NMT broadcasting
+	uv_can_config_rx_message(this->can_channel, CANOPEN_NMT_ID, CAN_11_BIT_ID);
+	// NMT node id
+	uv_can_config_rx_message(this->can_channel, CANOPEN_NMT_ID + NODE_ID, CAN_11_BIT_ID);
+	// SDO request broadcasting
+	uv_can_config_rx_message(this->can_channel, CANOPEN_SDO_REQUEST_ID, CAN_11_BIT_ID);
+	// SDO request node id
+	uv_can_config_rx_message(this->can_channel, CANOPEN_SDO_REQUEST_ID + NODE_ID, CAN_11_BIT_ID);
+	// all other nodes' EMCY messages
+	if (emcy_callback) {
+		uv_can_config_rx_message_range(this->can_channel, CANOPEN_EMCY_ID, CANOPEN_EMCY_ID + 0xFF, CAN_11_BIT_ID);
+	}
+#endif
 	// RXPDOs
 	REPEAT(CONFIG_CANOPEN_RXPDO_COUNT, RXPDO_CONFIG_MESSAGE_OBJ);
 
@@ -304,7 +324,7 @@ uv_errors_e uv_canopen_step(uv_canopen_st *me, unsigned int step_ms) {
 	// RX message parsing
 	uv_can_message_st msg;
 	// returning an error means that the can rx buffer was empty and no messages have been recieved
-	uv_err_check(uv_can_fetch_message(this->can_channel, &msg)) {
+	uv_err_check(uv_can_pop_message(this->can_channel, &msg)) {
 
 	}
 	// otherwise message has been received
