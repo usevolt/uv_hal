@@ -108,6 +108,7 @@ typedef struct {
 	uv_can_message_st rx_buffer_data2[CONFIG_CAN2_RX_BUFFER_SIZE];
 #endif
 	uv_ring_buffer_st rx_buffer[CAN_COUNT];
+	uv_can_message_st temp;
 
 
 #if CONFIG_TERMINAL_CAN
@@ -521,6 +522,50 @@ uv_errors_e uv_can_get_char(char *dest) {
 
 #elif CONFIG_TARGET_LPC1785
 
+
+// same handler for both CAN channels
+void CAN_IRQHandler(void) {
+#if CONFIG_CAN1
+	printf("CAN interrupt\n\r");
+	while (LPC_CAN1->GSR & 1) {
+		// data ready to be received
+		this->temp.id = LPC_CAN1->RID;
+		this->temp.data_length = ((LPC_CAN1->RFS & (0b1111 << 16)) >> 16);
+		if (this->temp.data_length > 8) this->temp.data_length = 8;
+		this->temp.type = (LPC_CAN1->RFS & (1 << 31)) ? CAN_EXT : CAN_STD;
+		this->temp.data_32bit[0] = LPC_CAN1->RDA;
+		this->temp.data_32bit[1] = LPC_CAN1->RDB;
+
+		printf("message id %u receveid: ", (unsigned int) this->temp.id);
+		for (int i = 0; i < this->temp.data_length; i++) {
+			printf( "0x%x ", this->temp.data_8bit[i]);
+		}
+		printf("\n\r");
+#if CONFIG_TERMINAL_CAN
+	// terminal characters are sent to their specific buffer
+	if (this->temp_msg.id == UV_TERMINAL_CAN_PREFIX + uv_get_crc()) {
+		uint8_t i;
+		for (i = 0; i < this->temp_msg.data_length; i++) {
+			uv_ring_buffer_push(&this->char_buffer, (char*) &this->temp_msg.data_8bit[i]);
+		}
+		// clear received flag
+		LPC_CAN1->CMR |= (1 << 2);
+		continue;
+	}
+#endif
+		uv_ring_buffer_push(&this->rx_buffer[0], &this->temp);
+
+		// clear received flag
+		LPC_CAN1->CMR = (1 << 2);
+	}
+
+#endif
+#if CONFIG_CAN2
+#error "Todo: copy CAN1 message reception to here"
+#endif
+}
+
+
 uv_errors_e _uv_can_init() {
 
 #if CONFIG_CAN1
@@ -542,11 +587,23 @@ uv_errors_e _uv_can_init() {
 #elif CONFIG_CAN1_RX_PIN == PIO0_21
 	LPC_IOCON->P0_21 = 0b100;
 #endif
-
 	// enter reset mode
 	LPC_CAN1->MOD |= 1;
 	// normal mode, transmit priority to CAN IDs, no sleep mode,
 	LPC_CAN1->MOD &= (0b1011111 << 1);
+	// enable receive interrupts
+	LPC_CAN1->IER = 1;
+	// todo: CAN clock settings
+//	LPC_CAN1->BTR = ...
+	// TSEG1 = 1, TSEG2 = 2, SJW = 1, SAM = 0
+	LPC_CAN1->BTR = (1 << 20);
+	// CAN baudrate = fosc / ((BRP + 1) * (TSEG1 + TSEG2)
+	// ((BRP + 1) * (1 + 2)) * baudrate = fosc
+	// (BRP + 1) * 3 = fosc / baudrate
+	// BRP = fosc / (3 * baudrate) - 1
+	LPC_CAN1->BTR |= (SystemCoreClock / (CONFIG_CAN1_BAUDRATE * 3) - 1) & 0x1FF;
+	// set CAN peripheral ON
+	LPC_CAN1->MOD &= ~1;
 
 #endif
 #if CONFIG_CAN2
@@ -554,6 +611,7 @@ uv_errors_e _uv_can_init() {
 			CONFIG_CAN2_RX_BUFFER_SIZE, sizeof(uv_can_message_st));
 
 	this->rx_callback[1] = NULL;
+#error "Todo: Copy CAN1 initialization here"
 
 	LPC_SC->PCONP |= (1 << 14);
 
@@ -568,6 +626,12 @@ uv_errors_e _uv_can_init() {
 	LPC_IOCON->P2_7 = 1;
 #endif
 
+#endif
+
+
+#if CONFIG_TERMINAL_CAN
+	uv_ring_buffer_init(&this->char_buffer, this->char_buffer_data, CONFIG_TERMINAL_BUFFER_SIZE, sizeof(char));
+	uv_can_config_rx_message(CAN1, UV_TERMINAL_CAN_PREFIX + uv_get_crc(), CAN_EXT);
 #endif
 
 
@@ -600,19 +664,72 @@ uv_errors_e uv_can_config_rx_message_range(uv_can_channels_e channel,
 }
 
 
-uv_can_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message) {
+uv_can_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* msg) {
+#if CONFIG_CAN1
+	if (channel == CAN1) {
+
+		// wait until any one transmit buffer is available for transmitting
+		while (!(LPC_CAN1->SR & ((1 << 2) | (1 << 10) | (1 << 18))));
+
+		if (LPC_CAN1->SR & (1 << 2)) {
+			LPC_CAN1->TFI1 = (msg->data_length << 16) |
+					((msg->type == CAN_EXT) ? (1 << 31) : 0);
+			LPC_CAN1->TID1 = msg->id;
+			LPC_CAN1->TDA1 = msg->data_32bit[0];
+			LPC_CAN1->TDB1 = msg->data_32bit[1];
+			// send message
+			LPC_CAN1->CMR = (1 | (1 << 5));
+		}
+		else if (LPC_CAN1->SR & (1 << 10)) {
+			LPC_CAN1->TFI2 = (msg->data_length << 16) |
+					((msg->type == CAN_EXT) ? (1 << 31) : 0);
+			LPC_CAN1->TID2 = msg->id;
+			LPC_CAN1->TDA2 = msg->data_32bit[0];
+			LPC_CAN1->TDB2 = msg->data_32bit[1];
+			// send message
+			LPC_CAN1->CMR = (1 | (1 << 6));
+		}
+		else if (LPC_CAN1->SR & (1 << 18)) {
+			LPC_CAN1->TFI3 = (msg->data_length << 16) |
+					((msg->type == CAN_EXT) ? (1 << 31) : 0);
+			LPC_CAN1->TID3 = msg->id;
+			LPC_CAN1->TDA3 = msg->data_32bit[0];
+			LPC_CAN1->TDB3 = msg->data_32bit[1];
+			// send message
+			LPC_CAN1->CMR = (1 | (1 << 7));
+		}
+	}
+#endif
+#if CONFIG_CAN2
+	if (channel == CAN2) {
+#error "Copy CAN1 message transmission here"
+	}
+#endif
 
 	return uv_err(ERR_NONE);
 }
 
 uv_errors_e uv_can_pop_message(uv_can_channels_e channel, uv_can_message_st *message) {
 
-	return uv_ring_buffer_pop(&this->rx_buffer, message);
+	return uv_ring_buffer_pop(&this->rx_buffer[channel], message);
 }
 
 
 uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
-
+#if CONFIG_CAN1
+	if (channel == CAN1) {
+		if (LPC_CAN1->GSR & (1 << 7)) {
+			return CAN_ERROR_BUS_OFF;
+		}
+		else if (LPC_CAN1->GSR & (1 << 6)) {
+			return CAN_ERROR_ACTIVE;
+		}
+		else return CAN_ERROR_PASSIVE;
+	}
+#endif
+#if CONFIG_CAN2
+#error "Copy CAN1 error state getter here"
+#endif
 	return uv_err(ERR_NONE);
 }
 

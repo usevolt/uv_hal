@@ -137,10 +137,10 @@ typedef enum {
 /// @brief: Describes all the available CAN channels on this hardware
 typedef enum {
 #if CONFIG_TARGET_LPC11C14
-	CAN1,
+	CAN1 = 0,
 	CAN_COUNT
 #elif CONFIG_TARGET_LPC1785
-	CAN1,
+	CAN1 = 0,
 	CAN2,
 	CAN_COUNT
 #else
