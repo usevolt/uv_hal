@@ -21,6 +21,9 @@
 #if CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
 #include "uv_gpio_lpc1785.h"
+#elif CONFIG_TARGET_LPC11C14
+#include "LPC11xx.h"
+#include "uv_gpio_lpc11c14.h"
 #endif
 
 
@@ -28,22 +31,6 @@
 /// @brief: provides an interface for initializing input and output gpios
 /// as well as reading and writing to them
 
-
-#if CONFIG_TARGET_LPC11C14
-#define GPIO_PORT_MASK	0xC0000000
-#define GPIO_PIN_MASK	0x3FFFFFFF
-
-#define PIN(x)		(x & GPIO_PIN_MASK)
-#define PORT(x)		((x & GPIO_PORT_MASK))
-
-#define GPIO_PORT_0		(0x0 << 30)
-#define GPIO_PORT_1		(0x1 << 30)
-#define GPIO_PORT_2		(0x2 << 30)
-#define GPIO_PORT_3		(0x3 << 30)
-
-
-#error "Note: uv_gpio should be updated to macro-based interface with lpc11c14"
-#endif
 
 
 
@@ -68,15 +55,11 @@ typedef enum {
 } uv_gpio_input_config_e;
 
 typedef enum {
-	INT_EDGE_SENSITIVE = 0x0,
 #if CONFIG_TARGET_LPC11C14
-	INT_LEVEL_SENSITIVE = 0x1,
 	INT_RISING_EDGE = (0x1 << 1),
 	INT_FALLING_EDGE = (0x0 << 1),
 	INT_BOTH_EDGES = (0x2 << 1),
-	INT_HIGH_LEVEL = (0x1 << 1),
-	INT_LOW_LEVEL = (0x0 << 1),
-	INT_DISABLE = 0xffff
+	INT_DISABLE = 0
 #elif CONFIG_TARGET_LPC1785
 	INT_RISING_EDGE = (0x1 << 0),
 	INT_FALLING_EDGE = (0x1 << 1),
@@ -86,28 +69,6 @@ typedef enum {
 } uv_gpio_interrupt_config_e;
 
 
-#if CONFIG_TARGET_LPC11C14
-/// @brief: Initializes gpio as an output
-/// @param gpio The gpio pin which will be configured
-/// @param initial value The initial value which will be written to the gpio pin.
-/// @example: uv_gpio_init_output(PIO1_9, true);
-uv_errors_e uv_gpio_init_output(uv_gpios_e gpio, bool initial_value);
-
-
-
-/// @brief: Initializes the gpio pin as an input.
-///
-/// @note: Refer to datasheet for pins which can be used as interrupt sources.
-///
-/// @param gpio The gpio pin which will be configured
-/// @param configurations OR'red configurations for the pin. This will be written to the gpio's IOCON register.
-// Additional settings such as the mode of the pin can be configured as well.
-/// @param int_configurations: OR'red interrupt configurations on the pin
-///
-/// @example: uv_gpio_init_input(PIO1_9, PULL_UP_ENABLED | HYSTERESIS_ENABLED, INT_DISABLE);
-uv_errors_e uv_gpio_init_input(uv_gpios_e gpio, uv_gpio_input_config_e configurations,
-		uv_gpio_interrupt_config_e int_configurations);
-#endif
 
 
 
@@ -118,7 +79,10 @@ uv_errors_e uv_gpio_init_input(uv_gpios_e gpio, uv_gpio_input_config_e configura
 void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, uv_gpios_e));
 
 
-
+#define uv_gpio_port(gpio) \
+	(CAT(CAT(GPIO_, gpio), _port))
+#define uv_gpio_pin(gpio) \
+	(CAT(CAT(GPIO_, gpio), _pin))
 
 /// @brief: Sets the state of an output pin
 ///
@@ -164,12 +128,20 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, u
 /// @param gpio: uv_gpios_e, gpio pin to be configured
 /// @param confs: OR'red uv_gpio_input_config_e configuration flags.
 /// @param interrupt_confs: OR'red uv_gpio_interrupt_config_e configuration flags.
+#if CONFIG_TARGET_LPC1785
 #define uv_gpio_init_input_int(gpio, confs, interrupt_confs) \
-	port(CAT(gpio, _port))->DIR &= ~(1 << CAT(gpio, _pin)); \
+	port(CAT(gpio, _port))->DIR &= ~(1 << CAT(CAT(GPIO_, gpio), _pin)); \
 	uv_gpio_configure(gpio, confs); \
-	CAT(CAT(LPC_GPIOINT->IO, CAT(gpio, _port)), IntEnF) |= ((interrupt_conf & (~1)) << CAT(gpio, _pin)); \
-	CAT(CAT(LPC_GPIOINT->IO, CAT(gpio, _port)), IntEnR) |= ((interrupt_conf & (~(1 << 1))) << CAT(gpio, _pin))
-
+	CAT(CAT(LPC_GPIOINT->IO, CAT(CAT(GPIO_, gpio), _port)), IntEnF) |= ((interrupt_conf & (~1)) << CAT(CAT(GPIO_, gpio), _pin)); \
+	CAT(CAT(LPC_GPIOINT->IO, CAT(CAT(GPIO_, gpio), _port)), IntEnR) |= ((interrupt_conf & (~(1 << 1))) << CAT(CAT(GPIO_, gpio), _pin))
+#elif CONFIG_TARGET_LPC11C14
+#error "interrupt init macro needs to be defined"
+// todo: this macro is not ready!
+#define uv_gpio_init_input_int(gpio, confs, interrupt_confs) \
+//	port(CAT(CAT(GPIO_, gpio), _port))->DIR &= ~(1 << CAT(CAT(GPIO_, gpio), _pin)); \
+//	uv_gpio_configure(gpio, confs); \
+//	uv_gpio_port(gpio)->IC |= (1 << uv_gpio_pin(gpio));
+#endif
 
 /// @brief: Initializes any GPIO pin as an input
 ///
@@ -191,156 +163,6 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, u
 
 
 
-
-#if CONFIG_TARGET_LPC11C14
-
-/// @brief: Configures the pin's IOCON register with the given configurations
-void uv_gpio_configure(uv_gpios_e gpio, uv_gpio_input_config_e value);
-
-/// @brief: Sets the output value on an output gpio pin
-/// @pre: uv_gpio_init_output should have been called for this pin
-uv_errors_e uv_gpio_set(uv_gpios_e gpio, bool value);
-
-/// @brief: Toggles the state of the output gpio pin
-/// @pre: uv_gpio_init_output should have been called for this pin
-uv_errors_e uv_gpio_toggle(uv_gpios_e gpio);
-
-/// @brief: Gets the input from the input gpio pin.
-/// @pre: uv_gpio_init_input should have been called on this pin.
-bool uv_gpio_get(uv_gpios_e gpio);
-
-
-/// @brief: Returns the pin's IOCON register
-///
-/// @note: Only to be used inside this library
-volatile uint32_t *__uv_gpio_get_iocon(uv_gpios_e gpio);
-#endif
-
-#if CONFIG_TARGET_LPC11C14
-enum uv_gpios_e {
-#if (CONFIG_PORT0 | CONFIG_PIO0_0)
-	PIO0_0 = GPIO_PORT_0 | 0,
-#endif
-#if (CONFIG_PORT0 | CONFIG_PIO0_1)
-	PIO0_1 = GPIO_PORT_0 | 1,
-#endif
-#if (CONFIG_PORT0 | CONFIG_PIO0_2)
-	PIO0_2 = GPIO_PORT_0 | 2,
-#endif
-#if (CONFIG_PORT0 | CONFIG_PIO0_3)
-	PIO0_3 = GPIO_PORT_0 | 3,
-#endif
-#if (CONFIG_PORT0 | CONFIG_PIO0_4)
-	PIO0_4 = GPIO_PORT_0 | 4,
-#endif
-#if (CONFIG_PORT0 | CONFIG_PIO0_5)
-	PIO0_5 = GPIO_PORT_0 | 5,
-#endif
-#if (CONFIG_PORT0 | CONFIG_PIO0_6)
-	PIO0_6 = GPIO_PORT_0 | 6,
-#endif
-#if (CONFIG_PORT0 | CONFIG_PIO0_7)
-	PIO0_7 = GPIO_PORT_0 | 7,
-#endif
-#if (CONFIG_PORT0 | CONFIG_PIO0_8)
-	PIO0_8 = GPIO_PORT_0 | 8,
-#endif
-#if (CONFIG_PORT0 | CONFIG_PIO0_9)
-	PIO0_9 = GPIO_PORT_0 | 9,
-#endif
-#if (CONFIG_PORT0 | CONFIG_PIO0_10)
-	PIO0_10 = GPIO_PORT_0 | 10,
-#endif
-#if (CONFIG_PORT0 | CONFIG_PIO0_11)
-	PIO0_11 = GPIO_PORT_0 | 11,
-#endif
-#if (CONFIG_PORT1 | CONFIG_PIO1_0)
-	PIO1_0 = GPIO_PORT_1 | 0,
-#endif
-#if (CONFIG_PORT1 | CONFIG_PIO1_1)
-	PIO1_1 = GPIO_PORT_1 | 1,
-#endif
-#if (CONFIG_PORT1 | CONFIG_PIO1_2)
-	PIO1_2 = GPIO_PORT_1 | 2,
-#endif
-#if (CONFIG_PORT1 | CONFIG_PIO1_3)
-	PIO1_3 = GPIO_PORT_1 | 3,
-#endif
-#if (CONFIG_PORT1 | CONFIG_PIO1_4)
-	PIO1_4 = GPIO_PORT_1 | 4,
-#endif
-#if (CONFIG_PORT1 | CONFIG_PIO1_5)
-	PIO1_5 = GPIO_PORT_1 | 5,
-#endif
-#if (CONFIG_PORT1 | CONFIG_PIO1_6)
-	PIO1_6 = GPIO_PORT_1 | 6,
-#endif
-#if (CONFIG_PORT1 | CONFIG_PIO1_7)
-	PIO1_7 = GPIO_PORT_1 | 7,
-#endif
-#if (CONFIG_PORT1 | CONFIG_PIO1_8)
-	PIO1_8 = GPIO_PORT_1 | 8,
-#endif
-#if (CONFIG_PORT1 | CONFIG_PIO1_9)
-	PIO1_9 = GPIO_PORT_1 | 9,
-#endif
-#if (CONFIG_PORT1 | CONFIG_PIO1_10)
-	PIO1_10 = GPIO_PORT_1 | 10,
-#endif
-#if (CONFIG_PORT1 | CONFIG_PIO1_11)
-	PIO1_11 = GPIO_PORT_1 | 11,
-#endif
-#if (CONFIG_PORT2 | CONFIG_PIO2_0)
-	PIO2_0 = GPIO_PORT_2 | 0,
-#endif
-#if (CONFIG_PORT2 | CONFIG_PIO2_1)
-	PIO2_1 = GPIO_PORT_2 | 1,
-#endif
-#if (CONFIG_PORT2 | CONFIG_PIO2_2)
-	PIO2_2 = GPIO_PORT_2 | 2,
-#endif
-#if (CONFIG_PORT2 | CONFIG_PIO2_3)
-	PIO2_3 = GPIO_PORT_2 | 3,
-#endif
-#if (CONFIG_PORT2 | CONFIG_PIO2_4)
-	PIO2_4 = GPIO_PORT_2 | 4,
-#endif
-#if (CONFIG_PORT2 | CONFIG_PIO2_5)
-	PIO2_5 = GPIO_PORT_2 | 5,
-#endif
-#if (CONFIG_PORT2 | CONFIG_PIO2_6)
-	PIO2_6 = GPIO_PORT_2 | 6,
-#endif
-#if (CONFIG_PORT2 | CONFIG_PIO2_7)
-	PIO2_7 = GPIO_PORT_2 | 7,
-#endif
-#if (CONFIG_PORT2 | CONFIG_PIO2_8)
-	PIO2_8 = GPIO_PORT_2 | 8,
-#endif
-#if (CONFIG_PORT2 | CONFIG_PIO2_9)
-	PIO2_9 = GPIO_PORT_2 | 9,
-#endif
-#if (CONFIG_PORT2 | CONFIG_PIO2_10)
-	PIO2_10 = GPIO_PORT_2 | 10,
-#endif
-#if (CONFIG_PORT2 | CONFIG_PIO2_11)
-	PIO2_11 = GPIO_PORT_2 | 11,
-#endif
-#if (CONFIG_PORT3 | CONFIG_PIO3_0)
-	PIO3_0 = GPIO_PORT_3 | 0,
-#endif
-#if (CONFIG_PORT3 | CONFIG_PIO3_1)
-	PIO3_1 = GPIO_PORT_3 | 1,
-#endif
-#if (CONFIG_PORT3 | CONFIG_PIO3_2)
-	PIO3_2 = GPIO_PORT_3 | 2,
-#endif
-#if (CONFIG_PORT3 | CONFIG_PIO3_3)
-	PIO3_3 = GPIO_PORT_3 | 3,
-#endif
-
-};
-#endif
 
 
 
