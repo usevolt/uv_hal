@@ -24,9 +24,6 @@
 extern uv_errors_e __uv_save_previous_non_volatile_data();
 extern uv_errors_e __uv_clear_previous_non_volatile_data();
 
-#if CONFIG_CANOPEN_LOG
-extern bool canopen_log;
-#endif
 
 /// @brief: Mask for CAN_ID field's node_id bits
 #define CANOPEN_NODE_ID_MASK		0x7F
@@ -37,9 +34,7 @@ extern bool canopen_log;
 
 #if CONFIG_CANOPEN_LOG
 #define DEBUG_LOG(...)	\
-if (canopen_log) { \
-	printf(__VA_ARGS__); \
-}
+	printf(__VA_ARGS__)
 #else
 #define DEBUG_LOG(...)	//__VA_ARGS__
 #endif
@@ -162,7 +157,7 @@ static const uv_canopen_object_st *find_object(uv_canopen_st *me, uint16_t index
 static void array_write(const uv_canopen_object_st *obj, uint16_t index, unsigned int value) {
 	if (index > obj->array_max_size) {
 #if CONFIG_CANOPEN_LOG
-	if (!obj && canopen_log) {
+	if (!obj) {
 		printf("Tried to over index CANopen array object\n\r");
 	}
 #endif
@@ -175,7 +170,7 @@ static void array_write(const uv_canopen_object_st *obj, uint16_t index, unsigne
 static unsigned int array_read(const uv_canopen_object_st *obj, uint16_t index) {
 	if (index > obj->array_max_size) {
 #if CONFIG_CANOPEN_LOG
-	if (!obj && canopen_log) {
+	if (!obj) {
 		printf("Tried to over-index CAnopen array object %x. Max index %u, indexed with %u.\n\r",
 				obj->main_index, obj->array_max_size, index);
 	}
@@ -315,10 +310,12 @@ uv_errors_e uv_canopen_restore_defaults(uv_canopen_st *me) {
 
 
 uv_errors_e uv_canopen_step(uv_canopen_st *me, unsigned int step_ms) {
-
 	// in stopped state we do nothing
 	if (this->state == CANOPEN_STOPPED) {
 		return uv_err(ERR_NONE);
+	}
+	if (this->can_channel >= CAN_COUNT) {
+		return uv_err(ERR_HARDWARE_NOT_SUPPORTED | HAL_MODULE_CANOPEN);
 	}
 
 	// RX message parsing

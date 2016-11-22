@@ -138,9 +138,9 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, u
 #error "interrupt init macro needs to be defined"
 // todo: this macro is not ready!
 #define uv_gpio_init_input_int(gpio, confs, interrupt_confs) \
-//	port(CAT(CAT(GPIO_, gpio), _port))->DIR &= ~(1 << CAT(CAT(GPIO_, gpio), _pin)); \
-//	uv_gpio_configure(gpio, confs); \
-//	uv_gpio_port(gpio)->IC |= (1 << uv_gpio_pin(gpio));
+	port(CAT(CAT(GPIO_, gpio), _port))->DIR &= ~(1 << CAT(CAT(GPIO_, gpio), _pin)); \
+	uv_gpio_configure(gpio, confs); \
+	uv_gpio_port(gpio)->IC |= (1 << uv_gpio_pin(gpio));
 #endif
 
 /// @brief: Initializes any GPIO pin as an input

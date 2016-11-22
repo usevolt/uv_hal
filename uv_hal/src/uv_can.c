@@ -590,7 +590,7 @@ uv_errors_e _uv_can_init() {
 	// enter reset mode
 	LPC_CAN1->MOD |= 1;
 	// normal mode, transmit priority to CAN IDs, no sleep mode,
-	LPC_CAN1->MOD &= (0b1011111 << 1);
+	LPC_CAN1->MOD &= ~(0b10111110);
 	// enable receive interrupts
 	LPC_CAN1->IER = 1;
 	// todo: CAN clock settings
@@ -601,7 +601,7 @@ uv_errors_e _uv_can_init() {
 	// ((BRP + 1) * (1 + 2)) * baudrate = fosc
 	// (BRP + 1) * 3 = fosc / baudrate
 	// BRP = fosc / (3 * baudrate) - 1
-	LPC_CAN1->BTR |= (SystemCoreClock / (CONFIG_CAN1_BAUDRATE * 3) - 1) & 0x1FF;
+	LPC_CAN1->BTR |= (SystemCoreClock / (CONFIG_CAN1_BAUDRATE * 8) - 1) & 0x3FF;
 	// set CAN peripheral ON
 	LPC_CAN1->MOD &= ~1;
 
@@ -634,8 +634,14 @@ uv_errors_e _uv_can_init() {
 	uv_can_config_rx_message(CAN1, UV_TERMINAL_CAN_PREFIX + uv_get_crc(), CAN_EXT);
 #endif
 
+	LPC_CANAF->SFF_sa = 0;
+	LPC_CANAF->SFF_GRP_sa = 0;
+	LPC_CANAF->EFF_sa = 0;
+	LPC_CANAF->EFF_GRP_sa = 0;
+	LPC_CANAF->ENDofTable = 0;
 
 	this->init = true;
+
 
 	return uv_err(ERR_NONE);
 }
@@ -648,19 +654,114 @@ uv_errors_e uv_can_step(uv_can_channels_e channel, unsigned int step_ms) {
 	return uv_err(ERR_NONE);
 }
 
+#define STD_ID(chn, x)				(((LPC_CANAF_RAM->mask[x]) & (0x7FF << (chn*16))) >> (chn*16))
+#define SET_STD_ID(chn, x, val)	(LPC_CANAF_RAM->mask[x]) &= ~(0x7FF << (chn*16)); \
+	(LPC_CANAF_RAM->mask[x]) |= ((val & 0x7FF) << (chn*16))
 
+#define STD_DISABLE(chn, x) 		(((LPC_CANAF_RAM->mask[x]) & (1 << (12 + chn*16))) >> (12 + chn*16))
+#define SET_STD_DISABLE(chn, x, val) (LPC_CANAF_RAM->mask[x]) &= ~(1 << (12 + chn*16)); \
+	(LPC_CANAF_RAM->mask[x]) |= ((val & 1) << (12 + chn*16))
+
+#define STD_CHANNEL(chn, x) 		(((LPC_CANAF_RAM->mask[x]) & (0b111 << (13 + chn*16))) >> (13 + chn*16))
+#define SET_STD_CHANNEL(chn, x, val) (LPC_CANAF_RAM->mask[x]) &= ~(0b111 << (13 + chn*16)); \
+	(LPC_CANAF_RAM->mask[x]) |= ((val & 0b111) << (13 + chn*16))
+
+
+/// @brief: Acceptance filter length
+#define AC_LEN		2048
 
 uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		unsigned int id,
 		uv_can_msg_types_e type) {
+	// set acceptance filter to idle mode
+	LPC_CANAF->AFMR = 0b10;
 
+#if CONFIG_CAN1
+		if (channel == CAN1) channel = 0;
+#endif
+#if CONFIG_CAN2
+		if (channel == CAN2) channel = 1;
+#endif
+
+	if (type == CAN_STD) {
+		uint32_t i = LPC_CANAF->SFF_sa;
+
+		// since every 32-bit word contains 2 individual messages and it would
+		// be hard to parse them all, both of the messages in the same word are
+		// written. 1st message is for channel 1 and 2nd message is for channel 2.
+
+		bool inserted = false;
+		// cycle trough all registered messages and find the position where to insert new one
+		while (i < LPC_CANAF->SFF_GRP_sa / 4) {
+			// Check if this message's ID is smaller
+			if (id < STD_ID(channel, i)) {
+				// copy all messages one word forward
+				for (int in = LPC_CANAF->ENDofTable / 4; in >= i; in--) {
+					LPC_CANAF_RAM->mask[in] = LPC_CANAF_RAM->mask[in - 1];
+				}
+				LPC_CANAF->SFF_GRP_sa += 4;
+				LPC_CANAF->EFF_sa += 4;
+				LPC_CANAF->EFF_GRP_sa += 4;
+				LPC_CANAF->ENDofTable += 4;
+
+				SET_STD_CHANNEL(0, i, 0);
+				SET_STD_CHANNEL(1, i, 1);
+				SET_STD_DISABLE(channel, i, 0);
+				SET_STD_DISABLE(!channel, i, 1);
+				SET_STD_ID(0, i, id);
+				SET_STD_ID(1, i, id);
+
+				inserted = true;
+				break;
+			}
+			else if (id == STD_ID(channel, i)) {
+				// existing entry found. Make sure that the disable bit is cleared
+				SET_STD_DISABLE(channel, i, 0);
+				inserted = true;
+				break;
+			}
+			i++;
+		}
+		if (!inserted) {
+
+			// No smaller ID messages found from the RAM. Add new entry
+			// to the end of the STD RAM
+			// copy all messages one word forward
+			for (int in = LPC_CANAF->ENDofTable / 4; in >= i; in--) {
+				LPC_CANAF_RAM->mask[in] = LPC_CANAF_RAM->mask[in - 1];
+			}
+			LPC_CANAF->SFF_GRP_sa += 4;
+			LPC_CANAF->EFF_sa += 4;
+			LPC_CANAF->EFF_GRP_sa += 4;
+			LPC_CANAF->ENDofTable += 4;
+
+			SET_STD_CHANNEL(0, i, 0);
+			SET_STD_CHANNEL(1, i, 1);
+			SET_STD_DISABLE(channel, i, 0);
+			SET_STD_DISABLE(!channel, i, 1);
+			SET_STD_ID(0, i, id);
+			SET_STD_ID(1, i, id);
+		}
+	}
+	else {
+
+	}
+
+	// enable acceptance filter
+	LPC_CANAF->AFMR = 0;
+
+	return uv_err(ERR_NONE);
 }
+
+
 
 uv_errors_e uv_can_config_rx_message_range(uv_can_channels_e channel,
 		unsigned int start_id,
 		unsigned int end_id,
 		uv_can_msg_types_e type) {
 
+
+	return uv_err(ERR_NONE);
 }
 
 
@@ -722,9 +823,9 @@ uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
 			return CAN_ERROR_BUS_OFF;
 		}
 		else if (LPC_CAN1->GSR & (1 << 6)) {
-			return CAN_ERROR_ACTIVE;
+			return CAN_ERROR_PASSIVE;
 		}
-		else return CAN_ERROR_PASSIVE;
+		else return CAN_ERROR_ACTIVE;
 	}
 #endif
 #if CONFIG_CAN2
