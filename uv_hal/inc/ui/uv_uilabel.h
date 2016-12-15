@@ -11,6 +11,7 @@
 
 #include <ui/uv_uiobject.h>
 #include <uv_hal_config.h>
+#include <stdlib.h>
 #include "uv_utilities.h"
 #include "ui/uv_uifont.h"
 #include <string.h>
@@ -55,6 +56,20 @@ typedef struct {
 } uv_uilabel_st;
 
 
+#undef this
+#define this ((uv_uilabel_st*)me)
+
+
+static inline void uv_uilabel_init(void *me, const uv_font_st *font,
+		alignment_e alignment, color_t color, color_t bgcolor, char *str) {
+	uv_uiobject_init(this);
+	this->font = font;
+	this->str = str;
+	this->align = alignment;
+	this->color = color;
+	this->bg_color = bgcolor;
+}
+
 /// @brief: Step function which should be called every step cycle
 void uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms);
 
@@ -90,15 +105,50 @@ static inline void uv_uilabel_set_bg_color(void *me, color_t c) {
 }
 
 
-static inline void uv_uilabel_init(void *me, const uv_font_st *font,
-		alignment_e alignment, color_t color, color_t bgcolor, char *str) {
-	uv_uiobject_init(this);
-	this->font = font;
-	this->str = str;
-	this->align = alignment;
-	this->color = color;
-	this->bg_color = bgcolor;
+#undef this
+#define this ((uv_uidigit_st*)me)
+
+
+
+/// @brief: Typedef for digit label. Should be used with CONFIG_UI_NUM_XXXXX reduced fonts and
+/// they can only contain numbers, comma and periods.
+typedef struct {
+	EXTENDS(uv_uilabel_st);
+
+	char str[13];
+} uv_uidigit_st;
+
+/// @brief: Initializes the digit label.
+static inline void uv_uidigit_init(void *me, const uv_font_st *font,
+		alignment_e alignment, color_t color, color_t bgcolor, int value) {
+	uv_uilabel_init(me, font, alignment, color, bgcolor, "");
+	itoa(value, this->str, 10);
 }
+
+static inline void uv_uidigit_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
+	uv_uilabel_step(me, touch, step_ms);
+}
+
+static inline void uv_uidigit_set_value(void *me, int value) {
+	uv_uilabel_set_text(me, "");
+	itoa(value, this->str, 10);
+}
+
+
+/// @brief: Sets the color of the label text
+static inline void uv_uidigit_set_color(void *me, color_t c) {
+	uv_uilabel_set_color(me, c);
+}
+
+/// @brief: Sets the background color
+static inline void uv_uidigit_set_bg_color(void *me, color_t c) {
+	uv_uilabel_set_bg_color(me, c);
+}
+
+
+
+
+
 
 
 /// @brief: Draws raw text on the screen.

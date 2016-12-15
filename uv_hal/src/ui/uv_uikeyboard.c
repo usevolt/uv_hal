@@ -37,13 +37,28 @@ static const uint8_t line_lengths[] = {10, 10, 9, 7};
 #define BUTTON_W			(LCD_W_PX / 12)
 
 
-static void draw(const char *title, char *buffer, uint16_t buf_len, const uv_uikeyboard_style_st *style) {
+
+/// @brief: Defines the special characters on the screen
+enum {
+	SHIFT = 250,
+	BACKSPACE = 252,
+	ENTER = 253
+};
+
+static void update_input(char *input, const uv_uikeyboard_style_st *style);
+
+
+
+static void draw(const char *title, char *buffer, const uv_uikeyboard_style_st *style) {
 	// fill whole screen
 	uv_lcd_draw_rect(0, 0, LCD_W_PX, LCD_H_PX, style->bg_color);
 
 	// draw title text
 	_uv_ui_draw_text(LCD_W(0.5), 0, style->title_font, ALIGN_TOP_CENTER,
 			style->text_color, style->bg_color, (char*) title);
+
+	// draw current text
+	update_input(buffer, style);
 
 	// draw buttons
 	// half of the display is used to display the keyboard
@@ -102,12 +117,86 @@ static void draw(const char *title, char *buffer, uint16_t buf_len, const uv_uik
 
 
 
+/// @brief: Parses the press action and returns the character pressed. takes also care
+/// of touch release events.
+///
+/// @param: character pressed. If no characters have been pressed, returns 0
+static char get_press(uv_touch_st *touch, bool shift) {
+
+	return '\0';
+}
+
+
+static void update_input(char *input, const uv_uikeyboard_style_st *style) {
+	// clear all previous texts
+	uv_lcd_draw_rect(0, style->title_font->char_height,
+			LCD_W(1), LCD_H(1 - KEYBOARD_HEIGHT) - 2, style->bg_color);
+
+	// if the text is too long to fit to the screen,
+	// replace the last space with a new line
+	if (uv_ui_text_width_px(input, style->text_font) > LCD_W(1)) {
+		for (int16_t i = strlen(input) - 1; i > 0 && input[i] != '\n'; i--) {
+			if (input[i] == ' ') {
+				input[i] = '\n';
+				break;
+			}
+		}
+	}
+	_uv_ui_draw_text(0, style->title_font->char_height, style->text_font,
+			ALIGN_TOP_LEFT, style->text_color, style->bg_color, input);
+
+}
+
+
+
 bool uv_uikeyboard_show(const char *title, char *buffer, uint16_t buf_len, const uv_uikeyboard_style_st *style) {
 
-	draw(title, buffer, buf_len, style);
+	uv_touch_st t;
+	bool shift_state = false;
+	uint16_t input_len = 0;
+	bool pressed = uv_lcd_touch_get(&t.x, &t.y);
+	draw(title, buffer, style);
+	buffer[0] = '\0';
 
 	while (true) {
-		uv_rtos_task_yield();
+
+		bool state = uv_lcd_touch_get(&t.x, &t.y);
+		// either pressed or released
+		if (state && !pressed) {
+			t.action = TOUCH_PRESSED;
+		}
+		else if (!state && pressed) {
+			t.action = TOUCH_RELEASED;
+		}
+
+		char c = get_press(&t, shift_state);
+		if (c) {
+			if (c == SHIFT) {
+				shift_state = !shift_state;
+			}
+			else if (c == ENTER) {
+				// replace added new lines with spaces
+				for (int16_t i = 0; i < strlen(buffer); i++) {
+					if (buffer[i] == '\n') buffer[i] = ' ';
+				}
+				return input_len ? true : false;
+			}
+			else if (c == BACKSPACE) {
+				if (input_len) input_len--;
+				buffer[input_len] = '\0';
+				update_input(buffer, style);
+			}
+			// normal character pressed
+			else {
+				if (input_len < buf_len - 1) {
+					buffer[input_len++] = c;
+					buffer[input_len] = '\0';
+					update_input(buffer, style);
+				}
+			}
+		}
+
+		uv_rtos_task_delay(20);
 	}
 
 }

@@ -32,10 +32,18 @@ typedef struct {
 
 /// @brief: Lists all different touchscreen actions
 enum {
+	/// @brief: Represents a null touch event (does nothing). If any
+	/// object wouldn't want the touch event to propagate futher to other
+	/// objects, it should change it's touch event to TOUCH_NONE after
+	/// executing it. Uv_uiwindow_st notifies this and cancels the propagation
+	/// of the event.
 	TOUCH_NONE = 0,
 	/// @brief: User pressed down the touchscreen
 	/// x and y variables contain the local coordinates of the press
 	TOUCH_PRESSED,
+	/// @brief: Will be triggered after TOUCH_PRESSED until releasing press
+	/// or starting the dragging.
+	TOUCH_IS_DOWN,
 	/// @brief: User pressed the touchscreen long without moving
 	/// x and y variables contain the local coordinates of the long press
 	TOUCH_LONG_PRESSED,
@@ -61,9 +69,9 @@ typedef struct {
 	/// @brief: Defines the action type
 	uv_touch_action_e action;
 	/// @brief: local X coordinate. Contains different information depending on the action.
-	uint16_t x;
+	int16_t x;
 	/// @brief: local Y coordinate. Contains different information depending on the action.
-	uint16_t y;
+	int16_t y;
 } uv_touch_st;
 
 

@@ -26,6 +26,7 @@ static void redraw(void *me) {
 
 
 void uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
+
 	if (((uv_uiobject_st*)this)->refresh) {
 		// first redraw this window
 		redraw(this);
@@ -40,7 +41,30 @@ void uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 	uint16_t i;
 	for (i = 0; i < this->objects_count; i++) {
 		if (this->objects[i]->visible) {
-			this->objects[i]->step_callb(this->objects[i], touch, step_ms);
+
+			// touch event is unique for all children objects
+			uv_touch_st t2 = *touch;
+			if (t2.action != TOUCH_NONE) {
+				if (t2.action != TOUCH_DRAG) {
+					t2.x -= uv_uibb(this->objects[i])->x;
+					t2.y -= uv_uibb(this->objects[i])->y;
+					if (t2.x > uv_uibb(this->objects[i])->width ||
+							t2.y > uv_uibb(this->objects[i])->height ||
+							t2.x < 0 ||
+							t2.y < 0) {
+						t2.action = TOUCH_NONE;
+					}
+				}
+			}
+			uv_touch_action_e touch_propagate = t2.action;
+
+			this->objects[i]->step_callb(this->objects[i], &t2, step_ms);
+			// check if the object changed the touch event.
+			// This means that the touch event is processed and it shouldn't
+			// be propagating to other objects.
+			if (t2.action != touch_propagate) {
+				touch->action = TOUCH_NONE;
+			}
 
 #if CONFIG_UI_DRAW_BOUDING_BOXES
 			if (this->objects[i]->refresh) {

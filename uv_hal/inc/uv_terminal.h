@@ -116,8 +116,7 @@ typedef enum {
 	CMD_SAVE,
 	CMD_REVERT,
 #endif
-	CMD_RESET,
-	CMD_CRC
+	CMD_RESET
 } uv_common_commands_e;
 
 

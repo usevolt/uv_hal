@@ -526,7 +526,6 @@ uv_errors_e uv_can_get_char(char *dest) {
 // same handler for both CAN channels
 void CAN_IRQHandler(void) {
 #if CONFIG_CAN1
-	printf("CAN interrupt\n\r");
 	while (LPC_CAN1->GSR & 1) {
 		// data ready to be received
 		this->temp.id = LPC_CAN1->RID;
@@ -536,17 +535,12 @@ void CAN_IRQHandler(void) {
 		this->temp.data_32bit[0] = LPC_CAN1->RDA;
 		this->temp.data_32bit[1] = LPC_CAN1->RDB;
 
-		printf("message id %u receveid: ", (unsigned int) this->temp.id);
-		for (int i = 0; i < this->temp.data_length; i++) {
-			printf( "0x%x ", this->temp.data_8bit[i]);
-		}
-		printf("\n\r");
 #if CONFIG_TERMINAL_CAN
 	// terminal characters are sent to their specific buffer
-	if (this->temp_msg.id == UV_TERMINAL_CAN_PREFIX + uv_get_crc()) {
+	if (this->temp.id == UV_TERMINAL_CAN_PREFIX + uv_get_id()) {
 		uint8_t i;
-		for (i = 0; i < this->temp_msg.data_length; i++) {
-			uv_ring_buffer_push(&this->char_buffer, (char*) &this->temp_msg.data_8bit[i]);
+		for (i = 0; i < this->temp.data_length; i++) {
+			uv_ring_buffer_push(&this->char_buffer, (char*) &this->temp.data_8bit[i]);
 		}
 		// clear received flag
 		LPC_CAN1->CMR |= (1 << 2);
@@ -593,6 +587,7 @@ uv_errors_e _uv_can_init() {
 	LPC_CAN1->MOD &= ~(0b10111110);
 	// enable receive interrupts
 	LPC_CAN1->IER = 1;
+	NVIC_EnableIRQ(CAN_IRQn);
 	// todo: CAN clock settings
 //	LPC_CAN1->BTR = ...
 	// TSEG1 = 1, TSEG2 = 2, SJW = 1, SAM = 0
@@ -631,7 +626,7 @@ uv_errors_e _uv_can_init() {
 
 #if CONFIG_TERMINAL_CAN
 	uv_ring_buffer_init(&this->char_buffer, this->char_buffer_data, CONFIG_TERMINAL_BUFFER_SIZE, sizeof(char));
-	uv_can_config_rx_message(CAN1, UV_TERMINAL_CAN_PREFIX + uv_get_crc(), CAN_EXT);
+	uv_can_config_rx_message(CAN1, UV_TERMINAL_CAN_PREFIX + uv_get_id(), CAN_EXT);
 #endif
 
 	LPC_CANAF->SFF_sa = 0;
@@ -665,6 +660,14 @@ uv_errors_e uv_can_step(uv_can_channels_e channel, unsigned int step_ms) {
 #define STD_CHANNEL(chn, x) 		(((LPC_CANAF_RAM->mask[x]) & (0b111 << (13 + chn*16))) >> (13 + chn*16))
 #define SET_STD_CHANNEL(chn, x, val) (LPC_CANAF_RAM->mask[x]) &= ~(0b111 << (13 + chn*16)); \
 	(LPC_CANAF_RAM->mask[x]) |= ((val & 0b111) << (13 + chn*16))
+
+#define EXT_ID(x)				(LPC_CANAF_RAM->mask[x] & 0x1FFFFFFF)
+#define SET_EXT_ID(x, val)	(LPC_CANAF_RAM->mask[x] &= ~0x1FFFFFFF); \
+	(LPC_CANAF_RAM->mask[x] |= (val))
+
+#define EXT_CHANNEL(x) 		((LPC_CANAF_RAM->mask[x] & 0xE0000000) >> 29)
+#define SET_EXT_CHANNEL(x, chn) LPC_CANAF_RAM->mask[x] &= ~0xE0000000; \
+	LPC_CANAF_RAM->mask[x] |= ((chn) << 29)
 
 
 /// @brief: Acceptance filter length
@@ -727,7 +730,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 			// No smaller ID messages found from the RAM. Add new entry
 			// to the end of the STD RAM
 			// copy all messages one word forward
-			for (int in = LPC_CANAF->ENDofTable / 4; in >= i; in--) {
+			for (int in = LPC_CANAF->ENDofTable / 4; in >= (int) i; in--) {
 				LPC_CANAF_RAM->mask[in] = LPC_CANAF_RAM->mask[in - 1];
 			}
 			LPC_CANAF->SFF_GRP_sa += 4;
@@ -744,7 +747,53 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		}
 	}
 	else {
+		uint32_t i = LPC_CANAF->EFF_sa;
 
+		// every entry is a individual message
+
+		bool inserted = false;
+		// cycle trough all registered messages and find the position where to insert new one
+		while (i < LPC_CANAF->EFF_GRP_sa / 4) {
+			// continue is this object is not for this channel
+			if (EXT_CHANNEL(i) != channel) {
+				i++;
+				continue;
+			}
+			// Check if this message's ID is smaller
+			if (id < EXT_ID(i)) {
+				// copy all messages one word forward
+				for (int in = LPC_CANAF->ENDofTable / 4; in >= i; in--) {
+					LPC_CANAF_RAM->mask[in] = LPC_CANAF_RAM->mask[in - 1];
+				}
+				LPC_CANAF->EFF_GRP_sa += 4;
+				LPC_CANAF->ENDofTable += 4;
+
+				SET_EXT_CHANNEL(i, channel);
+				SET_EXT_ID(i, id);
+
+				inserted = true;
+				break;
+			}
+			else if (id == EXT_ID(i)) {
+				inserted = true;
+				break;
+			}
+			i++;
+		}
+		if (!inserted) {
+
+			// No smaller ID messages found from the RAM. Add new entry
+			// to the end of the EXT RAM
+			// copy all messages one word forward
+			for (int in = LPC_CANAF->ENDofTable / 4; in >= (int) i; in--) {
+				LPC_CANAF_RAM->mask[in] = LPC_CANAF_RAM->mask[in - 1];
+			}
+			LPC_CANAF->EFF_GRP_sa += 4;
+			LPC_CANAF->ENDofTable += 4;
+
+			SET_EXT_CHANNEL(i, channel);
+			SET_EXT_ID(i, id);
+		}
 	}
 
 	// enable acceptance filter
@@ -859,6 +908,12 @@ void _uv_can_hal_step(unsigned int step_ms) {
 		this->tx_pending -= step_ms;
 	else this->tx_pending = 0;
 #endif
+}
+
+
+
+uv_errors_e uv_can_get_char(char *dest) {
+	return uv_ring_buffer_pop(&this->char_buffer, dest);
 }
 
 

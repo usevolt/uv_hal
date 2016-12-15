@@ -32,10 +32,8 @@ typedef struct {
 	const char **tab_names;
 	/// @brief: Index of the current active tab
 	uint16_t active_tab;
-
-	/// @brief: callback which is called when the active tab is changed.
-	/// This should be used to change the content of this tabwindow
-	void (*tab_change_callb)(void *me, uint16_t tab_index);
+	/// @brief: True for 1 step cycle when the tab was changed
+	bool tab_changed;
 } uv_uitabwindow_st;
 
 #ifndef this
@@ -48,18 +46,26 @@ typedef struct {
 static inline void uv_uitabwindow_init(void *me, int16_t tab_count,
 		const uv_uistyle_st *style,
 		uv_uiobject_st **obj_array,
-		const char **tab_names, void (*tab_change_callb)(void *, uint16_t)) {
+		const char **tab_names) {
 	uv_uiwindow_init(this, obj_array, style);
 	this->active_tab = 0;
 	this->tab_count = tab_count;
 	this->tab_names = tab_names;
-	this->tab_change_callb = tab_change_callb;
+}
+
+static inline bool uv_uitabwindow_tab_changed(void *me) {
+	return this->tab_changed;
 }
 
 
 static inline void uv_uitabwindow_set_tab(void *me, int16_t tab_index) {
 	uv_ui_refresh(this);
 	if (tab_index < this->tab_count) this->active_tab = tab_index;
+}
+
+
+static inline int16_t uv_uitabwindow_tab(void *me) {
+	return this->active_tab;
 }
 
 

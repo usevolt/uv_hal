@@ -136,16 +136,16 @@ void uv_init(void *device) {
 	_uv_emc_init();
 #endif
 
+#if CONFIG_LCD
+	_uv_lcd_init();
+#endif
+
 #if CONFIG_PWM
 	_uv_pwm_init();
 #endif
 
 #if CONFIG_EEPROM
 	_uv_eeprom_init();
-#endif
-
-#if CONFIG_LCD
-	_uv_lcd_init();
 #endif
 
 #if CONFIG_RTC

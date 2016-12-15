@@ -80,27 +80,6 @@ const char *uv_datetime = __DATE__ " " __TIME__;
 #endif
 
 
-static uint16_t calc_crc(const uint8_t *data, int32_t len)
-{
-	uint8_t i;
-	uint16_t crc = 0;
-
-	while(--len >= 0) {
-		i = 8;
-		crc = crc ^ (((uint16_t)*data++) << 8);
-
-		do {
-			if (crc & 0x8000) {
-				crc = crc << 1 ^ 0x1021;
-			}
-			else {
-				crc = crc << 1;
-			}
-		}
-		while(--i);
-	}
-	return crc;
-}
 
 
 void uv_enter_ISP_mode(void) {
@@ -150,6 +129,18 @@ uv_errors_e uv_memory_save(uv_data_start_t *start_ptr, uv_data_end_t *end_ptr) {
 	last_start = start_ptr;
 	last_end = end_ptr;
 	int length = ((unsigned int) end_ptr + sizeof(uv_data_end_t)) - (unsigned int) start_ptr;
+
+	bool match = true;
+	unsigned int i;
+	for (i = 0; i < length; i++) {
+		if (((uint8_t*) start_ptr)[i] != ((uint8_t*) NON_VOLATILE_MEMORY_START_ADDRESS)[i]) {
+			match = false;
+			break;
+		}
+	}
+	if (match) {
+		return uv_err(ERR_NONE);
+	}
 	printf("Flashing %u bytes\n\r", length);
 	if (length < 0) {
 		__uv_err_throw(ERR_END_ADDR_LESS_THAN_START_ADDR | HAL_MODULE_MEMORY);
@@ -183,14 +174,9 @@ uv_errors_e uv_memory_save(uv_data_start_t *start_ptr, uv_data_end_t *end_ptr) {
 	// add the right value to data checksum
 	start_ptr->start_checksum = CHECKSUM_VALID;
 	start_ptr->project_name = uv_projname;
-	// calculate CRC only if it was zero or 0xFFFF, which could mean an uninitialized value.
-	// Otherwise custom CRC has been set and it shouldn't be overwritten
-	if (!start_ptr->project_name_crc || start_ptr->project_name_crc == 0xFFFF) {
-		start_ptr->project_name_crc =
-				calc_crc((const uint8_t *) start_ptr->project_name, strlen(start_ptr->project_name));
-	}
 	start_ptr->build_date = uv_datetime;
 	end_ptr->end_checksum = CHECKSUM_VALID;
+	// note: id should be assigned by the canopen module
 
 	uv_iap_status_e status = uv_erase_and_write_to_flash((unsigned int) start_ptr,
 			length, NON_VOLATILE_MEMORY_START_ADDRESS);
@@ -392,13 +378,17 @@ uv_errors_e __uv_clear_previous_non_volatile_data() {
 
 #endif
 
-void uv_set_crc(uint16_t crc) {
+void uv_set_id(uint16_t id) {
 	if (last_start) {
-		last_start->project_name_crc = crc;
+		last_start->id = id;
 	}
 }
 
-uint16_t uv_get_crc() {
+uint16_t uv_get_id() {
+	if (last_start) {
+		return last_start->id;
+	}
+	else {
 		return *((uint16_t*)(NON_VOLATILE_MEMORY_START_ADDRESS + 8));
-	return 0;
+	}
 }

@@ -51,8 +51,8 @@ typedef struct {
 	const char *project_name;
 	/// @brief: Pointer to the build date and time string. This comes from the gcc __DATE__ and __TIME__ symbols.
 	const char *build_date;
-	/// @brief: Project unique hash value. Can be used to identify different projects from each other.
-	uint16_t project_name_crc;
+	/// @brief: Project unique ID. Usually the same as a CANopen node-id
+	uint16_t id;
 	/// @brief: Checksum to identify if data between start and end
 	/// was uninitialized or changed from what was found in non-volatile memory.
 	uint32_t start_checksum;
@@ -117,8 +117,8 @@ static inline const char *uv_memory_get_project_name(uv_data_start_t *start_ptr)
 }
 
 /// @brief: Returns the project name crc value saved in the non-volatile memory
-static inline uint16_t uv_memory_get_project_name_crc(uv_data_start_t *start_ptr) {
-	return start_ptr->project_name_crc;
+static inline uint16_t uv_memory_get_project_id(uv_data_start_t *start_ptr) {
+	return start_ptr->id;
 }
 
 /// @brief: Returns the project building date saved in the non-volatile memory
@@ -200,14 +200,14 @@ uv_iap_status_e uv_erase_and_write_to_flash(unsigned int ram_address,
 
 
 
-/// @brief: Sets the CRC to the start_st structure.
+/// @brief: Sets the id to the start_st structure.
 /// @pre: uv_load or uv_save function should be called
-void uv_set_crc(uint16_t crc);
+void uv_set_id(uint16_t id);
 
 
-/// @brief: Returns the CRC to the start_st structure.
+/// @brief: Returns the ID to the start_st structure.
 /// @pre: uv_load or uv_save function should be called
-uint16_t uv_get_crc();
+uint16_t uv_get_id();
 
 
 

@@ -36,6 +36,10 @@ static void draw(void *me) {
 	int16_t y = uv_ui_get_yglobal(this);
 	uint16_t entry_height = CONFIG_UI_LIST_ENTRY_HEIGHT;
 	int16_t sely = 0;
+	while (this->selected_index >= uv_vector_size(&this->entries)) {
+		this->selected_index--;
+	}
+
 	for (i = 0; i < uv_vector_size(&this->entries); i++) {
 		if (uv_uibb(this)->height + uv_ui_get_yglobal(this) < y + entry_height) {
 			break;
@@ -68,8 +72,13 @@ static void draw(void *me) {
 
 
 void uv_uilist_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
-	if (touch->action) {
-
+	if (touch->action == TOUCH_CLICKED) {
+		if (touch->y <= uv_vector_size(&this->entries) * CONFIG_UI_LIST_ENTRY_HEIGHT) {
+			this->selected_index = touch->y / CONFIG_UI_LIST_ENTRY_HEIGHT;
+			// prevent touch action propagating to other elements
+			touch->action = TOUCH_NONE;
+			uv_ui_refresh(this);
+		}
 	}
 	if (this->super.refresh) {
 		draw(this);

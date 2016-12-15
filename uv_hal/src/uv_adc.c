@@ -9,6 +9,7 @@
 
 #include <stdio.h>
 #include "uv_uart.h"
+#include "uv_rtos.h"
 #if CONFIG_TARGET_LPC11C14
 #include "LPC11xx.h"
 #elif CONFIG_TARGET_LPC1785
@@ -159,7 +160,9 @@ int uv_adc_read(uv_adc_channels_e channel) {
 	LPC_ADC->CR &= ~(0b111 << 24);
 	LPC_ADC->CR |= (1 << 24);
 	//wait until the conversion is finished
-	while (!(LPC_ADC->STAT & (1 << 16)));
+	while (!(LPC_ADC->STAT & (1 << 16))) {
+		uv_rtos_task_yield();
+	}
 	//read the acquired value
 #if CONFIG_TARGET_LPC11C14
 	value = (LPC_ADC->DR[(LPC_ADC->GDR >> 24) & 0b111] >> 6) & 0x3FF;

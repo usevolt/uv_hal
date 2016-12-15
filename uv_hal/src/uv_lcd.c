@@ -18,6 +18,8 @@
 #if CONFIG_LCD
 
 
+
+
 lcd_line_t *lcd = (lcd_line_t *) CONFIG_LCD_BUFFER_ADDRESS;
 #if CONFIG_LCD_TOUCHSCREEN
 typedef struct {
@@ -36,6 +38,8 @@ static touchscreen_st ts = {
 		.index = 0
 };
 #endif
+
+
 
 uv_errors_e _uv_lcd_init(void) {
 	// initialize the GPIO pins
@@ -99,7 +103,7 @@ uv_errors_e _uv_lcd_init(void) {
 	LPC_LCD->CTRL  = (1    << 11) |       // LCD Power Enable
 					 (CONFIG_LCD_RGB_TO_BGR << 8) |	//RGB or BGR color space
 				     (1    <<  5) |       // 0 = STN display, 1: TFT display
-				     (CONFIG_LCD_BITS_PER_PIXEL <<  1) ;       // Bits per pixel: 24bpp
+				     (CONFIG_LCD_BITS_PER_PIXEL <<  1) ;       // Bits per pixel
 	volatile uint16_t i;
 	for (i = 0; i < 256; i++) {
 		LPC_LCD->PAL[i] = 0;                /* Clear palette */
@@ -119,44 +123,7 @@ uv_errors_e _uv_lcd_init(void) {
 
 }
 
-//color_t uv_cdesat(color_t c, float mult) {
-//	return c;
-//	if (mult < 0.0001 && mult > -0.0001) return c;
-//	rgb_st rgb = uv_ctorgb(c);
-//	rgb_st r;
-//	int32_t intensity = 0.3 * rgb.r + 0.6 * rgb.g + 0.1 * rgb.b;
-//	r.r = uv_lerpf(mult, rgb.r, intensity);
-//	r.g = uv_lerpf(mult, rgb.g, intensity);
-//	r.b = uv_lerpf(mult, rgb.b, intensity);
-//	return uv_rgbtoc(r);
-//}
 
-
-
-color_t uv_cmult(color_t c, float ppt) {
-#if CONFIG_LCD_BITS_PER_PIXEL == LCD_24_BPP
-	rgb_st t = *((rgb_st*)&c);
-	rgb_st tt = {};
-	int32_t e;
-	e = t.r * ppt;
-	if (e > 0xFF) e = 0xFF;
-	else if (e < 0) e = 0;
-	tt.r = e;
-	e = t.g * ppt;
-	if (e > 0xFF) e = 0xFF;
-	else if (e < 0) e = 0;
-	tt.g = e;
-	e = t.b * ppt;
-	if (e > 0xFF) e = 0xFF;
-	else if (e < 0) e = 0;
-	tt.b = e;
-	return *((color_t*) &tt);
-
-
-#else
-#error "Color darker multiplication needs definition"
-#endif
-}
 
 #define draw_hline(x, y, length, color)	do{uint32_t hlinei; \
 		LCD_PIXEL_TYPE *hlineptr = &lcd[y][x]; \
@@ -210,7 +177,7 @@ bool uv_lcd_touch_get(int16_t *x, int16_t *y) {
 	ADC_CONF(CONFIG_LCD_Y_B_ADC, ADC_PULL_UP_ENABLED);
 	uv_gpio_init_output(CONFIG_LCD_X_R_GPIO, 0);
 	uv_gpio_init_output(CONFIG_LCD_X_L_GPIO, 0);
-	if (uv_adc_read_average(CONFIG_LCD_Y_T_ADC, 100) > CONFIG_LCD_TOUCH_THRESHOLD) {
+	if (uv_adc_read_average(CONFIG_LCD_Y_T_ADC, 4) > CONFIG_LCD_TOUCH_THRESHOLD) {
 		return false;
 	}
 
@@ -220,6 +187,10 @@ bool uv_lcd_touch_get(int16_t *x, int16_t *y) {
 	uv_gpio_init_output(CONFIG_LCD_X_R_GPIO, 1);
 	uv_gpio_init_output(CONFIG_LCD_X_L_GPIO, 0);
 	int x_val = uv_adc_read_average(CONFIG_LCD_Y_T_ADC, 10);
+	if (x_val < CONFIG_LCD_X_MIN) x_val = CONFIG_LCD_X_MIN;
+	else if (x_val > CONFIG_LCD_X_MAX) x_val = CONFIG_LCD_X_MAX;
+	int x_px = uv_reli(x_val, CONFIG_LCD_X_MIN, CONFIG_LCD_X_MAX) *
+			CONFIG_LCD_PIXELS_PER_LINE / 1000;
 
 	// then get the Y coordinate
 	ADC_INIT(CONFIG_LCD_X_L_ADC);
@@ -229,9 +200,16 @@ bool uv_lcd_touch_get(int16_t *x, int16_t *y) {
 	uv_gpio_init_output(CONFIG_LCD_Y_T_GPIO, 0);
 	uv_gpio_init_output(CONFIG_LCD_Y_B_GPIO, 1);
 	int y_val = uv_adc_read_average(CONFIG_LCD_X_L_ADC, 10);
+	if (y_val < CONFIG_LCD_Y_MIN) y_val = CONFIG_LCD_Y_MIN;
+	else if (y_val > CONFIG_LCD_Y_MAX) y_val = CONFIG_LCD_Y_MAX;
+	int y_px = uv_reli(y_val, CONFIG_LCD_Y_MIN, CONFIG_LCD_Y_MAX) *
+			CONFIG_LCD_LINES_PER_PANEL / 1000;
 
-	*x = x_val;
-	*y = y_val;
+
+	*x = x_px;
+	*y = y_px;
+
+//	uv_lcd_draw_rect(*x-2, *y-2, 4, 4, C(0xFF0000));
 
 	// initialize pins to default values for next call
 	ADC_INIT(CONFIG_LCD_Y_T_ADC);
