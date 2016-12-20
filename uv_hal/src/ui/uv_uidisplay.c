@@ -9,6 +9,8 @@
 #include <ui/uv_uidisplay.h>
 #include "uv_lcd.h"
 
+#if CONFIG_LCD
+
 #define this ((uv_uidisplay_st*) me)
 
 void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *style) {
@@ -34,3 +36,5 @@ void uv_uidisplay_step(void *me, uint32_t step_ms) {
 
 	uv_uiwindow_step(me, &t, step_ms);
 }
+
+#endif

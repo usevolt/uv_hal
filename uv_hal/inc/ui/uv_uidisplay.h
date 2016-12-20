@@ -14,6 +14,8 @@
 #include "uv_utilities.h"
 
 
+#if CONFIG_LCD
+
 /// @brief: Main display class. This represents a whole display.
 typedef struct {
 	EXTENDS(uv_uiwindow_st);
@@ -39,5 +41,6 @@ static inline void uv_uidisplay_add(void *me, uv_uiwindow_st *window,
 /// @brief: Step function takes care of updating the screen and touch events
 void uv_uidisplay_step(void *me, uint32_t step_ms);
 
+#endif
 
 #endif /* UV_HAL_INC_UI_UV_UIDISPLAY_H_ */

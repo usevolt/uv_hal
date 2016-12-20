@@ -13,6 +13,9 @@
 #include "ui/uv_uilabel.h"
 #include "uv_utilities.h"
 
+#if CONFIG_LCD
+
+
 enum {
 	UIBUTTON_UP = 0,
 	UIBUTTON_CLICKED,
@@ -71,5 +74,7 @@ void uv_uibutton_step(void *me, uv_touch_st *touch, uint16_t step_ms);
 
 
 #undef this
+
+#endif
 
 #endif /* UV_HAL_INC_UI_UV_UIBUTTON_H_ */

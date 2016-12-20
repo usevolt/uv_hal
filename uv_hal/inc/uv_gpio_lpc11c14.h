@@ -18,48 +18,48 @@
 #include "LPC11xx.h"
 
 
-#define PIO0_0		1
-#define PIO0_1		2
-#define PIO0_2		3
-#define PIO0_3		4
-#define PIO0_4		5
-#define PIO0_5		6
-#define PIO0_6		7
-#define PIO0_7		8
-#define PIO0_8		9
-#define PIO0_9		10
-#define PIO0_10		11
-#define PIO0_11		12
-#define PIO1_0		13
-#define PIO1_1		14
-#define PIO1_2		15
-#define PIO1_3		16
-#define PIO1_4		17
-#define PIO1_5		18
-#define PIO1_6		19
-#define PIO1_7		20
-#define PIO1_8		21
-#define PIO1_9		22
-#define PIO1_10		23
-#define PIO1_11		24
-#define PIO2_0		25
-#define PIO2_1		26
-#define PIO2_2		27
-#define PIO2_3		28
-#define PIO2_4		29
-#define PIO2_5		30
-#define PIO2_6		31
-#define PIO2_7		32
-#define PIO2_8		33
-#define PIO2_9		34
-#define PIO2_10		35
-#define PIO2_11		36
-#define PIO3_0		37
-#define PIO3_1		38
-#define PIO3_2		39
-#define PIO3_3		40
-#define PIO3_4		41
-#define PIO3_5		42
+#define P0_0		1
+#define P0_1		2
+#define P0_2		3
+#define P0_3		4
+#define P0_4		5
+#define P0_5		6
+#define P0_6		7
+#define P0_7		8
+#define P0_8		9
+#define P0_9		10
+#define P0_10		11
+#define P0_11		12
+#define P1_0		13
+#define P1_1		14
+#define P1_2		15
+#define P1_3		16
+#define P1_4		17
+#define P1_5		18
+#define P1_6		19
+#define P1_7		20
+#define P1_8		21
+#define P1_9		22
+#define P1_10		23
+#define P1_11		24
+#define P2_0		25
+#define P2_1		26
+#define P2_2		27
+#define P2_3		28
+#define P2_4		29
+#define P2_5		30
+#define P2_6		31
+#define P2_7		32
+#define P2_8		33
+#define P2_9		34
+#define P2_10		35
+#define P2_11		36
+#define P3_0		37
+#define P3_1		38
+#define P3_2		39
+#define P3_3		40
+#define P3_4		41
+#define P3_5		42
 
 
 
@@ -69,9 +69,9 @@ typedef uint32_t uv_gpios_e;
 #define port(port_num)			CAT(LPC_GPIO, port_num)
 
 #define __TABLE1(value) (value)
-#define __TABLE2(value) ((value | 1)
-#define __TABLE3(value) (value | (1 + (1 << 7))
-#define __TABLE4(value) (value | (1 << 7)
+#define __TABLE2(value) ((value | 1))
+#define __TABLE3(value) (value | (1 + (1 << 7)))
+#define __TABLE4(value) (value | (1 << 7))
 
 
 
@@ -212,5 +212,6 @@ typedef uint32_t uv_gpios_e;
 
 
 
+#endif
 
 #endif /* UV_HAL_INC_UV_GPIO_LPC11C14_H_ */

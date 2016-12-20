@@ -12,6 +12,8 @@
 #include <uv_ui.h>
 
 
+#if CONFIG_LCD
+
 /// @brief: Helper object which can be used to layout
 /// objects in a grid layout
 typedef struct {
@@ -77,5 +79,6 @@ static inline uv_bounding_box_st uv_uigridlayout_next(uv_uigridlayout_st *this) 
 	return bb;
 }
 
+#endif
 
 #endif /* UV_HAL_INC_UI_UV_UILAYOUT_H_ */
