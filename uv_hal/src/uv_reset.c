@@ -38,7 +38,8 @@ uv_reset_sources_e uv_reset_get_source() {
 	return e;
 #elif CONFIG_TARGET_LPC11C14
 	// note: this hasn't been confirmed, might cause a compile error
-	uv_reset_sources_e e = LPC_SYSCON->RSTSTAT;
+//	uv_reset_sources_e e = LPC_SYSCON->RSTSTAT;
+	uv_reset_sources_e e = UV_RESET_POR;
 	return e;
 #endif
 }

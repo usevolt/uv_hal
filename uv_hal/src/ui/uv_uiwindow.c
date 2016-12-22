@@ -9,7 +9,7 @@
 #include <ui/uv_uiwindow.h>
 
 
-
+#if CONFIG_LCD
 
 #define this	((uv_uiwindow_st*) me)
 
@@ -77,3 +77,5 @@ void uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 		this->objects[i]->refresh = false;
 	}
 }
+
+#endif

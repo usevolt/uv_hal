@@ -9,7 +9,12 @@
 #include <ui/uv_uibutton.h>
 #include "ui/uv_uilabel.h"
 
+#if CONFIG_LCD
+
+
 #define this ((uv_uibutton_st*)me)
+
+
 
 
 static inline void draw(void *me, uint16_t step_ms) {
@@ -60,3 +65,5 @@ void uv_uibutton_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 		draw(this, step_ms);
 	}
 }
+
+#endif

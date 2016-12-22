@@ -9,6 +9,7 @@
 #include <string.h>
 #include "ui/uv_uitabwindow.h"
 
+#if CONFIG_LCD
 
 #define this ((uv_uitabwindow_st*)me)
 
@@ -89,3 +90,4 @@ void uv_uitabwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 	}
 
 }
+#endif

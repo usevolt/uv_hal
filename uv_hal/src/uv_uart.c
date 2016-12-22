@@ -188,7 +188,7 @@ uv_errors_e uv_uart_add_callback(uv_uarts_e uart,
 
 
 #if (CONFIG_TARGET_LPC11C14 && CONFIG_UART0)
-uv_errors_e uv_uart_init(uv_uarts_e uart) {
+uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 	this->callback[UART0] = 0;
 	this->uart[UART0] = LPC_UART;
 	uv_ring_buffer_init(this->buffer, uart0_rxbuffer, CONFIG_UART0_RX_BUFFER_SIZE, sizeof(char));

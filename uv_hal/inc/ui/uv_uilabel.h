@@ -16,6 +16,9 @@
 #include "ui/uv_uifont.h"
 #include <string.h>
 
+
+#if CONFIG_LCD
+
 /* Alignments */
 enum {
 	ALIGN_H_LEFT 			= (1 << 0),
@@ -164,5 +167,6 @@ int16_t uv_ui_text_width_px(char *str, const uv_font_st *font);
 
 #undef this
 
+#endif
 
 #endif /* UV_HAL_INC_UI_UV_UILABEL_H_ */

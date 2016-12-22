@@ -14,6 +14,9 @@
 #include <uv_lcd.h>
 
 
+#if CONFIG_LCD
+
+
 #if !CONFIG_UI_TABWINDOW_HEADER_HEIGHT
 #error "CONFIG_UI_TABWINDOW_HEADER_HEIGHT should define the tabwindow header height in pixels"
 #endif
@@ -74,5 +77,7 @@ void uv_uitabwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms);
 
 
 #undef this
+
+#endif
 
 #endif /* UV_HAL_INC_UI_UV_UITABWINDOW_H_ */

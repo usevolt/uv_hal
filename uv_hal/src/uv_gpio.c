@@ -47,22 +47,24 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void*, uv_gpios_e)
 #if CONFIG_TARGET_LPC11C14
 
 void PIOINT0_IRQHandler (void) {
-	isr(LPC_GPIO0, GPIO_PORT_0);
+	isr(LPC_GPIO0, 0);
 }
 
 void PIOINT1_IRQHandler (void) {
-	isr(LPC_GPIO1, GPIO_PORT_1);
+	isr(LPC_GPIO1, 1);
 }
 
 void PIOINT2_IRQHandler (void) {
-	isr(LPC_GPIO2, GPIO_PORT_2);
+	isr(LPC_GPIO2, 2);
 }
 
 void PIOINT3_IRQHandler (void) {
-	isr(LPC_GPIO3, GPIO_PORT_3);
+	isr(LPC_GPIO3, 3);
 }
 
 static void isr(LPC_GPIO_TypeDef *GPIO, uv_gpios_e port) {
+//	printf("int!\n\r");
+	GPIO->IC = 0b111111111111;
 	int i = 0;
 	// i should be as big as there is IO's in a port
 	while(GPIO->MIS) {
@@ -70,7 +72,7 @@ static void isr(LPC_GPIO_TypeDef *GPIO, uv_gpios_e port) {
 		// for all pins which caused interrupts
 		if (GPIO->MIS & (1 << i)) {
 			if (callback) {
-				callback(__uv_get_user_ptr(), (uv_gpios_e) (port + i));
+				callback(__uv_get_user_ptr(), port * 12 + (uv_gpios_e) (P0_0 + i));
 				// clear interrupt on this pin only
 				GPIO->IC |= (1 << i);
 			}

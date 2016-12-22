@@ -10,6 +10,8 @@
 #include "uv_ui.h"
 #include <string.h>
 
+#if CONFIG_LCD
+
 #define this ((uv_uilabel_st*)me)
 
 
@@ -151,3 +153,4 @@ int16_t uv_ui_text_width_px(char *str, const uv_font_st *font) {
 }
 
 
+#endif
