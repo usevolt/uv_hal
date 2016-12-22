@@ -24,9 +24,6 @@
 extern uv_errors_e __uv_save_previous_non_volatile_data();
 extern uv_errors_e __uv_clear_previous_non_volatile_data();
 
-#if CONFIG_CANOPEN_LOG
-extern bool canopen_log;
-#endif
 
 /// @brief: Mask for CAN_ID field's node_id bits
 #define CANOPEN_NODE_ID_MASK		0x7F
@@ -37,9 +34,7 @@ extern bool canopen_log;
 
 #if CONFIG_CANOPEN_LOG
 #define DEBUG_LOG(...)	\
-if (canopen_log) { \
-	printf(__VA_ARGS__); \
-}
+	printf(__VA_ARGS__)
 #else
 #define DEBUG_LOG(...)	//__VA_ARGS__
 #endif
@@ -162,7 +157,7 @@ static const uv_canopen_object_st *find_object(uv_canopen_st *me, uint16_t index
 static void array_write(const uv_canopen_object_st *obj, uint16_t index, unsigned int value) {
 	if (index > obj->array_max_size) {
 #if CONFIG_CANOPEN_LOG
-	if (!obj && canopen_log) {
+	if (!obj) {
 		printf("Tried to over index CANopen array object\n\r");
 	}
 #endif
@@ -175,7 +170,7 @@ static void array_write(const uv_canopen_object_st *obj, uint16_t index, unsigne
 static unsigned int array_read(const uv_canopen_object_st *obj, uint16_t index) {
 	if (index > obj->array_max_size) {
 #if CONFIG_CANOPEN_LOG
-	if (!obj && canopen_log) {
+	if (!obj) {
 		printf("Tried to over-index CAnopen array object %x. Max index %u, indexed with %u.\n\r",
 				obj->main_index, obj->array_max_size, index);
 	}
@@ -200,6 +195,7 @@ uv_errors_e uv_canopen_init(uv_canopen_st *me,
 		const uv_canopen_object_st *obj_dict,
 		uint16_t obj_dict_length,
 		uv_can_channels_e can_channel,
+		int *heartbeat_delay,
 		void (*sdo_write_callback)(uv_canopen_object_st* obj_dict_entry),
 		void (*emcy_callback)(void *user_ptr, uv_canopen_emcy_msg_st *msg)) {
 
@@ -209,6 +205,8 @@ uv_errors_e uv_canopen_init(uv_canopen_st *me,
 	this->sdo_write_callback = sdo_write_callback;
 	this->emcy_callback = emcy_callback;
 	this->can_channel = can_channel;
+	this->heartbeat_delay = heartbeat_delay;
+	uv_set_id((uint16_t) this->obj_dict.com_params.node_id);
 
 	// configure receive messages for NMT, SDO and PDO messages for this node id and broadcast
 #if CONFIG_TARGET_LPC11C14
@@ -261,7 +259,7 @@ uv_errors_e uv_canopen_init(uv_canopen_st *me,
 	DEBUG_LOG("canopen initialized with node id %x\n\r", NODE_ID);
 
 #if CONFIG_CANOPEN_HEARTBEAT_INDEX
-	uv_delay_init(this->obj_dict.com_params.heartbeat_time, &this->heartbeat_delay);
+	uv_delay_init(this->obj_dict.com_params.heartbeat_time, this->heartbeat_delay);
 #endif
 
 	// send boot up message
@@ -307,7 +305,7 @@ uv_errors_e uv_canopen_restore_defaults(uv_canopen_st *me) {
 
 	// lastly initialize all volatile data
 	uv_canopen_init(this, this->obj_dict.app_parameters, this->obj_dict.app_parameters_length,
-			this->can_channel, this->sdo_write_callback, this->emcy_callback);
+			this->can_channel, this->heartbeat_delay, this->sdo_write_callback, this->emcy_callback);
 	return ERR_NONE;
 }
 
@@ -315,20 +313,18 @@ uv_errors_e uv_canopen_restore_defaults(uv_canopen_st *me) {
 
 
 uv_errors_e uv_canopen_step(uv_canopen_st *me, unsigned int step_ms) {
-
 	// in stopped state we do nothing
 	if (this->state == CANOPEN_STOPPED) {
 		return uv_err(ERR_NONE);
 	}
+	if (this->can_channel >= CAN_COUNT) {
+		return uv_err(ERR_HARDWARE_NOT_SUPPORTED | HAL_MODULE_CANOPEN);
+	}
 
 	// RX message parsing
 	uv_can_message_st msg;
-	// returning an error means that the can rx buffer was empty and no messages have been recieved
-	uv_err_check(uv_can_pop_message(this->can_channel, &msg)) {
-
-	}
-	// otherwise message has been received
-	else {
+	// returning an error means that the can rx buffer was empty and no messages have been received
+	while (!uv_can_pop_message(this->can_channel, &msg)) {
 		// process messages which are addressed to this node OR broadcasted
 		if (NODE_ID == MSG_NODE_ID(&msg) || MSG_NODE_ID(&msg) == 0) {
 
@@ -380,7 +376,7 @@ uv_errors_e uv_canopen_step(uv_canopen_st *me, unsigned int step_ms) {
 
 #if CONFIG_CANOPEN_HEARTBEAT_INDEX
 	// send heartbeat message
-	if (uv_delay(step_ms, &this->heartbeat_delay)) {
+	if (uv_delay(step_ms, this->heartbeat_delay)) {
 		// send heartbeat msg
 		msg = (uv_can_message_st) {
 				.id = CANOPEN_HEARTBEAT_ID + NODE_ID,
@@ -393,7 +389,7 @@ uv_errors_e uv_canopen_step(uv_canopen_st *me, unsigned int step_ms) {
 		}
 
 		// start the delay again
-		uv_delay_init(this->obj_dict.com_params.heartbeat_time, &this->heartbeat_delay);
+		uv_delay_init(this->obj_dict.com_params.heartbeat_time, this->heartbeat_delay);
 	}
 #endif
 
@@ -484,14 +480,6 @@ uv_errors_e uv_canopen_step(uv_canopen_st *me, unsigned int step_ms) {
 
 
 
-uv_errors_e uv_canopen_set_state(uv_canopen_st *me, uv_canopen_node_states_e state) {
-	this->state = state;
-	return uv_err(ERR_NONE);
-}
-
-uv_canopen_node_states_e uv_canopen_get_state(uv_canopen_st *me) {
-	return this->state;
-}
 
 
 uv_errors_e uv_canopen_emcy_send(uv_canopen_st *me, uv_canopen_emcy_msg_st *msg) {
@@ -725,54 +713,47 @@ static void canopen_parse_sdo(uv_canopen_st *me, uv_can_message_st *msg) {
 
 static inline void parse_rxpdo(uv_canopen_st *me, uv_can_message_st* msg) {
 	uint8_t i;
-	const uv_canopen_object_st *obj;
 	// cycle trough all RXPDO communication parameters
 	for (i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
-		obj = find_object(this, CONFIG_CANOPEN_RXPDO_COM_INDEX + i, 0);
-		if (obj) {
-			if (array_read(obj, 0) == msg->id) {
-				// RXPDO configured with this message's ID has been found
-				obj = find_object(this, CONFIG_CANOPEN_RXPDO_MAP_INDEX + i, 0);
-				if (!obj) {
-					DEBUG_LOG("RXPDO error: PDO%u configured with ID %x found but corresponding"
-							" mapping parameter not found.\n\r", i, msg->id);
-					return;
-				}
-				uint8_t j;
-				uint8_t bytes = 0;
-				// cycle trough all mapping entries used
-				for (j = 0; j < CONFIG_CANOPEN_PDO_MAPPING_COUNT; j++) {
-					unsigned int p = array_read(obj, j);
-					if (p) {
-						// object index which will be written
-						uint16_t index = (p >> 16);
-						// object sub-index which will be written
-						uint8_t subindex = (p >> 8) & 0xFF;
-						// the length of the write operation in bytes
-						uint8_t byte_length = (p & 0xFF) / 8;
-						const uv_canopen_object_st *trg = find_object(this, index, subindex);
-						if (!trg) {
-							DEBUG_LOG("RXPDO error: object with index %x and subindex %x not found\n\r",
-										index, subindex);
-							break;
-						}
-						if (bytes + byte_length > 8) {
-							DEBUG_LOG("RXPDO error: PDO mapping length exceeds 8 bytes\n\r");
-						}
 
-						// write bits to the object
-						memcpy(trg->data_ptr, &obj->data_ptr[bytes], byte_length);
-						bytes += byte_length;
-
-					}
-					else {
-						// if array index was zero, PDO mappings have been ended and we return.
+		if (this->obj_dict.com_params.rxpdo_coms[i].cob_id == msg->id) {
+			uint8_t j;
+			uint8_t bytes = 0;
+			// cycle trough all mapping entries used
+			for (j = 0; j < CONFIG_CANOPEN_PDO_MAPPING_COUNT; j++) {
+				if (this->obj_dict.com_params.rxpdo_mappings[i][j].main_index) {
+					// object index which will be written
+					uint16_t index = this->obj_dict.com_params.rxpdo_mappings[i][j].main_index;
+					// object sub-index which will be written
+					uint8_t subindex = this->obj_dict.com_params.rxpdo_mappings[i][j].sub_index;
+					// the length of the write operation in bytes
+					uint8_t byte_length = this->obj_dict.com_params.rxpdo_mappings[i][j].length;
+					const uv_canopen_object_st *trg = find_object(this, index, subindex);
+					if (!trg) {
+						DEBUG_LOG("RXPDO error: object with index %x and subindex %x not found\n\r",
+									index, subindex);
 						break;
 					}
+					if (bytes + byte_length > 8) {
+						DEBUG_LOG("RXPDO error: PDO mapping length exceeds 8 bytes\n\r");
+					}
+
+					if (msg->data_length < bytes + byte_length) {
+						DEBUG_LOG("RXPDO error: Message length was shorter than mapped length\n\r");
+						break;
+					}
+					// write bits to the object
+					memcpy(trg->data_ptr, &msg->data_8bit[bytes], byte_length);
+					bytes += byte_length;
+
 				}
-				DEBUG_LOG("RXPDO with id %x written\n\r", msg->id);
-				return;
+				else {
+					// if main index was zero, PDO mappings have been ended and we return.
+					break;
+				}
 			}
+			DEBUG_LOG("RXPDO with id %x written\n\r", msg->id);
+			continue;
 		}
 	}
 
@@ -804,7 +785,7 @@ static inline void parse_nmt_message(uv_canopen_st *me, uv_can_message_st* msg) 
 		case CANOPEN_NMT_RESET_COM:
 			DEBUG_LOG("NMT reset communication\n\r");
 			uv_canopen_init(this, this->obj_dict.app_parameters, this->obj_dict.app_parameters_length,
-					this->can_channel, this->sdo_write_callback, this->emcy_callback);
+					this->can_channel, this->heartbeat_delay, this->sdo_write_callback, this->emcy_callback);
 			break;
 		default:
 			break;
@@ -812,7 +793,7 @@ static inline void parse_nmt_message(uv_canopen_st *me, uv_can_message_st* msg) 
 	}
 }
 
-uv_errors_e uv_canopen_send_sdo_request(uv_canopen_st *me,
+uv_errors_e uv_canopen_send_sdo(uv_canopen_st *me,
 		uv_canopen_sdo_message_st *sdo,
 		uint8_t node_id) {
 

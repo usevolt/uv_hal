@@ -168,7 +168,6 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, u
 			(((interrupt_confs & INT_FALLING_EDGE) ? 0 : 1) << uv_gpio_pin(gpio)); \
 	} \
 	port(CAT(CAT(GPIO_, gpio), _port))->IE |= (((interrupt_confs) ? 1 : 0) << uv_gpio_pin(gpio))
-
 #endif
 
 /// @brief: Initializes any GPIO pin as an input

@@ -18,6 +18,7 @@
 
 enum {
 	UIBUTTON_UP = 0,
+	UIBUTTON_PRESSED,
 	UIBUTTON_CLICKED,
 	UIBUTTON_LONGPRESSED
 };
@@ -29,7 +30,6 @@ typedef uint8_t uibutton_state_e;
 typedef struct {
 	EXTENDS(uv_uiobject_st);
 
-	void (*callb)(void *, uibutton_state_e);
 	uibutton_state_e state;
 	char *text;
 	const uv_uistyle_st *style;
@@ -44,15 +44,12 @@ typedef struct {
 ///
 /// @param text: The text which is displayed on the button
 /// @param style: Pointer to the button style used
-/// @param callb: Callback which will be called when the button is pressed. The parameters are:
 /// Pointer to this button object and the state of this button
-static inline void uv_uibutton_init(void *me, char *text, const uv_uistyle_st *style,
-		void (*callb)(void *, uibutton_state_e)) {
+static inline void uv_uibutton_init(void *me, char *text, const uv_uistyle_st *style) {
 	uv_uiobject_init(me);
 	this->state = UIBUTTON_UP;
 	this->style = style;
 	this->text = text;
-	this->callb = callb;
 }
 
 
@@ -65,6 +62,17 @@ static inline void uv_uibutton_set_text(void *me, char *text) {
 /// @brief: Returns the button text
 static inline char *uv_uibutton_get_text(void *me) {
 	return this->text;
+}
+
+
+/// @brief: Returns true if the button was clicked
+static inline bool uv_uibutton_clicked(void *me) {
+	return this->state == UIBUTTON_CLICKED;
+}
+
+/// @brief: Returns true if the button was long pressed
+static inline bool uv_uibutton_long_pressed(void *me) {
+	return this->state == UIBUTTON_LONGPRESSED;
 }
 
 

@@ -27,12 +27,18 @@ typedef struct {
 	int16_t min_val;
 	int16_t max_val;
 	int16_t cur_val;
+	/// @brief: Calculates the dragging value to make the sliding a little bit
+	/// more interacive.
+	int16_t drag_val;
+	int16_t drag_start_val;
 	/// @brief: If true, displays the current value next to the slider.
 	/// On vertical slider, value is shown below the slider.
 	/// On horizontal slider, value is shown to the right of the slider.
 	bool show_value;
 	/// @brief: If true, the slider is horizontal. If false, the slider is vertical.
 	bool horizontal;
+	/// @brief: Inner state variable indicating that a TOUCH_DRAG event has been started
+	bool dragging;
 	/// @brief: Value changed-callback
 	void (*callb)(void *me, int16_t value);
 	const uv_uistyle_st *style;
@@ -52,15 +58,16 @@ typedef struct {
 /// @param callb: The callback which is called when the value is changed. Parameter: pointer to
 /// this slider structure, the current value
 static inline void uv_uislider_init(void *me, int16_t min_value, int16_t max_value, int16_t current_value,
-		const uv_uistyle_st *style, void (*callb)(void *, int16_t)) {
+		const uv_uistyle_st *style) {
 	uv_uiobject_init(this);
 	this->min_val = min_value;
 	this->max_val = max_value;
 	this->cur_val = current_value;
-	this->callb = callb;
 	this->style = style;
 	this->horizontal = true;
 	this->show_value = true;
+	this->dragging = false;
+	this->drag_val = 0;
 }
 
 
@@ -117,6 +124,8 @@ static inline int16_t uv_uislider_get_max_value(void *me) {
 
 /// @brief: Sets the current value
 static inline void uv_uislider_set_value(void *me, int16_t value) {
+	if (value < this->min_val) value = this->min_val;
+	else if (value > this->max_val) value = this->max_val;
 	if (value != this->cur_val) uv_ui_refresh(this);
 	this->cur_val = value;
 }
@@ -124,6 +133,11 @@ static inline void uv_uislider_set_value(void *me, int16_t value) {
 /// @brief: Returns the current value
 static inline int16_t uv_uislider_get_value(void *me) {
 	return this->cur_val;
+}
+
+/// @brief: Returns true for one step cycle wen the values was changed
+static inline bool uv_uislider_value_changed(void *me) {
+	return this->dragging;
 }
 
 

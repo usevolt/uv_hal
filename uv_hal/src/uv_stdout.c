@@ -31,7 +31,7 @@ static int8_t can_delay = 0;
 #if CONFIG_TERMINAL_CAN
 static void send_can_msg(void) {
 	uv_can_message_st msg = {
-			.id = UV_TERMINAL_CAN_PREFIX + uv_get_crc(),
+			.id = UV_TERMINAL_CAN_PREFIX + uv_get_id(),
 			.data_length = uv_vector_size(&can_vec),
 			.type = CAN_EXT
 	};

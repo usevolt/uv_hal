@@ -34,15 +34,22 @@ static inline void draw(void *me) {
 
 
 void uv_uitogglebutton_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
-	bool refresh = this->super.super.refresh;
+	this->clicked = false;
 
-	// make sure that uv_uibutton doesnt trigger drawing the button
-	this->super.super.refresh = false;
-
-	if (touch->action == TOUCH_CLICKED || touch->action == TOUCH_RELEASED) {
+	if (touch->action == TOUCH_CLICKED) {
+		this->clicked = true;
 		this->state = !this->state;
+		uv_ui_refresh(this);
 	}
 
+	if (touch->action != TOUCH_DRAG) {
+		// prevent event from propagating to other objects
+		touch->action = TOUCH_NONE;
+	}
+
+	bool refresh = this->super.super.refresh;
+	// make sure that uv_uibutton doesn't trigger drawing the button
+	this->super.super.refresh = false;
 	// call button step
 	uv_uibutton_step(this, touch, step_ms);
 

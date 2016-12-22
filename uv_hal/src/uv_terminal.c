@@ -57,7 +57,6 @@ void uv_terminal_reset_callb(void *me, unsigned int cmd, unsigned int args, argu
 void uv_terminal_save_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 void uv_terminal_revert_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 #endif
-void uv_terminal_crc_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 
 const uv_command_st common_cmds[] = {
 		{
@@ -120,19 +119,8 @@ const uv_command_st common_cmds[] = {
 						"reset is done." ,
 #endif
 				.callback = uv_terminal_reset_callb
-		},
-#endif
-		{
-				.id = CMD_CRC,
-				.str = "crc",
-#if CONFIG_TERMINAL_INSTRUCTIONS
-				.instructions =
-						"Sets the device CRC, which is used with a CAN-terminal"
-						"as an ID. Defaults to CRC constructed from the project name."
-						"Usage: crc (number)" ,
-#endif
-				.callback = uv_terminal_crc_callb
 		}
+#endif
 };
 
 
@@ -350,15 +338,6 @@ void uv_terminal_revert_callb(void *me, unsigned int cmd, unsigned int args, arg
 	}
 }
 #endif
-
-void uv_terminal_crc_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv) {
-	if (args) {
-		uv_set_crc(argv[0].number);
-		printf("%x\n\r", (unsigned int) argv[0].number);
-		return;
-	}
-	printf("%x\n\r", uv_get_crc());
-}
 
 
 

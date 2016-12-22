@@ -98,6 +98,9 @@ static inline void uv_uiwindow_add(void *me, void *object,
 
 /// @brief: Clears the object buffer memory clearing the whole window
 static inline void uv_uiwindow_clear(void *me) {
+	if (this->objects_count) {
+		uv_ui_refresh(me);
+	}
 	this->objects_count = 0;
 }
 

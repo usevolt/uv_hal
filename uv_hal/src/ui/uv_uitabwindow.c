@@ -63,10 +63,29 @@ void uv_uitabwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 
 	uv_uiwindow_step(this, touch, step_ms);
 
-	if (refresh) {
-		if (this->tab_change_callb) {
-			this->tab_change_callb(this, this->active_tab);
+	// todo: tab changing. When tab has been changed, this->tab_changed has to be true for 1 step cycle
+	this->tab_changed = false;
+	if (touch->action == TOUCH_CLICKED) {
+		if (touch->y <= CONFIG_UI_TABWINDOW_HEADER_HEIGHT) {
+			int16_t total_w = 0;
+			for (int16_t i = 0; i < this->tab_count; i++) {
+				int16_t tab_w = uv_ui_text_width_px((char *) this->tab_names[i], this->super.style->font) + 10;
+				if (tab_w < CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH) {
+					tab_w = CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH;
+				}
+				if (touch->x < total_w + tab_w) {
+					this->active_tab = i;
+					this->tab_changed = true;
+					// prevent touch action from propagating further
+					touch->action = TOUCH_NONE;
+					break;
+				}
+				total_w += tab_w;
+			}
 		}
+	}
+
+	if (refresh) {
 		draw(this);
 	}
 

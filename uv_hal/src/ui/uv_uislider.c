@@ -8,7 +8,7 @@
 
 #include <stdlib.h>
 #include <ui/uv_uislider.h>
-#include "ui/ugui.h"
+
 #if CONFIG_LCD
 
 #define this ((uv_uislider_st*) me)
@@ -20,7 +20,7 @@ static void draw(void *me) {
 			this->super.bb.height = CONFIG_UI_SLIDER_WIDTH;
 		}
 		int16_t x = uv_ui_get_xglobal(this);
-		int16_t y = uv_ui_get_yglobal(this);
+		int16_t y = uv_ui_get_yglobal(this) + uv_uibb(this)->height / 2 - CONFIG_UI_SLIDER_WIDTH / 2;
 		int16_t w = uv_uibb(this)->width;
 		int16_t h = CONFIG_UI_SLIDER_WIDTH;
 		uv_lcd_draw_rect(x, y, w, h, this->style->inactive_bg_c);
@@ -45,7 +45,7 @@ static void draw(void *me) {
 		if (uv_uibb(this)->width < CONFIG_UI_SLIDER_WIDTH) {
 			this->super.bb.width = CONFIG_UI_SLIDER_WIDTH;
 		}
-		int16_t x = uv_ui_get_xglobal(this);
+		int16_t x = uv_ui_get_xglobal(this) + uv_uibb(this)->width / 2 - CONFIG_UI_SLIDER_WIDTH / 2;
 		int16_t y = uv_ui_get_yglobal(this);
 		int16_t w = CONFIG_UI_SLIDER_WIDTH;
 		int16_t h = uv_uibb(this)->height;
@@ -74,13 +74,40 @@ static void draw(void *me) {
 
 
 void uv_uislider_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
-	if (touch->action) {
-
+	if (touch->action == TOUCH_PRESSED) {
+		this->dragging = true;
+		// prevent action from propagating to other elements
+		touch->action = TOUCH_NONE;
+		this->drag_start_val = this->cur_val;
 	}
+	else if (touch->action == TOUCH_DRAG && this->dragging) {
+		this->drag_val += (this->horizontal) ? touch->x : -touch->y;
+		this->cur_val = this->drag_start_val +
+				this->drag_val * (this->max_val - this->min_val) /
+				(((this->horizontal) ? uv_uibb(this)->width : uv_uibb(this)->height) - CONFIG_UI_SLIDER_WIDTH);
+		if (this->cur_val < this->min_val) this->cur_val = this->min_val;
+		else if (this->cur_val > this->max_val) this->cur_val = this->max_val;
+
+		// prevent action from propagating into other elements
+		touch->action = TOUCH_NONE;
+		uv_ui_refresh(this);
+	}
+	else if (touch->action == TOUCH_NONE && this->dragging) {
+		this->dragging = false;
+		this->drag_val = 0;
+		// prevent action from propagating to other elements
+		touch->action = TOUCH_NONE;
+	}
+
+
 	if (this->super.refresh && this->super.visible) {
 		draw(this);
 	}
 }
+
+
+
+
 
 
 

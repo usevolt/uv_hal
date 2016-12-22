@@ -80,5 +80,21 @@ typedef struct
    extern const uv_font_st font_32X53;
 #endif
 
+#if CONFIG_UI_NUM_12X20
+   extern const uv_font_st num_12X20;
+#endif
+#if CONFIG_UI_NUM_16X26
+   extern const uv_font_st num_16X26;
+#endif
+#if CONFIG_UI_NUM_22X36
+   extern const uv_font_st num_22X36;
+#endif
+#if CONFIG_UI_NUM_24X40
+   extern const uv_font_st num_24X40;
+#endif
+#if CONFIG_UI_NUM_32X53
+   extern const uv_font_st num_32X53;
+#endif
+
 
 #endif /* UV_HAL_INC_UI_UV_UIFONT_H_ */

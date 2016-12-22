@@ -34,15 +34,27 @@ static inline void draw(void *me, uint16_t step_ms) {
 
 void uv_uibutton_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 
-	if (touch->action == TOUCH_CLICKED) {
+	if (touch->action == TOUCH_IS_DOWN) {
+		if (this->state != UIBUTTON_PRESSED) {
+			uv_ui_refresh(this);
+		}
+		this->state = UIBUTTON_PRESSED;
+	}
+	else if (touch->action == TOUCH_CLICKED) {
+		// prevent touch action propagating to other elements
+		touch->action = TOUCH_NONE;
 		this->state = UIBUTTON_CLICKED;
-		this->callb(this, this->state);
+		uv_ui_refresh(this);
 	}
 	else if (touch->action == TOUCH_LONG_PRESSED) {
 		this->state = UIBUTTON_LONGPRESSED;
-		this->callb(this, this->state);
+		// prevent touch action propagating to other elements
+		touch->action = TOUCH_NONE;
 	}
 	else {
+		if (this->state != UIBUTTON_UP) {
+			uv_ui_refresh(this);
+		}
 		this->state = UIBUTTON_UP;
 	}
 	if (this->super.refresh) {

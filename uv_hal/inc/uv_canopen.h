@@ -550,186 +550,11 @@ typedef struct {
 	uv_ring_buffer_st errors;
 #endif
 
-	int heartbeat_delay;
+	int *heartbeat_delay;
 
 } uv_canopen_st;
 
 
-
-
-
-
-/*
- * PRIVATE DECLARATION MACROS FOR OBJECT DICITONARY INITIALIZATION
- */
-
-#if CONFIG_CANOPEN_DEVICE_TYPE_INDEX
-#define _DECL_DEVICE_TYPE(x)		{\
-		.main_index = CONFIG_CANOPEN_DEVICE_TYPE_INDEX, \
-		.sub_index = 0, \
-		.type = CANOPEN_UNSIGNED32, \
-		.permissions = CANOPEN_RO, \
-		.data_ptr = (uint8_t*) &(x.obj_dict.com_params.device_type) \
-},
-#else
-#define _DECL_DEVICE_TYPE(x)
-#endif
-
-#if CONFIG_CANOPEN_ERROR_REGISTER_INDEX
-#define _DECL_ERROR_REGISTER(x) {\
-		.main_index = CONFIG_CANOPEN_ERROR_REGISTER_INDEX, \
-		.sub_index = 0, \
-		.type = CANOPEN_UNSIGNED8, \
-		.permissions = CANOPEN_RO, \
-		.data_ptr = (uint8_t*) &(x.obj_dict.com_params.error_register) \
-},
-#else
-#define _DECL_ERROR_REGISTER(x)
-#endif
-
-#if CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX
-#define _DECL_PREDEFINED_ERROR_FIELD(x) {\
-	.main_index = CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX, \
-	.type = CANOPEN_ARRAY32, \
-	.permissions = CANOPEN_RW, \
-	.array_max_size = CONFIG_CANOPEN_PREDEFINED_ERROR_SIZE, \
-	.data_ptr = (uint8_t*) x.obj_dict.com_params.predefined_errors \
-},
-#else
-#define _DECL_PREDEFINED_ERROR_FIELD(x)
-#endif
-
-#define _DECL_NODE_ID(x)	{ \
-	.main_index = CONFIG_CANOPEN_NODEID_INDEX, \
-	.sub_index = 0, \
-	.type = CANOPEN_UNSIGNED8, \
-	.permissions = CANOPEN_RW, \
-	.data_ptr = (uint8_t*) &(x.obj_dict.com_params.node_id) \
-},
-
-#if CONFIG_CANOPEN_STORE_PARAMS_INDEX
-#define _DECL_STORE_PARAMS(x) { \
-	.main_index = CONFIG_CANOPEN_STORE_PARAMS_INDEX, \
-	.sub_index = 0, \
-	.type = CANOPEN_UNSIGNED32, \
-	.permissions = CANOPEN_WO, \
-	.data_ptr = (uint8_t*) &(x.obj_dict.com_params.store_params) \
-},
-#else
-#define _DECL_STORE_PARAMS(x)
-#endif
-
-#if CONFIG_CANOPEN_RESTORE_PARAMS_INDEX
-#define _DECL_RESTORE_PARAMS(x) { \
-	.main_index = CONFIG_CANOPEN_RESTORE_PARAMS_INDEX, \
-	.sub_index = 0, \
-	.type = CANOPEN_UNSIGNED32, \
-	.permissions = CANOPEN_WO, \
-	.data_ptr = (uint8_t*) &(x.obj_dict.com_params.restore_params) \
-},
-#else
-#define _DECL_RESTORE_PARAMS(x)
-#endif
-
-#if CONFIG_CANOPEN_HEARTBEAT_INDEX
-#define _DECL_HEARTBEAT(x) { \
-	.main_index = CONFIG_CANOPEN_HEARTBEAT_INDEX, \
-	.sub_index = 0, \
-	.type = CANOPEN_UNSIGNED16, \
-	.permissions = CANOPEN_RW, \
-	.data_ptr = (uint8_t*) &(x.obj_dict.com_params.heartbeat_time) \
-},
-#else
-#define _DECL_HEARTBEAT(x)
-#endif
-
-#if CONFIG_CANOPEN_IDENTITY_INDEX
-#define _DECL_IDENTITY(x) { \
-	.main_index = CONFIG_CANOPEN_IDENTITY_INDEX, \
-	.type = CANOPEN_ARRAY32, \
-	.permissions = CANOPEN_RO, \
-	.array_max_size = CANOPEN_IDENTITY_OBJECT_ARRAY_SIZE, \
-	.data_ptr = (uint8_t*) &(x.obj_dict.com_params.identity) \
-},
-#else
-#define _DECL_IDENTITY(x)
-#endif
-
-#if CONFIG_CANOPEN_TXPDO_COM_INDEX
-#define _DECL_TXPDO_COM__(x, y)	\
-	{ \
-	.main_index = CONFIG_CANOPEN_TXPDO_COM_INDEX + x, \
-	.type = CANOPEN_ARRAY32, \
-	.permissions = CANOPEN_RW, \
-	.array_max_size = CANOPEN_TXPDO_COM_ARRAY_SIZE, \
-	.data_ptr = (uint8_t*) &(y.obj_dict.com_params.txpdo_coms[x]) \
-},
-#define _DECL_TXPDO_COM(x)	REPEAT_ARG(CONFIG_CANOPEN_TXPDO_COUNT, _DECL_TXPDO_COM__, x)
-#else
-#define _DECL_TXPDO_COM(x)
-#endif
-
-#if CONFIG_CANOPEN_TXPDO_MAP_INDEX
-#define _DECL_RXPDO_MAP__(pdo, obj) { \
-	.main_index = CONFIG_CANOPEN_TXPDO_MAP_INDEX + pdo, \
-	.type = CANOPEN_ARRAY32, \
-	.permissions = CANOPEN_RW, \
-	.array_max_size = CONFIG_CANOPEN_PDO_MAPPING_COUNT, \
-	.data_ptr = (uint8_t*) obj.obj_dict.com_params.txpdo_mappings[pdo] \
-},
-#define _DECL_TXPDO_MAP(x)		REPEAT_ARG(CONFIG_CANOPEN_TXPDO_COUNT, _DECL_RXPDO_MAP__, x)
-#else
-#define _DECL_TXPDO_MAP(x)
-#endif
-
-#if CONFIG_CANOPEN_RXPDO_COM_INDEX
-#define _DECL_RXPDO_COM__(x, y)	\
-	{ \
-	.main_index = CONFIG_CANOPEN_RXPDO_COM_INDEX + x, \
-	.type = CANOPEN_ARRAY32, \
-	.permissions = CANOPEN_RW, \
-	.array_max_size = CANOPEN_RXPDO_COM_ARRAY_SIZE, \
-	.data_ptr = (uint8_t*) &(y.obj_dict.com_params.rxpdo_coms[x]) \
-},
-#define _DECL_RXPDO_COM(x)	REPEAT_ARG(CONFIG_CANOPEN_RXPDO_COUNT, _DECL_RXPDO_COM__, x)
-#else
-#define _DECL_RXPDO_COM(x)
-#endif
-
-#if CONFIG_CANOPEN_RXPDO_MAP_INDEX
-#define _DECL_RXPDO_MAP(x)
-#else
-#define _DECL_RXPDO_MAP(x)
-#endif
-
-
-
-/// @brief: Macro which should be used when declaring the CANopen object dictionary array.
-/// This is mandatory for CANopen communication objects to be defined!
-///
-/// @example:
-///	const uv_canopen_object_st obj_dict[] = {
-///		CANOPEN_OBJ_DICT(this->canopen);
-///
-///		{
-///			.main_index = ...
-///			...
-///		}, ...
-/// }
-#define CANOPEN_OBJ_DICT(uw_canopen_st)			\
-	\
-	_DECL_DEVICE_TYPE(uw_canopen_st) \
-	_DECL_ERROR_REGISTER(uw_canopen_st) \
-	_DECL_PREDEFINED_ERROR_FIELD(uw_canopen_st) \
-	_DECL_NODE_ID(uw_canopen_st) \
-	_DECL_STORE_PARAMS(uw_canopen_st) \
-	_DECL_RESTORE_PARAMS(uw_canopen_st) \
-	_DECL_HEARTBEAT(uw_canopen_st) \
-	_DECL_IDENTITY(uw_canopen_st) \
-	_DECL_TXPDO_COM(uw_canopen_st) \
-	_DECL_TXPDO_MAP(uw_canopen_st) \
-	_DECL_RXPDO_COM(uw_canopen_st) \
-	_DECL_RXPDO_MAP(uw_canopen_st)
 
 
 
@@ -810,6 +635,9 @@ typedef struct {
 /// @param obj_dict: Pointer to the uv_canopen_object_st array containing the application specific objects
 /// @param obj_dict_length: The length of the object array in objects
 /// @param can_channel: The CAN channel which this CANopen instance uses
+/// @param heartbeat_delay: Pointer to an int variable which is used for heart beat delay conting.
+/// Giving this as a pointer makes sure that non-volatile memory is not flashed if nothing
+/// else than heartbeat_delay is changed.
 /// @param restore_defaults_callback: A callback function which restores the application parameter
 /// object values to their default values. Implementing this is mandatory in order to ensure
 /// correct CANopen behaviour.
@@ -821,6 +649,7 @@ uv_errors_e uv_canopen_init(uv_canopen_st *me,
 		const uv_canopen_object_st *obj_dict,
 		uint16_t obj_dict_length,
 		uv_can_channels_e can_channel,
+		int *heartbeat_delay,
 		void (*sdo_write_callback)(uv_canopen_object_st* obj_dict_entry),
 		void (*emcy_callback)(void *user_ptr, uv_canopen_emcy_msg_st *msg));
 
@@ -840,12 +669,15 @@ uv_errors_e uv_canopen_step(uv_canopen_st *me, unsigned int step_ms);
 /// @brief: Used to set the device state. Device will start in UW_CANOPEN_BOOT_UP state
 /// and it should move itself to pre-operational state after boot up is done.
 /// From that point forward the device state is handled by this CANopen stack.
-uv_errors_e uv_canopen_set_state(uv_canopen_st *me, uv_canopen_node_states_e state);
-
+static inline void uv_canopen_set_state(uv_canopen_st *me, uv_canopen_node_states_e state) {
+	me->state = state;
+}
 
 /// @brief: Used to get the device state. Device will start in UW_CANOPEN_BOOT_UP state
 /// and it should move itself to pre-operational state arfter boot up is done.
-uv_canopen_node_states_e uv_canopen_get_state(uv_canopen_st *me);
+static inline uv_canopen_node_states_e uv_canopen_get_state(uv_canopen_st *me) {
+	return me->state;
+}
 
 
 /// @brief: Sends an EMCY (emergency) message
@@ -856,6 +688,19 @@ uv_errors_e uv_canopen_emcy_send(uv_canopen_st *me, uv_canopen_emcy_msg_st *msg)
 /// @param sdo: The SDO message data structure which is sent.
 /// @param node_id: The destination node's node id
 uv_errors_e uv_canopen_send_sdo(uv_canopen_st *me, uv_canopen_sdo_message_st *sdo, uint8_t node_id);
+
+/// @brief: Quick way for sending a SDO write request
+static inline uv_errors_e uv_canopen_sdo_write(uv_canopen_st *me,
+		uv_canopen_sdo_commands_e sdoreq, uint8_t node_id,
+		uint16_t mindex, uint8_t sindex, uint32_t data) \
+{
+	uv_canopen_sdo_message_st sdo;
+	sdo.request = sdoreq;
+	sdo.data_32bit = data;
+	sdo.main_index = mindex;
+	sdo.sub_index = sindex;
+	return uv_canopen_send_sdo(me, &sdo, node_id);
+}
 
 
 

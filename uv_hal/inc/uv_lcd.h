@@ -181,9 +181,22 @@
  CONFIG_LCD_Y_B_GPIO should define the same GPIO pin."
 #endif
 #if !defined(CONFIG_LCD_TOUCH_THRESHOLD)
-#error "CONFIG_LCD_TOUCH_THRESHOLD should defined the threshold value wich is used to detect\
+#error "CONFIG_LCD_TOUCH_THRESHOLD should defined the threshold value which is used to detect\
  if the screen is touched or not. ADC converter value smaller than this is recognized as a touch."
 #endif
+#if !defined(CONFIG_LCD_X_MAX)
+#error "CONFIG_LCD_X_MAX should define the touchscreen ADC maximum value for X axis"
+#endif
+#if !defined(CONFIG_LCD_Y_MAX)
+#error "CONFIG_LCD_X_MAX should define the touchscreen ADC maximum value for Y axis"
+#endif
+#if !defined(CONFIG_LCD_X_MIN)
+#error "CONFIG_LCD_X_MIN should define the touchscreen ADC minimum value for X axis"
+#endif
+#if !defined(CONFIG_LCD_Y_MIN)
+#error "CONFIG_LCD_X_MIN should define the touchscreen ADC minimum value for Y axis"
+#endif
+
 #endif
 
 /// @brief: Values used for CONFIG_LCD_BITS_PER_PIXEL configuration define
@@ -193,7 +206,7 @@
 #define LCD_8_BPP			3
 #define LCD_16_BPP			4
 #define LCD_24_BPP			5
-#define LCD_16_BPP_RB565	6
+#define LCD_16_BPP_RGB565	6
 #define LCD_12_BPP_RGB444	7
 
 /// @brief: Defines the PIXEL data type. Depends on how many bits are used per pixel
@@ -203,6 +216,8 @@
 #define LCD_PIXEL_TYPE	uint16_t
 #elif CONFIG_LCD_BITS_PER_PIXEL == LCD_8_BPP
 #define LCD_PIXEL_TYPE	uint8_t
+#elif CONFIG_LCD_BITS_PER_PIXEL == LCD_16_BPP_RGB565
+#define LCD_PIXEL_TYPE	uint16_t
 #else
 #error "Unimplemented bits per pixel setting."
 #endif
@@ -220,14 +235,24 @@
 #define LCD_H(rel_h)	(LCD_H_PX * (rel_h))
 
 
-#if (CONFIG_LCD_BITS_PER_PIXEL != LCD_24_BPP)
+#if (CONFIG_LCD_BITS_PER_PIXEL != LCD_24_BPP) && \
+	(CONFIG_LCD_BITS_PER_PIXEL != LCD_16_BPP_RGB565)
 #error "Incorrect bits per pixel setting. Only RGB888 (24-bits) format is implemented"
 #endif
 
 
 /// @brief: Converts RGB888 color to used color space.
 /// For compatibility all colors should be defined with this macro.
+#if CONFIG_LCD_BITS_PER_PIXEL == LCD_24_BPP
 #define C(x)	(x)
+#elif CONFIG_LCD_BITS_PER_PIXEL == LCD_16_BPP_RGB565
+#define C(x)	((x & 0xFF000000) | \
+				(((x & 0xFF0000) >> (16 + 3)) << 11) | \
+				(((x & 0xFF00) >> (8 + 2)) << 5) | \
+				((x & 0xFF) >> 3))
+#else
+#error "Converting from RGB888 to selected color space not implemented"
+#endif
 
 /// @brief: Color type. All colors are given in RGB888.
 ///
@@ -251,18 +276,6 @@ static inline color_t uv_rgbtoc(rgb_st rgb) {
 	return *((color_t*) &rgb);
 }
 
-/// @brief: Returns the color multiplied to be darker by the amount of *mult*
-/// Negative multiplier results in darker color
-color_t uv_cmult(color_t c, float mult);
-
-/// @brief: Returns the color multiplied to be darker by the amount of *mult*
-static inline color_t uv_cdarker(color_t c, float mult) {
-	return uv_cmult(c, 1 / mult);
-}
-/// @brief: Returns the color multiplied to be lighter by the amount of *mult*
-static inline color_t uv_clighter(color_t c, float mult) {
-	return uv_cmult(c, mult);
-}
 
 /// @brief: Helper macro for easier calls to LCD drawing functions as well as
 /// GUI functions. Calculates x so that the created component will be

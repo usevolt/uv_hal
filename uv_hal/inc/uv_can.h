@@ -137,11 +137,15 @@ typedef enum {
 /// @brief: Describes all the available CAN channels on this hardware
 typedef enum {
 #if CONFIG_TARGET_LPC11C14
-	CAN1,
+	CAN1 = 0,
 	CAN_COUNT
 #elif CONFIG_TARGET_LPC1785
+#if CONFIG_CAN1
 	CAN1,
+#endif
+#if CONFIG_CAN2
 	CAN2,
+#endif
 	CAN_COUNT
 #else
 #error "Unknown hardware"
@@ -235,6 +239,9 @@ uv_errors_e uv_can_config_rx_message_range(uv_can_channels_e channel,
 ///
 /// @pre: uv_can_init should be called
 uv_can_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message);
+static inline uv_can_errors_e uv_can_send(uv_can_channels_e channel, uv_can_message_st *msg) {
+	return uv_can_send_message(channel, msg);
+}
 
 
 /// @brief: Pops the lastly received message from the RX buffer and returns it in
