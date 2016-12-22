@@ -279,7 +279,7 @@ void CAN_rx(uint8_t msg_obj_num) {
 
 #if CONFIG_TERMINAL_CAN
 	// terminal characters are sent to their specific buffer
-	if (this->temp_msg.id == UV_TERMINAL_CAN_PREFIX + uv_get_crc()) {
+	if (this->temp_msg.id == UV_TERMINAL_CAN_PREFIX + uv_get_id()) {
 		uint8_t i;
 		for (i = 0; i < this->temp_msg.data_length; i++) {
 			uv_ring_buffer_push(&this->char_buffer, (char*) &this->temp_msg.data_8bit[i]);
@@ -397,7 +397,7 @@ uv_errors_e _uv_can_init() {
 
 #if CONFIG_TERMINAL_CAN
 	uv_ring_buffer_init(&this->char_buffer, this->char_buffer_data, CONFIG_TERMINAL_BUFFER_SIZE, sizeof(char));
-	uv_can_config_rx_message(CAN1, UV_TERMINAL_CAN_PREFIX + uv_get_crc(), CAN_ID_MASK_DEFAULT, CAN_EXT);
+	uv_can_config_rx_message(CAN1, UV_TERMINAL_CAN_PREFIX + uv_get_id(), CAN_ID_MASK_DEFAULT, CAN_EXT);
 #endif
 	return uv_err(ERR_NONE);
 
@@ -904,9 +904,6 @@ uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
 
 
 
-#else
-#error "Controller not defined"
-#endif
 
 
 
@@ -920,6 +917,19 @@ uv_errors_e uv_can_add_rx_callback(uv_can_channels_e channel,
 }
 
 
+
+uv_errors_e uv_can_get_char(char *dest) {
+	return uv_ring_buffer_pop(&this->char_buffer, dest);
+}
+
+
+#else
+#error "Controller not defined"
+#endif
+
+
+
+
 /// @brief: Inner hal step function which is called in rtos hal task
 void _uv_can_hal_step(unsigned int step_ms) {
 #if CONFIG_TARGET_LPC11C14
@@ -928,14 +938,6 @@ void _uv_can_hal_step(unsigned int step_ms) {
 	else this->tx_pending = 0;
 #endif
 }
-
-
-
-uv_errors_e uv_can_get_char(char *dest) {
-	return uv_ring_buffer_pop(&this->char_buffer, dest);
-}
-
-
 
 
 #endif
