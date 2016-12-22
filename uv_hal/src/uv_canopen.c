@@ -12,14 +12,12 @@
 #include "uv_can.h"
 #include "uv_reset.h"
 #include "uv_utilities.h"
+#include "uv_memory.h"
 #include <string.h>
 #if CONFIG_CANOPEN_LOG
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#endif
-#if CONFIG_CANOPEN_IDENTITY_INDEX
-#include "uv_memory.h"
 #endif
 extern uv_errors_e __uv_save_previous_non_volatile_data();
 extern uv_errors_e __uv_clear_previous_non_volatile_data();
@@ -273,7 +271,13 @@ uv_errors_e uv_canopen_init(uv_canopen_st *me,
 	return uv_err(ERR_NONE);
 }
 
-uv_errors_e uv_canopen_restore_defaults(uv_canopen_st *me) {
+uv_errors_e uv_canopen_restore_defaults(uv_canopen_st *me,
+		const uv_canopen_object_st *obj_dict,
+		uint16_t obj_dict_length,
+		uv_can_channels_e can_channel,
+		int *heartbeat_delay,
+		void (*sdo_write_callback)(uv_canopen_object_st* obj_dict_entry),
+		void (*emcy_callback)(void *user_ptr, uv_canopen_emcy_msg_st *msg)) {
 #if CONFIG_CANOPEN_DEVICE_TYPE_INDEX
 	this->obj_dict.com_params.device_type = CONFIG_CANOPEN_DEVICE_TYPE;
 #endif
@@ -304,8 +308,8 @@ uv_errors_e uv_canopen_restore_defaults(uv_canopen_st *me) {
 
 
 	// lastly initialize all volatile data
-	uv_canopen_init(this, this->obj_dict.app_parameters, this->obj_dict.app_parameters_length,
-			this->can_channel, this->heartbeat_delay, this->sdo_write_callback, this->emcy_callback);
+	uv_canopen_init(this, obj_dict, obj_dict_length,
+			can_channel, heartbeat_delay, sdo_write_callback, emcy_callback);
 	return ERR_NONE;
 }
 

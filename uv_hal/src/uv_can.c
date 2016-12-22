@@ -459,6 +459,7 @@ uv_can_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st
 
 	// if tx object is pending, try to wait for the HAl task to release the pending msg obj
 	while (this->tx_pending > 0) {
+		uint32_t t = LPC_CAN->STAT;
 		uv_rtos_task_yield();
 	}
 
@@ -489,7 +490,6 @@ uv_errors_e uv_can_pop_message(uv_can_channels_e channel, uv_can_message_st *mes
 
 
 uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
-	if (check_channel(channel)) return check_channel(channel);
 	if (LPC_CAN->STAT & (1 << 7)) {
 		return CAN_ERROR_BUS_OFF;
 	}

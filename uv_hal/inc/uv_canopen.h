@@ -658,7 +658,13 @@ uv_errors_e uv_canopen_init(uv_canopen_st *me,
 /// Note that this doesn't restore application dependent objects to their default values by its own.
 /// However, it does call restore_defaults() function pointer which should be defined by the application
 /// to restore the application parameters to their default values.
-uv_errors_e uv_canopen_restore_defaults(uv_canopen_st *me);
+uv_errors_e uv_canopen_restore_defaults(uv_canopen_st *me,
+		const uv_canopen_object_st *obj_dict,
+		uint16_t obj_dict_length,
+		uv_can_channels_e can_channel,
+		int *heartbeat_delay,
+		void (*sdo_write_callback)(uv_canopen_object_st* obj_dict_entry),
+		void (*emcy_callback)(void *user_ptr, uv_canopen_emcy_msg_st *msg));
 
 
 /// @brief: The CANopen step function. Makes sure that the txPDO and heartbeat messages

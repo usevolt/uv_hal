@@ -19,6 +19,7 @@
 /// For example on CONFIG_TARGET_LPC11C14, this module may use all 32 CAN message objects
 /// as it wants.
 
+
 #if CONFIG_CAN
 
 
@@ -288,6 +289,7 @@ uv_errors_e uv_can_get_char(char *dest);
 
 
 void _uv_can_hal_step(unsigned int step_ms);
+
 
 
 #endif

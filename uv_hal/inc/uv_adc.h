@@ -13,7 +13,6 @@
 
 #include "uv_errors.h"
 #include <stdbool.h>
-#if CONFIG_ADC
 
 #if CONFIG_TARGET_LPC1785
 
@@ -109,8 +108,6 @@ typedef enum {
 
 
 /// @brief: initialize adc converter.
-/// uv_hal_config.h file should define used ADC channels as well as ADC mode
-/// (CONTINUOUS / STANDARD).
 uv_errors_e _uv_adc_init();
 
 
@@ -168,6 +165,5 @@ uv_errors_e uv_adc_add_callback(
 
 ***/
 
-#endif
 
 #endif /* UW_ADC_H_ */

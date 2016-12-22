@@ -385,7 +385,7 @@ static inline float uv_relf(float t, float min, float max) {
 /// value of t.
 ///
 /// @note: Should be min <= t <= max and min != max
-static inline float uv_reli(int t, int min, int max) {
+static inline int uv_reli(int t, int min, int max) {
 	if (min == max) return 0;
 	return 1000 * (t-min)/(max-min);
 }
