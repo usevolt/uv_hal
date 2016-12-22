@@ -526,6 +526,12 @@ uv_errors_e uv_can_get_char(char *dest) {
 // same handler for both CAN channels
 void CAN_IRQHandler(void) {
 #if CONFIG_CAN1
+	// CAN tranceiver is either in bus off or error active state
+	if (LPC_CAN1->ICR & (0b11 << 2)) {
+		LPC_CAN1->MOD &= ~1;
+		return;
+	}
+
 	while (LPC_CAN1->GSR & 1) {
 		// data ready to be received
 		this->temp.id = LPC_CAN1->RID;
@@ -586,17 +592,15 @@ uv_errors_e _uv_can_init() {
 	// normal mode, transmit priority to CAN IDs, no sleep mode,
 	LPC_CAN1->MOD &= ~(0b10111110);
 	// enable receive interrupts
-	LPC_CAN1->IER = 1;
+	LPC_CAN1->IER = 1 | (1 << 2);
 	NVIC_EnableIRQ(CAN_IRQn);
-	// todo: CAN clock settings
-//	LPC_CAN1->BTR = ...
 	// TSEG1 = 1, TSEG2 = 2, SJW = 1, SAM = 0
 	LPC_CAN1->BTR = (1 << 20);
 	// CAN baudrate = fosc / ((BRP + 1) * (TSEG1 + TSEG2)
 	// ((BRP + 1) * (1 + 2)) * baudrate = fosc
 	// (BRP + 1) * 3 = fosc / baudrate
 	// BRP = fosc / (3 * baudrate) - 1
-	LPC_CAN1->BTR |= (SystemCoreClock / (CONFIG_CAN1_BAUDRATE * 8) - 1) & 0x3FF;
+	LPC_CAN1->BTR |= (SystemCoreClock / (CONFIG_CAN1_BAUDRATE * 8)) & 0x3FF;
 	// set CAN peripheral ON
 	LPC_CAN1->MOD &= ~1;
 
@@ -629,11 +633,17 @@ uv_errors_e _uv_can_init() {
 	uv_can_config_rx_message(CAN1, UV_TERMINAL_CAN_PREFIX + uv_get_id(), CAN_EXT);
 #endif
 
+	// set acceptance filter to idle mode
+	LPC_CANAF->AFMR = 0b10;
+
 	LPC_CANAF->SFF_sa = 0;
 	LPC_CANAF->SFF_GRP_sa = 0;
 	LPC_CANAF->EFF_sa = 0;
 	LPC_CANAF->EFF_GRP_sa = 0;
 	LPC_CANAF->ENDofTable = 0;
+
+	// enable acceptance filter
+	LPC_CANAF->AFMR = 0;
 
 	this->init = true;
 
@@ -818,6 +828,18 @@ uv_can_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st
 #if CONFIG_CAN1
 	if (channel == CAN1) {
 
+		// if any transmit buffer has same ID message to be transmitted, wait until
+		// the older message is transmitted.
+		if (LPC_CAN1->TID1 == msg->id) {
+			while (!(LPC_CAN1->SR & (1 << 2)));
+		}
+		if (LPC_CAN1->TID2 == msg->id) {
+			while (!(LPC_CAN1->SR & (1 << 10)));
+		}
+		if (LPC_CAN1->TID3 == msg->id) {
+			while (!(LPC_CAN1->SR & (1 << 18)));
+		}
+
 		// wait until any one transmit buffer is available for transmitting
 		while (!(LPC_CAN1->SR & ((1 << 2) | (1 << 10) | (1 << 18))));
 
@@ -870,9 +892,6 @@ uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
 	if (channel == CAN1) {
 		if (LPC_CAN1->GSR & (1 << 7)) {
 			return CAN_ERROR_BUS_OFF;
-		}
-		else if (LPC_CAN1->GSR & (1 << 6)) {
-			return CAN_ERROR_PASSIVE;
 		}
 		else return CAN_ERROR_ACTIVE;
 	}

@@ -176,16 +176,14 @@ static inline void uv_ui_show(void *me) {
 
 /// @brief: Enabled the object. This functionality might not be implemented
 /// on all obejcts.
-static inline void uv_ui_enable(void *me) {
-	this->enabled = true;
-	uv_ui_refresh(this);
+static inline void uv_ui_set_enabled(void *me, bool enabled) {
+	if (this->enabled != enabled) {
+		uv_ui_refresh(this);
+	}
+	this->enabled = enabled;
 }
-
-/// @brief: Disables the object. This functionality might not be implemented
-/// on all objects
-static inline void uv_ui_disable(void *me) {
-	this->enabled = false;
-	uv_ui_refresh(this);
+static inline bool uv_ui_get_enabled(void *me) {
+	return this->enabled;
 }
 
 /// @brief: Getter for the object's bounding box

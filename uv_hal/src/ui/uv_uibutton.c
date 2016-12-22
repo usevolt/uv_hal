@@ -29,6 +29,10 @@ static inline void draw(void *me, uint16_t step_ms) {
 
 void uv_uibutton_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 
+	if (!uv_ui_get_enabled(this)) {
+		return;
+	}
+
 	if (touch->action == TOUCH_IS_DOWN) {
 		if (this->state != UIBUTTON_PRESSED) {
 			uv_ui_refresh(this);

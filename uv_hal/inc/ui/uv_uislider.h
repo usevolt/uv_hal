@@ -63,6 +63,8 @@ static inline void uv_uislider_init(void *me, int16_t min_value, int16_t max_val
 	this->min_val = min_value;
 	this->max_val = max_value;
 	this->cur_val = current_value;
+	if (this->cur_val > this->max_val) this->cur_val = this->max_val;
+	else if (this->cur_val < this->min_val) this->cur_val = this->min_val;
 	this->style = style;
 	this->horizontal = true;
 	this->show_value = true;
