@@ -63,8 +63,6 @@ void PIOINT3_IRQHandler (void) {
 }
 
 static void isr(LPC_GPIO_TypeDef *GPIO, uv_gpios_e port) {
-//	printf("int!\n\r");
-	GPIO->IC = 0b111111111111;
 	int i = 0;
 	// i should be as big as there is IO's in a port
 	while(GPIO->MIS) {

@@ -124,9 +124,7 @@ void uv_init(void *device) {
 	_uv_uart_init(UART3);
 #endif
 
-#if CONFIG_CAN
 	_uv_can_init();
-#endif
 
 #if CONFIG_SPI
 	_uv_spi_init();

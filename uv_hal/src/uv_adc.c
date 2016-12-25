@@ -16,7 +16,6 @@
 #include "LPC177x_8x.h"
 #endif
 
-#if CONFIG_ADC
 
 #if CONFIG_TARGET_LPC11C14
 ///controller specific initializations for AD pins
@@ -181,4 +180,3 @@ int uv_adc_read_average(uv_adc_channels_e channel, unsigned int conversion_count
 	return value;
 }
 
-#endif
