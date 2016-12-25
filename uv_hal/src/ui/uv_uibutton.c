@@ -14,6 +14,12 @@
 
 #define this ((uv_uibutton_st*)me)
 
+void uv_uibutton_init(void *me, char *text, const uv_uistyle_st *style) {
+	uv_uiobject_init(me);
+	this->state = UIBUTTON_UP;
+	this->style = style;
+	this->text = text;
+}
 
 
 

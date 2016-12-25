@@ -103,6 +103,9 @@ void uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 
 void _uv_ui_draw_text(uint16_t x, uint16_t y, const uv_font_st *font,
 		alignment_e align, color_t color, color_t bgcolor, char *str) {
+	if (!str) {
+		return;
+	}
 	uint16_t len = strlen(str);
 	uint16_t line_count = 1;
 	uint16_t i;
@@ -151,6 +154,25 @@ int16_t uv_ui_text_width_px(char *str, const uv_font_st *font) {
 	}
 	return len * font->char_width;
 }
+
+
+int16_t uv_ui_text_height_px(char *str, const uv_font_st *font) {
+	int16_t line_count = 1;
+	char *c = str;
+	if (!str || *c == '\0') {
+		return 0;
+	}
+	while (*c != '\0') {
+		if (*c == '\n' || *c == '\r') {
+			if (*(c+1) != '\n' && *(c+1) != '\r') {
+				line_count++;
+			}
+		}
+		c++;
+	}
+	return line_count * font->char_height;
+}
+
 
 
 #endif

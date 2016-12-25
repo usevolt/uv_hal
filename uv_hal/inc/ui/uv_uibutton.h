@@ -45,12 +45,7 @@ typedef struct {
 /// @param text: The text which is displayed on the button
 /// @param style: Pointer to the button style used
 /// Pointer to this button object and the state of this button
-static inline void uv_uibutton_init(void *me, char *text, const uv_uistyle_st *style) {
-	uv_uiobject_init(me);
-	this->state = UIBUTTON_UP;
-	this->style = style;
-	this->text = text;
-}
+void uv_uibutton_init(void *me, char *text, const uv_uistyle_st *style);
 
 
 /// @brief: Sets the text of the button

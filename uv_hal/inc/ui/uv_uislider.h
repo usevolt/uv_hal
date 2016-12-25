@@ -39,6 +39,8 @@ typedef struct {
 	bool horizontal;
 	/// @brief: Inner state variable indicating that a TOUCH_DRAG event has been started
 	bool dragging;
+	/// @brief: Title text which is shown below the slider
+	char *title;
 	/// @brief: Value changed-callback
 	void (*callb)(void *me, int16_t value);
 	const uv_uistyle_st *style;
@@ -57,20 +59,8 @@ typedef struct {
 /// @param current_value: The initial value of the slider
 /// @param callb: The callback which is called when the value is changed. Parameter: pointer to
 /// this slider structure, the current value
-static inline void uv_uislider_init(void *me, int16_t min_value, int16_t max_value, int16_t current_value,
-		const uv_uistyle_st *style) {
-	uv_uiobject_init(this);
-	this->min_val = min_value;
-	this->max_val = max_value;
-	this->cur_val = current_value;
-	if (this->cur_val > this->max_val) this->cur_val = this->max_val;
-	else if (this->cur_val < this->min_val) this->cur_val = this->min_val;
-	this->style = style;
-	this->horizontal = true;
-	this->show_value = true;
-	this->dragging = false;
-	this->drag_val = 0;
-}
+void uv_uislider_init(void *me, int16_t min_value, int16_t max_value, int16_t current_value,
+		const uv_uistyle_st *style);
 
 
 /// @brief: Step function which is also used to update the slider
@@ -106,6 +96,11 @@ static inline void uv_uislider_hide_value(void *me) {
 static inline void uv_uislider_set_min_value(void *me, int16_t min_value) {
 	this->min_val = min_value;
 	uv_ui_refresh(this);
+}
+
+/// @brief: Sets the title. The title should be a null-terminated string.
+static inline void uv_uislider_set_title(void *me, char *title) {
+	this->title = title;
 }
 
 /// @brief: Returns the minimum value

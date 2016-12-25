@@ -138,8 +138,6 @@ void uv_eeprom_init_circular_buffer(uint16_t entry_len) {
 			this->back_addr = i;
 			max_index = index;
 		}
-		printf("index %u\n\r", index);
-
 	}
 
 }

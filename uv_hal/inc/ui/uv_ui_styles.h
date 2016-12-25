@@ -35,6 +35,7 @@ typedef struct {
 	color_t inactive_font_c;
 	color_t window_c;
 	const uv_font_st *font;
+	color_t text_color;
 
 } uv_uistyle_st;
 extern const uv_uistyle_st uv_uistyles[CONFIG_UI_STYLES_COUNT];

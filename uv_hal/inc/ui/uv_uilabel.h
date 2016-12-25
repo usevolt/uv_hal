@@ -164,6 +164,9 @@ void _uv_ui_draw_text(uint16_t x, uint16_t y, const uv_font_st *font,
 /// Takes new lines in account when calculating the length.
 int16_t uv_ui_text_width_px(char *str, const uv_font_st *font);
 
+/// @brief: Returns the string height in pixels
+int16_t uv_ui_text_height_px(char *str, const uv_font_st *font);
+
 
 #undef this
 

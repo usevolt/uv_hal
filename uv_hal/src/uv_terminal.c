@@ -131,7 +131,7 @@ void uv_terminal_init(const uv_command_st* commands, unsigned int count) {
 	this->buffer[0] = '\0';
 
 	// print device name and build date
-	printf("%s\n\rBuild on %s\n\r", uv_projname, uv_datetime);
+	printf("%s\n\rBuild on %s\n\r>", uv_projname, uv_datetime);
 
 
 }

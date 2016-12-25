@@ -830,18 +830,26 @@ uv_can_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st
 
 		// if any transmit buffer has same ID message to be transmitted, wait until
 		// the older message is transmitted.
-		if (LPC_CAN1->TID1 == msg->id) {
-			while (!(LPC_CAN1->SR & (1 << 2)));
-		}
-		if (LPC_CAN1->TID2 == msg->id) {
-			while (!(LPC_CAN1->SR & (1 << 10)));
-		}
-		if (LPC_CAN1->TID3 == msg->id) {
-			while (!(LPC_CAN1->SR & (1 << 18)));
+		while ((LPC_CAN1->TID1 == msg->id && !(LPC_CAN1->SR & (1 << 2))) ||
+				(LPC_CAN1->TID2 == msg->id && !(LPC_CAN1->SR & (1 << 10))) ||
+				(LPC_CAN1->TID3 == msg->id && !(LPC_CAN1->SR & (1 << 18)))) {
+			// CAN tranceiver is either in bus off or error active state. In this
+			// case it's OK to send the messages in a wrong order
+			if (LPC_CAN1->GSR & (0b11 << 6)) {
+				LPC_CAN1->MOD &= ~1;
+				break;
+			}
+
 		}
 
 		// wait until any one transmit buffer is available for transmitting
-		while (!(LPC_CAN1->SR & ((1 << 2) | (1 << 10) | (1 << 18))));
+		while (!(LPC_CAN1->SR & ((1 << 2) | (1 << 10) | (1 << 18)))) {
+			// CAN tranceiver is either in bus off or error active state
+			if (LPC_CAN1->GSR & (0b11 << 6)) {
+				LPC_CAN1->MOD &= ~1;
+				break;
+			}
+		}
 
 		if (LPC_CAN1->SR & (1 << 2)) {
 			LPC_CAN1->TFI1 = (msg->data_length << 16) |

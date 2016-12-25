@@ -106,13 +106,8 @@ typedef struct uv_uiobject_st {
 
 
 /// @brief: Initializes the bounding box
-static inline void uv_bounding_box_init(uv_bounding_box_st *bb,
-		uint16_t x, uint16_t y, uint16_t width, uint16_t height) {
-	bb->x = x;
-	bb->y = y;
-	bb->width = width;
-	bb->height = height;
-}
+void uv_bounding_box_init(uv_bounding_box_st *bb,
+		uint16_t x, uint16_t y, uint16_t width, uint16_t height);
 
 
 
@@ -136,13 +131,7 @@ static inline void uv_ui_refresh_parent(void *me) {
 
 
 /// @brief: Initializes an object
-static inline void uv_uiobject_init(void *me) {
-	uv_bounding_box_init(&this->bb, 0, 0, 0, 0);
-	this->parent = NULL;
-	this->step_callb = NULL;
-	this->visible = true;
-	this->refresh = true;
-}
+void uv_uiobject_init(void *me);
 
 /// @brief: To be used when adding objects to windows
 static inline void uv_uiobject_add(void *me, void *parent,
