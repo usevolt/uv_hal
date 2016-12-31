@@ -18,9 +18,10 @@
 /* -------------------------------------------------------------------------------- */
 typedef struct
 {
-   unsigned char* p;
-   int16_t char_width;
-   int16_t char_height;
+	unsigned char* p;
+	int16_t char_width;
+	int16_t char_height;
+	int8_t index_offset;
 } uv_font_st;
 
 

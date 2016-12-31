@@ -16,13 +16,16 @@
 
 #if CONFIG_LCD
 
-#if !CONFIG_UI_PROGRESSBAR_BAR_WIDTH
-#error "CONFIG_UI_PROGRESSBAR_BAR_WIDTH should define the width of individual\
+#if !CONFIG_UI_PROGRESSBAR_WIDTH
+#error "CONFIG_UI_PROGRESSBAR_WIDTH should define the width of individual\
  progressbar's bars in pixels."
 #endif
-#if !CONFIG_UI_PROGRESSBAR_BAR_SPACE
-#error "CONFIG_UI_PROGRESSBAR_BAR_SPACE should define the space between individual\
+#if !CONFIG_UI_PROGRESSBAR_SPACE
+#error "CONFIG_UI_PROGRESSBAR_SPACE should define the space between individual\
  progressbar's bars in pixels."
+#endif
+#if !CONFIG_UI_PROGRESSBAR_HEIGHT
+#error "CONFIG_UI_PROGRESSAR_HEIGHT should define the height of a (horizontal) progressbar"
 #endif
 
 
@@ -52,6 +55,8 @@ typedef struct {
 	int16_t limit;
 	/// @brief: Optional second color which is shown when the value is below *limit*
 	color_t limit_color;
+	/// @brief: Optional title text
+	char *title;
 
 	const uv_uistyle_st *style;
 } uv_uiprogressbar_st;
@@ -62,17 +67,9 @@ typedef struct {
 #define this ((uv_uiprogressbar_st *)me)
 
 /// @brief: Initializes the progress bar as horizontal bar
-static inline void uv_uiprogressbar_init(void *me, const uv_uistyle_st *style,
-		int16_t min_value, int16_t max_value) {
-	uv_uiobject_init(this);
-	this->min_val = min_value;
-	this->max_val = max_value;
-	this->style = style;
-	this->horizontal = true;
-	this->value = this->min_val;
-	this->limit = this->min_val;
-	this->limit_type = UI_PROGRESSBAR_LIMIT_NONE;
-}
+void uv_uiprogressbar_init(void *me, int16_t min_value,
+		int16_t max_value, const uv_uistyle_st *style);
+
 
 /// @brief: Displays the progressbar as horizontal. This is the default.
 static inline void uv_uiprogressbar_set_horizontal(void *me) {
@@ -89,18 +86,22 @@ static inline void uv_uiprogressbar_set_vertical(void *me) {
 /// @brief: Sets the progressbar current value.
 ///
 /// @param value: Value from 0 to 1000, e.g. part-per-thousands
-static inline void uv_uiprogressbar_set_value(void *me, uint16_t value) {
-	if (value > this->max_val) value = this->max_val;
-	else if (value < this->min_val) value = this->min_val;
-	if (this->value != value) {
-		uv_ui_refresh(this);
-		this->value = value;
-	}
-}
+void uv_uiprogressbar_set_value(void *me, uint16_t value);
+
 
 /// @brief: Getter for the value
 static inline int16_t uv_uiprogressbar_get_value(void *me) {
 	return this->value;
+}
+
+
+/// @brief: Sets the optional title text. Title is shown below the progressbar
+static inline void uv_uiprogressbar_set_title(void *me, char *title) {
+	this->title = title;
+}
+
+static inline char *uv_uiprogressbar_get_title(void *me) {
+	return this->title;
 }
 
 /// @brief: Sets the limit color. When the value is below *limit*,
@@ -109,13 +110,8 @@ static inline int16_t uv_uiprogressbar_get_value(void *me) {
 /// @param type: UIPROGRESSBAR_LIMIT_OVER if the color is shown when the limit is exceeded,
 /// UIPROGRESSBAR_LIMIT_BELOW if the color is shown when the limit is undercut
 /// @param limit: Limiting value 0...1000
-static inline void uv_uiprogressbar_set_limit(void *me, uiprogressbar_limit_e type,
-		int16_t limit, color_t color) {
-	this->limit_type = type;
-	this->limit = limit;
-	this->limit_color = color;
-	uv_ui_refresh(this);
-}
+void uv_uiprogressbar_set_limit(void *me, uiprogressbar_limit_e type,
+		int16_t limit, color_t color);
 
 
 /// @brief: Set function is called by the parent window

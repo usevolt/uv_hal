@@ -28,7 +28,7 @@ static inline void draw(void *me) {
 
 	_uv_ui_draw_text(uv_ui_get_xglobal(this) + uv_ui_get_bb(this)->width / 2,
 			uv_ui_get_yglobal(this) + uv_ui_get_bb(this)->height / 2,
-			this->super.style->font, ALIGN_CENTER, fontc, bgc, this->super.text);
+			this->super.style->font, ALIGN_CENTER, fontc, bgc, this->super.text, 1.0f);
 
 }
 

@@ -4278,68 +4278,68 @@ const unsigned char font_32x53[256][212]={
 #endif
 
 #if CONFIG_UI_FONT_4X6
-   const uv_font_st font_4X6 = {(unsigned char*)font_4x6,4,6};
+   const uv_font_st font_4X6 = {(unsigned char*)font_4x6, 4, 6, 0};
 #endif
 #if CONFIG_UI_FONT_5X8
-   const uv_font_st font_5X8 = {(unsigned char*)font_5x8,5,8};
+   const uv_font_st font_5X8 = {(unsigned char*)font_5x8, 5, 8, 0};
 #endif
 #if CONFIG_UI_FONT_5X12
-   const uv_font_st font_5X12 = {(unsigned char*)font_5x12,5,12};
+   const uv_font_st font_5X12 = {(unsigned char*)font_5x12, 5, 12, 0};
 #endif
 #if CONFIG_UI_FONT_6X8
-   const uv_font_st font_6X8 = {(unsigned char*)font_6x8,6,8};
+   const uv_font_st font_6X8 = {(unsigned char*)font_6x8, 6, 8, 0};
 #endif
 #if CONFIG_UI_FONT_6X10
-   const uv_font_st font_6X10 = {(unsigned char*)font_6x10,6,10};
+   const uv_font_st font_6X10 = {(unsigned char*)font_6x10, 6, 10, 0};
 #endif
 #if CONFIG_UI_FONT_7X12
-   const uv_font_st font_7X12 = {(unsigned char*)font_7x12,7,12};
+   const uv_font_st font_7X12 = {(unsigned char*)font_7x12, 7, 12, 0};
 #endif
 #if CONFIG_UI_FONT_8X8
-   const uv_font_st font_8X8 = {(unsigned char*)font_8x8,8,8};
+   const uv_font_st font_8X8 = {(unsigned char*)font_8x8, 8, 8, 0};
 #endif
 #if CONFIG_UI_FONT_8X12
-   const uv_font_st font_8X12 = {(unsigned char*)font_8x12,8,12};
+   const uv_font_st font_8X12 = {(unsigned char*)font_8x12, 8, 12, 0};
 #endif
 #if CONFIG_UI_FONT_8X14
-   const uv_font_st font_8X14 = {(unsigned char*)font_8x14,8,14};
+   const uv_font_st font_8X14 = {(unsigned char*)font_8x14, 8, 14, 0};
 #endif
 #if CONFIG_UI_FONT_10X16
-   const uv_font_st font_10X16 = {(unsigned char*)font_10x16,10,16};
+   const uv_font_st font_10X16 = {(unsigned char*)font_10x16, 10, 16, 0};
 #endif
 #if CONFIG_UI_FONT_12X16
-   const uv_font_st font_12X16 = {(unsigned char*)font_12x16,12,16};
+   const uv_font_st font_12X16 = {(unsigned char*)font_12x16, 12, 16, 0};
 #endif
 #if CONFIG_UI_FONT_12X20
-   const uv_font_st font_12X20 = {(unsigned char*)font_12x20,12,20};
+   const uv_font_st font_12X20 = {(unsigned char*)font_12x20, 12, 20, 0};
 #endif
 #if CONFIG_UI_FONT_16X26
-   const uv_font_st font_16X26 = {(unsigned char*)font_16x26,16,26};
+   const uv_font_st font_16X26 = {(unsigned char*)font_16x26, 16, 26, 0};
 #endif
 #if CONFIG_UI_FONT_22X36
-   const uv_font_st font_22X36 = {(unsigned char*)font_22x36,22,36};
+   const uv_font_st font_22X36 = {(unsigned char*)font_22x36, 22, 36, 0};
 #endif
 #if CONFIG_UI_FONT_24X40
-   const uv_font_st font_24X40 = {(unsigned char*)font_24x40,24,40};
+   const uv_font_st font_24X40 = {(unsigned char*)font_24x40, 24, 40, 0};
 #endif
 #if CONFIG_UI_FONT_32X53
-   const uv_font_st font_32X53 = {(unsigned char*)font_32x53,32,53};
+   const uv_font_st font_32X53 = {(unsigned char*)font_32x53, 32, 53, 0};
 #endif
 
 #if CONFIG_UI_NUM_12X20
-   const uv_font_st num_12X20 = {(unsigned char*)num_12x20,12,20};
+   const uv_font_st num_12X20 = {(unsigned char*)num_12x20, 12, 20, (uint8_t) ','};
 #endif
 #if CONFIG_UI_NUM_16X26
-   const uv_font_st num_16X26 = {(unsigned char*)num_16x26,16,26};
+   const uv_font_st num_16X26 = {(unsigned char*)num_16x26, 16, 26, (uint8_t) ','};
 #endif
 #if CONFIG_UI_NUM_22X36
-   const uv_font_st num_22X36 = {(unsigned char*)num_22x36,22,36};
+   const uv_font_st num_22X36 = {(unsigned char*)num_22x36, 22, 36, (uint8_t) ','};
 #endif
 #if CONFIG_UI_NUM_24X40
-   const uv_font_st num_24X40 = {(unsigned char*)num_24x40,24,40};
+   const uv_font_st num_24X40 = {(unsigned char*)num_24x40, 24, 40, (uint8_t) ','};
 #endif
 #if CONFIG_UI_NUM_32X53
-   const uv_font_st num_32X53 = {(unsigned char*)num_32x53,32,53};
+   const uv_font_st num_32X53 = {(unsigned char*)num_32x53, 32, 53, (uint8_t) ','};
 #endif
 
 #endif

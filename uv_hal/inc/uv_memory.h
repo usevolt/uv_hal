@@ -218,6 +218,11 @@ uv_errors_e __uv_save_previous_non_volatile_data();
 uv_errors_e __uv_load_previous_non_volatile_data();
 
 
+/// @brief: Calculates and returns a cyclic redundancy check value from the given data
+uint16_t uv_memory_calc_crc(const uint8_t *data, int32_t len);
+
+
+
 
 
 #endif /* UW_MEMORY_H_ */

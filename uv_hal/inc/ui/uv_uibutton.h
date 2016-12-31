@@ -65,6 +65,10 @@ static inline bool uv_uibutton_clicked(void *me) {
 	return this->state == UIBUTTON_CLICKED;
 }
 
+static inline bool uv_uibutton_is_down(void *me) {
+	return this->state == UIBUTTON_PRESSED;
+}
+
 /// @brief: Returns true if the button was long pressed
 static inline bool uv_uibutton_long_pressed(void *me) {
 	return this->state == UIBUTTON_LONGPRESSED;

@@ -56,6 +56,8 @@ typedef struct {
 	char *str;
 	/// @brief: Label alignment
 	alignment_e align;
+	///@brief: Image scale multiplier
+	float scale;
 } uv_uilabel_st;
 
 
@@ -63,52 +65,37 @@ typedef struct {
 #define this ((uv_uilabel_st*)me)
 
 
-static inline void uv_uilabel_init(void *me, const uv_font_st *font,
-		alignment_e alignment, color_t color, color_t bgcolor, char *str) {
-	uv_uiobject_init(this);
-	this->font = font;
-	this->str = str;
-	this->align = alignment;
-	this->color = color;
-	this->bg_color = bgcolor;
-}
+void uv_uilabel_init(void *me, const uv_font_st *font,
+		alignment_e alignment, color_t color, color_t bgcolor, char *str);
 
 /// @brief: Step function which should be called every step cycle
 void uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms);
 
 #define this		((uv_uilabel_st*)me)
 
+/// @brief: sets the label scale
+void uv_uilabel_set_scale(void *me, float scale);
 
 /// @brief: Set's the text of all objects which are inherited from uv_uilabel_st
-static inline void uv_uilabel_set_text(void *me, char *str) {
-	if (strcmp(str, this->str) == 0) {
-		return;
-	}
-	uv_ui_refresh(me);
-	this->str = str;
-}
+void uv_uilabel_set_text(void *me, char *str);
 
 
 /// @brief: Sets the color of the label text
-static inline void uv_uilabel_set_color(void *me, color_t c) {
-	if (this->color == c) {
-		return;
-	}
-	uv_ui_refresh(me);
-	this->color = c;
-}
+void uv_uilabel_set_color(void *me, color_t c);
 
 /// @brief: Sets the background color
-static inline void uv_uilabel_set_bg_color(void *me, color_t c) {
-	if (this->bg_color == c) {
-		return;
-	}
-	uv_ui_refresh(me);
-	this->bg_color = c;
-}
+void uv_uilabel_set_bg_color(void *me, color_t c);
 
 
 #undef this
+
+
+
+
+
+
+
+
 #define this ((uv_uidigit_st*)me)
 
 
@@ -118,24 +105,29 @@ static inline void uv_uilabel_set_bg_color(void *me, color_t c) {
 typedef struct {
 	EXTENDS(uv_uilabel_st);
 
+	unsigned int divider;
 	char str[13];
+	char format[10];
+	int value;
 } uv_uidigit_st;
 
+
+
 /// @brief: Initializes the digit label.
-static inline void uv_uidigit_init(void *me, const uv_font_st *font,
-		alignment_e alignment, color_t color, color_t bgcolor, int value) {
-	uv_uilabel_init(me, font, alignment, color, bgcolor, "");
-	itoa(value, this->str, 10);
-}
+///
+/// @param format: Printf-format for showing the digit. Without fractions the
+/// format should contain only one number. If fractions are used, it should define
+/// exactly 2 numbers separated by a dot or a comma.
+void uv_uidigit_init(void *me, const uv_font_st *font,
+		alignment_e alignment, color_t color, color_t bgcolor, char *format, int value);
+
 
 static inline void uv_uidigit_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 	uv_uilabel_step(me, touch, step_ms);
 }
 
-static inline void uv_uidigit_set_value(void *me, int value) {
-	uv_uilabel_set_text(me, "");
-	itoa(value, this->str, 10);
-}
+void uv_uidigit_set_value(void *me, int value);
+
 
 
 /// @brief: Sets the color of the label text
@@ -148,24 +140,32 @@ static inline void uv_uidigit_set_bg_color(void *me, color_t c) {
 	uv_uilabel_set_bg_color(me, c);
 }
 
+/// @brief: If set to true, uidigit will also show fractions divided by *value*
+static inline void uv_uidigit_set_divider(void *me, unsigned int value) {
+	if (!value) { value = 1; }
+	this->divider = value;
+	uv_ui_refresh(this);
+}
 
-
-
+static inline void uv_uidigit_set_scale(void *me, float scale) {
+	uv_uilabel_set_scale(me, scale);
+}
 
 
 
 /// @brief: Draws raw text on the screen.
 /// Should be used only inside this hal library
 void _uv_ui_draw_text(uint16_t x, uint16_t y, const uv_font_st *font,
-		alignment_e align, color_t color, color_t bgcolor, char *str);
+		alignment_e align, color_t color, color_t bgcolor, char *str, float scale);
 
 
 /// @brief: Returns the strings length in pixels.
 /// Takes new lines in account when calculating the length.
-int16_t uv_ui_text_width_px(char *str, const uv_font_st *font);
+int16_t uv_ui_text_width_px(char *str, const uv_font_st *font, float scale);
+
 
 /// @brief: Returns the string height in pixels
-int16_t uv_ui_text_height_px(char *str, const uv_font_st *font);
+int16_t uv_ui_text_height_px(char *str, const uv_font_st *font, float scale);
 
 
 #undef this

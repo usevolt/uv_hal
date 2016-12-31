@@ -206,8 +206,8 @@ bool uv_lcd_touch_get(int16_t *x, int16_t *y) {
 			CONFIG_LCD_LINES_PER_PANEL / 1000;
 
 
-	*x = x_px;
-	*y = y_px;
+	if (x) { *x = x_px; }
+	if (y) { *y = y_px; }
 
 //	uv_lcd_draw_rect(*x-2, *y-2, 4, 4, C(0xFF0000));
 

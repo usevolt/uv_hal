@@ -35,7 +35,7 @@ static inline void draw(void *me, uint16_t step_ms) {
 
 	_uv_ui_draw_text(uv_ui_get_xglobal(this) + uv_ui_get_bb(this)->width / 2,
 			uv_ui_get_yglobal(this) + uv_ui_get_bb(this)->height / 2,
-			this->style->font, ALIGN_CENTER, fontc, bgc, this->text);
+			this->style->font, ALIGN_CENTER, fontc, bgc, this->text, 1.0f);
 }
 
 void uv_uibutton_step(void *me, uv_touch_st *touch, uint16_t step_ms) {

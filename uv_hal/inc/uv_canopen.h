@@ -552,6 +552,8 @@ typedef struct {
 
 	int *heartbeat_delay;
 
+	void (*callback)(void*, uv_can_message_st *);
+
 } uv_canopen_st;
 
 
@@ -685,9 +687,18 @@ static inline uv_canopen_node_states_e uv_canopen_get_state(uv_canopen_st *me) {
 	return me->state;
 }
 
+/// @brief: Sets a generic callback function. When set, the CANopen stack
+/// calls this callback for every received message. Since the CANopen stack
+/// takes the ownership of the CAN bus, this is the way for application to
+/// receive additional messages.
+static inline void uv_canopen_set_callback(uv_canopen_st *this,
+		void (*callb)(void*, uv_can_message_st*)) {
+	this->callback = callb;
+}
+
 
 /// @brief: Sends an EMCY (emergency) message
-uv_errors_e uv_canopen_emcy_send(uv_canopen_st *me, uv_canopen_emcy_msg_st *msg);
+uv_errors_e uv_canopen_emcy_send(void *me, uv_canopen_emcy_msg_st *msg);
 
 /// @brief: Sends an SDO request to another node
 ///
@@ -696,17 +707,12 @@ uv_errors_e uv_canopen_emcy_send(uv_canopen_st *me, uv_canopen_emcy_msg_st *msg)
 uv_errors_e uv_canopen_send_sdo(uv_canopen_st *me, uv_canopen_sdo_message_st *sdo, uint8_t node_id);
 
 /// @brief: Quick way for sending a SDO write request
-static inline uv_errors_e uv_canopen_sdo_write(uv_canopen_st *me,
+uv_errors_e uv_canopen_sdo_write(uv_canopen_st *me,
 		uv_canopen_sdo_commands_e sdoreq, uint8_t node_id,
-		uint16_t mindex, uint8_t sindex, uint32_t data) \
-{
-	uv_canopen_sdo_message_st sdo;
-	sdo.request = sdoreq;
-	sdo.data_32bit = data;
-	sdo.main_index = mindex;
-	sdo.sub_index = sindex;
-	return uv_canopen_send_sdo(me, &sdo, node_id);
-}
+		uint16_t mindex, uint8_t sindex, uint32_t data);
+
+
+
 
 
 

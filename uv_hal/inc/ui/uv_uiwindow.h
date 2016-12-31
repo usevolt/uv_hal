@@ -87,13 +87,9 @@ static inline void uv_uiwindow_init(void *me,
 /// @param step_callb: Pointer to the appropriate object type's step function.
 /// Note that this is the only thing which the window uses to distinguish different
 /// object types from each other.
-static inline void uv_uiwindow_add(void *me, void *object,
+void uv_uiwindow_add(void *me, void *object,
 		uint16_t x, uint16_t y, uint16_t width, uint16_t height,
-		void (*step_callb)(void*, uv_touch_st*, uint16_t)) {
-	uv_uiobject_add(object, (uv_uiobject_st*) this,
-			x, y, width, height, step_callb);
-	this->objects[this->objects_count++] = object;
-}
+		void (*step_callb)(void*, uv_touch_st*, uint16_t));
 
 
 /// @brief: Clears the object buffer memory clearing the whole window

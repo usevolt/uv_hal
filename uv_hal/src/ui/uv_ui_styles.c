@@ -50,30 +50,4 @@ const uv_uistyle_st uv_uistyles[CONFIG_UI_STYLES_COUNT] = {
 
 
 
-#define KEYBOARD_STYLE(x)			,{\
-		.bg_color = CAT(CONFIG_UI_KEYBOARD_BG_COLOR_, INC(INC(x))), \
-		.key_color = CAT(CONFIG_UI_KEYBOARD_KEY_COLOR_, INC(INC(x))), \
-		.keytext_color = CAT(CONFIG_UI_KEYBOARD_KEYTEXT_COLOR_, INC(INC(x))), \
-		.frame_color = CAT(CONFIG_UI_KEYBOARD_FRAME_COLOR_, INC(INC(x))), \
-		.text_color = CAT(CONFIG_UI_KEYBOARD_TEXT_COLOR_, INC(INC(x))), \
-		.highlight_color = CAT(CONFIG_UI_KEYBOARD_HIGHLIGHT_COLOR_, INC(INC(x))), \
-		.title_font = & CAT(CONFIG_UI_KEYBOARD_TITLE_FONT_, INC(INC(x))), \
-		.text_font = & CAT(CONFIG_UI_KEYBOARD_TEXT_FONT_, INC(INC(x))) \
-	}
-const uv_uikeyboard_style_st uv_uikeyboard_styles[CONFIG_UI_KEYBOARD_STYLES_COUNT] = {
-		{
-				.bg_color = CONFIG_UI_KEYBOARD_BG_COLOR_1,
-				.key_color = CONFIG_UI_KEYBOARD_KEY_COLOR_1,
-				.keytext_color = CONFIG_UI_KEYBOARD_KEYTEXT_COLOR_1,
-				.frame_color = CONFIG_UI_KEYBOARD_FRAME_COLOR_1,
-				.text_color = CONFIG_UI_KEYBOARD_TEXT_COLOR_1,
-				.highlight_color = CONFIG_UI_KEYBOARD_HIGHLIGHT_COLOR_1,
-				.title_font = & CONFIG_UI_KEYBOARD_TITLE_FONT_1,
-				.text_font = & CONFIG_UI_KEYBOARD_TEXT_FONT_1
-		}
-		REPEAT(DEC(CONFIG_UI_KEYBOARD_STYLES_COUNT), KEYBOARD_STYLE)
-};
-
-
-
 #endif

@@ -56,7 +56,7 @@ static void draw(void *me) {
 			char str[10];
 			itoa(this->cur_val, str, 10);
 			_uv_ui_draw_text(x + w/2, y + h/2, this->style->font, ALIGN_CENTER,
-					this->style->inactive_font_c, C(0xFFFFFFFF), str);
+					this->style->inactive_font_c, C(0xFFFFFFFF), str, 1.0f);
 		}
 	}
 	else {
@@ -83,11 +83,11 @@ static void draw(void *me) {
 			char str[10];
 			itoa(this->cur_val, str, 10);
 			_uv_ui_draw_text(x + w/2, y + h/2, this->style->font, ALIGN_CENTER,
-					this->style->inactive_font_c, C(0xFFFFFFFF), str);
+					this->style->inactive_font_c, C(0xFFFFFFFF), str, 1.0f);
 		}
 	}
 	_uv_ui_draw_text(x + w/2, y + h + 5, this->style->font, ALIGN_TOP_CENTER,
-			this->style->text_color, C(0xFFFFFFFF), this->title);
+			this->style->text_color, C(0xFFFFFFFF), this->title, 1.0f);
 
 
 }

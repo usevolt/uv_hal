@@ -217,15 +217,15 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		unsigned int id,
 		uv_can_msg_types_e type);
 
-/// @brief: Configures the CAN hardware to receive a range of messages.
-/// All messages with the ID between *start_id* and *end_id* are received.
-///
-/// @param start_id: The smallest message ID to be received
-/// @param end_id: The biggest message ID to be received.
-uv_errors_e uv_can_config_rx_message_range(uv_can_channels_e channel,
-		unsigned int start_id,
-		unsigned int end_id,
-		uv_can_msg_types_e type);
+///// @brief: Configures the CAN hardware to receive a range of messages.
+///// All messages with the ID between *start_id* and *end_id* are received.
+/////
+///// @param start_id: The smallest message ID to be received
+///// @param end_id: The biggest message ID to be received.
+//uv_errors_e uv_can_config_rx_message_range(uv_can_channels_e channel,
+//		unsigned int start_id,
+//		unsigned int end_id,
+//		uv_can_msg_types_e type);
 #endif
 
 

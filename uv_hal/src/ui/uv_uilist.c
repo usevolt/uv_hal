@@ -55,7 +55,7 @@ static void draw(void *me) {
 
 		_uv_ui_draw_text(x + uv_uibb(this)->width / 2, y + entry_height / 2,
 				this->style->font, ALIGN_CENTER, this->style->inactive_font_c,
-				this->style->inactive_bg_c, *((char**) uv_vector_at(&this->entries, i)));
+				this->style->inactive_bg_c, *((char**) uv_vector_at(&this->entries, i)), 1.0f);
 		y += entry_height - 1;
 	}
 	if (this->selected_index >= 0) {
@@ -65,7 +65,7 @@ static void draw(void *me) {
 
 		_uv_ui_draw_text(x + uv_uibb(this)->width / 2, sely + entry_height / 2,
 				this->style->font, ALIGN_CENTER, this->style->active_font_c,
-				this->style->active_bg_c, *((char**) uv_vector_at(&this->entries, this->selected_index)));
+				this->style->active_bg_c, *((char**) uv_vector_at(&this->entries, this->selected_index)), 1.0f);
 	}
 }
 
@@ -83,6 +83,35 @@ void uv_uilist_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 	if (this->super.refresh) {
 		draw(this);
 	}
+}
+
+/// @brief: Pushes a new element into the end of the list
+void uv_uilist_push_back(void *me, char *str) {
+	uv_vector_push_back(&this->entries, (void*) &str);
+	uv_uilist_recalc_height(this);
+	uv_ui_refresh_parent(this);
+}
+
+/// @brief: Pops the last element from the list
+void uv_uilist_pop_back(void *me, char *dest) {
+	uv_vector_pop_back(&this->entries, &dest);
+	uv_uilist_recalc_height(this);
+	uv_ui_refresh_parent(this);
+}
+
+
+/// @brief: Removes a *index*'th entry from the list
+void uv_uilist_remove(void *me, uint16_t index) {
+	uv_vector_remove(&this->entries, index);
+	uv_uilist_recalc_height(this);
+	uv_ui_refresh_parent(this);
+}
+
+
+void uv_uilist_insert(void *me, uint16_t index, char *str) {
+	uv_vector_insert(&this->entries, index, &str);
+	uv_uilist_recalc_height(this);
+	uv_ui_refresh_parent(this);
 }
 
 

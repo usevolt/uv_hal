@@ -282,13 +282,8 @@ typedef struct {
 /// @param buffer: Pointer to the data buffer
 /// @param buffer_size: The size of the buffer in elements
 /// @param element_size: The size of the element in bytes
-static inline void uv_vector_init(uv_vector_st *this, void *buffer,
-		uint16_t buffer_size, uint16_t element_size) {
-	this->len = 0;
-	this->element_size = element_size;
-	this->buffer_size = buffer_size;
-	this->buffer = buffer;
-}
+void uv_vector_init(uv_vector_st *this, void *buffer,
+		uint16_t buffer_size, uint16_t element_size);
 
 
 /// @brief: Adds a new element to the back of the vector. This is a relatively
@@ -355,18 +350,14 @@ static inline void uv_vector_clear(uv_vector_st *this) {
 /// @param t: "Lerping scale". Should be between 0.0f ... 1.0f
 /// @param a: The value at t=0.0f
 /// @param b: The value at t=1.0f
-static inline float uv_lerpf(float t, float a, float b) {
-	return (1-t)*a + t*b;
-}
+float uv_lerpf(float t, float a, float b);
 
 /// @brief: Linear interpolation for integers.
 ///
 /// @param t: "Lerping scale". Should be between 0 ... 1000
 /// @param a: The value at t=0
 /// @param b: The value at t=1000
-static inline float uv_lerpi(int t, int a, int b) {
-	return ((1000-t)*a + t*b) / 1000;
-}
+float uv_lerpi(int t, int a, int b);
 
 
 /// @brief: Returns the relative value of t in relation to a and b.
@@ -374,10 +365,7 @@ static inline float uv_lerpi(int t, int a, int b) {
 /// value of t.
 ///
 /// @note: Should be min <= t <= max and min != max
-static inline float uv_relf(float t, float min, float max) {
-	if (min == max) return 0;
-	return (t-min)/(max-min);
-}
+float uv_relf(float t, float min, float max);
 
 
 /// @brief: Returns the relative value (parts per thousand) of t in relation to a and b.
@@ -385,20 +373,13 @@ static inline float uv_relf(float t, float min, float max) {
 /// value of t.
 ///
 /// @note: Should be min <= t <= max and min != max
-static inline int uv_reli(int t, int min, int max) {
-	if (min == max) return 0;
-	return 1000 * (t-min)/(max-min);
-}
+int uv_reli(int t, int min, int max);
 
 /// @brief: Returns the bigger argument
-static inline int uv_maxi(int a, int b) {
-	return (a > b) ? a : b;
-}
+int uv_maxi(int a, int b);
 
 /// @brief: Returns the smaller argument
-static inline int uv_mini(int a, int b) {
-	return (a < b) ? a : b;
-}
+int uv_mini(int a, int b);
 
 
 

@@ -27,7 +27,8 @@
 /// @param buffer: Buffer where the inputted text will be saved
 /// @param buf_len: The maximum length of the buffer
 /// @param style: The UI style of the keyboard
-bool uv_uikeyboard_show(const char *title, char *buffer, uint16_t buf_len, const uv_uikeyboard_style_st *style);
+bool uv_uikeyboard_show(const char *title, char *buffer,
+		uint16_t buf_len, const uv_uistyle_st *style);
 
 
 

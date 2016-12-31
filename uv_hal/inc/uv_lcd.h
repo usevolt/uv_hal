@@ -349,7 +349,6 @@ void uv_lcd_touch_calib_clear(void);
 /// correctly configured, returns the position of the touch in pixels.
 bool uv_lcd_touch_get(int16_t *x, int16_t *y);
 
-
 #endif
 
 

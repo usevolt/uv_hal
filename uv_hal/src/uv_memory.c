@@ -392,3 +392,30 @@ uint16_t uv_get_id() {
 		return *((uint16_t*)(NON_VOLATILE_MEMORY_START_ADDRESS + 8));
 	}
 }
+
+
+uint16_t uv_memory_calc_crc(const uint8_t *data, int32_t len) {
+	uint8_t i;
+	uint16_t crc = 0;
+
+    while(--len >= 0)
+    {
+    	i = 8;
+    	crc = crc ^ (((uint16_t)*data++) << 8);
+
+    	do
+        {
+    		if (crc & 0x8000)
+    		{
+    			crc = crc << 1 ^ 0x1021;
+    		}
+    		else
+    		{
+    			crc = crc << 1;
+    		}
+        }
+    	while(--i);
+    }
+    return crc;
+}
+

@@ -671,6 +671,21 @@ uv_errors_e uv_can_step(uv_can_channels_e channel, unsigned int step_ms) {
 #define SET_STD_CHANNEL(chn, x, val) (LPC_CANAF_RAM->mask[x]) &= ~(0b111 << (13 + chn*16)); \
 	(LPC_CANAF_RAM->mask[x]) |= ((val & 0b111) << (13 + chn*16))
 
+#define STD_RANGE_ID_LOW(x)				(((LPC_CANAF_RAM->mask[x]) & (0x7FF << 16)) >> 16)
+#define SET_STD_RANGE_ID_LOW(id, x)		LPC_CANAF_RAM->mask[x] &= ~(0x7FF << 16); \
+										LPC_CANAF_RAM->mask[x] |= (id << 16)
+
+#define STD_RANGE_ID_HIGH(x)			(((LPC_CANAF_RAM->mask[x]) & (0x7FF)))
+#define SET_STD_RANGE_ID_HIGH(id, x)	LPC_CANAF_RAM->mask[x] &= ~(0x7FF); \
+										LPC_CANAF_RAM->mask[x] |= id
+
+#define STD_RANGE_CHANNEL(x)			(((LPC_CANAF_RAM->mask[x]) & (0b111 << 13)) >> 13)
+#define SET_STD_RANGE_CHANNEL(chn, x)	LPC_CANAF_RAM->mask[x] &= ~((0b111 << 13) | (0b111 << 29));\
+										LPC_CANAF_RAM->mask[x] |= ((chn << 13) | (chn << 29))
+
+#define SET_STD_RANGE_DISABLE(value, x)	LPC_CANAF_RAM->mask[x] &= ~((1 << 12) | (1 << 28)); \
+										LPC_CANAF_RAM->mask[x] |= ((value << 12) | (value << 28))
+
 #define EXT_ID(x)				(LPC_CANAF_RAM->mask[x] & 0x1FFFFFFF)
 #define SET_EXT_ID(x, val)	(LPC_CANAF_RAM->mask[x] &= ~0x1FFFFFFF); \
 	(LPC_CANAF_RAM->mask[x] |= (val))
@@ -717,6 +732,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 				LPC_CANAF->EFF_GRP_sa += 4;
 				LPC_CANAF->ENDofTable += 4;
 
+				LPC_CANAF_RAM->mask[i] = 0;
 				SET_STD_CHANNEL(0, i, 0);
 				SET_STD_CHANNEL(1, i, 1);
 				SET_STD_DISABLE(channel, i, 0);
@@ -748,6 +764,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 			LPC_CANAF->EFF_GRP_sa += 4;
 			LPC_CANAF->ENDofTable += 4;
 
+			LPC_CANAF_RAM->mask[i] = 0;
 			SET_STD_CHANNEL(0, i, 0);
 			SET_STD_CHANNEL(1, i, 1);
 			SET_STD_DISABLE(channel, i, 0);
@@ -778,6 +795,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 				LPC_CANAF->EFF_GRP_sa += 4;
 				LPC_CANAF->ENDofTable += 4;
 
+				LPC_CANAF_RAM->mask[i] = 0;
 				SET_EXT_CHANNEL(i, channel);
 				SET_EXT_ID(i, id);
 
@@ -801,6 +819,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 			LPC_CANAF->EFF_GRP_sa += 4;
 			LPC_CANAF->ENDofTable += 4;
 
+			LPC_CANAF_RAM->mask[i] = 0;
 			SET_EXT_CHANNEL(i, channel);
 			SET_EXT_ID(i, id);
 		}
@@ -813,15 +832,84 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 }
 
 
-
-uv_errors_e uv_can_config_rx_message_range(uv_can_channels_e channel,
-		unsigned int start_id,
-		unsigned int end_id,
-		uv_can_msg_types_e type) {
-
-
-	return uv_err(ERR_NONE);
-}
+// todo: USING THIS CAUSES UNDEFINED BEHAVIOUR! Something is wrong...
+//uv_errors_e uv_can_config_rx_message_range(uv_can_channels_e channel,
+//		unsigned int start_id,
+//		unsigned int end_id,
+//		uv_can_msg_types_e type) {
+//
+//	// set acceptance filter to idle mode
+//	LPC_CANAF->AFMR = 0b10;
+//
+//#if CONFIG_CAN1
+//		if (channel == CAN1) channel = 0;
+//#endif
+//#if CONFIG_CAN2
+//		if (channel == CAN2) channel = 1;
+//#endif
+//
+//	if (type == CAN_STD) {
+//		uint32_t i = LPC_CANAF->SFF_GRP_sa;
+//
+//		bool inserted = false;
+//		// cycle trough all registered messages and find the position where to insert new one
+//		while (i < LPC_CANAF->EFF_sa / 4) {
+//			// Check if this message's ID is smaller
+//			if (start_id < STD_RANGE_ID_LOW(i)) {
+//				// copy all messages one word forward
+//				for (int in = LPC_CANAF->ENDofTable / 4; in >= i; in--) {
+//					LPC_CANAF_RAM->mask[in] = LPC_CANAF_RAM->mask[in - 1];
+//				}
+//				LPC_CANAF->EFF_sa += 4;
+//				LPC_CANAF->EFF_GRP_sa += 4;
+//				LPC_CANAF->ENDofTable += 4;
+//
+//				SET_STD_RANGE_ID_LOW(start_id, i);
+//				SET_STD_RANGE_ID_HIGH(end_id, i);
+//				SET_STD_RANGE_DISABLE(0, i);
+//				SET_STD_RANGE_CHANNEL(channel, i);
+//
+//				inserted = true;
+//				break;
+//			}
+//			else if (start_id == STD_RANGE_ID_LOW(i)) {
+//				// existing entry found. Make sure that the disable bit is cleared
+//				SET_STD_RANGE_CHANNEL(channel, i);
+//				SET_STD_RANGE_ID_HIGH(end_id, i);
+//				SET_STD_RANGE_DISABLE(0, i);
+//				inserted = true;
+//				break;
+//			}
+//			i++;
+//		}
+//		if (!inserted) {
+//
+//			// No smaller ID messages found from the RAM. Add new entry
+//			// to the end of the STD RAM
+//			// copy all messages one word forward
+//			for (int in = LPC_CANAF->ENDofTable / 4; in >= (int) i; in--) {
+//				LPC_CANAF_RAM->mask[in] = LPC_CANAF_RAM->mask[in - 1];
+//			}
+//			LPC_CANAF->EFF_sa += 4;
+//			LPC_CANAF->EFF_GRP_sa += 4;
+//			LPC_CANAF->ENDofTable += 4;
+//
+//			LPC_CANAF_RAM->mask[i] = 0;
+//			SET_STD_RANGE_ID_LOW(start_id, i);
+//			SET_STD_RANGE_ID_HIGH(end_id, i);
+//			SET_STD_RANGE_DISABLE(0, i);
+//			SET_STD_RANGE_CHANNEL(channel, i);
+//		}
+//
+//	}
+//	else {
+//		printf("config can rx message range not yet implemented ext\n\r");
+//	}
+//	// enable acceptance filter
+//	LPC_CANAF->AFMR = 0;
+//
+//	return uv_err(ERR_NONE);
+//}
 
 
 uv_can_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* msg) {
@@ -839,7 +927,6 @@ uv_can_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st
 				LPC_CAN1->MOD &= ~1;
 				break;
 			}
-
 		}
 
 		// wait until any one transmit buffer is available for transmitting
@@ -926,10 +1013,11 @@ uv_errors_e uv_can_add_rx_callback(uv_can_channels_e channel,
 
 
 
+#if CONFIG_TERMINAL_CAN
 uv_errors_e uv_can_get_char(char *dest) {
 	return uv_ring_buffer_pop(&this->char_buffer, dest);
 }
-
+#endif
 
 #else
 #error "Controller not defined"

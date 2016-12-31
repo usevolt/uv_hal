@@ -123,9 +123,8 @@ static inline void parse_rxpdo(uv_canopen_st *me, uv_can_message_st* msg);
 static inline void parse_nmt_message(uv_canopen_st *me, uv_can_message_st* msg);
 
 #define NODE_ID					(this->obj_dict.com_params.node_id)
-#define IS_ARRAY(x)				(x & CANOPEN_ARRAY_MASK)
-//#define ARRAY_ELEMENT_SIZE(x)	(x & (~CANOPEN_ARRAY_MASK))
-#define GET_OBJECT_SIZE(obj_ptr)	(CANOPEN_NUMBER_MASK & obj_ptr->type)
+#define IS_ARRAY(x)				((x) & CANOPEN_ARRAY_MASK)
+#define GET_OBJECT_SIZE(obj_ptr)	(CANOPEN_NUMBER_MASK & (obj_ptr)->type)
 
 #define MSG_NODE_ID(msg)		((msg)->id & CANOPEN_NODE_ID_MASK)
 #define MSG_TYPE(msg)			((msg)->id & (~CANOPEN_NODE_ID_MASK))
@@ -134,16 +133,26 @@ static inline void parse_nmt_message(uv_canopen_st *me, uv_can_message_st* msg);
 
 /// @brief: Searches the user application portion of the object dictionary and
 /// returns a pointer to found object. If object couldn't be found, returns NULL.
-static const uv_canopen_object_st *find_object(uv_canopen_st *me, uint16_t index, uint8_t sub_index) {
+///
+/// @param data_ptr: If not  null, this will be copied to point to the object's actual data.
+/// Useful when iterating arrays. Points straight to the array data indexed
+static const uv_canopen_object_st *find_object(uv_canopen_st *me, uint16_t index, uint8_t sub_index, void **data_ptr) {
 	unsigned int i;
 	for (i = 0; i < this->obj_dict.app_parameters_length; i++) {
 		if (this->obj_dict.app_parameters[i].main_index == index) {
-			// object is of array type and sub index is dont_care
+			// object is of array type and sub index is dont care
 			if (IS_ARRAY(this->obj_dict.app_parameters[i].type)) {
+				if (data_ptr && this->obj_dict.app_parameters[i].array_max_size > sub_index) {
+					*data_ptr = &this->obj_dict.app_parameters[i].
+							data_ptr[sub_index * GET_OBJECT_SIZE(&this->obj_dict.app_parameters[i])];
+				}
 				return &this->obj_dict.app_parameters[i];
 			}
 			else {
 				if (this->obj_dict.app_parameters[i].sub_index == sub_index) {
+					if (data_ptr) {
+						*data_ptr = this->obj_dict.app_parameters[i].data_ptr;
+					}
 					return &this->obj_dict.app_parameters[i];
 				}
 			}
@@ -197,6 +206,7 @@ uv_errors_e uv_canopen_init(uv_canopen_st *me,
 		void (*sdo_write_callback)(uv_canopen_object_st* obj_dict_entry),
 		void (*emcy_callback)(void *user_ptr, uv_canopen_emcy_msg_st *msg)) {
 
+	this->callback = NULL;
 	this->obj_dict.app_parameters = obj_dict;
 	this->obj_dict.app_parameters_length = obj_dict_length;
 	this->state = CANOPEN_PREOPERATIONAL;
@@ -233,10 +243,6 @@ uv_errors_e uv_canopen_init(uv_canopen_st *me,
 	uv_can_config_rx_message(this->can_channel, CANOPEN_SDO_REQUEST_ID, CAN_11_BIT_ID);
 	// SDO request node id
 	uv_can_config_rx_message(this->can_channel, CANOPEN_SDO_REQUEST_ID + NODE_ID, CAN_11_BIT_ID);
-	// all other nodes' EMCY messages
-	if (emcy_callback) {
-		uv_can_config_rx_message_range(this->can_channel, CANOPEN_EMCY_ID, CANOPEN_EMCY_ID + 0xFF, CAN_11_BIT_ID);
-	}
 #endif
 	// RXPDOs
 	REPEAT(CONFIG_CANOPEN_RXPDO_COUNT, RXPDO_CONFIG_MESSAGE_OBJ);
@@ -374,6 +380,12 @@ uv_errors_e uv_canopen_step(uv_canopen_st *me, unsigned int step_ms) {
 		if (this->state == CANOPEN_OPERATIONAL) {
 			parse_rxpdo(this, &msg);
 		}
+
+		// if generic callbakc is assigned, call it
+		if (this->callback) {
+			this->callback(__uv_get_user_ptr(), &msg);
+		}
+
 	}
 
 
@@ -448,7 +460,7 @@ uv_errors_e uv_canopen_step(uv_canopen_st *me, unsigned int step_ms) {
 					break;
 				}
 				// otherwise map some data to the message
-				map_obj = find_object(this, map->main_index, map->sub_index);
+				map_obj = find_object(this, map->main_index, map->sub_index, NULL);
 				if (!map_obj) {
 					DEBUG_LOG("TXPDO mapping parameter 0x%x points to an object 0x%x 0x%x which doens't exist\n\r",
 								CONFIG_CANOPEN_TXPDO_MAP_INDEX + i, map->main_index, map->sub_index);
@@ -486,7 +498,7 @@ uv_errors_e uv_canopen_step(uv_canopen_st *me, unsigned int step_ms) {
 
 
 
-uv_errors_e uv_canopen_emcy_send(uv_canopen_st *me, uv_canopen_emcy_msg_st *msg) {
+uv_errors_e uv_canopen_emcy_send(void *me, uv_canopen_emcy_msg_st *msg) {
 	if (this->state == CANOPEN_STOPPED) {
 		return uv_err(ERR_CANOPEN_STACK_IN_STOPPED_STATE | HAL_MODULE_CANOPEN);
 	}
@@ -572,7 +584,7 @@ static void sdo_send_response(uv_canopen_st *me, uv_can_message_st *msg, uv_cano
 
 
 static void canopen_parse_sdo(uv_canopen_st *me, uv_can_message_st *msg) {
-	const uv_canopen_object_st *obj = find_object(this, SDO_MINDEX(msg), SDO_SINDEX(msg));
+	const uv_canopen_object_st *obj = find_object(this, SDO_MINDEX(msg), SDO_SINDEX(msg), NULL);
 	DEBUG_LOG("SDO received: %x, %x\n\r", SDO_MINDEX(msg), SDO_SINDEX(msg));
 
 	if (!obj) {
@@ -732,7 +744,8 @@ static inline void parse_rxpdo(uv_canopen_st *me, uv_can_message_st* msg) {
 					uint8_t subindex = this->obj_dict.com_params.rxpdo_mappings[i][j].sub_index;
 					// the length of the write operation in bytes
 					uint8_t byte_length = this->obj_dict.com_params.rxpdo_mappings[i][j].length;
-					const uv_canopen_object_st *trg = find_object(this, index, subindex);
+					void *data_ptr = NULL;
+					const uv_canopen_object_st *trg = find_object(this, index, subindex, &data_ptr);
 					if (!trg) {
 						DEBUG_LOG("RXPDO error: object with index %x and subindex %x not found\n\r",
 									index, subindex);
@@ -747,7 +760,12 @@ static inline void parse_rxpdo(uv_canopen_st *me, uv_can_message_st* msg) {
 						break;
 					}
 					// write bits to the object
-					memcpy(trg->data_ptr, &msg->data_8bit[bytes], byte_length);
+					else if (data_ptr) {
+						memcpy(data_ptr, &msg->data_8bit[bytes], byte_length);
+					}
+					else {
+						DEBUG_LOG("RXPDO error: Object found but data_ptr was NULL\n\r");
+					}
 					bytes += byte_length;
 
 				}
@@ -817,6 +835,18 @@ uv_errors_e uv_canopen_send_sdo(uv_canopen_st *me,
 	return uv_err(ERR_NONE);
 }
 
+/// @brief: Quick way for sending a SDO write request
+uv_errors_e uv_canopen_sdo_write(uv_canopen_st *me,
+		uv_canopen_sdo_commands_e sdoreq, uint8_t node_id,
+		uint16_t mindex, uint8_t sindex, uint32_t data) \
+{
+	uv_canopen_sdo_message_st sdo;
+	sdo.request = sdoreq;
+	sdo.data_32bit = data;
+	sdo.main_index = mindex;
+	sdo.sub_index = sindex;
+	return uv_canopen_send_sdo(me, &sdo, node_id);
+}
 
 
 #endif

@@ -25,6 +25,16 @@ static void redraw(void *me) {
 
 
 
+void uv_uiwindow_add(void *me, void *object,
+		uint16_t x, uint16_t y, uint16_t width, uint16_t height,
+		void (*step_callb)(void*, uv_touch_st*, uint16_t)) {
+	uv_uiobject_add(object, (uv_uiobject_st*) this,
+			x, y, width, height, step_callb);
+	this->objects[this->objects_count++] = object;
+}
+
+
+
 void uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 
 	if (((uv_uiobject_st*)this)->refresh) {

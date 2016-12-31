@@ -85,6 +85,15 @@ uv_errors_e uv_ring_buffer_pop(uv_ring_buffer_st *buffer, void *dest) {
 }
 
 
+void uv_vector_init(uv_vector_st *this, void *buffer,
+		uint16_t buffer_size, uint16_t element_size) {
+	this->len = 0;
+	this->element_size = element_size;
+	this->buffer_size = buffer_size;
+	this->buffer = buffer;
+}
+
+
 uv_errors_e uv_vector_push_back(uv_vector_st *this, void *data) {
 	if (this->len >= this->buffer_size) {
 		return uv_err(ERR_BUFFER_OVERFLOW | HAL_MODULE_UTILITIES);
@@ -160,6 +169,55 @@ uv_errors_e uv_vector_remove(uv_vector_st *this, uint16_t index) {
 
 
 
+/// @brief: Linear interpolation for floating points.
+///
+/// @param t: "Lerping scale". Should be between 0.0f ... 1.0f
+/// @param a: The value at t=0.0f
+/// @param b: The value at t=1.0f
+float uv_lerpf(float t, float a, float b) {
+	return (1-t)*a + t*b;
+}
+
+/// @brief: Linear interpolation for integers.
+///
+/// @param t: "Lerping scale". Should be between 0 ... 1000
+/// @param a: The value at t=0
+/// @param b: The value at t=1000
+float uv_lerpi(int t, int a, int b) {
+	return ((1000-t)*a + t*b) / 1000;
+}
+
+
+/// @brief: Returns the relative value of t in relation to a and b.
+/// Typical use case: a = min value, b = max value, t = value between. Returns the relative
+/// value of t.
+///
+/// @note: Should be min <= t <= max and min != max
+float uv_relf(float t, float min, float max) {
+	if (min == max) return 0;
+	return (t-min)/(max-min);
+}
+
+
+/// @brief: Returns the relative value (parts per thousand) of t in relation to a and b.
+/// Typical use case: a = min value, b = max value, t = value between. Returns the relative
+/// value of t.
+///
+/// @note: Should be min <= t <= max and min != max
+int uv_reli(int t, int min, int max) {
+	if (min == max) return 0;
+	return 1000 * (t-min)/(max-min);
+}
+
+/// @brief: Returns the bigger argument
+int uv_maxi(int a, int b) {
+	return (a > b) ? a : b;
+}
+
+/// @brief: Returns the smaller argument
+int uv_mini(int a, int b) {
+	return (a < b) ? a : b;
+}
 
 
 void _delay_ms (uint16_t ms)

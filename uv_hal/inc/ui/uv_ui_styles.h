@@ -62,48 +62,6 @@ extern const uv_uistyle_st uv_uistyles[CONFIG_UI_STYLES_COUNT];
 
 
 
-#ifndef CONFIG_UI_KEYBOARD_STYLES_COUNT
-#define CONFIG_UI_KEYBOARD_STYLES_COUNT			1
-#endif
-
-typedef struct {
-	color_t bg_color;
-	color_t key_color;
-	color_t keytext_color;
-	color_t frame_color;
-	color_t text_color;
-	color_t highlight_color;
-	const uv_font_st *title_font;
-	const uv_font_st *text_font;
-} uv_uikeyboard_style_st;
-extern const uv_uikeyboard_style_st uv_uikeyboard_styles[CONFIG_UI_KEYBOARD_STYLES_COUNT];
-
-#ifndef CONFIG_UI_KEYBOARD_BG_COLOR_1
-#define CONFIG_UI_KEYBOARD_BG_COLOR_1			C(0xFFFFFF)
-#endif
-#ifndef CONFIG_UI_KEYBOARD_KEY_COLOR_1
-#define CONFIG_UI_KEYBOARD_KEY_COLOR_1			C(0x005500)
-#endif
-#ifndef CONFIG_UI_KEYBOARD_KEYTEXT_COLOR_1
-#define CONFIG_UI_KEYBOARD_KEYTEXT_COLOR_1		C(0x000000)
-#endif
-#ifndef CONFIG_UI_KEYBOARD_FRAME_COLOR_1
-#define CONFIG_UI_KEYBOARD_FRAME_COLOR_1		C(0x008800)
-#endif
-#ifndef CONFIG_UI_KEYBOARD_TEXT_COLOR_1
-#define CONFIG_UI_KEYBOARD_TEXT_COLOR_1			C(0x000000)
-#endif
-#ifndef CONFIG_UI_KEYBOARD_HIGHLIGHT_COLOR_1
-#define CONFIG_UI_KEYBOARD_HIGHLIGHT_COLOR_1	C(0x444444)
-#endif
-#ifndef CONFIG_UI_KEYBOARD_TITLE_FONT_1
-#define CONFIG_UI_KEYBOARD_TITLE_FONT_1			font_5X12
-#endif
-#ifndef CONFIG_UI_KEYBOARD_TEXT_FONT_1
-#define CONFIG_UI_KEYBOARD_TEXT_FONT_1			font_5X12
-#endif
-
-
 
 
 #endif

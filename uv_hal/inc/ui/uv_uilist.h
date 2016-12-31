@@ -74,18 +74,12 @@ static inline void uv_uilist_select(void *me, int16_t index) {
 
 
 /// @brief: Pushes a new element into the end of the list
-static inline void uv_uilist_push_back(void *me, char *str) {
-	uv_vector_push_back(&this->entries, (void*) &str);
-	uv_uilist_recalc_height(this);
-	uv_ui_refresh_parent(this);
-}
+void uv_uilist_push_back(void *me, char *str);
+
 
 /// @brief: Pops the last element from the list
-static inline void uv_uilist_pop_back(void *me, char *dest) {
-	uv_vector_pop_back(&this->entries, &dest);
-	uv_uilist_recalc_height(this);
-	uv_ui_refresh_parent(this);
-}
+void uv_uilist_pop_back(void *me, char *dest);
+
 
 /// @brief: Indexes the list and returns the string at *index*
 static inline char *uv_uilist_at(void *me, uint16_t index) {
@@ -94,17 +88,10 @@ static inline char *uv_uilist_at(void *me, uint16_t index) {
 
 
 /// @brief: Removes a *index*'th entry from the list
-static inline void uv_uilist_remove(void *me, uint16_t index) {
-	uv_vector_remove(&this->entries, index);
-	uv_uilist_recalc_height(this);
-	uv_ui_refresh_parent(this);
-}
+void uv_uilist_remove(void *me, uint16_t index);
 
-static inline void uv_uilist_insert(void *me, uint16_t index, char *str) {
-	uv_vector_insert(&this->entries, index, &str);
-	uv_uilist_recalc_height(this);
-	uv_ui_refresh_parent(this);
-}
+
+void uv_uilist_insert(void *me, uint16_t index, char *str);
 
 
 #undef this
