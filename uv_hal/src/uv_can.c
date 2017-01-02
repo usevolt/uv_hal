@@ -103,11 +103,14 @@ typedef struct {
 	void (*rx_callback[CAN_COUNT])(void *user_ptr);
 #if CONFIG_CAN1
 	uv_can_message_st rx_buffer_data1[CONFIG_CAN1_RX_BUFFER_SIZE];
+	uv_can_message_st tx_buffer_data1[CONFIG_CAN1_TX_BUFFER_SIZE];
 #endif
 #if CONFIG_CAN2
 	uv_can_message_st rx_buffer_data2[CONFIG_CAN2_RX_BUFFER_SIZE];
+	uv_can_message_st tx_buffer_data2[CONFIG_CAN2_TX_BUFFER_SIZE];
 #endif
 	uv_ring_buffer_st rx_buffer[CAN_COUNT];
+	uv_ring_buffer_st tx_buffer[CAN_COUNT];
 	uv_can_message_st temp;
 
 
@@ -571,6 +574,10 @@ uv_errors_e _uv_can_init() {
 #if CONFIG_CAN1
 	uv_ring_buffer_init(&this->rx_buffer[0], this->rx_buffer_data1,
 			CONFIG_CAN1_RX_BUFFER_SIZE, sizeof(uv_can_message_st));
+
+	uv_ring_buffer_init(&this->tx_buffer[0], this->tx_buffer_data1,
+			CONFIG_CAN1_TX_BUFFER_SIZE, sizeof(uv_can_message_st));
+
 	this->rx_callback[0] = NULL;
 
 	// enable power to the peripheral
@@ -912,59 +919,75 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 //}
 
 
-uv_can_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* msg) {
+uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message) {
+	return uv_ring_buffer_push(&this->tx_buffer[0], message);
+}
+
+
+uv_errors_e _uv_can_hal_send(uv_can_channels_e channel) {
 #if CONFIG_CAN1
 	if (channel == CAN1) {
+		uv_can_message_st msg;
+		uv_errors_e e = uv_ring_buffer_peek(&this->tx_buffer[0], &msg);
+		if (e) {
+			return uv_err(ERR_NONE);
+		}
 
 		// if any transmit buffer has same ID message to be transmitted, wait until
 		// the older message is transmitted.
-		while ((LPC_CAN1->TID1 == msg->id && !(LPC_CAN1->SR & (1 << 2))) ||
-				(LPC_CAN1->TID2 == msg->id && !(LPC_CAN1->SR & (1 << 10))) ||
-				(LPC_CAN1->TID3 == msg->id && !(LPC_CAN1->SR & (1 << 18)))) {
-			// CAN tranceiver is either in bus off or error active state. In this
-			// case it's OK to send the messages in a wrong order
+		while ((LPC_CAN1->TID1 == msg.id && !(LPC_CAN1->SR & (1 << 2))) ||
+				(LPC_CAN1->TID2 == msg.id && !(LPC_CAN1->SR & (1 << 10))) ||
+				(LPC_CAN1->TID3 == msg.id && !(LPC_CAN1->SR & (1 << 18)))) {
+			// CAN tranceiver is either in bus off or error active state
 			if (LPC_CAN1->GSR & (0b11 << 6)) {
 				LPC_CAN1->MOD &= ~1;
-				break;
+				return uv_err(ERR_MESSAGE_NOT_SENT | HAL_MODULE_CAN);
 			}
 		}
 
 		// wait until any one transmit buffer is available for transmitting
 		while (!(LPC_CAN1->SR & ((1 << 2) | (1 << 10) | (1 << 18)))) {
-			// CAN tranceiver is either in bus off or error active state
+			// CAN tranceiver is either in bus off or error passive state
+			// and last received error was in ACK slot.
+			// This means that the device may be the only one in the CAN bus,
+			// and in that case its OK to discard the message transmission
 			if (LPC_CAN1->GSR & (0b11 << 6)) {
 				LPC_CAN1->MOD &= ~1;
-				break;
+				return uv_err(ERR_MESSAGE_NOT_SENT | HAL_MODULE_CAN);
 			}
 		}
 
 		if (LPC_CAN1->SR & (1 << 2)) {
-			LPC_CAN1->TFI1 = (msg->data_length << 16) |
-					((msg->type == CAN_EXT) ? (1 << 31) : 0);
-			LPC_CAN1->TID1 = msg->id;
-			LPC_CAN1->TDA1 = msg->data_32bit[0];
-			LPC_CAN1->TDB1 = msg->data_32bit[1];
+			LPC_CAN1->TFI1 = (msg.data_length << 16) |
+					((msg.type == CAN_EXT) ? (1 << 31) : 0);
+			LPC_CAN1->TID1 = msg.id;
+			LPC_CAN1->TDA1 = msg.data_32bit[0];
+			LPC_CAN1->TDB1 = msg.data_32bit[1];
 			// send message
 			LPC_CAN1->CMR = (1 | (1 << 5));
 		}
 		else if (LPC_CAN1->SR & (1 << 10)) {
-			LPC_CAN1->TFI2 = (msg->data_length << 16) |
-					((msg->type == CAN_EXT) ? (1 << 31) : 0);
-			LPC_CAN1->TID2 = msg->id;
-			LPC_CAN1->TDA2 = msg->data_32bit[0];
-			LPC_CAN1->TDB2 = msg->data_32bit[1];
+			LPC_CAN1->TFI2 = (msg.data_length << 16) |
+					((msg.type == CAN_EXT) ? (1 << 31) : 0);
+			LPC_CAN1->TID2 = msg.id;
+			LPC_CAN1->TDA2 = msg.data_32bit[0];
+			LPC_CAN1->TDB2 = msg.data_32bit[1];
 			// send message
 			LPC_CAN1->CMR = (1 | (1 << 6));
 		}
 		else if (LPC_CAN1->SR & (1 << 18)) {
-			LPC_CAN1->TFI3 = (msg->data_length << 16) |
-					((msg->type == CAN_EXT) ? (1 << 31) : 0);
-			LPC_CAN1->TID3 = msg->id;
-			LPC_CAN1->TDA3 = msg->data_32bit[0];
-			LPC_CAN1->TDB3 = msg->data_32bit[1];
+			LPC_CAN1->TFI3 = (msg.data_length << 16) |
+					((msg.type == CAN_EXT) ? (1 << 31) : 0);
+			LPC_CAN1->TID3 = msg.id;
+			LPC_CAN1->TDA3 = msg.data_32bit[0];
+			LPC_CAN1->TDB3 = msg.data_32bit[1];
 			// send message
 			LPC_CAN1->CMR = (1 | (1 << 7));
 		}
+		// message succesfully sent, remove it from the buffer
+		uv_ring_buffer_pop(&this->tx_buffer[0], NULL);
+
+		return uv_err(ERR_NONE);
 	}
 #endif
 #if CONFIG_CAN2
@@ -1028,10 +1051,19 @@ uv_errors_e uv_can_get_char(char *dest) {
 
 /// @brief: Inner hal step function which is called in rtos hal task
 void _uv_can_hal_step(unsigned int step_ms) {
+
 #if CONFIG_TARGET_LPC11C14
 	if (this->tx_pending > 0)
 		this->tx_pending -= step_ms;
 	else this->tx_pending = 0;
+#endif
+
+	// send the next message from the buffer
+#if CONFIG_CAN1
+	_uv_can_hal_send(CAN1);
+#endif
+#if CONFIG_CAN2
+	_uv_can_hal_send(CAN2);
 #endif
 }
 

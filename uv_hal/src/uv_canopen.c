@@ -769,8 +769,11 @@ static inline void parse_rxpdo(uv_canopen_st *me, uv_can_message_st* msg) {
 					bytes += byte_length;
 
 				}
+				else if (this->obj_dict.com_params.rxpdo_mappings[i][j].length) {
+					bytes += this->obj_dict.com_params.rxpdo_mappings[i][j].length;
+				}
 				else {
-					// if main index was zero, PDO mappings have been ended and we return.
+					// if main index and length was zero, PDO mappings have been ended and we return.
 					break;
 				}
 			}
@@ -830,9 +833,7 @@ uv_errors_e uv_canopen_send_sdo(uv_canopen_st *me,
 	msg.data_32bit[1] = sdo->data_32bit;
 	msg.data_length = 8;
 
-	uv_can_send_message(this->can_channel, &msg);
-
-	return uv_err(ERR_NONE);
+	return uv_can_send_message(this->can_channel, &msg);
 }
 
 /// @brief: Quick way for sending a SDO write request

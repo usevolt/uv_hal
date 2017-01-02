@@ -239,8 +239,8 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 /// @return: Enum describing if errors were found while sending the message
 ///
 /// @pre: uv_can_init should be called
-uv_can_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message);
-static inline uv_can_errors_e uv_can_send(uv_can_channels_e channel, uv_can_message_st *msg) {
+uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message);
+static inline uv_errors_e uv_can_send(uv_can_channels_e channel, uv_can_message_st *msg) {
 	return uv_can_send_message(channel, msg);
 }
 

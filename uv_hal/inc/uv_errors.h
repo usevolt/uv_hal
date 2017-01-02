@@ -126,6 +126,8 @@ typedef enum {
 	ERR_VALUE_TOO_HIGH					= 40,
 	/// @brief: index overflow
 	ERR_INDEX_OVERFLOW					= 41,
+	/// @brief: Message couldn't be sent for unknown reason
+	ERR_MESSAGE_NOT_SENT				= 42,
 	ERR_COUNT
 } _uv_errors_e;
 typedef unsigned int uv_errors_e;
@@ -225,7 +227,7 @@ extern uv_errors_e __uv_error;
 
 
 /// @brief: Logs the error info string into stdout
-void __uv_log_error(unsigned int err);
+uv_errors_e __uv_log_error(unsigned int err);
 
 static inline void __uv_log_error_throw(unsigned int err) {
 #if CONFIG_LOG_ERRORS
