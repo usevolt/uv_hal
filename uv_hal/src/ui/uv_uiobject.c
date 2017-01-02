@@ -9,6 +9,8 @@
 #include "ui/uv_uiobject.h"
 
 
+#if CONFIG_LCD
+
 #define this ((uv_uiobject_st*) me)
 
 /// @brief: Initializes the bounding box
@@ -32,3 +34,4 @@ void uv_uiobject_init(void *me) {
 }
 
 
+#endif
