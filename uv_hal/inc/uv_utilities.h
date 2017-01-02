@@ -197,14 +197,7 @@ static inline void uv_delay_init(unsigned int delay_ms, int* p) {
 ///				...
 ///			}
 /// 	}
-static inline bool uv_delay(unsigned int step_ms, int* p) {
-	if (*p >= step_ms) {
-		*p -= step_ms;
-		return false;
-	}
-	*p = -1;
-	return true;
-}
+bool uv_delay(unsigned int step_ms, int* p);
 
 
 /// @brief: Set's the user's application pointer.
@@ -244,6 +237,10 @@ uv_errors_e uv_ring_buffer_init(uv_ring_buffer_st *buffer_ptr, void *buffer,
 
 /// @brief: Adds a new element into the ring buffer
 uv_errors_e uv_ring_buffer_push(uv_ring_buffer_st *buffer, void *element);
+
+/// @brief: Returns the next element without removing it from the buffer.
+/// Can be used to check what's coming next in the buffer
+uv_errors_e uv_ring_buffer_peek(uv_ring_buffer_st *buffer, void *dest);
 
 
 /// @brief: Removes the last element from the ring buffer. The popped

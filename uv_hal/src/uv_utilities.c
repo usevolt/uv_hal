@@ -27,6 +27,20 @@ void uv_set_application_ptr(void *ptr) {
 }
 
 
+
+bool uv_delay(unsigned int step_ms, int* p) {
+	if (*p >= step_ms) {
+		*p -= step_ms;
+		return false;
+	}
+	if (*p == -1) {
+		return false;
+	}
+	*p = -1;
+	return true;
+}
+
+
 char *uv_get_hardware_name() {
 #if CONFIG_TARGET_LPC11C14
 	return "CONFIG_TARGET_LPC11C14";
@@ -65,17 +79,29 @@ uv_errors_e uv_ring_buffer_push(uv_ring_buffer_st *buffer, void *element) {
 	return uv_err(ERR_NONE);
 }
 
+uv_errors_e uv_ring_buffer_peek(uv_ring_buffer_st *buffer, void *dest) {
+	if (!buffer->element_count) {
+		return uv_err(ERR_BUFFER_EMPTY | HAL_MODULE_UTILITIES);
+	}
+	if (dest) {
+		for (int16_t i = 0; i < buffer->element_size; i++) {
+			*((char*)dest + i) = *(buffer->tail + i);
+		}
+	}
+	return uv_err(ERR_NONE);
+
+}
 
 uv_errors_e uv_ring_buffer_pop(uv_ring_buffer_st *buffer, void *dest) {
 	if (!buffer->element_count) {
 		return uv_err(ERR_BUFFER_EMPTY | HAL_MODULE_UTILITIES);
 	}
 	uint8_t i;
-	if (dest) {
 		for (i = 0; i < buffer->element_size; i++) {
-			*((char*)dest + i) = *(buffer->tail);
+			if (dest) {
+				*((char*)dest + i) = *(buffer->tail);
+			}
 			buffer->tail++;
-		}
 	}
 	if (buffer->tail == buffer->buffer + buffer->buffer_size * buffer->element_size) {
 		buffer->tail = buffer->buffer;
