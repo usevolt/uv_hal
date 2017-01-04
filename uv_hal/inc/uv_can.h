@@ -31,6 +31,9 @@
  CONFIG_CAN_ERROR_LOG should be definded as 0 or 1, to disable or enable error logging."
 #endif
 #if CONFIG_TARGET_LPC11C14
+#if !CONFIG_CAN1
+#error "At least one CAN channel should be defined"
+#endif
 #if CONFIG_CAN2
 #error "Hardware doesn't support CAN2 module. Set CONFIG_CAN2 to 0."
 #endif

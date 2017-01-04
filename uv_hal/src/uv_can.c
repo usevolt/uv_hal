@@ -89,6 +89,8 @@ typedef struct {
 	bool init;
 	uv_can_message_st rx_buffer_data[CONFIG_CAN1_RX_BUFFER_SIZE];
 	uv_ring_buffer_st rx_buffer;
+	uv_can_message_st tx_buffer_data[CONFIG_CAN1_TX_BUFFER_SIZE];
+	uv_ring_buffer_st tx_buffer;
 	int16_t tx_pending;
 #if CONFIG_TERMINAL_CAN
 	uv_ring_buffer_st char_buffer;
@@ -369,6 +371,8 @@ uv_errors_e _uv_can_init() {
 	this->used_msg_objs = (1 << TX_MSG_OBJ);
 	uv_ring_buffer_init(&this->rx_buffer, this->rx_buffer_data,
 			CONFIG_CAN1_RX_BUFFER_SIZE, sizeof(uv_can_message_st));
+	uv_ring_buffer_init(&this->tx_buffer, this->tx_buffer_data,
+			CONFIG_CAN1_TX_BUFFER_SIZE, sizeof(uv_can_message_st));
 	SystemCoreClockUpdate();
 	uint32_t CanApiClkInitTable[] = {
 		//CANCLKDIV register
@@ -455,33 +459,38 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 
 
 uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message) {
-	if (check_channel(channel)) return check_channel(channel);
-	else if (!this->init) {
-		return uv_err(ERR_NOT_INITIALIZED | HAL_MODULE_CAN);
-	}
+	return uv_ring_buffer_push(&this->tx_buffer, message);
+}
+
+void _uv_can_hal_send(uv_can_channels_e chn) {
+	if (chn);
 
 	// if tx object is pending, try to wait for the HAl task to release the pending msg obj
-	while (this->tx_pending > 0) {
-		uint32_t t = LPC_CAN->STAT;
-		uv_rtos_task_yield();
+	if (this->tx_pending > 0) {
+		return;
+	}
+
+	uv_can_message_st msg;
+	uv_errors_e e = uv_ring_buffer_pop(&this->tx_buffer, &msg);
+	// empty buffer
+	if (e) {
+		return;
 	}
 
 	// the last MSG OBJ is used for transmitting the messages
 	hal_can_msg_obj_st obj = {
-			.data_length = message->data_length,
-			.msg_id = message->id | message->type,
+			.data_length = msg.data_length,
+			.msg_id = msg.id | msg.type,
 			.msgobj = TX_MSG_OBJ,
 	};
 	uint8_t i;
 	for (i = 0; i < obj.data_length; i++) {
-		obj.data[i] = message->data_8bit[i];
+		obj.data[i] = msg.data_8bit[i];
 	}
 
 	// send the message
 	LPC_CCAN_API->can_transmit(&obj);
 	this->tx_pending = PENDING_MSG_OBJ_TIME_LIMIT_MS;
-
-	return uv_err(ERR_NONE);
 }
 
 
