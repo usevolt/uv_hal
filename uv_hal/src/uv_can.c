@@ -454,7 +454,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 }
 
 
-uv_can_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message) {
+uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message) {
 	if (check_channel(channel)) return check_channel(channel);
 	else if (!this->init) {
 		return uv_err(ERR_NOT_INITIALIZED | HAL_MODULE_CAN);
@@ -481,7 +481,7 @@ uv_can_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st
 	LPC_CCAN_API->can_transmit(&obj);
 	this->tx_pending = PENDING_MSG_OBJ_TIME_LIMIT_MS;
 
-	return uv_can_get_error_state(channel);
+	return uv_err(ERR_NONE);
 }
 
 
