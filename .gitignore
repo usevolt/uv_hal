@@ -4,5 +4,5 @@ uv_hal/Debug_lpc1785/
 uv_hal/Release/
 uv_hal/Release_lpc11c14/
 uv_hal/Release_lpc1785/
-
+lpc_chip_15xx/Debug
 
