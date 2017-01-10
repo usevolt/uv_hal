@@ -31,6 +31,8 @@ enum {
 };
 #elif CONFIG_TARGET_LPC1549
 #include "chip.h"
+#include "romapi_15xx.h"
+#include "rom_can_15xx.h"
 #endif
 #if CONFIG_CAN_LOG
 extern bool can_log;
@@ -95,6 +97,8 @@ typedef struct {
 	void (*rx_callback[CAN_COUNT])(void *user_ptr);
 
 } can_st;
+
+
 #elif CONFIG_TARGET_LPC1785
 typedef struct {
 	bool init;
@@ -156,7 +160,7 @@ static can_st _can = {
 
 
 
-#if C_CAN
+#if CONFIG_TARGET_LPC11C14
 
 #define TX_MSG_OBJ	1
 
@@ -367,9 +371,6 @@ void CAN_error(uint32_t error_info) {
 void CAN_IRQHandler(void) {
 	LPC_CCAN_API->isr();
 }
-
-
-
 
 
 uv_errors_e _uv_can_init() {
@@ -984,6 +985,304 @@ uv_errors_e uv_can_get_char(char *dest) {
 	return uv_ring_buffer_pop(&this->char_buffer, dest);
 }
 #endif
+
+
+#elif CONFIG_TARGET_LPC1549
+
+#define TX_MSG_OBJ	1
+
+
+/// @brief: Time limit for pending message objects. If this exceedes, all message objects are
+/// released from pending state.
+#define PENDING_MSG_OBJ_TIME_LIMIT_MS		8
+
+
+
+void CAN_rx(uint8_t msg_obj_num);
+void CAN_tx(uint8_t msg_obj_num);
+void CAN_error(uint32_t error_info);
+
+static volatile uint32_t gCANapiMem[512];
+static uint32_t can_errors;
+
+CAN_HANDLE_T handle;
+
+static CAN_CFG config = {
+		.clkdiv = 0,
+		.isr_ena = 1
+};
+static CAN_CALLBACKS callbacks = {
+		.CAN_error = CAN_error,
+		.CAN_rx = CAN_rx,
+		.CAN_tx = CAN_tx
+};
+static CAN_CANOPENCFG canopen = {
+};
+static CANOPEN_CALLBACKS co_callbacks = {
+};
+
+static CAN_API_INIT_PARAM_T myCANConfig = {
+	(uint32_t)&gCANapiMem[0],
+	LPC_C_CAN0_BASE,
+	&config,
+	(CAN_CALLBACKS *)&callbacks, //need the callback for receive message
+	(CAN_CANOPENCFG *)&canopen, // not used, but allocate memory for it
+	(CANOPEN_CALLBACKS *)&co_callbacks, //not used, but allocate memory for it
+};
+
+
+void CAN_rx(uint8_t msg_obj_num) {
+	/* Determine which CAN message has been received */
+	this->temp_obj.msgobj = msg_obj_num;
+	/* Now load up the msg_obj structure with the CAN message */
+	LPC_CAND_API->hwCAN_MsgReceive(handle, (CAN_MSG_OBJ*) &this->temp_obj);
+	this->temp_msg.data_length = this->temp_obj.data_length;
+	this->temp_msg.id = this->temp_obj.msg_id & ~CAN_EXT;
+	uint8_t i;
+	for (i = 0; i < this->temp_msg.data_length; i++) {
+		this->temp_msg.data_8bit[i] = this->temp_obj.data[i];
+	}
+#if CONFIG_CAN_LOG
+	if (can_log) {
+		// log debug info
+		printf("CAN message received\n\r   id: 0x%x\n\r   data length: %u\n\r   data: ",
+				this->temp_msg.id, this->temp_msg.data_length);
+		for ( i = 0; i < this->temp_msg.data_length; i++) {
+			printf("%02x ", this->temp_msg.data_8bit[i]);
+		}
+		printf("\n\r");
+	}
+#endif
+
+
+
+#if CONFIG_TERMINAL_CAN
+	// terminal characters are sent to their specific buffer
+	if (this->temp_msg.id == UV_TERMINAL_CAN_PREFIX + uv_get_id()) {
+		uint8_t i;
+		for (i = 0; i < this->temp_msg.data_length; i++) {
+			uv_ring_buffer_push(&this->char_buffer, (char*) &this->temp_msg.data_8bit[i]);
+		}
+		return;
+	}
+#endif
+
+	uv_ring_buffer_push(&this->rx_buffer, &this->temp_msg);
+
+}
+
+void CAN_tx(uint8_t msg_obj_num) {
+	this->tx_pending = 0;
+#if CONFIG_CAN_LOG
+	if (can_log) {
+		printf("CAN message sent.\n\r");
+	}
+#endif
+
+}
+
+void CAN_error(uint32_t error_info) {
+	if (error_info & CAN_ERROR_BOFF) {
+		can_errors = CAN_ERROR_BUS_OFF;
+		uv_can_reset(CAN1);
+		_uv_can_init();
+	}
+#if CONFIG_CAN_LOG || CONFIG_CAN_ERROR_LOG
+	printf("CAN error received:");
+	if (error_info & CAN_ERROR_ACK) {
+		printf(" ACK");
+	}
+	if (error_info & CAN_ERROR_BIT0) {
+		printf(" BIT0");
+	}
+	if (error_info & CAN_ERROR_BIT1) {
+		printf(" BIT1");
+	}
+	if (error_info & CAN_ERROR_BOFF) {
+		printf(" BOFF");
+	}
+	if (error_info & CAN_ERROR_CRC) {
+		printf(" CRC");
+	}
+	if (error_info & CAN_ERROR_FORM) {
+		printf(" FORM");
+	}
+	if (error_info & CAN_ERROR_NONE) {
+		printf(" NONE");
+	}
+	if (error_info & CAN_ERROR_PASS) {
+		printf(" PASS");
+	}
+	if (error_info & CAN_ERROR_STUF) {
+		printf(" STUF");
+	}
+	if (error_info & CAN_ERROR_WARN) {
+		printf(" WARN");
+		can_errors = CAN_ERROR_PASSIVE;
+	}
+	printf("\n\r");
+#endif
+}
+
+void CAN_IRQHandler(void) {
+	LPC_CAND_API->hwCAN_Isr(handle);
+}
+
+
+uv_errors_e _uv_can_init() {
+	uint8_t i;
+	for (i = 0; i < CAN_COUNT; i++) {
+		this->rx_callback[i] = NULL;
+	}
+	this->init = true;
+	this->tx_pending = 0;
+	this->used_msg_objs = (1 << TX_MSG_OBJ);
+	config.btr = 0x2300 + ((SystemCoreClock / (8 * CONFIG_CAN1_BAUDRATE) - 1) & 0x3F);
+
+	uv_ring_buffer_init(&this->rx_buffer, this->rx_buffer_data,
+			CONFIG_CAN1_RX_BUFFER_SIZE, sizeof(uv_can_message_st));
+	uv_ring_buffer_init(&this->tx_buffer, this->tx_buffer_data,
+			CONFIG_CAN1_TX_BUFFER_SIZE, sizeof(uv_can_message_st));
+	SystemCoreClockUpdate();
+	LPC_CAND_API->hwCAN_Init(handle, &myCANConfig);
+	/* Enable the CAN Interrupt */
+	NVIC_EnableIRQ(CAN_IRQn);
+
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 3, (IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 4, (IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+	Chip_SWM_MovablePortPinAssign(SWM_CAN_TD1_O , 0, 3);
+	Chip_SWM_MovablePortPinAssign(SWM_CAN_RD1_I,  0, 4);
+
+#if CAN_LOOP_BACK_MODE
+	// enable loop-back mode for testing
+	LPC_CAN->CNTL |= 1 << 7;
+	LPC_CAN->TEST |= 1 << 4;
+#endif
+
+#if CONFIG_TERMINAL_CAN
+	uv_ring_buffer_init(&this->char_buffer, this->char_buffer_data, CONFIG_TERMINAL_BUFFER_SIZE, sizeof(char));
+	uv_can_config_rx_message(CAN1, UV_TERMINAL_CAN_PREFIX + uv_get_id(), CAN_ID_MASK_DEFAULT, CAN_EXT);
+#endif
+
+	return uv_err(ERR_NONE);
+
+}
+
+
+
+uv_errors_e uv_can_step(uv_can_channels_e channel, unsigned int step_ms) {
+
+	if (this->rx_callback[CAN1] != NULL) {
+		while (true) {
+			// call application callback if assigned
+			if (uv_ring_buffer_empty(&this->rx_buffer)) {
+				break;
+			}
+			else {
+				this->rx_callback[CAN1](__uv_get_user_ptr());
+			}
+		}
+	}
+
+
+	return uv_err(ERR_NONE);
+}
+
+
+
+uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
+		unsigned int id,
+		unsigned int mask,
+		uv_can_msg_types_e type) {
+
+	// if any message objects are still not in use,
+	// config them with settings requested
+	// the last message object is reserved for sending messages
+	uint8_t i;
+	for (i = 0; i < 32; i++) {
+		// search for a unused message object to be used for receiving the messages
+		if (!GET_MASKED(this->used_msg_objs, (1 << i))) {
+			hal_can_msg_obj_st obj = {
+					.msg_id = id | type,
+					.msgobj = i,
+					.mask = mask,
+			};
+			LPC_CAND_API->hwCAN_ConfigRxmsgobj(handle, (CAN_MSG_OBJ*) &obj);
+			this->used_msg_objs |= (1 << i);
+			return uv_err(ERR_NONE);
+		}
+	}
+	__uv_err_throw(ERR_CAN_RX_MESSAGE_COUNT_FULL | HAL_MODULE_CAN);
+}
+
+
+uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message) {
+	return uv_ring_buffer_push(&this->tx_buffer, message);
+}
+
+void _uv_can_hal_send(uv_can_channels_e chn) {
+	if (chn);
+
+	// if tx object is pending, try to wait for the HAl task to release the pending msg obj
+	if (this->tx_pending > 0) {
+		return;
+	}
+
+	uv_can_message_st msg;
+	uv_errors_e e = uv_ring_buffer_pop(&this->tx_buffer, &msg);
+	// empty buffer
+	if (e) {
+		return;
+	}
+
+	// the last MSG OBJ is used for transmitting the messages
+	hal_can_msg_obj_st obj = {
+			.data_length = msg.data_length,
+			.msg_id = msg.id | msg.type,
+			.msgobj = TX_MSG_OBJ,
+	};
+	uint8_t i;
+	for (i = 0; i < obj.data_length; i++) {
+		obj.data[i] = msg.data_8bit[i];
+	}
+
+	// send the message
+	LPC_CAND_API->hwCAN_MsgTransmit(handle, (CAN_MSG_OBJ*) &obj);
+	this->tx_pending = PENDING_MSG_OBJ_TIME_LIMIT_MS;
+}
+
+
+uv_errors_e uv_can_pop_message(uv_can_channels_e channel, uv_can_message_st *message) {
+	return uv_ring_buffer_pop(&this->rx_buffer, message);
+}
+
+
+uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
+	return can_errors;
+}
+
+
+uv_errors_e uv_can_reset(uv_can_channels_e channel) {
+#if CONFIG_TARGET_LPC11C14
+	//clearing the C_CAN bit resets C_CAN hardware
+	LPC_SYSCON->PRESETCTRL &= ~(1 << 3);
+	//set bit to de-assert the reset
+	LPC_SYSCON->PRESETCTRL |= (1 << 3);
+#elif CONFIG_TARGET_LPC1549
+	LPC_SYSCON->PRESETCTRL[1] |= (1 << 7);
+	__NOP();
+	LPC_SYSCON->PRESETCTRL[1] &= ~(1 << 7);
+
+#endif
+	return uv_err(ERR_NONE);
+}
+
+#if CONFIG_TERMINAL_CAN
+uv_errors_e uv_can_get_char(char *dest) {
+	return uv_ring_buffer_pop(&this->char_buffer, dest);
+}
+#endif
+
 
 
 #else
