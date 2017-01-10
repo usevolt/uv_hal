@@ -35,8 +35,12 @@
 /// @brief: Defines the RAM size in bytes on this controller
 #define RAM_SIZE_BYTES	64000
 #define RAM_BASE_ADDRESS 0x10000000
+#elif CONFIG_TARGET_LPC1549
+/// @brief: Defines the RAM size in bytes on this controller
+#define RAM_SIZE_BYTES	0x8000
+#define RAM_BASE_ADDRESS 0x2000000
 #else
-#error "Controller not defined"
+#warning "Controller not defined"
 #endif
 
 
@@ -82,6 +86,7 @@ void uv_get_device_serial(unsigned int dest[4]);
 
 
 /// @brief: IAP status/error codes. Writing to flash returns one of these values.
+#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1785
 typedef enum {
     IAP_CMD_SUCCESS = 0,
 	IAP_INVALID_COMMAND,
@@ -95,9 +100,11 @@ typedef enum {
 	IAP_SECTOR_NOT_PREPARED_FOR_WRITE_OPERATION,
 	IAP_COMPARE_ERROR,
 	IAP_BUSY,
-	IAP_NUM_BYTES_INVALID
+	IAP_PARAM_ERROR
 } uv_iap_status_e;
-
+#else
+typedef int uv_iap_status_e;
+#endif
 
 
 /// @brief: Defines the possible amount of bytes to be written

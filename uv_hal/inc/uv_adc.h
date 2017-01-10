@@ -69,9 +69,11 @@ enum {
 /// @brief: Defines the ADC conversion max value ( == precision) for this hardware
 enum {
 #if CONFIG_TARGET_LPC11C14
-	ADC_MAX_VALUE = 1023
+	ADC_MAX_VALUE = 0x400
 #elif CONFIG_TARGET_LPC1785
-	ADC_MAX_VALUE = 4095
+	ADC_MAX_VALUE = 0x1000
+#elif CONFIG_TARGET_LPC1549
+	ADC_MAX_VALUE = 0x1000
 #endif
 };
 
@@ -103,6 +105,80 @@ typedef enum {
 	ADC_7 = (1 << 7),
 #endif
 	ADC_COUNT = 8
+#elif CONFIG_TARGET_LPC1549
+#if CONFIG_ADC_CHANNEL0
+	ADC_0 = (1 << 0),
+#endif
+#if CONFIG_ADC_CHANNEL1
+	ADC_1 = (1 << 1),
+#endif
+#if CONFIG_ADC_CHANNEL2
+	ADC_2 = (1 << 2),
+#endif
+#if CONFIG_ADC_CHANNEL3
+	ADC_3 = (1 << 3),
+#endif
+#if CONFIG_ADC_CHANNEL4
+	ADC_4 = (1 << 4),
+#endif
+#if CONFIG_ADC_CHANNEL5
+	ADC_5 = (1 << 5),
+#endif
+#if CONFIG_ADC_CHANNEL6
+	ADC_6 = (1 << 6),
+#endif
+#if CONFIG_ADC_CHANNEL7
+	ADC_7 = (1 << 7),
+#endif
+#if CONFIG_ADC_CHANNEL8
+	ADC_8 = (1 << 8),
+#endif
+#if CONFIG_ADC_CHANNEL9
+	ADC_9 = (1 << 9),
+#endif
+#if CONFIG_ADC_CHANNEL10
+	ADC_10 = (1 << 10),
+#endif
+#if CONFIG_ADC_CHANNEL11
+	ADC_11 = (1 << 11),
+#endif
+#if CONFIG_ADC_CHANNEL12
+	ADC_12 = (1 << 12),
+#endif
+#if CONFIG_ADC_CHANNEL13
+	ADC_13 = (1 << 13),
+#endif
+#if CONFIG_ADC_CHANNEL14
+	ADC_14 = (1 << 14),
+#endif
+#if CONFIG_ADC_CHANNEL15
+	ADC_15 = (1 << 15),
+#endif
+#if CONFIG_ADC_CHANNEL16
+	ADC_16 = (1 << 16),
+#endif
+#if CONFIG_ADC_CHANNEL17
+	ADC_17 = (1 << 17),
+#endif
+#if CONFIG_ADC_CHANNEL18
+	ADC_18 = (1 << 18),
+#endif
+#if CONFIG_ADC_CHANNEL19
+	ADC_19 = (1 << 19),
+#endif
+#if CONFIG_ADC_CHANNEL20
+	ADC_20 = (1 << 20),
+#endif
+#if CONFIG_ADC_CHANNEL21
+	ADC_21 = (1 << 21),
+#endif
+#if CONFIG_ADC_CHANNEL22
+	ADC_22 = (1 << 22),
+#endif
+#if CONFIG_ADC_CHANNEL23
+	ADC_23 = (1 << 23),
+#endif
+	ADC_COUNT = 24
 #endif
 } uv_adc_channels_e;
 

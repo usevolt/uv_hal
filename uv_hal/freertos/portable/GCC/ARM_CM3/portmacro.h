@@ -78,7 +78,7 @@ extern "C" {
 
 #include "uv_hal_config.h"
 
-#if CONFIG_TARGET_LPC1785
+#if CONFIG_TARGET_LPC1785 || CONFIG_TARGET_LPC1549
 
 /*-----------------------------------------------------------
  * Port specific definitions.

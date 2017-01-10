@@ -56,9 +56,7 @@ int outbyte(int c) {
 		return 1;
 	}
 #if CONFIG_TERMINAL_UART
-	if (uv_uart_is_initialized(UART0)) {
-		uv_uart_send_char(UART0, c);
-	}
+	uv_uart_send_char(UART0, c);
 #endif
 #if CONFIG_TERMINAL_CAN
 	uint8_t ch = c;

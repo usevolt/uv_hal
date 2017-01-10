@@ -24,8 +24,11 @@
 #elif CONFIG_TARGET_LPC11C14
 #include "LPC11xx.h"
 #include "uv_gpio_lpc11c14.h"
+#elif CONFIG_TARGET_LPC1549
+#include "chip.h"
+#include "gpio_15xx.h"
+#include "uv_gpio_lpc1549.h"
 #endif
-
 
 
 /// @brief: provides an interface for initializing input and output gpios
@@ -51,6 +54,11 @@ typedef enum {
 	SLEW_CONTROL_ENABLED = 0,
 	SLEW_CONTROL_DISABLED = (1 << 9),
 	OPEN_DRAIN_MODE_ENABLED = (1 << 10)
+#elif CONFIG_TARGET_LPC1549
+	PULL_UP_DISABLED = 0,
+	PULL_DOWN_ENABLED = (1 << 3),
+	PULL_UP_ENABLED = (1 << 4),
+	HYSTERESIS_ENABLED = (1 << 5)
 #endif
 } uv_gpio_input_config_e;
 
@@ -61,6 +69,11 @@ typedef enum {
 	INT_BOTH_EDGES = INT_RISING_EDGE | INT_FALLING_EDGE,
 	INT_DISABLE = 0
 #elif CONFIG_TARGET_LPC1785
+	INT_RISING_EDGE = (0x1 << 0),
+	INT_FALLING_EDGE = (0x1 << 1),
+	INT_BOTH_EDGES = (0x2),
+	INT_DISABLE = 0
+#elif CONFIG_TARGET_LPC1549
 	INT_RISING_EDGE = (0x1 << 0),
 	INT_FALLING_EDGE = (0x1 << 1),
 	INT_BOTH_EDGES = (0x2),
@@ -95,6 +108,8 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, u
 #define uv_gpio_set(gpio, value)  \
 	(port(CAT(CAT(GPIO_, gpio), _port))->DATA = (port(CAT(CAT(GPIO_, gpio), _port))->DATA \
 			& ~(1 << CAT(CAT(GPIO_, gpio), _pin))) | (value << CAT(CAT(GPIO_, gpio), _pin)))
+#elif CONFIG_TARGET_LPC1549
+#define uv_gpio_set(gpio, value)  Chip_GPIO_SetPinState(LPC_GPIO, uv_gpio_port(gpio), uv_gpio_pin(gpio), value)
 #else
 #error "not implemented"
 #endif
@@ -108,6 +123,8 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, u
 #elif CONFIG_TARGET_LPC11C14
 #define uv_gpio_toggle(gpio) \
 	(port(CAT(CAT(GPIO_, gpio), _port))->DATA ^= (1 << CAT(CAT(GPIO_, gpio), _pin)))
+#elif CONFIG_TARGET_LPC1549
+#define uv_gpio_toggle(gpio) Chip_GPIO_SetPinToggle(LPC_GPIO, uv_gpio_port(gpio), uv_gpio_pin(gpio))
 #else
 #error "not implemented"
 #endif
@@ -122,6 +139,8 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, u
 #elif CONFIG_TARGET_LPC11C14
 #define uv_gpio_get(gpio) \
 	((port(CAT(CAT(GPIO_, gpio), _port))->DATA & (1 << uv_gpio_pin(gpio))) >> uv_gpio_pin(gpio))
+#elif CONFIG_TARGET_LPC1549
+#define uv_gpio_get		Chip_GPIO_GetPinState(LPC_GPIO, uv_gpio_port(gpio), uv_gpio_pin(gpio))
 #else
 #error "not implemented"
 #endif
@@ -132,11 +151,17 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, u
 ///
 /// @param gpio: uv_gpios_e pin to be configured
 /// @param initial_val: True of false, the initial output value
+#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1785
 #define uv_gpio_init_output(gpio, initial_val) \
 	uv_gpio_configure(gpio, 0); \
 	port(CAT(CAT(GPIO_, gpio), _port))->DIR |= (1 << CAT(CAT(GPIO_, gpio), _pin)); \
 	uv_gpio_set(gpio, initial_val)
-
+#elif CONFIG_TARGET_LPC1549
+#define uv_gpio_init_output(gpio, initial_val) \
+	uv_gpio_configure(gpio, 0); \
+	Chip_GPIO_SetPinDIROutput(LPC_GPIO, uv_gpio_port(gpio), uv_gpio_pin(gpio)); \
+	uv_gpio_set(gpio, initial_val)
+#endif
 
 
 
@@ -156,7 +181,6 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, u
 	CAT(CAT(LPC_GPIOINT->IO, CAT(CAT(GPIO_, gpio), _port)), IntEnF) |= ((interrupt_conf & (~1)) << CAT(CAT(GPIO_, gpio), _pin)); \
 	CAT(CAT(LPC_GPIOINT->IO, CAT(CAT(GPIO_, gpio), _port)), IntEnR) |= ((interrupt_conf & (~(1 << 1))) << CAT(CAT(GPIO_, gpio), _pin))
 #elif CONFIG_TARGET_LPC11C14
-// todo: this macro is not ready!
 #define uv_gpio_init_input_int(gpio, confs, interrupt_confs) \
 	uv_gpio_init_input(gpio, confs); \
 	port(CAT(CAT(GPIO_, gpio), _port))->IC |= (1 << uv_gpio_pin(gpio)); \
@@ -168,16 +192,23 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, u
 			(((interrupt_confs & INT_FALLING_EDGE) ? 0 : 1) << uv_gpio_pin(gpio)); \
 	} \
 	port(CAT(CAT(GPIO_, gpio), _port))->IE |= (((interrupt_confs) ? 1 : 0) << uv_gpio_pin(gpio))
+#elif CONFIG_TARGET_LPC1549
+// todo: this macro is not ready!
 #endif
 
 /// @brief: Initializes any GPIO pin as an input
 ///
 /// @param gpio: uv_gpios_e, gpio pin to be configured
 /// @param confs: OR'red uv_gpio_input_config_e configuration flags.
+#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1785
 #define uv_gpio_init_input(gpio, confs) \
 	port(CAT(CAT(GPIO_, gpio), _port))->DIR &= ~(1 << CAT(CAT(GPIO_, gpio), _pin)); \
 	uv_gpio_configure(gpio, confs)
-
+#elif CONFIG_TARGET_LPC1549
+#define uv_gpio_init_input(gpio, confs) \
+	Chip_GPIO_SetPinDIRInput(LPC_GPIO, uv_gpio_port(gpio), uv_gpio_pin(gpio)); \
+	uv_gpio_configure(gpio, confs)
+#endif
 
 
 

@@ -33,6 +33,7 @@ static void isr(LPC_GPIO_TypeDef *GPIO, uv_gpios_e port);
 
 
 void uv_gpio_add_interrupt_callback(void (*callback_function)(void*, uv_gpios_e)) {
+
 	callback = callback_function;
 #if CONFIG_TARGET_LPC11C14
 	NVIC_EnableIRQ(EINT0_IRQn);
@@ -41,6 +42,9 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void*, uv_gpios_e)
 	NVIC_EnableIRQ(EINT3_IRQn);
 #elif CONFIG_TARGET_LPC1785
 	NVIC_EnableIRQ(GPIO_IRQn);
+#elif CONFIG_TARGET_LPC1549
+	NVIC_EnableIRQ(GINT0_IRQn);
+	NVIC_EnableIRQ(GINT1_IRQn);
 #endif
 }
 

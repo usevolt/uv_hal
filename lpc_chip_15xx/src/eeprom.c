@@ -58,7 +58,7 @@ uint8_t Chip_EEPROM_Write(uint32_t dstAdd, uint8_t *ptr, uint32_t byteswrt)
 	command[2] = (uint32_t) ptr;
 	command[3] = byteswrt;
 	command[4] = SystemCoreClock / 1000;
-	iap_entry(command, result);
+	iap_entry((unsigned int*) command, (unsigned int*) result);
 
 	return result[0];
 }
@@ -73,7 +73,7 @@ uint8_t Chip_EEPROM_Read(uint32_t srcAdd, uint8_t *ptr, uint32_t bytesrd)
 	command[2] = (uint32_t) ptr;
 	command[3] = bytesrd;
 	command[4] = SystemCoreClock / 1000;
-	iap_entry(command, result);
+	iap_entry((unsigned int*) command, (unsigned int*) result);
 
 	return result[0];
 }

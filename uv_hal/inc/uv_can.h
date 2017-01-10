@@ -30,7 +30,7 @@
 #error "CONFIG_CAN_ERROR_LOG not defined. When CONFIG_CAN_LOG is set as 0,\
  CONFIG_CAN_ERROR_LOG should be definded as 0 or 1, to disable or enable error logging."
 #endif
-#if CONFIG_TARGET_LPC11C14
+#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549
 #if !CONFIG_CAN1
 #error "At least one CAN channel should be defined"
 #endif
@@ -97,6 +97,63 @@
 #endif
 #endif
 
+#if CONFIG_TARGET_LPC1549
+/*------------- CAN Controller (CAN) ----------------------------*/
+/** @addtogroup LPC1549_CAN LPC11xx Controller Area Network(CAN)
+  @{
+*/
+typedef struct
+{
+  __IO uint32_t CNTL;				/* 0x000 */
+  __IO uint32_t STAT;
+  __IO uint32_t EC;
+  __IO uint32_t BT;
+  __IO uint32_t INT;
+  __IO uint32_t TEST;
+  __IO uint32_t BRPE;
+       uint32_t RESERVED0;
+  __IO uint32_t IF1_CMDREQ;			/* 0x020 */
+  __IO uint32_t IF1_CMDMSK;
+  __IO uint32_t IF1_MSK1;
+  __IO uint32_t IF1_MSK2;
+  __IO uint32_t IF1_ARB1;
+  __IO uint32_t IF1_ARB2;
+  __IO uint32_t IF1_MCTRL;
+  __IO uint32_t IF1_DA1;
+  __IO uint32_t IF1_DA2;
+  __IO uint32_t IF1_DB1;
+  __IO uint32_t IF1_DB2;
+       uint32_t RESERVED1[13];
+  __IO uint32_t IF2_CMDREQ;			/* 0x080 */
+  __IO uint32_t IF2_CMDMSK;
+  __IO uint32_t IF2_MSK1;
+  __IO uint32_t IF2_MSK2;
+  __IO uint32_t IF2_ARB1;
+  __IO uint32_t IF2_ARB2;
+  __IO uint32_t IF2_MCTRL;
+  __IO uint32_t IF2_DA1;
+  __IO uint32_t IF2_DA2;
+  __IO uint32_t IF2_DB1;
+  __IO uint32_t IF2_DB2;
+       uint32_t RESERVED2[21];
+  __I  uint32_t TXREQ1;				/* 0x100 */
+  __I  uint32_t TXREQ2;
+       uint32_t RESERVED3[6];
+  __I  uint32_t ND1;				/* 0x120 */
+  __I  uint32_t ND2;
+       uint32_t RESERVED4[6];
+  __I  uint32_t IR1;				/* 0x140 */
+  __I  uint32_t IR2;
+       uint32_t RESERVED5[6];
+  __I  uint32_t MSGV1;				/* 0x160 */
+  __I  uint32_t MSGV2;
+       uint32_t RESERVED6[6];
+  __IO uint32_t CLKDIV;				/* 0x180 */
+} LPC_CAN_TypeDef;
+/*@}*/ /* end of group LPC1549_CAN */
+#define LPC_CAN			((LPC_CAN_TypeDef*) LPC_C_CAN0_BASE)
+#endif
+
 
 
 typedef enum {
@@ -125,6 +182,7 @@ typedef struct {
 	/// @brief: The type of the message. Either 29 or 11 bit (extended or standard)
 	uv_can_msg_types_e type;
 } uv_can_message_st;
+typedef uv_can_message_st uv_canmsg_st;
 
 
 
@@ -151,6 +209,9 @@ typedef enum {
 	CAN2,
 #endif
 	CAN_COUNT
+#elif CONFIG_TARGET_LPC1549
+	CAN1 = 0,
+	CAN_COUNT = 1
 #else
 #error "Unknown hardware"
 #endif

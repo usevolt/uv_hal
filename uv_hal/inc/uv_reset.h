@@ -26,10 +26,8 @@ typedef enum {
 
 
 /// @brief: resets the system via software reset
-void uv_system_reset(bool hard_reset);
+void uv_system_reset();
 
 
-/// @brief: Returns the reset source
-uv_reset_sources_e uv_reset_get_source();
 
 #endif /* HAL_RESET_H_ */

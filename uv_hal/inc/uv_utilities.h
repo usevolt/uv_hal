@@ -488,6 +488,8 @@ typedef enum {
 enum {
 	INT_LOWEST_PRIORITY = 31
 };
+#elif CONFIG_TARGET_LPC1549
+
 #endif
 
 
@@ -497,7 +499,7 @@ void _delay_ms (uint16_t ms);
 
 /// @bref: Set's the interrupt sources priority. If the priority is not available on
 /// the hardware, an error is returned and logged to stdout.
-uv_errors_e uv_set_int_priority(uv_int_sources_e, unsigned int priority);
+#define uv_set_int_priority(src, priority) NVIC_SetPriority(src, priority)
 
 
 

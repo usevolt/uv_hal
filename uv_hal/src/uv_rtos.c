@@ -103,6 +103,11 @@ bool rtos_init = false;
 void uv_init(void *device) {
 	uv_set_application_ptr(device);
 
+#if CONFIG_TARGET_LPC1549
+	Chip_SWM_Init();
+	Chip_GPIO_Init(LPC_GPIO);
+#endif
+
 #if CONFIG_WDT
 	_uv_wdt_init();
 #endif
@@ -124,7 +129,9 @@ void uv_init(void *device) {
 	_uv_uart_init(UART3);
 #endif
 
+#if CONFIG_CAN
 	_uv_can_init();
+#endif
 
 #if CONFIG_SPI
 	_uv_spi_init();
@@ -177,6 +184,7 @@ void uv_init(void *device) {
 void hal_task(void *nullptr) {
 	uint16_t step_ms = 2;
 	rtos_init = true;
+
 
 	while (true) {
 #if CONFIG_CAN

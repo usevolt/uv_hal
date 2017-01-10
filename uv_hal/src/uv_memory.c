@@ -22,18 +22,11 @@
 #include "uv_rtos.h"
 #endif
 #if CONFIG_TARGET_LPC11C14
-/// @brief: Defines the flash memory sector size in bytes. Make sure this matches the used MCU!
-/// Refer to the manual for correct value
+
 #define FLASH_SECTOR_SIZE					4096
-
-/// @brief: The start address of flash memory. It is important to set this right for
-/// the IAP functions to determinate the right section of flash to be erased and written.
-/// Refer to MCU's manual for the right value.
 #define FLASH_START_ADDRESS 				0x00000000
-
-/// @brief: The last sector of flash memory is reserved for non-volatile application data storage.
-/// @note: IMPORTANT: Make sure that this memory region is not used for anything else!
 #define NON_VOLATILE_MEMORY_START_ADDRESS	0x00007000
+
 #elif CONFIG_TARGET_LPC1785
 
 #define FLASH_FIRST_SECTOR_SIZE				0x1000
@@ -41,6 +34,12 @@
 #define FLASH_SECOND_SECTOR_SIZE_BEGIN		0x00010000
 #define FLASH_START_ADDRESS 				0x00000000
 #define NON_VOLATILE_MEMORY_START_ADDRESS	0x00001000
+
+#elif CONFIG_TARGET_LPC1549
+
+#define FLASH_SECTOR_SIZE					4096
+#define FLASH_START_ADDRESS 				0x00000000
+#define NON_VOLATILE_MEMORY_START_ADDRESS	0x3F000
 
 #endif
 
@@ -152,7 +151,7 @@ uv_errors_e uv_memory_save(uv_data_start_t *start_ptr, uv_data_end_t *end_ptr) {
 #endif
 	//calculate the right length
 	else if (length > IAP_BYTES_4096) {
-#if CONFIG_TARGET_LPC11C14
+#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549
 		__uv_err_throw(ERR_NOT_ENOUGH_MEMORY | HAL_MODULE_MEMORY);
 #elif CONFIG_TARGET_LPC1785
 		length = IAP_BYTES_32768;
@@ -239,12 +238,12 @@ uv_iap_status_e uv_erase_and_write_to_flash(unsigned int ram_address,
 	case IAP_BYTES_4096:
 		break;
 	default:
-		return IAP_NUM_BYTES_INVALID;
+		return IAP_PARAM_ERROR;
 	}
 
 	int startSection, endSection;
 
-#if CONFIG_TARGET_LPC11C14
+#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549
 	startSection = (flash_address - FLASH_START_ADDRESS) / FLASH_SECTOR_SIZE;
 	endSection = (flash_address + num_bytes - FLASH_START_ADDRESS - 1) / FLASH_SECTOR_SIZE;
 #elif CONFIG_TARGET_LPC1785

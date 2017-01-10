@@ -65,6 +65,8 @@
 #include "LPC177x_8x.h"
 #elif CONFIG_TARGET_LPC11C14
 #include "LPC11xx.h"
+#else
+#include "chip.h"
 #endif
 #endif
 
@@ -79,7 +81,7 @@
  *----------------------------------------------------------*/
 #define configUSE_PREEMPTION		1
 #define configUSE_IDLE_HOOK			0
-#if CONFIG_TARGET_LPC1785
+#if CONFIG_TARGET_LPC1785 || CONFIG_TARGET_LPC1549
 #define configMAX_PRIORITIES		( 8 )
 #elif CONFIG_TARGET_LPC11C14
 #define configMAX_PRIORITIES		( ( unsigned portBASE_TYPE ) 5 )
@@ -87,7 +89,7 @@
 #define configUSE_TICK_HOOK			0
 #define configCPU_CLOCK_HZ			( ( unsigned long ) SystemCoreClock )
 #define configTICK_RATE_HZ			( ( portTickType ) 1000 )
-#if CONFIG_TARGET_LPC1785
+#if CONFIG_TARGET_LPC1785 || CONFIG_TARGET_LPC1549
 #define configMINIMAL_STACK_SIZE	( ( unsigned short ) 128 )
 #elif CONFIG_TARGET_LPC11C14
 #define configMINIMAL_STACK_SIZE	( ( unsigned short ) 48 )

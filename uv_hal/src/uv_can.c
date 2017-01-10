@@ -29,6 +29,8 @@
 enum {
 	MSG_OBJ_COUNT = 32
 };
+#elif CONFIG_TARGET_LPC1549
+#include "chip.h"
 #endif
 #if CONFIG_CAN_LOG
 extern bool can_log;
@@ -36,8 +38,13 @@ extern bool can_log;
 
 #include "uv_uart.h"
 
+// all controllers which implement the C_CAN hardware
+#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549
+#define C_CAN		1
+#endif
 
-#if CONFIG_TARGET_LPC11C14
+
+#if C_CAN
 /// @brief: Basic CAN message data structure
 /// LPC11C22 C_CAN driver struct. Do not change!
 typedef struct {
@@ -63,22 +70,11 @@ typedef struct {
 
 } hal_can_msg_obj_st;
 
+#endif
+
+#if CONFIG_TARGET_LPC11C14
 
 typedef struct {
-#ifdef CAN_ENABLE_ASYNCHRONOUS_MODE
-#ifdef CAN_TX_BUFFER_SIZE
-	uv_can_message_st tx_buffer[CAN_TX_BUFFER_SIZE];
-#else
-	uv_can_message_st tx_buffer[CAN_ENABLE_ASYNCHRONOUS_MODE];
-#endif
-#ifdef CAN_RX_BUFFER_SIZE
-	uv_can_message_st tx_buffer[CAN_RX_BUFFER_SIZE];
-#else
-	uv_can_message_st tx_buffer[CAN_ENABLE_ASYNCHRONOUS_MODE];
-#endif
-#else
-
-#endif
 	uint32_t used_msg_objs;
 	// temporary message struct. This can be used instead of local variables
 	// to save stack memory.
@@ -123,6 +119,30 @@ typedef struct {
 
 } can_st;
 
+#elif CONFIG_TARGET_LPC1549
+
+typedef struct {
+	uint32_t used_msg_objs;
+	// temporary message struct. This can be used instead of local variables
+	// to save stack memory.
+	uv_can_message_st temp_msg;
+	// temporary hal message object to be used when receiving messages
+	// defined here to be global instead of local
+	hal_can_msg_obj_st temp_obj;
+	bool init;
+	uv_can_message_st rx_buffer_data[CONFIG_CAN1_RX_BUFFER_SIZE];
+	uv_ring_buffer_st rx_buffer;
+	uv_can_message_st tx_buffer_data[CONFIG_CAN1_TX_BUFFER_SIZE];
+	uv_ring_buffer_st tx_buffer;
+	int16_t tx_pending;
+#if CONFIG_TERMINAL_CAN
+	uv_ring_buffer_st char_buffer;
+	char char_buffer_data[CONFIG_TERMINAL_BUFFER_SIZE];
+#endif
+	void (*rx_callback[CAN_COUNT])(void *user_ptr);
+
+} can_st;
+
 #endif
 
 
@@ -133,22 +153,13 @@ static can_st _can = {
 
 
 
+
+
+
+#if C_CAN
+
 #define TX_MSG_OBJ	1
 
-static uv_errors_e check_channel(uv_can_channels_e channel) {
-	if (channel < CAN_COUNT) {
-		return uv_err(ERR_NONE);
-	}
-	else {
-		__uv_err_throw(ERR_HARDWARE_NOT_SUPPORTED | HAL_MODULE_CAN);
-	}
-}
-
-
-
-// to keep this file clear, first all function are defined for CONFIG_TARGET_LPC11C14 and
-// after that to CONFIG_TARGET_LPC1785
-#if CONFIG_TARGET_LPC11C14
 
 /// @brief: Time limit for pending message objects. If this exceedes, all message objects are
 /// released from pending state.
@@ -495,8 +506,6 @@ void _uv_can_hal_send(uv_can_channels_e chn) {
 
 
 uv_errors_e uv_can_pop_message(uv_can_channels_e channel, uv_can_message_st *message) {
-	if (check_channel(channel)) return check_channel(channel);
-
 	return uv_ring_buffer_pop(&this->rx_buffer, message);
 }
 
@@ -517,11 +526,17 @@ uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
 
 
 uv_errors_e uv_can_reset(uv_can_channels_e channel) {
-	if (check_channel(channel)) return check_channel(channel);
+#if CONFIG_TARGET_LPC11C14
 	//clearing the C_CAN bit resets C_CAN hardware
 	LPC_SYSCON->PRESETCTRL &= ~(1 << 3);
 	//set bit to de-assert the reset
 	LPC_SYSCON->PRESETCTRL |= (1 << 3);
+#elif CONFIG_TARGET_LPC1549
+	LPC_SYSCON->PRESETCTRL[1] |= (1 << 7);
+	__NOP();
+	LPC_SYSCON->PRESETCTRL[1] &= ~(1 << 7);
+
+#endif
 	return uv_err(ERR_NONE);
 }
 
@@ -848,86 +863,6 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 }
 
 
-// todo: USING THIS CAUSES UNDEFINED BEHAVIOUR! Something is wrong...
-//uv_errors_e uv_can_config_rx_message_range(uv_can_channels_e channel,
-//		unsigned int start_id,
-//		unsigned int end_id,
-//		uv_can_msg_types_e type) {
-//
-//	// set acceptance filter to idle mode
-//	LPC_CANAF->AFMR = 0b10;
-//
-//#if CONFIG_CAN1
-//		if (channel == CAN1) channel = 0;
-//#endif
-//#if CONFIG_CAN2
-//		if (channel == CAN2) channel = 1;
-//#endif
-//
-//	if (type == CAN_STD) {
-//		uint32_t i = LPC_CANAF->SFF_GRP_sa;
-//
-//		bool inserted = false;
-//		// cycle trough all registered messages and find the position where to insert new one
-//		while (i < LPC_CANAF->EFF_sa / 4) {
-//			// Check if this message's ID is smaller
-//			if (start_id < STD_RANGE_ID_LOW(i)) {
-//				// copy all messages one word forward
-//				for (int in = LPC_CANAF->ENDofTable / 4; in >= i; in--) {
-//					LPC_CANAF_RAM->mask[in] = LPC_CANAF_RAM->mask[in - 1];
-//				}
-//				LPC_CANAF->EFF_sa += 4;
-//				LPC_CANAF->EFF_GRP_sa += 4;
-//				LPC_CANAF->ENDofTable += 4;
-//
-//				SET_STD_RANGE_ID_LOW(start_id, i);
-//				SET_STD_RANGE_ID_HIGH(end_id, i);
-//				SET_STD_RANGE_DISABLE(0, i);
-//				SET_STD_RANGE_CHANNEL(channel, i);
-//
-//				inserted = true;
-//				break;
-//			}
-//			else if (start_id == STD_RANGE_ID_LOW(i)) {
-//				// existing entry found. Make sure that the disable bit is cleared
-//				SET_STD_RANGE_CHANNEL(channel, i);
-//				SET_STD_RANGE_ID_HIGH(end_id, i);
-//				SET_STD_RANGE_DISABLE(0, i);
-//				inserted = true;
-//				break;
-//			}
-//			i++;
-//		}
-//		if (!inserted) {
-//
-//			// No smaller ID messages found from the RAM. Add new entry
-//			// to the end of the STD RAM
-//			// copy all messages one word forward
-//			for (int in = LPC_CANAF->ENDofTable / 4; in >= (int) i; in--) {
-//				LPC_CANAF_RAM->mask[in] = LPC_CANAF_RAM->mask[in - 1];
-//			}
-//			LPC_CANAF->EFF_sa += 4;
-//			LPC_CANAF->EFF_GRP_sa += 4;
-//			LPC_CANAF->ENDofTable += 4;
-//
-//			LPC_CANAF_RAM->mask[i] = 0;
-//			SET_STD_RANGE_ID_LOW(start_id, i);
-//			SET_STD_RANGE_ID_HIGH(end_id, i);
-//			SET_STD_RANGE_DISABLE(0, i);
-//			SET_STD_RANGE_CHANNEL(channel, i);
-//		}
-//
-//	}
-//	else {
-//		printf("config can rx message range not yet implemented ext\n\r");
-//	}
-//	// enable acceptance filter
-//	LPC_CANAF->AFMR = 0;
-//
-//	return uv_err(ERR_NONE);
-//}
-
-
 uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message) {
 	return uv_ring_buffer_push(&this->tx_buffer[0], message);
 }
@@ -1038,7 +973,6 @@ uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
 uv_errors_e uv_can_add_rx_callback(uv_can_channels_e channel,
 		void (*callback_function)(void *user_ptr)) {
 
-	if (check_channel(channel)) return false;
 	this->rx_callback[channel] = callback_function;
 	return uv_err(ERR_NONE);
 }
@@ -1051,6 +985,7 @@ uv_errors_e uv_can_get_char(char *dest) {
 }
 #endif
 
+
 #else
 #error "Controller not defined"
 #endif
@@ -1061,7 +996,7 @@ uv_errors_e uv_can_get_char(char *dest) {
 /// @brief: Inner hal step function which is called in rtos hal task
 void _uv_can_hal_step(unsigned int step_ms) {
 
-#if CONFIG_TARGET_LPC11C14
+#if C_CAN
 	if (this->tx_pending > 0)
 		this->tx_pending -= step_ms;
 	else this->tx_pending = 0;

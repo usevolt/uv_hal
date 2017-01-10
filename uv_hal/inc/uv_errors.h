@@ -66,7 +66,7 @@ typedef enum {
 	/// @brief: No new values written since the last call.
 	ERR_NO_NEW_VALUES					= 15,
 	/// @brief: The function, module or peripheral is busy at the moment.
-	ERR_BUSY							= 16,
+	ERR_HW_BUSY							= 16,
 	/// @brief: A undefined error.
 	ERR_UNDEFINED						= 17,
 	/// @brief: Buffer overflow

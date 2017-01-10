@@ -46,6 +46,8 @@ char *uv_get_hardware_name() {
 	return "CONFIG_TARGET_LPC11C14";
 #elif CONFIG_TARGET_LPC1785
 	return "CONFIG_TARGET_LPC1785";
+#elif CONFIG_TARGET_LPC1549
+	return "CONFIG_TARGET_LPC1549";
 #else
 	#error "Error: Hardware name not specified in uv_utilities.c"
 #endif
@@ -256,15 +258,6 @@ void _delay_ms (uint16_t ms)
 	}
 }
 
-
-
-uv_errors_e uv_set_int_priority(uv_int_sources_e src, unsigned int priority) {
-	if (priority <= INT_LOWEST_PRIORITY) {
-		NVIC_SetPriority(src, priority);
-		return uv_err(ERR_NONE);
-	}
-	__uv_err_throw(ERR_INT_LEVEL | HAL_MODULE_UTILITIES);
-}
 
 
 

@@ -140,7 +140,7 @@ uv_errors_e _uv_adc_init() {
 
 
 
-
+#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1785
 int uv_adc_read(uv_adc_channels_e channel) {
 	// if burst mode isn't on, trigger the AD conversion and return the value
 
@@ -179,4 +179,6 @@ int uv_adc_read_average(uv_adc_channels_e channel, unsigned int conversion_count
 	value /= conversion_count;
 	return value;
 }
+#endif
+
 

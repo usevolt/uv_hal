@@ -16,14 +16,43 @@
 #include <stdint.h>
 #include "uv_stdout.h"
 #include "uv_errors.h"
+#if CONFIG_TARGET_LPC1549
+#include "chip.h"
+#endif
 
 #if CONFIG_UART0 || CONFIG_UART1 || CONFIG_UART2 || CONFIG_UART3
 #define CONFIG_UART			1
 #endif
 
-
-
 #if CONFIG_UART
+
+
+#if CONFIG_TARGET_LPC1549
+#if CONFIG_UART0
+#if !defined(CONFIG_UART0_TX_PIN)
+#error "CONFIG_UART0_TX_PIN should be defined as uv_gpio_e value for which pin UART transmit will be assigned"
+#endif
+#if !defined(CONFIG_UART0_RX_PIN)
+#error "CONFIG_UART0_RX_PIN should be defined as uv_gpio_e value for which UART receive will be assigned"
+#endif
+#endif
+#if CONFIG_UART1
+#if !defined(CONFIG_UART1_TX_PIN)
+#error "CONFIG_UART1_TX_PIN should be defined as uv_gpio_e value for which pin UART transmit will be assigned"
+#endif
+#if !defined(CONFIG_UART1_RX_PIN)
+#error "CONFIG_UART1_RX_PIN should be defined as uv_gpio_e value for which UART receive will be assigned"
+#endif
+#endif
+#if CONFIG_UART2
+#if !defined(CONFIG_UART2_TX_PIN)
+#error "CONFIG_UART2_TX_PIN should be defined as uv_gpio_e value for which pin UART transmit will be assigned"
+#endif
+#if !defined(CONFIG_UART2_RX_PIN)
+#error "CONFIG_UART2_RX_PIN should be defined as uv_gpio_e value for which UART receive will be assigned"
+#endif
+#endif
+#endif
 
 /// @brief: Defines UARTS usable on the target system
 /// @note: All systems must define UART_COUNT member which defines the maximum number of UARTs.
@@ -50,6 +79,17 @@ typedef enum {
 	UART4 		= 4,
 #endif
 	UART_COUNT 	= 5
+#elif CONFIG_TARGET_LPC1549
+#if CONFIG_UART0
+	UART0 = (uint32_t) LPC_USART0,
+#endif
+#if CONFIG_UART1
+	UART1 = (uint32_t) LPC_USART1,
+#endif
+#if CONFIG_UART2
+	UART2 = (uint32_t) LPC_USART2,
+#endif
+	UART_COUNT = 3
 #endif
 } uv_uarts_e;
 
@@ -102,12 +142,9 @@ uv_errors_e uv_uart_get_char(uv_uarts_e uart, char *dest);
 /// as short as possible.
 ///
 /// @return: uv_errors_e describing if an error occurred. If succesful, ERR_NONE is returned.
-uv_errors_e uv_uart_add_callback(uv_uarts_e uart,
+void uv_uart_add_callback(uv_uarts_e uart,
 		void (*callback_function)(void* user_ptr, uv_uarts_e uart, char chr));
 
-
-/// @brief: Returns whether or not the uart is initialized.
-bool uv_uart_is_initialized(uv_uarts_e uart);
 
 #endif
 
