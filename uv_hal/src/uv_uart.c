@@ -636,6 +636,11 @@ uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 	if (uart == UART1) {
 		baud = CONFIG_UART1_BAUDRATE;
 		uv_ring_buffer_init(&this->buffer[1], uart1_rxbuffer, CONFIG_UART1_RX_BUFFER_SIZE, sizeof(char));
+		Chip_IOCON_PinMuxSet(LPC_IOCON, uv_gpio_port(CONFIG_UART0_TX_PIN),
+				uv_gpio_pin(CONFIG_UART0_TX_PIN), (IOCON_FUNC0 | IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+		Chip_IOCON_PinMuxSet(LPC_IOCON, uv_gpio_port(CONFIG_UART0_RX_PIN),
+				uv_gpio_pin(CONFIG_UART0_RX_PIN), (IOCON_FUNC0 | IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+
 		Chip_SWM_MovablePortPinAssign(SWM_UART1_TXD_O,
 				uv_gpio_port(CONFIG_UART1_TX_PIN), uv_gpio_pin(CONFIG_UART1_TX_PIN));
 		Chip_SWM_MovablePortPinAssign(SWM_UART1_RXD_I,
@@ -647,6 +652,11 @@ uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 	if (uart == UART2) {
 		baud = CONFIG_UART2_BAUDRATE;
 		uv_ring_buffer_init(&this->buffer[2], uart2_rxbuffer, CONFIG_UART2_RX_BUFFER_SIZE, sizeof(char));
+		Chip_IOCON_PinMuxSet(LPC_IOCON, uv_gpio_port(CONFIG_UART0_TX_PIN),
+				uv_gpio_pin(CONFIG_UART0_TX_PIN), (IOCON_FUNC0 | IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+		Chip_IOCON_PinMuxSet(LPC_IOCON, uv_gpio_port(CONFIG_UART0_RX_PIN),
+				uv_gpio_pin(CONFIG_UART0_RX_PIN), (IOCON_FUNC0 | IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+
 		Chip_SWM_MovablePortPinAssign(SWM_UART2_TXD_O,
 				uv_gpio_port(CONFIG_UART2_TX_PIN), uv_gpio_pin(CONFIG_UART2_TX_PIN));
 		Chip_SWM_MovablePortPinAssign(SWM_UART2_RXD_I,
