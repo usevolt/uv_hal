@@ -215,7 +215,7 @@ uv_errors_e uv_terminal_step() {
 							// multi-space argument start, edit arg starting with \0
 							if (this->buffer[i - 1] == '\0') {
 								this->buffer[i] = '\0';
-								this->args[p - 1].type = STRING;
+								this->args[p - 1].type = ARG_STRING;
 								this->args[p - 1].value = (char*) &this->buffer[i + 1];
 								string_arg = true;
 							}
@@ -232,7 +232,7 @@ uv_errors_e uv_terminal_step() {
 					this->buffer[i] = '\0';
 					if (p < CONFIG_TERMINAL_ARG_COUNT) {
 						// integer argument found
-						this->args[p].type = INTEGER;
+						this->args[p].type = ARG_INTEGER;
 						this->args[p].number = strtol((char*) &this->buffer[i + 1], NULL, 0);
 //						printf("arg: %i\n\r", (int) this->args[p].number);
 						p++;

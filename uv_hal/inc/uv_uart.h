@@ -143,7 +143,7 @@ uv_errors_e uv_uart_get_char(uv_uarts_e uart, char *dest);
 ///
 /// @return: uv_errors_e describing if an error occurred. If succesful, ERR_NONE is returned.
 void uv_uart_add_callback(uv_uarts_e uart,
-		void (*callback_function)(void* user_ptr, uv_uarts_e uart, char chr));
+		void (*callback_function)(void* user_ptr, uv_uarts_e uart));
 
 
 #endif

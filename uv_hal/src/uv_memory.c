@@ -52,7 +52,11 @@ typedef enum {
 
 
 // IAP function location, refer to user manual page 269
+#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1785
 #define IAP_LOCATION 0x1fff1ff1
+#elif CONFIG_TARGET_LPC1549
+#define IAP_LOCATION 0x03000205UL
+#endif
 
 #define PREPARE_SECTOR      50
 #define COPY_RAM_TO_FLASH   51

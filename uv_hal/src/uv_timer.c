@@ -18,6 +18,7 @@
 #include "LPC177x_8x.h"
 #endif
 
+#if CONFIG_TIMER0 || CONFIG_TIMER1 || CONFIG_TIMER2 || CONFIG_TIMER3
 typedef struct {
 
 } this_st;
@@ -142,4 +143,5 @@ int uv_timer_get_value(uv_timers_e timer) {
 
 
 
+#endif
 

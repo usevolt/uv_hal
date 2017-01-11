@@ -71,9 +71,9 @@
 
 /// @brief: Defines the type of the argument
 enum {
-	UNDEFINED = 0,
-	INTEGER,
-	STRING
+	ARG_UNDEFINED = 0,
+	ARG_INTEGER,
+	ARG_STRING
 };
 typedef uint8_t type_t;
 

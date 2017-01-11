@@ -315,8 +315,8 @@ uv_errors_e uv_vector_pop_back(uv_vector_st *this, void *dest);
 uv_errors_e uv_vector_pop_front(uv_vector_st *this, void *dest);
 
 
-/// @brief: Erases an element from any index of the vector
-uv_errors_e uv_vector_remove(uv_vector_st *this, uint16_t index);
+/// @brief: Erases a *count* many elements from any index of the vector
+uv_errors_e uv_vector_remove(uv_vector_st *this, uint16_t index, uint16_t count);
 
 
 /// @brief: Returns the pointer to the *index*'th element of the vector

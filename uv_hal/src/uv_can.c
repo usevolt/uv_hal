@@ -1002,7 +1002,7 @@ void CAN_rx(uint8_t msg_obj_num);
 void CAN_tx(uint8_t msg_obj_num);
 void CAN_error(uint32_t error_info);
 
-static volatile uint32_t gCANapiMem[512];
+static volatile uint32_t gCANapiMem[50];
 static uint32_t can_errors;
 
 CAN_HANDLE_T handle;
@@ -1152,6 +1152,7 @@ uv_errors_e _uv_can_init() {
 	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 4, (IOCON_MODE_INACT | IOCON_DIGMODE_EN));
 	Chip_SWM_MovablePortPinAssign(SWM_CAN_TD1_O , 0, 3);
 	Chip_SWM_MovablePortPinAssign(SWM_CAN_RD1_I,  0, 4);
+
 
 #if CAN_LOOP_BACK_MODE
 	// enable loop-back mode for testing

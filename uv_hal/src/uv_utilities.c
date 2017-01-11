@@ -184,14 +184,16 @@ uv_errors_e uv_vector_pop_front(uv_vector_st *this, void *data) {
 
 
 
-uv_errors_e uv_vector_remove(uv_vector_st *this, uint16_t index) {
-	if (this->len <= index) {
+uv_errors_e uv_vector_remove(uv_vector_st *this, uint16_t index, uint16_t count) {
+	if (this->len < index + count) {
 		return uv_err(ERR_INDEX_OVERFLOW | HAL_MODULE_UTILITIES);
 	}
-	memmove(this->buffer + index * this->element_size,
-			this->buffer + index * this->element_size + this->element_size,
-			this->element_size * (this->len - index));
-	this->len--;
+	if (count > 0) {
+		memmove(this->buffer + index * this->element_size,
+				this->buffer + index * this->element_size + count * this->element_size,
+				this->element_size * (this->len - index - (count - 1)));
+		this->len -= count;
+	}
 	return uv_err(ERR_NONE);
 }
 
