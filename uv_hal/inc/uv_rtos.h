@@ -283,12 +283,9 @@ static inline void uv_rtos_task_yield(void) {
 /// @param task_priority: The priority of the task. Bigger value means higher priority.
 /// @param handle: A optional return handle for the created task. Will be set to NULL
 /// if task creation failed.
-static inline void uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
+void uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
 		unsigned int stack_depth, void *this_ptr,
-		unsigned int task_priority, uv_rtos_task_ptr* handle) {
-	xTaskCreate(task_function, (const char * const)task_name, stack_depth,
-			this_ptr, task_priority, handle);
-}
+		unsigned int task_priority, uv_rtos_task_ptr* handle);
 
 
 /// @brief: Remove a task from the RTOS kernels management. The task being

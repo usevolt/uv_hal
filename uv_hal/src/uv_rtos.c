@@ -42,6 +42,21 @@ static volatile this_st _this = {
 void hal_task(void *);
 
 
+void uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
+		unsigned int stack_depth, void *this_ptr,
+		unsigned int task_priority, uv_rtos_task_ptr* handle) {
+	static unsigned int size = 0;
+	size += stack_depth;
+	if (size >= CONFIG_RTOS_HEAP_SIZE) {
+		while(true) {
+			__NOP();
+		}
+	}
+	xTaskCreate(task_function, (const char * const)task_name, stack_depth,
+			this_ptr, task_priority, handle);
+}
+
+
 
 #if configUSE_IDLE_HOOK
 uv_errors_e uv_rtos_add_idle_task(void (*task_function)(void *user_ptr)) {

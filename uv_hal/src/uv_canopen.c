@@ -88,7 +88,7 @@ extern uv_errors_e __uv_clear_previous_non_volatile_data();
 
 
 /// @brief: Configures the HW CAN message object to receive this RXPDO
-#if CONFIG_TARGET_LPC11C14
+#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549
 #define RXPDO_CONFIG_MESSAGE_OBJ(x) \
 		uv_can_config_rx_message(this->can_channel, this->obj_dict.com_params.rxpdo_coms[x].cob_id, \
 			CAN_ID_MASK_DEFAULT, CAN_11_BIT_ID);
@@ -96,6 +96,8 @@ extern uv_errors_e __uv_clear_previous_non_volatile_data();
 #define RXPDO_CONFIG_MESSAGE_OBJ(x) \
 		uv_can_config_rx_message(this->can_channel, this->obj_dict.com_params.rxpdo_coms[x].cob_id\
 			, CAN_11_BIT_ID);
+#else
+#error "Not implemented"
 #endif
 
 /// @brief: Clear's the x'th predefined error to zero. Useful for initializing the error register
@@ -217,7 +219,7 @@ uv_errors_e uv_canopen_init(uv_canopen_st *me,
 	uv_set_id((uint16_t) this->obj_dict.com_params.node_id);
 
 	// configure receive messages for NMT, SDO and PDO messages for this node id and broadcast
-#if CONFIG_TARGET_LPC11C14
+#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549
 	// NMT broadcasting
 	uv_can_config_rx_message(this->can_channel, CANOPEN_NMT_ID,
 			CAN_ID_MASK_DEFAULT, CAN_11_BIT_ID);

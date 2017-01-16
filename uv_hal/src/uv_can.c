@@ -1002,7 +1002,7 @@ void CAN_rx(uint8_t msg_obj_num);
 void CAN_tx(uint8_t msg_obj_num);
 void CAN_error(uint32_t error_info);
 
-static volatile uint32_t gCANapiMem[50];
+static volatile uint32_t gCANapiMem[32];
 static uint32_t can_errors;
 
 CAN_HANDLE_T handle;
@@ -1145,6 +1145,7 @@ uv_errors_e _uv_can_init() {
 			CONFIG_CAN1_TX_BUFFER_SIZE, sizeof(uv_can_message_st));
 	SystemCoreClockUpdate();
 	LPC_CAND_API->hwCAN_Init(handle, &myCANConfig);
+
 	/* Enable the CAN Interrupt */
 	NVIC_EnableIRQ(CAN_IRQn);
 
@@ -1200,6 +1201,11 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 	// config them with settings requested
 	// the last message object is reserved for sending messages
 	uint8_t i;
+
+#if CONFIG_CAN_LOG
+	int s = LPC_CAND_API->hwCAN_GetMemSize(&myCANConfig);
+	printf("memory usage: %u\n\r", s);
+#endif
 	for (i = 0; i < 32; i++) {
 		// search for a unused message object to be used for receiving the messages
 		if (!GET_MASKED(this->used_msg_objs, (1 << i))) {
