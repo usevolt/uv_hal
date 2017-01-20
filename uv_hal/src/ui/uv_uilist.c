@@ -114,6 +114,13 @@ void uv_uilist_insert(void *me, uint16_t index, char *str) {
 	uv_ui_refresh_parent(this);
 }
 
+void uv_uilist_clear(void *me) {
+	uv_vector_clear(&this->entries);
+	uv_uilist_recalc_height(this);
+	uv_ui_refresh_parent(this);
+}
+
+
 
 #endif
 

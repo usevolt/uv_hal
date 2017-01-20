@@ -23,6 +23,13 @@ static void redraw(void *me) {
 			this->style->window_c);
 }
 
+void uv_uiwindow_init(void *me,
+		uv_uiobject_st **object_array, const uv_uistyle_st * style) {
+	uv_uiobject_init((uv_uiobject_st*) this);
+	this->objects = object_array;
+	this->objects_count = 0;
+	this->style = style;
+}
 
 
 void uv_uiwindow_add(void *me, void *object,
