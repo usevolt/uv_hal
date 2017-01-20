@@ -80,6 +80,8 @@ void uv_uilist_push_back(void *me, char *str);
 /// @brief: Pops the last element from the list
 void uv_uilist_pop_back(void *me, char *dest);
 
+void uv_uilist_clear(void *me);
+
 
 /// @brief: Indexes the list and returns the string at *index*
 static inline char *uv_uilist_at(void *me, uint16_t index) {
