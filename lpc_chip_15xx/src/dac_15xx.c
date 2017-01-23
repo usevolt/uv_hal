@@ -28,6 +28,10 @@
  * copyright, permission, and disclaimer notice must appear in all copies of
  * this code.
  */
+#include <uv_hal_config.h>
+
+#if CONFIG_TARGET_LPC1549
+
 
 #include "chip.h"
 
@@ -60,3 +64,6 @@ void Chip_DAC_DeInit(LPC_DAC_T *pDAC)
 	Chip_Clock_DisablePeriphClock(SYSCTL_CLOCK_DAC);
 	Chip_SYSCTL_PowerDown(SYSCTL_POWERDOWN_DAC_PD);
 }
+
+#endif
+

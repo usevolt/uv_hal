@@ -26,6 +26,10 @@
  * copyright, permission, and disclaimer notice must appear in all copies of
  * this code.
  */
+#include <uv_hal_config.h>
+
+#if CONFIG_TARGET_LPC1549
+
 
 #include "chip.h"
 
@@ -61,3 +65,5 @@ void Chip_SCTIPU_ConfigSample(uint8_t ch, uint8_t useb, uint8_t sampIn, uint8_t 
 		   SCTIPU_CTRL_LATCHENSEL(ch, useLatch);
 	LPC_SCTIPU->SAMPLE_CTRL = reg;
 }
+
+#endif

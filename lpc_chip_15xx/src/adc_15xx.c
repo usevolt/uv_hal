@@ -28,6 +28,10 @@
  * copyright, permission, and disclaimer notice must appear in all copies of
  * this code.
  */
+#include <uv_hal_config.h>
+
+#if CONFIG_TARGET_LPC1549
+
 
 #include "chip.h"
 
@@ -227,3 +231,5 @@ void Chip_ADC_SelectTH1Channels(LPC_ADC_T *pADC, uint32_t channels)
 {
 	Chip_ADC_SetTHRSELBits(pADC, channels);
 }
+
+#endif

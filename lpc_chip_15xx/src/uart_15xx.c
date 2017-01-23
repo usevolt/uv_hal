@@ -28,6 +28,10 @@
  * copyright, permission, and disclaimer notice must appear in all copies of
  * this code.
  */
+#include <uv_hal_config.h>
+
+#if CONFIG_TARGET_LPC1549
+
 
 #include "chip.h"
 
@@ -239,3 +243,5 @@ void Chip_UART_IRQRBHandler(LPC_USART_T *pUART, RINGBUFF_T *pRXRB, RINGBUFF_T *p
 	/* Handle receive interrupt */
 	Chip_UART_RXIntHandlerRB(pUART, pRXRB);
 }
+
+#endif

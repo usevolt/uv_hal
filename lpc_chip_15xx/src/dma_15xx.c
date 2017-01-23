@@ -28,6 +28,10 @@
  * copyright, permission, and disclaimer notice must appear in all copies of
  * this code.
  */
+#include <uv_hal_config.h>
+
+#if CONFIG_TARGET_LPC1549
+
 
 #include "chip.h"
 
@@ -113,3 +117,5 @@ bool Chip_DMA_SetupTranChannel(LPC_DMA_T *pDMA, DMA_CHID_T ch, DMA_CHDESC_T *des
 
 	return good;
 }
+
+#endif

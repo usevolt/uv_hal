@@ -28,6 +28,10 @@
  * copyright, permission, and disclaimer notice must appear in all copies of
  * this code.
  */
+#include <uv_hal_config.h>
+
+#if CONFIG_TARGET_LPC1549
+
 
 #include "chip.h"
 
@@ -83,3 +87,5 @@ void Chip_SCT_SetConflictResolution(LPC_SCT_T *pSCT, uint8_t outnum, uint8_t val
 	tem = pSCT->RES & (~(0x03 << (2 * outnum)));
 	pSCT->RES = tem | (value << (2 * outnum));
 }
+
+#endif

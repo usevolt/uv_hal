@@ -28,6 +28,10 @@
  * copyright, permission, and disclaimer notice must appear in all copies of
  * this code.
  */
+#include <uv_hal_config.h>
+
+#if CONFIG_TARGET_LPC1549
+
 
 #include "chip.h"
 
@@ -105,3 +109,5 @@ bool Chip_SWM_IsFixedPinEnabled(CHIP_SWM_PIN_FIXED_T pin)
 
 	return (bool) ((LPC_SWM->PINENABLE[regOff] & (1 << pinPos)) == 0);
 }
+
+#endif

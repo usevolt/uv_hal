@@ -26,6 +26,10 @@
  * this code.
  */
 
+#include <uv_hal_config.h>
+
+#if CONFIG_TARGET_LPC1549
+
 #include "chip.h"
 
 /*****************************************************************************
@@ -144,3 +148,6 @@ void Chip_ACMP_SetupVoltLadder(LPC_CMP_T *pACMP, uint8_t index, uint32_t ladsel,
 	}
 	pACMP->ACMP[index].CMP = reg | (ladsel << 24);
 }
+
+
+#endif

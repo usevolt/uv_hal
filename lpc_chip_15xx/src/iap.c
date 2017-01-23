@@ -28,6 +28,10 @@
  * copyright, permission, and disclaimer notice must appear in all copies of
  * this code.
  */
+#include <uv_hal_config.h>
+
+#if CONFIG_TARGET_LPC1549
+
 
 #include "chip.h"
 
@@ -177,3 +181,5 @@ uint8_t Chip_IAP_ErasePage(uint32_t strPage, uint32_t endPage)
 
 	return result[0];
 }
+
+#endif

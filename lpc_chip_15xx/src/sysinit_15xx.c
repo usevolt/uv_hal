@@ -28,6 +28,10 @@
  * copyright, permission, and disclaimer notice must appear in all copies of
  * this code.
  */
+#include <uv_hal_config.h>
+
+#if CONFIG_TARGET_LPC1549
+
 
 #include "chip.h"
 
@@ -131,3 +135,5 @@ void Chip_SystemInit(void)
 	/* Initial internal clocking */
 	Chip_SetupIrcClocking();
 }
+
+#endif

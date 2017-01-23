@@ -28,6 +28,10 @@
  * copyright, permission, and disclaimer notice must appear in all copies of
  * this code.
  */
+#include <uv_hal_config.h>
+
+#if CONFIG_TARGET_LPC1549
+
 
 #include "chip.h"
 
@@ -150,3 +154,5 @@ void Chip_RIT_SetTimerIntervalHz(LPC_RITIMER_T *pRITimer, uint32_t freq)
 	Chip_RIT_SetCompareValue(pRITimer, cmp_value);
 	Chip_RIT_EnableCompClear(pRITimer);
 }
+
+#endif

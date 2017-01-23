@@ -25,6 +25,10 @@
  * copyright, permission, and disclaimer notice must appear in all copies of
  * this code.
  */
+#include <uv_hal_config.h>
+
+#if CONFIG_TARGET_LPC1549
+
 
 #include "chip.h"
 
@@ -401,3 +405,5 @@ uint32_t Chip_Clock_GetSystemClockRate(void)
 	/* No point in checking for divide by 0 */
 	return Chip_Clock_GetMainClockRate() / LPC_SYSCTL->SYSAHBCLKDIV;
 }
+
+#endif

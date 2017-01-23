@@ -28,6 +28,10 @@
  * copyright, permission, and disclaimer notice must appear in all copies of
  * this code.
  */
+#include <uv_hal_config.h>
+
+#if CONFIG_TARGET_LPC1549
+
 
 #include "chip.h"
 
@@ -63,3 +67,5 @@ void Chip_I2C_DeInit(LPC_I2C_T *pI2C)
 	/* Disable I2C clock */
 	Chip_Clock_DisablePeriphClock(SYSCTL_CLOCK_I2C0);
 }
+
+#endif

@@ -120,7 +120,7 @@ static void isr(uv_uarts_e uart) {
 	}
 	// call callback
 	if (this->callback[uart]) {
-		this->callback[uart](__uv_get_user_ptr(), uart, received_char);
+		this->callback[uart](__uv_get_user_ptr(), uart);
 	}
 }
 #if CONFIG_UART0
@@ -291,8 +291,6 @@ uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 
 #elif CONFIG_TARGET_LPC1785
 uv_errors_e _uv_uart_init(uv_uarts_e uart) {
-
-	uv_err_pass(check_uart(uart));
 
 	SystemCoreClockUpdate();
 

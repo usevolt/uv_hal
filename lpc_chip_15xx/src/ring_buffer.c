@@ -28,6 +28,10 @@
  * copyright, permission, and disclaimer notice must appear in all copies of
  * this code.
  */
+#include <uv_hal_config.h>
+
+#if CONFIG_TARGET_LPC1549
+
 
 #include <string.h>
 #include "ring_buffer.h"
@@ -165,3 +169,5 @@ int RingBuffer_PopMult(RINGBUFF_T *RingBuff, void *data, int num)
 
 	return cnt1 + cnt2;
 }
+
+#endif

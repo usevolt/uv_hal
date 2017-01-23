@@ -25,6 +25,10 @@
  * copyright, permission, and disclaimer notice must appear in all copies of
  * this code.
  */
+#include <uv_hal_config.h>
+
+#if CONFIG_TARGET_LPC1549
+
 
 #include "chip.h"
 
@@ -119,3 +123,5 @@ void Chip_SYSCTL_PowerUp(uint32_t powerupmask)
 
 	LPC_SYSCTL->PDRUNCFG = (pdrun | PDRUNCFGUSEMASK);
 }
+
+#endif

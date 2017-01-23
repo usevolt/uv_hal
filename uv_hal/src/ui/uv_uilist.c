@@ -102,7 +102,7 @@ void uv_uilist_pop_back(void *me, char *dest) {
 
 /// @brief: Removes a *index*'th entry from the list
 void uv_uilist_remove(void *me, uint16_t index) {
-	uv_vector_remove(&this->entries, index);
+	uv_vector_remove(&this->entries, index, 1);
 	uv_uilist_recalc_height(this);
 	uv_ui_refresh_parent(this);
 }
