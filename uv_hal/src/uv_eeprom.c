@@ -265,7 +265,9 @@ uv_errors_e uv_eeprom_at(unsigned char *dest, uint16_t index) {
 		}
 	}
 
-	uv_eeprom_read(dest, this->entry_len - sizeof(uint16_t), addr);
+	if (dest) {
+		uv_eeprom_read(dest, this->entry_len - sizeof(uint16_t), addr);
+	}
 
 	return uv_err(ERR_NONE);
 }

@@ -956,13 +956,16 @@ uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
 		if (LPC_CAN1->GSR & (1 << 7)) {
 			return CAN_ERROR_BUS_OFF;
 		}
+		else if (LPC_CAN1->GSR & (1 << 6)) {
+			return CAN_ERROR_PASSIVE;
+		}
 		else return CAN_ERROR_ACTIVE;
 	}
 #endif
 #if CONFIG_CAN2
 #error "Copy CAN1 error state getter here"
 #endif
-	return uv_err(ERR_NONE);
+	return CAN_ERROR_ACTIVE;
 }
 
 
