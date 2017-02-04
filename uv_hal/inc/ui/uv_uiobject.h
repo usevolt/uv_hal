@@ -165,12 +165,8 @@ static inline void uv_ui_show(void *me) {
 
 /// @brief: Enabled the object. This functionality might not be implemented
 /// on all obejcts.
-static inline void uv_ui_set_enabled(void *me, bool enabled) {
-	if (this->enabled != enabled) {
-		uv_ui_refresh(this);
-	}
-	this->enabled = enabled;
-}
+void uv_ui_set_enabled(void *me, bool enabled);
+
 static inline bool uv_ui_get_enabled(void *me) {
 	return this->enabled;
 }

@@ -51,10 +51,9 @@ bool uv_uitoucharea_released(void *me, int16_t *x, int16_t *y);
 /// the touch local coordinates are stored to them.
 bool uv_uitoucharea_is_down(void *me, int16_t *x, int16_t *y);
 
-/// @brief: Returns true if the touch area is beign dragged. If *x* and *y* are not NULL,
+/// @brief: Returns true if the touch area was clicked. If *x* and *y* are not NULL,
 /// the touch local coordinates are stored to them.
-bool uv_uitoucharea_drag(void *me, int16_t *x, int16_t *y);
-
+bool uv_uitoucharea_clicked(void *me, int16_t *x, int16_t *y);
 
 
 #undef this

@@ -105,7 +105,6 @@ void uv_uidisplay_step(void *me, uint32_t step_ms) {
 	}
 #endif
 
-
 	uv_uiwindow_step(me, &t, step_ms);
 }
 

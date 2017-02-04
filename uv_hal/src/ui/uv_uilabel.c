@@ -103,6 +103,9 @@ void uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 	if (!this->super.refresh) {
 		return;
 	}
+	if (!this->super.enabled) {
+		return;
+	}
 
 	uint16_t x = uv_ui_get_xglobal(this),
 			y = uv_ui_get_yglobal(this);

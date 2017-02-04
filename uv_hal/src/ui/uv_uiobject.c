@@ -34,4 +34,17 @@ void uv_uiobject_init(void *me) {
 }
 
 
+void uv_ui_set_enabled(void *me, bool enabled) {
+	if (this->enabled != enabled) {
+		if (this->enabled) {
+			uv_ui_refresh_parent(this);
+		}
+		else {
+			uv_ui_refresh(this);
+		}
+	}
+	this->enabled = enabled;
+}
+
+
 #endif

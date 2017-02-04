@@ -58,6 +58,10 @@ static void draw(void *me) {
 			_uv_ui_draw_text(x + w/2, y + h/2, this->style->font, ALIGN_CENTER,
 					this->style->inactive_font_c, C(0xFFFFFFFF), str, 1.0f);
 		}
+		_uv_ui_draw_text(x + 1, y + h / 2, this->style->font, ALIGN_CENTER_LEFT,
+				this->style->text_color, C(0xFFFFFFFF), "\x11", 1.0f);
+		_uv_ui_draw_text(x + w - 1, y + h / 2, this->style->font, ALIGN_CENTER_RIGHT,
+				this->style->text_color, C(0xFFFFFFFF), "\x10", 1.0f);
 	}
 	else {
 		if (uv_uibb(this)->width < CONFIG_UI_SLIDER_WIDTH) {
@@ -75,7 +79,7 @@ static void draw(void *me) {
 		int16_t hpy = uv_reli(this->cur_val, this->min_val, this->max_val);
 		int16_t hy = uv_lerpi(hpy, uv_uibb(this)->height -
 				CONFIG_UI_SLIDER_WIDTH - 1 - (this->title ? this->style->font->char_height + 5 : 0), 0);
-		// hx indicates the handle position
+		// hy indicates the handle position
 		uv_lcd_draw_rect(x + 1, y + hy + 1,
 				w - 2, CONFIG_UI_SLIDER_WIDTH - 1,
 				this->style->active_fg_c);
@@ -85,6 +89,10 @@ static void draw(void *me) {
 			_uv_ui_draw_text(x + w/2, y + h/2, this->style->font, ALIGN_CENTER,
 					this->style->inactive_font_c, C(0xFFFFFFFF), str, 1.0f);
 		}
+		_uv_ui_draw_text(x + w / 2, y + 1, this->style->font, ALIGN_TOP_CENTER,
+				this->style->text_color, C(0xFFFFFFFF), "\x1E", 1.0f);
+		_uv_ui_draw_text(x + w / 2, y + h - 1, this->style->font, ALIGN_BOTTOM_CENTER,
+				this->style->text_color, C(0xFFFFFFFF), "\x1F", 1.0f);
 	}
 	_uv_ui_draw_text(x + w/2, y + h + 5, this->style->font, ALIGN_TOP_CENTER,
 			this->style->text_color, C(0xFFFFFFFF), this->title, 1.0f);
@@ -104,13 +112,35 @@ void uv_uislider_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 		this->drag_val += (this->horizontal) ? touch->x : -touch->y;
 		this->cur_val = this->drag_start_val +
 				this->drag_val * (this->max_val - this->min_val) /
-				(((this->horizontal) ? uv_uibb(this)->width : uv_uibb(this)->height) - CONFIG_UI_SLIDER_WIDTH);
+				(((this->horizontal) ? uv_uibb(this)->width : uv_uibb(this)->height)
+						- CONFIG_UI_SLIDER_WIDTH);
 		if (this->cur_val < this->min_val) this->cur_val = this->min_val;
 		else if (this->cur_val > this->max_val) this->cur_val = this->max_val;
 
 		// prevent action from propagating into other elements
 		touch->action = TOUCH_NONE;
 		uv_ui_refresh(this);
+	}
+	else if (touch->action == TOUCH_CLICKED) {
+		int8_t i = 1;
+
+		if (this->horizontal) {
+			int16_t hpx = uv_reli(this->cur_val, this->min_val, this->max_val);
+			int16_t hx = uv_lerpi(hpx, 0,
+					uv_uibb(this)->width - CONFIG_UI_SLIDER_WIDTH - 1);
+			if (touch->x < hx + CONFIG_UI_SLIDER_WIDTH / 2) {
+				i = -1;
+			}
+		}
+		else {
+			int16_t hpy = uv_reli(this->cur_val, this->min_val, this->max_val);
+			int16_t hy = uv_lerpi(hpy, uv_uibb(this)->height -
+					CONFIG_UI_SLIDER_WIDTH - 1 - (this->title ? this->style->font->char_height + 5 : 0), 0);
+			if (touch->y > hy + CONFIG_UI_SLIDER_WIDTH / 2) {
+				i = -1;
+			}
+		}
+		uv_uislider_set_value(this, this->cur_val + i);
 	}
 	else if (touch->action == TOUCH_NONE && this->dragging) {
 		this->dragging = false;
@@ -126,7 +156,28 @@ void uv_uislider_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 }
 
 
+/// @brief: Sets the current value
+void uv_uislider_set_value(void *me, int16_t value) {
+	if (value < this->min_val) value = this->min_val;
+	else if (value > this->max_val) value = this->max_val;
+	if (value != this->cur_val) uv_ui_refresh(this);
+	this->cur_val = value;
+}
 
+
+/// @brief: Sets the minimum value
+void uv_uislider_set_min_value(void *me, int16_t min_value) {
+	this->min_val = min_value;
+	uv_uislider_set_value(this, this->cur_val);
+	uv_ui_refresh(this);
+}
+
+/// @brief: sets the maximum value
+void uv_uislider_set_max_value(void *me, int16_t max_value) {
+	this->max_val = max_value;
+	uv_uislider_set_value(this, this->cur_val);
+	uv_ui_refresh(this);
+}
 
 
 

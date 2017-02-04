@@ -19,8 +19,15 @@ void uv_uitoucharea_init(void *me) {
 }
 
 void uv_uitoucharea_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
+	if (this->super.refresh) {
+		this->super.refresh = false;
+	}
+	if (!this->super.enabled) {
+		this->touch.action = TOUCH_NONE;
+		return;
+	}
 	this->touch = *touch;
-	if (touch->action != TOUCH_NONE) {
+	if (touch->action != TOUCH_NONE && touch->action != TOUCH_DRAG) {
 
 		// prevent touch action from propagating to other elements
 		touch->action = TOUCH_NONE;
@@ -54,12 +61,12 @@ bool uv_uitoucharea_is_down(void *me, int16_t *x, int16_t *y) {
 
 }
 
-bool uv_uitoucharea_drag(void *me, int16_t *x, int16_t *y) {
-	if (x && y && this->touch.action == TOUCH_DRAG) {
+bool uv_uitoucharea_clicked(void *me, int16_t *x, int16_t *y) {
+	if (x && y && this->touch.action == TOUCH_CLICKED) {
 		*x = this->touch.x;
 		*y = this->touch.y;
 	}
-	return this->touch.action == TOUCH_DRAG;
+	return this->touch.action == TOUCH_CLICKED;
 
 }
 

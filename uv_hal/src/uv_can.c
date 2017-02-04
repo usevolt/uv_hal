@@ -886,8 +886,8 @@ uv_errors_e _uv_can_hal_send(uv_can_channels_e channel) {
 			// CAN tranceiver is either in bus off or error active state
 			if (LPC_CAN1->GSR & (0b11 << 6)) {
 				LPC_CAN1->MOD &= ~1;
-				return uv_err(ERR_MESSAGE_NOT_SENT | HAL_MODULE_CAN);
 			}
+			return uv_err(ERR_MESSAGE_NOT_SENT | HAL_MODULE_CAN);
 		}
 
 		// wait until any one transmit buffer is available for transmitting

@@ -17,16 +17,16 @@ void uv_moving_aver_reset (uv_moving_aver_st *avr)
 
 int uv_moving_aver_step (uv_moving_aver_st *avr, int val)
 {
-	avr->Sum += val;
+	avr->Sum += (val * 0x100);
 	avr->CurCount += 1;
-	val = avr->Sum / avr->CurCount;
+	avr->val = avr->Sum / avr->CurCount;
 
 	if (avr->CurCount > avr->Count)
 	{
-		avr->Sum -= val;
+		avr->Sum -= avr->val;
 		avr->CurCount -= 1;
 	}
 
-	return val;
+	return (avr->val / 0x100);
 }
 

@@ -48,6 +48,8 @@ uv_errors_e uv_eeprom_write(unsigned char *data, uint16_t len, uint16_t eeprom_a
 	if (eeprom_addr + len > _UV_EEPROM_SIZE) {
 		return uv_err(ERR_NOT_ENOUGH_MEMORY |HAL_MODULE_EEPROM);
 	}
+	__disable_irq();
+
 	// clear pending interrupt flag
 	LPC_EEPROM->INT_CLR_STATUS = (1 << 28);
 
@@ -87,6 +89,8 @@ uv_errors_e uv_eeprom_write(unsigned char *data, uint16_t len, uint16_t eeprom_a
 	// end with a BUSY error code
 	LPC_EEPROM->INT_CLR_STATUS = ((1 << 26) | (1 << 28));
 
+	__enable_irq();
+
 	return uv_err(ERR_NONE);
 }
 
@@ -95,6 +99,7 @@ uv_errors_e uv_eeprom_read(unsigned char *dest, uint16_t len, uint16_t eeprom_ad
 	if (eeprom_addr + len > _UV_EEPROM_SIZE) {
 		return uv_err(ERR_NOT_ENOUGH_MEMORY | HAL_MODULE_EEPROM);
 	}
+	__disable_irq();
 	// set the reading address
 	LPC_EEPROM->ADDR = eeprom_addr;
 	LPC_EEPROM->INT_CLR_STATUS = (1 << 26);
@@ -110,6 +115,8 @@ uv_errors_e uv_eeprom_read(unsigned char *dest, uint16_t len, uint16_t eeprom_ad
 	// clear eeprom int bits. For some reason leaving these may cause IAP programming to
 	// end with a BUSY error code
 	LPC_EEPROM->INT_CLR_STATUS = ((1 << 26) | (1 << 28));
+
+	__enable_irq();
 
 	return uv_err(ERR_NONE);
 }
@@ -245,7 +252,7 @@ uv_errors_e uv_eeprom_pop_front(unsigned char *dest) {
 }
 
 
-uv_errors_e uv_eeprom_at(unsigned char *dest, uint16_t index) {
+uv_errors_e uv_eeprom_at(unsigned char *dest, uint16_t *eeprom_addr, uint16_t index) {
 	uint16_t i;
 
 	uv_eeprom_read((unsigned char *) &i, sizeof(uint16_t),
@@ -267,6 +274,9 @@ uv_errors_e uv_eeprom_at(unsigned char *dest, uint16_t index) {
 
 	if (dest) {
 		uv_eeprom_read(dest, this->entry_len - sizeof(uint16_t), addr);
+	}
+	if (eeprom_addr) {
+		*eeprom_addr = addr;
 	}
 
 	return uv_err(ERR_NONE);

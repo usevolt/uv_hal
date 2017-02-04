@@ -105,7 +105,11 @@ uv_errors_e uv_eeprom_pop_front(unsigned char *dest);
 
 
 /// @brief: Returns the index'th recent data. 0 means the newest.
-uv_errors_e uv_eeprom_at(unsigned char *dest, uint16_t index);
+///
+/// @param dest: destination where the data is copied
+/// @param eeprom_addr: Destination where the actual eeprom address where
+/// the **index**'th data was found will be copied
+uv_errors_e uv_eeprom_at(unsigned char *dest, uint16_t *eeprom_addr, uint16_t index);
 
 
 /// @brief: Clears the whole EEPROM memory to zeroes

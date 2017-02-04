@@ -18,6 +18,9 @@
 #error "CONFIG_UI_SLIDER_WIDTH should define the slider *width*. For horizontal slider this means the height.\
  Also handle height is taken from this value."
 #endif
+#if !CONFIG_UI_SLIDER_INC_DEC_WIDTH
+#error "CONFIG_UI_SIDER_INC_DEC_WIDTH should define the width of uilisder increase and decrease buttons in pizels."
+#endif
 
 
 /// @brief: Slider is a vertical or horizontal slider with a value
@@ -34,11 +37,13 @@ typedef struct {
 	/// @brief: If true, displays the current value next to the slider.
 	/// On vertical slider, value is shown below the slider.
 	/// On horizontal slider, value is shown to the right of the slider.
-	bool show_value;
-	/// @brief: If true, the slider is horizontal. If false, the slider is vertical.
-	bool horizontal;
-	/// @brief: Inner state variable indicating that a TOUCH_DRAG event has been started
-	bool dragging;
+	struct {
+		/// @brief: If true, the slider is horizontal. If false, the slider is vertical.
+		uint8_t show_value : 1;
+		/// @brief: Inner state variable indicating that a TOUCH_DRAG event has been started
+		uint8_t horizontal : 1;
+		uint8_t dragging : 1;
+	};
 	/// @brief: Title text which is shown below the slider
 	char *title;
 	/// @brief: Value changed-callback
@@ -93,10 +98,7 @@ static inline void uv_uislider_hide_value(void *me) {
 
 
 /// @brief: Sets the minimum value
-static inline void uv_uislider_set_min_value(void *me, int16_t min_value) {
-	this->min_val = min_value;
-	uv_ui_refresh(this);
-}
+void uv_uislider_set_min_value(void *me, int16_t min_value);
 
 /// @brief: Sets the title. The title should be a null-terminated string.
 static inline void uv_uislider_set_title(void *me, char *title) {
@@ -109,10 +111,7 @@ static inline int16_t uv_uislider_get_min_value(void *me) {
 }
 
 /// @brief: sets the maximum value
-static inline void uv_uislider_set_max_value(void *me, int16_t max_value) {
-	this->max_val = max_value;
-	uv_ui_refresh(this);
-}
+void uv_uislider_set_max_value(void *me, int16_t max_value);
 
 /// @brief: Returns the maimum value
 static inline int16_t uv_uislider_get_max_value(void *me) {
@@ -120,12 +119,7 @@ static inline int16_t uv_uislider_get_max_value(void *me) {
 }
 
 /// @brief: Sets the current value
-static inline void uv_uislider_set_value(void *me, int16_t value) {
-	if (value < this->min_val) value = this->min_val;
-	else if (value > this->max_val) value = this->max_val;
-	if (value != this->cur_val) uv_ui_refresh(this);
-	this->cur_val = value;
-}
+void uv_uislider_set_value(void *me, int16_t value);
 
 /// @brief: Returns the current value
 static inline int16_t uv_uislider_get_value(void *me) {
