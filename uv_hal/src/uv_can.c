@@ -13,6 +13,7 @@
 #include "uv_canopen.h"
 #endif
 
+
 #include "uv_utilities.h"
 #include "uv_rtos.h"
 #if CONFIG_TERMINAL_CAN
@@ -632,7 +633,7 @@ uv_errors_e _uv_can_init() {
 	// ((BRP + 1) * (1 + 2)) * baudrate = fosc
 	// (BRP + 1) * 3 = fosc / baudrate
 	// BRP = fosc / (3 * baudrate) - 1
-	LPC_CAN1->BTR |= (SystemCoreClock / (CONFIG_CAN1_BAUDRATE * 8)) & 0x3FF;
+	LPC_CAN1->BTR |= (SystemCoreClock / (CONFIG_CAN1_BAUDRATE * 8) - 1) & 0x3FF;
 	// set CAN peripheral ON
 	LPC_CAN1->MOD &= ~1;
 
@@ -883,8 +884,8 @@ uv_errors_e _uv_can_hal_send(uv_can_channels_e channel) {
 		while ((LPC_CAN1->TID1 == msg.id && !(LPC_CAN1->SR & (1 << 2))) ||
 				(LPC_CAN1->TID2 == msg.id && !(LPC_CAN1->SR & (1 << 10))) ||
 				(LPC_CAN1->TID3 == msg.id && !(LPC_CAN1->SR & (1 << 18)))) {
-			// CAN tranceiver is either in bus off or error active state
-			if (LPC_CAN1->GSR & (0b11 << 6)) {
+			// CAN tranceiver is in bus off
+			if (LPC_CAN1->GSR & (0b1 << 7)) {
 				LPC_CAN1->MOD &= ~1;
 			}
 			return uv_err(ERR_MESSAGE_NOT_SENT | HAL_MODULE_CAN);
@@ -896,7 +897,7 @@ uv_errors_e _uv_can_hal_send(uv_can_channels_e channel) {
 			// and last received error was in ACK slot.
 			// This means that the device may be the only one in the CAN bus,
 			// and in that case its OK to discard the message transmission
-			if (LPC_CAN1->GSR & (0b11 << 6)) {
+			if (LPC_CAN1->GSR & (0b1 << 7)) {
 				LPC_CAN1->MOD &= ~1;
 				return uv_err(ERR_MESSAGE_NOT_SENT | HAL_MODULE_CAN);
 			}
@@ -954,12 +955,29 @@ uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
 #if CONFIG_CAN1
 	if (channel == CAN1) {
 		if (LPC_CAN1->GSR & (1 << 7)) {
+//			unsigned int p = LPC_CAN1->GSR;
+//			unsigned int f = LPC_CAN1->MOD;
+//			char str[100];
+//			snprintf(str, 100, "bus off %x, %x\n\r", p, f);
+//			uv_uart_send_str(UART0, str);
 			return CAN_ERROR_BUS_OFF;
 		}
 		else if (LPC_CAN1->GSR & (1 << 6)) {
+//			unsigned int p = LPC_CAN1->GSR;
+//			unsigned int f = LPC_CAN1->MOD;
+//			char str[100];
+//			snprintf(str, 100, "error passive %x, %x\n\r", p, f);
+//			uv_uart_send_str(UART0, str);
 			return CAN_ERROR_PASSIVE;
 		}
-		else return CAN_ERROR_ACTIVE;
+		else {
+//			unsigned int p = LPC_CAN1->GSR;
+//			unsigned int f = LPC_CAN1->MOD;
+//			char str[100];
+//			snprintf(str, 100, "active %x, %x\n\r", p, f);
+//			uv_uart_send_str(UART0, str);
+			return CAN_ERROR_ACTIVE;
+		}
 	}
 #endif
 #if CONFIG_CAN2

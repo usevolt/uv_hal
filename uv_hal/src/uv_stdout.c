@@ -43,7 +43,7 @@ static void send_can_msg(void) {
 	can_delay = CAN_DELAY_MS;
 
 	uv_can_errors_e e = uv_can_get_error_state(CAN1);
-	if (e == CAN_ERROR_ACTIVE || e == CAN_ERROR_WARNING) {
+	if (e != CAN_ERROR_BUS_OFF) {
 		uv_can_send_message(CAN1, &msg);
 	}
 

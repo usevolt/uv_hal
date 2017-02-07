@@ -402,8 +402,8 @@ uv_errors_e uv_canopen_step(uv_canopen_st *me, unsigned int step_ms) {
 				.data_8bit[0] = this->state
 		};
 
-		if (uv_can_get_error_state(this->can_channel) == CAN_ERROR_ACTIVE) {
-			uv_can_send_message(this->can_channel, &msg);
+		if (uv_can_get_error_state(this->can_channel) != CAN_ERROR_BUS_OFF) {
+			uv_err_log(uv_can_send_message(this->can_channel, &msg));
 		}
 
 		// start the delay again
