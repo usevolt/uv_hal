@@ -65,6 +65,7 @@ static void draw(void *me) {
 				(CONFIG_UI_PROGRESSBAR_WIDTH + CONFIG_UI_PROGRESSBAR_SPACE) - 1;
 	}
 	int16_t rel = uv_reli(this->value, this->min_val, this->max_val);
+	if (rel < 0) { rel = 0; }
 	active_bars = uv_lerpi(rel, 0, bars);
 
 
