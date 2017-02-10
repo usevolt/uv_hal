@@ -1002,10 +1002,10 @@ void CAN_rx(uint8_t msg_obj_num);
 void CAN_tx(uint8_t msg_obj_num);
 void CAN_error(uint32_t error_info);
 
-static volatile uint32_t gCANapiMem[32];
+static volatile uint32_t gCANapiMem[512];
 static uint32_t can_errors;
 
-CAN_HANDLE_T handle;
+static CAN_HANDLE_T handle;
 
 static CAN_CFG config = {
 		.clkdiv = 0,
@@ -1016,22 +1016,12 @@ static CAN_CALLBACKS callbacks = {
 		.CAN_rx = CAN_rx,
 		.CAN_tx = CAN_tx
 };
-static CAN_CANOPENCFG canopen = {
-};
-static CANOPEN_CALLBACKS co_callbacks = {
-};
-
-static CAN_API_INIT_PARAM_T myCANConfig = {
-	(uint32_t)&gCANapiMem[0],
-	LPC_C_CAN0_BASE,
-	&config,
-	(CAN_CALLBACKS *)&callbacks, //need the callback for receive message
-	(CAN_CANOPENCFG *)&canopen, // not used, but allocate memory for it
-	(CANOPEN_CALLBACKS *)&co_callbacks, //not used, but allocate memory for it
-};
 
 
 void CAN_rx(uint8_t msg_obj_num) {
+	Chip_GPIO_SetPinOutHigh(LPC_GPIO, 0, 25);
+	Chip_GPIO_SetPinOutLow(LPC_GPIO, 0, 24);
+
 	/* Determine which CAN message has been received */
 	this->temp_obj.msgobj = msg_obj_num;
 	/* Now load up the msg_obj structure with the CAN message */
@@ -1072,6 +1062,9 @@ void CAN_rx(uint8_t msg_obj_num) {
 }
 
 void CAN_tx(uint8_t msg_obj_num) {
+	Chip_GPIO_SetPinOutLow(LPC_GPIO, 0, 24);
+	Chip_GPIO_SetPinOutLow(LPC_GPIO, 0, 25);
+
 	this->tx_pending = 0;
 #if CONFIG_CAN_LOG
 	if (can_log) {
@@ -1082,6 +1075,8 @@ void CAN_tx(uint8_t msg_obj_num) {
 }
 
 void CAN_error(uint32_t error_info) {
+	Chip_GPIO_SetPinOutHigh(LPC_GPIO, 0, 25);
+	Chip_GPIO_SetPinOutHigh(LPC_GPIO, 0, 24);
 	if (error_info & CAN_ERROR_BOFF) {
 		can_errors = CAN_ERROR_BUS_OFF;
 		uv_can_reset(CAN1);
@@ -1137,13 +1132,29 @@ uv_errors_e _uv_can_init() {
 	this->init = true;
 	this->tx_pending = 0;
 	this->used_msg_objs = (1 << TX_MSG_OBJ);
-	config.btr = 0x2300 + ((SystemCoreClock / (8 * CONFIG_CAN1_BAUDRATE) - 1) & 0x3F);
+//	config.btr = 0x2300 + ((SystemCoreClock / (8 * CONFIG_CAN1_BAUDRATE) - 1) & 0x3F);
+	config.btr = 0x502;
 
 	uv_ring_buffer_init(&this->rx_buffer, this->rx_buffer_data,
 			CONFIG_CAN1_RX_BUFFER_SIZE, sizeof(uv_can_message_st));
 	uv_ring_buffer_init(&this->tx_buffer, this->tx_buffer_data,
 			CONFIG_CAN1_TX_BUFFER_SIZE, sizeof(uv_can_message_st));
+
 	SystemCoreClockUpdate();
+
+	/* Enable clocking for CAN and reset the controller */
+	Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_CAN);
+	Chip_SYSCTL_PeriphReset(RESET_CAN);
+
+	CAN_API_INIT_PARAM_T myCANConfig = {
+		(uint32_t)&gCANapiMem[0],
+		LPC_C_CAN0_BASE,
+		&config,
+		(CAN_CALLBACKS *)&callbacks, //need the callback for receive message
+		NULL, // not used, but allocate memory for it
+		NULL, //not used, but allocate memory for it
+	};
+
 	LPC_CAND_API->hwCAN_Init(handle, &myCANConfig);
 
 	/* Enable the CAN Interrupt */
@@ -1151,8 +1162,27 @@ uv_errors_e _uv_can_init() {
 
 	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 3, (IOCON_MODE_INACT | IOCON_DIGMODE_EN));
 	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 4, (IOCON_MODE_INACT | IOCON_DIGMODE_EN));
-	Chip_SWM_MovablePortPinAssign(SWM_CAN_TD1_O , 0, 3);
+	Chip_SWM_MovablePortPinAssign(SWM_CAN_TD1_O, 0, 3);
 	Chip_SWM_MovablePortPinAssign(SWM_CAN_RD1_I,  0, 4);
+
+	static CAN_MSG_OBJ msg_obj;
+	/* Configure message object 1 to receive all 11-bit messages 0x400-0x4FF */
+	msg_obj.msgobj = 1;
+	msg_obj.mode_id = 0x400;
+	msg_obj.mask = 0x700;
+//	LPC_CAND_API->hwCAN_ConfigRxmsgobj(handle, &msg_obj);
+
+	/* Send a simple one time CAN message */
+	msg_obj.msgobj  = 0;
+	msg_obj.mode_id = 0x700+0x20;
+	msg_obj.mask    = 0x0;
+	msg_obj.dlc     = 4;
+	msg_obj.data[0] = 'T';	/* 0x54 */
+	msg_obj.data[1] = 'E';	/* 0x45 */
+	msg_obj.data[2] = 'S';	/* 0x53 */
+	msg_obj.data[3] = 'T';	/* 0x54 */
+
+	LPC_CAND_API->hwCAN_MsgTransmit(handle, &msg_obj);
 
 
 #if CAN_LOOP_BACK_MODE
@@ -1165,6 +1195,9 @@ uv_errors_e _uv_can_init() {
 	uv_ring_buffer_init(&this->char_buffer, this->char_buffer_data, CONFIG_TERMINAL_BUFFER_SIZE, sizeof(char));
 	uv_can_config_rx_message(CAN1, UV_TERMINAL_CAN_PREFIX + uv_get_id(), CAN_ID_MASK_DEFAULT, CAN_EXT);
 #endif
+
+
+
 
 	return uv_err(ERR_NONE);
 
