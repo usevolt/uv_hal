@@ -47,6 +47,14 @@
 #if !defined(CONFIG_CAN1_TX_BUFFER_SIZE)
 #error "CONFIG_CAN1_TX_BUFFER_SIZE not defined. It should define the buffer size used for transmit messages."
 #endif
+#if CONFIG_TARGET_LPC1549
+#if !defined(CONFIG_CAN1_RX_PIN)
+#error "CONFIG_CAN1_RX_PIN should define the pin to be used as CAN RX pin"
+#endif
+#if !defined(CONFIG_CAN1_TX_PIN)
+#error "CONFIG_CAN1_TX_PIN should define the pin to be used as CAN TX pin"
+#endif
+#endif
 #endif
 #elif CONFIG_TARGET_LPC1785
 #if CONFIG_CAN1
