@@ -933,13 +933,13 @@ uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* me
 }
 
 
-uv_errors_e _uv_can_hal_send(uv_can_channels_e channel) {
+void _uv_can_hal_send(uv_can_channels_e channel) {
 #if CONFIG_CAN1
 	if (channel == CAN1) {
 		uv_can_message_st msg;
 		uv_errors_e e = uv_ring_buffer_peek(&this->tx_buffer[0], &msg);
 		if (e) {
-			return uv_err(ERR_NONE);
+			return;
 		}
 
 		// if any transmit buffer has same ID message to be transmitted, wait until
@@ -951,7 +951,7 @@ uv_errors_e _uv_can_hal_send(uv_can_channels_e channel) {
 			if (LPC_CAN1->GSR & (0b1 << 7)) {
 				LPC_CAN1->MOD &= ~1;
 			}
-			return uv_err(ERR_MESSAGE_NOT_SENT | HAL_MODULE_CAN);
+			return;
 		}
 
 		// wait until any one transmit buffer is available for transmitting
@@ -962,7 +962,7 @@ uv_errors_e _uv_can_hal_send(uv_can_channels_e channel) {
 			// and in that case its OK to discard the message transmission
 			if (LPC_CAN1->GSR & (0b1 << 7)) {
 				LPC_CAN1->MOD &= ~1;
-				return uv_err(ERR_MESSAGE_NOT_SENT | HAL_MODULE_CAN);
+				return;
 			}
 		}
 
@@ -996,7 +996,7 @@ uv_errors_e _uv_can_hal_send(uv_can_channels_e channel) {
 		// message succesfully sent, remove it from the buffer
 		uv_ring_buffer_pop(&this->tx_buffer[0], NULL);
 
-		return uv_err(ERR_NONE);
+		return;
 	}
 #endif
 #if CONFIG_CAN2
@@ -1005,7 +1005,7 @@ uv_errors_e _uv_can_hal_send(uv_can_channels_e channel) {
 	}
 #endif
 
-	return uv_err(ERR_NONE);
+	return;
 }
 
 uv_errors_e uv_can_pop_message(uv_can_channels_e channel, uv_can_message_st *message) {
