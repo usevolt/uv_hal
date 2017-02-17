@@ -167,7 +167,7 @@ static void array_write(const uv_canopen_object_st *obj, uint16_t index, unsigne
 	if (index > obj->array_max_size) {
 #if CONFIG_CANOPEN_LOG
 	if (!obj) {
-		printf("Tried to over index CANopen array object\n\r");
+		printf("Tried to over index CANopen array object\n");
 	}
 #endif
 		return;
@@ -180,7 +180,7 @@ static unsigned int array_read(const uv_canopen_object_st *obj, uint16_t index) 
 	if (index > obj->array_max_size) {
 #if CONFIG_CANOPEN_LOG
 	if (!obj) {
-		printf("Tried to over-index CAnopen array object %x. Max index %u, indexed with %u.\n\r",
+		printf("Tried to over-index CAnopen array object %x. Max index %u, indexed with %u.\n",
 				obj->main_index, obj->array_max_size, index);
 	}
 #endif
@@ -262,7 +262,7 @@ uv_errors_e uv_canopen_init(uv_canopen_st *me,
 	this->obj_dict.com_params.error_register = 0;
 #endif
 
-	DEBUG_LOG("canopen initialized with node id %x\n\r", NODE_ID);
+	DEBUG_LOG("canopen initialized with node id %x\n", NODE_ID);
 
 #if CONFIG_CANOPEN_HEARTBEAT_INDEX
 	uv_delay_init(this->obj_dict.com_params.heartbeat_time, this->heartbeat_delay);
@@ -434,7 +434,7 @@ uv_errors_e uv_canopen_step(uv_canopen_st *me, unsigned int step_ms) {
 			if (com->transmission_type != CANOPEN_PDO_TRANSMISSION_ASYNC) {
 
 				DEBUG_LOG("TXPDO transmission type was not asynchronous. Currently only async transmissions"
-						  " are supported.\n\r");
+						  " are supported.\n");
 				continue;
 			}
 
@@ -464,7 +464,7 @@ uv_errors_e uv_canopen_step(uv_canopen_st *me, unsigned int step_ms) {
 				// otherwise map some data to the message
 				map_obj = find_object(this, map->main_index, map->sub_index, NULL);
 				if (!map_obj) {
-					DEBUG_LOG("TXPDO mapping parameter 0x%x points to an object 0x%x 0x%x which doens't exist\n\r",
+					DEBUG_LOG("TXPDO mapping parameter 0x%x points to an object 0x%x 0x%x which doens't exist\n",
 								CONFIG_CANOPEN_TXPDO_MAP_INDEX + i, map->main_index, map->sub_index);
 					return uv_err(ERR_CANOPEN_MAPPED_OBJECT_NOT_FOUND);
 				}
@@ -478,7 +478,7 @@ uv_errors_e uv_canopen_step(uv_canopen_st *me, unsigned int step_ms) {
 				uint8_t k;
 				// 8 bytes is the maximum length
 				if (byte_count + map->length > 8) {
-					DEBUG_LOG("Mapped %u bytes to TXPDO %u, maximum allowed is 8.\n\r",
+					DEBUG_LOG("Mapped %u bytes to TXPDO %u, maximum allowed is 8.\n",
 								byte_count + map->length, i);
 					map->length = 0;
 				}
@@ -515,7 +515,7 @@ uv_errors_e uv_canopen_emcy_send(void *me, uv_canopen_emcy_msg_st *msg) {
 	uv_errors_e err = ERR_NONE;
 
 	uv_err_check(uv_can_send_message(this->can_channel, &canmsg)) {
-		DEBUG_LOG("EMCY message sending failed. CAN TX buffer full?\n\r");
+		DEBUG_LOG("EMCY message sending failed. CAN TX buffer full?\n");
 		err = ERR_BUFFER_OVERFLOW | HAL_MODULE_CANOPEN;
 	}
 #if CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX
@@ -549,7 +549,7 @@ static void sdo_send_error(uv_canopen_st *me, uv_can_message_st *msg, uv_sdo_err
 			.data_8bit[6] = (uint8_t) (error >> 16),
 			.data_8bit[7] = (uint8_t) (error >> 24)
 	};
-	DEBUG_LOG("SDO returned an error: %x %x %x %x %x %x %x %x\n\r",
+	DEBUG_LOG("SDO returned an error: %x %x %x %x %x %x %x %x\n",
 			reply.data_8bit[0], reply.data_8bit[1], reply.data_8bit[2], reply.data_8bit[3],
 			reply.data_8bit[4], reply.data_8bit[5], reply.data_8bit[6], reply.data_8bit[7]);
 	uv_can_send_message(this->can_channel, &reply);
@@ -576,7 +576,7 @@ static void sdo_send_response(uv_canopen_st *me, uv_can_message_st *msg, uv_cano
 		i++;
 	}
 
-	DEBUG_LOG("Sent response with data: %x %x %x %x %x %x %x %x\n\r", reply.data_8bit[0],
+	DEBUG_LOG("Sent response with data: %x %x %x %x %x %x %x %x\n", reply.data_8bit[0],
 			reply.data_8bit[1], reply.data_8bit[2], reply.data_8bit[3],
 			reply.data_8bit[4], reply.data_8bit[5], reply.data_8bit[6],
 			reply.data_8bit[7]);
@@ -587,21 +587,21 @@ static void sdo_send_response(uv_canopen_st *me, uv_can_message_st *msg, uv_cano
 
 static void canopen_parse_sdo(uv_canopen_st *me, uv_can_message_st *msg) {
 	const uv_canopen_object_st *obj = find_object(this, SDO_MINDEX(msg), SDO_SINDEX(msg), NULL);
-	DEBUG_LOG("SDO received: %x, %x\n\r", SDO_MINDEX(msg), SDO_SINDEX(msg));
+	DEBUG_LOG("SDO received: %x, %x\n", SDO_MINDEX(msg), SDO_SINDEX(msg));
 
 	if (!obj) {
-		DEBUG_LOG("SDO object doesn't exist: %x, %x\n\r", SDO_MINDEX(msg), SDO_SINDEX(msg));
+		DEBUG_LOG("SDO object doesn't exist: %x, %x\n", SDO_MINDEX(msg), SDO_SINDEX(msg));
 		sdo_send_error(this, msg, CANOPEN_SDO_ERROR_OBJECT_DOES_NOT_EXIST);
 		return;
 	}
 
 	// SDO READ requests...
 	if (SDO_CMD(msg) == CANOPEN_SDO_CMD_READ) {
-		DEBUG_LOG("SDO read object %x command received\n\r", SDO_MINDEX(msg));
+		DEBUG_LOG("SDO read object %x command received\n", SDO_MINDEX(msg));
 
 		// error with read permissions
 		if (!(obj->permissions & CANOPEN_RO)) {
-			DEBUG_LOG("SDO error: object %x is write only\n\r", SDO_MINDEX(msg));
+			DEBUG_LOG("SDO error: object %x is write only\n", SDO_MINDEX(msg));
 			sdo_send_error(this, msg, CANOPEN_SDO_ERROR_ATTEMPT_TO_READ_A_WRITE_ONLY_OBJECT);
 		}
 		// for array type objects
@@ -613,7 +613,7 @@ static void canopen_parse_sdo(uv_canopen_st *me, uv_can_message_st *msg) {
 					sdo_send_response(this, msg, CANOPEN_SDO_CMD_READ_RESPONSE_BYTES, (uint8_t *) &value, 4);
 				}
 				else {
-					DEBUG_LOG("SDO error: over indexing object %x with sub-index %x\n\r",
+					DEBUG_LOG("SDO error: over indexing object %x with sub-index %x\n",
 								SDO_MINDEX(msg), SDO_SINDEX(msg));
 					sdo_send_error(this, msg, CANOPEN_SDO_ERROR_OBJECT_DOES_NOT_EXIST);
 				}
@@ -640,7 +640,7 @@ static void canopen_parse_sdo(uv_canopen_st *me, uv_can_message_st *msg) {
 			SDO_CMD(msg) == CANOPEN_SDO_CMD_WRITE_BYTES) {
 
 		if (obj->permissions & CANOPEN_WO) {
-			DEBUG_LOG("SDO write to object %x\n\r", SDO_MINDEX(msg));
+			DEBUG_LOG("SDO write to object %x\n", SDO_MINDEX(msg));
 			// Predefined error register clearing
 #if CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX
 			if (SDO_MINDEX(msg) == CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX &&
@@ -651,7 +651,7 @@ static void canopen_parse_sdo(uv_canopen_st *me, uv_can_message_st *msg) {
 				for (i = 0; i < obj->array_max_size * GET_OBJECT_SIZE(obj); i++) {
 					obj->data_ptr[i] = 0;
 				}
-				DEBUG_LOG("SDO: cleared errors from predefined error field %x\n\r",
+				DEBUG_LOG("SDO: cleared errors from predefined error field %x\n",
 							CONFIG_CANOPEN_PREDEFINED_ERROR_FIELD_INDEX);
 				sdo_send_response(this, msg, CANOPEN_SDO_CMD_WRITE_RESPONSE, &i, 1);
 				return;
@@ -663,7 +663,7 @@ static void canopen_parse_sdo(uv_canopen_st *me, uv_can_message_st *msg) {
 				// writing to array sub index 0 as well as over indexing is not permitted
 				if (SDO_SINDEX(msg) == 0 || SDO_SINDEX(msg) - 1 >= obj->array_max_size) {
 					sdo_send_error(this, msg, CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
-					DEBUG_LOG("SDO error: Unsupported access to array type object %x\n\r", SDO_MINDEX(msg));
+					DEBUG_LOG("SDO error: Unsupported access to array type object %x\n", SDO_MINDEX(msg));
 					return;
 				}
 				array_write(obj, SDO_SINDEX(msg) - 1, msg->data_32bit[1]);
@@ -686,7 +686,7 @@ static void canopen_parse_sdo(uv_canopen_st *me, uv_can_message_st *msg) {
 						obj->data_ptr[1] == 'a' &&
 						obj->data_ptr[2] == 'v' &&
 						obj->data_ptr[3] == 'e') {
-					DEBUG_LOG("Saving settings to flash memory\n\r");
+					DEBUG_LOG("Saving settings to flash memory\n");
 					*((unsigned int*)obj->data_ptr) = 0;
 #if !defined(CONFIG_NON_VOLATILE_MEMORY)
 #warning "CANopen store parameters object needs CONFIG_MEMORY defined as 1"
@@ -704,7 +704,7 @@ static void canopen_parse_sdo(uv_canopen_st *me, uv_can_message_st *msg) {
 						obj->data_ptr[1] == 'o' &&
 						obj->data_ptr[2] == 'a' &&
 						obj->data_ptr[3] == 'd') {
-					DEBUG_LOG("Loading factory settings from flash memory\n\r");
+					DEBUG_LOG("Loading factory settings from flash memory\n");
 #if !defined(CONFIG_NON_VOLATILE_MEMORY)
 #warning "CANopen restore parameters object needs CONFIG_MEMORY defined as 1"
 #else
@@ -718,12 +718,12 @@ static void canopen_parse_sdo(uv_canopen_st *me, uv_can_message_st *msg) {
 #endif
 		}
 		else {
-			DEBUG_LOG("SDO error: object %x is write only\n\r", SDO_MINDEX(msg));
+			DEBUG_LOG("SDO error: object %x is write only\n", SDO_MINDEX(msg));
 			sdo_send_error(this, msg, CANOPEN_SDO_ERROR_ATTEMPT_TO_WRITE_A_READ_ONLY_OBJECT);
 		}
 	}
 	else {
-		DEBUG_LOG("SDO error: invalid command %x\n\r", SDO_CMD(msg));
+		DEBUG_LOG("SDO error: invalid command %x\n", SDO_CMD(msg));
 		sdo_send_error(this, msg, CANOPEN_SDO_ERROR_CMD_SPECIFIER_NOT_FOUND);
 	}
 
@@ -749,16 +749,16 @@ static inline void parse_rxpdo(uv_canopen_st *me, uv_can_message_st* msg) {
 					void *data_ptr = NULL;
 					const uv_canopen_object_st *trg = find_object(this, index, subindex, &data_ptr);
 					if (!trg) {
-						DEBUG_LOG("RXPDO error: object with index %x and subindex %x not found\n\r",
+						DEBUG_LOG("RXPDO error: object with index %x and subindex %x not found\n",
 									index, subindex);
 						break;
 					}
 					if (bytes + byte_length > 8) {
-						DEBUG_LOG("RXPDO error: PDO mapping length exceeds 8 bytes\n\r");
+						DEBUG_LOG("RXPDO error: PDO mapping length exceeds 8 bytes\n");
 					}
 
 					if (msg->data_length < bytes + byte_length) {
-						DEBUG_LOG("RXPDO error: Message length was shorter than mapped length\n\r");
+						DEBUG_LOG("RXPDO error: Message length was shorter than mapped length\n");
 						break;
 					}
 					// write bits to the object
@@ -766,7 +766,7 @@ static inline void parse_rxpdo(uv_canopen_st *me, uv_can_message_st* msg) {
 						memcpy(data_ptr, &msg->data_8bit[bytes], byte_length);
 					}
 					else {
-						DEBUG_LOG("RXPDO error: Object found but data_ptr was NULL\n\r");
+						DEBUG_LOG("RXPDO error: Object found but data_ptr was NULL\n");
 					}
 					bytes += byte_length;
 
@@ -779,7 +779,7 @@ static inline void parse_rxpdo(uv_canopen_st *me, uv_can_message_st* msg) {
 					break;
 				}
 			}
-			DEBUG_LOG("RXPDO with id %x written\n\r", msg->id);
+			DEBUG_LOG("RXPDO with id %x written\n", msg->id);
 			continue;
 		}
 	}
@@ -794,23 +794,23 @@ static inline void parse_nmt_message(uv_canopen_st *me, uv_can_message_st* msg) 
 	if (nmt_target_node(msg) == NODE_ID || !nmt_target_node(msg)) {
 		switch (nmt_command(msg)) {
 		case CANOPEN_NMT_START_NODE:
-			DEBUG_LOG("NMT start\n\r");
+			DEBUG_LOG("NMT start\n");
 			uv_canopen_set_state(this, CANOPEN_OPERATIONAL);
 			break;
 		case CANOPEN_NMT_STOP_NODE:
-			DEBUG_LOG("NMT stop\n\r");
+			DEBUG_LOG("NMT stop\n");
 			uv_canopen_set_state(this, CANOPEN_STOPPED);
 			break;
 		case CANOPEN_NMT_SET_PREOPERATIONAL:
-			DEBUG_LOG("NMT preoperational\n\r");
+			DEBUG_LOG("NMT preoperational\n");
 			uv_canopen_set_state(this, CANOPEN_PREOPERATIONAL);
 			break;
 		case CANOPEN_NMT_RESET_NODE:
-			DEBUG_LOG("NMT reset\n\r");
+			DEBUG_LOG("NMT reset\n");
 			uv_system_reset(false);
 			break;
 		case CANOPEN_NMT_RESET_COM:
-			DEBUG_LOG("NMT reset communication\n\r");
+			DEBUG_LOG("NMT reset communication\n");
 			uv_canopen_init(this, this->obj_dict.app_parameters, this->obj_dict.app_parameters_length,
 					this->can_channel, this->heartbeat_delay, this->sdo_write_callback, this->emcy_callback);
 			break;

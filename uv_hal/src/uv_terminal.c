@@ -80,7 +80,7 @@ const uv_command_st common_cmds[] = {
 				.id = CMD_MAN,
 				.str = "man",
 				.instructions =
-						"Gives information from the command. Give the command name as the argument.\n\r"
+						"Gives information from the command. Give the command name as the argument.\n"
 						"Usage: man \"<command_name>\"",
 				.callback = uv_terminal_man_callb
 		},
@@ -99,9 +99,9 @@ const uv_command_st common_cmds[] = {
 				.str = "revert",
 #if CONFIG_TERMINAL_INSTRUCTIONS
 				.instructions =
-						"Reverts all changes except the device CRC number to factory defaults.\n\r"
-						"To reset the device CRC, set it to 0 with a command 'crc 0'.\n\r"
-						"The device needs to be restarted for changes to take effect.\n\r"
+						"Reverts all changes except the device CRC number to factory defaults.\n"
+						"To reset the device CRC, set it to 0 with a command 'crc 0'.\n"
+						"The device needs to be restarted for changes to take effect.\n"
 						"To undo revert, save current values to flash with 'save' command." ,
 #endif
 				.callback = uv_terminal_revert_callb
@@ -112,10 +112,10 @@ const uv_command_st common_cmds[] = {
 #if CONFIG_TERMINAL_INSTRUCTIONS
 				.instructions =
 						"Usage: reset (1/0)"
-						"Resets the controller instantly.\n\r"
-						"All unsave modifications will be lost.\n\r"
-						"If 1 is given as an argument, the system will use\n\r"
-						"watchdog timer to make a hardware reset. Else software\n\r"
+						"Resets the controller instantly.\n"
+						"All unsave modifications will be lost.\n"
+						"If 1 is given as an argument, the system will use\n"
+						"watchdog timer to make a hardware reset. Else software\n"
 						"reset is done." ,
 #endif
 				.callback = uv_terminal_reset_callb
@@ -131,7 +131,7 @@ void uv_terminal_init(const uv_command_st* commands, unsigned int count) {
 	this->buffer[0] = '\0';
 
 	// print device name and build date
-	printf("%s\n\rBuild on %s\n\r>", uv_projname, uv_datetime);
+	printf("%s\nBuild on %s\n>", uv_projname, uv_datetime);
 
 
 }
@@ -196,8 +196,8 @@ uv_errors_e uv_terminal_step() {
 		if (data == 0x0D || data == 0x0A) {
 			int i;
 			int p = 0;
-			//change line
-			printf("\n\r");
+			//change line Note: Commented to prevent unnecessary line changes
+			//printf("\n");
 			// do nothing if receive buffer was empty
 			if (this->buffer_index == 0) {
 				printf(">");
@@ -234,7 +234,7 @@ uv_errors_e uv_terminal_step() {
 						// integer argument found
 						this->args[p].type = ARG_INTEGER;
 						this->args[p].number = strtol((char*) &this->buffer[i + 1], NULL, 0);
-//						printf("arg: %i\n\r", (int) this->args[p].number);
+//						printf("arg: %i\n", (int) this->args[p].number);
 						p++;
 					}
 				}
@@ -266,7 +266,7 @@ uv_errors_e uv_terminal_step() {
 					}
 				}
 				if (!match) {
-					printf("Command '%s' not found\n\r",
+					printf("Command '%s' not found\n",
 							this->buffer);
 				}
 			}
@@ -283,17 +283,17 @@ uv_errors_e uv_terminal_step() {
 }
 
 void uv_terminal_help_callb(void *me, unsigned int cmd, unsigned int args, argument_st *argv) {
-	printf("\n\r");
+	printf("\n");
 	int p;
 	for (p = 0; p < sizeof(common_cmds) / sizeof(uv_command_st); p++) {
-		printf("\"%s\"\n\r", common_cmds[p].str);
+		printf("\"%s\"\n", common_cmds[p].str);
 	}
 	for (p = 0; p < uv_terminal_get_commands_count(); p++) {
-		printf("\"%s\"\n\r", this->commands_ptr[p].str);
+		printf("\"%s\"\n", this->commands_ptr[p].str);
 	}
 }
 void uv_terminal_dev_callb(void *me, unsigned int cmd, unsigned int args, argument_st *argv) {
-	printf("%s Build on %s\n\r", uv_projname, uv_datetime);
+	printf("%s Build on %s\n", uv_projname, uv_datetime);
 }
 
 #if CONFIG_TERMINAL_INSTRUCTIONS
@@ -301,17 +301,17 @@ void uv_terminal_man_callb(void *me, unsigned int cmd, unsigned int args, argume
 	int i;
 	for (i = 0; i < this->commands_count; i++) {
 		if (strcmp(argv[0].str, this->commands_ptr[i].str) == 0) {
-			printf("\n\r%s:\n\r%s\n\r\n\r", this->commands_ptr[i].str, this->commands_ptr[i].instructions);
+			printf("\n%s:\n%s\n\n", this->commands_ptr[i].str, this->commands_ptr[i].instructions);
 			return;
 		}
 	}
 	for (i = 0; i < sizeof(common_cmds) / sizeof(uv_command_st); i++) {
 		if (strcmp(argv[0].str, common_cmds[i].str) == 0) {
-			printf("\n\r%s:\n\r%s\n\r\n\r", common_cmds[i].str, common_cmds[i].instructions);
+			printf("\n%s:\n%s\n\n", common_cmds[i].str, common_cmds[i].instructions);
 			return;
 		}
 	}
-	printf("Give a command name as a string argument\n\r");
+	printf("Give a command name as a string argument\n");
 }
 #endif
 void uv_terminal_reset_callb(void *me, unsigned int cmd, unsigned int args, argument_st *argv) {
@@ -329,12 +329,12 @@ void uv_terminal_reset_callb(void *me, unsigned int cmd, unsigned int args, argu
 #if CONFIG_NON_VOLATILE_MEMORY
 void uv_terminal_save_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv) {
 	if (!__uv_save_previous_non_volatile_data()) {
-		printf("saved\n\r");
+		printf("saved\n");
 	}
 }
 void uv_terminal_revert_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv) {
 	if (!__uv_clear_previous_non_volatile_data()) {
-		printf("reverted\n\r");
+		printf("reverted\n");
 	}
 }
 #endif

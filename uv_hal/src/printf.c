@@ -223,7 +223,7 @@ int sprintf(char *out, const char *format, ...)
 //		base = 2;
 //		nptr += 2;
 //	}
-//	printf("base: %u\n\r", base);
+//	printf("base: %u\n", base);
 //	while (isxdigit(*nptr)) {
 //		if (isdigit(*nptr)) {
 //			printf("d");

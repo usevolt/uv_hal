@@ -59,7 +59,7 @@
 /* ASCII special character values which can be used in terminal printing */
 #define CLRL			"\x1B[K"
 #define CLRS			"\x1B[2J"
-#define ENDL			"\n\r"
+#define ENDL			"\n"
 
 
 /// @brief: Prefix for CAN message ID's used for command line interface.

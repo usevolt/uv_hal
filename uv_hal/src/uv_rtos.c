@@ -95,7 +95,7 @@ void vApplicationStackOverflowHook(xTaskHandle pxTask, signed char *pcTaskName)
 	(void) pcTaskName;
 
 	__uv_log_error(uv_err(ERR_STACK_OVERFLOW | HAL_MODULE_RTOS));
-	printf("task: %s\n\r", pcTaskName);
+	printf("task: %s\n", pcTaskName);
 	/* Run time stack overflow checking is performed if
 	   configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2.  This hook
 	   function is called if a stack overflow is detected. */

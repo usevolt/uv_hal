@@ -287,12 +287,12 @@ void CAN_rx(uint8_t msg_obj_num) {
 #if CONFIG_CAN_LOG
 	if (can_log) {
 		// log debug info
-		printf("CAN message received\n\r   id: 0x%x\n\r   data length: %u\n\r   data: ",
+		printf("CAN message received\n   id: 0x%x\n   data length: %u\n   data: ",
 				this->temp_msg.id, this->temp_msg.data_length);
 		for ( i = 0; i < this->temp_msg.data_length; i++) {
 			printf("%02x ", this->temp_msg.data_8bit[i]);
 		}
-		printf("\n\r");
+		printf("\n");
 	}
 #endif
 
@@ -317,7 +317,7 @@ void CAN_tx(uint8_t msg_obj_num) {
 	this->tx_pending = 0;
 #if CONFIG_CAN_LOG
 	if (can_log) {
-		printf("CAN message sent.\n\r");
+		printf("CAN message sent.\n");
 	}
 #endif
 
@@ -359,12 +359,12 @@ void CAN_error(uint32_t error_info) {
 	if (error_info & CAN_ERROR_WARN) {
 		printf(" WARN");
 	}
-	printf("\n\r");
+	printf("\n");
 	if (LPC_CAN->STAT & (1 <<7)) {
-		printf("Device is in CAN bus off state\n\r");
+		printf("Device is in CAN bus off state\n");
 	}
 	else if (LPC_CAN->STAT & (1 << 5)) {
-		printf("Device is in CAN error passive state\n\r");
+		printf("Device is in CAN error passive state\n");
 	}
 #endif
 }
@@ -661,11 +661,6 @@ uv_errors_e _uv_can_init() {
 #endif
 
 
-#if CONFIG_TERMINAL_CAN
-	uv_ring_buffer_init(&this->char_buffer, this->char_buffer_data, CONFIG_TERMINAL_BUFFER_SIZE, sizeof(char));
-	uv_can_config_rx_message(CAN1, UV_TERMINAL_CAN_PREFIX + uv_get_id(), CAN_EXT);
-#endif
-
 	// set acceptance filter to idle mode
 	LPC_CANAF->AFMR = 0b10;
 
@@ -677,6 +672,12 @@ uv_errors_e _uv_can_init() {
 
 	// enable acceptance filter
 	LPC_CANAF->AFMR = 0;
+
+#if CONFIG_TERMINAL_CAN
+	uv_ring_buffer_init(&this->char_buffer, this->char_buffer_data, CONFIG_TERMINAL_BUFFER_SIZE, sizeof(char));
+	uv_can_config_rx_message(CAN1, UV_TERMINAL_CAN_PREFIX + uv_get_id(), CAN_EXT);
+
+#endif
 
 	this->init = true;
 
@@ -734,6 +735,7 @@ uv_errors_e uv_can_step(uv_can_channels_e channel, unsigned int step_ms) {
 uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		unsigned int id,
 		uv_can_msg_types_e type) {
+
 	// set acceptance filter to idle mode
 	LPC_CANAF->AFMR = 0b10;
 
@@ -745,7 +747,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 #endif
 
 	if (type == CAN_STD) {
-		uint32_t i = LPC_CANAF->SFF_sa;
+		uint32_t i = LPC_CANAF->SFF_sa / 4;
 
 		// since every 32-bit word contains 2 individual messages and it would
 		// be hard to parse them all, both of the messages in the same word are
@@ -807,9 +809,9 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		}
 	}
 	else {
-		uint32_t i = LPC_CANAF->EFF_sa;
+		uint32_t i = LPC_CANAF->EFF_sa / 4;
 
-		// every entry is a individual message
+		// every entry is an individual message
 
 		bool inserted = false;
 		// cycle trough all registered messages and find the position where to insert new one
@@ -958,7 +960,7 @@ uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
 //			unsigned int p = LPC_CAN1->GSR;
 //			unsigned int f = LPC_CAN1->MOD;
 //			char str[100];
-//			snprintf(str, 100, "bus off %x, %x\n\r", p, f);
+//			snprintf(str, 100, "bus off %x, %x\n", p, f);
 //			uv_uart_send_str(UART0, str);
 			return CAN_ERROR_BUS_OFF;
 		}
@@ -966,7 +968,7 @@ uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
 //			unsigned int p = LPC_CAN1->GSR;
 //			unsigned int f = LPC_CAN1->MOD;
 //			char str[100];
-//			snprintf(str, 100, "error passive %x, %x\n\r", p, f);
+//			snprintf(str, 100, "error passive %x, %x\n", p, f);
 //			uv_uart_send_str(UART0, str);
 			return CAN_ERROR_PASSIVE;
 		}
@@ -974,7 +976,7 @@ uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
 //			unsigned int p = LPC_CAN1->GSR;
 //			unsigned int f = LPC_CAN1->MOD;
 //			char str[100];
-//			snprintf(str, 100, "active %x, %x\n\r", p, f);
+//			snprintf(str, 100, "active %x, %x\n", p, f);
 //			uv_uart_send_str(UART0, str);
 			return CAN_ERROR_ACTIVE;
 		}
@@ -1066,12 +1068,12 @@ void CAN_rx(uint8_t msg_obj_num) {
 #if CONFIG_CAN_LOG
 	if (can_log) {
 		// log debug info
-		printf("CAN message received\n\r   id: 0x%x\n\r   data length: %u\n\r   data: ",
+		printf("CAN message received\n   id: 0x%x\n   data length: %u\n   data: ",
 				this->temp_msg.id, this->temp_msg.data_length);
 		for ( i = 0; i < this->temp_msg.data_length; i++) {
 			printf("%02x ", this->temp_msg.data_8bit[i]);
 		}
-		printf("\n\r");
+		printf("\n");
 	}
 #endif
 
@@ -1096,7 +1098,7 @@ void CAN_tx(uint8_t msg_obj_num) {
 	this->tx_pending = 0;
 #if CONFIG_CAN_LOG
 	if (can_log) {
-		printf("CAN message sent.\n\r");
+		printf("CAN message sent.\n");
 	}
 #endif
 
@@ -1141,7 +1143,7 @@ void CAN_error(uint32_t error_info) {
 		printf(" WARN");
 		can_errors = CAN_ERROR_PASSIVE;
 	}
-	printf("\n\r");
+	printf("\n");
 #endif
 }
 
@@ -1225,7 +1227,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 
 #if CONFIG_CAN_LOG
 	int s = LPC_CAND_API->hwCAN_GetMemSize(&myCANConfig);
-	printf("memory usage: %u\n\r", s);
+	printf("memory usage: %u\n", s);
 #endif
 	for (i = 0; i < 32; i++) {
 		// search for a unused message object to be used for receiving the messages

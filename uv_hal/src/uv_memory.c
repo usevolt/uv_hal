@@ -144,7 +144,7 @@ uv_errors_e uv_memory_save(uv_data_start_t *start_ptr, uv_data_end_t *end_ptr) {
 	if (match) {
 		return uv_err(ERR_NONE);
 	}
-	printf("Flashing %u bytes\n\r", length);
+	printf("Flashing %u bytes\n", length);
 	if (length < 0) {
 		__uv_err_throw(ERR_END_ADDR_LESS_THAN_START_ADDR | HAL_MODULE_MEMORY);
 	}
