@@ -28,7 +28,6 @@
 #include "task.h"
 #include "semphr.h"
 
-
 #if !defined(CONFIG_RTOS_HEAP_SIZE)
 #error "CONFIG_RTOS_HEAP_SIZE not defined. It should define the number of bytes reserved to be used\
  as a RTOS task memory."
@@ -75,6 +74,10 @@ typedef xQueueHandle		uv_rtos_queue_ptr;
 /// @param device: Pointer to the main application data structure. This is the struct which will
 /// be given as the **me** parameter to the HAL library's callback functions.
 void uv_init(void *device);
+
+
+/// @brief: Resets the non-volatile data from all HAL modules to defaults
+void uv_reset();
 
 extern bool rtos_init;
 /// @brief: Returns true when the rtos HAL task is succesfully running and all peripherals should be

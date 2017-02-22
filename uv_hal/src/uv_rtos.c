@@ -148,6 +148,10 @@ void uv_init(void *device) {
 	_uv_can_init();
 #endif
 
+#if CONFIG_CANOPEN
+	_uv_canopen_init();
+#endif
+
 #if CONFIG_SPI
 	_uv_spi_init();
 #endif
@@ -195,6 +199,12 @@ void uv_init(void *device) {
 }
 
 
+void uv_reset() {
+	_uv_canopen_reset();
+}
+
+
+
 
 void hal_task(void *nullptr) {
 	uint16_t step_ms = 2;
@@ -209,7 +219,15 @@ void hal_task(void *nullptr) {
 #if CONFIG_TERMINAL_CAN
 	_uv_stdout_hal_step(step_ms);
 #endif
+
+#if CONFIG_CANOPEN
+	_uv_canopen_step(step_ms);
+#endif
 	uv_rtos_task_delay(step_ms);
 	}
 
 }
+
+
+
+

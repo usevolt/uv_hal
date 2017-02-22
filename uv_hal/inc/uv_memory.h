@@ -14,6 +14,9 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "uv_errors.h"
+#if CONFIG_CANOPEN
+#include "uv_canopen.h"
+#endif
 
 
 #if !defined(CONFIG_NON_VOLATILE_MEMORY)
@@ -25,6 +28,15 @@
  define it in project include paths and symbols (eclipse project settings) with the ${projName},\
  '_' and ${configName} variables.\
  This way the name is automatically updated for new projects."
+#endif
+#if !defined(CONFIG_APPLICATION_STRUCT)
+#error "CONFIG_APPLICATION_STRUCT should define the main user application structure type and name."
+#endif
+#if !defined(CONFIG_NON_VOLATILE_START)
+#error "CONFIG_NON_VOLATILE should defined the uv_data_start_st variable in this application"
+#endif
+#if !defined(CONFIG_NON_VOLATILE_END)
+#error "CONFIG_NON_VOLATILE should defined the uv_data_end_st variable in this application"
 #endif
 
 #if CONFIG_TARGET_LPC11C14
@@ -44,6 +56,9 @@
 #endif
 
 
+
+
+
 /// @brief: Data type which should be used to mark the start of
 /// non-volatile data section. Define a variable of this type as the
 /// first variable in the data section.
@@ -60,6 +75,10 @@ typedef struct {
 	/// @brief: Checksum to identify if data between start and end
 	/// was uninitialized or changed from what was found in non-volatile memory.
 	uint32_t start_checksum;
+#if CONFIG_CANOPEN
+	// non-volatile data for canopen
+	_canopen_non_volatile_st canopen_data;
+#endif
 } uv_data_start_t;
 
 /// @brief: Data type which should be used to mark the end of

@@ -43,13 +43,6 @@
 
 #endif
 
-/// @brief: Defines the value which will be save to the checksum memory location when
-/// saving data. Value should'nt be 0 or 0xFFFFFFFF, because those values are likely
-/// to be found in non-initialized memory.
-typedef enum {
-	CHECKSUM_VALID = 0xAAAAAAAA
-} uv_checksum_values_e;
-
 
 // IAP function location, refer to user manual page 269
 #if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1785
@@ -81,6 +74,8 @@ const char *uv_projname = STRINGIFY(__UV_PROJECT_NAME);
 const char *uv_datetime = __DATE__ " " __TIME__;
 
 #endif
+
+#define CHECKSUM_VALID 0xAAAAAAAA
 
 
 
@@ -212,9 +207,11 @@ uv_errors_e uv_memory_load(uv_data_start_t *start_ptr, uv_data_end_t *end_ptr) {
 
 	//check both checksums
 	if (start_ptr->start_checksum != CHECKSUM_VALID) {
+		uv_reset();
 		__uv_err_throw(ERR_START_CHECKSUM_NOT_MATCH | HAL_MODULE_MEMORY);
 	}
 	else if (end_ptr->end_checksum != CHECKSUM_VALID) {
+		uv_reset();
 		__uv_err_throw(ERR_END_CHECKSUM_NOT_MATCH | HAL_MODULE_MEMORY);
 	}
 	return uv_err(ERR_NONE);
