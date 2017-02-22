@@ -30,7 +30,7 @@ void uv_uiprogressbar_init(void *me, int16_t min_value,
 }
 
 
-void uv_uiprogressbar_set_value(void *me, uint16_t value) {
+void uv_uiprogressbar_set_value(void *me, int16_t value) {
 	if (value > this->max_val) value = this->max_val;
 	else if (value < this->min_val) value = this->min_val;
 	if (this->value != value) {

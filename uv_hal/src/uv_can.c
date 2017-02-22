@@ -633,10 +633,16 @@ void CAN_IRQHandler(void) {
 
 #if CONFIG_TERMINAL_CAN
 	// terminal characters are sent to their specific buffer
-	if (this->temp.id == UV_TERMINAL_CAN_PREFIX + uv_get_id()) {
+	if (this->temp.id == UV_TERMINAL_CAN_RX_ID + uv_get_id() &&
+			this->temp.type == CAN_STD &&
+			this->temp.data_8bit[0] == 0x22 &&
+			this->temp.data_8bit[1] == (UV_TERMINAL_CAN_INDEX & 0xFF) &&
+			this->temp.data_8bit[2] == UV_TERMINAL_CAN_INDEX >> 8 &&
+			this->temp.data_8bit[3] == UV_TERMINAL_CAN_SUBINDEX &&
+			this->temp.data_length > 4) {
 		uint8_t i;
-		for (i = 0; i < this->temp.data_length; i++) {
-			uv_ring_buffer_push(&this->char_buffer, (char*) &this->temp.data_8bit[i]);
+		for (i = 0; i < this->temp.data_length - 4; i++) {
+			uv_ring_buffer_push(&this->char_buffer, (char*) &this->temp.data_8bit[4 + i]);
 		}
 		// clear received flag
 		LPC_CAN1->CMR |= (1 << 2);
@@ -736,7 +742,9 @@ uv_errors_e _uv_can_init() {
 
 #if CONFIG_TERMINAL_CAN
 	uv_ring_buffer_init(&this->char_buffer, this->char_buffer_data, CONFIG_TERMINAL_BUFFER_SIZE, sizeof(char));
-	uv_can_config_rx_message(CAN1, UV_TERMINAL_CAN_PREFIX + uv_get_id(), CAN_EXT);
+#if !CONFIG_CANOPEN
+	uv_can_config_rx_message(CAN1, UV_TERMINAL_CAN_ID + uv_get_id(), CAN_STD);
+#endif
 
 #endif
 

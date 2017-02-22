@@ -23,21 +23,25 @@
 
 #if CONFIG_TERMINAL_CAN
 #define CAN_DELAY_MS		4
-static uint8_t can_buffer[8];
-static uv_vector_st can_vec = UV_VECTOR_INIT(can_buffer, 8, 1);
+static uint8_t can_buffer[4];
+static uv_vector_st can_vec = UV_VECTOR_INIT(can_buffer, 4, 1);
 static int8_t can_delay = 0;
 #endif
 
 #if CONFIG_TERMINAL_CAN
 static void send_can_msg(void) {
 	uv_can_message_st msg = {
-			.id = UV_TERMINAL_CAN_PREFIX + uv_get_id(),
-			.data_length = uv_vector_size(&can_vec),
-			.type = CAN_EXT
+			.id = UV_TERMINAL_CAN_ID + uv_get_id(),
+			.data_length = 4 + uv_vector_size(&can_vec),
+			.type = CAN_STD
 	};
 	uint8_t i;
+	msg.data_8bit[0] = 0x42;
+	msg.data_8bit[1] = UV_TERMINAL_CAN_INDEX & 0xFF;
+	msg.data_8bit[2] = UV_TERMINAL_CAN_INDEX >> 8;
+	msg.data_8bit[3] = UV_TERMINAL_CAN_SUBINDEX;
 	for (i = 0; i < uv_vector_size(&can_vec); i++) {
-		msg.data_8bit[i] = *((uint8_t*)uv_vector_at(&can_vec, i));
+		msg.data_8bit[4 + i] = *((uint8_t*)uv_vector_at(&can_vec, i));
 	}
 	uv_vector_clear(&can_vec);
 	can_delay = CAN_DELAY_MS;
@@ -58,7 +62,7 @@ int outbyte(int c) {
 #if CONFIG_TERMINAL_CAN
 	uint8_t ch = c;
 	uv_vector_push_back(&can_vec, &ch);
-	if (uv_vector_size(&can_vec) == 8) {
+	if (uv_vector_size(&can_vec) == uv_vector_max_size(&can_vec)) {
 		send_can_msg();
 	}
 #endif

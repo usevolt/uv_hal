@@ -387,12 +387,12 @@ void uv_set_id(uint16_t id) {
 	}
 }
 
-uint16_t uv_get_id() {
+uint8_t uv_get_id() {
 	if (last_start) {
-		return last_start->id;
+		return (uint8_t) last_start->id;
 	}
 	else {
-		return *((uint16_t*)(NON_VOLATILE_MEMORY_START_ADDRESS + 8));
+		return *((uint8_t*)(NON_VOLATILE_MEMORY_START_ADDRESS + 8));
 	}
 }
 

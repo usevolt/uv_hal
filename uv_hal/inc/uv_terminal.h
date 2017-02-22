@@ -63,9 +63,11 @@
 
 
 /// @brief: Prefix for CAN message ID's used for command line interface.
-/// The actual CAN ID consists of this and a device specific ID number,
-/// which is constructed as a crc from the project name
-#define UV_TERMINAL_CAN_PREFIX		(0x1556 << 16)
+/// The actual CAN ID consists of this and a CANopen node id
+#define UV_TERMINAL_CAN_ID			0x580
+#define UV_TERMINAL_CAN_RX_ID		0x600
+#define UV_TERMINAL_CAN_INDEX		0x5FFF
+#define UV_TERMINAL_CAN_SUBINDEX	0
 
 
 

@@ -214,7 +214,7 @@ void uv_set_id(uint16_t id);
 
 /// @brief: Returns the ID to the start_st structure.
 /// @pre: uv_load or uv_save function should be called
-uint16_t uv_get_id();
+uint8_t uv_get_id();
 
 
 
