@@ -152,6 +152,10 @@ static inline void uv_uidigit_set_scale(void *me, float scale) {
 }
 
 
+static inline int uv_uidigit_get_value(void *me) {
+	return this->value;
+}
+
 
 /// @brief: Draws raw text on the screen.
 /// Should be used only inside this hal library

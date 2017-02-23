@@ -250,24 +250,28 @@ void uv_uidigit_init(void *me, const uv_font_st *font,
 	uv_uilabel_init(me, font, alignment, color, bgcolor, "");
 	this->divider = 1;
 	strcpy(this->format, format);
+	// force redraw
+	uv_uidigit_set_value(this, !value);
 	uv_uidigit_set_value(this, value);
 }
 
 
 void uv_uidigit_set_value(void *me, int value) {
-	uv_uilabel_set_text(me, "");
-	this->value = value;
-	int val = value / (this->divider);
-	unsigned int cval = abs(value) % (this->divider);
+	if (this->value != value) {
+		uv_uilabel_set_text(me, "");
+		this->value = value;
+		int val = value / (this->divider);
+		unsigned int cval = abs(value) % (this->divider);
 
-	if (this->divider != 1) {
-		sprintf(this->str, this->format, val, cval);
+		if (this->divider != 1) {
+			sprintf(this->str, this->format, val, cval);
+		}
+		else {
+			sprintf(this->str, this->format, val);
+		}
+		this->super.str = this->str;
+		uv_ui_refresh(this);
 	}
-	else {
-		sprintf(this->str, this->format, val);
-	}
-	this->super.str = this->str;
-	uv_ui_refresh(this);
 }
 
 

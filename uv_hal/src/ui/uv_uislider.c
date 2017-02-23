@@ -70,7 +70,8 @@ static void draw(void *me) {
 		x = uv_ui_get_xglobal(this) + uv_uibb(this)->width / 2 - CONFIG_UI_SLIDER_WIDTH / 2;
 		y = uv_ui_get_yglobal(this);
 		w = CONFIG_UI_SLIDER_WIDTH;
-		h = uv_uibb(this)->height - (this->title ? (this->style->font->char_height + 5) : 0);
+		h = uv_uibb(this)->height - (this->title ?
+				(uv_ui_text_height_px(this->title, this->style->font, 1.0f) + 5) : 0);
 		uv_lcd_draw_rect(x, y, w, h, this->style->inactive_bg_c);
 		uv_lcd_draw_frame(x, y, w, h, 1,
 				this->style->inactive_frame_c);
@@ -78,7 +79,8 @@ static void draw(void *me) {
 		// handle relative position
 		int16_t hpy = uv_reli(this->cur_val, this->min_val, this->max_val);
 		int16_t hy = uv_lerpi(hpy, uv_uibb(this)->height -
-				CONFIG_UI_SLIDER_WIDTH - 1 - (this->title ? this->style->font->char_height + 5 : 0), 0);
+				CONFIG_UI_SLIDER_WIDTH - 1 - (this->title ?
+						(uv_ui_text_height_px(this->title, this->style->font, 1.0f) + 5) : 0), 0);
 		// hy indicates the handle position
 		uv_lcd_draw_rect(x + 1, y + hy + 1,
 				w - 2, CONFIG_UI_SLIDER_WIDTH - 1,

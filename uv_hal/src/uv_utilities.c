@@ -126,7 +126,9 @@ uv_errors_e uv_vector_push_back(uv_vector_st *this, void *data) {
 	if (this->len >= this->buffer_size) {
 		return uv_err(ERR_BUFFER_OVERFLOW | HAL_MODULE_UTILITIES);
 	}
-	memcpy(&this->buffer[this->len * this->element_size], data, this->element_size);
+	if (data) {
+		memcpy(&this->buffer[this->len * this->element_size], data, this->element_size);
+	}
 	this->len++;
 	return uv_err(ERR_NONE);
 }
