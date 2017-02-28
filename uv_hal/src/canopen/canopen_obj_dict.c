@@ -9,6 +9,7 @@
 #include "canopen/canopen_obj_dict.h"
 #include "uv_canopen.h"
 #include <string.h>
+#include CONFIG_MAIN_H
 
 #if CONFIG_CANOPEN
 

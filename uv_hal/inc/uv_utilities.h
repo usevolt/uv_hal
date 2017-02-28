@@ -33,7 +33,7 @@
 
 /// @brief: Extern declaration of the main application. This is used
 /// to access uv_data_start and uv_data_end variables at build time.
-extern CONFIG_APPLICATION_STRUCT;
+extern CONFIG_APP_ST;
 
 
 #include "uv_types.h"
