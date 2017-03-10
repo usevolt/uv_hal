@@ -10,6 +10,7 @@
 
 #include <uv_hal_config.h>
 #include "canopen/canopen_common.h"
+#include "uv_can.h"
 
 
 #if CONFIG_CANOPEN
@@ -41,11 +42,19 @@ typedef enum {
 } canopen_nmt_commands_e;
 
 
-typedef struct {
-
-} _canopen_nmt_st;
 
 
+void _uv_canopen_nmt_init(void);
+
+void _uv_canopen_nmt_reset(void);
+
+void _uv_canopen_nmt_step(uint16_t step_ms);
+
+void _uv_canopen_nmt_rx(const uv_can_message_st *msg);
+
+canopen_node_states_e _uv_canopen_nmt_get_state(void);
+
+void _uv_canopen_nmt_set_state(canopen_node_states_e state);
 
 
 

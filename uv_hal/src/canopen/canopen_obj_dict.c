@@ -13,6 +13,7 @@
 
 #if CONFIG_CANOPEN
 
+
 /// @brief: Object dictionary's application parameter array,
 /// given by the user application.
 extern const canopen_object_st CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS [];
@@ -71,7 +72,7 @@ const canopen_object_st com_params[] = {
 				.sub_index = 0,
 				.permissions = CANOPEN_RW,
 				.type = CANOPEN_UNSIGNED8,
-				.data_ptr = &CONFIG_NON_VOLATILE_START.canopen_data.node_id
+				.data_ptr = &CONFIG_NON_VOLATILE_START.id
 		},
 		{
 				.main_index = CONFIG_CANOPEN_STORE_PARAMS_INDEX,
@@ -125,21 +126,33 @@ static inline unsigned int com_params_count() {
 }
 
 
-bool _canopen_obj_dict_get(uint16_t main_index, canopen_object_st *dest) {
+bool cpy(canopen_object_st *dest, const canopen_object_st *src, uint8_t subindex) {
+	if (uv_canopen_is_array(src)) {
+		if (subindex > src->array_max_size) {
+			return false;
+		}
+	}
+	else if (subindex != src->sub_index) {
+		return false;
+	}
+
+	if (dest) {
+		memcpy(dest, src, sizeof(canopen_object_st));
+	}
+	return true;
+}
+
+
+
+bool _canopen_obj_dict_get(uint16_t main_index, uint8_t subindex, canopen_object_st *dest) {
 	for (unsigned int i = 0; i < com_params_count(); i++) {
 		if (com_params[i].main_index == main_index) {
-			if (dest) {
-				memcpy(dest, &com_params[i], sizeof(canopen_object_st));
-			}
-			return true;
+			return cpy(dest, &com_params[i], subindex);
 		}
 	}
 	for (int i = 0; i < CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS_COUNT(); i++) {
 		if (CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS [i].main_index == main_index) {
-			if (dest) {
-				memcpy(dest, & CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS [i], sizeof(canopen_object_st));
-			}
-			return true;
+			return cpy(dest, & CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS [i], subindex);
 		}
 	}
 	return false;

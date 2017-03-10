@@ -11,13 +11,22 @@
 
 
 #include <uv_hal_config.h>
+#include "uv_can.h"
 #include "canopen/canopen_common.h"
 
 #if CONFIG_CANOPEN
 
-typedef struct {
 
-} _canopen_heartbeat_st;
+
+
+
+void _uv_canopen_heartbeat_init(void);
+
+void _uv_canopen_heartbeat_reset(void);
+
+void _uv_canopen_heartbeat_step(uint16_t step_ms);
+
+void _uv_canopen_heartbeat_rx(const uv_can_message_st *msg);
 
 
 #endif /* UV_HAL_INC_CANOPEN_CANOPEN_HEARTBEAT_H_ */

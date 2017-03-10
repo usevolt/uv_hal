@@ -100,6 +100,16 @@
 #if !defined(CONFIG_CANOPEN_PDO_MAPPING_COUNT)
 #define CONFIG_CANOPEN_PDO_MAPPING_COUNT	8
 #endif
+#if !defined(CONFIG_CANOPEN_SDO_SYNC)
+#error "CONFIG_CANOPEN_SDO_SYNC should define if synchronized SDO transmission is enabled.\
+ It defaults to 0."
+#define CONFIG_CANOPEN_SDO_SYNC				0
+#endif
+#if !defined(CONFIG_CANOPEN_SDO_SEGMENTED)
+#error "CONFIG_CANOPEN_SDO_SEGMENTED should be defined as 1 if SDO segmented transfers \
+should be enabled. Defaults to 0."
+#define CONFIG_CANOPEN_SDO_SEGMENTED		0
+#endif
 #if !defined(CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS)
 #error "CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS should define the name of the canopen_object_st array\
  which contains all application's CANopen objects in object dictionary."
@@ -126,6 +136,9 @@
 #error "CONFIG_CANOPEN_CONSUMER_HEARTBEAT_COUNT should defined the number of nodes whose heartbeat \
  this node monitors. If heartbeats are not monitored, set this to 0."
 #endif
+#if !defined(CONFIG_CANOPEN_CHANNEL)
+#error "CONFIG_CANOPEN_CANNEL should define the uv_can channel to be used for CANopen communication"
+#endif
 
 
 
@@ -133,8 +146,6 @@
 
 
 typedef struct {
-	uint8_t node_id;
-
 	uint16_t producer_heartbeat_time_ms;
 #if CONFIG_CANOPEN_CONSUMER_HEARTBEAT_COUNT
 	uint32_t consumer_heartbeats[CONFIG_CANOPEN_CONSUMER_HEARTBEAT_COUNT];
@@ -155,11 +166,24 @@ typedef struct {
 /// RAM section which can be saved to the non-volatile flash. This way
 /// CANopen configurations can be saved with the STORE_PARAMETERS object
 typedef struct {
+	canopen_node_states_e state;
 	uint32_t device_type;
 	uint32_t store_req;
 	uint32_t restore_req;
 	canopen_identity_object_st identity;
-	int16_t heartbeat_time;
+	int heartbeat_time;
+
+	// SDO member variables
+	struct {
+		canopen_sdo_state_e state;
+		struct {
+			uint16_t mindex;
+			uint8_t sindex;
+			uint8_t node_id;
+			void *rx_data;
+			uint32_t rx_data_len;
+		} transfer;
+	} sdo;
 
 } _uv_canopen_st;
 
@@ -170,8 +194,19 @@ extern _uv_canopen_st _canopen;
 
 
 
-
-
+#define CANOPEN_HEARTBEAT_ID	0x700
+#define CANOPEN_SDO_REQUEST_ID	0x600
+#define CANOPEN_SDO_RESPONSE_ID	0x580
+#define CANOPEN_NMT_ID			0x0
+#define CANOPEN_TXPDO1_ID		0x180
+#define CANOPEN_TXPDO2_ID		0x280
+#define CANOPEN_TXPDO3_ID		0x380
+#define CANOPEN_TXPDO4_ID		0x480
+#define CANOPEN_RXPDO1_ID		0x200
+#define CANOPEN_RXPDO2_ID		0x300
+#define CANOPEN_RXPDO3_ID		0x400
+#define CANOPEN_RXPDO4_ID		0x500
+#define CANOPEN_EMCY_ID			0x80
 
 
 
@@ -284,18 +319,23 @@ void uv_canopen_set_state(canopen_node_states_e state);
 /// and it should move itself to pre-operational state arfter boot up is done.
 canopen_node_states_e uv_canopen_get_state(void);
 
-/// @brief: Sends an SDO request to another node
-///
-/// @param sdo: The SDO message data structure which is sent.
-/// @param node_id: The destination node's node id
-uv_errors_e uv_canopen_send_sdo(uv_canopen_sdo_message_st *sdo, uint8_t node_id);
-
-
 /// @brief: Quick way for sending a SDO write request
-uv_errors_e uv_canopen_sdo_write(uv_canopen_sdo_commands_e sdoreq, uint8_t node_id,
-		uint16_t mindex, uint8_t sindex, uint32_t data);
+static inline uv_errors_e uv_canopen_sdo_write(uint8_t node_id,
+		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *data) {
+	return _uv_canopen_sdo_write(node_id, mindex, sindex, data_len, data);
+}
 
+#if CONFIG_CANOPEN_SDO_SYNC
+static inline uv_errors_e uv_canopen_sdo_write_sync(uint8_t node_id, uint16_t mindex,
+		uint8_t sindex, uint32_t data_len, void *data, int32_t timeout_ms) {
+	return _uv_canopen_sdo_write_sync(node_id, mindex, sindex, data_len, data, timeout_ms);
+}
 
+static inline uv_errors_e uv_canopen_sdo_read_sync(uint8_t node_id, uint16_t mindex,
+		uint8_t sindex, uint32_t data_len, void *data, int32_t timeout_ms) {
+	return _uv_canopen_sdo_read_sync(node_id, mindex, sindex, data_len, data, timeout_ms);
+}
+#endif
 
 #endif
 

@@ -18,6 +18,7 @@
 #include "uv_uart.h"
 #include "uv_utilities.h"
 #include "uv_wdt.h"
+#include CONFIG_MAIN_H
 #ifdef CONFIG_RTOS
 #include "uv_rtos.h"
 #endif
@@ -66,16 +67,11 @@ typedef void (*IAP)(unsigned int [],unsigned int[]);
 
 #if CONFIG_NON_VOLATILE_MEMORY
 
-static uv_data_start_t* last_start = NULL;
-static uv_data_end_t *last_end = NULL;
-
 
 const char *uv_projname = STRINGIFY(__UV_PROJECT_NAME);
 const char *uv_datetime = __DATE__ " " __TIME__;
 
 #endif
-
-#define CHECKSUM_VALID 0xAAAAAAAA
 
 
 
@@ -122,16 +118,15 @@ void uv_get_device_serial(unsigned int dest[4]) {
 
 #if CONFIG_NON_VOLATILE_MEMORY
 
-uv_errors_e uv_memory_save(uv_data_start_t *start_ptr, uv_data_end_t *end_ptr) {
-	// take up memory locations
-	last_start = start_ptr;
-	last_end = end_ptr;
-	int length = ((unsigned int) end_ptr + sizeof(uv_data_end_t)) - (unsigned int) start_ptr;
+uv_errors_e uv_memory_save(void) {
+	int length = ((unsigned int) &CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
+			(unsigned int) &CONFIG_NON_VOLATILE_START;
 
 	bool match = true;
 	unsigned int i;
 	for (i = 0; i < length; i++) {
-		if (((uint8_t*) start_ptr)[i] != ((uint8_t*) NON_VOLATILE_MEMORY_START_ADDRESS)[i]) {
+		if (((uint8_t*) &CONFIG_NON_VOLATILE_START)[i] !=
+				((uint8_t*) NON_VOLATILE_MEMORY_START_ADDRESS)[i]) {
 			match = false;
 			break;
 		}
@@ -170,13 +165,13 @@ uv_errors_e uv_memory_save(uv_data_start_t *start_ptr, uv_data_end_t *end_ptr) {
 	}
 
 	// add the right value to data checksum
-	start_ptr->start_checksum = CHECKSUM_VALID;
-	start_ptr->project_name = uv_projname;
-	start_ptr->build_date = uv_datetime;
-	end_ptr->end_checksum = CHECKSUM_VALID;
+	CONFIG_NON_VOLATILE_START.project_name = uv_projname;
+	CONFIG_NON_VOLATILE_START.build_date = uv_datetime;
+	CONFIG_NON_VOLATILE_END.crc = uv_memory_calc_crc(&CONFIG_NON_VOLATILE_START,
+			(uint32_t) &CONFIG_NON_VOLATILE_END - (uint32_t) &CONFIG_NON_VOLATILE_START);
 	// note: id should be assigned by the canopen module
 
-	uv_iap_status_e status = uv_erase_and_write_to_flash((unsigned int) start_ptr,
+	uv_iap_status_e status = uv_erase_and_write_to_flash((unsigned int) &CONFIG_NON_VOLATILE_START,
 			length, NON_VOLATILE_MEMORY_START_ADDRESS);
 	if (status == IAP_CMD_SUCCESS) {
 		return uv_err(ERR_NONE);
@@ -187,15 +182,12 @@ uv_errors_e uv_memory_save(uv_data_start_t *start_ptr, uv_data_end_t *end_ptr) {
 }
 
 
-uv_errors_e uv_memory_load(uv_data_start_t *start_ptr, uv_data_end_t *end_ptr) {
-	int length = ((unsigned int) end_ptr + sizeof(uv_data_end_t)) - (unsigned int) start_ptr;
+uv_errors_e uv_memory_load(void) {
+	int length = ((unsigned int) &CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
+			(unsigned int) &CONFIG_NON_VOLATILE_START;
 	int i;
-	char* d = (char*) start_ptr;
+	char* d = (char*) &CONFIG_NON_VOLATILE_START;
 	char* source = (char*) NON_VOLATILE_MEMORY_START_ADDRESS;
-
-	// store memory locations
-	last_start = start_ptr;
-	last_end = end_ptr;
 
 	// copy values from flash to destination
 	// this requires that sizeof(char) == 1 byte.
@@ -206,12 +198,9 @@ uv_errors_e uv_memory_load(uv_data_start_t *start_ptr, uv_data_end_t *end_ptr) {
 	}
 
 	//check both checksums
-	if (start_ptr->start_checksum != CHECKSUM_VALID) {
-		uv_reset();
-		__uv_err_throw(ERR_START_CHECKSUM_NOT_MATCH | HAL_MODULE_MEMORY);
-	}
-	else if (end_ptr->end_checksum != CHECKSUM_VALID) {
-		uv_reset();
+	if (CONFIG_NON_VOLATILE_END.crc !=
+			uv_memory_calc_crc(&CONFIG_NON_VOLATILE_START,
+					(uint32_t) &CONFIG_NON_VOLATILE_END - (uint32_t) &CONFIG_NON_VOLATILE_START)) {
 		__uv_err_throw(ERR_END_CHECKSUM_NOT_MATCH | HAL_MODULE_MEMORY);
 	}
 	return uv_err(ERR_NONE);
@@ -315,36 +304,12 @@ uv_iap_status_e uv_erase_and_write_to_flash(unsigned int ram_address,
 
 
 
-uv_errors_e __uv_save_previous_non_volatile_data() {
-	if (!last_start) {
-		/* 	Error: Cannot save data. data source address is not specified.
-			Make sure that the application calls uv_save_non_volatile_data or
-			uv_load_non_volatile_data before attempting this. */
-		__uv_err_throw(ERR_INTERNAL | HAL_MODULE_MEMORY);
-	}
-	return uv_memory_save(last_start, last_end);
-}
 
+uv_errors_e uv_memory_clear(void) {
+	CONFIG_NON_VOLATILE_END.crc = !CONFIG_NON_VOLATILE_END.crc;
 
-uv_errors_e __uv_load_previous_non_volatile_data() {
-	if (!last_start) {
-		/* 	Error: Cannot save data. data source address is not specified.
-			Make sure that the application calls uv_save_non_volatile_data or
-			uv_load_non_volatile_data before attempting this. */
-		__uv_err_throw(ERR_INTERNAL | HAL_MODULE_MEMORY);
-	}
-	return uv_memory_load(last_start, last_end);
-}
-
-
-uv_errors_e __uv_clear_previous_non_volatile_data() {
-	if (!last_start) {
-		__uv_err_throw(ERR_INTERNAL | HAL_MODULE_MEMORY);
-	}
-	last_start->start_checksum = 0;
-	last_end->end_checksum = 0;
-
-	int length = ((unsigned int) last_end + sizeof(uv_data_end_t)) - (unsigned int) last_start;
+	int length = ((unsigned int) &CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
+			(unsigned int) &CONFIG_NON_VOLATILE_START;
 	if (length < 0) {
 		__uv_err_throw(ERR_END_ADDR_LESS_THAN_START_ADDR | HAL_MODULE_MEMORY);
 	}
@@ -366,7 +331,7 @@ uv_errors_e __uv_clear_previous_non_volatile_data() {
 		length = IAP_BYTES_256;
 	}
 
-	uv_iap_status_e status = uv_erase_and_write_to_flash((unsigned int) last_start,
+	uv_iap_status_e status = uv_erase_and_write_to_flash((unsigned int) &CONFIG_NON_VOLATILE_START,
 			length, NON_VOLATILE_MEMORY_START_ADDRESS);
 	if (status == IAP_CMD_SUCCESS) {
 		return uv_err(ERR_NONE);
@@ -379,29 +344,23 @@ uv_errors_e __uv_clear_previous_non_volatile_data() {
 #endif
 
 void uv_set_id(uint16_t id) {
-	if (last_start) {
-		last_start->id = id;
-	}
+	CONFIG_NON_VOLATILE_START.id = id;
 }
 
 uint8_t uv_get_id() {
-	if (last_start) {
-		return (uint8_t) last_start->id;
-	}
-	else {
-		return *((uint8_t*)(NON_VOLATILE_MEMORY_START_ADDRESS + 8));
-	}
+	return *((uint8_t*)(NON_VOLATILE_MEMORY_START_ADDRESS + 8));
 }
 
 
-uint16_t uv_memory_calc_crc(const uint8_t *data, int32_t len) {
+uint16_t uv_memory_calc_crc(void *data, int32_t len) {
 	uint8_t i;
 	uint16_t crc = 0;
+	uint8_t *d = data;
 
     while(--len >= 0)
     {
     	i = 8;
-    	crc = crc ^ (((uint16_t)*data++) << 8);
+    	crc = crc ^ (((uint16_t)*d++) << 8);
 
     	do
         {
@@ -417,5 +376,20 @@ uint16_t uv_memory_calc_crc(const uint8_t *data, int32_t len) {
     	while(--i);
     }
     return crc;
+}
+
+/// @brief: Returns the project name saved in the non-volatile memory
+const char *uv_memory_get_project_name() {
+	return CONFIG_NON_VOLATILE_START.project_name;
+}
+
+/// @brief: Returns the project name crc value saved in the non-volatile memory
+uint16_t uv_memory_get_project_id(uv_data_start_t *start_ptr) {
+	return CONFIG_NON_VOLATILE_START.id;
+}
+
+/// @brief: Returns the project building date saved in the non-volatile memory
+const char *uv_memory_get_project_date(uv_data_start_t *start_ptr) {
+	return CONFIG_NON_VOLATILE_START.build_date;
 }
 

@@ -515,7 +515,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 	// config them with settings requested
 	// the last message object is reserved for sending messages
 	uint8_t i;
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i < 31; i++) {
 		// search for a unused message object to be used for receiving the messages
 		if (!GET_MASKED(this->used_msg_objs, (1 << i))) {
 			hal_can_msg_obj_st obj = {
@@ -856,12 +856,13 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 			i++;
 		}
 		if (!inserted) {
-
 			// No smaller ID messages found from the RAM. Add new entry
 			// to the end of the STD RAM
 			// copy all messages one word forward
 			for (int in = LPC_CANAF->ENDofTable / 4; in >= (int) i; in--) {
-				LPC_CANAF_RAM->mask[in] = LPC_CANAF_RAM->mask[in - 1];
+				if (in) {
+					LPC_CANAF_RAM->mask[in] = LPC_CANAF_RAM->mask[in - 1];
+				}
 			}
 			LPC_CANAF->SFF_GRP_sa += 4;
 			LPC_CANAF->EFF_sa += 4;
@@ -894,7 +895,9 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 			if (id < EXT_ID(i)) {
 				// copy all messages one word forward
 				for (int in = LPC_CANAF->ENDofTable / 4; in >= i; in--) {
-					LPC_CANAF_RAM->mask[in] = LPC_CANAF_RAM->mask[in - 1];
+					if (in) {
+						LPC_CANAF_RAM->mask[in] = LPC_CANAF_RAM->mask[in - 1];
+					}
 				}
 				LPC_CANAF->EFF_GRP_sa += 4;
 				LPC_CANAF->ENDofTable += 4;

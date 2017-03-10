@@ -12,28 +12,9 @@
 
 #include <uv_hal_config.h>
 #include "canopen/canopen_common.h"
+#include "uv_can.h"
 
 #if CONFIG_CANOPEN
-
-typedef enum {
-	CANOPEN_UNKNOWN_PROTOCOL,
-	CANOPEN_SDO_REQUEST_ID = 		0x600,
-	CANOPEN_SDO_RESPONSE_ID = 		0x580,
-	CANOPEN_SDO_ERROR_ID =			0x80,
-	CANOPEN_EMCY_ID =				0x80,
-	CANOPEN_TXPDO1_ID = 			0x180,
-	CANOPEN_TXPDO2_ID = 			0x280,
-	CANOPEN_TXPDO3_ID = 			0x380,
-	CANOPEN_TXPDO4_ID = 			0x480,
-	CANOPEN_RXPDO1_ID = 			0x200,
-	CANOPEN_RXPDO2_ID = 			0x300,
-	CANOPEN_RXPDO3_ID = 			0x400,
-	CANOPEN_RXPDO4_ID = 			0x500,
-	CANOPEN_BOOTUP_ID = 			0x700,
-	CANOPEN_HEARTBEAT_ID = 			0x700,
-	CANOPEN_NMT_ID = 				0x0
-} uv_canopen_protocol_ids_e;
-
 
 
 
@@ -45,28 +26,12 @@ typedef enum {
 	CANOPEN_SDO_ERROR_OBJECT_DOES_NOT_EXIST = 					0x06020000,
 	CANOPEN_SDO_ERROR_VALUE_OF_PARAMETER_TOO_HIGH = 			0x06090031,
 	CANOPEN_SDO_ERROR_VALUE_OF_PARAMETER_TOO_LOW = 				0x06090032,
+	CANOPEN_SDO_ERROR_OBJECT_ACCESS_FAILED_DUE_TO_HARDWARE =	0x06060000,
 	CANOPEN_SDO_ERROR_GENERAL = 								0x08000000
 } _uv_sdo_error_codes_e;
 typedef uint32_t uv_sdo_error_codes_e;
 
 
-
-
-/// @brief: SDO command specifier, e.g. the MSB data byte of the CAN message
-typedef enum {
-	CANOPEN_SDO_CMD_READ = 						0x40,
-	CANOPEN_SDO_CMD_READ_RESPONSE_1_BYTE =		0x4F,
-	CANOPEN_SDO_CMD_READ_RESPONSE_2_BYTES =		0x4B,
-	CANOPEN_SDO_CMD_READ_RESPONSE_4_BYTES =		0x43,
-	CANOPEN_SDO_CMD_READ_RESPONSE_BYTES =		0x42,
-	CANOPEN_SDO_CMD_WRITE_1_BYTE = 				0x2F,
-	CANOPEN_SDO_CMD_WRITE_2_BYTES = 			0x2B,
-	CANOPEN_SDO_CMD_WRITE_4_BYTES = 			0x23,
-	CANOPEN_SDO_CMD_WRITE_BYTES = 				0x22,
-	CANOPEN_SDO_CMD_WRITE_RESPONSE =			0x60,
-	CANOPEN_SDO_CMD_ERROR = 					0x80
-} _uv_canopen_sdo_commands_e;
-typedef uint8_t uv_canopen_sdo_commands_e;
 
 
 /// @brief: Defines the indexspaces for CANopen object main indexes.
@@ -80,31 +45,50 @@ typedef enum {
 
 
 
-typedef struct {
-	/// @brief: Request regarding this sdo entry, as a uv_canopen_sdo_commands_e
-	uv_canopen_sdo_commands_e request;
-	/// @brief: Index for this CANopen object dictionary entry
-	uint16_t main_index;
-	/// @brief: Subindex for this CANopen object dictionary entry
-	uint8_t sub_index;
-	/// @brief: Data length for this CANopen object dictionary entry.
-	/// @note: Currently only expedited entries are supported => this has to be betweeen 1 to 4.
-	uint8_t data_length;
-	/// @brief: Data of this CANopen object dictionary entry
-	union {
-		uint8_t data_8bit[4];
-		uint16_t data_16bit[2];
-		uint32_t data_32bit;
-	};
-
-} uv_canopen_sdo_message_st;
+enum {
+	CANOPEN_SDO_STATE_READY = 1,
+	CANOPEN_SDO_STATE_TRANSFER_ABORTED = 2,
+	CANOPEN_SDO_STATE_TRANSFER_DONE = 3,
+	CANOPEN_SDO_STATE_EXPEDITED_WRITE = (1 << 4),
+	CANOPEN_SDO_STATE_EXPEDITED_READ = (2 << 4),
+	CANOPEN_SDO_STATE_SEGMENTED_READ = (3 << 4),
+	CANOPEN_SDO_STATE_SEGMENTED_WRITE = (4 << 4)
+};
+typedef uint8_t canopen_sdo_state_e;
+#define CANOPEN_SDO_STATE_FINISHED_MASK	(0b1111)
 
 
+void _uv_canopen_sdo_init(void);
+
+void _uv_canopen_sdo_reset(void);
+
+void _uv_canopen_sdo_step(uint16_t step_ms);
+
+void _uv_canopen_sdo_rx(const uv_can_message_st *msg);
+
+/// @brief: Sends a CANOpen SDO write request without waiting for the response
+uv_errors_e _uv_canopen_sdo_write(uint8_t node_id,
+		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *data);
 
 
-typedef struct {
+#if CONFIG_CANOPEN_SDO_SYNC
+/// @brief: Sends a CANOpen SDO write request and waits for the response
+/// **timeout_ms** milliseconds. If the write request failed or the timeout
+/// expires, returns an error.
+uv_errors_e _uv_canopen_sdo_write_sync(uint8_t node_id, uint16_t mindex,
+		uint8_t sindex, uint32_t data_len, void *data, int32_t timeout_ms);
 
-} _canopen_sdo_st;
+/// @brief: Sends a CANOpen SDO read request and waits for the response
+/// **timeout_ms** milliseconds. If the read request failed or the timeout
+/// expires, returns an error.
+uv_errors_e _uv_canopen_sdo_read_sync(uint8_t node_id,
+		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *data, int32_t timeout_ms);
+#endif
+
+
+/// @brief: Sends a CANOpen SDO abort message
+void _uv_canopen_sdo_abort(uint16_t request_response, uint16_t main_index,
+		uint8_t sub_index, uv_sdo_error_codes_e err_code);
 
 
 

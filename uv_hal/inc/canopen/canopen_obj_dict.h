@@ -17,9 +17,13 @@
 
 
 /// @brief: Returns the CANopen object dictionary object pointed by **main_index**.
+/// Subindexes are not supported, since they are assumed to be array indexes. However,
+/// subindex can be given to this function, in which case the function checks
+/// if the object was an array type and that the object had as many indexes as
+/// requested.
 ///
 /// @return: False if the object couldn't be found.
-bool _canopen_obj_dict_get(uint16_t main_index, canopen_object_st *dest);
+bool _canopen_obj_dict_get(uint16_t main_index, uint8_t subindex, canopen_object_st *dest);
 
 
 #endif

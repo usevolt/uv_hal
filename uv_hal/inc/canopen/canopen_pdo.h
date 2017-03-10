@@ -11,6 +11,7 @@
 
 #include <uv_hal_config.h>
 #include "canopen/canopen_common.h"
+#include "uv_can.h"
 
 
 #if CONFIG_CANOPEN
@@ -31,8 +32,7 @@ typedef enum {
 	CANOPEN_PDO_ENABLED = 0,
 	/// @brief: PDO transmission is disabled. This should be OR'red with the PDO
 	/// communication parameter's COB-ID field.
-	CANOPEN_PDO_DISABLED = 0x80000000,
-	CANOPEN_PDO_RTR_ALLOWED = 0x40000000
+	CANOPEN_PDO_DISABLED = 0x80000000
 } canopen_pdo_cob_id_mapping_e;
 
 
@@ -94,11 +94,13 @@ static inline void canopen_rxpdo_enable(canopen_rxpdo_com_parameter_st *pdo) {
 
 
 
+void _uv_canopen_pdo_init();
 
-typedef struct {
+void _uv_canopen_pdo_reset();
 
-} _canopen_pdo_st;
+void _uv_canopen_pdo_step(uint16_t step_ms);
 
+void _uv_canopen_pdo_rx(const uv_can_message_st *msg);
 
 
 #endif

@@ -75,9 +75,6 @@ typedef struct {
 	const char *build_date;
 	/// @brief: Project unique ID. Usually the same as a CANopen node-id
 	uint16_t id;
-	/// @brief: Checksum to identify if data between start and end
-	/// was uninitialized or changed from what was found in non-volatile memory.
-	uint32_t start_checksum;
 #if CONFIG_CANOPEN
 	// non-volatile data for canopen
 	_canopen_non_volatile_st canopen_data;
@@ -90,7 +87,7 @@ typedef struct {
 typedef struct {
 	/// @brief: Checksum to identify if data between start and end
 	/// was uninitialized or changed from what was found in non-volatile memory.
-	uint32_t end_checksum;
+	uint32_t crc;
 } uv_data_end_t;
 
 
@@ -141,19 +138,13 @@ typedef enum {
 
 
 /// @brief: Returns the project name saved in the non-volatile memory
-static inline const char *uv_memory_get_project_name(uv_data_start_t *start_ptr) {
-	return start_ptr->project_name;
-}
+const char *uv_memory_get_project_name();
 
 /// @brief: Returns the project name crc value saved in the non-volatile memory
-static inline uint16_t uv_memory_get_project_id(uv_data_start_t *start_ptr) {
-	return start_ptr->id;
-}
+uint16_t uv_memory_get_project_id(uv_data_start_t *start_ptr);
 
 /// @brief: Returns the project building date saved in the non-volatile memory
-static inline const char *uv_memory_get_project_date(uv_data_start_t *start_ptr) {
-	return start_ptr->build_date;
-}
+const char *uv_memory_get_project_date(uv_data_start_t *start_ptr);
 
 
 extern const char *uv_projname;
@@ -171,24 +162,7 @@ extern const char *uv_datetime;
 /// mean that application required to write more memory than the non-volatile application data section
 /// has, or there was not enough RAM.
 ///
-/// @param start_ptr: A pointer to a uv_data_start_t variable at the beginning of
-/// destination memory where data should be copied.
-/// @param end_ptr: A pointer to a uv_data_end_t variable at the end of
-/// destination memory where data should be copied.
-/// After copying the data, this will be used to validate if
-/// non-volatile memory contained valid data or if it was undefined.
-///
-/// @example:
-/// struct {
-///		uv_data_start_t start;
-///		unsigned int some_data;
-///		...
-///		uv_data_end_t end;
-/// } data;
-///	// save all data between start and end
-/// uv_memory_save(&data.start, &data.end);
-///
-uv_errors_e uv_memory_save(uv_data_start_t *start_ptr, uv_data_end_t *end_ptr);
+uv_errors_e uv_memory_save(void);
 
 /// @brief: Copies data from non-volatile flash memory to another memory location,
 /// usually to RAM.
@@ -199,13 +173,12 @@ uv_errors_e uv_memory_save(uv_data_start_t *start_ptr, uv_data_end_t *end_ptr);
 /// copied to the destination address. Because of this, if this function returns false,
 /// the user application should reinitialize the data structure.
 ///
-/// @param start_ptr: A pointer to a uv_data_start_t variable at the beginning of
-/// destination memory where data should be copied.
-/// @param end_ptr: A pointer to a uv_data_end_t variable at the end of
-/// destination memory where data should be copied.
-/// After copying the data, this will be used to validate if
-/// non-volatile memory contained valid data or if it was undefined.
-uv_errors_e uv_memory_load(uv_data_start_t *start_ptr, uv_data_end_t *end_ptr);
+uv_errors_e uv_memory_load(void);
+
+
+/// @brief: Clears the previously save non-volatile data.
+uv_errors_e uv_memory_clear(void);
+
 
 
 /// @brief: Writes RAM data to flash. Note that the data can be written only a limited
@@ -240,15 +213,8 @@ uint8_t uv_get_id();
 
 
 
-/// @brief: Usage of these should be acoided if possible
-uv_errors_e __uv_save_previous_non_volatile_data();
-
-/// @brief: Usage of these should be acoided if possible
-uv_errors_e __uv_load_previous_non_volatile_data();
-
-
 /// @brief: Calculates and returns a cyclic redundancy check value from the given data
-uint16_t uv_memory_calc_crc(const uint8_t *data, int32_t len);
+uint16_t uv_memory_calc_crc(void *data, int32_t len);
 
 
 

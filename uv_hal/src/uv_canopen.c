@@ -19,8 +19,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #endif
-extern uv_errors_e __uv_save_previous_non_volatile_data();
-extern uv_errors_e __uv_clear_previous_non_volatile_data();
 
 
 
@@ -31,44 +29,58 @@ extern uv_errors_e __uv_clear_previous_non_volatile_data();
 _uv_canopen_st _canopen;
 
 #define this (&_canopen)
+#define this_nonvol	(&CONFIG_NON_VOLATILE_START.canopen_data)
+#define NODEID			(CONFIG_NON_VOLATILE_START.id)
 
 
 
 
 void _uv_canopen_init(void) {
 
+	_uv_canopen_heartbeat_init();
+	_uv_canopen_pdo_init();
+	_uv_canopen_nmt_init();
+	_uv_canopen_sdo_init();
 
 }
 
 void _uv_canopen_reset(void) {
-
+	_uv_canopen_pdo_reset();
+	_uv_canopen_heartbeat_reset();
+	_uv_canopen_nmt_reset();
+	_uv_canopen_sdo_reset();
 }
 
 
 
 
 void _uv_canopen_step(unsigned int step_ms) {
+	_uv_canopen_heartbeat_step(step_ms);
+	_uv_canopen_pdo_step(step_ms);
+	_uv_canopen_nmt_step(step_ms);
+	_uv_canopen_sdo_step(step_ms);
 
+	uv_can_message_st msg;
+	uv_errors_e e;
+	while (!(e = uv_can_pop_message(CONFIG_CANOPEN_CHANNEL, &msg))) {
+		// for every received message, canopen module rx functions are called
+		_uv_canopen_nmt_rx(&msg);
+		_uv_canopen_heartbeat_rx(&msg);
+		_uv_canopen_pdo_rx(&msg);
+		_uv_canopen_sdo_rx(&msg);
+	}
 }
 
 
 
 void uv_canopen_set_state(canopen_node_states_e state) {
-
+	_uv_canopen_nmt_set_state(state);
 }
 
 canopen_node_states_e uv_canopen_get_state(void) {
-
+	return _uv_canopen_nmt_get_state();
 }
 
-uv_errors_e uv_canopen_send_sdo(uv_canopen_sdo_message_st *sdo, uint8_t node_id) {
-}
-
-
-uv_errors_e uv_canopen_sdo_write(uv_canopen_sdo_commands_e sdoreq, uint8_t node_id,
-		uint16_t mindex, uint8_t sindex, uint32_t data) {
-
-}
 
 
 

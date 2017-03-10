@@ -42,7 +42,8 @@ typedef uint8_t canopen_permissions_e;
 /// sub_indexes for indexing the array elements. Index 0 returns the
 /// length of the array.
 #define CANOPEN_ARRAY_MASK 	0b11000000
-#define CANOPEN_NUMBER_MASK	0b00111111
+#define CANOPEN_STRING_MASK 0b00110000
+#define CANOPEN_NUMBER_MASK	0b00000111
 enum {
 	CANOPEN_UNSIGNED8 = 1,
 	CANOPEN_SIGNED8 = 1,
@@ -50,6 +51,7 @@ enum {
 	CANOPEN_SIGNED16 = 2,
 	CANOPEN_UNSIGNED32 = 4,
 	CANOPEN_SIGNED32 = 4,
+	CANOPEN_STRING = (1 << 4) + 1,
 	CANOPEN_ARRAY8 = (1 << 6) + 1,
 	CANOPEN_ARRAY16 = (1 << 6) + 2,
 	CANOPEN_ARRAY32 = (1 << 6) + 4
@@ -87,7 +89,6 @@ typedef struct {
 	/// @brief: Type for this CANopen object dictionary entry
 	/// Can be read, write or read-write.
 	canopen_permissions_e permissions;
-//	uint8_t array_max_size;
 } canopen_object_st;
 
 
@@ -130,12 +131,19 @@ typedef struct {
 
 
 /// @brief: Returns the node ID from the COB-ID
-static inline uint8_t canopen_get_node_id(unsigned int cob_id) {
+static inline uint8_t uv_canopen_get_node_id(unsigned int cob_id) {
 	return cob_id & CANOPEN_NODE_ID_MASK;
 }
 
-static inline canopen_object_type_e canopen_is_array(canopen_object_st *obj) {
+static inline bool uv_canopen_is_array(const canopen_object_st *obj) {
 	return (obj->type & CANOPEN_ARRAY_MASK);
+}
+
+static inline bool uv_canopen_is_string(const canopen_object_st *obj) {
+	return (obj->type & CANOPEN_STRING_MASK);
+}
+static inline uint8_t uv_canopen_get_object_data_size(const canopen_object_st *obj) {
+	return (obj->type & (CANOPEN_NUMBER_MASK));
 }
 
 

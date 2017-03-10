@@ -7,6 +7,8 @@
 
 
 #include "canopen/canopen_pdo.h"
+#include "canopen.h"
+#include CONFIG_MAIN_H
 
 
 #if CONFIG_CANOPEN
@@ -77,6 +79,37 @@
 
 /// @brief: Returns true if this PDO message was enabled (bit 31 was not set)
 #define PDO_IS_ENABLED(x)			(!(x->cob_id & (1 << 31)))
+
+
+#define this (&_canopen)
+#define this_nonvol	(&CONFIG_NON_VOLATILE_START.canopen_data)
+
+
+
+void _uv_canopen_pdo_init() {
+
+
+}
+
+void _uv_canopen_pdo_reset() {
+
+}
+
+void _uv_canopen_pdo_step(uint16_t step_ms) {
+	if (_uv_canopen_nmt_get_state() != CANOPEN_OPERATIONAL) {
+		return;
+	}
+}
+
+void _uv_canopen_pdo_rx(const uv_can_message_st *msg) {
+	// RX PDO's are active only if the device is in operational state
+	if (_uv_canopen_nmt_get_state() != CANOPEN_OPERATIONAL) {
+		return;
+	}
+
+	// todo: process RX PDO's
+
+}
 
 
 #endif
