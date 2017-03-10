@@ -92,7 +92,7 @@
 #if CONFIG_TARGET_LPC1785 || CONFIG_TARGET_LPC1549
 #define configMINIMAL_STACK_SIZE	( ( unsigned short ) 128 )
 #elif CONFIG_TARGET_LPC11C14
-#define configMINIMAL_STACK_SIZE	( ( unsigned short ) 48 )
+#define configMINIMAL_STACK_SIZE	( ( unsigned short ) 64 )
 #endif
 #define configSUPPORT_DYNAMIC_ALLOCATION	1
 #define configTOTAL_HEAP_SIZE 		CONFIG_RTOS_HEAP_SIZE
