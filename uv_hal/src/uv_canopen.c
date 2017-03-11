@@ -397,6 +397,7 @@ uv_errors_e uv_canopen_step(uv_canopen_st *me, unsigned int step_ms) {
 	if (uv_delay(step_ms, this->heartbeat_delay)) {
 		// send heartbeat msg
 		msg = (uv_can_message_st) {
+				.type = CAN_STD,
 				.id = CANOPEN_HEARTBEAT_ID + NODE_ID,
 				.data_length = 1,
 				.data_8bit[0] = this->state
@@ -486,6 +487,8 @@ uv_errors_e uv_canopen_step(uv_canopen_st *me, unsigned int step_ms) {
 
 			}
 			msg.data_length = byte_count;
+			msg.type = CAN_STD;
+
 			uv_can_send_message(this->can_channel, &msg);
 		}
 	}
@@ -716,7 +719,7 @@ static void canopen_parse_sdo(uv_canopen_st *me, uv_can_message_st *msg) {
 #endif
 		}
 		else {
-			DEBUG_LOG("SDO error: object %x is write only\n", SDO_MINDEX(msg));
+			DEBUG_LOG("SDO error: object %x is read only\n", SDO_MINDEX(msg));
 			sdo_send_error(this, msg, CANOPEN_SDO_ERROR_ATTEMPT_TO_WRITE_A_READ_ONLY_OBJECT);
 		}
 	}

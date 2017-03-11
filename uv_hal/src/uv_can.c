@@ -19,6 +19,7 @@
 #if CONFIG_TERMINAL_CAN
 #include "uv_terminal.h"
 #include "uv_memory.h"
+#include "uv_uart.h"
 #endif
 #include <stdio.h>
 #include <string.h>

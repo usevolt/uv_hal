@@ -147,6 +147,7 @@ int uv_adc_read(uv_adc_channels_e channel) {
 	// check if the channel is valid
 	// LPC11C22 has 8 channels, so channel has to be less than 8
 	if ((channel & (channel - 1)) != 0) {
+		printf("channel: 0x%x\n", channel);
 		__uv_log_error(ERR_UNSUPPORTED_PARAM1_VALUE | HAL_MODULE_ADC);
 		return -1;
 	}
