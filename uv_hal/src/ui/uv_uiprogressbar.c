@@ -79,7 +79,7 @@ static void draw(void *me) {
 	int16_t y = this->horizontal ?
 			uv_ui_get_yglobal(this) + uv_uibb(this)->height / 2 - CONFIG_UI_PROGRESSBAR_HEIGHT / 2 :
 			uv_ui_get_yglobal(this) + uv_uibb(this)->height -
-			(this->title ? (uv_ui_text_height_px(this->title, this->style->font, 1.0f) + 5) : 0) -
+			(this->title ? (uv_ui_text_height_px(this->title, this->style->font, 1.0f) + 3) : 0) -
 			CONFIG_UI_PROGRESSBAR_WIDTH;
 	int16_t w = this->horizontal ?
 			(CONFIG_UI_PROGRESSBAR_WIDTH) : CONFIG_UI_PROGRESSBAR_HEIGHT;
@@ -101,8 +101,8 @@ static void draw(void *me) {
 	}
 	// draw title
 	if (this->title) {
-		_uv_ui_draw_text(uv_uibb(this)->x + uv_uibb(this)->width / 2,
-				uv_uibb(this)->y + uv_uibb(this)->height,
+		_uv_ui_draw_text(uv_ui_get_xglobal(this) + uv_uibb(this)->width / 2,
+				uv_ui_get_yglobal(this) + uv_uibb(this)->height,
 				this->style->font, ALIGN_BOTTOM_CENTER,
 				this->style->text_color, C(0xFFFFFFFF), this->title, 1.0f);
 	}
