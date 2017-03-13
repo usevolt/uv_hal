@@ -23,7 +23,7 @@
 /// requested.
 ///
 /// @return: False if the object couldn't be found.
-bool _canopen_obj_dict_get(uint16_t main_index, uint8_t subindex, canopen_object_st *dest);
+bool _uv_canopen_obj_dict_get(uint16_t main_index, uint8_t subindex, canopen_object_st *dest);
 
 
 #endif

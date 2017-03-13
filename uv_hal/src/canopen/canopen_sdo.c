@@ -106,7 +106,7 @@ void _uv_canopen_sdo_step(uint16_t step_ms) {
 
 static bool find_object(const uv_can_message_st *msg,
 		canopen_object_st *obj, canopen_permissions_e permission_req) {
-	if (_canopen_obj_dict_get(GET_MINDEX(msg), GET_SINDEX(msg), obj)) {
+	if (_uv_canopen_obj_dict_get(GET_MINDEX(msg), GET_SINDEX(msg), obj)) {
 		if (!(obj->permissions & permission_req)) {
 			// object is not readable
 			if (permission_req == CANOPEN_RO) {
@@ -186,6 +186,7 @@ void _uv_canopen_sdo_rx(const uv_can_message_st *msg) {
 	}
 #endif
 
+	// from this point onward, only messages addressed to this device are parsed
 	if (GET_NODEID(msg) != NODEID) {
 		return;
 	}
@@ -206,7 +207,6 @@ void _uv_canopen_sdo_rx(const uv_can_message_st *msg) {
 		__disable_irq();
 		if (this->sdo.state != CANOPEN_SDO_STATE_READY) {
 			if (GET_NODEID(msg) == this->sdo.transfer.node_id &&
-					this->sdo.transfer.node_id == NODEID &&
 					GET_MINDEX(msg) == this->sdo.transfer.mindex &&
 					GET_SINDEX(msg) == this->sdo.transfer.sindex) {
 				this->sdo.state = CANOPEN_SDO_STATE_TRANSFER_ABORTED;
@@ -252,7 +252,9 @@ void _uv_canopen_sdo_rx(const uv_can_message_st *msg) {
 				SET_CMD_BYTE(&response, (1 << 6) | (1 << 1) | (1 << 0) |
 						((4 - uv_canopen_get_object_data_size(&obj)) << 2));
 				SET_MINDEX(&response, obj.main_index);
-				SET_SINDEX(&response, obj.sub_index);
+				// note: subindex is taken from the request message since array type objects
+				// differ in subindex handling
+				SET_SINDEX(&response, GET_SINDEX(msg));
 
 				// if ojbect is array, subindex 0 returns the array size
 				if (uv_canopen_is_array(&obj) && !GET_SINDEX(msg)) {
@@ -341,8 +343,8 @@ void _uv_canopen_sdo_rx(const uv_can_message_st *msg) {
 			memset(response.data_8bit, 0, 8);
 			SET_CMD_BYTE(&response, 0x60);
 			SET_MINDEX(&response, obj.main_index);
-			SET_SINDEX(&response, obj.sub_index);
-			memcpy(&response.data_8bit[4], obj.data_ptr,
+			SET_SINDEX(&response, GET_SINDEX(msg));
+			memcpy(&response.data_8bit[4], &msg->data_8bit[4],
 					uv_canopen_get_object_data_size(&obj));
 			uv_can_send(CONFIG_CANOPEN_CHANNEL, &response);
 		}

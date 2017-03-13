@@ -183,21 +183,20 @@ uv_errors_e uv_memory_save(void) {
 
 
 uv_errors_e uv_memory_load(void) {
+	uint8_t* d = (uint8_t*) &CONFIG_NON_VOLATILE_START + sizeof(uv_data_start_t);
+	uint8_t* source = (uint8_t*) NON_VOLATILE_MEMORY_START_ADDRESS + sizeof(uv_data_start_t);
 	int length = ((unsigned int) &CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
-			(unsigned int) &CONFIG_NON_VOLATILE_START;
-	int i;
-	char* d = (char*) &CONFIG_NON_VOLATILE_START;
-	char* source = (char*) NON_VOLATILE_MEMORY_START_ADDRESS;
+			(unsigned int) d;
 
 	// copy values from flash to destination
 	// this requires that sizeof(char) == 1 byte.
-	for (i = 0; i < length; i++) {
+	for (int i = 0; i < length; i++) {
 		*d = *source;
 		d++;
 		source++;
 	}
 
-	//check both checksums
+	//check crc
 	if (CONFIG_NON_VOLATILE_END.crc !=
 			uv_memory_calc_crc(&CONFIG_NON_VOLATILE_START,
 					(uint32_t) &CONFIG_NON_VOLATILE_END - (uint32_t) &CONFIG_NON_VOLATILE_START)) {
@@ -392,4 +391,12 @@ uint16_t uv_memory_get_project_id(uv_data_start_t *start_ptr) {
 const char *uv_memory_get_project_date(uv_data_start_t *start_ptr) {
 	return CONFIG_NON_VOLATILE_START.build_date;
 }
+
+
+uv_errors_e _uv_memory_hal_load(void) {
+	memcpy(&CONFIG_NON_VOLATILE_START, (void*) CONFIG_NON_VOLATILE_START_ADDR, sizeof(uv_data_start_t));
+
+	return uv_memory_load();
+}
+
 

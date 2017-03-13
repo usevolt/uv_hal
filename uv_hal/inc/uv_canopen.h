@@ -143,6 +143,9 @@ should be enabled. Defaults to 0."
 
 
 
+typedef struct {
+	canopen_pdo_mapping_st mappings[CONFIG_CANOPEN_PDO_MAPPING_COUNT];
+} canopen_pdo_mapping_parameter_st;
 
 
 typedef struct {
@@ -152,10 +155,10 @@ typedef struct {
 #endif
 
 	canopen_rxpdo_com_parameter_st rxpdo_coms[CONFIG_CANOPEN_RXPDO_COUNT];
-	canopen_pdo_mapping_parameter_st rxpdo_maps[CONFIG_CANOPEN_RXPDO_COUNT][CONFIG_CANOPEN_PDO_MAPPING_COUNT];
+	canopen_pdo_mapping_parameter_st rxpdo_maps[CONFIG_CANOPEN_RXPDO_COUNT];
 
 	canopen_txpdo_com_parameter_st txpdo_coms[CONFIG_CANOPEN_TXPDO_COUNT];
-	canopen_pdo_mapping_parameter_st txpdo_maps[CONFIG_CANOPEN_TXPDO_COUNT][CONFIG_CANOPEN_PDO_MAPPING_COUNT];
+	canopen_pdo_mapping_parameter_st txpdo_maps[CONFIG_CANOPEN_TXPDO_COUNT];
 
 } _canopen_non_volatile_st;
 
@@ -172,6 +175,7 @@ typedef struct {
 	uint32_t restore_req;
 	canopen_identity_object_st identity;
 	int heartbeat_time;
+	uint32_t txpdo_time[CONFIG_CANOPEN_TXPDO_COUNT];
 
 	// SDO member variables
 	struct {

@@ -37,18 +37,18 @@ _uv_canopen_st _canopen;
 
 void _uv_canopen_init(void) {
 
-	_uv_canopen_heartbeat_init();
-	_uv_canopen_pdo_init();
 	_uv_canopen_nmt_init();
+	_uv_canopen_heartbeat_init();
 	_uv_canopen_sdo_init();
+	_uv_canopen_pdo_init();
 
 }
 
 void _uv_canopen_reset(void) {
-	_uv_canopen_pdo_reset();
-	_uv_canopen_heartbeat_reset();
 	_uv_canopen_nmt_reset();
+	_uv_canopen_heartbeat_reset();
 	_uv_canopen_sdo_reset();
+	_uv_canopen_pdo_reset();
 }
 
 

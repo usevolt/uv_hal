@@ -217,6 +217,9 @@ uint8_t uv_get_id();
 uint16_t uv_memory_calc_crc(void *data, int32_t len);
 
 
+/// @brief: Loads hal specific non-volatile data
+uv_errors_e _uv_memory_hal_load(void);
+
 
 
 

@@ -62,7 +62,7 @@ typedef struct {
 	// currently not supported
 	uint32_t inhibit_time;
 	// reserved data for internal use
-	uint32_t _reserved;
+	int32_t _reserved;
 	// the time delay for sending the PDO messages
 	uint32_t event_timer;
 } canopen_txpdo_com_parameter_st;
@@ -80,7 +80,7 @@ typedef struct {
 	/// @brief: Mapped bit length
 	/// @note: This length is in bits!
 	uint8_t length;
-} canopen_pdo_mapping_parameter_st;
+} canopen_pdo_mapping_st;
 
 
 

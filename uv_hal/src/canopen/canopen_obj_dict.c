@@ -37,7 +37,7 @@ extern unsigned int CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS_COUNT (void);
 	.array_max_size = CONFIG_CANOPEN_PDO_MAPPING_COUNT, \
 	.permissions = CANOPEN_RW, \
 	.type = CANOPEN_ARRAY32, \
-	.data_ptr = CONFIG_NON_VOLATILE_START.canopen_data.rxpdo_maps[x] \
+	.data_ptr = &CONFIG_NON_VOLATILE_START.canopen_data.rxpdo_maps[x] \
 	} \
 
 #define TXPDO_COM(x)	,{ \
@@ -53,7 +53,7 @@ extern unsigned int CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS_COUNT (void);
 	.array_max_size = CONFIG_CANOPEN_PDO_MAPPING_COUNT, \
 	.permissions = CANOPEN_RW, \
 	.type = CANOPEN_ARRAY32, \
-	.data_ptr = CONFIG_NON_VOLATILE_START.canopen_data.txpdo_maps[x] \
+	.data_ptr = &CONFIG_NON_VOLATILE_START.canopen_data.txpdo_maps[x] \
 	} \
 
 
@@ -144,7 +144,7 @@ bool cpy(canopen_object_st *dest, const canopen_object_st *src, uint8_t subindex
 
 
 
-bool _canopen_obj_dict_get(uint16_t main_index, uint8_t subindex, canopen_object_st *dest) {
+bool _uv_canopen_obj_dict_get(uint16_t main_index, uint8_t subindex, canopen_object_st *dest) {
 	for (unsigned int i = 0; i < com_params_count(); i++) {
 		if (com_params[i].main_index == main_index) {
 			return cpy(dest, &com_params[i], subindex);
