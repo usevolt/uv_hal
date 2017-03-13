@@ -34,6 +34,34 @@ static volatile this_st _this = {
 		.tick_task = NULL
 };
 
+
+void uv_rtos_mutex_unlock(uv_mutex *this) {
+	__disable_irq();
+	this->locked = false;
+	__enable_irq();
+}
+
+
+uint32_t uv_rtos_mutex_lock(uv_mutex *this) {
+	uint32_t time = 0;
+	while (true) {
+		__disable_irq();
+		if (this->locked) {
+			time++;
+		}
+		else {
+			this->locked = true;
+			__enable_irq();
+			return time;
+		}
+		__enable_irq();
+
+		uv_rtos_task_delay(1);
+	}
+}
+
+
+
 #define this (&_this)
 
 
@@ -127,10 +155,6 @@ void uv_init(void *device) {
 	_uv_wdt_init();
 #endif
 
-#if CONFIG_ADC
-	_uv_adc_init();
-#endif
-
 #if CONFIG_UART0
 	_uv_uart_init(UART0);
 #endif
@@ -146,6 +170,21 @@ void uv_init(void *device) {
 
 #if CONFIG_CAN
 	_uv_can_init();
+#endif
+
+	// try to load non-volatile settings. If loading failed,
+	// reset all peripherals which are denpending on the
+	// non-volatile settings.
+	if (_uv_memory_hal_load()) {
+		_uv_canopen_reset();
+	}
+
+#if CONFIG_CANOPEN
+	_uv_canopen_init();
+#endif
+
+#if CONFIG_ADC
+	_uv_adc_init();
 #endif
 
 #if CONFIG_SPI
@@ -195,6 +234,12 @@ void uv_init(void *device) {
 }
 
 
+void uv_data_reset() {
+	_uv_canopen_reset();
+}
+
+
+
 
 void hal_task(void *nullptr) {
 	uint16_t step_ms = 2;
@@ -209,7 +254,14 @@ void hal_task(void *nullptr) {
 #if CONFIG_TERMINAL_CAN
 	_uv_stdout_hal_step(step_ms);
 #endif
+
+#if CONFIG_CANOPEN
+	_uv_canopen_step(step_ms);
+#endif
 	uv_rtos_task_delay(step_ms);
 	}
 
 }
+
+
+

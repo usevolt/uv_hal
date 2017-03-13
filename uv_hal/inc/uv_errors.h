@@ -129,6 +129,7 @@ typedef enum {
 	/// @brief: Message couldn't be sent for unknown reason
 	ERR_MESSAGE_NOT_SENT				= 42,
 	ERR_CAN_BUS_OFF						= 43,
+	ERR_ABORTED							= 44,
 	ERR_COUNT
 } _uv_errors_e;
 typedef unsigned int uv_errors_e;

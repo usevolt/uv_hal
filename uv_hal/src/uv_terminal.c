@@ -30,11 +30,6 @@
 
 
 
-// extern declarations for uv_memory module's functions
-extern uv_errors_e __uv_save_previous_non_volatile_data();
-extern uv_errors_e __uv_load_previous_non_volatile_data();
-extern uv_errors_e __uv_clear_previous_non_volatile_data();
-
 
 typedef struct {
 	const uv_command_st *commands_ptr;
@@ -328,12 +323,12 @@ void uv_terminal_reset_callb(void *me, unsigned int cmd, unsigned int args, argu
 }
 #if CONFIG_NON_VOLATILE_MEMORY
 void uv_terminal_save_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv) {
-	if (!__uv_save_previous_non_volatile_data()) {
+	if (!uv_memory_save()) {
 		printf("saved\n");
 	}
 }
 void uv_terminal_revert_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv) {
-	if (!__uv_clear_previous_non_volatile_data()) {
+	if (!uv_memory_clear()) {
 		printf("reverted\n");
 	}
 }

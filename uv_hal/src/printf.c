@@ -207,40 +207,6 @@ int sprintf(char *out, const char *format, ...)
         return print( &out, format, -1, args );
 }
 
-//int strtol(const char *nptr, char **ptr, int base) {
-//	base = 10;
-//	int value, sign = 1;
-//	int result = 0;
-//	if (*nptr == '-') {
-//		sign = -1;
-//		nptr++;
-//	}
-//	if (strstr(nptr, "0x\0") != 0) {
-//		base = 16;
-//		nptr += 2;
-//	}
-//	else if (strstr(nptr, "0b\0") != 0) {
-//		base = 2;
-//		nptr += 2;
-//	}
-//	printf("base: %u\n", base);
-//	while (isxdigit(*nptr)) {
-//		if (isdigit(*nptr)) {
-//			printf("d");
-//			value = *nptr - '0';
-//		}
-//		else {
-//			value = *nptr - 'A' + 10;
-//			if (value > 0xF) {
-//				value -= 0x20;
-//			}
-//		}
-//		result = result * base + value;
-//		nptr++;
-//	}
-//	return result * sign;
-//}
-
 
 int snprintf(char * out, size_t n,
                     const char * format, ...) {

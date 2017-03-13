@@ -28,7 +28,6 @@
 #include "task.h"
 #include "semphr.h"
 
-
 #if !defined(CONFIG_RTOS_HEAP_SIZE)
 #error "CONFIG_RTOS_HEAP_SIZE not defined. It should define the number of bytes reserved to be used\
  as a RTOS task memory."
@@ -61,9 +60,6 @@
 
 
 typedef xTaskHandle 		uv_rtos_task_ptr;
-typedef xSemaphoreHandle	uv_rtos_smphr_ptr;
-typedef xSemaphoreHandle	uv_mutex_ptr;
-typedef xQueueHandle		uv_rtos_queue_ptr;
 
 
 
@@ -75,6 +71,10 @@ typedef xQueueHandle		uv_rtos_queue_ptr;
 /// @param device: Pointer to the main application data structure. This is the struct which will
 /// be given as the **me** parameter to the HAL library's callback functions.
 void uv_init(void *device);
+
+
+/// @brief: Resets the non-volatile data from all HAL modules to defaults
+void uv_data_reset();
 
 extern bool rtos_init;
 /// @brief: Returns true when the rtos HAL task is succesfully running and all peripherals should be
@@ -98,160 +98,21 @@ uv_errors_e uv_rtos_add_idle_task(void (*task_function)(void *user_ptr));
 
 
 
+typedef struct {
+	bool locked;
+} uv_mutex;
 
 
-/// @bief: Creates and returns a binary semaphore.
-/// @note: Binary sempahores are good for passing information between tasks and
-/// ISR's. Note that ISR's can only give and tasks can
-/// only take binary semaphores.
-static inline uv_rtos_smphr_ptr uv_rtos_smphr_create_binary(void) {
-	return xSemaphoreCreateBinary();
-}
-static inline void uv_rtos_mutex_init(uv_mutex_ptr* mutex) {
-	*mutex = xSemaphoreCreateMutex();
+static inline void uv_rtos_mutex_init(uv_mutex* this) {
+	this->locked = false;
 }
 
-/// @brief: "Gives" or "releases" the semaphore. This makes possible for
-/// other tasks to take the ownership of the semaphore.
-/// @note: This function shouldn't be called from ISR's!
-/// Use uv_rtos_smprh_give_ISR instead.
-static inline void uv_rtos_smphr_give(uv_rtos_smphr_ptr handle) {
-	xSemaphoreGive(handle);
-}
-static inline void uv_rtos_mutex_unlock(uv_mutex_ptr *mutex) {
-	xSemaphoreGive(*mutex);
-}
+/// @brief: Unlocks the mutex
+void uv_rtos_mutex_unlock(uv_mutex *this);
 
-/// @brief: "Gives" or "releases" the semaphore. This makes possible for
-/// other tasks to take the ownership of the semaphore.
-/// @note: This function should be called only from ISR's!
-static inline void uv_rtos_smphr_give_ISR(uv_rtos_smphr_ptr handle) {
-	xSemaphoreGiveFromISR(handle, NULL);
-}
-static inline void uv_rtos_mutex_unlock_ISR(uv_mutex_ptr mutex) {
-	xSemaphoreGiveFromISR(mutex, NULL);
-}
-
-/// @brief: Attempts to take the ownership of the semaphore. The function
-/// waits 'max_wait_tick_count' ticks and returns true if the semaphore could be taken,
-/// false otherwise.
-/// @note: This function shouldn't be called from ISR's!
-/// Use uv_rtos_smprh_give_ISR instead.
-static inline void uv_rtos_smphr_take(uv_rtos_smphr_ptr handle) {
-	while (!xSemaphoreTake(handle, 0xFFFFFFFF));
-}
-static inline void uv_rtos_mutex_lock(uv_mutex_ptr *mutex) {
-	while (!xSemaphoreTake(*mutex, 0xFFFFFFFF));
-}
-
-/// @brief:A version of xSemaphoreTake() that can be called from an ISR.
-/// Unlike xSemaphoreTake(), xSemaphoreTakeFromISR() does not permit a
-/// block time to be specified.
-/// @note: This function should be called only from ISR's!
-static inline bool uv_rtos_smphr_take_ISR(uv_rtos_smphr_ptr handle) {
-	return xSemaphoreTakeFromISR(handle, NULL);
-}
-static inline bool uv_rtos_mutex_lock_ISR(uv_mutex_ptr mutex) {
-	return xSemaphoreTakeFromISR(mutex, NULL);
-}
-
-
-
-
-
-
-
-/// @brief: Creates and returns a queue. Queues are a way of sending information
-/// between tasks.
-///
-/// @return: Queue created, NULL if failed.
-///
-/// @param queue_length: The length of how many items the queue can contain
-/// @param type_length: The byte length of a single item
-static inline uv_rtos_queue_ptr uv_rtos_queue_create(unsigned int queue_length, uint8_t type_length) {
-	return xQueueCreate(queue_length, type_length);
-}
-
-
-/// @brief: Resets (clears) the queue to its original state
-static inline void uv_rtos_queue_clear(uv_rtos_queue_ptr queue) {
-	xQueueReset(queue);
-}
-
-
-/// @brief: Returns true if the queue is full
-/// @note: This function shouldn't be called from ISR's!
-/// Use uv_rtos_queue_is_full_ISR instead!
-static inline bool uv_rtos_queue_is_full(uv_rtos_queue_ptr queue) {
-	return !(uxQueueSpacesAvailable(queue));
-}
-
-
-/// @brief: Returns true if the queue is full
-/// @note: This function should be called only from ISR's!
-static inline bool uv_rtos_queue_is_full_ISR(uv_rtos_queue_ptr queue) {
-	return xQueueIsQueueFullFromISR(queue);
-}
-
-
-/// @brief: Pushes new data to back of the queue.
-///
-/// @note: This function shouldn't be called from ISR's!
-///
-/// @param queue: The handle to the queue on which the item is to be posted
-/// @param data: A pointer to the item that is to be placed on the queue.
-/// @param ticks_to_wait:  maximum amount of time the task should block waiting
-/// for space to become available on the queue, should it already be full
-static inline bool uv_rtos_queue_push(uv_rtos_queue_ptr queue, const void * data,
-		unsigned int ticks_to_wait) {
-	return xQueueSend(queue, data, ticks_to_wait);
-}
-
-
-/// @brief: Pushes new data to back of the queue.
-///
-/// @note: This function should be called only from ISR's!
-///
-/// @param queue: The handle to the queue on which the item is to be posted
-/// @param data: A pointer to the item that is to be placed on the queue.
-/// @param ticks_to_wait:  maximum amount of time the task should block waiting
-/// for space to become available on the queue, should it already be full
-static inline bool uv_rtos_queue_push_ISR(uv_rtos_queue_ptr queue, const void * data) {
-	return xQueueSendToBackFromISR(queue, data, NULL);
-}
-
-
-
-
-/// @brief: Receives the data from queue. The data is received in FIFO order.
-///
-/// @note: This function shouldn't be called from ISR's!
-///
-/// @param queue: The handle to the queue from which the item is to be received
-/// @param data: Pointer to the buffer into which the received item will be copied
-/// @param ticks_to_wait: The maximum amount of time the task should block waiting for an item
-/// to receive should the queue be empty at the time of the call
-static inline bool uv_rtos_queue_pop(uv_rtos_queue_ptr queue, void *data, unsigned int ticks_to_wait) {
-	return xQueueReceive(queue, data, ticks_to_wait);
-}
-
-/// @brief: Receives the data from queue. The data is received in FIFO order.
-///
-/// @note: This function should be called only from ISR's!
-///
-/// @param queue: The handle to the queue from which the item is to be received
-/// @param data: Pointer to the buffer into which the received item will be copied
-/// @param ticks_to_wait: The maximum amount of time the task should block waiting for an item
-/// to receive should the queue be empty at the time of the call
-static inline bool uv_rtos_queue_pop_ISR(uv_rtos_queue_ptr queue, void *data) {
-	return xQueueCRReceiveFromISR(queue, data, NULL);
-}
-
-
-
-
-
-
+/// @brief: Waits until the mutex has been locked. Returns time in milliseconds
+/// how long it took to lock the mutex
+uint32_t uv_rtos_mutex_lock(uv_mutex *this);
 
 
 
