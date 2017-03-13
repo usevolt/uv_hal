@@ -19,6 +19,7 @@
 #if CONFIG_TERMINAL_CAN
 #include "uv_terminal.h"
 #include "uv_memory.h"
+#include "uv_uart.h"
 #endif
 #include <stdio.h>
 #include <string.h>
@@ -154,7 +155,6 @@ typedef struct {
 	uv_ring_buffer_st char_buffer;
 	char char_buffer_data[CONFIG_TERMINAL_BUFFER_SIZE];
 #endif
-	void (*rx_callback[CAN_COUNT])(void *user_ptr);
 
 } can_st;
 
@@ -335,6 +335,7 @@ typedef struct ROM_API {
 
 
 void CAN_rx(uint8_t msg_obj_num) {
+
 	/* Determine which CAN message has been received */
 	this->temp_obj.msgobj = msg_obj_num;
 	/* Now load up the msg_obj structure with the CAN message */
@@ -361,10 +362,16 @@ void CAN_rx(uint8_t msg_obj_num) {
 
 #if CONFIG_TERMINAL_CAN
 	// terminal characters are sent to their specific buffer
-	if (this->temp_msg.id == UV_TERMINAL_CAN_PREFIX + uv_get_id()) {
+	if (this->temp_msg.id == UV_TERMINAL_CAN_RX_ID + uv_get_id() &&
+			this->temp_msg.type == CAN_STD &&
+			this->temp_msg.data_8bit[0] == 0x22 &&
+			this->temp_msg.data_8bit[1] == (UV_TERMINAL_CAN_INDEX & 0xFF) &&
+			this->temp_msg.data_8bit[2] == UV_TERMINAL_CAN_INDEX >> 8 &&
+			this->temp_msg.data_8bit[3] == UV_TERMINAL_CAN_SUBINDEX &&
+			this->temp_msg.data_length > 4) {
 		uint8_t i;
-		for (i = 0; i < this->temp_msg.data_length; i++) {
-			uv_ring_buffer_push(&this->char_buffer, (char*) &this->temp_msg.data_8bit[i]);
+		for (i = 0; i < this->temp_msg.data_length - 4; i++) {
+			uv_ring_buffer_push(&this->char_buffer, (char*) &this->temp_msg.data_8bit[4 + i]);
 		}
 		return;
 	}
@@ -436,10 +443,6 @@ void CAN_IRQHandler(void) {
 
 
 uv_errors_e _uv_can_init() {
-	uint8_t i;
-	for (i = 0; i < CAN_COUNT; i++) {
-		this->rx_callback[i] = NULL;
-	}
 	this->init = true;
 	this->tx_pending = 0;
 	this->used_msg_objs = (1 << TX_MSG_OBJ);
@@ -470,6 +473,8 @@ uv_errors_e _uv_can_init() {
 	LPC_CCAN_API->config_calb(&callbacks);
 	/* Enable the CAN Interrupt */
 	NVIC_EnableIRQ(CAN_IRQn);
+
+
 #if CAN_LOOP_BACK_MODE
 	// enable loop-back mode for testing
 	LPC_CAN->CNTL |= 1 << 7;
@@ -478,31 +483,15 @@ uv_errors_e _uv_can_init() {
 
 #if CONFIG_TERMINAL_CAN
 	uv_ring_buffer_init(&this->char_buffer, this->char_buffer_data, CONFIG_TERMINAL_BUFFER_SIZE, sizeof(char));
-	uv_can_config_rx_message(CAN1, UV_TERMINAL_CAN_PREFIX + uv_get_id(), CAN_ID_MASK_DEFAULT, CAN_EXT);
+#if !CONFIG_CANOPEN
+	uv_can_config_rx_message(CAN1, UV_TERMINAL_CAN_ID + uv_get_id(), CAN_STD);
+#endif
 #endif
 	return uv_err(ERR_NONE);
 
 }
 
 
-
-uv_errors_e uv_can_step(uv_can_channels_e channel, unsigned int step_ms) {
-
-	if (this->rx_callback[CAN1] != NULL) {
-		while (true) {
-			// call application callback if assigned
-			if (uv_ring_buffer_empty(&this->rx_buffer)) {
-				break;
-			}
-			else {
-				this->rx_callback[CAN1](__uv_get_user_ptr());
-			}
-		}
-	}
-
-
-	return uv_err(ERR_NONE);
-}
 
 
 
@@ -755,12 +744,6 @@ uv_errors_e _uv_can_init() {
 }
 
 
-
-uv_errors_e uv_can_step(uv_can_channels_e channel, unsigned int step_ms) {
-	if (!this->init) return uv_err(ERR_NOT_INITIALIZED | HAL_MODULE_CAN);
-
-	return uv_err(ERR_NONE);
-}
 
 #define STD_ID(chn, x)				(((LPC_CANAF_RAM->mask[x]) & (0x7FF << (chn*16))) >> (chn*16))
 #define SET_STD_ID(chn, x, val)	(LPC_CANAF_RAM->mask[x]) &= ~(0x7FF << (chn*16)); \

@@ -15,6 +15,7 @@
 #include <stdbool.h>
 #if CONFIG_TARGET_LPC11C14
 #include "LPC11xx.h"
+#include "uv_gpio.h"
 #elif CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
 #elif CONFIG_TARGET_LPC1549
@@ -90,6 +91,7 @@ static this_st _this;
 //UART interrupt handlers
 #if (CONFIG_TARGET_LPC11C14 && CONFIG_UART0)
 void UART_IRQHandler (void) {
+
 	char received_char = this->uart[UART0]->RBR & 0xFF;
 	uv_err_check(uv_ring_buffer_push(&this->buffer[UART0], &received_char)) {
 		if (uv_get_error() == ERR_BUFFER_OVERFLOW) {
@@ -98,7 +100,7 @@ void UART_IRQHandler (void) {
 	}
 	// callback
 	if (this->callback[UART0]) {
-		this->callback[UART0](__uv_get_user_ptr(), UART0, received_char);
+		this->callback[UART0](__uv_get_user_ptr(), UART0);
 	}
 }
 #elif CONFIG_TARGET_LPC1785
@@ -217,8 +219,6 @@ uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 	this->uart[UART0] = LPC_UART;
 	uv_ring_buffer_init(this->buffer, uart0_rxbuffer, CONFIG_UART0_RX_BUFFER_SIZE, sizeof(char));
 
-	if (check_uart(uart)) return check_uart(uart);
-
 	SystemCoreClockUpdate();
 
 	//set the baud_rate
@@ -288,6 +288,8 @@ uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 	this->uart[UART0]->TER |= (0x01 << 7);
 	this->uart[UART0]->FCR |= 0x01;
 
+	return uv_err(ERR_NONE);
+}
 
 #elif CONFIG_TARGET_LPC1785
 uv_errors_e _uv_uart_init(uv_uarts_e uart) {
@@ -698,7 +700,9 @@ uv_errors_e uv_uart_send_char(uv_uarts_e uart, char buffer) {
 
 #if (CONFIG_TARGET_LPC11C14 && CONFIG_UART0)
 	/* Wait until we're ready to send */
-	while (!(this->uart[UART0]->LSR & (1 << 6))) ;
+	while (!(this->uart[UART0]->LSR & (1 << 6))) {
+		uv_rtos_task_delay(1);
+	}
 	//send data
 	this->uart[UART0]->THR = buffer;
 #elif CONFIG_TARGET_LPC1785
