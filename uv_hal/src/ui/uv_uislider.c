@@ -26,6 +26,7 @@ void uv_uislider_init(void *me, int16_t min_value, int16_t max_value, int16_t cu
 	this->horizontal = true;
 	this->show_value = true;
 	this->dragging = false;
+	this->inc_step = 1;
 	this->drag_val = 0;
 	this->title = NULL;
 }
@@ -124,14 +125,14 @@ void uv_uislider_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 		uv_ui_refresh(this);
 	}
 	else if (touch->action == TOUCH_CLICKED) {
-		int8_t i = 1;
+		int8_t i = this->inc_step;
 
 		if (this->horizontal) {
 			int16_t hpx = uv_reli(this->cur_val, this->min_val, this->max_val);
 			int16_t hx = uv_lerpi(hpx, 0,
 					uv_uibb(this)->width - CONFIG_UI_SLIDER_WIDTH - 1);
 			if (touch->x < hx + CONFIG_UI_SLIDER_WIDTH / 2) {
-				i = -1;
+				i = -this->inc_step;
 			}
 		}
 		else {
@@ -139,9 +140,13 @@ void uv_uislider_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 			int16_t hy = uv_lerpi(hpy, uv_uibb(this)->height -
 					CONFIG_UI_SLIDER_WIDTH - 1 - (this->title ? this->style->font->char_height + 5 : 0), 0);
 			if (touch->y > hy + CONFIG_UI_SLIDER_WIDTH / 2) {
-				i = -1;
+				i = -this->inc_step;
 			}
 		}
+//		not tested
+//		if (this->cur_val % i) {
+//			i = this->cur_val % i;
+//		}
 		uv_uislider_set_value(this, this->cur_val + i);
 	}
 	else if (touch->action == TOUCH_NONE && this->dragging) {

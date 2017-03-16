@@ -7,6 +7,7 @@
 
 
 #include "uv_eeprom.h"
+#include "uv_rtos.h"
 
 #if CONFIG_EEPROM
 
@@ -107,7 +108,9 @@ uv_errors_e uv_eeprom_read(unsigned char *dest, uint16_t len, uint16_t eeprom_ad
 	uint16_t i;
 	for (i = 0; i < len; i++) {
 		LPC_EEPROM->CMD = 0;
-		while (!(LPC_EEPROM->INT_STATUS & (1 << 26)));
+		while (!(LPC_EEPROM->INT_STATUS & (1 << 26))) {
+			uv_rtos_task_yield();
+		}
 		*dest++ = LPC_EEPROM->RDATA;
 		LPC_EEPROM->INT_CLR_STATUS = (1 << 26);
 	}

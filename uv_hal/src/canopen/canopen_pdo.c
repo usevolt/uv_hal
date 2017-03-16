@@ -240,6 +240,10 @@ void _uv_canopen_pdo_step(uint16_t step_ms) {
 						memcpy(&msg.data_8bit[byte_count],
 								&obj.array_max_size, sizeof(obj.array_max_size));
 					}
+					else if (mapping->sub_index > obj.array_max_size) {
+						_uv_canopen_sdo_abort(CANOPEN_SDO_REQUEST_ID, mapping->main_index,
+								mapping->sub_index, CANOPEN_SDO_ERROR_OBJECT_DOES_NOT_EXIST);
+					}
 					else {
 						memcpy(&msg.data_8bit[byte_count],
 								&((uint8_t*) obj.data_ptr)[uv_canopen_get_object_data_size(&obj) *
@@ -357,8 +361,21 @@ void _uv_canopen_pdo_rx(const uv_can_message_st *msg) {
 
 			// copy the actual data if the object was array
 			if (uv_canopen_is_array(&obj)) {
-				memcpy(&((uint8_t*) obj.data_ptr)[uv_canopen_get_object_data_size(&obj) * mapping->sub_index],
-						&msg->data_8bit[byte_count], mapping->length);
+				if (!mapping->sub_index) {
+					// writing to array sub index 0 is illegal since subindex 0
+					// determines the array max length
+					_uv_canopen_sdo_abort(CANOPEN_SDO_REQUEST_ID, mapping->main_index,
+							mapping->sub_index, CANOPEN_SDO_ERROR_OBJECT_CANNOT_BE_MAPPED_TO_PDO);
+				}
+				else if (mapping->sub_index > obj.array_max_size) {
+					_uv_canopen_sdo_abort(CANOPEN_SDO_REQUEST_ID, mapping->main_index,
+							mapping->sub_index, CANOPEN_SDO_ERROR_OBJECT_DOES_NOT_EXIST);
+				}
+				else {
+					memcpy(&((uint8_t*) obj.data_ptr)
+							[uv_canopen_get_object_data_size(&obj) * (mapping->sub_index - 1)],
+							&msg->data_8bit[byte_count], mapping->length);
+				}
 			}
 			// copy the actual data to other types of objects
 			else {

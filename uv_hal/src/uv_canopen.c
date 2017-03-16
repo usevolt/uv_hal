@@ -36,7 +36,7 @@ _uv_canopen_st _canopen;
 
 
 void _uv_canopen_init(void) {
-
+	this->can_callback = NULL;
 	_uv_canopen_nmt_init();
 	_uv_canopen_heartbeat_init();
 	_uv_canopen_sdo_init();
@@ -68,6 +68,9 @@ void _uv_canopen_step(unsigned int step_ms) {
 		_uv_canopen_heartbeat_rx(&msg);
 		_uv_canopen_pdo_rx(&msg);
 		_uv_canopen_sdo_rx(&msg);
+		if (this->can_callback) {
+			this->can_callback(__uv_get_user_ptr(), &msg);
+		}
 	}
 }
 
@@ -81,6 +84,9 @@ canopen_node_states_e uv_canopen_get_state(void) {
 	return _uv_canopen_nmt_get_state();
 }
 
+void uv_canopen_set_can_callback(void (*callb)(void *user_ptr, uv_can_message_st *msg)) {
+	this->can_callback = callb;
+}
 
 
 

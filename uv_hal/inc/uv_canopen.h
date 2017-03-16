@@ -188,6 +188,7 @@ typedef struct {
 			uint32_t rx_data_len;
 		} transfer;
 	} sdo;
+	void (*can_callback)(void *user_ptr, uv_can_message_st* msg);
 
 } _uv_canopen_st;
 
@@ -328,6 +329,9 @@ static inline uv_errors_e uv_canopen_sdo_write(uint8_t node_id,
 		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *data) {
 	return _uv_canopen_sdo_write(node_id, mindex, sindex, data_len, data);
 }
+
+/// @brief: Sets a CAN message callback. This can be used in order to manually receive messages
+	void uv_canopen_set_can_callback(void (*callb)(void *user_ptr, uv_can_message_st *msg));
 
 #if CONFIG_CANOPEN_SDO_SYNC
 static inline uv_errors_e uv_canopen_sdo_write_sync(uint8_t node_id, uint16_t mindex,

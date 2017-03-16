@@ -34,6 +34,8 @@ typedef struct {
 	/// more interacive.
 	int16_t drag_val;
 	int16_t drag_start_val;
+	/// @brief: Defines how much the value is changed when tapping the slider. Defualts to 1
+	uint16_t inc_step;
 	/// @brief: If true, displays the current value next to the slider.
 	/// On vertical slider, value is shown below the slider.
 	/// On horizontal slider, value is shown to the right of the slider.
@@ -94,6 +96,10 @@ static inline void uv_uislider_show_value(void *me) {
 static inline void uv_uislider_hide_value(void *me) {
 	this->show_value = false;
 	uv_ui_refresh(this);
+}
+
+static inline void uv_uislider_set_inc_step(void *me, uint16_t value) {
+	this->inc_step = value;
 }
 
 
