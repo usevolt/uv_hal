@@ -7,7 +7,6 @@
 
 
 #include "canopen/canopen_pdo.h"
-#include "canopen.h"
 #include "string.h"
 #include CONFIG_MAIN_H
 
@@ -138,8 +137,13 @@ void _uv_canopen_pdo_init() {
 			continue;
 		}
 
+#if CONFIG_TARGET_LPC1785
 		uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
 				((canopen_rxpdo_com_parameter_st*) obj.data_ptr)->cob_id, CAN_STD);
+#else
+		uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
+				((canopen_rxpdo_com_parameter_st*) obj.data_ptr)->cob_id, CAN_ID_MASK_DEFAULT, CAN_STD);
+#endif
 	}
 
 }

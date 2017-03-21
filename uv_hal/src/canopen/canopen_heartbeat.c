@@ -21,9 +21,11 @@ void _uv_canopen_heartbeat_init(void) {
 }
 
 void _uv_canopen_heartbeat_reset(void) {
+#if CONFIG_CANOPEN_CONSUMER_HEARTBEAT_COUNT
 	for (int i = 0; i < CONFIG_CANOPEN_CONSUMER_HEARTBEAT_COUNT; i++) {
 		this_nonvol->consumer_heartbeats[i] = 0;
 	}
+#endif
 	this_nonvol->producer_heartbeat_time_ms = CONFIG_CANOPEN_PRODUCER_HEARTBEAT_TIME_MS;
 
 }

@@ -9,6 +9,7 @@
 #define UV_HAL_INC_CANOPEN_CANOPEN_COMMON_H_
 
 #include <uv_hal_config.h>
+#include "uv_utilities.h"
 
 #if CONFIG_CANOPEN
 

@@ -1124,93 +1124,9 @@ void CAN_IRQHandler(void) {
 					return;
 				}
 	#endif
-
-<<<<<<< HEAD
-void CAN_rx(uint8_t msg_obj_num) {
-	/* Determine which CAN message has been received */
-	this->temp_obj.msgobj = msg_obj_num;
-	/* Now load up the msg_obj structure with the CAN message */
-	LPC_CAND_API->hwCAN_MsgReceive(handle, (CAN_MSG_OBJ*) &this->temp_obj);
-	this->temp_msg.data_length = this->temp_obj.data_length;
-	this->temp_msg.id = this->temp_obj.msg_id & ~CAN_EXT;
-	uint8_t i;
-	for (i = 0; i < this->temp_msg.data_length; i++) {
-		this->temp_msg.data_8bit[i] = this->temp_obj.data[i];
-	}
-
-	// Bus off
-	if (LPC_CAN->STAT & (1 << 7)) {
-		LPC_CAN->CNTL &= ~(1 << 0);
-	}
-#if CONFIG_CAN_LOG
-	if (can_log) {
-		// log debug info
-		printf("CAN message received\n   id: 0x%x\n   data length: %u\n   data: ",
-				this->temp_msg.id, this->temp_msg.data_length);
-		for ( i = 0; i < this->temp_msg.data_length; i++) {
-			printf("%02x ", this->temp_msg.data_8bit[i]);
+			}
 		}
-		printf("\n");
 	}
-#endif
-	uv_ring_buffer_push(&this->rx_buffer, &this->temp_msg);
-}
-
-void CAN_tx(uint8_t msg_obj_num) {
-	this->tx_pending = 0;
-#if CONFIG_CAN_LOG
-	if (can_log) {
-		printf("CAN message sent.\n");
-	}
-#endif
-
-}
-
-void CAN_error(uint32_t error_info) {
-	if (error_info & CAN_ERROR_BOFF) {
-		can_errors = CAN_ERROR_BUS_OFF;
-		uv_can_reset(CAN1);
-		_uv_can_init();
-	}
-#if CONFIG_CAN_LOG || CONFIG_CAN_ERROR_LOG
-	printf("CAN error received:");
-	if (error_info & CAN_ERROR_ACK) {
-		printf(" ACK");
-	}
-	if (error_info & CAN_ERROR_BIT0) {
-		printf(" BIT0");
-	}
-	if (error_info & CAN_ERROR_BIT1) {
-		printf(" BIT1");
-	}
-	if (error_info & CAN_ERROR_BOFF) {
-		printf(" BOFF");
-	}
-	if (error_info & CAN_ERROR_CRC) {
-		printf(" CRC");
-	}
-	if (error_info & CAN_ERROR_FORM) {
-		printf(" FORM");
-	}
-	if (error_info & CAN_ERROR_NONE) {
-		printf(" NONE");
-	}
-	if (error_info & CAN_ERROR_PASS) {
-		printf(" PASS");
-	}
-	if (error_info & CAN_ERROR_STUF) {
-		printf(" STUF");
-	}
-	if (error_info & CAN_ERROR_WARN) {
-		printf(" WARN");
-		can_errors = CAN_ERROR_PASSIVE;
-	}
-	printf("\n");
-#endif
-}
-
-void CAN_IRQHandler(void) {
-	LPC_CAND_API->hwCAN_Isr(handle);
 }
 
 

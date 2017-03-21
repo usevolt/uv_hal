@@ -23,7 +23,11 @@
 void _uv_canopen_nmt_init(void) {
 
 	this->state = CANOPEN_PREOPERATIONAL;
+#if CONFIG_TARGET_LPC1785
 	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, CANOPEN_NMT_ID, CAN_STD);
+#else
+	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, CANOPEN_NMT_ID, CAN_ID_MASK_DEFAULT, CAN_STD);
+#endif
 
 	// uv bootloader sends the NMT boot up message,
 	// we should sent here NMT preoperational message

@@ -137,7 +137,7 @@ should be enabled. Defaults to 0."
  this node monitors. If heartbeats are not monitored, set this to 0."
 #endif
 #if !defined(CONFIG_CANOPEN_CHANNEL)
-#error "CONFIG_CANOPEN_CANNEL should define the uv_can channel to be used for CANopen communication"
+#error "CONFIG_CANOPEN_CHANNEL should define the uv_can channel to be used for CANopen communication"
 #endif
 
 

@@ -38,7 +38,7 @@
 
 #elif CONFIG_TARGET_LPC1549
 
-#define FLASH_SECTOR_SIZE					4096
+#define FLASH_SECTOR_SIZE					0x1000
 #define FLASH_START_ADDRESS 				0x00000000
 #define NON_VOLATILE_MEMORY_START_ADDRESS	0x3F000
 
@@ -394,7 +394,7 @@ const char *uv_memory_get_project_date(uv_data_start_t *start_ptr) {
 
 
 uv_errors_e _uv_memory_hal_load(void) {
-	memcpy(&CONFIG_NON_VOLATILE_START, (void*) CONFIG_NON_VOLATILE_START_ADDR, sizeof(uv_data_start_t));
+	memcpy(&CONFIG_NON_VOLATILE_START, (void*) NON_VOLATILE_MEMORY_START_ADDRESS, sizeof(uv_data_start_t));
 
 	return uv_memory_load();
 }

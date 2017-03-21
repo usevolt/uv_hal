@@ -33,10 +33,10 @@
 #error "CONFIG_APP_ST should define the main user application structure type and name."
 #endif
 #if !defined(CONFIG_NON_VOLATILE_START)
-#error "CONFIG_NON_VOLATILE should defined the uv_data_start_st variable in this application"
+#error "CONFIG_NON_VOLATILE_START should defined the uv_data_start_st variable in this application"
 #endif
 #if !defined(CONFIG_NON_VOLATILE_END)
-#error "CONFIG_NON_VOLATILE should defined the uv_data_end_st variable in this application"
+#error "CONFIG_NON_VOLATILE_END should defined the uv_data_end_st variable in this application"
 #endif
 #if !defined(CONFIG_MAIN_H)
 #error "CONFIG_MAIN_H should define the name of the application main header file as a string"
