@@ -131,23 +131,34 @@ uv_errors_e _uv_lcd_init(void) {
 			*(hlineptr++) = *((int32_t*) &color);\
 		} }while(0)\
 
-void uv_lcd_draw_rect(int32_t x, int32_t y, uint32_t width, uint32_t height, color_t color) {
-	if (x < 0) x = 0;
-	if (y < 0) y = 0;
-	if (x > LCD_W_PX || y > LCD_H_PX) return;
-	if (x + width > LCD_W_PX) width = LCD_W_PX - x;
-	if (y + height > LCD_H_PX) height = LCD_H_PX - y;
+
+void uv_lcd_draw_mrect(int32_t x, int32_t y, uint32_t width, uint32_t height, color_t c,
+		int32_t mask_x, int32_t mask_y, uint32_t mask_w, uint32_t mask_h) {
+	if (x < mask_x) x = mask_x;
+	if (y < mask_y) y = mask_y;
+	if (x > LCD_W_PX || y > LCD_H_PX) { return; }
+
+	if (width > mask_w) { width = mask_w; }
+	if (height > mask_h) { height = mask_h; }
+	if (x + width > LCD_W_PX) { width = LCD_W_PX - x; }
+	if (y + height > LCD_H_PX) { height = LCD_H_PX - y; }
 	uint32_t j;
 	for (j = y; j < y + height; j++) {
-		draw_hline(x, j, width, color);
+		draw_hline(x, j, width, c);
 	}
 }
 
-void uv_lcd_draw_frame(int32_t x, int32_t y, uint32_t width, uint32_t height, uint32_t border, color_t color) {
-	uv_lcd_draw_rect(x, y, width, border, color);
-	uv_lcd_draw_rect(x + width - border, y + border, border, height - border, color);
-	uv_lcd_draw_rect(x, y + border, border, height - border, color);
-	uv_lcd_draw_rect(x, y + height - border, width, border, color);
+
+void uv_lcd_draw_mframe(int32_t x, int32_t y, uint32_t width, uint32_t height, uint32_t border,
+		color_t color, int32_t mask_x, int32_t mask_y, uint32_t mask_w, uint32_t mask_h) {
+	uv_lcd_draw_mrect(x, y, width, border, color,
+			mask_x, mask_y, mask_w, mask_h);
+	uv_lcd_draw_mrect(x + width - border, y + border, border, height - border, color,
+			mask_x, mask_y, mask_w, mask_h);
+	uv_lcd_draw_mrect(x, y + border, border, height - border, color,
+			mask_x, mask_y, mask_w, mask_h);
+	uv_lcd_draw_mrect(x, y + height - border, width, border, color,
+			mask_x, mask_y, mask_w, mask_h);
 }
 
 

@@ -69,6 +69,14 @@ static void draw(void *me) {
 
 }
 
+uv_bounding_box_st uv_uitabwindow_get_contentbb(void *me) {
+	uv_bounding_box_st bb = *uv_uibb(me);
+	bb.y += CONFIG_UI_TABWINDOW_HEADER_HEIGHT;
+	bb.height -= CONFIG_UI_TABWINDOW_HEADER_HEIGHT;
+	return bb;
+}
+
+
 
 void uv_uitabwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 	bool refresh = this->super.super.refresh;

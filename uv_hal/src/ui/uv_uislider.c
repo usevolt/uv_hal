@@ -117,8 +117,9 @@ void uv_uislider_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 				this->drag_val * (this->max_val - this->min_val) /
 				(((this->horizontal) ? uv_uibb(this)->width : uv_uibb(this)->height)
 						- CONFIG_UI_SLIDER_WIDTH);
-		if (this->cur_val < this->min_val) this->cur_val = this->min_val;
-		else if (this->cur_val > this->max_val) this->cur_val = this->max_val;
+		if (this->cur_val < this->min_val) { this->cur_val = this->min_val; }
+		else if (this->cur_val > this->max_val) { this->cur_val = this->max_val; }
+		else { }
 
 		// prevent action from propagating into other elements
 		touch->action = TOUCH_NONE;
@@ -143,10 +144,14 @@ void uv_uislider_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 				i = -this->inc_step;
 			}
 		}
-//		not tested
-//		if (this->cur_val % i) {
-//			i = this->cur_val % i;
-//		}
+		if ((this->cur_val % this->inc_step) != 0) {
+			if (i < 0) {
+				i = -(this->cur_val % this->inc_step);
+			}
+			else {
+				i = this->inc_step - (this->cur_val % this->inc_step);
+			}
+		}
 		uv_uislider_set_value(this, this->cur_val + i);
 	}
 	else if (touch->action == TOUCH_NONE && this->dragging) {
