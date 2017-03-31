@@ -188,7 +188,7 @@ uv_errors_e _uv_pwm_init() {
 
 #endif
 
-	return uv_err(ERR_NONE);
+	return ERR_NONE;
 }
 
 

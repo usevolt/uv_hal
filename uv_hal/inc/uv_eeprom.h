@@ -45,7 +45,7 @@ static inline uint16_t uv_eeprom_size(void) {
 /// @param data: Pointer to the data to be saved
 /// @param len: The length of the data in bytes
 /// @param eeprom_addr: The address of the EEPROM where the data is to be saved
-uv_errors_e uv_eeprom_write(unsigned char *data, uint16_t len, uint16_t eeprom_addr);
+uv_errors_e uv_eeprom_write(const void *data, uint16_t len, uint16_t eeprom_addr);
 
 
 /// @brief: Reads data from the EEPROM memory
@@ -71,7 +71,7 @@ uv_errors_e uv_eeprom_read(unsigned char *dest, uint16_t len, uint16_t eeprom_ad
 
 /// @brief: Sets the entry length in bytes. This needs to be called only if
 /// EEPROM ring buffer functions are used
-void uv_eeprom_init_circular_buffer(uint16_t entry_len);
+void uv_eeprom_init_circular_buffer(const uint16_t entry_len);
 
 
 
@@ -81,7 +81,7 @@ void uv_eeprom_init_circular_buffer(uint16_t entry_len);
 /// for anything else
 ///
 /// @return Error if the memory was full and couln't push any more
-uv_errors_e uv_eeprom_push_back(unsigned char *src);
+uv_errors_e uv_eeprom_push_back(const void *src);
 
 
 /// @brief: Deletes the newest entry from the EEPROM circular buffer
@@ -90,7 +90,7 @@ uv_errors_e uv_eeprom_push_back(unsigned char *src);
 /// for anything else
 ///
 /// @return Error if the memory was empty and couln't remove anything
-uv_errors_e uv_eeprom_pop_back(unsigned char *dest);
+uv_errors_e uv_eeprom_pop_back(void *dest);
 
 
 
@@ -100,7 +100,7 @@ uv_errors_e uv_eeprom_pop_back(unsigned char *dest);
 /// for anything else
 ///
 /// @return Error if the memory was empty and couln't remove anything
-uv_errors_e uv_eeprom_pop_front(unsigned char *dest);
+uv_errors_e uv_eeprom_pop_front(void *dest);
 
 
 
@@ -109,11 +109,11 @@ uv_errors_e uv_eeprom_pop_front(unsigned char *dest);
 /// @param dest: destination where the data is copied
 /// @param eeprom_addr: Destination where the actual eeprom address where
 /// the **index**'th data was found will be copied
-uv_errors_e uv_eeprom_at(unsigned char *dest, uint16_t *eeprom_addr, uint16_t index);
+uv_errors_e uv_eeprom_at(void *dest, uint16_t *eeprom_addr, uint16_t index);
 
 
 /// @brief: Clears the whole EEPROM memory to zeroes
-void uv_eeprom_clear();
+void uv_eeprom_clear(void);
 
 
 #endif

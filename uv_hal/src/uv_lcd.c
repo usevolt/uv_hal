@@ -119,7 +119,7 @@ uv_errors_e _uv_lcd_init(void) {
 
 #endif
 
-	return uv_err(ERR_NONE);
+	return ERR_NONE;
 
 }
 
@@ -181,6 +181,8 @@ void uv_lcd_touch_calib_clear(void) {
 
 
 bool uv_lcd_touch_get(int16_t *x, int16_t *y) {
+	bool ret = true;
+
 	// first detect if the display is touched at all
 	ADC_INIT(CONFIG_LCD_Y_T_ADC);
 	ADC_INIT(CONFIG_LCD_Y_B_ADC);
@@ -189,48 +191,47 @@ bool uv_lcd_touch_get(int16_t *x, int16_t *y) {
 	uv_gpio_init_output(CONFIG_LCD_X_R_GPIO, 0);
 	uv_gpio_init_output(CONFIG_LCD_X_L_GPIO, 0);
 	if (uv_adc_read_average(CONFIG_LCD_Y_T_ADC, 4) > CONFIG_LCD_TOUCH_THRESHOLD) {
-		return false;
+		ret = false;
 	}
 
-	// then get the X coordinate
-	ADC_INIT(CONFIG_LCD_Y_T_ADC);
-	ADC_INIT(CONFIG_LCD_Y_B_ADC);
-	uv_gpio_init_output(CONFIG_LCD_X_R_GPIO, 1);
-	uv_gpio_init_output(CONFIG_LCD_X_L_GPIO, 0);
-	int x_val = uv_adc_read_average(CONFIG_LCD_Y_T_ADC, 10);
-	if (x_val < CONFIG_LCD_X_MIN) x_val = CONFIG_LCD_X_MIN;
-	else if (x_val > CONFIG_LCD_X_MAX) x_val = CONFIG_LCD_X_MAX;
-	int x_px = uv_reli(x_val, CONFIG_LCD_X_MIN, CONFIG_LCD_X_MAX) *
-			CONFIG_LCD_PIXELS_PER_LINE / 1000;
+	if (ret) {
+		// then get the X coordinate
+		ADC_INIT(CONFIG_LCD_Y_T_ADC);
+		ADC_INIT(CONFIG_LCD_Y_B_ADC);
+		uv_gpio_init_output(CONFIG_LCD_X_R_GPIO, 1);
+		uv_gpio_init_output(CONFIG_LCD_X_L_GPIO, 0);
+		int x_val = uv_adc_read_average(CONFIG_LCD_Y_T_ADC, 10);
+		if (x_val < CONFIG_LCD_X_MIN) x_val = CONFIG_LCD_X_MIN;
+		else if (x_val > CONFIG_LCD_X_MAX) x_val = CONFIG_LCD_X_MAX;
+		int x_px = uv_reli(x_val, CONFIG_LCD_X_MIN, CONFIG_LCD_X_MAX) *
+				CONFIG_LCD_PIXELS_PER_LINE / 1000;
 
-	// then get the Y coordinate
-	ADC_INIT(CONFIG_LCD_X_L_ADC);
-	ADC_INIT(CONFIG_LCD_X_R_ADC);
-	ADC_CONF(CONFIG_LCD_X_L_ADC, ADC_PULL_UP_ENABLED);
-	ADC_CONF(CONFIG_LCD_X_R_ADC, ADC_PULL_UP_ENABLED);
-	uv_gpio_init_output(CONFIG_LCD_Y_T_GPIO, 0);
-	uv_gpio_init_output(CONFIG_LCD_Y_B_GPIO, 1);
-	int y_val = uv_adc_read_average(CONFIG_LCD_X_L_ADC, 10);
-	if (y_val < CONFIG_LCD_Y_MIN) y_val = CONFIG_LCD_Y_MIN;
-	else if (y_val > CONFIG_LCD_Y_MAX) y_val = CONFIG_LCD_Y_MAX;
-	int y_px = uv_reli(y_val, CONFIG_LCD_Y_MIN, CONFIG_LCD_Y_MAX) *
-			CONFIG_LCD_LINES_PER_PANEL / 1000;
+		// then get the Y coordinate
+		ADC_INIT(CONFIG_LCD_X_L_ADC);
+		ADC_INIT(CONFIG_LCD_X_R_ADC);
+		ADC_CONF(CONFIG_LCD_X_L_ADC, ADC_PULL_UP_ENABLED);
+		ADC_CONF(CONFIG_LCD_X_R_ADC, ADC_PULL_UP_ENABLED);
+		uv_gpio_init_output(CONFIG_LCD_Y_T_GPIO, 0);
+		uv_gpio_init_output(CONFIG_LCD_Y_B_GPIO, 1);
+		int y_val = uv_adc_read_average(CONFIG_LCD_X_L_ADC, 10);
+		if (y_val < CONFIG_LCD_Y_MIN) y_val = CONFIG_LCD_Y_MIN;
+		else if (y_val > CONFIG_LCD_Y_MAX) y_val = CONFIG_LCD_Y_MAX;
+		int y_px = uv_reli(y_val, CONFIG_LCD_Y_MIN, CONFIG_LCD_Y_MAX) *
+				CONFIG_LCD_LINES_PER_PANEL / 1000;
 
+		if (x) { *x = x_px; }
+		if (y) { *y = y_px; }
 
-	if (x) { *x = x_px; }
-	if (y) { *y = y_px; }
+		// initialize pins to default values for next call
+		ADC_INIT(CONFIG_LCD_Y_T_ADC);
+		ADC_INIT(CONFIG_LCD_Y_B_ADC);
+		ADC_CONF(CONFIG_LCD_Y_T_ADC, ADC_PULL_UP_ENABLED);
+		ADC_CONF(CONFIG_LCD_Y_B_ADC, ADC_PULL_UP_ENABLED);
+		uv_gpio_init_output(CONFIG_LCD_X_R_GPIO, 0);
+		uv_gpio_init_output(CONFIG_LCD_X_L_GPIO, 0);
+	}
 
-//	uv_lcd_draw_rect(*x-2, *y-2, 4, 4, C(0xFF0000));
-
-	// initialize pins to default values for next call
-	ADC_INIT(CONFIG_LCD_Y_T_ADC);
-	ADC_INIT(CONFIG_LCD_Y_B_ADC);
-	ADC_CONF(CONFIG_LCD_Y_T_ADC, ADC_PULL_UP_ENABLED);
-	ADC_CONF(CONFIG_LCD_Y_B_ADC, ADC_PULL_UP_ENABLED);
-	uv_gpio_init_output(CONFIG_LCD_X_R_GPIO, 0);
-	uv_gpio_init_output(CONFIG_LCD_X_L_GPIO, 0);
-
-	return true;
+	return ret;
 }
 
 

@@ -132,21 +132,21 @@ uv_errors_e uv_memory_save(void) {
 		}
 	}
 	if (match) {
-		return uv_err(ERR_NONE);
+		return ERR_NONE;
 	}
 	printf("Flashing %u bytes\n", length);
 	if (length < 0) {
-		__uv_err_throw(ERR_END_ADDR_LESS_THAN_START_ADDR | HAL_MODULE_MEMORY);
+		return ERR_END_ADDR_LESS_THAN_START_ADDR;
 	}
 #if CONFIG_TARGET_LPC1785
 	else if (length > IAP_BYTES_32768) {
-		__uv_err_throw(ERR_NOT_ENOUGH_MEMORY | HAL_MODULE_MEMORY);
+		return ERR_NOT_ENOUGH_MEMORY;
 	}
 #endif
 	//calculate the right length
 	else if (length > IAP_BYTES_4096) {
 #if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549
-		__uv_err_throw(ERR_NOT_ENOUGH_MEMORY | HAL_MODULE_MEMORY);
+		return ERR_NOT_ENOUGH_MEMORY;
 #elif CONFIG_TARGET_LPC1785
 		length = IAP_BYTES_32768;
 #endif
@@ -174,10 +174,10 @@ uv_errors_e uv_memory_save(void) {
 	uv_iap_status_e status = uv_erase_and_write_to_flash((unsigned int) &CONFIG_NON_VOLATILE_START,
 			length, NON_VOLATILE_MEMORY_START_ADDRESS);
 	if (status == IAP_CMD_SUCCESS) {
-		return uv_err(ERR_NONE);
+		return ERR_NONE;
 	}
 	else {
-		__uv_err_throw(ERR_INTERNAL | HAL_MODULE_MEMORY);
+		return ERR_INTERNAL;
 	}
 }
 
@@ -200,9 +200,9 @@ uv_errors_e uv_memory_load(void) {
 	if (CONFIG_NON_VOLATILE_END.crc !=
 			uv_memory_calc_crc(&CONFIG_NON_VOLATILE_START,
 					(uint32_t) &CONFIG_NON_VOLATILE_END - (uint32_t) &CONFIG_NON_VOLATILE_START)) {
-		__uv_err_throw(ERR_END_CHECKSUM_NOT_MATCH | HAL_MODULE_MEMORY);
+		return ERR_END_CHECKSUM_NOT_MATCH;
 	}
-	return uv_err(ERR_NONE);
+	return ERR_NONE;
 }
 
 
@@ -305,18 +305,19 @@ uv_iap_status_e uv_erase_and_write_to_flash(unsigned int ram_address,
 
 
 uv_errors_e uv_memory_clear(void) {
+	uv_errors_e ret = ERR_NONE;
+
 	CONFIG_NON_VOLATILE_END.crc = !CONFIG_NON_VOLATILE_END.crc;
 
 	int length = ((unsigned int) &CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
 			(unsigned int) &CONFIG_NON_VOLATILE_START;
 	if (length < 0) {
-		__uv_err_throw(ERR_END_ADDR_LESS_THAN_START_ADDR | HAL_MODULE_MEMORY);
+		ret = ERR_END_ADDR_LESS_THAN_START_ADDR;
 	}
 	//calculate the right length
 	else if (length > IAP_BYTES_4096) {
-		__uv_err_throw(ERR_NOT_ENOUGH_MEMORY | HAL_MODULE_MEMORY);
+		ret = ERR_NOT_ENOUGH_MEMORY;
 	}
-
 	else if (length > IAP_BYTES_1024) {
 		length = IAP_BYTES_4096;
 	}
@@ -330,14 +331,16 @@ uv_errors_e uv_memory_clear(void) {
 		length = IAP_BYTES_256;
 	}
 
-	uv_iap_status_e status = uv_erase_and_write_to_flash((unsigned int) &CONFIG_NON_VOLATILE_START,
-			length, NON_VOLATILE_MEMORY_START_ADDRESS);
-	if (status == IAP_CMD_SUCCESS) {
-		return uv_err(ERR_NONE);
+	if (ret == ERR_NONE) {
+		uv_iap_status_e status = uv_erase_and_write_to_flash((unsigned int) &CONFIG_NON_VOLATILE_START,
+				length, NON_VOLATILE_MEMORY_START_ADDRESS);
+
+		if (status != IAP_CMD_SUCCESS) {
+			ret = ERR_INTERNAL;
+		}
 	}
-	else {
-		__uv_err_throw(ERR_INTERNAL | HAL_MODULE_MEMORY);
-	}
+
+	return ret;
 }
 
 #endif

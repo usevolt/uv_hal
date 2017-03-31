@@ -130,6 +130,8 @@ typedef enum {
 	ERR_MESSAGE_NOT_SENT				= 42,
 	ERR_CAN_BUS_OFF						= 43,
 	ERR_ABORTED							= 44,
+	/// @brief: Parameter to function was null pointer
+	ERR_NULL_PTR						= 45,
 	ERR_COUNT
 } _uv_errors_e;
 typedef unsigned int uv_errors_e;
@@ -182,36 +184,8 @@ typedef enum {
 } uv_hal_modules_e;
 
 
-/// @brief: Generates and returns an error
-/// @example:
-/// // Returns a not initialized -error from custom module
-/// return uv_error(ERR_NOT_INITIALIZED | USER_MODULE_1);
-#define uv_err(err) (__uv_error = err)
-
 #define UV_ERR_GET(x)			(x & HAL_MODULE_MASK)
 #define UV_ERR_SOURCE_GET(x) 	((x & (~HAL_MODULE_MASK)) >> 24)
-
-/// @brief: Returns the error by masking of the module which caused it
-#define uv_get_error()  (__uv_error & HAL_MODULE_MASK)
-
-/// @brief: Returns the module which caused the error
-#define uv_get_error_source() ((__uv_error & (~HAL_MODULE_MASK)) >> 24)
-
-
-
-/// @brief: Macro useful for error checking and passing forward the error value.
-#define uv_err_pass(function_call) if ((__uv_error = function_call)) { return __uv_error; }
-
-/// @brief: Macro useful for error checking. Error is stored in uv_error global variable.
-/// @note: Curly parenthesis are suggested after this!
-#define uv_err_check(function_call) if ((__uv_error = function_call))
-
-/// @brief: Macro useful for error logging. If parameter function returns an
-/// error, it's logged to stdout.
-#define uv_err_log(function_call) (__uv_log_error(function_call))
-
-
-
 
 
 
@@ -220,22 +194,8 @@ typedef enum {
 // Should not be used in the user application
 
 
-extern uv_errors_e __uv_error;
-
-
-/// @brief: Logs the error to stdout and returns with it
-/// @note: Used inside this library
-#define __uv_err_throw(err)		__uv_log_error_throw(__uv_error = err); return err;
-
-
 /// @brief: Logs the error info string into stdout
-uv_errors_e __uv_log_error(unsigned int err);
-
-static inline void __uv_log_error_throw(unsigned int err) {
-#if CONFIG_LOG_ERRORS
-	__uv_log_error(err);
-#endif
-}
+uv_errors_e uv_log_error(unsigned int err);
 
 
 #endif /* UW_ERRORS_H_ */

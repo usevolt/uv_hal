@@ -61,55 +61,76 @@ uv_errors_e uv_ring_buffer_init(uv_ring_buffer_st *buffer_ptr, void *buffer,
 	buffer_ptr->element_count = 0;
 	buffer_ptr->element_size = element_size;
 	buffer_ptr->head = buffer_ptr->tail = buffer_ptr->buffer;
-	return uv_err(ERR_NONE);
+	return ERR_NONE;
 }
 
 
 uv_errors_e uv_ring_buffer_push(uv_ring_buffer_st *buffer, void *element) {
-	if (buffer->element_count >= buffer->buffer_size) {
-		return uv_err(ERR_BUFFER_OVERFLOW | HAL_MODULE_UTILITIES);
+	uv_errors_e ret = ERR_NONE;
+
+	if (buffer == NULL) {
+		ret = ERR_NULL_PTR;
 	}
-	uint8_t i;
-	for (i = 0; i < buffer->element_size; i++) {
-		*(buffer->head) = *((char*) element + i);
-		buffer->head++;
+	else if (buffer->element_count >= buffer->buffer_size) {
+		ret = ERR_BUFFER_OVERFLOW;
 	}
-	if (buffer->head == buffer->buffer + buffer->buffer_size * buffer->element_size) {
-		buffer->head = buffer->buffer;
+	else {
+		uint8_t i;
+		for (i = 0; i < buffer->element_size; i++) {
+			*(buffer->head) = *((char*) element + i);
+			buffer->head++;
+		}
+		if (buffer->head == buffer->buffer + buffer->buffer_size * buffer->element_size) {
+			buffer->head = buffer->buffer;
+		}
+		buffer->element_count++;
 	}
-	buffer->element_count++;
-	return uv_err(ERR_NONE);
+	return ret;
 }
 
 uv_errors_e uv_ring_buffer_peek(uv_ring_buffer_st *buffer, void *dest) {
-	if (!buffer->element_count) {
-		return uv_err(ERR_BUFFER_EMPTY | HAL_MODULE_UTILITIES);
+	uv_errors_e ret = ERR_NONE;
+
+	if (buffer == NULL) {
+		ret = ERR_NULL_PTR;
 	}
-	if (dest) {
-		for (int16_t i = 0; i < buffer->element_size; i++) {
-			*((char*)dest + i) = *(buffer->tail + i);
+	else if (!buffer->element_count) {
+		ret = ERR_BUFFER_EMPTY;
+	}
+	else {
+		if (dest) {
+			for (int16_t i = 0; i < buffer->element_size; i++) {
+				*((char*)dest + i) = *(buffer->tail + i);
+			}
 		}
 	}
-	return uv_err(ERR_NONE);
+	return ret;
 
 }
 
 uv_errors_e uv_ring_buffer_pop(uv_ring_buffer_st *buffer, void *dest) {
-	if (!buffer->element_count) {
-		return uv_err(ERR_BUFFER_EMPTY | HAL_MODULE_UTILITIES);
+	uv_errors_e ret = ERR_NONE;
+
+	if (buffer == NULL) {
+		ret = ERR_NULL_PTR;
 	}
-	uint8_t i;
-		for (i = 0; i < buffer->element_size; i++) {
-			if (dest) {
-				*((char*)dest + i) = *(buffer->tail);
-			}
-			buffer->tail++;
+	else if (!buffer->element_count) {
+		ret = ERR_BUFFER_EMPTY;
 	}
-	if (buffer->tail == buffer->buffer + buffer->buffer_size * buffer->element_size) {
-		buffer->tail = buffer->buffer;
+	else {
+		uint8_t i;
+			for (i = 0; i < buffer->element_size; i++) {
+				if (dest) {
+					*((char*)dest + i) = *(buffer->tail);
+				}
+				buffer->tail++;
+		}
+		if (buffer->tail == buffer->buffer + buffer->buffer_size * buffer->element_size) {
+			buffer->tail = buffer->buffer;
+		}
+		buffer->element_count--;
 	}
-	buffer->element_count--;
-	return uv_err(ERR_NONE);
+	return ret;
 }
 
 
@@ -123,80 +144,121 @@ void uv_vector_init(uv_vector_st *this, void *buffer,
 
 
 uv_errors_e uv_vector_push_back(uv_vector_st *this, void *data) {
-	if (this->len >= this->buffer_size) {
-		return uv_err(ERR_BUFFER_OVERFLOW | HAL_MODULE_UTILITIES);
+	uv_errors_e ret = ERR_NONE;
+
+	if (this == NULL) {
+		ret = ERR_NULL_PTR;
 	}
-	if (data) {
-		memcpy(&this->buffer[this->len * this->element_size], data, this->element_size);
+	else if (this->len >= this->buffer_size) {
+		ret = ERR_BUFFER_OVERFLOW;
 	}
-	this->len++;
-	return uv_err(ERR_NONE);
+	else {
+		if (data) {
+			memcpy(&this->buffer[this->len * this->element_size], data, this->element_size);
+		}
+		this->len++;
+	}
+	return ret;
 }
 
 
 uv_errors_e uv_vector_push_front(uv_vector_st *this, void *data) {
-	if (this->len >= this->buffer_size) {
-		return uv_err(ERR_BUFFER_OVERFLOW | HAL_MODULE_UTILITIES);
+	uv_errors_e ret = ERR_NONE;
+	if (this == NULL) {
+		ret = ERR_NULL_PTR;
 	}
-	memmove(this->buffer + this->element_size, this->buffer, this->element_size);
-	memcpy(this->buffer, data, this->element_size);
-	this->len--;
-	return uv_err(ERR_NONE);
+	else if (this->len >= this->buffer_size) {
+		ret = ERR_BUFFER_OVERFLOW;
+	}
+	else {
+		memmove(this->buffer + this->element_size, this->buffer, this->element_size);
+		memcpy(this->buffer, data, this->element_size);
+		this->len--;
+	}
+	return ret;
 }
 
 uv_errors_e uv_vector_insert(uv_vector_st *this, uint16_t index, void *src) {
-	if (this->len >= this->buffer_size) {
-		return uv_err(ERR_BUFFER_OVERFLOW | HAL_MODULE_UTILITIES);
-	}
-	if (this->len <= index) {
-		return uv_err(ERR_INDEX_OVERFLOW | HAL_MODULE_UTILITIES);
-	}
-	memmove(this->buffer + index * this->element_size + this->element_size,
-			this->buffer + index * this->element_size, this->element_size * (this->len - index));
-	memcpy(this->buffer + index * this->element_size, src, this->element_size);
-	this->len++;
+	uv_errors_e ret = ERR_NONE;
 
-	return uv_err(ERR_NONE);
+	if (this == NULL) {
+		ret = ERR_NULL_PTR;
+	}
+	else if (this->len >= this->buffer_size) {
+		ret = ERR_BUFFER_OVERFLOW;
+	}
+	else if (this->len <= index) {
+		ret = ERR_INDEX_OVERFLOW;
+	}
+	else {
+		memmove(this->buffer + index * this->element_size + this->element_size,
+				this->buffer + index * this->element_size, this->element_size * (this->len - index));
+		memcpy(this->buffer + index * this->element_size, src, this->element_size);
+		this->len++;
+	}
+
+	return ret;
 }
 
 
 uv_errors_e uv_vector_pop_back(uv_vector_st *this, void *data) {
-	if (!this->len) {
-		return uv_err(ERR_BUFFER_EMPTY | HAL_MODULE_UTILITIES);
+	uv_errors_e ret = ERR_NONE;
+
+	if (this == NULL) {
+		ret = ERR_NULL_PTR;
 	}
-	if (data) {
-		memcpy(data, &this->buffer[(this->len - 1) * this->element_size], this->element_size);
+	else if (!this->len) {
+		ret = ERR_BUFFER_EMPTY;
 	}
-	this->len--;
-	return uv_err(ERR_NONE);
+	else {
+		if (data) {
+			memcpy(data, &this->buffer[(this->len - 1) * this->element_size], this->element_size);
+		}
+		this->len--;
+	}
+	return ret;
 }
 
 
 uv_errors_e uv_vector_pop_front(uv_vector_st *this, void *data) {
-	if (!this->len) {
-		return uv_err(ERR_BUFFER_EMPTY | HAL_MODULE_UTILITIES);
+	uv_errors_e ret = ERR_NONE;
+
+	if (this == NULL) {
+		ret = ERR_NULL_PTR;
 	}
-	if (data) {
-		memcpy(data, this->buffer, this->element_size);
+	else if (!this->len) {
+		ret = ERR_BUFFER_EMPTY;
 	}
-	memmove(this->buffer, this->buffer + this->element_size, this->element_size);
-	this->len--;
-	return uv_err(ERR_NONE);
+	else {
+		if (data) {
+			memcpy(data, this->buffer, this->element_size);
+		}
+		memmove(this->buffer, this->buffer + this->element_size, this->element_size);
+		this->len--;
+	}
+	return ret;
 }
 
 
 
 uv_errors_e uv_vector_remove(uv_vector_st *this, uint16_t index, uint16_t count) {
-	if (this->len < index + count) {
-		return uv_err(ERR_INDEX_OVERFLOW | HAL_MODULE_UTILITIES);
+	uv_errors_e ret = ERR_NONE;
+
+	if (this == NULL) {
+		ret = ERR_NULL_PTR;
 	}
-	if (count > 0) {
-		memmove(this->buffer + index * this->element_size,
-				this->buffer + index * this->element_size + count * this->element_size,
-				this->element_size * (this->len - index - (count - 1)));
-		this->len -= count;
+	else if (this->len < index + count) {
+		ret = ERR_INDEX_OVERFLOW;
 	}
-	return uv_err(ERR_NONE);
+	else {
+		if (count > 0) {
+			memmove(this->buffer + index * this->element_size,
+					this->buffer + index * this->element_size + count * this->element_size,
+					this->element_size * (this->len - index - (count - 1)));
+			this->len -= count;
+		}
+	}
+	return ret;
 }
 
 

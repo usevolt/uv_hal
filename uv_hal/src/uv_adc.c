@@ -135,45 +135,43 @@ uv_errors_e _uv_adc_init() {
 
 #endif
 
-	return uv_err(ERR_NONE);
+	return ERR_NONE;
 }
 
 
 
 #if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1785
-int uv_adc_read(uv_adc_channels_e channel) {
-	// if burst mode isn't on, trigger the AD conversion and return the value
+int16_t uv_adc_read(uv_adc_channels_e channel) {
+	int16_t ret = -1;
 
 	// check if the channel is valid
 	// LPC11C22 has 8 channels, so channel has to be less than 8
-	if ((channel & (channel - 1)) != 0) {
-		printf("channel: 0x%x\n", channel);
-		__uv_log_error(ERR_UNSUPPORTED_PARAM1_VALUE | HAL_MODULE_ADC);
-		return -1;
-	}
-	int value = 0;
-	// make sure that only one channel is selected
-	//set the channel
-	LPC_ADC->CR &= ~(0xFF);
-	LPC_ADC->CR |= channel & 0xFF;
-	// start the conversion
-	LPC_ADC->CR &= ~(0b111 << 24);
-	LPC_ADC->CR |= (1 << 24);
-	//wait until the conversion is finished
-	while (!(LPC_ADC->STAT & (1 << 16))) {
-		uv_rtos_task_yield();
-	}
-	//read the acquired value
+	if ((channel & (channel - 1)) == 0) {
+		int16_t value = 0;
+		// make sure that only one channel is selected
+		//set the channel
+		LPC_ADC->CR &= ~(0xFF);
+		LPC_ADC->CR |= channel & 0xFF;
+		// start the conversion
+		LPC_ADC->CR &= ~(0b111 << 24);
+		LPC_ADC->CR |= (1 << 24);
+		//wait until the conversion is finished
+		while (!(LPC_ADC->STAT & (1 << 16))) {
+			uv_rtos_task_yield();
+		}
+		//read the acquired value
 #if CONFIG_TARGET_LPC11C14
-	value = (LPC_ADC->DR[(LPC_ADC->GDR >> 24) & 0b111] >> 6) & 0x3FF;
+		value = (LPC_ADC->DR[(LPC_ADC->GDR >> 24) & 0b111] >> 6) & 0x3FF;
 #elif CONFIG_TARGET_LPC1785
-	value = (LPC_ADC->DR[(LPC_ADC->GDR >> 24) & 0b111] >> 4) & 0xFFF;
+		value = (LPC_ADC->DR[(LPC_ADC->GDR >> 24) & 0b111] >> 4) & 0xFFF;
 #endif
-	return value;
+		ret = value;
+	}
+	return ret;
 }
 
-int uv_adc_read_average(uv_adc_channels_e channel, unsigned int conversion_count) {
-	int value = 0, i;
+int16_t uv_adc_read_average(uv_adc_channels_e channel, uint32_t conversion_count) {
+	int16_t value = 0, i;
 	for (i = 0; i < conversion_count; i++) {
 		value += uv_adc_read(channel);
 	}

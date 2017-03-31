@@ -24,42 +24,42 @@ enum {
 /// @brief: Initializes an ADC pin to function as an analog channel
 #define ADC_INIT(chn)	CAT(chn, _INIT)
 
-#define ADC_0_INIT		LPC_IOCON->P0_23 &= ~(0b111 | (1 << 7)); \
-							LPC_IOCON->P0_23 |= (0b001)
+#define ADC_0_INIT		do { LPC_IOCON->P0_23 &= ~(0b111 | (1 << 7)); \
+							LPC_IOCON->P0_23 |= (0b001); } while (0)
 
-#define ADC_1_INIT		LPC_IOCON->P0_24 &= ~(0b111 | (1 << 7)); \
-							LPC_IOCON->P0_24 |= (0b001)
+#define ADC_1_INIT		do { LPC_IOCON->P0_24 &= ~(0b111 | (1 << 7)); \
+							LPC_IOCON->P0_24 |= (0b001); } while (0)
 
-#define ADC_2_INIT		LPC_IOCON->P0_25 &= ~(0b111 | (1 << 7)); \
-							LPC_IOCON->P0_25 |= (0b001)
+#define ADC_2_INIT		do { LPC_IOCON->P0_25 &= ~(0b111 | (1 << 7)); \
+							LPC_IOCON->P0_25 |= (0b001); } while (0)
 
-#define ADC_3_INIT		LPC_IOCON->P0_26 &= ~(0b111 | (1 << 7) | (1 << 16)); \
-							LPC_IOCON->P0_26 |= (0b001)
+#define ADC_3_INIT		do { LPC_IOCON->P0_26 &= ~(0b111 | (1 << 7) | (1 << 16)); \
+							LPC_IOCON->P0_26 |= (0b001); } while (0)
 
-#define ADC_4_INIT		LPC_IOCON->P1_30 &= ~(0b111 | (1 << 7)); \
-							LPC_IOCON->P1_30 |= (0b011)
+#define ADC_4_INIT		do { LPC_IOCON->P1_30 &= ~(0b111 | (1 << 7)); \
+							LPC_IOCON->P1_30 |= (0b011); } while (0)
 
-#define ADC_5_INIT		LPC_IOCON->P1_31 &= ~(0b111 | (1 << 7)); \
-							LPC_IOCON->P1_31 |= (0b011)
+#define ADC_5_INIT		do { LPC_IOCON->P1_31 &= ~(0b111 | (1 << 7)); \
+							LPC_IOCON->P1_31 |= (0b011); } while (0)
 
-#define ADC_6_INIT		LPC_IOCON->P0_12 &= ~(0b111 | (1 << 7)); \
-							LPC_IOCON->P0_12 |= (0b011)
+#define ADC_6_INIT		do { LPC_IOCON->P0_12 &= ~(0b111 | (1 << 7)); \
+							LPC_IOCON->P0_12 |= (0b011) } while (0)
 
-#define ADC_7_INIT		LPC_IOCON->P0_13 &= ~(0b111 | (1 << 7)); \
-							LPC_IOCON->P0_13 |= (0b011)
+#define ADC_7_INIT		do { LPC_IOCON->P0_13 &= ~(0b111 | (1 << 7)); \
+							LPC_IOCON->P0_13 |= (0b011) } while (0)
 
 /// @brief: Pull up & pull down configuration macros. These should be used
 /// only to enable pull up & pull down resistors on AD pins, if necessary.
 #define ADC_CONF(adc, confs) CAT(adc, _CONF(confs))
 
-#define ADC_0_CONF(confs) LPC_IOCON->P0_23 |= confs
-#define ADC_1_CONF(confs) LPC_IOCON->P0_24 |= confs
-#define ADC_2_CONF(confs) LPC_IOCON->P0_25 |= confs
-#define ADC_3_CONF(confs) LPC_IOCON->P0_26 |= confs
-#define ADC_4_CONF(confs) LPC_IOCON->P0_30 |= confs
-#define ADC_5_CONF(confs) LPC_IOCON->P0_31 |= confs
-#define ADC_6_CONF(confs) LPC_IOCON->P0_12 |= confs
-#define ADC_7_CONF(confs) LPC_IOCON->P0_13 |= confs
+#define ADC_0_CONF(confs) do { LPC_IOCON->P0_23 |= confs; } while (0)
+#define ADC_1_CONF(confs) do { LPC_IOCON->P0_24 |= confs; } while (0)
+#define ADC_2_CONF(confs) do { LPC_IOCON->P0_25 |= confs; } while (0)
+#define ADC_3_CONF(confs) do { LPC_IOCON->P0_26 |= confs; } while (0)
+#define ADC_4_CONF(confs) do { LPC_IOCON->P0_30 |= confs; } while (0)
+#define ADC_5_CONF(confs) do { LPC_IOCON->P0_31 |= confs; } while (0)
+#define ADC_6_CONF(confs) do { LPC_IOCON->P0_12 |= confs; } while (0)
+#define ADC_7_CONF(confs) do { LPC_IOCON->P0_13 |= confs; } while (0)
 
 #endif
 
@@ -197,7 +197,7 @@ uv_errors_e _uv_adc_init();
 /// @return: Value from the adc, 0 ... ADC_MAX_VALUE
 /// @param channel to be returned. Should be ADC_CHN_0, ADC_CHN_1, etc etc.
 /// invalid channels return -1.
-int uv_adc_read(uv_adc_channels_e channel);
+int16_t uv_adc_read(uv_adc_channels_e channel);
 
 
 /// @brief: returns the channel'd adc channel value as 32-bit integer averaged by
@@ -209,7 +209,7 @@ int uv_adc_read(uv_adc_channels_e channel);
 /// @param channel to be returned. Should be ADC_CHN_0, ADC_CHN_1, etc etc.
 /// invalid channels return -1.
 /// @param conversion_count: The amount of AD conversions to be done and averaged.
-int uv_adc_read_average(uv_adc_channels_e channel, unsigned int conversion_count);
+int16_t uv_adc_read_average(uv_adc_channels_e channel, uint32_t conversion_count);
 
 
 /*** YET UNIMPLEMENTED METHODS

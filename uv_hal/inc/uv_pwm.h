@@ -219,7 +219,7 @@ static inline uv_errors_e uv_pwm_set(uv_pwm_channel_t chn, uint16_t value) {
 	*chn = PWM_MAX_VALUE - value;
 #endif
 
-	return uv_err(ERR_NONE);
+	return ERR_NONE;
 }
 
 

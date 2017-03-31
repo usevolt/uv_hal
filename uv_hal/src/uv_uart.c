@@ -95,7 +95,7 @@ void UART_IRQHandler (void) {
 	char received_char = this->uart[UART0]->RBR & 0xFF;
 	uv_err_check(uv_ring_buffer_push(&this->buffer[UART0], &received_char)) {
 		if (uv_get_error() == ERR_BUFFER_OVERFLOW) {
-			__uv_log_error(__uv_error);
+			uv_log_error(__uv_error);
 		}
 	}
 	// callback
@@ -116,10 +116,7 @@ static void isr(uv_uarts_e uart) {
 	else
 #endif
 	received_char = this->uart[uart]->RBR & 0xFF;
-	uv_errors_e e = uv_ring_buffer_push(&this->buffer[uart], &received_char);
-	if (UV_ERR_GET(e)) {
-		__uv_log_error(__uv_error);
-	}
+	uv_ring_buffer_push(&this->buffer[uart], &received_char);
 	// call callback
 	if (this->callback[uart]) {
 		this->callback[uart](__uv_get_user_ptr(), uart);
@@ -167,7 +164,7 @@ static void isr(uv_uarts_e uart) {
 #endif
 		uv_errors_e e = uv_ring_buffer_push(&this->buffer[i], &c);
 		if (e) {
-			__uv_log_error(e);
+			uv_log_error(e);
 		}
 		if (this->callback[i]) {
 			this->callback[i](__uv_get_user_ptr(), uart);
@@ -293,6 +290,7 @@ uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 
 #elif CONFIG_TARGET_LPC1785
 uv_errors_e _uv_uart_init(uv_uarts_e uart) {
+	uv_errors_e ret = ERR_NONE;
 
 	SystemCoreClockUpdate();
 
@@ -601,7 +599,7 @@ uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 #endif
 	default:
 		// this should not happen if hal_config was correctly configured
-		__uv_err_throw(ERR_INCORRECT_HAL_CONFIG | HAL_MODULE_UART);
+		ret = ERR_INCORRECT_HAL_CONFIG;
 		break;
 	}
 
@@ -619,10 +617,12 @@ uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 #endif
 
 
-	return uv_err(ERR_NONE);
+	return ret;
 }
 #elif CONFIG_TARGET_LPC1549
 uv_errors_e _uv_uart_init(uv_uarts_e uart) {
+	uv_errors_e ret = ERR_NONE;
+
 	Chip_Clock_SetUARTBaseClockRate(Chip_Clock_GetMainClockRate(), false);
 
 	#if CONFIG_UART0
@@ -688,7 +688,7 @@ uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 
 	Chip_UART_Enable((void*) uart);
 
-	return uv_err(ERR_NONE);
+	return ret;
 }
 
 #endif
@@ -697,6 +697,7 @@ uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 
 
 uv_errors_e uv_uart_send_char(uv_uarts_e uart, char buffer) {
+	uv_errors_e ret = ERR_NONE;
 
 #if (CONFIG_TARGET_LPC11C14 && CONFIG_UART0)
 	/* Wait until we're ready to send */
@@ -729,7 +730,7 @@ uv_errors_e uv_uart_send_char(uv_uarts_e uart, char buffer) {
 	Chip_UART_SendBlocking((void *) uart, &buffer, 1);
 #endif
 
-	return uv_err(ERR_NONE);
+	return ret;
 }
 
 
@@ -741,7 +742,7 @@ uv_errors_e uv_uart_send(uv_uarts_e uart, char *buffer, uint32_t length) {
 		buffer++;
 		length--;
 	}
-	return uv_err(ERR_NONE);
+	return ERR_NONE;
 }
 
 
@@ -753,11 +754,12 @@ uv_errors_e uv_uart_send_str(uv_uarts_e uart, char *buffer) {
 		buffer++;
 	}
 
-	return uv_err(ERR_NONE);
+	return ERR_NONE;
 }
 
 
 uv_errors_e uv_uart_get_char(uv_uarts_e uart, char *dest) {
+	uv_errors_e ret = ERR_NONE;
 
 	uv_disable_int();
 	uint32_t i = uart;
@@ -772,9 +774,9 @@ uv_errors_e uv_uart_get_char(uv_uarts_e uart, char *dest) {
 	if (uart == UART2) { i = 2; }
 #endif
 #endif
-	uv_errors_e err = uv_ring_buffer_pop(&this->buffer[i], dest);
+	ret = uv_ring_buffer_pop(&this->buffer[i], dest);
 	uv_enable_int();
-	return err;
+	return ret;
 }
 
 

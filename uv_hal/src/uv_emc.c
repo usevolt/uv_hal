@@ -130,7 +130,7 @@ uv_errors_e _uv_emc_init( void ) {
 	LPC_EMC->DynamicConfig0    |= 0x00080000; // Buffer enable
 	_delay_ms(100);
 
-	return uv_err(ERR_NONE);
+	return ERR_NONE;
 }
 
 

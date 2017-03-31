@@ -140,141 +140,140 @@ int uv_terminal_get_commands_count(void) {
 
 
 uv_errors_e uv_terminal_step() {
+	uv_errors_e ret = ERR_NONE;
+
 	// if pointer to commands array is null, terminal is not initialized, so we do nothing
 	if (!this->commands_ptr) {
-		__uv_err_throw(ERR_NOT_INITIALIZED | HAL_MODULE_TERMINAL);
+		ret = ERR_NOT_INITIALIZED;
 	}
+	else {
 
-	// cycle trough all received characters
-	char data;
+		// cycle trough all received characters
+		char data;
 
-	uv_errors_e e;
-	while (true) {
+		uv_errors_e e;
+		while (true) {
 
-		// redirect printf to the source where message was received
-		e = uv_uart_get_char(UART0, &data);
+			// redirect printf to the source where message was received
+			e = uv_uart_get_char(UART0, &data);
 
-		// getting an error means that no more data is available on uart. Try CAN
-#if CONFIG_TERMINAL_CAN
-		if (e) {
-			e = uv_can_get_char(&data);
-		}
-#endif
-		if (e) {
-			break;
-		}
-
-		// check for buffer overflows
-		if (this->buffer_index >= CONFIG_TERMINAL_BUFFER_SIZE) {
-			this->buffer_index = 0;
-			__uv_err_throw(ERR_BUFFER_OVERFLOW | HAL_MODULE_TERMINAL);
-		}
-
-		// echo back received characters
-		uv_stdout_send(&data, 1);
-
-		// escape clears the terminal
-		if (data == 0x1B) {
-			uv_stdout_send("\033[2K\r>", 6);
-			this->buffer_index = 0;
-			continue;
-		}
-
-		// if backspace was received, delete last saved character
-		if (data == 0x08) {
-			if (this->buffer_index > 0) {
-				this->buffer_index--;
+			// getting an error means that no more data is available on uart. Try CAN
+	#if CONFIG_TERMINAL_CAN
+			if (e) {
+				e = uv_can_get_char(&data);
 			}
-			continue;
-		}
-		//if carriage return was received, read command and clear buffer
-		if (data == 0x0D || data == 0x0A) {
-			int i;
-			int p = 0;
-			//change line Note: Commented to prevent unnecessary line changes
-			//printf("\n");
-			// do nothing if receive buffer was empty
-			if (this->buffer_index == 0) {
-				printf(">");
-				continue;
+	#endif
+			if (e) {
+				break;
 			}
-			//replace carriage return with a terminating mark
-			this->buffer[this->buffer_index] = '\0';
 
-			bool string_arg = false;
-			for (i = 0; i < this->buffer_index; i++) {
-				// '"' mark means a string argument (multi-space argument if dedicated callback are not used)
-				if (i) {
-					if (this->buffer[i] == '"') {
-						if (!string_arg) {
-							// multi-space argument start, edit arg starting with \0
-							if (this->buffer[i - 1] == '\0') {
+			// check for buffer overflows
+			if (this->buffer_index >= CONFIG_TERMINAL_BUFFER_SIZE) {
+				this->buffer_index = 0;
+				ret = ERR_BUFFER_OVERFLOW;
+			}
+			else {
+				// echo back received characters
+				uv_stdout_send(&data, 1);
+
+				// escape clears the terminal
+				if (data == 0x1B) {
+					uv_stdout_send("\033[2K\r>", 6);
+					this->buffer_index = 0;
+				}
+				// if backspace was received, delete last saved character
+				else if (data == 0x08) {
+					if (this->buffer_index > 0) {
+						this->buffer_index--;
+					}
+				}
+				//if carriage return was received, read command and clear buffer
+				else if (data == 0x0D || data == 0x0A) {
+					int i;
+					int p = 0;
+					// do nothing if receive buffer was empty
+					if (this->buffer_index == 0) {
+						printf(">");
+					}
+					else {
+						//replace carriage return with a terminating mark
+						this->buffer[this->buffer_index] = '\0';
+
+						bool string_arg = false;
+						for (i = 0; i < this->buffer_index; i++) {
+							// '"' mark means a string argument
+							// (multi-space argument if dedicated callback are not used)
+							if (i) {
+								if (this->buffer[i] == '"') {
+									if (!string_arg) {
+										// multi-space argument start, edit arg starting with \0
+										if (this->buffer[i - 1] == '\0') {
+											this->buffer[i] = '\0';
+											this->args[p - 1].type = ARG_STRING;
+											this->args[p - 1].value = (char*) &this->buffer[i + 1];
+											string_arg = true;
+										}
+									}
+									else {
+										// multi-space argument end
+										string_arg = false;
+										this->buffer[i] = '\0';
+									}
+								}
+							}
+							// search for space (argument start)
+							if (!string_arg && this->buffer[i] == ' ') {
 								this->buffer[i] = '\0';
-								this->args[p - 1].type = ARG_STRING;
-								this->args[p - 1].value = (char*) &this->buffer[i + 1];
-								string_arg = true;
+								if (p < CONFIG_TERMINAL_ARG_COUNT) {
+									// integer argument found
+									this->args[p].type = ARG_INTEGER;
+									this->args[p].number = strtol((char*) &this->buffer[i + 1], NULL, 0);
+									p++;
+								}
 							}
 						}
-						else {
-							// multi-space argument end
-							string_arg = false;
-							this->buffer[i] = '\0';
+						this->buffer_index = 0;
+
+						// find out which command was received by looping trough them
+						int q;
+						bool match = false;
+
+						for (q = 0; q < uv_terminal_get_commands_count(); q++) {
+							if (strcmp((const char*) this->buffer, (const char*) this->commands_ptr[q].str) == 0) {
+								if (this->commands_ptr[q].callback) {
+									this->commands_ptr[q].callback(__uv_get_user_ptr(),
+											(int) this->commands_ptr[q].id, p, (argument_st*) this->args);
+								}
+								match = true;
+								break;
+							}
 						}
+						// if no match was found, search common commands
+						if (!match) {
+							for (q = 0; q < sizeof(common_cmds) / sizeof(uv_command_st); q++) {
+								if (strcmp((char*) this->buffer, (char*) common_cmds[q].str) == 0) {
+									match = true;
+									common_cmds[q].callback(__uv_get_user_ptr(), (int) common_cmds[q].id, p,
+											(argument_st*) this->args);
+									break;
+								}
+							}
+							if (!match) {
+								printf("Command '%s' not found\n",
+										this->buffer);
+							}
+						}
+						printf(">");
 					}
 				}
-				// search for space (argument start)
-				if (!string_arg && this->buffer[i] == ' ') {
-					this->buffer[i] = '\0';
-					if (p < CONFIG_TERMINAL_ARG_COUNT) {
-						// integer argument found
-						this->args[p].type = ARG_INTEGER;
-						this->args[p].number = strtol((char*) &this->buffer[i + 1], NULL, 0);
-//						printf("arg: %i\n", (int) this->args[p].number);
-						p++;
-					}
+				else {
+					// add character to buffer
+					this->buffer[this->buffer_index++] = data;
 				}
 			}
-			this->buffer_index = 0;
-
-			// find out which command was received by looping trough them
-			int q;
-			bool match = false;
-
-			for (q = 0; q < uv_terminal_get_commands_count(); q++) {
-				if (strcmp((const char*) this->buffer, (const char*) this->commands_ptr[q].str) == 0) {
-					if (this->commands_ptr[q].callback) {
-						this->commands_ptr[q].callback(__uv_get_user_ptr(),
-								(int) this->commands_ptr[q].id, p, (argument_st*) this->args);
-					}
-					match = true;
-					break;
-				}
-			}
-			// if no match was found, search common commands
-			if (!match) {
-				for (q = 0; q < sizeof(common_cmds) / sizeof(uv_command_st); q++) {
-					if (strcmp((char*) this->buffer, (char*) common_cmds[q].str) == 0) {
-						match = true;
-						common_cmds[q].callback(__uv_get_user_ptr(), (int) common_cmds[q].id, p,
-								(argument_st*) this->args);
-						break;
-					}
-				}
-				if (!match) {
-					printf("Command '%s' not found\n",
-							this->buffer);
-				}
-			}
-			// printf command prompt character after callback function has been executed
-			printf(">");
-
-			continue;
 		}
-
-		// add character to buffer
-		this->buffer[this->buffer_index++] = data;
 	}
-	return uv_err(ERR_NONE);
+	return ret;
 }
 
 void uv_terminal_help_callb(void *me, unsigned int cmd, unsigned int args, argument_st *argv) {
@@ -337,10 +336,11 @@ void uv_terminal_revert_callb(void *me, unsigned int cmd, unsigned int args, arg
 
 
 bool uv_terminal_parse_bool(char *arg) {
+	bool ret = false;
 	if (strcmp(arg, "on") == 0 || strcmp(arg, "true") == 0 || strcmp(arg, "1") == 0) {
-		return true;
+		ret = true;
 	}
-	return false;
+	return ret;
 }
 
 

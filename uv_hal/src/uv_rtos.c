@@ -103,7 +103,6 @@ void uv_rtos_task_delay(unsigned int ms) {
 
 void vApplicationMallocFailedHook(void)
 {
-	__uv_log_error(uv_err(ERR_MALLOC_FAILURE | HAL_MODULE_RTOS));
 	taskDISABLE_INTERRUPTS();
 	for (;; ) {}
 }
@@ -122,8 +121,7 @@ void vApplicationStackOverflowHook(xTaskHandle pxTask, signed char *pcTaskName)
 	(void) pxTask;
 	(void) pcTaskName;
 
-	__uv_log_error(uv_err(ERR_STACK_OVERFLOW | HAL_MODULE_RTOS));
-	printf("task: %s\n", pcTaskName);
+	printf("stack overflow from task: %s\n", pcTaskName);
 	/* Run time stack overflow checking is performed if
 	   configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2.  This hook
 	   function is called if a stack overflow is detected. */

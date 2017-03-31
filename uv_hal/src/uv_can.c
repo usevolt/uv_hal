@@ -652,6 +652,7 @@ void CAN_IRQHandler(void) {
 
 
 uv_errors_e _uv_can_init() {
+	uv_errors_e ret = ERR_NONE;
 
 #if CONFIG_CAN1
 	uv_ring_buffer_init(&this->rx_buffer[0], this->rx_buffer_data1,
@@ -740,7 +741,7 @@ uv_errors_e _uv_can_init() {
 	this->init = true;
 
 
-	return uv_err(ERR_NONE);
+	return ret;
 }
 
 
@@ -787,6 +788,7 @@ uv_errors_e _uv_can_init() {
 uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		unsigned int id,
 		uv_can_msg_types_e type) {
+	uv_errors_e ret = ERR_NONE;
 
 	// set acceptance filter to idle mode
 	LPC_CANAF->AFMR = 0b10;
@@ -918,7 +920,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 	// enable acceptance filter
 	LPC_CANAF->AFMR = 0;
 
-	return uv_err(ERR_NONE);
+	return ret;
 }
 
 
@@ -1009,38 +1011,24 @@ uv_errors_e uv_can_pop_message(uv_can_channels_e channel, uv_can_message_st *mes
 
 
 uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
+	uv_can_errors_e ret = CAN_ERROR_ACTIVE;
 #if CONFIG_CAN1
 	if (channel == CAN1) {
 		if (LPC_CAN1->GSR & (1 << 7)) {
-//			unsigned int p = LPC_CAN1->GSR;
-//			unsigned int f = LPC_CAN1->MOD;
-//			char str[100];
-//			snprintf(str, 100, "bus off %x, %x\n", p, f);
-//			uv_uart_send_str(UART0, str);
-			return CAN_ERROR_BUS_OFF;
+			ret = CAN_ERROR_BUS_OFF;
 		}
 		else if (LPC_CAN1->GSR & (1 << 6)) {
-//			unsigned int p = LPC_CAN1->GSR;
-//			unsigned int f = LPC_CAN1->MOD;
-//			char str[100];
-//			snprintf(str, 100, "error passive %x, %x\n", p, f);
-//			uv_uart_send_str(UART0, str);
-			return CAN_ERROR_PASSIVE;
+			ret = CAN_ERROR_PASSIVE;
 		}
 		else {
-//			unsigned int p = LPC_CAN1->GSR;
-//			unsigned int f = LPC_CAN1->MOD;
-//			char str[100];
-//			snprintf(str, 100, "active %x, %x\n", p, f);
-//			uv_uart_send_str(UART0, str);
-			return CAN_ERROR_ACTIVE;
+			ret = CAN_ERROR_ACTIVE;
 		}
 	}
 #endif
 #if CONFIG_CAN2
 #error "Copy CAN1 error state getter here"
 #endif
-	return CAN_ERROR_ACTIVE;
+	return ret;
 }
 
 
@@ -1051,9 +1039,10 @@ uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
 
 uv_errors_e uv_can_add_rx_callback(uv_can_channels_e channel,
 		void (*callback_function)(void *user_ptr)) {
+	uv_errors_e ret = ERR_NONE;
 
 	this->rx_callback[channel] = callback_function;
-	return uv_err(ERR_NONE);
+	return ret;
 }
 
 
