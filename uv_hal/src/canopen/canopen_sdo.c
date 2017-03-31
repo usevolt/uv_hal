@@ -24,8 +24,8 @@
 #define GET_SINDEX(msg_ptr)				((msg_ptr)->data_8bit[3])
 #define GET_NODEID(msg_ptr)				((msg_ptr)->id & 0x7F)
 #define SET_CMD_BYTE(msg_ptr, value)	(msg_ptr)->data_8bit[0] = (value)
-#define SET_MINDEX(msg_ptr, value)		(msg_ptr)->data_8bit[1] = (value) % 256; \
-										(msg_ptr)->data_8bit[2] = (value) / 256
+#define SET_MINDEX(msg_ptr, value)		do {(msg_ptr)->data_8bit[1] = (value) % 256; \
+										(msg_ptr)->data_8bit[2] = (value) / 256; } while (0)
 #define SET_SINDEX(msg_ptr, value)		(msg_ptr)->data_8bit[3] = (value)
 
 
