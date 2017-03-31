@@ -32,9 +32,9 @@ void _uv_wdt_init(void) {
 	LPC_SYSCON->WDTCLKUEN = 1;
 	//set the reloading value
 	///wdt has inner divide-by-4 prescaler
-	unsigned int sck = CONFIG_WDT_CYCLE_S * (SystemCoreClock / 16);
+	uint32_t sck = CONFIG_WDT_CYCLE_S * (SystemCoreClock / 16);
 #elif CONFIG_TARGET_LPC1785
-	unsigned int sck = CONFIG_WDT_CYCLE_S * (500000 / 4);
+	uint32_t sck = CONFIG_WDT_CYCLE_S * (500000 / 4);
 #endif
 	//clamp cycle time to 24-bit value
 	if (sck > 0xFFFFFF) {
