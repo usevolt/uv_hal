@@ -119,6 +119,8 @@ void uv_get_device_serial(unsigned int dest[4]) {
 #if CONFIG_NON_VOLATILE_MEMORY
 
 uv_errors_e uv_memory_save(void) {
+	uv_errors_e ret = ERR_NONE;
+
 	int length = ((unsigned int) &CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
 			(unsigned int) &CONFIG_NON_VOLATILE_START;
 
@@ -132,57 +134,61 @@ uv_errors_e uv_memory_save(void) {
 		}
 	}
 	if (match) {
-		return uv_err(ERR_NONE);
-	}
-	printf("Flashing %u bytes\n", length);
-	if (length < 0) {
-		__uv_err_throw(ERR_END_ADDR_LESS_THAN_START_ADDR | HAL_MODULE_MEMORY);
-	}
-#if CONFIG_TARGET_LPC1785
-	else if (length > IAP_BYTES_32768) {
-		__uv_err_throw(ERR_NOT_ENOUGH_MEMORY | HAL_MODULE_MEMORY);
-	}
-#endif
-	//calculate the right length
-	else if (length > IAP_BYTES_4096) {
-#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549
-		__uv_err_throw(ERR_NOT_ENOUGH_MEMORY | HAL_MODULE_MEMORY);
-#elif CONFIG_TARGET_LPC1785
-		length = IAP_BYTES_32768;
-#endif
-	}
-	else if (length > IAP_BYTES_1024) {
-		length = IAP_BYTES_4096;
-	}
-	else if (length > IAP_BYTES_512) {
-		length = IAP_BYTES_1024;
-	}
-	else if (length > IAP_BYTES_256) {
-		length = IAP_BYTES_512;
+		ret = ERR_NONE;
 	}
 	else {
-		length = IAP_BYTES_256;
-	}
+		printf("Flashing %u bytes\n", length);
+		if (length < 0) {
+			ret = ERR_END_ADDR_LESS_THAN_START_ADDR;
+		}
+	#if CONFIG_TARGET_LPC1785
+		else if (length > IAP_BYTES_32768) {
+			ret = ERR_NOT_ENOUGH_MEMORY;
+		}
+	#endif
+		//calculate the right length
+		else if (length > IAP_BYTES_4096) {
+	#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549
+			ret = ERR_NOT_ENOUGH_MEMORY;
+	#elif CONFIG_TARGET_LPC1785
+			length = IAP_BYTES_32768;
+	#endif
+		}
+		else if (length > IAP_BYTES_1024) {
+			length = IAP_BYTES_4096;
+		}
+		else if (length > IAP_BYTES_512) {
+			length = IAP_BYTES_1024;
+		}
+		else if (length > IAP_BYTES_256) {
+			length = IAP_BYTES_512;
+		}
+		else {
+			length = IAP_BYTES_256;
+		}
+		if (ret == ERR_NONE) {
 
-	// add the right value to data checksum
-	CONFIG_NON_VOLATILE_START.project_name = uv_projname;
-	CONFIG_NON_VOLATILE_START.build_date = uv_datetime;
-	CONFIG_NON_VOLATILE_END.crc = uv_memory_calc_crc(&CONFIG_NON_VOLATILE_START,
-			(uint32_t) &CONFIG_NON_VOLATILE_END - (uint32_t) &CONFIG_NON_VOLATILE_START);
-	// note: id should be assigned by the canopen module
+			// add the right value to data checksum
+			CONFIG_NON_VOLATILE_START.project_name = uv_projname;
+			CONFIG_NON_VOLATILE_START.build_date = uv_datetime;
+			CONFIG_NON_VOLATILE_END.crc = uv_memory_calc_crc(&CONFIG_NON_VOLATILE_START,
+					(uint32_t) &CONFIG_NON_VOLATILE_END - (uint32_t) &CONFIG_NON_VOLATILE_START);
+			// note: id should be assigned by the canopen module
 
-	uv_iap_status_e status = uv_erase_and_write_to_flash((unsigned int) &CONFIG_NON_VOLATILE_START,
-			length, NON_VOLATILE_MEMORY_START_ADDRESS);
-	if (status == IAP_CMD_SUCCESS) {
-		return uv_err(ERR_NONE);
+			uv_iap_status_e status = uv_erase_and_write_to_flash((unsigned int) &CONFIG_NON_VOLATILE_START,
+					length, NON_VOLATILE_MEMORY_START_ADDRESS);
+			if (status != IAP_CMD_SUCCESS) {
+				ret = ERR_INTERNAL| HAL_MODULE_MEMORY;
+			}
+		}
 	}
-	else {
-		__uv_err_throw(ERR_INTERNAL | HAL_MODULE_MEMORY);
-	}
+	return ret;
 }
 
 
 uv_errors_e uv_memory_load(void) {
+	uv_errors_e ret = ERR_NONE;
+
 	uint8_t* d = (uint8_t*) &CONFIG_NON_VOLATILE_START + sizeof(uv_data_start_t);
 	uint8_t* source = (uint8_t*) NON_VOLATILE_MEMORY_START_ADDRESS + sizeof(uv_data_start_t);
 	int length = ((unsigned int) &CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
@@ -200,15 +206,16 @@ uv_errors_e uv_memory_load(void) {
 	if (CONFIG_NON_VOLATILE_END.crc !=
 			uv_memory_calc_crc(&CONFIG_NON_VOLATILE_START,
 					(uint32_t) &CONFIG_NON_VOLATILE_END - (uint32_t) &CONFIG_NON_VOLATILE_START)) {
-		__uv_err_throw(ERR_END_CHECKSUM_NOT_MATCH | HAL_MODULE_MEMORY);
+		ret = ERR_END_CHECKSUM_NOT_MATCH;
 	}
-	return uv_err(ERR_NONE);
+	return ret;
 }
 
 
 
 uv_iap_status_e uv_erase_and_write_to_flash(unsigned int ram_address,
 		uv_writable_amount_e num_bytes, unsigned int flash_address) {
+	uv_iap_status_e ret = IAP_CMD_SUCCESS;
 	//find out the sectors to be erased
 	unsigned int command_param[5];
 	unsigned int status_result[4];
@@ -227,7 +234,7 @@ uv_iap_status_e uv_erase_and_write_to_flash(unsigned int ram_address,
 	case IAP_BYTES_4096:
 		break;
 	default:
-		return IAP_PARAM_ERROR;
+		ret = IAP_PARAM_ERROR;
 	}
 
 	int startSection, endSection;
@@ -250,73 +257,78 @@ uv_iap_status_e uv_erase_and_write_to_flash(unsigned int ram_address,
 	}
 #endif
 
-	//prepare the flash sections for erase operation
-	command_param[0] = PREPARE_SECTOR;
-	command_param[1] = startSection;
-	command_param[2] = endSection;
+	if (ret == IAP_CMD_SUCCESS) {
 
-	iap_entry(command_param, status_result);
-	if (status_result[0] != IAP_CMD_SUCCESS) {
-		__enable_irq();
-		return status_result[0];
+		//prepare the flash sections for erase operation
+		command_param[0] = PREPARE_SECTOR;
+		command_param[1] = startSection;
+		command_param[2] = endSection;
+
+		iap_entry(command_param, status_result);
+
+		if (status_result[0] == IAP_CMD_SUCCESS) {
+			//erase the sectors
+			command_param[0] = ERASE_SECTOR;
+			command_param[1] = startSection;
+			command_param[2] = endSection;
+			command_param[3] = SystemCoreClock / 1000;
+			iap_entry(command_param, status_result);
+
+			if (status_result[0] == IAP_CMD_SUCCESS) {
+				//prepare sections for writing
+				command_param[0] = PREPARE_SECTOR;
+				command_param[1] = startSection;
+				command_param[2] = endSection;
+
+				iap_entry(command_param, status_result);
+
+				if (status_result[0] == IAP_CMD_SUCCESS) {
+					//write the sections
+					command_param[0] = COPY_RAM_TO_FLASH;
+					command_param[1] = flash_address;
+					command_param[2] = ram_address;
+					command_param[3] = num_bytes;
+					command_param[4] = SystemCoreClock / 1000;
+
+					iap_entry(command_param, status_result);
+
+					ret = status_result[0];
+				}
+				else {
+					ret = status_result[0];
+				}
+			}
+			else {
+				ret = status_result[0];
+			}
+		}
+		else {
+			ret = status_result[0];
+		}
 	}
-
-	//erase the sectors
-	command_param[0] = ERASE_SECTOR;
-	command_param[1] = startSection;
-	command_param[2] = endSection;
-	command_param[3] = SystemCoreClock / 1000;
-	iap_entry(command_param, status_result);
-	if (status_result[0] != IAP_CMD_SUCCESS) {
-		__enable_irq();
-		return status_result[0];
-	}
-
-	//prepare sections for writing
-	command_param[0] = PREPARE_SECTOR;
-	command_param[1] = startSection;
-	command_param[2] = endSection;
-
-	iap_entry(command_param, status_result);
-	if (status_result[0] != IAP_CMD_SUCCESS) {
-		__enable_irq();
-		return status_result[0];
-	}
-
-	//write the sections
-	command_param[0] = COPY_RAM_TO_FLASH;
-	command_param[1] = flash_address;
-	command_param[2] = ram_address;
-	command_param[3] = num_bytes;
-	command_param[4] = SystemCoreClock / 1000;
-
-	iap_entry(command_param, status_result);
-
-
-
-
 	//enable interrupts
 	__enable_irq();
 
-	return status_result[0];
+	return ret;
 }
 
 
 
 
 uv_errors_e uv_memory_clear(void) {
+	uv_errors_e ret = ERR_NONE;
+
 	CONFIG_NON_VOLATILE_END.crc = !CONFIG_NON_VOLATILE_END.crc;
 
 	int length = ((unsigned int) &CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
 			(unsigned int) &CONFIG_NON_VOLATILE_START;
 	if (length < 0) {
-		__uv_err_throw(ERR_END_ADDR_LESS_THAN_START_ADDR | HAL_MODULE_MEMORY);
+		ret = ERR_END_ADDR_LESS_THAN_START_ADDR;
 	}
 	//calculate the right length
 	else if (length > IAP_BYTES_4096) {
-		__uv_err_throw(ERR_NOT_ENOUGH_MEMORY | HAL_MODULE_MEMORY);
+		ret = ERR_NOT_ENOUGH_MEMORY;
 	}
-
 	else if (length > IAP_BYTES_1024) {
 		length = IAP_BYTES_4096;
 	}
@@ -330,14 +342,15 @@ uv_errors_e uv_memory_clear(void) {
 		length = IAP_BYTES_256;
 	}
 
-	uv_iap_status_e status = uv_erase_and_write_to_flash((unsigned int) &CONFIG_NON_VOLATILE_START,
-			length, NON_VOLATILE_MEMORY_START_ADDRESS);
-	if (status == IAP_CMD_SUCCESS) {
-		return uv_err(ERR_NONE);
+	if (ret == ERR_NONE) {
+		uv_iap_status_e status = uv_erase_and_write_to_flash((unsigned int) &CONFIG_NON_VOLATILE_START,
+				length, NON_VOLATILE_MEMORY_START_ADDRESS);
+		if (status != IAP_CMD_SUCCESS) {
+			ret = ERR_INTERNAL | HAL_MODULE_MEMORY;
+		}
 	}
-	else {
-		__uv_err_throw(ERR_INTERNAL | HAL_MODULE_MEMORY);
-	}
+
+	return ret;
 }
 
 #endif
