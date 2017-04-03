@@ -24,7 +24,8 @@ static inline int get_bit(uint8_t *base, uint16_t i) {
 
 /// @brief: Draws a single character on the screen
 static inline void draw_char(int16_t x, int16_t y,
-		const uv_font_st *font, char c, color_t color, color_t bgcolor, float scalef) {
+		const uv_font_st *font, char c, color_t color, color_t bgcolor,
+		float scalef, const uv_bounding_box_st *maskbb) {
 	// NOTE: fonts store pixels as bits!
 	uint16_t i, j = 0;
 	uint16_t char_width_bytes = ((font->char_width / 8) + ((font->char_width % 8) != 0));
@@ -44,12 +45,18 @@ static inline void draw_char(int16_t x, int16_t y,
 		uint8_t *p = (uint8_t*) &font->p[(c - font->index_offset) * char_len + (int) py * char_width_bytes];
 
 		for (i = 0; i < w; i++) {
-			px = (i * ratio) >> 16;
-			if (get_bit(p, (int) px)) {
-				uv_lcd_draw_pixel(x + i, y + j, color);
-			}
-			else if ((bgcolor & 0xFF000000) != 0xFF000000) {
-				uv_lcd_draw_pixel(x + i, y + j, bgcolor);
+			if (((x + i) > maskbb->x) &&
+					((x + i) < (maskbb->x + maskbb->width)) &&
+					((y + j) > maskbb->y) &&
+					((y + j) < (maskbb->y + maskbb->height))) {
+
+				px = (i * ratio) >> 16;
+				if (get_bit(p, (int) px)) {
+					uv_lcd_draw_pixel(x + i, y + j, color);
+				}
+				else if ((bgcolor & 0xFF000000) != 0xFF000000) {
+					uv_lcd_draw_pixel(x + i, y + j, bgcolor);
+				}
 			}
 		}
 	}
@@ -74,7 +81,9 @@ void uv_uilabel_init(void *me, const uv_font_st *font,
 
 /// @brief: Draws one line of text
 static inline void draw_line(int16_t x, int16_t y, const uv_font_st *font,
-		char *str, color_t color, color_t bgcolor, alignment_e align, float scale) {
+		const char *str, const color_t color, const color_t bgcolor,
+		const alignment_e align, const float scale, const uv_bounding_box_st *maskbb) {
+
 	uint16_t len = 0, i;
 	for (i = 0; i < strlen(str); i++) {
 		if (str[i] == '\n' || str[i] == '\r') {
@@ -91,13 +100,13 @@ static inline void draw_line(int16_t x, int16_t y, const uv_font_st *font,
 		x = x - len * font->char_width * scale;
 	}
 	for (i = 0; i < len; i++) {
-		draw_char(x, y, font, str[i], color, bgcolor, scale);
+		draw_char(x, y, font, str[i], color, bgcolor, scale, maskbb);
 		x += font->char_width * scale;
 	}
 }
 
 
-void uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
+void uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
 	// do nothing if refresh is not called
 	// (label is a static object, it doesn't have any animations, etc.
 	if (!this->super.refresh) {
@@ -126,7 +135,10 @@ void uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 	else if (this->align & ALIGN_V_BOTTOM) {
 		y += uv_ui_get_bb(this)->height;
 	}
-	_uv_ui_draw_text(x, y, this->font, this->align, this->color, this->bg_color, this->str, this->scale);
+	_uv_ui_draw_mtext(x, y, this->font, this->align, this->color,
+			this->bg_color, this->str, this->scale, pbb);
+
+	this->super.refresh = false;
 
 }
 
@@ -167,8 +179,9 @@ void uv_uilabel_set_bg_color(void *me, color_t c) {
 }
 
 
-void _uv_ui_draw_text(uint16_t x, uint16_t y, const uv_font_st *font,
-		alignment_e align, color_t color, color_t bgcolor, char *str, float scale) {
+void _uv_ui_draw_mtext(int16_t x, int16_t y, const uv_font_st *font,
+		const alignment_e align, const color_t color, const color_t bgcolor,
+		const char *str, const float scale, const uv_bounding_box_st *maskbb) {
 	if (!str) {
 		return;
 	}
@@ -192,10 +205,16 @@ void _uv_ui_draw_text(uint16_t x, uint16_t y, const uv_font_st *font,
 
 	i = 0;
 	while(str[i] != '\0') {
+		if (((y + yy) < (maskbb->y - font->char_height)) ||
+				((y + yy) > (maskbb->y + maskbb->height)) ||
+				(x < (maskbb->x - font->char_width)) ||
+				(x > (maskbb->x + maskbb->width))) {
+			break;
+		}
 		while(str[i] == '\n' || str[i] == '\r') {
 			i++;
 		}
-		draw_line(x, y + yy, font, &str[i], color, bgcolor, align, scale);
+		draw_line(x, y + yy, font, &str[i], color, bgcolor, align, scale, maskbb);
 		yy += font->char_height * scale;
 		while(str[i] != '\n' && str[i] != '\r' && str[i] != '\0') {
 			i++;

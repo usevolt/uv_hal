@@ -105,7 +105,7 @@ void uv_uidisplay_step(void *me, uint32_t step_ms) {
 	}
 #endif
 
-	uv_uiwindow_step(me, &t, step_ms);
+	uv_uiwindow_step(me, &t, step_ms, uv_uibb(this));
 
 	// if lcd is configured to use double buffering,
 	// swap buffers since all UI components should now be updated

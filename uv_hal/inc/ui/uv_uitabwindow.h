@@ -70,7 +70,7 @@ static inline int16_t uv_uitabwindow_tab(void *me) {
 /// @brief: implementation of uv_uiwindow's add function
 static inline void uv_uitabwindow_add(void *me, void *object,
 		uint16_t x, uint16_t y, uint16_t width, uint16_t height,
-		void (*step_callb)(void*, uv_touch_st*, uint16_t)) {
+		void (*step_callb)(void*, uv_touch_st*, uint16_t, const uv_bounding_box_st *)) {
 	uv_uiwindow_add(me, object, x, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT, width,
 			height, step_callb);
 }
@@ -79,7 +79,7 @@ static inline void uv_uitabwindow_add(void *me, void *object,
 uv_bounding_box_st uv_uitabwindow_get_contentbb(void *me);
 
 /// @brief: Step function is called from the owner window
-void uv_uitabwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms);
+void uv_uitabwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb);
 
 
 #undef this

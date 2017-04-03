@@ -18,7 +18,7 @@ void uv_uitoucharea_init(void *me) {
 	uv_uiobject_init(this);
 }
 
-void uv_uitoucharea_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
+void uv_uitoucharea_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
 	if (this->super.refresh) {
 		this->super.refresh = false;
 	}

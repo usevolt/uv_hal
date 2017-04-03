@@ -32,7 +32,7 @@ void uv_uislider_init(void *me, int16_t min_value, int16_t max_value, int16_t cu
 }
 
 
-static void draw(void *me) {
+static void draw(const void *me, const uv_bounding_box_st *pbb) {
 	int16_t x, y, w, h;
 	if (this->horizontal) {
 		if (uv_uibb(this)->height < CONFIG_UI_SLIDER_WIDTH) {
@@ -42,27 +42,27 @@ static void draw(void *me) {
 		y = uv_ui_get_yglobal(this) + uv_uibb(this)->height / 2 - CONFIG_UI_SLIDER_WIDTH / 2;
 		w = uv_uibb(this)->width;
 		h = CONFIG_UI_SLIDER_WIDTH;
-		uv_lcd_draw_rect(x, y, w, h, this->style->inactive_bg_c);
-		uv_lcd_draw_frame(x, y, w, h, 1,
-				this->style->inactive_frame_c);
+		uv_lcd_draw_mrect(x, y, w, h, this->style->inactive_bg_c,
+				pbb->x, pbb->y, pbb->width, pbb->height);
+		uv_lcd_draw_mframe(x, y, w, h, 1, this->style->inactive_frame_c,
+				pbb->x, pbb->y, pbb->width, pbb->height);
 		// draw slider handle
 		// handle relative position
 		int16_t hpx = uv_reli(this->cur_val, this->min_val, this->max_val);
 		int16_t hx = uv_lerpi(hpx, 0, uv_uibb(this)->width - CONFIG_UI_SLIDER_WIDTH - 1);
 		// hx indicates the handle position
-		uv_lcd_draw_rect(x + hx + 1, y + 1,
-				CONFIG_UI_SLIDER_WIDTH - 1, h - 2,
-				this->style->active_fg_c);
+		uv_lcd_draw_mrect(x + hx + 1, y + 1, CONFIG_UI_SLIDER_WIDTH - 1, h - 2,
+				this->style->active_fg_c, pbb->x, pbb->y, pbb->width, pbb->height);
 		if (this->show_value) {
 			char str[10];
 			itoa(this->cur_val, str, 10);
-			_uv_ui_draw_text(x + w/2, y + h/2, this->style->font, ALIGN_CENTER,
-					this->style->inactive_font_c, C(0xFFFFFFFF), str, 1.0f);
+			_uv_ui_draw_mtext(x + w/2, y + h/2, this->style->font, ALIGN_CENTER,
+					this->style->inactive_font_c, C(0xFFFFFFFF), str, 1.0f, pbb);
 		}
-		_uv_ui_draw_text(x + 1, y + h / 2, this->style->font, ALIGN_CENTER_LEFT,
-				this->style->text_color, C(0xFFFFFFFF), "\x11", 1.0f);
-		_uv_ui_draw_text(x + w - 1, y + h / 2, this->style->font, ALIGN_CENTER_RIGHT,
-				this->style->text_color, C(0xFFFFFFFF), "\x10", 1.0f);
+		_uv_ui_draw_mtext(x + 1, y + h / 2, this->style->font, ALIGN_CENTER_LEFT,
+				this->style->text_color, C(0xFFFFFFFF), "\x11", 1.0f, pbb);
+		_uv_ui_draw_mtext(x + w - 1, y + h / 2, this->style->font, ALIGN_CENTER_RIGHT,
+				this->style->text_color, C(0xFFFFFFFF), "\x10", 1.0f, pbb);
 	}
 	else {
 		if (uv_uibb(this)->width < CONFIG_UI_SLIDER_WIDTH) {
@@ -73,9 +73,10 @@ static void draw(void *me) {
 		w = CONFIG_UI_SLIDER_WIDTH;
 		h = uv_uibb(this)->height - (this->title ?
 				(uv_ui_text_height_px(this->title, this->style->font, 1.0f) + 5) : 0);
-		uv_lcd_draw_rect(x, y, w, h, this->style->inactive_bg_c);
-		uv_lcd_draw_frame(x, y, w, h, 1,
-				this->style->inactive_frame_c);
+		uv_lcd_draw_mrect(x, y, w, h, this->style->inactive_bg_c,
+				pbb->x, pbb->y, pbb->width, pbb->height);
+		uv_lcd_draw_mframe(x, y, w, h, 1, this->style->inactive_frame_c,
+				pbb->x, pbb->y, pbb->width, pbb->height);
 		// draw slider handle
 		// handle relative position
 		int16_t hpy = uv_reli(this->cur_val, this->min_val, this->max_val);
@@ -83,28 +84,27 @@ static void draw(void *me) {
 				CONFIG_UI_SLIDER_WIDTH - 1 - (this->title ?
 						(uv_ui_text_height_px(this->title, this->style->font, 1.0f) + 5) : 0), 0);
 		// hy indicates the handle position
-		uv_lcd_draw_rect(x + 1, y + hy + 1,
-				w - 2, CONFIG_UI_SLIDER_WIDTH - 1,
-				this->style->active_fg_c);
+		uv_lcd_draw_mrect(x + 1, y + hy + 1, w - 2, CONFIG_UI_SLIDER_WIDTH - 1,
+				this->style->active_fg_c, pbb->x, pbb->y, pbb->width, pbb->height);
 		if (this->show_value) {
 			char str[10];
 			itoa(this->cur_val, str, 10);
-			_uv_ui_draw_text(x + w/2, y + h/2, this->style->font, ALIGN_CENTER,
-					this->style->inactive_font_c, C(0xFFFFFFFF), str, 1.0f);
+			_uv_ui_draw_mtext(x + w/2, y + h/2, this->style->font, ALIGN_CENTER,
+					this->style->inactive_font_c, C(0xFFFFFFFF), str, 1.0f, pbb);
 		}
-		_uv_ui_draw_text(x + w / 2, y + 1, this->style->font, ALIGN_TOP_CENTER,
-				this->style->text_color, C(0xFFFFFFFF), "\x1E", 1.0f);
-		_uv_ui_draw_text(x + w / 2, y + h - 1, this->style->font, ALIGN_BOTTOM_CENTER,
-				this->style->text_color, C(0xFFFFFFFF), "\x1F", 1.0f);
+		_uv_ui_draw_mtext(x + w / 2, y + 1, this->style->font, ALIGN_TOP_CENTER,
+				this->style->text_color, C(0xFFFFFFFF), "\x1E", 1.0f, pbb);
+		_uv_ui_draw_mtext(x + w / 2, y + h - 1, this->style->font, ALIGN_BOTTOM_CENTER,
+				this->style->text_color, C(0xFFFFFFFF), "\x1F", 1.0f, pbb);
 	}
-	_uv_ui_draw_text(x + w/2, y + h + 5, this->style->font, ALIGN_TOP_CENTER,
-			this->style->text_color, C(0xFFFFFFFF), this->title, 1.0f);
+	_uv_ui_draw_mtext(x + w/2, y + h + 5, this->style->font, ALIGN_TOP_CENTER,
+			this->style->text_color, C(0xFFFFFFFF), this->title, 1.0f, pbb);
 
 
 }
 
 
-void uv_uislider_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
+void uv_uislider_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
 	if (touch->action == TOUCH_PRESSED) {
 		this->dragging = true;
 		// prevent action from propagating to other elements
@@ -163,7 +163,8 @@ void uv_uislider_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 
 
 	if (this->super.refresh && this->super.visible) {
-		draw(this);
+		draw(this, pbb);
+		this->super.refresh = false;
 	}
 }
 

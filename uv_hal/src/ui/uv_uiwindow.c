@@ -14,10 +14,10 @@
 
 #define this	((uv_uiwindow_st*) me)
 
-static void draw_scrollbar(void *me, bool horizontal);
+static void draw_scrollbar(void *me, bool horizontal, const uv_bounding_box_st *pbb);
 
 
-static void draw_scrollbar(void *me, bool horizontal) {
+static void draw_scrollbar(void *me, bool horizontal, const uv_bounding_box_st *pbb) {
 	int16_t x = uv_ui_get_xglobal(this);
 	int16_t y = uv_ui_get_yglobal(this);
 	int16_t w = uv_uibb(this)->width;
@@ -31,31 +31,7 @@ static void draw_scrollbar(void *me, bool horizontal) {
 
 	// draw scroll bar background
 	uv_lcd_draw_mrect(bar_x, bar_y, bar_w, bar_h,
-			this->style->inactive_bg_c, x, y, w, h);
-	uv_lcd_draw_mframe(bar_x, bar_y, bar_w, bar_h, 1,
-			this->style->inactive_frame_c, x, y, w, h);
-
-	// draw upper button
-	uv_lcd_draw_mrect(bar_x, bar_y, CONFIG_UI_WINDOW_SCROLLBAR_WIDTH,
-			CONFIG_UI_WINDOW_SCROLLBAR_WIDTH, this->style->inactive_fg_c, x, y, w, h);
-	uv_lcd_draw_mframe(bar_x, bar_y,CONFIG_UI_WINDOW_SCROLLBAR_WIDTH,
-			CONFIG_UI_WINDOW_SCROLLBAR_WIDTH, 1, this->style->inactive_frame_c, x, y, w, h);
-	_uv_ui_draw_text(bar_x + CONFIG_UI_WINDOW_SCROLLBAR_WIDTH / 2,
-			bar_y + CONFIG_UI_WINDOW_SCROLLBAR_WIDTH / 2, this->style->font,
-			ALIGN_CENTER, this->style->text_color, C(0xFFFFFFFF), (horizontal) ? "\x12" : "\x1f", 1.0f);
-
-	// draw lower button
-	uv_lcd_draw_mrect(bar_x + bar_w - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH,
-			bar_y + bar_h - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH,
-			CONFIG_UI_WINDOW_SCROLLBAR_WIDTH, CONFIG_UI_WINDOW_SCROLLBAR_WIDTH,
-			this->style->inactive_fg_c, x, y, w, h);
-	uv_lcd_draw_mframe(bar_x + bar_w - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH,
-			bar_y + bar_h - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH,
-			CONFIG_UI_WINDOW_SCROLLBAR_WIDTH, CONFIG_UI_WINDOW_SCROLLBAR_WIDTH,
-			1, this->style->inactive_frame_c, x, y, w, h);
-	_uv_ui_draw_text(bar_x + bar_w - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH / 2,
-			bar_y + bar_h - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH / 2, this->style->font,
-			ALIGN_CENTER, this->style->text_color, C(0xFFFFFFFF), (horizontal) ? "\x11" : "\x20", 1.0f);
+			this->style->inactive_bg_c, pbb->x, pbb->y, pbb->width, pbb->height);
 
 	float scale;
 	uint16_t handle_h;
@@ -65,64 +41,57 @@ static void draw_scrollbar(void *me, bool horizontal) {
 	int16_t handle_x;
 	if (horizontal) {
 		scale = (this->content_bb.width == 0) ? 1.0f : ((float) w / this->content_bb.width);
-		handle_w = uv_maxi(CONFIG_UI_WINDOW_SCROLLBAR_WIDTH,
-				(w - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH * 2) * scale);
+		handle_w = w * scale;
 		handle_h = CONFIG_UI_WINDOW_SCROLLBAR_WIDTH;
 		pos_scale = - (float) this->content_bb.x /
 				(this->content_bb.width - uv_uibb(this)->width);
-		handle_x = CONFIG_UI_WINDOW_SCROLLBAR_WIDTH +
-				((x - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH * 2 - handle_w) * pos_scale);
+		handle_x = x + ((w - handle_w) * pos_scale);
 		handle_y = bar_y;
 	}
 	else {
 		scale = (this->content_bb.height == 0) ? 1.0f : ((float) h / this->content_bb.height);
 		handle_w = CONFIG_UI_WINDOW_SCROLLBAR_WIDTH;
-		handle_h = uv_maxi(CONFIG_UI_WINDOW_SCROLLBAR_WIDTH,
-				(h - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH * 2) * scale);
+		handle_h = h * scale;
 		pos_scale = - (float) this->content_bb.y /
 				(this->content_bb.height - uv_uibb(this)->height);
 		handle_x = bar_x;
-		handle_y = CONFIG_UI_WINDOW_SCROLLBAR_WIDTH +
-				((y - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH * 2 - handle_h) * pos_scale);
+		handle_y = y + ((h - handle_h) * pos_scale);
 	}
 
 	// draw handle
 	uv_lcd_draw_mrect(handle_x, handle_y,handle_w, handle_h,
-			this->style->inactive_fg_c, x, y, w, h);
-	uv_lcd_draw_mframe(handle_x, handle_y, handle_w, handle_h, 1,
-			this->style->inactive_frame_c, x, y, w, h);
+			this->style->inactive_fg_c, pbb->x, pbb->y, pbb->width, pbb->height);
 }
 
 
 /// @brief: Redraws this window
-static void redraw(void *me) {
+static void redraw(void *me, const uv_bounding_box_st *pbb) {
 
-	uv_lcd_draw_rect(uv_ui_get_xglobal(this), uv_ui_get_yglobal(this),
+	uv_lcd_draw_mrect(uv_ui_get_xglobal(this), uv_ui_get_yglobal(this),
 			uv_ui_get_bb(this)->width, uv_ui_get_bb(this)->height,
-			this->style->window_c);
+			this->style->window_c, pbb->x, pbb->y, pbb->width, pbb->height);
 
 	if (this->content_bb.height > uv_uibb(this)->height) {
-		draw_scrollbar(this, false);
+		draw_scrollbar(this, false, pbb);
 	}
 	if (this->content_bb.width > uv_uibb(this)->width) {
-		draw_scrollbar(this, true);
+		draw_scrollbar(this, true, pbb);
 	}
 }
 
-void uv_uiwindow_init(void *me,
-		uv_uiobject_st **object_array, const uv_uistyle_st * style) {
+void uv_uiwindow_init(void *me, uv_uiobject_st **object_array, const uv_uistyle_st *style) {
 	uv_uiobject_init((uv_uiobject_st*) this);
-	uv_bounding_box_init(&this->content_bb, 0, 0,
-			uv_uibb(this)->width, uv_uibb(this)->height);
+	uv_bounding_box_init(&this->content_bb, 0, 0, 0, 0);
 	this->objects = object_array;
 	this->objects_count = 0;
 	this->style = style;
+	this->dragging = false;
 }
 
 
 void uv_uiwindow_add(void *me, void *object,
 		uint16_t x, uint16_t y, uint16_t width, uint16_t height,
-		void (*step_callb)(void*, uv_touch_st*, uint16_t)) {
+		void (*step_callb)(void*, uv_touch_st*, uint16_t, const uv_bounding_box_st *)) {
 
 	uv_bounding_box_init(&((uv_uiobject_st*) object)->bb, x, y, width, height);
 	((uv_uiobject_st*) object)->parent = this;
@@ -139,33 +108,63 @@ void uv_uiwindow_add(void *me, void *object,
 	}
 }
 
+uv_bounding_box_st uv_uiwindow_get_contentbb(const void *me) {
+	// if bounding box dimensions are 0, it is not set
+	// and it should be initializes with window dimensions
+	if (this->content_bb.width == 0) {
+		this->content_bb.width = uv_uibb(this)->width;
+	}
+	if (this->content_bb.height == 0) {
+		this->content_bb.height = uv_uibb(this)->height;
+	}
 
-/// @brief: sets the content bounding box's width in pixels
-void uv_uiwindow_set_contentbb_width(void *me, const int16_t width_px) {
+	uv_bounding_box_st bb = this->content_bb;
+	if (this->content_bb.width > uv_uibb(this)->width) {
+		bb.height -= CONFIG_UI_WINDOW_SCROLLBAR_WIDTH;
+	}
+	if (this->content_bb.height > uv_uibb(this)->height) {
+		bb.width -= CONFIG_UI_WINDOW_SCROLLBAR_WIDTH;
+	}
+
+	return bb;
+}
+
+void uv_uiwindow_set_contentbb(void *me, const int16_t width_px, const int16_t height_px) {
 	this->content_bb.width = width_px;
-	if ((width_px > uv_uibb(this)->width) &&
-			(this->content_bb.height == uv_uibb(this)->height)) {
-		this->content_bb.height -= CONFIG_UI_WINDOW_SCROLLBAR_WIDTH;
-	}
-	uv_ui_refresh(this);
-}
-
-/// @brief: Sets the content bounding box's height in pixels
-void uv_uiwindow_set_contentbb_height(void *me, const int16_t height_px) {
 	this->content_bb.height = height_px;
-	if ((height_px > uv_uibb(this)->height) &&
-			(this->content_bb.width == uv_uibb(this)->width)) {
-		this->content_bb.width -= CONFIG_UI_WINDOW_SCROLLBAR_WIDTH;
-	}
 	uv_ui_refresh(this);
 }
 
+void uv_uiwindow_content_move(const void *me, const int16_t dx, const int16_t dy) {
+	if ((this->content_bb.x + dx) > 0) {
+		this->content_bb.x = 0;
+	}
+	else if ((this->content_bb.x + dx) < -(this->content_bb.width - uv_uibb(this)->width)) {
+		this->content_bb.x = -this->content_bb.width + uv_uibb(this)->width;
+	}
+	else {
+		this->content_bb.x += dx;
+	}
 
-void uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
+	if ((this->content_bb.y + dy) > 0) {
+		this->content_bb.y = 0;
+	}
+	else if ((this->content_bb.y + dy) < -(this->content_bb.height - uv_uibb(this)->height)) {
+		this->content_bb.y = -this->content_bb.height + uv_uibb(this)->height;
+	}
+	else {
+		this->content_bb.y += dy;
+	}
+	if (dx || dy) {
+		uv_ui_refresh(this);
+	}
+}
+
+void uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
 
 	if (((uv_uiobject_st*)this)->refresh) {
 		// first redraw this window
-		redraw(this);
+		redraw(this, pbb);
 		// then request redraw all children objects
 		uint16_t i;
 		for (i = 0; i < this->objects_count; i++) {
@@ -175,11 +174,15 @@ void uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 	}
 	// call step functions for all children which are visible
 	uint16_t i;
+
 	for (i = 0; i < this->objects_count; i++) {
 		if (this->objects[i]->visible) {
 
 			// touch event is unique for all children objects
 			uv_touch_st t2 = *touch;
+			t2.x -= this->content_bb.x;
+			t2.y -= this->content_bb.y;
+
 			if (t2.action != TOUCH_NONE) {
 				if (t2.action != TOUCH_DRAG) {
 					t2.x -= uv_uibb(this->objects[i])->x;
@@ -194,7 +197,12 @@ void uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 			}
 			uv_touch_action_e touch_propagate = t2.action;
 
-			this->objects[i]->step_callb(this->objects[i], &t2, step_ms);
+			// call child object's step callback
+			uv_bounding_box_st bb = *uv_uibb(this);
+			bb.x = uv_ui_get_xglobal(this);
+			bb.y = uv_ui_get_yglobal(this);
+			this->objects[i]->step_callb(this->objects[i], &t2, step_ms, &bb);
+
 			// check if the object changed the touch event.
 			// This means that the touch event is processed and it shouldn't
 			// be propagating to other objects.
@@ -203,8 +211,51 @@ void uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 			}
 
 		}
-		// objects cannot set itself to refresh, so disable refresh request
-		this->objects[i]->refresh = false;
+	}
+	// if touch events were still pending, check if scroll bars have been clicked
+	if ((this->content_bb.width > uv_uibb(this)->width) ||
+			(this->content_bb.height > uv_uibb(this)->height)) {
+		if (touch->action == TOUCH_IS_DOWN) {
+			if (touch->x > (uv_uibb(this)->width - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH)) {
+				if (touch->y < CONFIG_UI_WINDOW_SCROLLBAR_WIDTH) {
+					// up pressed
+					uv_uiwindow_content_move(this, 0, 5);
+				}
+				else if (touch->y > (uv_uibb(this)->height - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH)) {
+					// down pressed
+					uv_uiwindow_content_move(this, 0, -5);
+				}
+				else { }
+			}
+			if (touch->y > (uv_uibb(this)->height - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH)) {
+				if (touch->x < CONFIG_UI_WINDOW_SCROLLBAR_WIDTH) {
+					// left pressed
+					uv_uiwindow_content_move(this, 5, 0);
+				}
+				else if (touch->x > (uv_uibb(this)->width - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH)) {
+					// right pressed
+					uv_uiwindow_content_move(this, -5, 0);
+				}
+				else { }
+			}
+		}
+		else if (touch->action == TOUCH_PRESSED) {
+			this->dragging = true;
+			touch->action = TOUCH_NONE;
+		}
+		else if (touch->action == TOUCH_RELEASED) {
+			this->dragging = false;
+			touch->action = TOUCH_NONE;
+		}
+		else if (touch->action == TOUCH_DRAG) {
+			if (this->dragging) {
+				uv_uiwindow_content_move(this, touch->x, touch->y);
+				touch->action = TOUCH_NONE;
+			}
+		}
+		else {
+
+		}
 	}
 }
 

@@ -328,8 +328,8 @@ static inline void uv_lcd_draw_pixel(int32_t x, int32_t y, color_t color) {
 /// @param mask_y: The Y coordinate of the left-top corner of the mask rectangle
 /// @param mask_w: The width of the mask rectangle in pixels
 /// @param mask_h: The height of the mask rectangle in pixels
-void uv_lcd_draw_mrect(int32_t x, int32_t y, uint32_t width, uint32_t height, color_t c,
-		int32_t mask_x, int32_t mask_y, uint32_t mask_w, uint32_t mask_h);
+void uv_lcd_draw_mrect(int32_t x, int32_t y, int32_t width, int32_t height, const color_t c,
+		const int32_t mask_x, const int32_t mask_y, const int32_t mask_w, const int32_t mask_h);
 
 /// @brief: Draws a solid color rectangle on the screen
 ///
@@ -338,7 +338,7 @@ void uv_lcd_draw_mrect(int32_t x, int32_t y, uint32_t width, uint32_t height, co
 /// @param width: The width of the rectangle in pixels
 /// @param height: The height of the rectangle in pixels
 /// @param color: The color of the rectangle
-static inline void uv_lcd_draw_rect(int32_t x, int32_t y, uint32_t width, uint32_t height, color_t color) {
+static inline void uv_lcd_draw_rect(int32_t x, int32_t y, int32_t width, int32_t height, const color_t color) {
 	uv_lcd_draw_mrect(x, y, width, height, color, 0, 0, LCD_W_PX, LCD_H_PX);
 }
 
@@ -350,8 +350,9 @@ static inline void uv_lcd_draw_rect(int32_t x, int32_t y, uint32_t width, uint32
 /// @param mask_y: The Y coordinate of the left-top corner of the mask rectangle
 /// @param mask_w: The width of the mask rectangle in pixels
 /// @param mask_h: The height of the mask rectangle in pixels
-void uv_lcd_draw_mframe(int32_t x, int32_t y, uint32_t width, uint32_t height, uint32_t border,
-		color_t color, int32_t mask_x, int32_t mask_y, uint32_t mask_w, uint32_t mask_h);
+void uv_lcd_draw_mframe(int32_t x, int32_t y, int32_t width, int32_t height, const int32_t border,
+		const color_t color, const int32_t mask_x, const int32_t mask_y,
+		const uint32_t mask_w, const uint32_t mask_h);
 
 /// @brief: Draws a solid color frame on the screen
 ///
@@ -362,7 +363,7 @@ void uv_lcd_draw_mframe(int32_t x, int32_t y, uint32_t width, uint32_t height, u
 /// @param border: The thickness of the frame
 /// @param color: The color of the frame
 static inline void uv_lcd_draw_frame(int32_t x, int32_t y, uint32_t width,
-		uint32_t height, uint32_t border, color_t color) {
+		uint32_t height, int32_t border, const color_t color) {
 	uv_lcd_draw_mframe(x, y, width, height, border, color, 0, 0, LCD_W_PX, LCD_H_PX);
 }
 
