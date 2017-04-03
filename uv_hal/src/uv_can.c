@@ -1198,7 +1198,7 @@ uv_errors_e _uv_can_init() {
 
 	printf("CAN initialized\n\r");
 
-	return uv_err(ERR_NONE);
+	return ERR_NONE;
 
 }
 
@@ -1219,7 +1219,7 @@ uv_errors_e uv_can_step(uv_can_channels_e channel, unsigned int step_ms) {
 	}
 
 
-	return uv_err(ERR_NONE);
+	return ERR_NONE;
 }
 
 
@@ -1250,10 +1250,10 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 			// todo: config receive msg obj
 
 			this->used_msg_objs |= (1 << i);
-			return uv_err(ERR_NONE);
+			return ERR_NONE;
 		}
 	}
-	__uv_err_throw(ERR_CAN_RX_MESSAGE_COUNT_FULL | HAL_MODULE_CAN);
+	return ERR_CAN_RX_MESSAGE_COUNT_FULL;
 }
 
 
@@ -1315,7 +1315,7 @@ uv_errors_e uv_can_reset(uv_can_channels_e channel) {
 	Chip_SYSCTL_PeriphReset(RESET_CAN);
 
 #endif
-	return uv_err(ERR_NONE);
+	return ERR_NONE;
 }
 
 #if CONFIG_TERMINAL_CAN

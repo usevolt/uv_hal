@@ -9,6 +9,8 @@
 #include "uv_dma.h"
 
 
+#if CONFIG_DMA
+
 #define DMA_CHANNEL_COUNT	8
 
 
@@ -79,3 +81,4 @@ bool uv_dma_memset(void *dest, int32_t value, uint32_t len) {
 }
 
 
+#endif

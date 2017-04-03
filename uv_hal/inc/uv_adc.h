@@ -13,6 +13,7 @@
 
 #include "uv_errors.h"
 #include <stdbool.h>
+#include <stdint.h>
 
 #if CONFIG_TARGET_LPC1785
 
