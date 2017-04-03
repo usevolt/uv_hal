@@ -17,18 +17,26 @@
 #include "ui/uv_ui_styles.h"
 
 
-/// @note: To help building the UI, define CONFIG_UI_DRAW_BOUNDING_BOXES as 1.
-/// This causes all objects bounding boxes to be drawn to the screen with 1 px red frames.
-
-
 
 #if CONFIG_LCD
 
+
+#if !defined(CONFIG_UI_WINDOW_SCROLLBAR_WIDTH)
+#error "CONFIG_UI_WINDOW_SCROLLBAR_WIDTH should defined the width of the ui window scrollbar \
+(height for horizontal scrollbar)"
+#endif
+
+
 /// @brief: A window GUI element. Window is an holder of other objects.
 /// Inherits from the uv_uiobject_st.
-typedef struct {
+///
+/// @note: Type defined already in uv_uiobject.h
+struct _uv_uiwindow_st {
 	EXTENDS(uv_uiobject_st);
 
+	/// @brief: Children of this object reside in their own content bounding box.
+	/// This bounding box is used for sliders
+	uv_bounding_box_st content_bb;
 	/// @brief: Array which holds the objects. The alignment of the objects is
 	/// determined by the order which they reside in this array.
 	/// The first index is the back-most object,
@@ -39,7 +47,7 @@ typedef struct {
 	/// @brief: The GUI style attached to this window.
 	/// Refer to uv_uiwindow_styles_st in uv_ui_styles.h for more info.
 	const uv_uistyle_st *style;
-} uv_uiwindow_st;
+};
 
 
 
@@ -62,6 +70,17 @@ void uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms);
 void uv_uiwindow_init(void *me, uv_uiobject_st **object_array, const uv_uistyle_st * style);
 
 
+/// @brief: Returns the content bounding box
+static inline uv_bounding_box_st *uv_uiwindow_get_contentbb(const void *me) {
+	return &this->content_bb;
+}
+
+/// @brief: sets the content bounding box's width in pixels
+void uv_uiwindow_set_contentbb_width(void *me, const int16_t width_px);
+
+/// @brief: Sets the content bounding box's height in pixels
+void uv_uiwindow_set_contentbb_height(void *me, const int16_t height_px);
+
 
 /// @brief: Registers an object to the window.
 ///
@@ -76,7 +95,7 @@ void uv_uiwindow_init(void *me, uv_uiobject_st **object_array, const uv_uistyle_
 /// @param width: The width of the object in pixels. Some objects might not need this since
 /// they can calculate their own width. In this case give 0.
 /// @param height: The height of the object in pixels. Some ojects might not need this since
-/// they can calcuate their own height, such as labels. In this case give 0.
+/// they can calculate their own height, such as labels. In this case give 0.
 /// @param visible: True if the object should be visible
 /// @param step_callb: Pointer to the appropriate object type's step function.
 /// Note that this is the only thing which the window uses to distinguish different

@@ -76,7 +76,9 @@ typedef struct {
 
 
 
-
+/// @brief: Typedef of uv_uiwindow. uiobject has a pointer to it's parent,
+/// which is of type uv_uiwindow_st.
+typedef struct _uv_uiwindow_st uv_uiwindow_st;
 
 
 /// @brief: Main struct for GUI object structure. Every GUI object should declare
@@ -85,7 +87,7 @@ typedef struct uv_uiobject_st {
 	/// @brief: Object bounding box
 	uv_bounding_box_st bb;
 	/// @brief: Pointer to the object's parent or NULL
-	struct uv_uiobject_st *parent;
+	uv_uiwindow_st *parent;
 	/// @brief: Pointer to the object's step-function
 	/// @param this: Pointer to this object
 	/// @param step_ms: The step cycle duration in milliseconds
@@ -124,26 +126,11 @@ static inline void uv_ui_refresh(void *me) {
 
 /// @brief: Refreshes the object's parent. With this it is guaranteed that
 /// everything gets refreshed the right way, but this has more overheat than uv_ui_refresh.
-static inline void uv_ui_refresh_parent(void *me) {
-	if (this->parent) this->parent->refresh = true;
-	this->refresh = true;
-}
+void uv_ui_refresh_parent(void *me);
 
 
 /// @brief: Initializes an object
 void uv_uiobject_init(void *me);
-
-/// @brief: To be used when adding objects to windows
-static inline void uv_uiobject_add(void *me, void *parent,
-		uint16_t x, uint16_t y, uint16_t width, uint16_t height,
-		void (*step_callb)(void*, uv_touch_st*, uint16_t)) {
-	uv_bounding_box_init(&this->bb, x, y, width, height);
-	this->parent = parent;
-	this->step_callb = step_callb;
-	this->visible = true;
-	this->refresh = true;
-	uv_ui_refresh_parent(this);
-}
 
 
 /// @brief: Hides the object form the display
@@ -167,17 +154,17 @@ static inline void uv_ui_show(void *me) {
 /// on all obejcts.
 void uv_ui_set_enabled(void *me, bool enabled);
 
-static inline bool uv_ui_get_enabled(void *me) {
+static inline bool uv_ui_get_enabled(const void *me) {
 	return this->enabled;
 }
 
 /// @brief: Getter for the object's bounding box
 ///
 /// @param this: Pointer to uv_uiobject_st casted to void*.
-static inline uv_bounding_box_st* uv_ui_get_bb(void *me) {
+static inline uv_bounding_box_st* uv_ui_get_bb(const void *me) {
 	return &this->bb;
 }
-static inline uv_bounding_box_st *uv_uibb(void *me) {
+static inline uv_bounding_box_st *uv_uibb(const void *me) {
 	return &this->bb;
 }
 
@@ -185,25 +172,13 @@ static inline uv_bounding_box_st *uv_uibb(void *me) {
 /// @brief: Returns the X coordinate as global
 ///
 /// @param this: Pointer to uv_uiobject_st casted to void*.
-static inline uint16_t uv_ui_get_xglobal(void *me) {
-	uint16_t x = this->bb.x;
-	if (this->parent) {
-		x += uv_ui_get_xglobal(this->parent);
-	}
-	return x;
-}
+int16_t uv_ui_get_xglobal(const void *me);
 
 
 /// @brief: Returns the Y coordinate as global
 ///
 /// @param this: Pointer to uv_uiobject_st casted to void*.
-static inline uint16_t uv_ui_get_yglobal(void *me) {
-	uint16_t y = this->bb.y;
-	if (this->parent) {
-		y += uv_ui_get_yglobal(this->parent);
-	}
-	return y;
-}
+int16_t uv_ui_get_yglobal(const void *me);
 
 
 

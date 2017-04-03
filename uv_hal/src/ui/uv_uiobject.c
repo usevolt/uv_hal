@@ -7,6 +7,7 @@
 
 
 #include "ui/uv_uiobject.h"
+#include "ui/uv_uiwindow.h"
 
 
 #if CONFIG_LCD
@@ -33,6 +34,13 @@ void uv_uiobject_init(void *me) {
 	this->enabled = true;
 }
 
+void uv_ui_refresh_parent(void *me) {
+	if (this->parent)  {
+		((uv_uiobject_st*) this->parent)->refresh = true;
+	}
+	this->refresh = true;
+}
+
 
 void uv_ui_set_enabled(void *me, bool enabled) {
 	if (this->enabled != enabled) {
@@ -45,6 +53,32 @@ void uv_ui_set_enabled(void *me, bool enabled) {
 	}
 	this->enabled = enabled;
 }
+
+/// @brief: Returns the X coordinate as global
+///
+/// @param this: Pointer to uv_uiobject_st casted to void*.
+int16_t uv_ui_get_xglobal(const void *me) {
+	int16_t x = this->bb.x;
+	if (this->parent) {
+		x += uv_ui_get_xglobal(this->parent);
+		x += this->parent->content_bb.x;
+	}
+	return x;
+}
+
+
+/// @brief: Returns the Y coordinate as global
+///
+/// @param this: Pointer to uv_uiobject_st casted to void*.
+int16_t uv_ui_get_yglobal(const void *me) {
+	int16_t y = this->bb.y;
+	if (this->parent) {
+		y += uv_ui_get_yglobal(this->parent);
+		y += this->parent->content_bb.y;
+	}
+	return y;
+}
+
 
 
 #endif

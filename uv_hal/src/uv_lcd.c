@@ -21,6 +21,10 @@
 
 
 lcd_line_t *lcd = (lcd_line_t *) CONFIG_LCD_BUFFER_ADDRESS;
+#if CONFIG_LCD_DOUBLE_BUFFER
+static volatile uint8_t double_buffer_swap_req = false;
+#endif
+
 #if CONFIG_LCD_TOUCHSCREEN
 typedef struct {
 	uint16_t x;
@@ -109,27 +113,62 @@ uv_errors_e _uv_lcd_init(void) {
 		LPC_LCD->PAL[i] = 0;                /* Clear palette */
 	}
 
-	LPC_LCD->CTRL |= (1 <<  0);           /* LCD enable */
-
 	uv_lcd_draw_rect(0, 0, LCD_W(1.0f), LCD_H(1.0f), C(0));
+
+#if CONFIG_LCD_DOUBLE_BUFFER
+	LPC_LCD->INTMSK |= (1 << 2);
+	LPC_LCD->INTCLR |= (1 << 2);
+	NVIC_EnableIRQ(LCD_IRQn);
+	lcd = (lcd_line_t*) CONFIG_LCD_DOUBLE_BUFFER_ADDRESS;
+#endif
+
+	LPC_LCD->CTRL |= (1 <<  0);           /* LCD enable */
 
 	// initialize touchscreen ADC channels
 #if CONFIG_LCD_TOUCHSCREEN
 	_uv_adc_init();
-
 #endif
 
 	return ERR_NONE;
-
 }
 
+#if CONFIG_LCD_DOUBLE_BUFFER
+void LCD_IRQHandler(void) {
+	// check if base address update interrupt is active
+	if (LPC_LCD->INTSTAT & (1 << 2)) {
+		// change the buffer address if application has requested it
+		if (double_buffer_swap_req) {
+			double_buffer_swap_req = false;
+			if (lcd == (lcd_line_t*) CONFIG_LCD_BUFFER_ADDRESS) {
+				lcd = (lcd_line_t*) CONFIG_LCD_DOUBLE_BUFFER_ADDRESS;
+				LPC_LCD->UPBASE = CONFIG_LCD_BUFFER_ADDRESS;
+			}
+			else {
+				lcd = (lcd_line_t*) CONFIG_LCD_BUFFER_ADDRESS;
+				LPC_LCD->UPBASE = CONFIG_LCD_DOUBLE_BUFFER_ADDRESS;
+			}
+			// lastly update both buffer addresses to contain the same data
+			memcpy(lcd, LPC_LCD->UPBASE,
+					CONFIG_LCD_PIXELS_PER_LINE *
+					CONFIG_LCD_LINES_PER_PANEL *
+					sizeof(LCD_PIXEL_TYPE));
+		}
+	}
+
+	// clear all active interrupts
+	LPC_LCD->INTCLR = LPC_LCD->INTSTAT;
+}
+#endif
 
 
-#define draw_hline(x, y, length, color)	do{uint32_t hlinei; \
+
+#define draw_hline(x, y, length, color)	\
+	do { uint32_t hlinei; \
 		LCD_PIXEL_TYPE *hlineptr = &lcd[y][x]; \
 		for (hlinei = 0; hlinei < length; hlinei++) { \
-			*(hlineptr++) = *((int32_t*) &color);\
-		} }while(0)\
+			*(hlineptr++) = *((int32_t*) &color); \
+		} \
+	} while(0)
 
 
 void uv_lcd_draw_mrect(int32_t x, int32_t y, uint32_t width, uint32_t height, color_t c,
@@ -149,6 +188,7 @@ void uv_lcd_draw_mrect(int32_t x, int32_t y, uint32_t width, uint32_t height, co
 }
 
 
+
 void uv_lcd_draw_mframe(int32_t x, int32_t y, uint32_t width, uint32_t height, uint32_t border,
 		color_t color, int32_t mask_x, int32_t mask_y, uint32_t mask_w, uint32_t mask_h) {
 	uv_lcd_draw_mrect(x, y, width, border, color,
@@ -163,6 +203,12 @@ void uv_lcd_draw_mframe(int32_t x, int32_t y, uint32_t width, uint32_t height, u
 
 
 
+void uv_lcd_double_buffer_swap() {
+#if CONFIG_LCD_DOUBLE_BUFFER
+	double_buffer_swap_req = true;
+#endif
+}
+
 
 
 #if CONFIG_LCD_TOUCHSCREEN
@@ -175,9 +221,11 @@ void uv_lcd_touch_calib(uint16_t x, uint16_t y) {
 }
 
 
+
 void uv_lcd_touch_calib_clear(void) {
 	ts.index = 0;
 }
+
 
 
 bool uv_lcd_touch_get(int16_t *x, int16_t *y) {
@@ -233,7 +281,6 @@ bool uv_lcd_touch_get(int16_t *x, int16_t *y) {
 
 	return ret;
 }
-
 
 #endif
 

@@ -189,6 +189,10 @@ void uv_init(void *device) {
 	_uv_spi_init();
 #endif
 
+#if CONFIG_DMA
+	_uv_dma_init();
+#endif
+
 #if CONFIG_EMC
 	_uv_emc_init();
 #endif

@@ -163,6 +163,16 @@
 #if !defined(CONFIG_LCD_VD23_IOCON)
 #error "CONFIG_LCD_VD23_IOCON should define the IO configuration settings for this LCD pin."
 #endif
+#if !defined(CONFIG_LCD_DOUBLE_BUFFER)
+#error "CONFIG_LCD_DOUBLE_BUFFER should be defined as 1 or 0, depending if double buffering\
+ should be enabled"
+#endif
+#if CONFIG_LCD_DOUBLE_BUFFER
+#if !defined(CONFIG_LCD_DOUBLE_BUFFER_ADDRESS)
+#error "CONFIG_LCD_DOUBLE_BUFFER_ADDRESS should define the 2nd frame buffer RAM address. \
+Usually external RAM is required"
+#endif
+#endif
 #if CONFIG_LCD_TOUCHSCREEN
 #if !defined(CONFIG_LCD_X_L_ADC) || !defined(CONFIG_LCD_X_L_GPIO)
 #error "CONFIG_LCD_X_L_ADC should define the ADC channel used to X Left input and\
@@ -196,7 +206,6 @@
 #if !defined(CONFIG_LCD_Y_MIN)
 #error "CONFIG_LCD_X_MIN should define the touchscreen ADC minimum value for Y axis"
 #endif
-
 #endif
 
 /// @brief: Values used for CONFIG_LCD_BITS_PER_PIXEL configuration define
@@ -357,6 +366,9 @@ static inline void uv_lcd_draw_frame(int32_t x, int32_t y, uint32_t width,
 	uv_lcd_draw_mframe(x, y, width, height, border, color, 0, 0, LCD_W_PX, LCD_H_PX);
 }
 
+/// @brief: Requests the LCD module to swap double buffer. This should be called after the
+/// display drawing is completed (if double buffering is enabled)
+void uv_lcd_double_buffer_swap();
 
 #if CONFIG_LCD_TOUCHSCREEN
 
