@@ -69,7 +69,7 @@ void uv_uilabel_init(void *me, const uv_font_st *font,
 		alignment_e alignment, color_t color, color_t bgcolor, char *str);
 
 /// @brief: Step function which should be called every step cycle
-void uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb);
+bool uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb);
 
 #define this		((uv_uilabel_st*)me)
 
@@ -77,6 +77,9 @@ void uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bo
 void uv_uilabel_set_scale(void *me, float scale);
 
 /// @brief: Set's the text of all objects which are inherited from uv_uilabel_st
+///
+/// @note: Since string are passed as a reference parameters, updating the same text
+/// will not refresh the label itself. Thus uv_ui_refresh should be called after updating the text.
 void uv_uilabel_set_text(void *me, char *str);
 
 
@@ -122,9 +125,9 @@ void uv_uidigit_init(void *me, const uv_font_st *font,
 		alignment_e alignment, color_t color, color_t bgcolor, char *format, int value);
 
 
-static inline void uv_uidigit_step(void *me, uv_touch_st *touch, uint16_t step_ms,
+static inline bool uv_uidigit_step(void *me, uv_touch_st *touch, uint16_t step_ms,
 		const uv_bounding_box_st *pbb) {
-	uv_uilabel_step(me, touch, step_ms, pbb);
+	return uv_uilabel_step(me, touch, step_ms, pbb);
 }
 
 void uv_uidigit_set_value(void *me, int value);

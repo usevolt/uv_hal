@@ -57,9 +57,11 @@ struct _uv_uiwindow_st {
 /// @brief: Window step function which takes care of the actions
 /// of all objects. Should be called every step cycle.
 ///
+/// @return: true if window or any of it's children updated the screen
+///
 /// @note: The step function also takes care of showing the window on the display.
 /// Only those windows step functions should be called which are currently shown on the display.
-void uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb);
+bool uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb);
 
 
 #ifdef this
@@ -102,7 +104,7 @@ void uv_uiwindow_content_move(const void *me, const int16_t dx, const int16_t dy
 /// object types from each other.
 void uv_uiwindow_add(void *me, void *object,
 		uint16_t x, uint16_t y, uint16_t width, uint16_t height,
-		void (*step_callb)(void*, uv_touch_st*, uint16_t, const uv_bounding_box_st *));
+		bool (*step_callb)(void*, uv_touch_st*, uint16_t, const uv_bounding_box_st *));
 
 
 /// @brief: Clears the object buffer memory clearing the whole window

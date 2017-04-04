@@ -92,7 +92,7 @@ typedef struct uv_uiobject_st {
 	/// @param this: Pointer to this object
 	/// @param step_ms: The step cycle duration in milliseconds
 	/// @param touch: Touchscreen structure which holds the touchscreen actions made on this object
-	void (*step_callb)(void *this, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb);
+	bool (*step_callb)(void *this, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb);
 	/// @brief: Object will be rendered on the screen only if this is set to true
 	bool visible;
 	/// @brief: A request to refresh this object. When this is set, the object will be completely

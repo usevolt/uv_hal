@@ -35,17 +35,15 @@ static inline void draw(void *me, const uv_bounding_box_st *pbb) {
 }
 
 
-void uv_uitogglebutton_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
+bool uv_uitogglebutton_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
+	bool ret = false;
+
 	this->clicked = false;
 
 	if (touch->action == TOUCH_CLICKED) {
 		this->clicked = true;
 		this->state = !this->state;
 		uv_ui_refresh(this);
-	}
-
-	if (touch->action != TOUCH_DRAG) {
-		// prevent event from propagating to other objects
 		touch->action = TOUCH_NONE;
 	}
 
@@ -58,7 +56,10 @@ void uv_uitogglebutton_step(void *me, uv_touch_st *touch, uint16_t step_ms, cons
 	// update if necessary
 	if (refresh) {
 		draw(this, pbb);
+		ret = true;
 	}
+
+	return ret;
 }
 
 

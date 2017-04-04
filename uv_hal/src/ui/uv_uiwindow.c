@@ -14,6 +14,8 @@
 
 #define this	((uv_uiwindow_st*) me)
 
+#define SCROLLBAR_PADDING		5
+
 static void draw_scrollbar(void *me, bool horizontal, const uv_bounding_box_st *pbb);
 
 
@@ -22,10 +24,10 @@ static void draw_scrollbar(void *me, bool horizontal, const uv_bounding_box_st *
 	int16_t y = uv_ui_get_yglobal(this);
 	int16_t w = uv_uibb(this)->width;
 	int16_t h = uv_uibb(this)->height;
-	int16_t bar_x = (horizontal) ? x : (x + w - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH);
-	int16_t bar_y = (horizontal) ? (y + h - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH) : y;
-	int16_t bar_w = (horizontal) ? w : CONFIG_UI_WINDOW_SCROLLBAR_WIDTH;
-	int16_t bar_h = (horizontal) ? CONFIG_UI_WINDOW_SCROLLBAR_WIDTH : h;
+	int16_t bar_x = (horizontal) ? (x + SCROLLBAR_PADDING) : (x + w - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH);
+	int16_t bar_y = (horizontal) ? (y + h - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH) : (y + SCROLLBAR_PADDING);
+	int16_t bar_w = (horizontal) ? (w - SCROLLBAR_PADDING * 2) : CONFIG_UI_WINDOW_SCROLLBAR_WIDTH;
+	int16_t bar_h = (horizontal) ? CONFIG_UI_WINDOW_SCROLLBAR_WIDTH : (h - SCROLLBAR_PADDING * 2);
 
 
 
@@ -41,26 +43,26 @@ static void draw_scrollbar(void *me, bool horizontal, const uv_bounding_box_st *
 	int16_t handle_x;
 	if (horizontal) {
 		scale = (this->content_bb.width == 0) ? 1.0f : ((float) w / this->content_bb.width);
-		handle_w = w * scale;
+		handle_w = bar_w * scale;
 		handle_h = CONFIG_UI_WINDOW_SCROLLBAR_WIDTH;
 		pos_scale = - (float) this->content_bb.x /
 				(this->content_bb.width - uv_uibb(this)->width);
-		handle_x = x + ((w - handle_w) * pos_scale);
+		handle_x = bar_x + ((bar_w - handle_w) * pos_scale);
 		handle_y = bar_y;
 	}
 	else {
 		scale = (this->content_bb.height == 0) ? 1.0f : ((float) h / this->content_bb.height);
 		handle_w = CONFIG_UI_WINDOW_SCROLLBAR_WIDTH;
-		handle_h = h * scale;
+		handle_h = bar_h * scale;
 		pos_scale = - (float) this->content_bb.y /
 				(this->content_bb.height - uv_uibb(this)->height);
 		handle_x = bar_x;
-		handle_y = y + ((h - handle_h) * pos_scale);
+		handle_y = bar_y + ((bar_h - handle_h) * pos_scale);
 	}
 
 	// draw handle
 	uv_lcd_draw_mrect(handle_x, handle_y,handle_w, handle_h,
-			this->style->inactive_fg_c, pbb->x, pbb->y, pbb->width, pbb->height);
+			this->style->active_fg_c, pbb->x, pbb->y, pbb->width, pbb->height);
 }
 
 
@@ -91,7 +93,7 @@ void uv_uiwindow_init(void *me, uv_uiobject_st **object_array, const uv_uistyle_
 
 void uv_uiwindow_add(void *me, void *object,
 		uint16_t x, uint16_t y, uint16_t width, uint16_t height,
-		void (*step_callb)(void*, uv_touch_st*, uint16_t, const uv_bounding_box_st *)) {
+		bool (*step_callb)(void*, uv_touch_st*, uint16_t, const uv_bounding_box_st *)) {
 
 	uv_bounding_box_init(&((uv_uiobject_st*) object)->bb, x, y, width, height);
 	((uv_uiobject_st*) object)->parent = this;
@@ -132,6 +134,8 @@ uv_bounding_box_st uv_uiwindow_get_contentbb(const void *me) {
 void uv_uiwindow_set_contentbb(void *me, const int16_t width_px, const int16_t height_px) {
 	this->content_bb.width = width_px;
 	this->content_bb.height = height_px;
+	this->content_bb.x = 0;
+	this->content_bb.y = 0;
 	uv_ui_refresh(this);
 }
 
@@ -160,11 +164,13 @@ void uv_uiwindow_content_move(const void *me, const int16_t dx, const int16_t dy
 	}
 }
 
-void uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
+bool uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
+	bool ret = false;
 
 	if (((uv_uiobject_st*)this)->refresh) {
 		// first redraw this window
 		redraw(this, pbb);
+		ret = true;
 		// then request redraw all children objects
 		uint16_t i;
 		for (i = 0; i < this->objects_count; i++) {
@@ -178,15 +184,13 @@ void uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_b
 	for (i = 0; i < this->objects_count; i++) {
 		if (this->objects[i]->visible) {
 
-			// touch event is unique for all children objects
+			// touch event is unique for each children object
 			uv_touch_st t2 = *touch;
-			t2.x -= this->content_bb.x;
-			t2.y -= this->content_bb.y;
 
 			if (t2.action != TOUCH_NONE) {
 				if (t2.action != TOUCH_DRAG) {
-					t2.x -= uv_uibb(this->objects[i])->x;
-					t2.y -= uv_uibb(this->objects[i])->y;
+					t2.x -= uv_uibb(this->objects[i])->x + this->content_bb.x;
+					t2.y -= uv_uibb(this->objects[i])->y + this->content_bb.y;
 					if (t2.x > uv_uibb(this->objects[i])->width ||
 							t2.y > uv_uibb(this->objects[i])->height ||
 							t2.x < 0 ||
@@ -201,7 +205,9 @@ void uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_b
 			uv_bounding_box_st bb = *uv_uibb(this);
 			bb.x = uv_ui_get_xglobal(this);
 			bb.y = uv_ui_get_yglobal(this);
-			this->objects[i]->step_callb(this->objects[i], &t2, step_ms, &bb);
+			if (this->objects[i]->step_callb(this->objects[i], &t2, step_ms, &bb)) {
+				ret = true;
+			}
 
 			// check if the object changed the touch event.
 			// This means that the touch event is processed and it shouldn't
@@ -257,6 +263,7 @@ void uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_b
 
 		}
 	}
+	return ret;
 }
 
 #endif

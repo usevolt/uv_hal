@@ -40,39 +40,40 @@ static inline void draw(void *me, uint16_t step_ms, const uv_bounding_box_st *pb
 			this->style->font, ALIGN_CENTER, fontc, bgc, this->text, 1.0f, pbb);
 }
 
-void uv_uibutton_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
+bool uv_uibutton_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
+	bool ret = false;
 
-	if (!uv_ui_get_enabled(this)) {
-		return;
-	}
-
-	if (touch->action == TOUCH_IS_DOWN) {
-		if (this->state != UIBUTTON_PRESSED) {
+	if (uv_ui_get_enabled(this)) {
+		if (touch->action == TOUCH_IS_DOWN) {
+			if (this->state != UIBUTTON_PRESSED) {
+				uv_ui_refresh(this);
+			}
+			this->state = UIBUTTON_PRESSED;
+		}
+		else if (touch->action == TOUCH_CLICKED) {
+			// prevent touch action propagating to other elements
+			touch->action = TOUCH_NONE;
+			this->state = UIBUTTON_CLICKED;
 			uv_ui_refresh(this);
 		}
-		this->state = UIBUTTON_PRESSED;
-	}
-	else if (touch->action == TOUCH_CLICKED) {
-		// prevent touch action propagating to other elements
-		touch->action = TOUCH_NONE;
-		this->state = UIBUTTON_CLICKED;
-		uv_ui_refresh(this);
-	}
-	else if (touch->action == TOUCH_LONG_PRESSED) {
-		this->state = UIBUTTON_LONGPRESSED;
-		// prevent touch action propagating to other elements
-		touch->action = TOUCH_NONE;
-	}
-	else {
-		if (this->state != UIBUTTON_UP) {
-			uv_ui_refresh(this);
+		else if (touch->action == TOUCH_LONG_PRESSED) {
+			this->state = UIBUTTON_LONGPRESSED;
+			// prevent touch action propagating to other elements
+			touch->action = TOUCH_NONE;
 		}
-		this->state = UIBUTTON_UP;
+		else {
+			if (this->state != UIBUTTON_UP) {
+				uv_ui_refresh(this);
+			}
+			this->state = UIBUTTON_UP;
+		}
+		if (this->super.refresh) {
+			draw(this, step_ms, pbb);
+			this->super.refresh = false;
+			ret = true;
+		}
 	}
-	if (this->super.refresh) {
-		draw(this, step_ms, pbb);
-		this->super.refresh = false;
-	}
+	return ret;
 }
 
 #endif

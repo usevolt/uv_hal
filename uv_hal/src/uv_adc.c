@@ -171,12 +171,12 @@ int16_t uv_adc_read(uv_adc_channels_e channel) {
 }
 
 int16_t uv_adc_read_average(uv_adc_channels_e channel, uint32_t conversion_count) {
-	int16_t value = 0, i;
+	int32_t value = 0, i;
 	for (i = 0; i < conversion_count; i++) {
 		value += uv_adc_read(channel);
 	}
 	value /= conversion_count;
-	return value;
+	return (int16_t) value;
 }
 #endif
 

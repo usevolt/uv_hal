@@ -76,7 +76,7 @@ static inline bool uv_uibutton_long_pressed(void *me) {
 
 
 /// @brief: Step function should be called every step cycle
-void uv_uibutton_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb);
+bool uv_uibutton_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb);
 
 
 

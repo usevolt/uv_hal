@@ -110,11 +110,14 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 
 
-void uv_uiprogressbar_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
+bool uv_uiprogressbar_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
+	bool ret = false;
 	if (this->super.refresh) {
 		draw(this, pbb);
+		ret = true;
 		this->super.refresh = false;
 	}
+	return ret;
 }
 
 

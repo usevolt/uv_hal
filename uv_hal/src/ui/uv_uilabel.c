@@ -80,10 +80,15 @@ void uv_uilabel_init(void *me, const uv_font_st *font,
 
 
 /// @brief: Draws one line of text
-static inline void draw_line(int16_t x, int16_t y, const uv_font_st *font,
+void draw_line(int16_t x, int16_t y, const uv_font_st *font,
 		const char *str, const color_t color, const color_t bgcolor,
 		const alignment_e align, const float scale, const uv_bounding_box_st *maskbb) {
 
+	if ((y + font->char_height) < maskbb->y ||
+			(y > (maskbb->y + maskbb->height)) ||
+			(x > (maskbb->x + maskbb->width))) {
+		return;
+	}
 	uint16_t len = 0, i;
 	for (i = 0; i < strlen(str); i++) {
 		if (str[i] == '\n' || str[i] == '\r') {
@@ -106,40 +111,40 @@ static inline void draw_line(int16_t x, int16_t y, const uv_font_st *font,
 }
 
 
-void uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
+bool uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
+	bool ret = false;
 	// do nothing if refresh is not called
 	// (label is a static object, it doesn't have any animations, etc.
-	if (!this->super.refresh) {
-		return;
-	}
-	if (!this->super.enabled) {
-		return;
-	}
+	if (this->super.refresh && this->super.enabled) {
 
-	uint16_t x = uv_ui_get_xglobal(this),
-			y = uv_ui_get_yglobal(this);
+		uint16_t x = uv_ui_get_xglobal(this),
+				y = uv_ui_get_yglobal(this);
 
-	if (!(this->bg_color & 0xFF000000)) {
-		uv_lcd_draw_rect(x, y, uv_uibb(this)->width, uv_uibb(this)->height, this->bg_color);
-	}
+		if (!(this->bg_color & 0xFF000000)) {
+			uv_lcd_draw_mrect(x, y, uv_uibb(this)->width, uv_uibb(this)->height, this->bg_color,
+					pbb->x, pbb->y, pbb->width, pbb->height);
+		}
 
-	if (this->align & ALIGN_H_CENTER) {
-		x += uv_ui_get_bb(this)->width / 2;
-	}
-	else if (this->align & ALIGN_H_RIGHT) {
-		x += uv_ui_get_bb(this)->width;
-	}
-	if (this->align & ALIGN_V_CENTER) {
-		y += uv_ui_get_bb(this)->height / 2;
-	}
-	else if (this->align & ALIGN_V_BOTTOM) {
-		y += uv_ui_get_bb(this)->height;
-	}
-	_uv_ui_draw_mtext(x, y, this->font, this->align, this->color,
-			this->bg_color, this->str, this->scale, pbb);
+		if (this->align & ALIGN_H_CENTER) {
+			x += uv_ui_get_bb(this)->width / 2;
+		}
+		else if (this->align & ALIGN_H_RIGHT) {
+			x += uv_ui_get_bb(this)->width;
+		}
+		if (this->align & ALIGN_V_CENTER) {
+			y += uv_ui_get_bb(this)->height / 2;
+		}
+		else if (this->align & ALIGN_V_BOTTOM) {
+			y += uv_ui_get_bb(this)->height;
+		}
+		_uv_ui_draw_mtext(x, y, this->font, this->align, this->color,
+				this->bg_color, this->str, this->scale, pbb);
 
-	this->super.refresh = false;
+		this->super.refresh = false;
+		ret = true;
 
+	}
+	return ret;
 }
 
 void uv_uilabel_set_scale(void *me, float scale) {
@@ -152,11 +157,10 @@ void uv_uilabel_set_scale(void *me, float scale) {
 
 
 void uv_uilabel_set_text(void *me, char *str) {
-	if (str != this->str && strcmp(str, this->str) == 0) {
-		return;
+	if ((str != this->str)) {
+		this->str = str;
+		uv_ui_refresh(me);
 	}
-	this->str = str;
-	uv_ui_refresh(me);
 }
 
 
@@ -205,12 +209,6 @@ void _uv_ui_draw_mtext(int16_t x, int16_t y, const uv_font_st *font,
 
 	i = 0;
 	while(str[i] != '\0') {
-		if (((y + yy) < (maskbb->y - font->char_height)) ||
-				((y + yy) > (maskbb->y + maskbb->height)) ||
-				(x < (maskbb->x - font->char_width)) ||
-				(x > (maskbb->x + maskbb->width))) {
-			break;
-		}
 		while(str[i] == '\n' || str[i] == '\r') {
 			i++;
 		}

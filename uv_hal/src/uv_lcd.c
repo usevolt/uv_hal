@@ -148,7 +148,7 @@ void LCD_IRQHandler(void) {
 				LPC_LCD->UPBASE = CONFIG_LCD_DOUBLE_BUFFER_ADDRESS;
 			}
 			// lastly update both buffer addresses to contain the same data
-			memcpy(lcd, LPC_LCD->UPBASE,
+			memcpy(lcd, (void*) LPC_LCD->UPBASE,
 					CONFIG_LCD_PIXELS_PER_LINE *
 					CONFIG_LCD_LINES_PER_PANEL *
 					sizeof(LCD_PIXEL_TYPE));

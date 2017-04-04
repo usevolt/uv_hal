@@ -80,10 +80,12 @@ uv_bounding_box_st uv_uitabwindow_get_contentbb(void *me) {
 
 
 
-void uv_uitabwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
+bool uv_uitabwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
+	bool ret = false;
 	bool refresh = this->super.super.refresh;
 
-	uv_uiwindow_step(this, touch, step_ms, pbb);
+	ret = uv_uiwindow_step(this, touch, step_ms, pbb);
+
 
 	// todo: tab changing. When tab has been changed, this->tab_changed has to be true for 1 step cycle
 	this->tab_changed = false;
@@ -110,7 +112,10 @@ void uv_uitabwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const u
 
 	if (refresh) {
 		draw(this, pbb);
+		ret = true;
 	}
+
+	return ret;
 
 }
 #endif

@@ -76,7 +76,9 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 
 
-void uv_uilist_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
+bool uv_uilist_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
+	bool ret = false;
+
 	if (touch->action == TOUCH_CLICKED) {
 		if (touch->y <= uv_vector_size(&this->entries) * CONFIG_UI_LIST_ENTRY_HEIGHT) {
 			this->selected_index = touch->y / CONFIG_UI_LIST_ENTRY_HEIGHT;
@@ -88,7 +90,10 @@ void uv_uilist_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bou
 	if (this->super.refresh) {
 		draw(this, pbb);
 		this->super.refresh = false;
+		ret = true;
 	}
+
+	return ret;
 }
 
 /// @brief: Pushes a new element into the end of the list
