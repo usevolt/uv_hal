@@ -1066,7 +1066,9 @@ uv_errors_e uv_can_get_char(char *dest) {
 
 
 void CAN_IRQHandler(void) {
-	printf("CAN int\n\r");
+	volatile uint32_t p = LPC_CAN->INT;
+	volatile uint32_t s = LPC_CAN->STAT;
+	printf("CAN int 0x%x, 0x%x\n\r", p, s);
 	if (LPC_CAN->INT <= 0x20) {
 		uint32_t int_pend = LPC_CAN->IR1 | (LPC_CAN->IR2 << 16);
 		while (int_pend) {
@@ -1116,12 +1118,15 @@ void CAN_IRQHandler(void) {
 			}
 		}
 	}
+	else {
+		// clear status interrupts by reading the status register
+		volatile uint32_t stat = LPC_CAN->STAT;
+		if (stat);
+	}
 }
 
 
 uv_errors_e _uv_can_init() {
-	printf("starting to initialize CAN\n\r");
-
 	uint8_t i;
 	for (i = 0; i < CAN_COUNT; i++) {
 		this->rx_callback[i] = NULL;
@@ -1196,31 +1201,10 @@ uv_errors_e _uv_can_init() {
 	// disable access to bit timing register and start CAN controller operation
 	LPC_CAN->CNTL &= ~((1 << 6) | (1 << 0));
 
-	printf("CAN initialized\n\r");
-
 	return ERR_NONE;
 
 }
 
-
-
-uv_errors_e uv_can_step(uv_can_channels_e channel, unsigned int step_ms) {
-
-	if (this->rx_callback[CAN1] != NULL) {
-		while (true) {
-			// call application callback if assigned
-			if (uv_ring_buffer_empty(&this->rx_buffer)) {
-				break;
-			}
-			else {
-				this->rx_callback[CAN1](__uv_get_user_ptr());
-			}
-		}
-	}
-
-
-	return ERR_NONE;
-}
 
 
 
@@ -1276,20 +1260,38 @@ void _uv_can_hal_send(uv_can_channels_e chn) {
 		return;
 	}
 
-	// the last MSG OBJ is used for transmitting the messages
-	hal_can_msg_obj_st obj = {
-			.data_length = msg.data_length,
-			.msg_id = msg.id | msg.type,
-			.msgobj = TX_MSG_OBJ,
-	};
-	uint8_t i;
-	for (i = 0; i < obj.data_length; i++) {
-		obj.data[i] = msg.data_8bit[i];
+	printf("transmitting id: 0x%x\n", msg.id);
+
+	// IF1 should not be busy since tx_pending time has gone already
+	while (LPC_CAN->IF1_CMDREQ & (1 << 15));
+
+	// write message to the tx msg obj (all other than mask bits)
+	LPC_CAN->IF1_CMDMSK = 0xBF;
+
+	if (msg.type == CAN_EXT) {
+		LPC_CAN->IF1_ARB1 = msg.id & 0xFFFF;
+		LPC_CAN->IF1_ARB2 = msg.id >> 16;
 	}
+	else {
+		LPC_CAN->IF1_ARB1 = 0;
+		LPC_CAN->IF1_ARB2 = msg.id << 2;
+	}
+	LPC_CAN->IF1_ARB2 |= (1 << 13) |					// transmit msg
+			(((msg.type == CAN_EXT) ? 1 : 0) << 14) |	// frame type
+			(1 << 15);									// message valid
 
-	// todo: send the message
+	LPC_CAN->IF1_MCTRL = (msg.data_length << 0) |		// data length
+			(1 << 7) |									// single message (end of buffer)
+			(1 << 8) |									// transmit request
+			(1 << 11) |									// transmit int enabled
+			(1 << 15);									// new data written by CPU
+	LPC_CAN->IF1_DA1 = msg.data_16bit[0];
+	LPC_CAN->IF1_DA2 = msg.data_16bit[1];
+	LPC_CAN->IF1_DB1 = msg.data_16bit[2];
+	LPC_CAN->IF1_DB2 = msg.data_16bit[3];
 
-
+	// load the message into msg obj
+	LPC_CAN->IF1_CMDREQ = TX_MSG_OBJ;
 
 	this->tx_pending = PENDING_MSG_OBJ_TIME_LIMIT_MS;
 }
@@ -1337,9 +1339,12 @@ uv_errors_e uv_can_get_char(char *dest) {
 void _uv_can_hal_step(unsigned int step_ms) {
 
 #if C_CAN
-	if (this->tx_pending > 0)
+	if (this->tx_pending > 0) {
 		this->tx_pending -= step_ms;
-	else this->tx_pending = 0;
+	}
+	else {
+		this->tx_pending = 0;
+	}
 #endif
 
 	// send the next message from the buffer

@@ -192,13 +192,6 @@ uv_errors_e _uv_can_init();
 
 
 
-/// @brief: Step function should be called every application step cycle
-///
-/// @param channel: The CAN channel which is stepped
-/// @param step_ms: The step time in milliseconds
-uv_errors_e uv_can_step(uv_can_channels_e channel, unsigned int step_ms);
-
-
 
 /// @brief: Configures the CAN hardware to receive the messages with the given ID.
 ///

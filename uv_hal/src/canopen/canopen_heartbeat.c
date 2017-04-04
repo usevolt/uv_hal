@@ -10,6 +10,7 @@
 #include "uv_canopen.h"
 #include CONFIG_MAIN_H
 
+#if CONFIG_CANOPEN
 
 #define this (&_canopen)
 #define this_nonvol	(&CONFIG_NON_VOLATILE_START.canopen_data)
@@ -49,3 +50,6 @@ void _uv_canopen_heartbeat_rx(const uv_can_message_st *msg) {
 	if (msg);
 	// todo: implement logic for receiver heartbeat msgs
 }
+
+
+#endif
