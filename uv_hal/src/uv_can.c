@@ -1064,11 +1064,59 @@ uv_errors_e uv_can_get_char(char *dest) {
 #define PENDING_MSG_OBJ_TIME_LIMIT_MS		8
 
 
+static uint32_t get_msgif_id(const bool ext) {
+	uint32_t id;
+	if (ext) {
+		id = LPC_CAN->IF1_ARB1;
+		id += (LPC_CAN->IF1_ARB2 & 0x1FFF) << 16;
+	}
+	else {
+		id = (LPC_CAN->IF1_ARB2 & 0x1FFF) >> 2;
+	}
+	return id;
+}
+
+static void set_msgif_id(const uint32_t id, const bool ext) {
+	if (ext) {
+		LPC_CAN->IF1_ARB1 = id >> 16;
+		LPC_CAN->IF1_ARB2 &= ~(0x1FFF);
+		LPC_CAN->IF1_ARB2 |= (id & 0x1FFF);
+	}
+	else {
+		LPC_CAN->IF1_ARB2 &= ~(0x1FFF);
+		LPC_CAN->IF1_ARB2 |= ((id & 0x7FF) << 2);
+	}
+}
+
+static uint32_t get_msgif_mask() {
+	uint32_t mask;
+	mask = LPC_CAN->IF1_MSK1 + ((LPC_CAN->IF1_MSK2 & 0x1FFF) << 16);
+	return mask;
+}
+
+static void set_msgif_mask(const uint32_t mask) {
+	LPC_CAN->IF1_MSK1 = mask & 0xFFFF;
+	LPC_CAN->IF1_MSK2 &= ~(0x1FFF);
+	LPC_CAN->IF1_MSK2 |= ((mask >> 16) & 0x1FFF);
+}
+
+/// @return: 1 if extended, 0 if standard
+static inline uint8_t get_msgif_type(void) {
+	return ((LPC_CAN->IF1_ARB2 & (1 << 14)) >> 14);
+}
+
+static inline void load_msg_obj(uint8_t msg_obj) {
+	while (LPC_CAN->IF1_CMDREQ & (1 << 15));
+	LPC_CAN->IF1_CMDREQ = msg_obj;
+	while (LPC_CAN->IF1_CMDREQ & (1 << 15));
+}
+
 
 void CAN_IRQHandler(void) {
 	volatile uint32_t p = LPC_CAN->INT;
 	volatile uint32_t s = LPC_CAN->STAT;
 	printf("CAN int 0x%x, 0x%x\n\r", p, s);
+
 	if (LPC_CAN->INT <= 0x20) {
 		uint32_t int_pend = LPC_CAN->IR1 | (LPC_CAN->IR2 << 16);
 		while (int_pend) {
@@ -1077,6 +1125,38 @@ void CAN_IRQHandler(void) {
 			for (msg_obj = 0; msg_obj < 32; msg_obj++) {
 				if (int_pend & (1 << msg_obj)) {
 					printf("pending msg obj: %u\n\r", msg_obj);
+
+					__disable_irq();
+
+					// read the pending object
+					LPC_CAN->IF1_CMDMSK = 0x7F;
+					load_msg_obj(msg_obj + 1);
+
+					// copy the message data and push it into rx ring buffer
+					uv_canmsg_st msg;
+					msg.type = (LPC_CAN->IF1_ARB2 & (1 << 14)) ? CAN_EXT : CAN_STD;
+					msg.data_length = LPC_CAN->IF1_MCTRL & 0b1111;
+					msg.id = get_msgif_id(msg.type == CAN_EXT);
+					msg.data_16bit[0] = LPC_CAN->IF1_DA1;
+					msg.data_16bit[1] = LPC_CAN->IF1_DA2;
+					msg.data_16bit[2] = LPC_CAN->IF1_DB1;
+					msg.data_16bit[3] = LPC_CAN->IF1_DB2;
+
+					uv_ring_buffer_push(&this->rx_buffer, &msg);
+
+
+					// disable pending flag
+					LPC_CAN->IF1_MCTRL &= ~((1 << 13) | (1 << 15));
+
+					// write only control bits
+					LPC_CAN->IF1_CMDMSK = (1 << 7) | (1 << 4);
+					LPC_CAN->IF1_CMDREQ = msg_obj + 1;
+					while (LPC_CAN->IF1_CMDREQ & (1 << 15));
+
+					int_pend &= ~(1 << msg_obj);
+
+					__enable_irq();
+
 					break;
 				}
 			}
@@ -1133,7 +1213,7 @@ uv_errors_e _uv_can_init() {
 	}
 	this->init = true;
 	this->tx_pending = 0;
-	this->used_msg_objs = (1 << TX_MSG_OBJ);
+	this->used_msg_objs = (1 << (TX_MSG_OBJ - 1));
 	this->can_errors = CAN_ERROR_ACTIVE;
 
 	uv_ring_buffer_init(&this->rx_buffer, this->rx_buffer_data,
@@ -1149,10 +1229,19 @@ uv_errors_e _uv_can_init() {
 
 	// enable status change interrupts & automatic retransmission
 	LPC_CAN->CNTL = 0b111 | (1 << 6);
+	// enable test mode
+//	LPC_CAN->CNTL |= (1 << 7);
+	// loop back mode
+//	LPC_CAN->TEST |= (1 << 4);
+	// drive TX to dominant
+//	LPC_CAN->TEST = (0x3 << 5);
+
+	//BTR register: TSEG2 = 2, TSEG1 = 1, SJW = 0 (equals to 0x2300)
+//	0x2300 + ((SystemCoreClock / (8 * CONFIG_CAN1_BAUDRATE) - 1) & 0x3F)
 
 	// baudrate prescaler
 	LPC_CAN->BT = (SystemCoreClock / (CONFIG_CAN1_BAUDRATE * 8) & 0x3F)
-				  | (0b11 << 8) | (0b10 << 12);
+				  | (1 << 8) | (2 << 12);
 	LPC_CAN->CLKDIV = 0;
 
 	// init all message objects
@@ -1160,17 +1249,24 @@ uv_errors_e _uv_can_init() {
 		while (LPC_CAN->IF1_CMDREQ & (1 << 15));
 		// read all data from msg obj
 		LPC_CAN->IF1_CMDMSK = 0x7F;
-		LPC_CAN->IF1_CMDREQ = i;
-		while (LPC_CAN->IF1_CMDREQ & (1 << 15));
+		LPC_CAN->IF1_CMDREQ = i + 1;
+		while (LPC_CAN->IF1_CMDREQ & (1 << 15)) { };
 
-		// disable this message object
-		LPC_CAN->IF1_ARB2 &= ~(1 << 15);
+		LPC_CAN->IF1_MSK1 = 0;
+		LPC_CAN->IF1_MSK2 = 0;
+		LPC_CAN->IF1_ARB1 = 0;
+		LPC_CAN->IF1_ARB2 = 0;
+		LPC_CAN->IF1_MCTRL = 0;
+		LPC_CAN->IF1_DA1 = 0;
+		LPC_CAN->IF1_DA2 = 0;
+		LPC_CAN->IF1_DB1 = 0;
+		LPC_CAN->IF1_DB2 = 0;
 
 		// write to msg obj
-		LPC_CAN->IF1_CMDMSK = 0xDF;
-		LPC_CAN->IF1_CMDREQ = i;
+		LPC_CAN->IF1_CMDMSK = 0xFF;
+		LPC_CAN->IF1_CMDREQ = i + 1;
 
-		while(LPC_CAN->IF1_CMDREQ & (1 << 15));
+		while(LPC_CAN->IF1_CMDREQ & (1 << 15)) { };
 	}
 
 	/* Enable the CAN Interrupt */
@@ -1199,7 +1295,7 @@ uv_errors_e _uv_can_init() {
 
 
 	// disable access to bit timing register and start CAN controller operation
-	LPC_CAN->CNTL &= ~((1 << 6) | (1 << 0));
+	LPC_CAN->CNTL &= ~((1 << 0) | (1 << 6));
 
 	return ERR_NONE;
 
@@ -1213,31 +1309,78 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		unsigned int mask,
 		uv_can_msg_types_e type) {
 
-	// if any message objects are still not in use,
-	// config them with settings requested
-	// the last message object is reserved for sending messages
-	uint8_t i;
+	uv_errors_e ret = ERR_NONE;
 
-#if CONFIG_CAN_LOG
-	int s = LPC_CAND_API->hwCAN_GetMemSize(&myCANConfig);
-	printf("memory usage: %u\n", s);
-#endif
-	for (i = 0; i < 32; i++) {
-		// search for a unused message object to be used for receiving the messages
-		if (!GET_MASKED(this->used_msg_objs, (1 << i))) {
-			hal_can_msg_obj_st obj = {
-					.msg_id = id | type,
-					.msgobj = i,
-					.mask = mask,
-			};
+	__disable_irq();
 
-			// todo: config receive msg obj
+	// check if any message objects are configured to receive this type of data already
+	bool match = false;
+	for (uint8_t i = 0; i < 32; i++) {
+		if (GET_MASKED(this->used_msg_objs, (1 << i))) {
 
-			this->used_msg_objs |= (1 << i);
-			return ERR_NONE;
+			while (LPC_CAN->IF1_CMDREQ & (1 << 15));
+			LPC_CAN->IF1_CMDMSK = (1 << 5) | (1 << 6);
+			LPC_CAN->IF1_CMDREQ = i + 1;
+			while (LPC_CAN->IF1_CMDREQ & (1 << 15));
+
+			if ((id == get_msgif_id((type == CAN_EXT))) &&
+					(mask == get_msgif_mask()) &&
+					(get_msgif_type() == (type == CAN_EXT))) {
+
+				printf("same message already configured\n");
+
+				match = true;
+				break;
+			}
 		}
 	}
-	return ERR_CAN_RX_MESSAGE_COUNT_FULL;
+
+	if (!match) {
+		// this message is not yet configured.
+		// If any message objects are still not in use,
+		// config them with settings requested
+		// the last message object is reserved for sending messages
+		for (uint8_t i = 0; i < 32; i++) {
+			// search for a unused message object to be used for receiving the messages
+			if (!GET_MASKED(this->used_msg_objs, (1 << i))) {
+
+				while (LPC_CAN->IF1_CMDREQ & (1 << 15));
+				LPC_CAN->IF1_CMDMSK = 0xFC;
+				// write receive message data to msg obj
+				set_msgif_mask(mask);
+				LPC_CAN->IF1_MSK2 |= (1 << 15);		// use msg type for filtering
+				set_msgif_id(id, (type == CAN_EXT));
+				LPC_CAN->IF1_ARB2 &= ~(1 << 13);	// msg dir receive
+				if (type == CAN_EXT) {
+					LPC_CAN->IF1_ARB2 |= (1 << 14);
+				}
+				else {
+					LPC_CAN->IF1_ARB2 &= ~(1 << 14);
+				}
+				LPC_CAN->IF1_ARB2 |= (1 << 15);		// msg valid
+				LPC_CAN->IF1_MCTRL = (1 << 7) |		// single message (end of buffer)
+						(1 << 10) |					// receive interrupt enabled
+						(1 << 12);					// use mask for filtering
+
+				LPC_CAN->IF1_CMDREQ = i + 1;
+				while(LPC_CAN->IF1_CMDREQ & (1 << 15));
+
+				this->used_msg_objs |= (1 << i);
+				match = true;
+
+				printf("configured msg to be received with msg obj %u\n", i);
+				break;
+			}
+		}
+	}
+
+	if (!match) {
+		ret = ERR_CAN_RX_MESSAGE_COUNT_FULL;
+	}
+
+	__enable_irq();
+
+	return ret;
 }
 
 
@@ -1260,6 +1403,11 @@ void _uv_can_hal_send(uv_can_channels_e chn) {
 		return;
 	}
 
+	uint32_t p = LPC_CAN->MSGV1;
+	p += (LPC_CAN->MSGV2) << 16;
+	uin32_t s = LPC_CAN->
+	printf("msg valid: 0x%x\n", p);
+
 	printf("transmitting id: 0x%x\n", msg.id);
 
 	// IF1 should not be busy since tx_pending time has gone already
@@ -1268,14 +1416,8 @@ void _uv_can_hal_send(uv_can_channels_e chn) {
 	// write message to the tx msg obj (all other than mask bits)
 	LPC_CAN->IF1_CMDMSK = 0xBF;
 
-	if (msg.type == CAN_EXT) {
-		LPC_CAN->IF1_ARB1 = msg.id & 0xFFFF;
-		LPC_CAN->IF1_ARB2 = msg.id >> 16;
-	}
-	else {
-		LPC_CAN->IF1_ARB1 = 0;
-		LPC_CAN->IF1_ARB2 = msg.id << 2;
-	}
+	set_msgif_id(msg.id, (msg.type == CAN_EXT));
+
 	LPC_CAN->IF1_ARB2 |= (1 << 13) |					// transmit msg
 			(((msg.type == CAN_EXT) ? 1 : 0) << 14) |	// frame type
 			(1 << 15);									// message valid
@@ -1294,6 +1436,7 @@ void _uv_can_hal_send(uv_can_channels_e chn) {
 	LPC_CAN->IF1_CMDREQ = TX_MSG_OBJ;
 
 	this->tx_pending = PENDING_MSG_OBJ_TIME_LIMIT_MS;
+
 }
 
 

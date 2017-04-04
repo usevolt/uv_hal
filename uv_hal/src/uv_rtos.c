@@ -174,7 +174,9 @@ void uv_init(void *device) {
 	// reset all peripherals which are denpending on the
 	// non-volatile settings.
 	if (_uv_memory_hal_load()) {
+#if CONFIG_CANOPEN
 		_uv_canopen_reset();
+#endif
 	}
 
 #if CONFIG_CANOPEN
@@ -237,7 +239,9 @@ void uv_init(void *device) {
 
 
 void uv_data_reset() {
+#if CONFIG_CANOPEN
 	_uv_canopen_reset();
+#endif
 }
 
 
