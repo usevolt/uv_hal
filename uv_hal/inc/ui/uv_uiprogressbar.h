@@ -115,7 +115,7 @@ void uv_uiprogressbar_set_limit(void *me, uiprogressbar_limit_e type,
 
 
 /// @brief: Set function is called by the parent window
-void uv_uiprogressbar_step(void *me, uv_touch_st *touch, uint16_t step_ms);
+void uv_uiprogressbar_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb);
 
 
 #undef this

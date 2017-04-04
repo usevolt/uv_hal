@@ -25,7 +25,7 @@ void uv_uitabwindow_init(void *me, int16_t tab_count,
 }
 
 
-static void draw(void *me) {
+static void draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t x = uv_ui_get_xglobal(this);
 	int16_t y = uv_ui_get_yglobal(this);
 	int16_t tab_w = 0;
@@ -37,12 +37,13 @@ static void draw(void *me) {
 		if (tab_w < CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH) tab_w = CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH;
 		if (this->active_tab != i) {
 
-			uv_lcd_draw_rect(x, y, tab_w, CONFIG_UI_TABWINDOW_HEADER_HEIGHT, this->super.style->inactive_bg_c);
-			uv_lcd_draw_frame(x, y, tab_w + 1, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
-					1, this->super.style->inactive_frame_c);
-			_uv_ui_draw_text(x + 5, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, this->super.style->font,
+			uv_lcd_draw_mrect(x, y, tab_w, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
+					this->super.style->inactive_bg_c, pbb->x, pbb->y, pbb->width, pbb->height);
+			uv_lcd_draw_mframe(x, y, tab_w + 1, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
+					1, this->super.style->inactive_frame_c, pbb->x, pbb->y, pbb->width, pbb->height);
+			_uv_ui_draw_mtext(x + 5, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, this->super.style->font,
 					ALIGN_CENTER_LEFT, this->super.style->inactive_font_c, C(0xFFFFFFFF),
-					(char*) this->tab_names[i], 1.0f);
+					(char*) this->tab_names[i], 1.0f, pbb);
 		}
 		else {
 			active_tab_x = x;
@@ -51,21 +52,22 @@ static void draw(void *me) {
 		x += tab_w;
 	}
 	// draw horizontal line
-	uv_lcd_draw_rect(x, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT - 1,
+	uv_lcd_draw_mrect(x, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT - 1,
 			uv_ui_get_xglobal(this) + uv_uibb(this)->width - x,
-			1, this->super.style->inactive_frame_c);
+			1, this->super.style->inactive_frame_c, pbb->x, pbb->y, pbb->width, pbb->height);
 
 	// lastly draw active tab
-	uv_lcd_draw_rect(active_tab_x, y,
-			active_tab_w, CONFIG_UI_TABWINDOW_HEADER_HEIGHT, this->super.style->active_bg_c);
-	uv_lcd_draw_rect(active_tab_x, y,
-			active_tab_w, 1, this->super.style->active_frame_c);
-	uv_lcd_draw_rect(active_tab_x, y, 1, CONFIG_UI_TABWINDOW_HEADER_HEIGHT, this->super.style->active_frame_c);
-	uv_lcd_draw_rect(active_tab_x + active_tab_w, y, 1, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
-			this->super.style->active_frame_c);
-	_uv_ui_draw_text(active_tab_x + 5, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, this->super.style->font,
+	uv_lcd_draw_mrect(active_tab_x, y, active_tab_w, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
+			this->super.style->active_bg_c, pbb->x, pbb->y, pbb->width, pbb->height);
+	uv_lcd_draw_mrect(active_tab_x, y, active_tab_w, 1,
+			this->super.style->active_frame_c, pbb->x, pbb->y, pbb->width, pbb->height);
+	uv_lcd_draw_mrect(active_tab_x, y, 1, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
+			this->super.style->active_frame_c, pbb->x, pbb->y, pbb->width, pbb->height);
+	uv_lcd_draw_mrect(active_tab_x + active_tab_w, y, 1, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
+			this->super.style->active_frame_c, pbb->x, pbb->y, pbb->width, pbb->height);
+	_uv_ui_draw_mtext(active_tab_x + 5, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, this->super.style->font,
 			ALIGN_CENTER_LEFT, this->super.style->active_font_c,
-			C(0xFFFFFFFF), (char *) this->tab_names[this->active_tab], 1.0f);
+			C(0xFFFFFFFF), (char *) this->tab_names[this->active_tab], 1.0f, pbb);
 
 }
 
@@ -78,10 +80,10 @@ uv_bounding_box_st uv_uitabwindow_get_contentbb(void *me) {
 
 
 
-void uv_uitabwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
+void uv_uitabwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
 	bool refresh = this->super.super.refresh;
 
-	uv_uiwindow_step(this, touch, step_ms);
+	uv_uiwindow_step(this, touch, step_ms, pbb);
 
 	// todo: tab changing. When tab has been changed, this->tab_changed has to be true for 1 step cycle
 	this->tab_changed = false;
@@ -107,7 +109,7 @@ void uv_uitabwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 	}
 
 	if (refresh) {
-		draw(this);
+		draw(this, pbb);
 	}
 
 }

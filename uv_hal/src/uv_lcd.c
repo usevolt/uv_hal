@@ -163,7 +163,7 @@ void LCD_IRQHandler(void) {
 
 
 #define draw_hline(x, y, length, color)	\
-	do { uint32_t hlinei; \
+	do { int32_t hlinei; \
 		LCD_PIXEL_TYPE *hlineptr = &lcd[y][x]; \
 		for (hlinei = 0; hlinei < length; hlinei++) { \
 			*(hlineptr++) = *((int32_t*) &color); \
@@ -171,16 +171,27 @@ void LCD_IRQHandler(void) {
 	} while(0)
 
 
-void uv_lcd_draw_mrect(int32_t x, int32_t y, uint32_t width, uint32_t height, color_t c,
-		int32_t mask_x, int32_t mask_y, uint32_t mask_w, uint32_t mask_h) {
-	if (x < mask_x) x = mask_x;
-	if (y < mask_y) y = mask_y;
+void uv_lcd_draw_mrect(int32_t x, int32_t y, int32_t width, int32_t height, const color_t c,
+		const int32_t mask_x, const int32_t mask_y, const int32_t mask_w, const int32_t mask_h) {
+
+	if (x < mask_x) {
+		width -= mask_x - x;
+		x = mask_x;
+	}
+	if (y < mask_y) {
+		height -= mask_y - y;
+		y = mask_y;
+	}
+
 	if (x > LCD_W_PX || y > LCD_H_PX) { return; }
 
-	if (width > mask_w) { width = mask_w; }
-	if (height > mask_h) { height = mask_h; }
+	if ((x + width) > (mask_x + mask_w)) { width = mask_x + mask_w - x; }
+	if ((y + height) > (mask_y + mask_h)) { height = mask_y + mask_h - y; }
 	if (x + width > LCD_W_PX) { width = LCD_W_PX - x; }
 	if (y + height > LCD_H_PX) { height = LCD_H_PX - y; }
+	if ((width < 0) || (height < 0)) {
+		return;
+	}
 	uint32_t j;
 	for (j = y; j < y + height; j++) {
 		draw_hline(x, j, width, c);
@@ -189,8 +200,9 @@ void uv_lcd_draw_mrect(int32_t x, int32_t y, uint32_t width, uint32_t height, co
 
 
 
-void uv_lcd_draw_mframe(int32_t x, int32_t y, uint32_t width, uint32_t height, uint32_t border,
-		color_t color, int32_t mask_x, int32_t mask_y, uint32_t mask_w, uint32_t mask_h) {
+void uv_lcd_draw_mframe(int32_t x, int32_t y, int32_t width, int32_t height,
+		const int32_t border, const color_t color, const int32_t mask_x,
+		const int32_t mask_y, const uint32_t mask_w, const uint32_t mask_h) {
 	uv_lcd_draw_mrect(x, y, width, border, color,
 			mask_x, mask_y, mask_w, mask_h);
 	uv_lcd_draw_mrect(x + width - border, y + border, border, height - border, color,

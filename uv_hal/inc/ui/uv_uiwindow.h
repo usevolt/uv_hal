@@ -44,6 +44,8 @@ struct _uv_uiwindow_st {
 	uv_uiobject_st **objects;
 	/// @brief: Object array length
 	uint16_t objects_count;
+	/// @brief: Indicates dragging has been started for this window
+	bool dragging;
 	/// @brief: The GUI style attached to this window.
 	/// Refer to uv_uiwindow_styles_st in uv_ui_styles.h for more info.
 	const uv_uistyle_st *style;
@@ -57,7 +59,7 @@ struct _uv_uiwindow_st {
 ///
 /// @note: The step function also takes care of showing the window on the display.
 /// Only those windows step functions should be called which are currently shown on the display.
-void uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms);
+void uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb);
 
 
 #ifdef this
@@ -71,16 +73,14 @@ void uv_uiwindow_init(void *me, uv_uiobject_st **object_array, const uv_uistyle_
 
 
 /// @brief: Returns the content bounding box
-static inline uv_bounding_box_st *uv_uiwindow_get_contentbb(const void *me) {
-	return &this->content_bb;
-}
+uv_bounding_box_st uv_uiwindow_get_contentbb(const void *me);
 
 /// @brief: sets the content bounding box's width in pixels
-void uv_uiwindow_set_contentbb_width(void *me, const int16_t width_px);
+void uv_uiwindow_set_contentbb(void *me, const int16_t width_px, const int16_t height_px);
 
-/// @brief: Sets the content bounding box's height in pixels
-void uv_uiwindow_set_contentbb_height(void *me, const int16_t height_px);
-
+/// @brief: Moves the content area *dx* and *dy* pixels in horizontal and vertical directions,
+/// respectively.
+void uv_uiwindow_content_move(const void *me, const int16_t dx, const int16_t dy);
 
 /// @brief: Registers an object to the window.
 ///
@@ -102,7 +102,7 @@ void uv_uiwindow_set_contentbb_height(void *me, const int16_t height_px);
 /// object types from each other.
 void uv_uiwindow_add(void *me, void *object,
 		uint16_t x, uint16_t y, uint16_t width, uint16_t height,
-		void (*step_callb)(void*, uv_touch_st*, uint16_t));
+		void (*step_callb)(void*, uv_touch_st*, uint16_t, const uv_bounding_box_st *));
 
 
 /// @brief: Clears the object buffer memory clearing the whole window

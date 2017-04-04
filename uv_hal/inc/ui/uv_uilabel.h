@@ -69,7 +69,7 @@ void uv_uilabel_init(void *me, const uv_font_st *font,
 		alignment_e alignment, color_t color, color_t bgcolor, char *str);
 
 /// @brief: Step function which should be called every step cycle
-void uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms);
+void uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb);
 
 #define this		((uv_uilabel_st*)me)
 
@@ -122,8 +122,9 @@ void uv_uidigit_init(void *me, const uv_font_st *font,
 		alignment_e alignment, color_t color, color_t bgcolor, char *format, int value);
 
 
-static inline void uv_uidigit_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
-	uv_uilabel_step(me, touch, step_ms);
+static inline void uv_uidigit_step(void *me, uv_touch_st *touch, uint16_t step_ms,
+		const uv_bounding_box_st *pbb) {
+	uv_uilabel_step(me, touch, step_ms, pbb);
 }
 
 void uv_uidigit_set_value(void *me, int value);
@@ -159,8 +160,17 @@ static inline int uv_uidigit_get_value(void *me) {
 
 /// @brief: Draws raw text on the screen.
 /// Should be used only inside this hal library
-void _uv_ui_draw_text(uint16_t x, uint16_t y, const uv_font_st *font,
-		alignment_e align, color_t color, color_t bgcolor, char *str, float scale);
+
+void _uv_ui_draw_mtext(int16_t x, int16_t y, const uv_font_st *font,
+		const alignment_e align, const color_t color, const color_t bgcolor,
+		const char *str, const float scale, const uv_bounding_box_st *maskbb);
+
+static inline void _uv_ui_draw_text(int16_t x, int16_t y, const uv_font_st *font,
+		const alignment_e align, const color_t color, const color_t bgcolor,
+		const char *str, const float scale) {
+	uv_bounding_box_st bb = { 0, 0, LCD_W_PX, LCD_H_PX };
+	_uv_ui_draw_mtext(x, y, font, align, color, bgcolor, str, scale, &bb);
+}
 
 
 /// @brief: Returns the strings length in pixels.

@@ -30,7 +30,7 @@ void uv_uilist_recalc_height(void *me) {
 }
 
 
-static void draw(void *me) {
+static void draw(void *me, const uv_bounding_box_st *pbb) {
 	uint16_t i;
 	int16_t x = uv_ui_get_xglobal(this);
 	int16_t y = uv_ui_get_yglobal(this);
@@ -49,29 +49,34 @@ static void draw(void *me) {
 			y += entry_height - 1;
 			continue;
 		}
-		uv_lcd_draw_rect(x, y, uv_ui_get_bb(this)->width, entry_height, this->style->inactive_bg_c);
+		uv_lcd_draw_mrect(x, y, uv_ui_get_bb(this)->width, entry_height, this->style->inactive_bg_c,
+				pbb->x, pbb->y, pbb->width, pbb->height);
 
-		uv_lcd_draw_frame(x, y, uv_uibb(this)->width, entry_height, 1, this->style->inactive_frame_c);
+		uv_lcd_draw_mframe(x, y, uv_uibb(this)->width, entry_height, 1, this->style->inactive_frame_c,
+				pbb->x, pbb->y, pbb->width, pbb->height);
 
-		_uv_ui_draw_text(x + uv_uibb(this)->width / 2, y + entry_height / 2,
+		_uv_ui_draw_mtext(x + uv_uibb(this)->width / 2, y + entry_height / 2,
 				this->style->font, ALIGN_CENTER, this->style->inactive_font_c,
-				this->style->inactive_bg_c, *((char**) uv_vector_at(&this->entries, i)), 1.0f);
+				this->style->inactive_bg_c, *((char**) uv_vector_at(&this->entries, i)), 1.0f, pbb);
 		y += entry_height - 1;
 	}
 	if (this->selected_index >= 0) {
-		uv_lcd_draw_rect(x, sely, uv_ui_get_bb(this)->width, entry_height, this->style->active_bg_c);
+		uv_lcd_draw_mrect(x, sely, uv_ui_get_bb(this)->width, entry_height, this->style->active_bg_c,
+				pbb->x, pbb->y, pbb->width, pbb->height);
 
-		uv_lcd_draw_frame(x, sely, uv_uibb(this)->width, entry_height, 1, this->style->active_frame_c);
+		uv_lcd_draw_mframe(x, sely, uv_uibb(this)->width, entry_height, 1, this->style->active_frame_c,
+				pbb->x, pbb->y, pbb->width, pbb->height);
 
-		_uv_ui_draw_text(x + uv_uibb(this)->width / 2, sely + entry_height / 2,
+		_uv_ui_draw_mtext(x + uv_uibb(this)->width / 2, sely + entry_height / 2,
 				this->style->font, ALIGN_CENTER, this->style->active_font_c,
-				this->style->active_bg_c, *((char**) uv_vector_at(&this->entries, this->selected_index)), 1.0f);
+				this->style->active_bg_c,
+				*((char**) uv_vector_at(&this->entries, this->selected_index)), 1.0f, pbb);
 	}
 }
 
 
 
-void uv_uilist_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
+void uv_uilist_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
 	if (touch->action == TOUCH_CLICKED) {
 		if (touch->y <= uv_vector_size(&this->entries) * CONFIG_UI_LIST_ENTRY_HEIGHT) {
 			this->selected_index = touch->y / CONFIG_UI_LIST_ENTRY_HEIGHT;
@@ -81,7 +86,8 @@ void uv_uilist_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 		}
 	}
 	if (this->super.refresh) {
-		draw(this);
+		draw(this, pbb);
+		this->super.refresh = false;
 	}
 }
 

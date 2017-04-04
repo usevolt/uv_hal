@@ -49,7 +49,7 @@ void uv_uiprogressbar_set_limit(void *me, uiprogressbar_limit_e type,
 }
 
 
-static void draw(void *me) {
+static void draw(void *me, const uv_bounding_box_st *pbb) {
 	// total amount of bars to draw
 	int16_t bars;
 	// amount of active bars
@@ -88,7 +88,7 @@ static void draw(void *me) {
 
 	// draw all bars
 	for (int16_t i = 0; i < bars; i++) {
-		uv_lcd_draw_rect(x, y, w, h, c);
+		uv_lcd_draw_mrect(x, y, w, h, c, pbb->x, pbb->y, pbb->width, pbb->height);
 		if (this->horizontal) {
 			x += (CONFIG_UI_PROGRESSBAR_SPACE + CONFIG_UI_PROGRESSBAR_WIDTH);
 		}
@@ -101,18 +101,19 @@ static void draw(void *me) {
 	}
 	// draw title
 	if (this->title) {
-		_uv_ui_draw_text(uv_ui_get_xglobal(this) + uv_uibb(this)->width / 2,
+		_uv_ui_draw_mtext(uv_ui_get_xglobal(this) + uv_uibb(this)->width / 2,
 				uv_ui_get_yglobal(this) + uv_uibb(this)->height,
 				this->style->font, ALIGN_BOTTOM_CENTER,
-				this->style->text_color, C(0xFFFFFFFF), this->title, 1.0f);
+				this->style->text_color, C(0xFFFFFFFF), this->title, 1.0f, pbb);
 	}
 }
 
 
 
-void uv_uiprogressbar_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
+void uv_uiprogressbar_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
 	if (this->super.refresh) {
-		draw(this);
+		draw(this, pbb);
+		this->super.refresh = false;
 	}
 }
 

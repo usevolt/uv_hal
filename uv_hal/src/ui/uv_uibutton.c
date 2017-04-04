@@ -23,22 +23,24 @@ void uv_uibutton_init(void *me, char *text, const uv_uistyle_st *style) {
 
 
 
-static inline void draw(void *me, uint16_t step_ms) {
+static inline void draw(void *me, uint16_t step_ms, const uv_bounding_box_st *pbb) {
+	int16_t x = uv_ui_get_xglobal(this);
+	int16_t y = uv_ui_get_yglobal(this);
+	int16_t w = uv_uibb(this)->width;
+	int16_t h = uv_uibb(this)->height;
 	color_t bgc = (this->state) ? this->style->active_bg_c : this->style->inactive_bg_c;
 	color_t framec = (this->state) ? this->style->active_frame_c : this->style->inactive_frame_c;
 	color_t fontc = (this->state) ? this->style->active_font_c : this->style->inactive_font_c;
-	uv_lcd_draw_rect(uv_ui_get_xglobal(this), uv_ui_get_yglobal(this),
-			uv_ui_get_bb(this)->width, uv_ui_get_bb(this)->height, bgc);
 
-	uv_lcd_draw_frame(uv_ui_get_xglobal(this), uv_ui_get_yglobal(this),
-			uv_ui_get_bb(this)->width, uv_ui_get_bb(this)->height, 1, framec);
+	uv_lcd_draw_mrect(x, y, w, h, bgc, pbb->x, pbb->y, pbb->width, pbb->height);
+	uv_lcd_draw_mframe(x, y, w, h, 1, framec, pbb->x, pbb->y, pbb->width, pbb->height);
 
-	_uv_ui_draw_text(uv_ui_get_xglobal(this) + uv_ui_get_bb(this)->width / 2,
+	_uv_ui_draw_mtext(uv_ui_get_xglobal(this) + uv_ui_get_bb(this)->width / 2,
 			uv_ui_get_yglobal(this) + uv_ui_get_bb(this)->height / 2,
-			this->style->font, ALIGN_CENTER, fontc, bgc, this->text, 1.0f);
+			this->style->font, ALIGN_CENTER, fontc, bgc, this->text, 1.0f, pbb);
 }
 
-void uv_uibutton_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
+void uv_uibutton_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
 
 	if (!uv_ui_get_enabled(this)) {
 		return;
@@ -68,7 +70,8 @@ void uv_uibutton_step(void *me, uv_touch_st *touch, uint16_t step_ms) {
 		this->state = UIBUTTON_UP;
 	}
 	if (this->super.refresh) {
-		draw(this, step_ms);
+		draw(this, step_ms, pbb);
+		this->super.refresh = false;
 	}
 }
 
