@@ -16,6 +16,7 @@
 
 void uv_uitoucharea_init(void *me) {
 	uv_uiobject_init(this);
+	((uv_uiobject_st*) this)->step_callb = &uv_uitoucharea_step;
 }
 
 bool uv_uitoucharea_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
@@ -26,13 +27,14 @@ bool uv_uitoucharea_step(void *me, uv_touch_st *touch, uint16_t step_ms, const u
 	}
 	if (!this->super.enabled) {
 		this->touch.action = TOUCH_NONE;
-		return;
 	}
-	this->touch = *touch;
-	if (touch->action != TOUCH_NONE && touch->action != TOUCH_DRAG) {
+	else {
+		this->touch = *touch;
+		if (touch->action != TOUCH_NONE && touch->action != TOUCH_DRAG) {
 
-		// prevent touch action from propagating to other elements
-		touch->action = TOUCH_NONE;
+			// prevent touch action from propagating to other elements
+			touch->action = TOUCH_NONE;
+		}
 	}
 	return ret;
 }

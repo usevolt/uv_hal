@@ -58,9 +58,8 @@ void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *
 
 /// @brief: Adds a window object to th screen
 static inline void uv_uidisplay_add(void *me, uv_uiwindow_st *window,
-		uint16_t x, uint16_t y, uint16_t width, uint16_t height,
-		bool (*step_callb)(void*, uv_touch_st*, uint16_t, const uv_bounding_box_st *pbb)) {
-	uv_uiwindow_add(me, window, x, y, width, height, step_callb);
+		uint16_t x, uint16_t y, uint16_t width, uint16_t height) {
+	uv_uiwindow_add(me, window, x, y, width, height);
 }
 
 

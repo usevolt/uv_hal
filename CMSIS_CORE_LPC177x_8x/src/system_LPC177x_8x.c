@@ -466,11 +466,6 @@ void SystemInit (void)
 #if (FLASH_SETUP == 1)                  /* Flash Accelerator Setup            */
   LPC_SC->FLASHCFG  = FLASHCFG_Val|0x03A;
 #endif
-//#ifdef  __RAM_MODE__
-//  SCB->VTOR  = 0x10000000 & 0x3FFFFF80;
-//#else
-//  SCB->VTOR  = 0x00000000 & 0x3FFFFF80;
-//#endif
 }
 
 #endif

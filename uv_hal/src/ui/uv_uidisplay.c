@@ -24,6 +24,15 @@ enum {
 
 #define this ((uv_uidisplay_st*) me)
 
+
+static void draw(const void *me, const uv_bounding_box_st *pbb);
+
+static void draw(const void *me, const uv_bounding_box_st *pbb) {
+	uv_lcd_draw_rect(uv_uibb(this)->x, uv_uibb(this)->y, uv_uibb(this)->width,
+			uv_uibb(this)->height, ((uv_uiwindow_st*) this)->style->window_c);
+}
+
+
 void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *style) {
 	uv_uiwindow_init(me, objects, style);
 	// display fills the whole screen
@@ -32,6 +41,7 @@ void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *
 	uv_ui_get_bb(me)->width = LCD_W_PX;
 	uv_ui_get_bb(me)->height = LCD_H_PX;
 	uv_ui_refresh_parent(this);
+	((uv_uiwindow_st*) this)->vrtl_draw = &draw;
 
 #if CONFIG_LCD_TOUCHSCREEN
 	uv_moving_aver_init(&this->avr_x, UI_TOUCH_AVERAGE_COUNT);

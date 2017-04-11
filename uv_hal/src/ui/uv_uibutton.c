@@ -19,6 +19,7 @@ void uv_uibutton_init(void *me, char *text, const uv_uistyle_st *style) {
 	this->state = UIBUTTON_UP;
 	this->style = style;
 	this->text = text;
+	((uv_uiobject_st*) this)->step_callb = &uv_uibutton_step;
 }
 
 
@@ -32,8 +33,8 @@ static inline void draw(void *me, uint16_t step_ms, const uv_bounding_box_st *pb
 	color_t framec = (this->state) ? this->style->active_frame_c : this->style->inactive_frame_c;
 	color_t fontc = (this->state) ? this->style->active_font_c : this->style->inactive_font_c;
 
-	uv_lcd_draw_mrect(x, y, w, h, bgc, pbb->x, pbb->y, pbb->width, pbb->height);
-	uv_lcd_draw_mframe(x, y, w, h, 1, framec, pbb->x, pbb->y, pbb->width, pbb->height);
+	uv_lcd_draw_mrect(x, y, w, h, bgc, pbb);
+	uv_lcd_draw_mframe(x, y, w, h, 1, framec, pbb);
 
 	_uv_ui_draw_mtext(uv_ui_get_xglobal(this) + uv_ui_get_bb(this)->width / 2,
 			uv_ui_get_yglobal(this) + uv_ui_get_bb(this)->height / 2,

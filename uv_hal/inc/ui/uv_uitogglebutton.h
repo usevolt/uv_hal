@@ -32,11 +32,7 @@ typedef struct {
 /// @brief: Initializes the togglebutton
 ///
 /// @param state: The initial state of the button
-static inline void uv_uitogglebutton_init(void *me, bool state, char *text, const uv_uistyle_st *style) {
-	uv_uibutton_init(me, text, style);
-	this->state = state;
-	this->clicked = false;
-}
+void uv_uitogglebutton_init(void *me, bool state, char *text, const uv_uistyle_st *style);
 
 static inline void uv_uitogglebutton_set_state(void *me, bool state) {
 	if (this->state != state) {

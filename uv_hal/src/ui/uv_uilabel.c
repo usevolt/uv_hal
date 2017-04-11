@@ -75,6 +75,7 @@ void uv_uilabel_init(void *me, const uv_font_st *font,
 	this->color = color;
 	this->bg_color = bgcolor;
 	this->scale = 1.0f;
+	((uv_uiobject_st*) this)->step_callb = &uv_uilabel_step;
 }
 
 
@@ -121,8 +122,7 @@ bool uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bo
 				y = uv_ui_get_yglobal(this);
 
 		if (!(this->bg_color & 0xFF000000)) {
-			uv_lcd_draw_mrect(x, y, uv_uibb(this)->width, uv_uibb(this)->height, this->bg_color,
-					pbb->x, pbb->y, pbb->width, pbb->height);
+			uv_lcd_draw_mrect(x, y, uv_uibb(this)->width, uv_uibb(this)->height, this->bg_color, pbb);
 		}
 
 		if (this->align & ALIGN_H_CENTER) {
@@ -270,6 +270,7 @@ void uv_uidigit_init(void *me, const uv_font_st *font,
 	// force redraw
 	uv_uidigit_set_value(this, !value);
 	uv_uidigit_set_value(this, value);
+	((uv_uiobject_st*) this)->step_callb = &uv_uidigit_step;
 }
 
 

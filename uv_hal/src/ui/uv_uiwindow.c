@@ -18,7 +18,6 @@
 
 static void draw_scrollbar(void *me, bool horizontal, const uv_bounding_box_st *pbb);
 
-
 static void draw_scrollbar(void *me, bool horizontal, const uv_bounding_box_st *pbb) {
 	int16_t x = uv_ui_get_xglobal(this);
 	int16_t y = uv_ui_get_yglobal(this);
@@ -33,7 +32,7 @@ static void draw_scrollbar(void *me, bool horizontal, const uv_bounding_box_st *
 
 	// draw scroll bar background
 	uv_lcd_draw_mrect(bar_x, bar_y, bar_w, bar_h,
-			this->style->inactive_bg_c, pbb->x, pbb->y, pbb->width, pbb->height);
+			this->style->inactive_bg_c, pbb);
 
 	float scale;
 	uint16_t handle_h;
@@ -62,17 +61,19 @@ static void draw_scrollbar(void *me, bool horizontal, const uv_bounding_box_st *
 
 	// draw handle
 	uv_lcd_draw_mrect(handle_x, handle_y,handle_w, handle_h,
-			this->style->active_fg_c, pbb->x, pbb->y, pbb->width, pbb->height);
+			this->style->active_fg_c, pbb);
 }
 
 
 /// @brief: Redraws this window
-static void redraw(void *me, const uv_bounding_box_st *pbb) {
+void _uv_uiwindow_redraw(const void *me, const uv_bounding_box_st *pbb) {
+	if ((this->content_bb.height > uv_uibb(this)->height) ||
+			(this->content_bb.width > uv_uibb(this)->width) ||
+			!this->transparent) {
 
-	uv_lcd_draw_mrect(uv_ui_get_xglobal(this), uv_ui_get_yglobal(this),
-			uv_ui_get_bb(this)->width, uv_ui_get_bb(this)->height,
-			this->style->window_c, pbb->x, pbb->y, pbb->width, pbb->height);
-
+		uv_lcd_draw_mrect(uv_ui_get_xglobal(this), uv_ui_get_yglobal(this), uv_uibb(this)->width,
+				uv_uibb(this)->height, this->style->window_c, pbb);
+	}
 	if (this->content_bb.height > uv_uibb(this)->height) {
 		draw_scrollbar(this, false, pbb);
 	}
@@ -88,16 +89,18 @@ void uv_uiwindow_init(void *me, uv_uiobject_st **object_array, const uv_uistyle_
 	this->objects_count = 0;
 	this->style = style;
 	this->dragging = false;
+	this->transparent = false;
+	this->vrtl_draw = &_uv_uiwindow_redraw;
+	((uv_uiobject_st*) this)->step_callb = &uv_uiwindow_step;
 }
 
 
+
 void uv_uiwindow_add(void *me, void *object,
-		uint16_t x, uint16_t y, uint16_t width, uint16_t height,
-		bool (*step_callb)(void*, uv_touch_st*, uint16_t, const uv_bounding_box_st *)) {
+		uint16_t x, uint16_t y, uint16_t width, uint16_t height) {
 
 	uv_bounding_box_init(&((uv_uiobject_st*) object)->bb, x, y, width, height);
 	((uv_uiobject_st*) object)->parent = this;
-	((uv_uiobject_st*) object)->step_callb = step_callb;
 	((uv_uiobject_st*) object)->visible = true;
 	((uv_uiobject_st*) object)->refresh = true;
 	uv_ui_refresh_parent(object);
@@ -169,7 +172,7 @@ bool uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_b
 
 	if (((uv_uiobject_st*)this)->refresh) {
 		// first redraw this window
-		redraw(this, pbb);
+		this->vrtl_draw(this, pbb);
 		ret = true;
 		// then request redraw all children objects
 		uint16_t i;
@@ -205,8 +208,10 @@ bool uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_b
 			uv_bounding_box_st bb = *uv_uibb(this);
 			bb.x = uv_ui_get_xglobal(this);
 			bb.y = uv_ui_get_yglobal(this);
-			if (this->objects[i]->step_callb(this->objects[i], &t2, step_ms, &bb)) {
-				ret = true;
+			if (this->objects[i]->step_callb) {
+				if (this->objects[i]->step_callb(this->objects[i], &t2, step_ms, &bb)) {
+					ret = true;
+				}
 			}
 
 			// check if the object changed the touch event.
@@ -265,5 +270,21 @@ bool uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_b
 	}
 	return ret;
 }
+
+
+void uv_uiwindow_clear(void *me) {
+	if (this->objects_count) {
+		uv_ui_refresh(me);
+	}
+	this->objects_count = 0;
+}
+
+void uv_uiwindow_set_transparent(void *me, bool value) {
+	if (this->transparent != value) {
+		uv_ui_refresh(this);
+	}
+	this->transparent = value;
+}
+
 
 #endif

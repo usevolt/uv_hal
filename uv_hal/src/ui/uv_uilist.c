@@ -18,6 +18,7 @@ void uv_uilist_init(void *me, char **buffer, uint16_t buffer_len, const uv_uisty
 	this->selected_index = -1;
 	uv_vector_init(&this->entries, buffer, buffer_len, sizeof(char*));
 	this->style = style;
+	((uv_uiobject_st*) this)->step_callb = &uv_uilist_step;
 }
 
 
@@ -50,10 +51,10 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 			continue;
 		}
 		uv_lcd_draw_mrect(x, y, uv_ui_get_bb(this)->width, entry_height, this->style->inactive_bg_c,
-				pbb->x, pbb->y, pbb->width, pbb->height);
+				pbb);
 
 		uv_lcd_draw_mframe(x, y, uv_uibb(this)->width, entry_height, 1, this->style->inactive_frame_c,
-				pbb->x, pbb->y, pbb->width, pbb->height);
+				pbb);
 
 		_uv_ui_draw_mtext(x + uv_uibb(this)->width / 2, y + entry_height / 2,
 				this->style->font, ALIGN_CENTER, this->style->inactive_font_c,
@@ -62,10 +63,10 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	}
 	if (this->selected_index >= 0) {
 		uv_lcd_draw_mrect(x, sely, uv_ui_get_bb(this)->width, entry_height, this->style->active_bg_c,
-				pbb->x, pbb->y, pbb->width, pbb->height);
+				pbb);
 
 		uv_lcd_draw_mframe(x, sely, uv_uibb(this)->width, entry_height, 1, this->style->active_frame_c,
-				pbb->x, pbb->y, pbb->width, pbb->height);
+				pbb);
 
 		_uv_ui_draw_mtext(x + uv_uibb(this)->width / 2, sely + entry_height / 2,
 				this->style->font, ALIGN_CENTER, this->style->active_font_c,

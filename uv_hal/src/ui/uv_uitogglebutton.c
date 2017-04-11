@@ -22,16 +22,23 @@ static inline void draw(void *me, const uv_bounding_box_st *pbb) {
 	color_t fontc = (this->super.state) ? this->super.style->active_font_c : this->super.style->inactive_font_c;
 	uv_lcd_draw_mrect(uv_ui_get_xglobal(this), uv_ui_get_yglobal(this),
 			uv_ui_get_bb(this)->width, uv_ui_get_bb(this)->height, bgc,
-			pbb->x, pbb->y, pbb->width, pbb->height);
+			pbb);
 
 	uv_lcd_draw_mframe(uv_ui_get_xglobal(this), uv_ui_get_yglobal(this),
 			uv_ui_get_bb(this)->width, uv_ui_get_bb(this)->height, 1, framec,
-			pbb->x, pbb->y, pbb->width, pbb->height);
+			pbb);
 
 	_uv_ui_draw_mtext(uv_ui_get_xglobal(this) + uv_ui_get_bb(this)->width / 2,
 			uv_ui_get_yglobal(this) + uv_ui_get_bb(this)->height / 2,
 			this->super.style->font, ALIGN_CENTER, fontc, bgc, this->super.text, 1.0f, pbb);
 
+}
+
+void uv_uitogglebutton_init(void *me, bool state, char *text, const uv_uistyle_st *style) {
+	uv_uibutton_init(me, text, style);
+	this->state = state;
+	this->clicked = false;
+	((uv_uiobject_st*) this)->step_callb = uv_uitogglebutton_step;
 }
 
 

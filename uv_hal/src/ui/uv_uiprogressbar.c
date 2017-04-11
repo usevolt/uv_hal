@@ -27,6 +27,7 @@ void uv_uiprogressbar_init(void *me, int16_t min_value,
 	this->limit = this->min_val;
 	this->limit_type = UI_PROGRESSBAR_LIMIT_NONE;
 	this->title = NULL;
+	((uv_uiobject_st*) this)->step_callb = &uv_uiprogressbar_step;
 }
 
 
@@ -88,7 +89,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 	// draw all bars
 	for (int16_t i = 0; i < bars; i++) {
-		uv_lcd_draw_mrect(x, y, w, h, c, pbb->x, pbb->y, pbb->width, pbb->height);
+		uv_lcd_draw_mrect(x, y, w, h, c, pbb);
 		if (this->horizontal) {
 			x += (CONFIG_UI_PROGRESSBAR_SPACE + CONFIG_UI_PROGRESSBAR_WIDTH);
 		}

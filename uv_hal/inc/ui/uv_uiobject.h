@@ -16,18 +16,6 @@
 
 #if CONFIG_LCD
 
-/// @brief: Struct for individual object's bounding box.
-typedef struct {
-	/// @brief: local left-most GLOBAL x coordinate relative to the parent
-	int16_t x;
-	/// @brief: Local top-most y-coordinate relative to the parent
-	int16_t y;
-	/// @brief: Width, growing to right
-	int16_t width;
-	/// @brief: Height, growing to bottom
-	int16_t height;
-} uv_bounding_box_st;
-
 
 
 /// @brief: Lists all different touchscreen actions

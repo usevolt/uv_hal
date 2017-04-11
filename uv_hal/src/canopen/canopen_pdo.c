@@ -129,7 +129,7 @@ void _uv_canopen_pdo_init() {
 			uv_delay_init(com->event_timer, (int*) &this->txpdo_time[i]);
 		}
 		else {
-			// something wetn wrong
+			// something went wrong
 		}
 	}
 	for (int i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {

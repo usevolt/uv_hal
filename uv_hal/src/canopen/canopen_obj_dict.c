@@ -128,8 +128,13 @@ static inline unsigned int com_params_count() {
 
 bool cpy(canopen_object_st *dest, const canopen_object_st *src, uint8_t subindex) {
 	bool ret;
-	if (uv_canopen_is_array(src) && (subindex > src->array_max_size)) {
-		ret = false;
+	if (uv_canopen_is_array(src)) {
+		if (subindex > src->array_max_size) {
+			ret = false;
+		}
+		else {
+			ret = true;
+		}
 	}
 	else if (subindex != src->sub_index) {
 		ret = false;
@@ -138,7 +143,7 @@ bool cpy(canopen_object_st *dest, const canopen_object_st *src, uint8_t subindex
 		ret = true;
 	}
 
-	if (dest) {
+	if (ret && dest) {
 		memcpy(dest, src, sizeof(canopen_object_st));
 	}
 	return ret;

@@ -29,6 +29,7 @@ void uv_uislider_init(void *me, int16_t min_value, int16_t max_value, int16_t cu
 	this->inc_step = 1;
 	this->drag_val = 0;
 	this->title = NULL;
+	((uv_uiobject_st*) this)->step_callb = &uv_uislider_step;
 }
 
 
@@ -43,16 +44,16 @@ static void draw(const void *me, const uv_bounding_box_st *pbb) {
 		w = uv_uibb(this)->width;
 		h = CONFIG_UI_SLIDER_WIDTH;
 		uv_lcd_draw_mrect(x, y, w, h, this->style->inactive_bg_c,
-				pbb->x, pbb->y, pbb->width, pbb->height);
+				pbb);
 		uv_lcd_draw_mframe(x, y, w, h, 1, this->style->inactive_frame_c,
-				pbb->x, pbb->y, pbb->width, pbb->height);
+				pbb);
 		// draw slider handle
 		// handle relative position
 		int16_t hpx = uv_reli(this->cur_val, this->min_val, this->max_val);
 		int16_t hx = uv_lerpi(hpx, 0, uv_uibb(this)->width - CONFIG_UI_SLIDER_WIDTH - 1);
 		// hx indicates the handle position
 		uv_lcd_draw_mrect(x + hx + 1, y + 1, CONFIG_UI_SLIDER_WIDTH - 1, h - 2,
-				this->style->active_fg_c, pbb->x, pbb->y, pbb->width, pbb->height);
+				this->style->active_fg_c, pbb);
 		if (this->show_value) {
 			char str[10];
 			itoa(this->cur_val, str, 10);
@@ -74,9 +75,9 @@ static void draw(const void *me, const uv_bounding_box_st *pbb) {
 		h = uv_uibb(this)->height - (this->title ?
 				(uv_ui_text_height_px(this->title, this->style->font, 1.0f) + 5) : 0);
 		uv_lcd_draw_mrect(x, y, w, h, this->style->inactive_bg_c,
-				pbb->x, pbb->y, pbb->width, pbb->height);
+				pbb);
 		uv_lcd_draw_mframe(x, y, w, h, 1, this->style->inactive_frame_c,
-				pbb->x, pbb->y, pbb->width, pbb->height);
+				pbb);
 		// draw slider handle
 		// handle relative position
 		int16_t hpy = uv_reli(this->cur_val, this->min_val, this->max_val);
@@ -85,7 +86,7 @@ static void draw(const void *me, const uv_bounding_box_st *pbb) {
 						(uv_ui_text_height_px(this->title, this->style->font, 1.0f) + 5) : 0), 0);
 		// hy indicates the handle position
 		uv_lcd_draw_mrect(x + 1, y + hy + 1, w - 2, CONFIG_UI_SLIDER_WIDTH - 1,
-				this->style->active_fg_c, pbb->x, pbb->y, pbb->width, pbb->height);
+				this->style->active_fg_c, pbb);
 		if (this->show_value) {
 			char str[10];
 			itoa(this->cur_val, str, 10);

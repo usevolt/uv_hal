@@ -46,9 +46,15 @@ struct _uv_uiwindow_st {
 	uint16_t objects_count;
 	/// @brief: Indicates dragging has been started for this window
 	bool dragging;
+	/// @brief: Set to false if window should have a background. That is,
+	/// if the window has any objects whose visibility will be toggled
+	bool transparent;
 	/// @brief: The GUI style attached to this window.
 	/// Refer to uv_uiwindow_styles_st in uv_ui_styles.h for more info.
 	const uv_uistyle_st *style;
+	/// @brief: Virtual draw function. Window itself doesn't provide any drawable graphics,
+	/// but structures etending from this one should implement this
+	void (*vrtl_draw)(const void *me, const uv_bounding_box_st *pbb);
 };
 
 
@@ -99,21 +105,21 @@ void uv_uiwindow_content_move(const void *me, const int16_t dx, const int16_t dy
 /// @param height: The height of the object in pixels. Some ojects might not need this since
 /// they can calculate their own height, such as labels. In this case give 0.
 /// @param visible: True if the object should be visible
-/// @param step_callb: Pointer to the appropriate object type's step function.
-/// Note that this is the only thing which the window uses to distinguish different
-/// object types from each other.
 void uv_uiwindow_add(void *me, void *object,
-		uint16_t x, uint16_t y, uint16_t width, uint16_t height,
-		bool (*step_callb)(void*, uv_touch_st*, uint16_t, const uv_bounding_box_st *));
+		uint16_t x, uint16_t y, uint16_t width, uint16_t height);
 
 
 /// @brief: Clears the object buffer memory clearing the whole window
-static inline void uv_uiwindow_clear(void *me) {
-	if (this->objects_count) {
-		uv_ui_refresh(me);
-	}
-	this->objects_count = 0;
-}
+void uv_uiwindow_clear(void *me);
+
+/// @brief: If the window is not transparent, it's background will be drawn. By default
+/// windows are set transparent to save performance.
+void uv_uiwindow_set_transparent(void *me, bool value);
+
+
+/// @brief: Redraw function for internal use
+void _uv_uiwindow_redraw(const void *me, const uv_bounding_box_st *pbb);
+
 
 #undef this
 
