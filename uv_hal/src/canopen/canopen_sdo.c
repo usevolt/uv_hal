@@ -143,8 +143,10 @@ static bool find_object(const uv_can_message_st *msg,
 void _uv_canopen_sdo_rx(const uv_can_message_st *msg) {
 
 #if CONFIG_CANOPEN_SDO_SYNC
-	/* SDO responses from other nodes are parsed only if there was an active transfer*/
-	if (GET_NODEID(msg) != NODEID && !sdo_transfer_finished() && msg->data_length > 4) {
+	// SDO responses from other nodes are parsed only if there was an active transfer
+	if ((GET_NODEID(msg) != NODEID) &&
+			(!sdo_transfer_finished()) &&
+			(msg->data_length > 4)) {
 
 		// check that this SDO was actually from the currently open active transfer
 		if (GET_MINDEX(msg) == this->sdo.transfer.mindex &&
@@ -193,8 +195,6 @@ void _uv_canopen_sdo_rx(const uv_can_message_st *msg) {
 
 			}
 		}
-
-
 	}
 #endif
 

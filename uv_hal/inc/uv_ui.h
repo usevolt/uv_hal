@@ -21,5 +21,6 @@
 #include "ui/uv_uiprogressbar.h"
 #include "ui/uv_uilayout.h"
 #include "ui/uv_uitoucharea.h"
+#include "ui/uv_uitreeview.h"
 
 #endif /* UW_UI_H_ */
