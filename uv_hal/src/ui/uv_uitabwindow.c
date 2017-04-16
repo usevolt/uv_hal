@@ -92,7 +92,9 @@ uv_bounding_box_st uv_uitabwindow_get_contentbb(void *me) {
 bool uv_uitabwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
 	bool ret = false;
 
-	// todo: tab changing. When tab has been changed, this->tab_changed has to be true for 1 step cycle
+	ret = uv_uiwindow_step(this, touch, step_ms, pbb);
+
+	// When tab has been changed, this->tab_changed has to be true for 1 step cycle
 	this->tab_changed = false;
 	if (touch->action == TOUCH_CLICKED) {
 		if (touch->y <= CONFIG_UI_TABWINDOW_HEADER_HEIGHT) {
@@ -115,7 +117,6 @@ bool uv_uitabwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const u
 		}
 	}
 
-	ret = uv_uiwindow_step(this, touch, step_ms, pbb);
 
 	return ret;
 

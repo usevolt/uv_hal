@@ -47,7 +47,9 @@ typedef struct {
 	/// @brief: Stores the current state of the press event
 	int16_t press_state;
 #endif
-
+	/// @brief: Optional touch callback which will be called everytime the
+	/// user touches the display
+	void (*touch_callb)(const uv_touch_st *touch);
 } uv_uidisplay_st;
 
 
@@ -55,6 +57,9 @@ typedef struct {
 void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *style);
 
 
+static inline void uv_uidisplay_set_touch_callb(void *me, void (*touch_callb)(const uv_touch_st *touch)) {
+	((uv_uidisplay_st *) me)->touch_callb = touch_callb;
+}
 
 /// @brief: Adds a window object to th screen
 static inline void uv_uidisplay_add(void *me, uv_uiwindow_st *window,

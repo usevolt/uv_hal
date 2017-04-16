@@ -74,6 +74,12 @@ static inline void uv_uitabwindow_add(void *me, void *object,
 			height);
 }
 
+
+static inline void uv_uitabwindow_set_step_callb(void *me,
+		void (*callb)(const uint16_t step_ms)) {
+	uv_uiwindow_set_step_callb(me, callb);
+}
+
 /// @brief: Returns the bounding box of the tab windows content
 uv_bounding_box_st uv_uitabwindow_get_contentbb(void *me);
 

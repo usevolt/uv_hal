@@ -116,7 +116,7 @@ bool uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bo
 	bool ret = false;
 	// do nothing if refresh is not called
 	// (label is a static object, it doesn't have any animations, etc.
-	if (this->super.refresh && this->super.enabled) {
+	if (this->super.refresh && this->super.visible && this->super.enabled) {
 
 		uint16_t x = uv_ui_get_xglobal(this),
 				y = uv_ui_get_yglobal(this);

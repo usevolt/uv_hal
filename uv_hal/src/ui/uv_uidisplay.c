@@ -41,6 +41,7 @@ void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *
 	uv_ui_get_bb(me)->width = LCD_W_PX;
 	uv_ui_get_bb(me)->height = LCD_H_PX;
 	uv_ui_refresh_parent(this);
+	this->touch_callb = NULL;
 	((uv_uiwindow_st*) this)->vrtl_draw = &draw;
 
 #if CONFIG_LCD_TOUCHSCREEN
@@ -114,6 +115,10 @@ void uv_uidisplay_step(void *me, uint32_t step_ms) {
 		}
 	}
 #endif
+
+	if ((this->touch_callb) && (t.action != TOUCH_NONE)) {
+		this->touch_callb(&t);
+	}
 
 	if (uv_uiwindow_step(me, &t, step_ms, uv_uibb(this))) {
 

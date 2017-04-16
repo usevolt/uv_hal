@@ -90,6 +90,7 @@ void uv_uiwindow_init(void *me, uv_uiobject_st **object_array, const uv_uistyle_
 	this->style = style;
 	this->dragging = false;
 	this->transparent = false;
+	this->app_step_callb = NULL;
 	this->vrtl_draw = &_uv_uiwindow_redraw;
 	((uv_uiobject_st*) this)->step_callb = &uv_uiwindow_step;
 }
@@ -101,8 +102,6 @@ void uv_uiwindow_add(void *me, void *object,
 
 	uv_bounding_box_init(&((uv_uiobject_st*) object)->bb, x, y, width, height);
 	((uv_uiobject_st*) object)->parent = this;
-	((uv_uiobject_st*) object)->visible = true;
-	((uv_uiobject_st*) object)->refresh = true;
 	uv_ui_refresh_parent(object);
 	this->objects[this->objects_count++] = object;
 	if (this->content_bb.width == 0) {
@@ -268,6 +267,12 @@ bool uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_b
 
 		}
 	}
+
+	// lastly call application step callback if one is assigned
+	if (this->app_step_callb != NULL) {
+		this->app_step_callb(step_ms);
+	}
+
 	return ret;
 }
 
@@ -277,6 +282,7 @@ void uv_uiwindow_clear(void *me) {
 		uv_ui_refresh(me);
 	}
 	this->objects_count = 0;
+	this->app_step_callb = NULL;
 }
 
 void uv_uiwindow_set_transparent(void *me, bool value) {

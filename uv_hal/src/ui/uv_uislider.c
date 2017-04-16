@@ -179,7 +179,9 @@ bool uv_uislider_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_b
 void uv_uislider_set_value(void *me, int16_t value) {
 	if (value < this->min_val) value = this->min_val;
 	else if (value > this->max_val) value = this->max_val;
-	if (value != this->cur_val) uv_ui_refresh(this);
+	if (value != this->cur_val) {
+		uv_ui_refresh(this);
+	}
 	this->cur_val = value;
 }
 

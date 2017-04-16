@@ -64,39 +64,76 @@
 
 #if CONFIG_PWM0_1
 #define PWM0_1				&LPC_PWM0->MR1
+#if !defined(CONFIG_PWM0_1_IO)
+#error "CONFIG_PWM0_1_IO shoud define the IO_Config register of the pin where PWM0_1 is output.\
+ Note that only pins which can be used to output PWM0_1 should be defined."
+#endif
 #endif
 #if CONFIG_PWM0_2
 #define PWM0_2				&LPC_PWM0->MR2
+#if !defined(CONFIG_PWM0_2_IO_CONF)
+#error "CONFIG_PWM0_2_IO_CONF should define the LPC_IOCON->xxx configuration to enable PWM output on specified pin."
+#endif
 #endif
 #if CONFIG_PWM0_3
 #define PWM0_3				&LPC_PWM0->MR3
+#if !defined(CONFIG_PWM0_1_IO_CONF)
+#error "CONFIG_PWM0_2_IO_CONF should define the LPC_IOCON->xxx configuration to enable PWM output on specified pin."
+#endif
 #endif
 #if CONFIG_PWM0_4
 #define PWM0_4				&LPC_PWM0->MR4
+#if !defined(CONFIG_PWM0_1_IO_CONF)
+#error "CONFIG_PWM0_2_IO_CONF should define the LPC_IOCON->xxx configuration to enable PWM output on specified pin."
+#endif
 #endif
 #if CONFIG_PWM0_5
 #define PWM0_5				&LPC_PWM0->MR5
+#if !defined(CONFIG_PWM0_1_IO_CONF)
+#error "CONFIG_PWM0_2_IO_CONF should define the LPC_IOCON->xxx configuration to enable PWM output on specified pin."
+#endif
 #endif
 #if CONFIG_PWM0_6
 #define PWM0_6				&LPC_PWM0->MR6
+#if !defined(CONFIG_PWM0_1_IO_CONF)
+#error "CONFIG_PWM0_2_IO_CONF should define the LPC_IOCON->xxx configuration to enable PWM output on specified pin."
+#endif
 #endif
 #if CONFIG_PWM1_1
 #define PWM1_1				&LPC_PWM1->MR1
+#if !defined(CONFIG_PWM1_1_IO_CONF)
+#error "CONFIG_PWM0_2_IO_CONF should define the LPC_IOCON->xxx configuration to enable PWM output on specified pin."
+#endif
 #endif
 #if CONFIG_PWM1_2
 #define PWM1_2				&LPC_PWM1->MR2
+#if !defined(CONFIG_PWM1_2_IO_CONF)
+#error "CONFIG_PWM0_2_IO_CONF should define the LPC_IOCON->xxx configuration to enable PWM output on specified pin."
+#endif
 #endif
 #if CONFIG_PWM1_3
 #define PWM1_3				&LPC_PWM1->MR3
+#if !defined(CONFIG_PWM1_3_IO_CONF)
+#error "CONFIG_PWM0_2_IO_CONF should define the LPC_IOCON->xxx configuration to enable PWM output on specified pin."
+#endif
 #endif
 #if CONFIG_PWM1_4
 #define PWM1_4				&LPC_PWM1->MR4
+#if !defined(CONFIG_PWM1_4_IO_CONF)
+#error "CONFIG_PWM0_2_IO_CONF should define the LPC_IOCON->xxx configuration to enable PWM output on specified pin."
+#endif
 #endif
 #if CONFIG_PWM1_5
 #define PWM1_5				&LPC_PWM1->MR5
+#if !defined(CONFIG_PWM1_5_IO_CONF)
+#error "CONFIG_PWM0_2_IO_CONF should define the LPC_IOCON->xxx configuration to enable PWM output on specified pin."
+#endif
 #endif
 #if CONFIG_PWM1_6
 #define PWM1_6				&LPC_PWM1->MR6
+#if !defined(CONFIG_PWM1_6_IO_CONF)
+#error "CONFIG_PWM0_2_IO_CONF should define the LPC_IOCON->xxx configuration to enable PWM output on specified pin."
+#endif
 #endif
 
 #elif CONFIG_TARGET_LPC11C14
@@ -202,25 +239,7 @@ uv_errors_e _uv_pwm_init();
 ///
 /// @param chn: The PWM channel to be set
 /// @param value: The PWM value is 16-bit unsigned value between 0 ... 65536
-static inline uv_errors_e uv_pwm_set(uv_pwm_channel_t chn, uint16_t value) {
-	if (value >= PWM_MAX_VALUE) {
-		value = PWM_MAX_VALUE;
-	}
-#if CONFIG_TARGET_LPC1785
-	*chn = PWM_MAX_VALUE - value;
-#if CONFIG_PWM0
-	LPC_PWM0->LER = 0x7F;
-#endif
-#if CONFIG_PWM1
-	LPC_PWM1->LER = 0x7F;
-#endif
-
-#elif CONFIG_TARGET_LPC11C14
-	*chn = PWM_MAX_VALUE - value;
-#endif
-
-	return ERR_NONE;
-}
+uv_errors_e uv_pwm_set(uv_pwm_channel_t chn, uint16_t value);
 
 
 

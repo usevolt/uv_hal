@@ -55,6 +55,10 @@ struct _uv_uiwindow_st {
 	/// @brief: Virtual draw function. Window itself doesn't provide any drawable graphics,
 	/// but structures etending from this one should implement this
 	void (*vrtl_draw)(const void *me, const uv_bounding_box_st *pbb);
+	/// @brief: Application step callback. This will be called every step cycle
+	/// after updating the UI. This should be used in the application to actually
+	/// do anything with the UI.
+	void (*app_step_callb)(const uint16_t step_ms);
 };
 
 
@@ -107,6 +111,11 @@ void uv_uiwindow_content_move(const void *me, const int16_t dx, const int16_t dy
 /// @param visible: True if the object should be visible
 void uv_uiwindow_add(void *me, void *object,
 		uint16_t x, uint16_t y, uint16_t width, uint16_t height);
+
+static inline void uv_uiwindow_set_step_callb(void *me,
+		void (*callb)(const uint16_t step_ms)) {
+	this->app_step_callb = callb;
+}
 
 
 /// @brief: Clears the object buffer memory clearing the whole window
