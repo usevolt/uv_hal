@@ -41,8 +41,9 @@ static inline void draw(void *me, uint16_t step_ms, const uv_bounding_box_st *pb
 			this->style->font, ALIGN_CENTER, fontc, bgc, this->text, 1.0f, pbb);
 }
 
-bool uv_uibutton_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
-	bool ret = false;
+uv_uiobject_ret_e uv_uibutton_step(void *me, uv_touch_st *touch,
+		uint16_t step_ms, const uv_bounding_box_st *pbb) {
+	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
 	if (uv_ui_get_enabled(this)) {
 		if (touch->action == TOUCH_IS_DOWN) {
@@ -71,7 +72,7 @@ bool uv_uibutton_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_b
 		if (this->super.refresh) {
 			draw(this, step_ms, pbb);
 			this->super.refresh = false;
-			ret = true;
+			ret = UIOBJECT_RETURN_REFRESH;
 		}
 	}
 	return ret;

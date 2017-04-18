@@ -58,7 +58,7 @@ struct _uv_uiwindow_st {
 	/// @brief: Application step callback. This will be called every step cycle
 	/// after updating the UI. This should be used in the application to actually
 	/// do anything with the UI.
-	void (*app_step_callb)(const uint16_t step_ms);
+	uv_uiobject_ret_e (*app_step_callb)(const uint16_t step_ms);
 };
 
 
@@ -71,7 +71,8 @@ struct _uv_uiwindow_st {
 ///
 /// @note: The step function also takes care of showing the window on the display.
 /// Only those windows step functions should be called which are currently shown on the display.
-bool uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb);
+uv_uiobject_ret_e uv_uiwindow_step(void *me, uv_touch_st *touch,
+		uint16_t step_ms, const uv_bounding_box_st *pbb);
 
 
 #ifdef this
@@ -112,9 +113,9 @@ void uv_uiwindow_content_move(const void *me, const int16_t dx, const int16_t dy
 void uv_uiwindow_add(void *me, void *object,
 		uint16_t x, uint16_t y, uint16_t width, uint16_t height);
 
-static inline void uv_uiwindow_set_step_callb(void *me,
-		void (*callb)(const uint16_t step_ms)) {
-	this->app_step_callb = callb;
+static inline void uv_uiwindow_set_stepcallback(void *me,
+		uv_uiobject_ret_e (*step)(const uint16_t step_ms)) {
+	this->app_step_callb = step;
 }
 
 

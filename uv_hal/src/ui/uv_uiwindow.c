@@ -166,13 +166,14 @@ void uv_uiwindow_content_move(const void *me, const int16_t dx, const int16_t dy
 	}
 }
 
-bool uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
-	bool ret = false;
+uv_uiobject_ret_e uv_uiwindow_step(void *me, uv_touch_st *touch,
+		uint16_t step_ms, const uv_bounding_box_st *pbb) {
+	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
 	if (((uv_uiobject_st*)this)->refresh) {
 		// first redraw this window
 		this->vrtl_draw(this, pbb);
-		ret = true;
+		ret = UIOBJECT_RETURN_REFRESH;
 		// then request redraw all children objects
 		uint16_t i;
 		for (i = 0; i < this->objects_count; i++) {
@@ -208,9 +209,10 @@ bool uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_b
 			bb.x = uv_ui_get_xglobal(this);
 			bb.y = uv_ui_get_yglobal(this);
 			if (this->objects[i]->step_callb) {
-				if (this->objects[i]->step_callb(this->objects[i], &t2, step_ms, &bb)) {
-					ret = true;
-				}
+				ret |= this->objects[i]->step_callb(this->objects[i], &t2, step_ms, &bb);
+			}
+			if (ret == UIOBJECT_RETURN_KILLED) {
+				break;
 			}
 
 			// check if the object changed the touch event.
@@ -222,56 +224,60 @@ bool uv_uiwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_b
 
 		}
 	}
-	// if touch events were still pending, check if scroll bars have been clicked
-	if ((this->content_bb.width > uv_uibb(this)->width) ||
-			(this->content_bb.height > uv_uibb(this)->height)) {
-		if (touch->action == TOUCH_IS_DOWN) {
-			if (touch->x > (uv_uibb(this)->width - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH)) {
-				if (touch->y < CONFIG_UI_WINDOW_SCROLLBAR_WIDTH) {
-					// up pressed
-					uv_uiwindow_content_move(this, 0, 5);
+
+	if (ret != UIOBJECT_RETURN_KILLED) {
+		// if touch events were still pending, check if scroll bars have been clicked
+		if ((this->content_bb.width > uv_uibb(this)->width) ||
+				(this->content_bb.height > uv_uibb(this)->height)) {
+			if (touch->action == TOUCH_IS_DOWN) {
+				if (touch->x > (uv_uibb(this)->width - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH)) {
+					if (touch->y < CONFIG_UI_WINDOW_SCROLLBAR_WIDTH) {
+						// up pressed
+						uv_uiwindow_content_move(this, 0, 5);
+					}
+					else if (touch->y > (uv_uibb(this)->height - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH)) {
+						// down pressed
+						uv_uiwindow_content_move(this, 0, -5);
+					}
+					else { }
 				}
-				else if (touch->y > (uv_uibb(this)->height - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH)) {
-					// down pressed
-					uv_uiwindow_content_move(this, 0, -5);
+				if (touch->y > (uv_uibb(this)->height - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH)) {
+					if (touch->x < CONFIG_UI_WINDOW_SCROLLBAR_WIDTH) {
+						// left pressed
+						uv_uiwindow_content_move(this, 5, 0);
+					}
+					else if (touch->x > (uv_uibb(this)->width - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH)) {
+						// right pressed
+						uv_uiwindow_content_move(this, -5, 0);
+					}
+					else { }
 				}
-				else { }
 			}
-			if (touch->y > (uv_uibb(this)->height - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH)) {
-				if (touch->x < CONFIG_UI_WINDOW_SCROLLBAR_WIDTH) {
-					// left pressed
-					uv_uiwindow_content_move(this, 5, 0);
-				}
-				else if (touch->x > (uv_uibb(this)->width - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH)) {
-					// right pressed
-					uv_uiwindow_content_move(this, -5, 0);
-				}
-				else { }
-			}
-		}
-		else if (touch->action == TOUCH_PRESSED) {
-			this->dragging = true;
-			touch->action = TOUCH_NONE;
-		}
-		else if (touch->action == TOUCH_RELEASED) {
-			this->dragging = false;
-			touch->action = TOUCH_NONE;
-		}
-		else if (touch->action == TOUCH_DRAG) {
-			if (this->dragging) {
-				uv_uiwindow_content_move(this, touch->x, touch->y);
+			else if (touch->action == TOUCH_PRESSED) {
+				this->dragging = true;
 				touch->action = TOUCH_NONE;
 			}
-		}
-		else {
+			else if (touch->action == TOUCH_RELEASED) {
+				this->dragging = false;
+				touch->action = TOUCH_NONE;
+			}
+			else if (touch->action == TOUCH_DRAG) {
+				if (this->dragging) {
+					uv_uiwindow_content_move(this, touch->x, touch->y);
+					touch->action = TOUCH_NONE;
+				}
+			}
+			else {
 
+			}
+		}
+
+		// lastly call application step callback if one is assigned
+		if (this->app_step_callb != NULL) {
+			ret |= this->app_step_callb(step_ms);
 		}
 	}
 
-	// lastly call application step callback if one is assigned
-	if (this->app_step_callb != NULL) {
-		this->app_step_callb(step_ms);
-	}
 
 	return ret;
 }

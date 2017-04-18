@@ -77,8 +77,9 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 
 
-bool uv_uilist_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
-	bool ret = false;
+uv_uiobject_ret_e uv_uilist_step(void *me, uv_touch_st *touch,
+		uint16_t step_ms, const uv_bounding_box_st *pbb) {
+	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
 	if (touch->action == TOUCH_CLICKED) {
 		if (touch->y <= uv_vector_size(&this->entries) * CONFIG_UI_LIST_ENTRY_HEIGHT) {
@@ -91,7 +92,7 @@ bool uv_uilist_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bou
 	if (this->super.refresh) {
 		draw(this, pbb);
 		this->super.refresh = false;
-		ret = true;
+		ret = UIOBJECT_RETURN_ALIVE;
 	}
 
 	return ret;

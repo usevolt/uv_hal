@@ -75,16 +75,17 @@ static inline void uv_uitabwindow_add(void *me, void *object,
 }
 
 
-static inline void uv_uitabwindow_set_step_callb(void *me,
-		void (*callb)(const uint16_t step_ms)) {
-	uv_uiwindow_set_step_callb(me, callb);
+static inline void uv_uitabwindow_set_callbacks(void *me,
+		uv_uiobject_ret_e (*step)(const uint16_t step_ms)) {
+	uv_uiwindow_set_stepcallback(me, step);
 }
 
 /// @brief: Returns the bounding box of the tab windows content
 uv_bounding_box_st uv_uitabwindow_get_contentbb(void *me);
 
 /// @brief: Step function is called from the owner window
-bool uv_uitabwindow_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb);
+uv_uiobject_ret_e uv_uitabwindow_step(void *me, uv_touch_st *touch,
+		uint16_t step_ms, const uv_bounding_box_st *pbb);
 
 
 #undef this

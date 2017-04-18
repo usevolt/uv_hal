@@ -49,7 +49,8 @@ void uv_uilist_init(void *me, char **buffer, uint16_t buffer_len, const uv_uisty
 
 /// @brief: Step function is called every frame. It is also used to distinguish
 /// different objects from each others in uv_uiwindow_st.
-bool uv_uilist_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb);
+uv_uiobject_ret_e uv_uilist_step(void *me, uv_touch_st *touch,
+		uint16_t step_ms, const uv_bounding_box_st *pbb);
 
 
 /// @brief: Recalculates the height of this list and modifies the bounding box accordingly

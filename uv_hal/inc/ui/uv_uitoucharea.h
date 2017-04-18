@@ -30,7 +30,8 @@ typedef struct {
 
 void uv_uitoucharea_init(void *me);
 
-bool uv_uitoucharea_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb);
+uv_uiobject_ret_e uv_uitoucharea_step(void *me, uv_touch_st *touch,
+		uint16_t step_ms, const uv_bounding_box_st *pbb);
 
 
 #if defined(this)

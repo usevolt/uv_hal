@@ -69,7 +69,8 @@ void uv_uilabel_init(void *me, const uv_font_st *font,
 		alignment_e alignment, color_t color, color_t bgcolor, char *str);
 
 /// @brief: Step function which should be called every step cycle
-bool uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb);
+uv_uiobject_ret_e uv_uilabel_step(void *me, uv_touch_st *touch,
+		uint16_t step_ms, const uv_bounding_box_st *pbb);
 
 #define this		((uv_uilabel_st*)me)
 
@@ -125,7 +126,7 @@ void uv_uidigit_init(void *me, const uv_font_st *font,
 		alignment_e alignment, color_t color, color_t bgcolor, char *format, int value);
 
 
-static inline bool uv_uidigit_step(void *me, uv_touch_st *touch, uint16_t step_ms,
+static inline uv_uiobject_ret_e uv_uidigit_step(void *me, uv_touch_st *touch, uint16_t step_ms,
 		const uv_bounding_box_st *pbb) {
 	return uv_uilabel_step(me, touch, step_ms, pbb);
 }

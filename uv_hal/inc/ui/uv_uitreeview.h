@@ -57,7 +57,7 @@ void uv_uitreeview_init(void *me, const uv_uitreeobject_st *object_array, const 
 
 
 /// @brief: Step function which is called internally
-bool _uv_uitreeview_step(void *me, uv_touch_st *touch, uint16_t step_ms,
+uv_uiobject_ret_e _uv_uitreeview_step(void *me, uv_touch_st *touch, uint16_t step_ms,
 		const uv_bounding_box_st *pbb);
 
 void uv_uitreeview_set_active(void *me, uint16_t active_index);

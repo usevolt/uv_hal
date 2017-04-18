@@ -90,10 +90,10 @@ void uv_uitreeview_init(void *me, const uv_uitreeobject_st *object_array, const 
 
 
 
-bool _uv_uitreeview_step(void *me, uv_touch_st *touch, uint16_t step_ms,
+uv_uiobject_ret_e _uv_uitreeview_step(void *me, uv_touch_st *touch, uint16_t step_ms,
 		const uv_bounding_box_st *pbb) {
 
-	bool ret = false;
+	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
 	if (touch->action == TOUCH_CLICKED) {
 		int16_t t = touch->y + ((uv_uiwindow_st*) me)->content_bb.y;

@@ -112,8 +112,8 @@ void draw_line(int16_t x, int16_t y, const uv_font_st *font,
 }
 
 
-bool uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
-	bool ret = false;
+uv_uiobject_ret_e uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
+	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 	// do nothing if refresh is not called
 	// (label is a static object, it doesn't have any animations, etc.
 	if (this->super.refresh && this->super.visible && this->super.enabled) {
@@ -141,7 +141,7 @@ bool uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bo
 				this->bg_color, this->str, this->scale, pbb);
 
 		this->super.refresh = false;
-		ret = true;
+		ret = UIOBJECT_RETURN_REFRESH;
 
 	}
 	return ret;

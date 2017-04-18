@@ -63,6 +63,21 @@ typedef struct {
 } uv_touch_st;
 
 
+/// @brief: Return values for step functions
+enum {
+	/// @brief: Default value. Step functions should return this if
+	/// the object is still valid and no refreshing needed
+	UIOBJECT_RETURN_ALIVE = 0,
+	/// @rief: If object refreshed itself, it should return this
+	UIOBJECT_RETURN_REFRESH = (1 << 0),
+	/// @brief: To be used with uiwindow's application step callbacks.
+	/// If this is returned, the whole step fuction call is propagated to the
+	/// parent object and step function is terminated. This can be used when switching
+	/// window structures which are using unions to save memory.
+	UIOBJECT_RETURN_KILLED = (1 << 1)
+};
+typedef uint8_t uv_uiobject_ret_e;
+
 
 /// @brief: Typedef of uv_uiwindow. uiobject has a pointer to it's parent,
 /// which is of type uv_uiwindow_st.
@@ -80,7 +95,8 @@ typedef struct uv_uiobject_st {
 	/// @param this: Pointer to this object
 	/// @param step_ms: The step cycle duration in milliseconds
 	/// @param touch: Touchscreen structure which holds the touchscreen actions made on this object
-	bool (*step_callb)(void *this, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb);
+	uv_uiobject_ret_e (*step_callb)(void *this, uv_touch_st *touch,
+			uint16_t step_ms, const uv_bounding_box_st *pbb);
 	/// @brief: Object will be rendered on the screen only if this is set to true
 	bool visible;
 	/// @brief: A request to refresh this object. When this is set, the object will be completely
