@@ -208,10 +208,16 @@ uv_uiobject_ret_e uv_uiwindow_step(void *me, uv_touch_st *touch,
 			uv_bounding_box_st bb = *uv_uibb(this);
 			bb.x = uv_ui_get_xglobal(this);
 			bb.y = uv_ui_get_yglobal(this);
+			if ((bb.x + bb.width) > (pbb->x + pbb->width)) {
+				bb.width -= (bb.x + bb.width) - (pbb->x + pbb->width);
+			}
+			if ((bb.y + bb.height) > (pbb->y + pbb->height)) {
+				bb.height -= (bb.y + bb.height) - (pbb->y + pbb->height);
+			}
 			if (this->objects[i]->step_callb) {
 				ret |= this->objects[i]->step_callb(this->objects[i], &t2, step_ms, &bb);
 			}
-			if (ret == UIOBJECT_RETURN_KILLED) {
+			if (ret & UIOBJECT_RETURN_KILLED) {
 				break;
 			}
 
@@ -225,7 +231,7 @@ uv_uiobject_ret_e uv_uiwindow_step(void *me, uv_touch_st *touch,
 		}
 	}
 
-	if (ret != UIOBJECT_RETURN_KILLED) {
+	if (!(ret & UIOBJECT_RETURN_KILLED)) {
 		// if touch events were still pending, check if scroll bars have been clicked
 		if ((this->content_bb.width > uv_uibb(this)->width) ||
 				(this->content_bb.height > uv_uibb(this)->height)) {
