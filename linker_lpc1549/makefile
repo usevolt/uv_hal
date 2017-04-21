@@ -20,6 +20,9 @@ CORE := CORE_M3
 #Sepcify the optimizations used. Os == optimize for size, Og = optimize for debug, O3, O2, O1
 O := Og
 
+#Name of the source directory, from where the soruce files are searched
+SOURCEDIR := .
+
 # Name of the directory where build files will be saved
 BUILDDIR := release
 
