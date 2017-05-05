@@ -145,6 +145,7 @@ void uv_init(void *device) {
 	uv_set_application_ptr(device);
 
 #if CONFIG_TARGET_LPC1549
+	Chip_SYSCTL_PeriphReset(RESET_MUX);
 	Chip_SWM_Init();
 	Chip_GPIO_Init(LPC_GPIO);
 #endif

@@ -49,7 +49,9 @@ static void send_can_msg(void) {
 	// if CAN is in active state, wait until putting the message to the queue was succeeded.
 	// otherwise just try to put it in queue. If the queue is full, message will be discarded.
 	if (uv_can_get_error_state(CAN1) == CAN_ERROR_ACTIVE) {
-		while (uv_can_send_message(CAN1, &msg) != ERR_NONE);
+		while (uv_can_send_message(CAN1, &msg) != ERR_NONE) {
+			uv_rtos_task_delay(1);
+		}
 	}
 	else {
 		uv_can_send_message(CAN1, &msg);
