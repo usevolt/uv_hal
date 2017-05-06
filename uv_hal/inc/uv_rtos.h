@@ -32,6 +32,11 @@
 #error "CONFIG_RTOS_HEAP_SIZE not defined. It should define the number of bytes reserved to be used\
  as a RTOS task memory."
 #endif
+#if !defined(CONFIG_UV_BOOTLOADER)
+#error "CONFIG_UV_BOOTLOADER shoud be defines as 1 if Usevolt bootloader is used for this device.\
+ In this case the bootloader takes care of configuring the system oscillator (external crystal).\
+ Otherwise this should be defined as 0."
+#endif
 
 
 #define UV_RTOS_MIN_STACK_SIZE 			configMINIMAL_STACK_SIZE

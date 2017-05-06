@@ -172,13 +172,7 @@ typedef enum {
 /// @brief: A enum describing popular CAN masks used when configuring receive messages.
 enum {
 	/// @brief: Mask where every bit is relevant
-#if CONFIG_TARGET_LPC11C14
 	CAN_ID_MASK_DEFAULT = 0xFFFFFFFF
-#elif CONFIG_TARGET_LPC1549
-	CAN_ID_MASK_DEFAULT = 0x0
-#else
-	CAN_ID_MASK_DEFAULT = 0
-#endif
 };
 
 /// @brief: Initializes the can module either in synchronous mode or in asynchronous mode.

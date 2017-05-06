@@ -330,7 +330,9 @@ ResetISR(void) {
 	*TRACECLKDIV = 1;
 #endif
 
+#if !CONFIG_UV_BOOTLOADER
     Chip_SetupXtalClocking();
+#endif
 
 #if defined (__cplusplus)
     //
