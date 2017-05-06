@@ -20,6 +20,7 @@ void uv_uitreeobject_init(void *me, const char *name,
 	this->name = name;
 	this->window = window;
 	this->show_callb = show_callb;
+	this->active = false;
 }
 
 
@@ -34,6 +35,7 @@ static void draw(const void *me, const uv_bounding_box_st *pbb);
 
 
 static void draw(const void *me, const uv_bounding_box_st *pbb) {
+
 
 	// calculate the content height and objects' positions
 	int16_t height = 0;
@@ -87,8 +89,12 @@ static void draw(const void *me, const uv_bounding_box_st *pbb) {
 		if ((this->object_array[i]->active) &&
 				(this->object_array[i]->show_callb != NULL) ) {
 			// show up the active window
-			printf("show\n");
 			this->object_array[i]->show_callb();
+			// make sure object didnt change it's width and height
+			uv_uibb(this->object_array[i]->window)->width =
+					this->object_array[i]->width;
+			uv_uibb(this->object_array[i]->window)->height =
+					this->object_array[i]->height;
 		}
 	}
 
@@ -114,6 +120,7 @@ uv_uiobject_ret_e _uv_uitreeview_step(void *me, uv_touch_st *touch, uint16_t ste
 
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
+
 	if (touch->action != TOUCH_DRAG) {
 		// convert touch to content space
 		touch->y -= ((uv_uiwindow_st*) me)->content_bb.y;
@@ -121,33 +128,37 @@ uv_uiobject_ret_e _uv_uitreeview_step(void *me, uv_touch_st *touch, uint16_t ste
 
 	for (uint16_t i = 0; i < this->obj_count; i++) {
 
-		if (this->object_array[i]->active) {
-
-		}
-		else {
-
-		}
-
-
-		// call active object's step function
 		uv_touch_st t = *touch;
 		if (t.action != TOUCH_DRAG) {
-			t.x -= uv_uibb(this->object_array[i]->window)->x;
-			t.y -= uv_uibb(this->object_array[i]->window)->y;
+			// substract content position from touch coordinates
+			t.x -= this->super.content_bb.x;
+			t.y -= this->super.content_bb.y;
 		}
+
 		uv_bounding_box_st bb = *uv_uibb(this->object_array[i]->window);
-		bb.x = uv_ui_get_xglobal(me);
-		bb.y = uv_ui_get_yglobal(me);
+		bb.x = uv_ui_get_xglobal(this);
+		bb.y = uv_ui_get_yglobal(this);
 		if ((bb.x + bb.width) > (pbb->x + pbb->width)) {
 			bb.width -= (bb.x + bb.width) - (pbb->x + pbb->width);
 		}
 		if ((bb.y + bb.height) > (pbb->y + pbb->height)) {
 			bb.height -= (bb.y + bb.height) - (pbb->y + pbb->width);
 		}
-		ret |= ((uv_uiobject_st*) this->object_array[i]->window)->
-				step_callb(this->object_array[i]->window, &t, step_ms, &bb);
-		if (ret & UIOBJECT_RETURN_KILLED) {
-			break;
+
+		if (this->object_array[i]->active &&
+				(((uv_uiobject_st*) this->object_array[i]->window)->step_callb != NULL)) {
+			// call active object's step function only if the object is active
+			ret |= ((uv_uiobject_st*) this->object_array[i]->window)->
+					step_callb(this->object_array[i]->window, &t, step_ms, &bb);
+
+			// copy touch action to other children's touches
+			// This way prevent touch action propagation to other children
+			touch->action = t.action;
+
+			// terminate if requested
+			if (ret & UIOBJECT_RETURN_KILLED) {
+				break;
+			}
 		}
 
 	}
@@ -169,6 +180,13 @@ void uv_uitreeview_set_active(void *me, uint16_t active_index) {
 			}
 		}
 		this->object_array[active_index]->active = true;
+		this->object_array[active_index]->show_callb();
+		// x and y can be set to 0. They are recalculated in draw function,
+		// depending on active objects.
+		((uv_uiobject_st*) this->object_array[active_index]->window)->bb.width =
+				this->object_array[active_index]->width;
+		((uv_uiobject_st*) this->object_array[active_index]->window)->bb.height =
+				this->object_array[active_index]->height;
 		uv_ui_refresh(this);
 	}
 }
@@ -177,10 +195,8 @@ void uv_uitreeview_set_active(void *me, uint16_t active_index) {
 void uv_uitreeview_add(void *me, uv_uitreeobject_st *object,
 		int16_t width, int16_t height) {
 	this->object_array[this->obj_count] = object;
-	// x and y can be set to 0. They are recalculated in draw function,
-	// depending on active objects.
-	uv_bounding_box_init(&((uv_uiobject_st*) this->object_array[this->obj_count]->window)->bb,
-			0, 0, width, height);
+	object->width = width;
+	object->height = height;
 	((uv_uiobject_st*) object->window)->parent = me;
 	uv_ui_refresh(this);
 

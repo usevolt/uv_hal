@@ -30,6 +30,10 @@ typedef struct {
 	void (*show_callb)(void);
 	/// @brief: Marks that this object is active (opened)
 	bool active;
+	/// @brief: Object's width and height are stored here. This way same uiwindow_st
+	/// structure can be used for multiple childs if ony one is active at the time.
+	int16_t width;
+	int16_t height;
 } uv_uitreeobject_st;
 
 
