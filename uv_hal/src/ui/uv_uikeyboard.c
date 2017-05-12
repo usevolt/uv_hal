@@ -120,6 +120,8 @@ static void draw(const char *title, char *buffer, const uv_uistyle_st *style) {
 	uv_lcd_draw_frame(LCD_W(0.1), y, LCD_W(0.8), BUTTON_H, 1, style->inactive_frame_c);
 	_uv_ui_draw_text(LCD_W(0.5), y + BUTTON_H / 2, style->font, ALIGN_CENTER,
 			style->text_color, style->inactive_bg_c, "Space", 1.0f);
+
+	uv_lcd_double_buffer_swap();
 }
 
 
@@ -149,6 +151,7 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 				str[1] = '\0';
 				_uv_ui_draw_text(x + BUTTON_W / 2, y + BUTTON_H / 2, style->font, ALIGN_CENTER,
 						style->text_color, C(0xFFFFFFFF), str, 1.0f);
+				uv_lcd_double_buffer_swap();
 				return '\0';
 			}
 			else if (touch->action == TOUCH_RELEASED) {
@@ -165,6 +168,7 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 						uv_lcd_draw_frame(x + BUTTON_W, y, BUTTON_W * 2 + 1, BUTTON_H + 1, 1, style->active_frame_c);
 						_uv_ui_draw_text(x + BUTTON_W * 2, y + BUTTON_H / 2, style->font, ALIGN_CENTER,
 								style->text_color, C(0xFFFFFFFF), "Backspace", 1.0f);
+						uv_lcd_double_buffer_swap();
 					}
 					else if (touch->action == TOUCH_RELEASED) {
 						refresh = true;
@@ -182,6 +186,7 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 								style->active_bg_c);
 						_uv_ui_draw_text(x + BUTTON_W * 1.75, y + BUTTON_H, style->font, ALIGN_CENTER,
 								style->text_color, C(0xFFFFFFFF), "Enter", 1.0f);
+						uv_lcd_double_buffer_swap();
 					}
 					else if (touch->action == TOUCH_RELEASED) {
 						refresh = true;
@@ -197,6 +202,7 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 						uv_lcd_draw_frame(x + BUTTON_W, y, BUTTON_W * 2 + 1, BUTTON_H + 1, 1, style->active_frame_c);
 						_uv_ui_draw_text(x + BUTTON_W * 2, y + BUTTON_H / 2, style->font, ALIGN_CENTER,
 								style->text_color, C(0xFFFFFFFF), "Shift", 1.0f);
+						uv_lcd_double_buffer_swap();
 					}
 					else if (touch->action == TOUCH_RELEASED) {
 						refresh = true;
@@ -222,6 +228,7 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 			uv_lcd_draw_frame(LCD_W(0.1), y, LCD_W(0.8), BUTTON_H, 1, style->active_frame_c);
 			_uv_ui_draw_text(LCD_W(0.5), y + BUTTON_H / 2, style->font, ALIGN_CENTER,
 					style->text_color, C(0xFFFFFFFF), "Space", 1.0f);
+			uv_lcd_double_buffer_swap();
 		}
 		else if (touch->action == TOUCH_RELEASED) {
 			refresh = true;
