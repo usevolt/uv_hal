@@ -65,6 +65,19 @@ enum {
 #endif
 
 
+#if CONFIG_TARGET_LPC1549
+
+#if !defined(CONFIG_ADC0)
+#error "CONFIG_ADC0 should be defined as 0 or 1, depending if ADC0 is enabled."
+#endif
+#if !defined(CONFIG_ADC1)
+#error "CONFIG_ADC1 should be defined as 0 or 1, depending if ADC1 is enabled."
+#endif
+
+#endif
+
+
+
 
 
 /// @brief: Defines the ADC conversion max value ( == precision) for this hardware
@@ -74,7 +87,8 @@ enum {
 #elif CONFIG_TARGET_LPC1785
 	ADC_MAX_VALUE = 0x1000
 #elif CONFIG_TARGET_LPC1549
-	ADC_MAX_VALUE = 0x1000
+	ADC_MAX_VALUE = 0x1000,
+	ADC_FREQ = 5000000
 #endif
 };
 
@@ -103,83 +117,81 @@ typedef enum {
 	ADC_6 = (1 << 6),
 #endif
 #if CONFIG_ADC_CHANNEL7
-	ADC_7 = (1 << 7),
+	ADC_7 = (1 << 7)
 #endif
-	ADC_COUNT = 8
 #elif CONFIG_TARGET_LPC1549
-#if CONFIG_ADC_CHANNEL0
-	ADC_0 = (1 << 0),
+#if CONFIG_ADC_CHANNEL0 || CONFIG_ADC_CHANNEL0_0
+	ADC0_0 = 0,
 #endif
-#if CONFIG_ADC_CHANNEL1
-	ADC_1 = (1 << 1),
+#if CONFIG_ADC_CHANNEL1 || CONFIG_ADC_CHANNEL0_1
+	ADC0_1 = 1,
 #endif
-#if CONFIG_ADC_CHANNEL2
-	ADC_2 = (1 << 2),
+#if CONFIG_ADC_CHANNEL2 || CONFIG_ADC_CHANNEL0_2
+	ADC0_2 = 2,
 #endif
-#if CONFIG_ADC_CHANNEL3
-	ADC_3 = (1 << 3),
+#if CONFIG_ADC_CHANNEL3 || CONFIG_ADC_CHANNEL0_3
+	ADC0_3 = 3,
 #endif
-#if CONFIG_ADC_CHANNEL4
-	ADC_4 = (1 << 4),
+#if CONFIG_ADC_CHANNEL4 || CONFIG_ADC_CHANNEL0_4
+	ADC0_4 = 4,
 #endif
-#if CONFIG_ADC_CHANNEL5
-	ADC_5 = (1 << 5),
+#if CONFIG_ADC_CHANNEL5 || CONFIG_ADC_CHANNEL0_5
+	ADC0_5 = 5,
 #endif
-#if CONFIG_ADC_CHANNEL6
-	ADC_6 = (1 << 6),
+#if CONFIG_ADC_CHANNEL6 || CONFIG_ADC_CHANNEL0_6
+	ADC0_6 = 6,
 #endif
-#if CONFIG_ADC_CHANNEL7
-	ADC_7 = (1 << 7),
+#if CONFIG_ADC_CHANNEL7 || CONFIG_ADC_CHANNEL0_7
+	ADC0_7 = 7,
 #endif
-#if CONFIG_ADC_CHANNEL8
-	ADC_8 = (1 << 8),
+#if CONFIG_ADC_CHANNEL8 || CONFIG_ADC_CHANNEL0_8
+	ADC0_8 = 8,
 #endif
-#if CONFIG_ADC_CHANNEL9
-	ADC_9 = (1 << 9),
+#if CONFIG_ADC_CHANNEL9 || CONFIG_ADC_CHANNEL0_9
+	ADC0_9 = 9,
 #endif
-#if CONFIG_ADC_CHANNEL10
-	ADC_10 = (1 << 10),
+#if CONFIG_ADC_CHANNEL10 || CONFIG_ADC_CHANNEL0_10
+	ADC0_10 = 10,
 #endif
-#if CONFIG_ADC_CHANNEL11
-	ADC_11 = (1 << 11),
+#if CONFIG_ADC_CHANNEL11 || CONFIG_ADC_CHANNEL0_11
+	ADC0_11 = 11,
 #endif
-#if CONFIG_ADC_CHANNEL12
-	ADC_12 = (1 << 12),
+#if CONFIG_ADC_CHANNEL12 || CONFIG_ADC_CHANNEL1_0
+	ADC1_0 = 12,
 #endif
-#if CONFIG_ADC_CHANNEL13
-	ADC_13 = (1 << 13),
+#if CONFIG_ADC_CHANNEL13 || CONFIG_ADC_CHANNEL1_1
+	ADC1_1 = 13,
 #endif
-#if CONFIG_ADC_CHANNEL14
-	ADC_14 = (1 << 14),
+#if CONFIG_ADC_CHANNEL14 || CONFIG_ADC_CHANNEL1_2
+	ADC1_2 = 14,
 #endif
-#if CONFIG_ADC_CHANNEL15
-	ADC_15 = (1 << 15),
+#if CONFIG_ADC_CHANNEL15 || CONFIG_ADC_CHANNEL1_3
+	ADC1_3 = 15,
 #endif
-#if CONFIG_ADC_CHANNEL16
-	ADC_16 = (1 << 16),
+#if CONFIG_ADC_CHANNEL16 || CONFIG_ADC_CHANNEL1_4
+	ADC1_4 = 16,
 #endif
-#if CONFIG_ADC_CHANNEL17
-	ADC_17 = (1 << 17),
+#if CONFIG_ADC_CHANNEL17 || CONFIG_ADC_CHANNEL1_5
+	ADC1_5 = 17,
 #endif
-#if CONFIG_ADC_CHANNEL18
-	ADC_18 = (1 << 18),
+#if CONFIG_ADC_CHANNEL18 || CONFIG_ADC_CHANNEL1_6
+	ADC1_6 = 18,
 #endif
-#if CONFIG_ADC_CHANNEL19
-	ADC_19 = (1 << 19),
+#if CONFIG_ADC_CHANNEL19 || CONFIG_ADC_CHANNEL1_7
+	ADC1_7 = 19,
 #endif
-#if CONFIG_ADC_CHANNEL20
-	ADC_20 = (1 << 20),
+#if CONFIG_ADC_CHANNEL20 || CONFIG_ADC_CHANNEL1_8
+	ADC1_8 = 20,
 #endif
-#if CONFIG_ADC_CHANNEL21
-	ADC_21 = (1 << 21),
+#if CONFIG_ADC_CHANNEL21 || CONFIG_ADC_CHANNEL1_9
+	ADC1_9 = 21,
 #endif
-#if CONFIG_ADC_CHANNEL22
-	ADC_22 = (1 << 22),
+#if CONFIG_ADC_CHANNEL22 || CONFIG_ADC_CHANNEL1_10
+	ADC1_10 = 22,
 #endif
-#if CONFIG_ADC_CHANNEL23
-	ADC_23 = (1 << 23),
+#if CONFIG_ADC_CHANNEL23 || CONFIG_ADC_CHANNEL1_11
+	ADC1_11 = 23
 #endif
-	ADC_COUNT = 24
 #endif
 } uv_adc_channels_e;
 
@@ -212,35 +224,6 @@ int16_t uv_adc_read(uv_adc_channels_e channel);
 /// @param conversion_count: The amount of AD conversions to be done and averaged.
 int16_t uv_adc_read_average(uv_adc_channels_e channel, uint32_t conversion_count);
 
-
-/*** YET UNIMPLEMENTED METHODS
-
-/// @brief: Starts the ADC conversion but doesn't wait for it to finish.
-/// Multiple channels can be started at the same time.
-///
-/// @note: Works in both continuous and standard mode. In continuous mode,
-/// This triggers the start of the continuous conversions.
-/// In standard mode, only one conversion per channel is made.
-/// Callback function will be called when the conversion is done and the result can be read.
-///
-/// @param channels: OR'red channels which will be converted.
-uv_errors_e uv_adc_start(uv_adc_channels_e channels);
-
-/// @brief: Stops the ADC conversions from specific channels. Ongoing conversion will be
-/// finished regardless.
-///
-/// @note: Useful specifically in the continuous mode.
-///
-/// @param channels: OR'red channels from which the conversions will be stopped
-uv_errors_e uv_adc_stop(uv_adc_channels_e channels);
-
-
-/// @brief: Adds a callback function which will be called when the ADC conversions are finished
-uv_errors_e uv_adc_add_callback(
-		void (*callback)(void *user_ptr, uv_adc_channels_e channel, unsigned int value));
-
-
-***/
 
 
 #endif /* UW_ADC_H_ */

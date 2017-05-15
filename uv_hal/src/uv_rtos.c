@@ -20,7 +20,7 @@
 #if CONFIG_WDT
 #include "uv_wdt.h"
 #endif
-#if CONFIG_ADC
+#if CONFIG_ADC || CONFIG_ADC0 || CONFIG_ADC1
 #include "uv_adc.h"
 #endif
 
@@ -184,7 +184,7 @@ void uv_init(void *device) {
 	_uv_canopen_init();
 #endif
 
-#if CONFIG_ADC
+#if CONFIG_ADC || CONFIG_ADC0 || CONFIG_ADC1
 	_uv_adc_init();
 #endif
 

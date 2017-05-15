@@ -36,7 +36,6 @@
 extern CONFIG_APP_ST;
 
 
-#include "uv_types.h"
 #include "uv_can.h"
 #include "uv_errors.h"
 #if CONFIG_TARGET_LPC11C14

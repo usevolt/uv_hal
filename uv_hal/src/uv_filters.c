@@ -2,29 +2,29 @@
 #include "uv_filters.h"
 
 
-void uv_moving_aver_init (uv_moving_aver_st *avr, int cnt)
+void uv_moving_aver_init (uv_moving_aver_st *avr, int32_t cnt)
 {
-	avr->Sum = 0;
-	avr->Count = cnt;
-	avr->CurCount = 0;
+	avr->sum = 0;
+	avr->count = cnt;
+	avr->cur_count = 0;
 }
 
 void uv_moving_aver_reset (uv_moving_aver_st *avr)
 {
-	avr->Sum = 0;
-	avr->CurCount = 0;
+	avr->sum = 0;
+	avr->cur_count = 0;
 }
 
-int uv_moving_aver_step (uv_moving_aver_st *avr, int val)
+int32_t uv_moving_aver_step (uv_moving_aver_st *avr, int32_t val)
 {
-	avr->Sum += (val * 0x100);
-	avr->CurCount += 1;
-	avr->val = avr->Sum / avr->CurCount;
+	avr->sum += (val * 0x100);
+	avr->cur_count += 1;
+	avr->val = avr->sum / avr->cur_count;
 
-	if (avr->CurCount > avr->Count)
+	if (avr->cur_count > avr->count)
 	{
-		avr->Sum -= avr->val;
-		avr->CurCount -= 1;
+		avr->sum -= avr->val;
+		avr->cur_count -= 1;
 	}
 
 	return (avr->val / 0x100);

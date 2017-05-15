@@ -4,25 +4,28 @@
 
 
 #include "uv_hal_config.h"
+#include <uv_utilities.h>
 
-#include "uv_types.h"
-
-
-
-// ---------------------------       moving average filter       ---------------------------
 
 typedef struct
 {
-	int Sum;
-	int Count;
-	int CurCount;
-	int val;
+	int32_t sum;
+	int32_t count;
+	int32_t cur_count;
+	int32_t val;
 } uv_moving_aver_st;
 
-void uv_moving_aver_init (uv_moving_aver_st *avr, int cnt);
+/// @brief: Initializes the moving average filter
+void uv_moving_aver_init (uv_moving_aver_st *avr, int32_t cnt);
+
+/// @brief: Resets the moving average filter to zero
 void uv_moving_aver_reset (uv_moving_aver_st *avr);
-int  uv_moving_aver_step (uv_moving_aver_st *avr, int val);
-static inline int uv_moving_aver_get_val(uv_moving_aver_st *this) {
+
+/// @brief: Moving average step function. Should be called with a constant step time
+int32_t  uv_moving_aver_step (uv_moving_aver_st *avr, int32_t val);
+
+/// @brief: Returns the current moving average value
+static inline int32_t uv_moving_aver_get_val(uv_moving_aver_st *this) {
 	return (this->val / 0x100);
 }
 

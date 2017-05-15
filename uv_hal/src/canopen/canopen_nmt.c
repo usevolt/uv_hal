@@ -37,9 +37,6 @@ void _uv_canopen_nmt_init(void) {
 	msg.data_8bit[0] = 128;
 	msg.data_length = 1;
 	uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
-	char str[20];
-	sprintf(str, "node id: 0x%x\n", NODEID);
-	uv_uart_send_str(UART0, str);
 
 }
 

@@ -149,17 +149,19 @@ uv_errors_e uv_terminal_step() {
 	else {
 
 		// cycle trough all received characters
-		char data;
-
-		uv_errors_e e;
 		while (true) {
 
+			char data = '\0';
+			uv_errors_e e = ERR_NONE;
+
+#if CONFIG_TERMINAL_UART
 			// redirect printf to the source where message was received
 			e = uv_uart_get_char(UART0, &data);
+#endif
 
-			// getting an error means that no more data is available on uart. Try CAN
+			// No more data is available on uart. Try CAN
 	#if CONFIG_TERMINAL_CAN
-			if (e) {
+			if (!data) {
 				e = uv_can_get_char(&data);
 			}
 	#endif

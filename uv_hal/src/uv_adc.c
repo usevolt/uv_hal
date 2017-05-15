@@ -14,6 +14,10 @@
 #include "LPC11xx.h"
 #elif CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
+#elif CONFIG_TARGET_LPC1549
+#include "chip.h"
+#include "adc_15xx.h"
+#include "uv_gpio.h"
 #endif
 
 
@@ -44,6 +48,7 @@
 #define ADC_CHN_7_INIT		LPC_IOCON->PIO1_11 |= 0x01; \
 							LPC_IOCON->PIO1_11 &= ~((1 << 7) | (0b11 << 3))
 #endif
+
 
 
 uv_errors_e _uv_adc_init() {
@@ -133,6 +138,152 @@ uv_errors_e _uv_adc_init() {
 	// ADC ON
 	LPC_ADC->CR|= (1 << 21);
 
+#elif CONFIG_TARGET_LPC1549
+
+#if CONFIG_ADC0
+	// initialize ADC0
+	Chip_ADC_Init(LPC_ADC0, 0);
+	Chip_ADC_SetClockRate(LPC_ADC0, ADC_FREQ);
+	Chip_ADC_SetTrim(LPC_ADC0, ADC_TRIM_VRANGE_HIGHV);
+	Chip_ADC_StartCalibration(LPC_ADC0);
+	while (!Chip_ADC_IsCalibrationDone(LPC_ADC0));
+	Chip_ADC_SetClockRate(LPC_ADC0, ADC_FREQ);
+
+#if CONFIG_ADC_CHANNEL0_0
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC0_0);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 8,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+#if CONFIG_ADC_CHANNEL0_1
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC0_1);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 7,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+#if CONFIG_ADC_CHANNEL0_2
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC0_2);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 6,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+#if CONFIG_ADC_CHANNEL0_3
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC0_3);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 5,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+#if CONFIG_ADC_CHANNEL0_4
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC0_4);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 4,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+#if CONFIG_ADC_CHANNEL0_5
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC0_5);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 3,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+#if CONFIG_ADC_CHANNEL0_6
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC0_6);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 2,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+#if CONFIG_ADC_CHANNEL0_7
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC0_7);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 1,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+#if CONFIG_ADC_CHANNEL0_8
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC0_8);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 0,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+#if CONFIG_ADC_CHANNEL0_9
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC0_9);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 31,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+#if CONFIG_ADC_CHANNEL0_10
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC0_10);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 0,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+#if CONFIG_ADC_CHANNEL0_11
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC0_11);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 30,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+
+#endif
+#if CONFIG_ADC1
+
+	// initialize ADC1
+	Chip_ADC_Init(LPC_ADC1, 0);
+	Chip_ADC_SetClockRate(LPC_ADC1, ADC_FREQ);
+	Chip_ADC_SetTrim(LPC_ADC1, ADC_TRIM_VRANGE_HIGHV);
+	Chip_ADC_StartCalibration(LPC_ADC1);
+	while (!Chip_ADC_IsCalibrationDone(LPC_ADC1));
+	Chip_ADC_SetClockRate(LPC_ADC1, ADC_FREQ);
+
+#if CONFIG_ADC_CHANNEL1_0
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC1_0);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 1,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+#if CONFIG_ADC_CHANNEL1_1
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC1_1);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 9,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+#if CONFIG_ADC_CHANNEL1_2
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC1_2);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 10,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+#if CONFIG_ADC_CHANNEL1_3
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC1_3);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 11,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+#if CONFIG_ADC_CHANNEL1_4
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC1_4);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 2,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+#if CONFIG_ADC_CHANNEL1_5
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC1_5);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 3,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+#if CONFIG_ADC_CHANNEL1_6
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC1_6);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 13,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+#if CONFIG_ADC_CHANNEL1_7
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC1_7);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 14,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+#if CONFIG_ADC_CHANNEL1_8
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC1_8);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 15,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+#if CONFIG_ADC_CHANNEL1_9
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC1_9);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 16,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+#if CONFIG_ADC_CHANNEL1_10
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC1_10);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 4,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+#if CONFIG_ADC_CHANNEL1_11
+	Chip_SWM_EnableFixedPin(SWM_FIXED_ADC1_11);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 5,
+			(IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+#endif
+
+#endif
+
 #endif
 
 	return ERR_NONE;
@@ -140,9 +291,10 @@ uv_errors_e _uv_adc_init() {
 
 
 
-#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1785
 int16_t uv_adc_read(uv_adc_channels_e channel) {
 	int16_t ret = -1;
+
+#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1785
 
 	// check if the channel is valid
 	// LPC11C22 has 8 channels, so channel has to be less than 8
@@ -167,8 +319,49 @@ int16_t uv_adc_read(uv_adc_channels_e channel) {
 #endif
 		ret = value;
 	}
+
+#elif CONFIG_TARGET_LPC1549
+
+#if CONFIG_ADC0
+	if (channel <= 11) {
+		// channel 1
+		Chip_ADC_DisableSequencer(LPC_ADC0, ADC_SEQA_IDX);
+		Chip_ADC_SetupSequencer(LPC_ADC0, ADC_SEQA_IDX,
+				ADC_SEQ_CTRL_CHANSEL(channel) | ADC_SEQ_CTRL_HWTRIG_POLPOS);
+		Chip_ADC_EnableSequencer(LPC_ADC0, ADC_SEQA_IDX);
+		Chip_ADC_StartSequencer(LPC_ADC0, ADC_SEQA_IDX);
+		// wait for the conversion to finish
+		while (!(LPC_ADC0->SEQ_GDAT[ADC_SEQA_IDX] & (1 << 31))) {
+			uv_rtos_task_yield();
+		}
+		uint32_t raw = Chip_ADC_GetDataReg(LPC_ADC0, channel);
+		ret = ADC_DR_RESULT(raw);
+	}
+#endif
+#if CONFIG_ADC1
+	if (channel >= 12) {
+		channel -= 12;
+		// channel 2
+		Chip_ADC_DisableSequencer(LPC_ADC1, ADC_SEQA_IDX);
+		Chip_ADC_SetupSequencer(LPC_ADC1, ADC_SEQA_IDX,
+				ADC_SEQ_CTRL_CHANSEL(channel) | ADC_SEQ_CTRL_HWTRIG_POLPOS);
+		Chip_ADC_EnableSequencer(LPC_ADC1, ADC_SEQA_IDX);
+		Chip_ADC_StartSequencer(LPC_ADC1, ADC_SEQA_IDX);
+		// wait for the conversion to finish
+		while (!(LPC_ADC1->SEQ_GDAT[ADC_SEQA_IDX] & (1 << 31))) {
+			uv_rtos_task_yield();
+		}
+		uint32_t raw = Chip_ADC_GetDataReg(LPC_ADC1, channel);
+		ret = ADC_DR_RESULT(raw);
+	}
+#endif
+
+#endif
+
 	return ret;
 }
+
+
 
 int16_t uv_adc_read_average(uv_adc_channels_e channel, uint32_t conversion_count) {
 	int32_t value = 0, i;
@@ -178,6 +371,5 @@ int16_t uv_adc_read_average(uv_adc_channels_e channel, uint32_t conversion_count
 	value /= conversion_count;
 	return (int16_t) value;
 }
-#endif
 
 

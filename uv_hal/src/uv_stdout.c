@@ -62,19 +62,22 @@ static void send_can_msg(void) {
 
 
 int outbyte(int c) {
-	if (!uv_rtos_initialized()) {
-		return 1;
-	}
+	if (uv_rtos_initialized()) {
 #if CONFIG_TERMINAL_UART
-	uv_uart_send_char(UART0, c);
+
+		uv_uart_send_char(UART0, c);
+
 #endif
 #if CONFIG_TERMINAL_CAN
-	uint8_t ch = c;
-	uv_vector_push_back(&can_vec, &ch);
-	if (uv_vector_size(&can_vec) == uv_vector_max_size(&can_vec)) {
-		send_can_msg();
-	}
+
+		uint8_t ch = c;
+		uv_vector_push_back(&can_vec, &ch);
+		if (uv_vector_size(&can_vec) == uv_vector_max_size(&can_vec)) {
+			send_can_msg();
+		}
+
 #endif
+	}
 	return 1;
 }
 
@@ -90,14 +93,13 @@ void uv_stdout_send(char* str, unsigned int count) {
 
 void _uv_stdout_hal_step(unsigned int step_ms) {
 #if CONFIG_TERMINAL_CAN
-	if (uv_vector_size(&can_vec) == 0) {
-		return;
-	}
-	if (can_delay > 0) {
-		can_delay -= step_ms;
-	}
-	else {
-		send_can_msg();
+	if (uv_vector_size(&can_vec) != 0) {
+		if (can_delay > 0) {
+			can_delay -= step_ms;
+		}
+		else {
+			send_can_msg();
+		}
 	}
 #endif
 }
