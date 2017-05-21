@@ -8,6 +8,8 @@
 
 #include "ui/uv_uiobject.h"
 #include "ui/uv_uiwindow.h"
+#include "uv_utilities.h"
+#include <stddef.h>
 
 
 #if CONFIG_LCD

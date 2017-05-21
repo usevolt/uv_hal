@@ -687,18 +687,19 @@ uv_errors_e _uv_can_init() {
 #endif
 	// enter reset mode
 	LPC_CAN1->MOD |= 1;
-	// normal mode, transmit priority to CAN IDs, no sleep mode,
+	// normal mode, transmit priority to CAN IDs, no sleep mode
 	LPC_CAN1->MOD &= ~(0b10111110);
 	// enable receive interrupts
 	LPC_CAN1->IER = 1 | (1 << 2);
 	NVIC_EnableIRQ(CAN_IRQn);
-	// TSEG1 = 1, TSEG2 = 2, SJW = 1, SAM = 0
-	LPC_CAN1->BTR = (1 << 20);
-	// CAN baudrate = fosc / ((BRP + 1) * (TSEG1 + TSEG2)
-	// ((BRP + 1) * (1 + 2)) * baudrate = fosc
-	// (BRP + 1) * 3 = fosc / baudrate
-	// BRP = fosc / (3 * baudrate) - 1
-	LPC_CAN1->BTR |= (SystemCoreClock / (CONFIG_CAN1_BAUDRATE * 8) - 1) & 0x3FF;
+	// TSEG1 = 5, TSEG2 = 2
+	LPC_CAN1->BTR = (4 << 16) | (1 << 20);
+	// for some reason incrementing TSEG by 1 needs CANX_BAUDRATE to be divided by 2
+	LPC_CAN1->BTR |= (SystemCoreClock / (CONFIG_CAN1_BAUDRATE * 16) - 1) & 0x3FF;
+
+//	LPC_CAN->BT = (SystemCoreClock / (CONFIG_CAN1_BAUDRATE * 8) & 0x3F)
+//				  | (1 << 8) | (2 << 12);
+
 	// set CAN peripheral ON
 	LPC_CAN1->MOD &= ~1;
 
@@ -1462,8 +1463,9 @@ uv_errors_e uv_can_get_char(char *dest) {
 
 uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message) {
 	__disable_irq();
+	uv_errors_e ret;
 #if (CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LPC11C14)
-	uv_errors_e ret = uv_ring_buffer_push(&this->tx_buffer, message);
+	ret = uv_ring_buffer_push(&this->tx_buffer, message);
 #elif CONFIG_TARGET_LPC1785
 	ret = uv_ring_buffer_push(&this->tx_buffer[channel], message);
 #endif

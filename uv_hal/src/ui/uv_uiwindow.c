@@ -294,7 +294,6 @@ void uv_uiwindow_clear(void *me) {
 		uv_ui_refresh(me);
 	}
 	this->objects_count = 0;
-	this->app_step_callb = NULL;
 }
 
 void uv_uiwindow_set_transparent(void *me, bool value) {
