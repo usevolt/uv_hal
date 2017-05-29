@@ -692,10 +692,10 @@ uv_errors_e _uv_can_init() {
 	// enable receive interrupts
 	LPC_CAN1->IER = 1 | (1 << 2);
 	NVIC_EnableIRQ(CAN_IRQn);
-	// TSEG1 = 5, TSEG2 = 2
-	LPC_CAN1->BTR = (4 << 16) | (1 << 20);
+	// TSEG1, TSEG2
+	LPC_CAN1->BTR = (12 << 16) | (1 << 20);
 	// for some reason incrementing TSEG by 1 needs CANX_BAUDRATE to be divided by 2
-	LPC_CAN1->BTR |= (SystemCoreClock / (CONFIG_CAN1_BAUDRATE * 16) - 1) & 0x3FF;
+	LPC_CAN1->BTR |= (SystemCoreClock / (CONFIG_CAN1_BAUDRATE * 32) - 1) & 0x3FF;
 
 //	LPC_CAN->BT = (SystemCoreClock / (CONFIG_CAN1_BAUDRATE * 8) & 0x3F)
 //				  | (1 << 8) | (2 << 12);
