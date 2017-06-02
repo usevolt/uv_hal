@@ -8,7 +8,7 @@
 
 
 #include "uv_ui.h"
-#include <string.h>
+#include "uv_utilities.h"
 
 #if CONFIG_LCD
 

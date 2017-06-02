@@ -42,6 +42,8 @@ extern CONFIG_APP_ST;
 #include "LPC11xx.h"
 #endif
 #include <stdbool.h>
+#include <stdlib.h>
+#include <stdio.h>
 
 /// @brief: Preprocessor CAT macro. Concatenates two arguments into one.
 /// @example: CAT(A, 5)
