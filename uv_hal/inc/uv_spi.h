@@ -11,46 +11,45 @@
 
 #include <uv_hal_config.h>
 
-
-#if CONFIG_SPIO0
-
-#endif
-
-#if (CONFIG_SPIO0 || CONFIG_SPIO1 || CONFIG_SPIO2)
+#if ((CONFIG_SPI0 || CONFIG_SPI1 || CONFIG_SPI2) && !defined(CONFIG_SPI))
 #define CONFIG_SPI			1
+#endif
+
+
+#if CONFIG_SPI
 
 #if CONFIG_TARGET_LPC1785
-#include "LPC177x_8x.h"
-#else
-#error "SPI interface not yet implemented on this target"
+
+#if CONFIG_SPI0
+#if !CONFIG_SPI0_RXBUF_LEN
+#error "CONFIG_SPI0_RXBUF_LEN should define the length in bytes of the receive buffer"
+#endif
+#if !CONFIG_SPI0_BAUDRATE
+#error "CONFIG_SPI0_BAUDRATE should define the desired baudrate in Hz"
+#endif
 #endif
 
-#if CONFIG_TARGET_LPC1785
-
-#if CONFIG_SPIO0
-#if !CONFIG_SPIO0_RXBUF_LEN
-#error "CONFIG_SPIO0_RXBUF_LEN should define the length in bytes of the receive buffer"
+#if CONFIG_SPI1
+#if !CONFIG_SPI1_RXBUF_LEN
+#error "CONFIG_SPI1_RXBUF_LEN should define the length in bytes of the receive buffer"
 #endif
-#if !CONFIG_SPIO0_BAUDRATE
-#error "CONFIG_SPIO0_BAUDRATE should define the desired baudrate in Hz"
+#if !CONFIG_SPI1_BAUDRATE
+#error "CONFIG_SPI1_BAUDRATE should define the desired baudrate in Hz"
 #endif
-
-#endif
-#if CONFIG_SPIO1
-#if !CONFIG_SPIO1_RXBUF_LEN
-#error "CONFIG_SPIO1_RXBUF_LEN should define the length in bytes of the receive buffer"
-#endif
-#if !CONFIG_SPIO1_BAUDRATE
-#error "CONFIG_SPIO1_BAUDRATE should define the desired baudrate in Hz"
 #endif
 
+#if CONFIG_SPI2
+#if !CONFIG_SPI2_RXBUF_LEN
+#error "CONFIG_SPI2_RXBUF_LEN should define the length in bytes of the receive buffer"
 #endif
-#if CONFIG_SPIO2
-#if !CONFIG_SPIO2_RXBUF_LEN
-#error "CONFIG_SPIO2_RXBUF_LEN should define the length in bytes of the receive buffer"
+#if !CONFIG_SPI2_BAUDRATE
+#error "CONFIG_SPI2_BAUDRATE should define the desired baudrate in Hz"
 #endif
-#if !CONFIG_SPIO2_BAUDRATE
-#error "CONFIG_SPIO2_BAUDRATE should define the desired baudrate in Hz"
+#endif
+
+#elif CONFIG_TARGET_LPC1549
+
+
 #endif
 
 void _uv_spi_init(void);
