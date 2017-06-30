@@ -10,6 +10,7 @@
 
 
 #include <uv_hal_config.h>
+#include "uv_utilities.h"
 
 #if ((CONFIG_SPI0 || CONFIG_SPI1 || CONFIG_SPI2) && !defined(CONFIG_SPI))
 #define CONFIG_SPI			1
@@ -47,21 +48,23 @@
 #endif
 #endif
 
-#elif CONFIG_TARGET_LPC1549
-
-
-#endif
-
-void _uv_spi_init(void);
-
 typedef enum {
 	SPI0,
 	SPI1,
 	SPI2
 } spi_e;
 
+#elif CONFIG_TARGET_LPC1549
+
+typedef enum {
+	SPI0
+} spi_e;
 
 #endif
+
+void _uv_spi_init(void);
+
+
 
 /// @brief: Initializes the SPI interface(s)
 void uv_spi_init();
@@ -78,7 +81,6 @@ void uv_spi_send(spi_e spi, void *data, uint16_t len);
 /// @brief: step function should be called every step cycle
 void uv_spi_step(unsigned int step_ms);
 
-#endif
 
 #endif
 
