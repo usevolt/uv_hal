@@ -20,13 +20,209 @@
 
 #if CONFIG_PWM
 
+#if CONFIG_TARGET_LPC1549
 
-#if !defined(CONFIG_PWM_FREQ)
-#error "CONFIG_PWM_FREQ should define the PWM frequency in Hz"
+
+#if (!defined(CONFIG_PWM0) && !defined(CONFIG_PWM1) &&  \
+		!defined(CONFIG_PWM2) && !defined(CONFIG_PWM3))
+#error "Either PWM0, PWM1, PWM2 or PWM3 module should be enabled with CONFIG_PWMx symbol."
+#endif
+#if CONFIG_PWM0
+#if !defined(CONFIG_PWM0_FREQ)
+#error "CONFIG_PWM0_FREQ should define the PWM frequency in Hz"
+#endif
+#if CONFIG_PWM0_0
+#if !defined(CONFIG_PWM0_0_IO)
+#error "CONFIG_PWM0_0_IO should define the GPIO pin used as the PWM output"
+#endif
+#define PWM0_0		0
+#endif
+#if CONFIG_PWM0_1
+#if !defined(CONFIG_PWM0_1_IO)
+#error "CONFIG_PWM0_1_IO should define the GPIO pin used as the PWM output"
+#endif
+#define PWM0_1		1
+#endif
+#if CONFIG_PWM0_2
+#if !defined(CONFIG_PWM0_2_IO)
+#error "CONFIG_PWM0_2_IO should define the GPIO pin used as the PWM output"
+#endif
+#define PWM0_2		2
+#endif
+#if CONFIG_PWM0_3
+#if CONFIG_PWM0_3_IO
+#error "PWM0_3 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM0_3_IO undefined or set to 0"
+#endif
+#define PWM0_3		3
+#endif
+#if CONFIG_PWM0_4
+#if CONFIG_PWM0_4_IO
+#error "PWM0_4 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM0_4_IO undefined or set to 0"
+#endif
+#define PWM0_4		4
+#endif
+#if CONFIG_PWM0_5
+#if CONFIG_PWM0_5_IO
+#error "PWM0_5 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM0_5_IO undefined or set to 0"
+#endif
+#define PWM0_5		5
+#endif
+#if CONFIG_PWM0_6
+#if CONFIG_PWM0_6_IO
+#error "PWM0_6 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM0_6_IO undefined or set to 0"
+#endif
+#define PWM0_6		6
+#endif
+#if CONFIG_PWM0_7
+#if CONFIG_PWM0_7_IO
+#error "PWM0_7 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM0_7_IO undefined or set to 0"
+#endif
+#define PWM0_7		7
+#endif
+#endif
+#if CONFIG_PWM1
+#if !defined(CONFIG_PWM1_FREQ)
+#error "CONFIG_PWM1_FREQ should define the PWM frequency in Hz"
+#endif
+#if CONFIG_PWM1_0
+#if !defined(CONFIG_PWM1_0_IO)
+#error "CONFIG_PWM1_0_IO should define the GPIO pin used as the PWM output"
+#endif
+#define PWM1_0		8
+#endif
+#if CONFIG_PWM1_1
+#if !defined(CONFIG_PWM1_1_IO)
+#error "CONFIG_PWM1_1_IO should define the GPIO pin used as the PWM output"
+#endif
+#define PWM1_1		9
+#endif
+#if CONFIG_PWM1_2
+#if !defined(CONFIG_PWM1_2_IO)
+#error "CONFIG_PWM1_2_IO should define the GPIO pin used as the PWM output"
+#endif
+#define PWM1_2		10
+#endif
+#if CONFIG_PWM1_3
+#if CONFIG_PWM1_3_IO
+#error "PWM1_3 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM1_3_IO undefined or set to 0"
+#endif
+#define PWM1_3		11
+#endif
+#if CONFIG_PWM1_4
+#if CONFIG_PWM1_4_IO
+#error "PWM1_4 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM1_4_IO undefined or set to 0"
+#endif
+#define PWM1_4		12
+#endif
+#if CONFIG_PWM1_5
+#if CONFIG_PWM1_5_IO
+#error "PWM1_5 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM1_5_IO undefined or set to 0"
+#endif
+#define PWM1_5		13
+#endif
+#if CONFIG_PWM1_6
+#if CONFIG_PWM1_6_IO
+#error "PWM1_6 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM1_6_IO undefined or set to 0"
+#endif
+#define PWM1_6		14
+#endif
+#if CONFIG_PWM1_7
+#if CONFIG_PWM1_7_IO
+#error "PWM1_7 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM1_7_IO undefined or set to 0"
+#endif
+#define PWM1_7		15
+#endif
+#endif
+#if CONFIG_PWM2
+#if !defined(CONFIG_PWM2_FREQ)
+#error "CONFIG_PWM2_FREQ should define the PWM frequency in Hz"
+#endif
+#if CONFIG_PWM2_0
+#if !defined(CONFIG_PWM2_0_IO)
+#error "CONFIG_PWM2_0_IO should define the GPIO pin used as the PWM output"
+#endif
+#define PWM2_0		16
+#endif
+#if CONFIG_PWM2_1
+#if !defined(CONFIG_PWM2_1_IO)
+#error "CONFIG_PWM2_1_IO should define the GPIO pin used as the PWM output"
+#endif
+#define PWM2_1		17
+#endif
+#if CONFIG_PWM2_2
+#if !defined(CONFIG_PWM2_2_IO)
+#error "CONFIG_PWM2_2_IO should define the GPIO pin used as the PWM output"
+#endif
+#define PWM2_2		18
+#endif
+#if CONFIG_PWM2_3
+#if CONFIG_PWM2_3_IO
+#error "PWM2_3 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM2_3_IO undefined or set to 0"
+#endif
+#define PWM2_3		19
+#endif
+#if CONFIG_PWM2_4
+#if CONFIG_PWM2_4_IO
+#error "PWM2_4 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM2_4_IO undefined or set to 0"
+#endif
+#define PWM2_4		20
+#endif
+#if CONFIG_PWM2_5
+#if CONFIG_PWM2_5_IO
+#error "PWM2_5 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM2_5_IO undefined or set to 0"
+#endif
+#define PWM2_5		21
+#endif
+#endif
+#if CONFIG_PWM3
+#if !defined(CONFIG_PWM3_FREQ)
+#error "CONFIG_PWM3_FREQ should define the PWM frequency in Hz"
+#endif
+#if CONFIG_PWM3_0
+#if !defined(CONFIG_PWM3_0_IO)
+#error "CONFIG_PWM3_0_IO should define the GPIO pin used as the PWM output"
+#endif
+#define PWM3_0		24
+#endif
+#if CONFIG_PWM3_1
+#if !defined(CONFIG_PWM3_1_IO)
+#error "CONFIG_PWM3_1_IO should define the GPIO pin used as the PWM output"
+#endif
+#define PWM3_1		25
+#endif
+#if CONFIG_PWM3_2
+#if !defined(CONFIG_PWM3_2_IO)
+#error "CONFIG_PWM3_2_IO should define the GPIO pin used as the PWM output"
+#endif
+#define PWM3_2		26
+#endif
+#if CONFIG_PWM3_3
+#if CONFIG_PWM3_3_IO
+#error "PWM3_3 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM3_3_IO undefined or set to 0"
+#endif
+#define PWM3_3		27
+#endif
+#if CONFIG_PWM3_4
+#if CONFIG_PWM3_4_IO
+#error "PWM3_4 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM3_4_IO undefined or set to 0"
+#endif
+#define PWM3_4		28
+#endif
+#if CONFIG_PWM3_5
+#if CONFIG_PWM3_5_IO
+#error "PWM3_5 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM3_5_IO undefined or set to 0"
+#endif
+#define PWM3_5		29
+#endif
 #endif
 
+/// @brief: Returns the module number of pwm channel.
+#define PWM_GET_MODULE(pwm)		(pwm / 8)
+/// @brief: Returns the channel number from the module (0-7).
+#define PWM_GET_CHANNEL(pwm)	(pwm % 8)
 
-#if CONFIG_TARGET_LPC1785
+
+#elif CONFIG_TARGET_LPC1785
 #if !defined(CONFIG_PWM0_1) && \
 !defined(CONFIG_PWM0_2) && \
 !defined(CONFIG_PWM0_3) && \

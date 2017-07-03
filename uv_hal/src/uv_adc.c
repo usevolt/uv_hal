@@ -20,6 +20,7 @@
 #include "uv_gpio.h"
 #endif
 
+#if CONFIG_ADC
 
 #if CONFIG_TARGET_LPC11C14
 ///controller specific initializations for AD pins
@@ -373,3 +374,4 @@ int16_t uv_adc_read_average(uv_adc_channels_e channel, uint32_t conversion_count
 }
 
 
+#endif
