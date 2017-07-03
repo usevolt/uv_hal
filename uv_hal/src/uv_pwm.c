@@ -8,12 +8,32 @@
 
 #include "uv_pwm.h"
 
+#if CONFIG_TARGET_LPC1549
+#include "chip.h"
+#include "sct_pwm_15xx.h"
+#include "uv_gpio.h"
+#endif
 
 #if CONFIG_PWM
 
 uv_errors_e _uv_pwm_init() {
+#if CONFIG_TARGET_LPC1549
+#if CONFIG_PWM0
+	Chip_SCTPWM_Init(LPC_SCT0);
+	Chip_SCTPWM_SetRate(LPC_SCT0, CONFIG_PWM0_FREQ);
+#endif
+#if CONFIG_PWM0_0
+	Chip_SWM_MovablePortPinAssign(SWM_SCT0_OUT0_O,  UV_GPIO_PORT(CONFIG_PWM0_0_IO),
+			UV_GPIO_PIN(CONFIG_PWM0_0_IO));
+	Chip_SCTPWM_SetOutPin(LPC_SCT0, 1, 0);
+	Chip_SCTPWM_SetDutyCycle(LPC_SCT0, 1, Chip_SCTPWM_GetTicksPerCycle(LPC_SCT0) / 2);
+#endif
+#if CONFIG_PWM0
+	Chip_SCTPWM_Start(LPC_SCT0);
+#endif
 
-#if CONFIG_TARGET_LPC1785
+
+#elif CONFIG_TARGET_LPC1785
 	// set the clock divider if not already set
 	if (!(LPC_SC->PCLKSEL)) {
 		LPC_SC->PCLKSEL = 1;

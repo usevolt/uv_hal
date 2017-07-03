@@ -230,11 +230,11 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, u
 typedef uint8_t uv_gpio_e;
 
 static inline uint8_t uv_gpio_get_port(uv_gpio_e gpio) {
-	return (gpio / 31);
+	return ((gpio - 1) / 31);
 }
 
 static inline uint8_t uv_gpio_get_pin(uv_gpio_e gpio) {
-	return (gpio % 31);
+	return ((gpio - 1) % 31);
 }
 
 static inline bool uv_gpio_get(uv_gpio_e gpio) {
