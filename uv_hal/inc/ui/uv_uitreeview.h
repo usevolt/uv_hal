@@ -66,7 +66,7 @@ typedef struct {
 ///
 /// @param object_array: Pointer to an array of child structures which contain a pointer
 /// to the window structure and it's name.
-/// @param arrow_font: Pointer to the font used to draw "arrows" in front of the obejcts names
+/// @param arrow_font: Pointer to the font used to draw "arrows" in front of the objects names
 void uv_uitreeview_init(void *me, uv_uitreeobject_st ** const object_array,
 		const uv_font_st *arrow_font, const uv_uistyle_st * style);
 
@@ -79,6 +79,7 @@ uv_uiobject_ret_e _uv_uitreeview_step(void *me, uv_touch_st *touch, uint16_t ste
 void uv_uitreeview_set_active(void *me, uint16_t active_index);
 
 
+/// @brief: By default only 1 object can be active (== open) at one time
 static inline void uv_uitreeview_set_oneactive(void *me, bool value) {
 	((uv_uitreeview_st*) me)->one_active = value;
 	uv_ui_refresh(me);
