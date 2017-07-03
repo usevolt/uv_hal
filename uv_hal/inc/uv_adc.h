@@ -14,8 +14,11 @@
 #include "uv_errors.h"
 #include <stdbool.h>
 #include <stdint.h>
+#if CONFIG_ADC
+
 
 #if CONFIG_TARGET_LPC1785
+
 
 enum {
 	ADC_PULL_UP_ENABLED = (1 << 4),
@@ -225,5 +228,6 @@ int16_t uv_adc_read(uv_adc_channels_e channel);
 int16_t uv_adc_read_average(uv_adc_channels_e channel, uint32_t conversion_count);
 
 
+#endif
 
 #endif /* UW_ADC_H_ */
