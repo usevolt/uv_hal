@@ -15,12 +15,32 @@
 
 #define XOFFSET	5
 
-void uv_uitreeobject_init(void *me, const char *name,
-		uv_uiwindow_st *window, void (*show_callb)(void)) {
+
+static uv_uiobject_ret_e _uv_uitreeobject_step(void *me, uv_touch_st *touch, uint16_t step_ms,
+		const uv_bounding_box_st *pbb);
+static void uv_uitreeobject_draw(const void *me, const uv_bounding_box_st *pbb);
+
+
+void uv_uitreeobject_init(void *me, uv_uiobject_st **object_array,
+		const char *name, void (*show_callb)(void), const uv_uistyle_st* style) {
 	this->name = name;
-	this->window = window;
 	this->show_callb = show_callb;
 	this->active = false;
+	((uv_uiobject_st*) this)->step_callb = &_uv_uitreeobject_step;
+	((uv_uiwindow_st*) this)->vrtl_draw = &uv_uitreeobject_draw;
+	uv_uiwindow_init(this, object_array, style);
+}
+
+
+static void uv_uitreeobject_draw(const void *me, const uv_bounding_box_st *pbb) {
+
+}
+
+
+static uv_uiobject_ret_e _uv_uitreeobject_step(void *me, uv_touch_st *touch, uint16_t step_ms,
+		const uv_bounding_box_st *pbb) {
+
+	return UIOBJECT_RETURN_ALIVE;
 }
 
 
@@ -32,23 +52,12 @@ static void draw(const void *me, const uv_bounding_box_st *pbb);
 
 
 
-
-
 static void draw(const void *me, const uv_bounding_box_st *pbb) {
-
-
-	// calculate the content height and objects' positions
-	int16_t height = 0;
-	for (uint16_t i = 0; i < this->obj_count; i++) {
-		height += CONFIG_UI_TREEVIEW_ITEM_HEIGHT;
-
-		uv_uibb(this->object_array[i]->window)->x = XOFFSET;
-		uv_uibb(this->object_array[i]->window)->y = height;
-		if (this->object_array[i]->active) {
-			height += uv_uibb(this->object_array[i]->window)->height;
-		}
-	}
-	((uv_uiwindow_st*) this)->content_bb.height = height;
+	// set treeview's content bounding box dimensions
+	uv_ui_get_bb(this)->width -= XOFFSET;
+	uv_ui_get_bb(this)->x = XOFFSET;
+	uv_ui_get_bb(this)->height = height;
+	printf("bb height: %u, content height: %u\n", uv_uibb(this)->height, uv_uiwindow_get_contentbb(this).height);
 
 
 	int16_t x = uv_ui_get_xglobal(this);
@@ -85,17 +94,6 @@ static void draw(const void *me, const uv_bounding_box_st *pbb) {
 		}
 		uv_lcd_draw_mrect(x, y, w, 1,
 				((uv_uiwindow_st*) me)->style->inactive_frame_c, pbb);
-
-		if ((this->object_array[i]->active) &&
-				(this->object_array[i]->show_callb != NULL) ) {
-			// show up the active window
-			this->object_array[i]->show_callb();
-			// make sure object didnt change it's width and height
-			uv_uibb(this->object_array[i]->window)->width =
-					this->object_array[i]->width;
-			uv_uibb(this->object_array[i]->window)->height =
-					this->object_array[i]->height;
-		}
 	}
 
 }
@@ -135,18 +133,18 @@ uv_uiobject_ret_e _uv_uitreeview_step(void *me, uv_touch_st *touch, uint16_t ste
 			t.y -= this->super.content_bb.y;
 		}
 
-		uv_bounding_box_st bb = *uv_uibb(this->object_array[i]->window);
-		bb.x = uv_ui_get_xglobal(this);
-		bb.y = uv_ui_get_yglobal(this);
-		if ((bb.x + bb.width) > (pbb->x + pbb->width)) {
-			bb.width -= (bb.x + bb.width) - (pbb->x + pbb->width);
-		}
-		if ((bb.y + bb.height) > (pbb->y + pbb->height)) {
-			bb.height -= (bb.y + bb.height) - (pbb->y + pbb->width);
-		}
+		if (this->object_array[i]->active) {
 
-		if (this->object_array[i]->active &&
-				(((uv_uiobject_st*) this->object_array[i]->window)->step_callb != NULL)) {
+			uv_bounding_box_st bb = *uv_uibb(this->object_array[i]->window);
+			bb.x = uv_ui_get_xglobal(this);
+			bb.y = uv_ui_get_yglobal(this);
+			if ((bb.x + bb.width) > (pbb->x + pbb->width)) {
+				bb.width -= (bb.x + bb.width) - (pbb->x + pbb->width);
+			}
+			if ((bb.y + bb.height) > (pbb->y + pbb->height)) {
+				bb.height -= (bb.y + bb.height) - (pbb->y + pbb->width);
+			}
+
 			// call active object's step function only if the object is active
 			ret |= ((uv_uiobject_st*) this->object_array[i]->window)->
 					step_callb(this->object_array[i]->window, &t, step_ms, &bb);
@@ -172,32 +170,20 @@ uv_uiobject_ret_e _uv_uitreeview_step(void *me, uv_touch_st *touch, uint16_t ste
 }
 
 
-void uv_uitreeview_set_active(void *me, uint16_t active_index) {
-	if (active_index < this->obj_count) {
-		if (this->one_active) {
-			for (uint16_t i = 0; i < this->obj_count; i++) {
-				this->object_array[i]->active = false;
-			}
+void uv_uitreeview_set_active(void *me, uv_uitreeobject_st *obj) {
+	if (this->one_active) {
+		for (uint16_t i = 0; i < this->obj_count; i++) {
+			this->object_array[i]->active = false;
 		}
-		this->object_array[active_index]->active = true;
-		this->object_array[active_index]->show_callb();
-		// x and y can be set to 0. They are recalculated in draw function,
-		// depending on active objects.
-		((uv_uiobject_st*) this->object_array[active_index]->window)->bb.width =
-				this->object_array[active_index]->width;
-		((uv_uiobject_st*) this->object_array[active_index]->window)->bb.height =
-				this->object_array[active_index]->height;
-		uv_ui_refresh(this);
 	}
+	obj->active = true;
+	obj->show_callb();
+	uv_ui_refresh(this);
 }
 
 
-void uv_uitreeview_add(void *me, uv_uitreeobject_st *object,
-		int16_t width, int16_t height) {
+void uv_uitreeview_add(void *me, uv_uitreeobject_st *object) {
 	this->object_array[this->obj_count] = object;
-	object->width = width;
-	object->height = height;
-	((uv_uiobject_st*) object->window)->parent = me;
 	uv_ui_refresh(this);
 
 	this->obj_count++;

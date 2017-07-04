@@ -75,7 +75,7 @@ static inline void uv_uitabwindow_add(void *me, void *object,
 }
 
 
-static inline void uv_uitabwindow_set_callbacks(void *me,
+static inline void uv_uitabwindow_set_stepcallb(void *me,
 		uv_uiobject_ret_e (*step)(const uint16_t step_ms)) {
 	uv_uiwindow_set_stepcallback(me, step);
 }

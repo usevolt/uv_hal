@@ -53,7 +53,7 @@ struct _uv_uiwindow_st {
 	/// Refer to uv_uiwindow_styles_st in uv_ui_styles.h for more info.
 	const uv_uistyle_st *style;
 	/// @brief: Virtual draw function. Window itself doesn't provide any drawable graphics,
-	/// but structures etending from this one should implement this
+	/// but structures extending from this one should implement this
 	void (*vrtl_draw)(const void *me, const uv_bounding_box_st *pbb);
 	/// @brief: Application step callback. This will be called every step cycle
 	/// after updating the UI. This should be used in the application to actually
