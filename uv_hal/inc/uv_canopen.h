@@ -139,6 +139,16 @@ should be enabled. Defaults to 0."
 #if !defined(CONFIG_CANOPEN_CHANNEL)
 #error "CONFIG_CANOPEN_CHANNEL should define the uv_can channel to be used for CANopen communication"
 #endif
+#if !defined(CONFIG_CANOPEN_EMCY_RX_BUFFER_SIZE)
+#error "CONFIG_CANOPEN_EMCY_RX_BUFFER_SIZE should define the buffer size for received EMCY messages"
+#endif
+#if CONFIG_TARGET_LPC1785
+#if !defined(CONFIG_CANOPEN_EMCY_MSG_COUNT)
+#error "CONFIG_CANOPEN_EMCY_MSG_COUNT should define the count of different EMCY message ID's \
+that the CANopen EMCY module is configured to receive. For each message, \
+CONFIG_CANOPEN_EMCY_MSG_ID_x symbol should define the message ID, starting from 1."
+#endif
+#endif
 
 
 
@@ -176,6 +186,9 @@ typedef struct {
 	canopen_identity_object_st identity;
 	int heartbeat_time;
 	uint32_t txpdo_time[CONFIG_CANOPEN_TXPDO_COUNT];
+
+	uv_ring_buffer_st emcy_rx;
+	canopen_emcy_msg_st emcy_rx_buffer[CONFIG_CANOPEN_EMCY_RX_BUFFER_SIZE];
 
 	// SDO member variables
 	struct {

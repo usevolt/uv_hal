@@ -41,6 +41,7 @@ void _uv_canopen_init(void) {
 	_uv_canopen_heartbeat_init();
 	_uv_canopen_sdo_init();
 	_uv_canopen_pdo_init();
+	_uv_canopen_emcy_init();
 
 }
 
@@ -68,6 +69,7 @@ void _uv_canopen_step(unsigned int step_ms) {
 		_uv_canopen_heartbeat_rx(&msg);
 		_uv_canopen_pdo_rx(&msg);
 		_uv_canopen_sdo_rx(&msg);
+		_uv_canopen_emcy_rx(&msg);
 		if (this->can_callback) {
 			this->can_callback(__uv_get_user_ptr(), &msg);
 		}
