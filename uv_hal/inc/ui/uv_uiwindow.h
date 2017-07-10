@@ -82,7 +82,7 @@ uv_uiobject_ret_e uv_uiwindow_step(void *me, uv_touch_st *touch,
 
 
 /// @brief: initializes the window
-void uv_uiwindow_init(void *me, uv_uiobject_st **object_array, const uv_uistyle_st * style);
+void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array, const uv_uistyle_st * style);
 
 
 /// @brief: Returns the content bounding box
