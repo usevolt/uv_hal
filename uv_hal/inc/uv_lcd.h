@@ -383,7 +383,8 @@ static inline void uv_lcd_draw_frame(int32_t x, int32_t y, uint32_t width,
 
 /// @brief: Requests the LCD module to swap double buffer. This should be called after the
 /// display drawing is completed (if double buffering is enabled)
-void uv_lcd_double_buffer_swap();
+void uv_lcd_double_buffer_swap(void);
+
 
 #if CONFIG_LCD_TOUCHSCREEN
 

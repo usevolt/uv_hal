@@ -619,6 +619,9 @@ void CAN_IRQHandler(void) {
 		return;
 	}
 
+	if (LPC_CAN1->GSR & (1 << 2)) {
+		_uv_can_hal_send(CAN1);
+	}
 	while (LPC_CAN1->GSR & 1) {
 		// data ready to be received
 		this->temp.id = LPC_CAN1->RID;
@@ -689,8 +692,8 @@ uv_errors_e _uv_can_init() {
 	LPC_CAN1->MOD |= 1;
 	// normal mode, transmit priority to CAN IDs, no sleep mode
 	LPC_CAN1->MOD &= ~(0b10111110);
-	// enable receive interrupts
-	LPC_CAN1->IER = 1 | (1 << 2);
+	// enable receive interrupts and transmit interrupts
+	LPC_CAN1->IER = 1 | (1 << 2) | (1 << 1) | (1 << 9) | (1 << 10);
 	NVIC_EnableIRQ(CAN_IRQn);
 	// TSEG1, TSEG2
 	LPC_CAN1->BTR = (12 << 16) | (1 << 20);

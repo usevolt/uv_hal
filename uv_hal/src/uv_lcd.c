@@ -213,10 +213,15 @@ void uv_lcd_draw_mframe(int32_t x, int32_t y, int32_t width, int32_t height,
 
 
 
-void uv_lcd_double_buffer_swap() {
+void uv_lcd_double_buffer_swap(void) {
 #if CONFIG_LCD_DOUBLE_BUFFER
 	double_buffer_swap_req = true;
 #endif
+}
+
+
+uint8_t *uv_lcd_get_active_buffer_ptr(void) {
+	return (uint8_t*) lcd;
 }
 
 
