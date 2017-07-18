@@ -62,6 +62,16 @@ bool uv_dma_memcpy(void *dest, const void *src, uint32_t len) {
 	}
 	if (ret) {
 		volatile LPC_GPDMACH_TypeDef* chn = get_free_channel();
+		chn->CSrcAddr = (uint32_t) src;
+		chn->CDestAddr = (uint32_t) dest;
+		chn->CLLI = 0;
+		chn->CControl = (len / 256 / 4) |
+				(0b111 << 12) |
+				(0b111 << 15) |
+				(0b010 << 18) |
+				(0b010 << 21) |
+				(1 << 26) |
+				(1 << 27);
 
 	}
 	return ret;

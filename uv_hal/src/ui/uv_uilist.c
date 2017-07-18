@@ -92,7 +92,7 @@ uv_uiobject_ret_e uv_uilist_step(void *me, uv_touch_st *touch,
 	if (this->super.refresh) {
 		draw(this, pbb);
 		this->super.refresh = false;
-		ret = UIOBJECT_RETURN_ALIVE;
+		ret = UIOBJECT_RETURN_REFRESH;
 	}
 
 	return ret;

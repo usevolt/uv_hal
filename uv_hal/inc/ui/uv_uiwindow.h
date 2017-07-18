@@ -37,6 +37,11 @@ struct _uv_uiwindow_st {
 	/// @brief: Children of this object reside in their own content bounding box.
 	/// This bounding box is used for sliders
 	uv_bounding_box_st content_bb;
+	/// @brief: Content bounding boxes default x value. Set to 0 by uiwindow but
+	/// child classes can change this (for example uitabview sets this to tab header height).
+	int16_t content_bb_xdef;
+	/// @brief: Content bounding boxes default y value
+	int16_t content_bb_ydef;
 	/// @brief: Array which holds the objects. The alignment of the objects is
 	/// determined by the order which they reside in this array.
 	/// The first index is the back-most object,
@@ -95,6 +100,12 @@ void uv_uiwindow_set_contentbb(void *me, const int16_t width_px, const int16_t h
 /// respectively.
 void uv_uiwindow_content_move(const void *me, const int16_t dx, const int16_t dy);
 
+/// @brief: Moves the content area to destination coordinates
+static inline void uv_uiwindow_content_move_to(const void *me,
+		const int16_t x, const int16_t y) {
+	uv_uiwindow_content_move(this, -x - this->content_bb.x, -y - this->content_bb.y);
+}
+
 /// @brief: Registers an object to the window.
 ///
 /// @note: Make sure that each object is registered ONLY ONCE and also that the
@@ -118,6 +129,9 @@ static inline void uv_uiwindow_set_stepcallback(void *me,
 	this->app_step_callb = step;
 }
 
+/// @brief: Sets the content bounding boxes default position
+void uv_uiwindow_set_content_bb_default_pos(void *me,
+		const int16_t x, const int16_t y);
 
 /// @brief: Clears the object buffer memory clearing the whole window
 void uv_uiwindow_clear(void *me);

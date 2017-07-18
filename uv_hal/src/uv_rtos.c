@@ -17,6 +17,7 @@
 #include "uv_eeprom.h"
 #include "uv_emc.h"
 #include "uv_rtc.h"
+#include "uv_dma.h"
 #if CONFIG_WDT
 #include "uv_wdt.h"
 #endif

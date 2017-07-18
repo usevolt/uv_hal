@@ -36,9 +36,11 @@ void uv_uislider_init(void *me, int16_t min_value, int16_t max_value, int16_t cu
 static void draw(const void *me, const uv_bounding_box_st *pbb) {
 	int16_t x, y, w, h;
 	if (this->horizontal) {
-		if (uv_uibb(this)->height < CONFIG_UI_SLIDER_WIDTH) {
-			this->super.bb.height = CONFIG_UI_SLIDER_WIDTH;
+		if (uv_uibb(this)->height > CONFIG_UI_SLIDER_WIDTH) {
+			uv_uibb(this)->y += uv_uibb(this)->height / 2 - CONFIG_UI_SLIDER_WIDTH / 2;
 		}
+		uv_uibb(this)->height = CONFIG_UI_SLIDER_WIDTH;
+
 		x = uv_ui_get_xglobal(this);
 		y = uv_ui_get_yglobal(this) + uv_uibb(this)->height / 2 - CONFIG_UI_SLIDER_WIDTH / 2;
 		w = uv_uibb(this)->width;
@@ -66,9 +68,10 @@ static void draw(const void *me, const uv_bounding_box_st *pbb) {
 				this->style->text_color, C(0xFFFFFFFF), "\x10", 1.0f, pbb);
 	}
 	else {
-		if (uv_uibb(this)->width < CONFIG_UI_SLIDER_WIDTH) {
-			this->super.bb.width = CONFIG_UI_SLIDER_WIDTH;
+		if (uv_uibb(this)->width > CONFIG_UI_SLIDER_WIDTH) {
+			uv_uibb(this)->x += uv_uibb(this)->width / 2 - CONFIG_UI_SLIDER_WIDTH / 2;
 		}
+		uv_uibb(this)->width = CONFIG_UI_SLIDER_WIDTH;
 		x = uv_ui_get_xglobal(this) + uv_uibb(this)->width / 2 - CONFIG_UI_SLIDER_WIDTH / 2;
 		y = uv_ui_get_yglobal(this);
 		w = CONFIG_UI_SLIDER_WIDTH;
@@ -169,7 +172,7 @@ uv_uiobject_ret_e uv_uislider_step(void *me, uv_touch_st *touch,
 	if (this->super.refresh && this->super.visible) {
 		draw(this, pbb);
 		this->super.refresh = false;
-		ret = true;
+		ret = UIOBJECT_RETURN_REFRESH;
 	}
 
 	return ret;

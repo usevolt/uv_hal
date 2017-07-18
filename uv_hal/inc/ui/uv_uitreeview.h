@@ -23,14 +23,18 @@
 #error "CONFIG_UI_TREEVIEW_ARROW_FONT should define the font used for treeobject's opening arrows"
 #endif
 
+
+
+typedef struct _uv_uitreeobject_st uv_uitreeobject_st;
+
 /// @brief: Object structure which will be shown as a single treewindow object
-typedef struct {
+struct _uv_uitreeobject_st {
 	EXTENDS(uv_uiwindow_st);
 	/// @brief: Visible name of the object
 	const char *name;
 	/// @brief: Function callback for showing this object's window
-	void (*show_callb)(void);
-} uv_uitreeobject_st;
+	void (*show_callb)(uv_uitreeobject_st *me_ptr);
+};
 
 
 typedef struct {
@@ -47,24 +51,30 @@ typedef struct {
 /// @brief: Initializes uitreeobject. This should be called for all uitreeviewobjects which
 /// are not defined as constants.
 void uv_uitreeobject_init(void *me, uv_uiobject_st **object_array,
-		const char *name, void (*show_callb)(void), const uv_uistyle_st* style);
+		const char *name, void (*show_callb)(uv_uitreeobject_st *me_ptr), const uv_uistyle_st* style);
 
 
-/// @brief: Adds a uiwindow to be shown in the uitreeobject. This should be called
+/// @brief: Adds objects to the uitreeobject. This should be called
 /// in a uitreeiobject's show-callback
-static inline void uv_uitreeobject_add(void *me, uv_uiobject_st* obj,
+static inline void uv_uitreeobject_add(void *me, void* obj,
 		int16_t x, int16_t y, uint16_t width, uint16_t height) {
-	uv_uiwindow_add(me, obj, x, CONFIG_UI_TREEVIEW_ITEM_HEIGHT + y, width, height);
+	uv_uiwindow_add(me, obj, x, y, width, height);
 }
 
-static inline uv_bounding_box_st uv_uitreeobject_get_content_bb(void *me) {
-	return uv_uiwindow_get_contentbb(me);
-}
+uv_bounding_box_st uv_uitreeobject_get_content_bb(void *me);
+
 static inline void uv_uitreeobject_set_content_bb(void *me,
 		const int16_t width, const int16_t height) {
 	uv_uiwindow_set_contentbb(me, width, height + CONFIG_UI_TREEVIEW_ITEM_HEIGHT);
 }
 
+static inline void uv_uitreeobject_clear(void *me) {
+	uv_uiwindow_clear(me);
+}
+static inline void uv_uitreeobject_set_step_callback(void *me,
+		uv_uiobject_ret_e (*step)(const uint16_t step_ms)) {
+	uv_uiwindow_set_stepcallback(me, step);
+}
 
 
 

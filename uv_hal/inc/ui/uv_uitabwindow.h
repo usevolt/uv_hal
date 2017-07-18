@@ -70,10 +70,12 @@ static inline int16_t uv_uitabwindow_tab(void *me) {
 /// @brief: implementation of uv_uiwindow's add function
 static inline void uv_uitabwindow_add(void *me, void *object,
 		uint16_t x, uint16_t y, uint16_t width, uint16_t height) {
-	uv_uiwindow_add(me, object, x, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT, width,
-			height);
+	uv_uiwindow_add(me, object, x, y, width, height);
 }
 
+static inline void uv_uitabwindow_clear(void *me) {
+	uv_uiwindow_clear(this);
+}
 
 static inline void uv_uitabwindow_set_stepcallb(void *me,
 		uv_uiobject_ret_e (*step)(const uint16_t step_ms)) {

@@ -13,7 +13,7 @@
 
 #define this ((uv_uitreeobject_st*) me)
 
-#define XOFFSET	5
+#define XOFFSET	20
 
 
 static void uitreeview_recalc_height(void *me);
@@ -26,12 +26,14 @@ static void uv_uitreeobject_draw(const void *me, const uv_bounding_box_st *pbb);
 
 
 void uv_uitreeobject_init(void *me, uv_uiobject_st **object_array,
-		const char *name, void (*show_callb)(void), const uv_uistyle_st* style) {
+		const char *name, void (*show_callb)(uv_uitreeobject_st *me_ptr), const uv_uistyle_st* style) {
 	uv_uiwindow_init(this, object_array, style);
+	uv_uiwindow_set_content_bb_default_pos(this, 0, CONFIG_UI_TREEVIEW_ITEM_HEIGHT);
 	this->name = name;
 	this->show_callb = show_callb;
 	((uv_uiobject_st*) this)->step_callb = &_uv_uitreeobject_step;
 	((uv_uiwindow_st*) this)->vrtl_draw = &uv_uitreeobject_draw;
+	uv_uiwindow_set_transparent(this, true);
 }
 
 
@@ -42,6 +44,17 @@ static uv_uiobject_ret_e _uv_uitreeobject_step(void *me, uv_touch_st *touch, uin
 
 	ret = uv_uiwindow_step(this, touch, step_ms, pbb);
 
+	if (touch->action == TOUCH_CLICKED) {
+		if ((touch->y >= 0) && (touch->y < CONFIG_UI_TREEVIEW_ITEM_HEIGHT)) {
+			if (((uv_uiobject_st *) this)->enabled) {
+				uv_uitreeview_close(((uv_uiobject_st*) this)->parent, this);
+			}
+			else {
+				uv_uitreeview_open(((uv_uiobject_st*) this)->parent, this);
+			}
+			touch->action = TOUCH_NONE;
+		}
+	}
 
 	return ret;
 }
@@ -60,13 +73,13 @@ static void uv_uitreeobject_draw(const void *me, const uv_bounding_box_st *pbb) 
 				((uv_uiwindow_st*) me)->style->window_c, "\x10", 1.0f, pbb);
 	}
 	else {
+		// super draw function
+		_uv_uiwindow_redraw(this, pbb);
+
 		_uv_ui_draw_mtext(x + XOFFSET, y + CONFIG_UI_TREEVIEW_ITEM_HEIGHT / 2,
 				&CONFIG_UI_TREEVIEW_ARROW_FONT, ALIGN_CENTER_LEFT,
 				((uv_uiwindow_st*) me)->style->active_bg_c,
 				((uv_uiwindow_st*) me)->style->window_c, "\x1f", 1.0f, pbb);
-
-		// super draw function
-		_uv_uiwindow_redraw(this, pbb);
 	}
 
 	_uv_ui_draw_mtext(x + XOFFSET * 2 + CONFIG_UI_TREEVIEW_ARROW_FONT.char_width,
@@ -76,17 +89,22 @@ static void uv_uitreeobject_draw(const void *me, const uv_bounding_box_st *pbb) 
 			this->name, 1.0f, pbb);
 
 	if (((uv_uiobject_st*) this)->enabled) {
-		y += uv_uibb(this)->height +
-				CONFIG_UI_TREEVIEW_ITEM_HEIGHT;
+		y += uv_uibb(this)->height;
 	}
 	else {
 		y += CONFIG_UI_TREEVIEW_ITEM_HEIGHT;
 	}
-	uv_lcd_draw_mrect(x, y, w, 1,
+	uv_lcd_draw_mrect(x, y - 1, w, 1,
 			((uv_uiwindow_st*) me)->style->inactive_frame_c, pbb);
 
 }
 
+
+uv_bounding_box_st uv_uitreeobject_get_content_bb(void *me) {
+	uv_bounding_box_st bb = uv_uiwindow_get_contentbb(this);
+	bb.height -= CONFIG_UI_TREEVIEW_ITEM_HEIGHT;
+	return bb;
+}
 
 
 #undef this
@@ -107,13 +125,18 @@ void uv_uitreeview_init(void *me,
 void uv_uitreeview_open(void *me, uv_uitreeobject_st *obj) {
 	if (this->one_active) {
 		for (uint16_t i = 0; i < ((uv_uiwindow_st*)this)->objects_count; i++) {
-			uv_uitreeview_close(this,
-					(uv_uitreeobject_st*) ((uv_uiwindow_st*)this)->objects[i]);
+			if (((uv_uiobject_st*) ((uv_uiwindow_st*) this)->objects[i])->enabled) {
+				uv_uitreeview_close(this,
+						(uv_uitreeobject_st*) ((uv_uiwindow_st*)this)->objects[i]);
+			}
 		}
 	}
 	((uv_uiobject_st*) obj)->enabled = true;
 	uitreeview_recalc_height(this);
-	obj->show_callb();
+	uv_uiwindow_content_move_to(this, 0, uv_uibb(obj)->y);
+	if (obj->show_callb) {
+		obj->show_callb(obj);
+	}
 }
 
 
@@ -125,8 +148,8 @@ void uv_uitreeview_close(void *me, uv_uitreeobject_st *obj) {
 
 void uv_uitreeview_add(void *me, uv_uitreeobject_st * const object,
 		const int16_t content_height, const bool active) {
-	uv_uiwindow_add((uv_uiwindow_st*) this, object,
-			XOFFSET, CONFIG_UI_TREEVIEW_ITEM_HEIGHT * ((uv_uiwindow_st*)this)->objects_count,
+	uv_uiwindow_add((uv_uiwindow_st*) this, object, 0,
+			CONFIG_UI_TREEVIEW_ITEM_HEIGHT * ((uv_uiwindow_st*)this)->objects_count,
 			uv_uiwindow_get_contentbb(this).width, CONFIG_UI_TREEVIEW_ITEM_HEIGHT + content_height);
 	if (active) {
 		uv_uitreeview_open(this, object);
@@ -139,13 +162,13 @@ void uv_uitreeview_add(void *me, uv_uitreeobject_st * const object,
 
 static void uitreeview_recalc_height(void *me) {
 	uint16_t content_height = 0;
+	uv_uitreeobject_st ** const objs = (uv_uitreeobject_st ** const) ((uv_uiwindow_st*) this)->objects;
 	for (int i = 0; i < ((uv_uiwindow_st*) this)->objects_count; i++) {
-		uv_uitreeobject_st ** const objs = (uv_uitreeobject_st ** const) ((uv_uiwindow_st*) this)->objects;
-		content_height += ((uv_uiobject_st*) this)->enabled ?
+		uv_uibb(objs[i])->y = content_height;
+		content_height += (((uv_uiobject_st*) objs[i])->enabled) ?
 				uv_uibb(objs[i])->height : CONFIG_UI_TREEVIEW_ITEM_HEIGHT;
 	}
 	uv_uiwindow_set_contentbb(this, uv_uibb(this)->width, content_height);
-	uv_ui_refresh(this);
 }
 
 

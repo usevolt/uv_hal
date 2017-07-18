@@ -55,16 +55,16 @@ uv_uiobject_ret_e uv_uitogglebutton_step(void *me, uv_touch_st *touch,
 		touch->action = TOUCH_NONE;
 	}
 
-	bool refresh = this->super.super.refresh;
+	bool refresh = ((uv_uiobject_st*) this)->refresh;
 	// make sure that uv_uibutton doesn't trigger drawing the button
-	this->super.super.refresh = false;
+	((uv_uiobject_st*) this)->refresh = false;
 	// call button step
 	uv_uibutton_step(this, touch, step_ms, pbb);
 
 	// update if necessary
 	if (refresh) {
 		draw(this, pbb);
-		ret = UIOBJECT_RETURN_ALIVE;
+		ret = UIOBJECT_RETURN_REFRESH;
 	}
 
 	return ret;

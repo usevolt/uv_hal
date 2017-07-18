@@ -22,6 +22,7 @@ void uv_uitabwindow_init(void *me, int16_t tab_count,
 		uv_uiobject_st **obj_array,
 		const char **tab_names) {
 	uv_uiwindow_init(this, obj_array, style);
+	uv_uiwindow_set_content_bb_default_pos(this, 0, CONFIG_UI_TABWINDOW_HEADER_HEIGHT);
 	this->active_tab = 0;
 	this->tab_count = tab_count;
 	this->tab_names = tab_names;
