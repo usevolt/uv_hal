@@ -8,6 +8,7 @@
 
 #include "uv_lcd.h"
 #include "uv_emc.h"
+#include "uv_dma.h"
 #include <string.h>
 #if CONFIG_LCD_TOUCHSCREEN
 #include "uv_adc.h"
