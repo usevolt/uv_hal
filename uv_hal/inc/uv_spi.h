@@ -56,30 +56,118 @@ typedef enum {
 
 #elif CONFIG_TARGET_LPC1549
 
+#if !CONFIG_SPI0_BAUDRATE
+#error "CONFIG_SPI0_BAUDRATE should define the baudrate used for SPI0"
+#endif
+#if !defined(CONFIG_SPI0_MOSI_IO)
+#error "CONFIG_SPI0_MOSI_IO should define the I/O pin used for SPI0 MOSI"
+#endif
+#if !defined(CONFIG_SPI0_MISO_IO)
+#error "CONFIG_SPI0_MISO_IO should define the I/O pin used for SPI0_MISO"
+#endif
+#if !defined(CONFIG_SPI0_SCK_IO)
+#error "CONFIG_SPI0_SCK_IO should define the I/O pin used for SPI0_CLK"
+#endif
+#if !CONFIG_SPI0_SLAVE_COUNT
+#error "CONFIG_SPI0_SLAVE_COUNT should define the number of slave devices on SPI0"
+#endif
+#if (CONFIG_SPI0_SLAVE_COUNT > 4)
+#error "Maximum slave count is 4 for SPI0"
+#elif (CONFIG_SPI0_SLAVE_COUNT > 3)
+#if !defined(CONFIG_SPI0_SSEL3_IO)
+#error "CONFIG_SPI0_SSEL3_IO should define the I/O pin used for slave 3 select"
+#endif
+#if !defined(CONFIG_SPI0_SSEL3_INV)
+#error "CONFIG_SPI0_SSEL3_INV should be defined as 1 or 0, depending if the SSEL3\
+ logic polarity should be inverted. (when 0, SSEL3 is active low.)"
+#endif
+#endif
+#if (CONFIG_SPI0_SLAVE_COUNT > 2)
+#if !defined(CONFIG_SPI0_SSEL2_IO)
+#error "CONFIG_SPI0_SSEL2_IO should define the I/O pin used for slave 2 select"
+#endif
+#if !defined(CONFIG_SPI0_SSEL2_INV)
+#error "CONFIG_SPI0_SSEL2_INV should be defined as 1 or 0, depending if the SSEL2\
+ logic polarity should be inverted. (when 0, SSEL2 is active low.)"
+#endif
+#endif
+#if (CONFIG_SPI0_SLAVE_COUNT > 1)
+#if !defined(CONFIG_SPI0_SSEL1_IO)
+#error "CONFIG_SPI0_SSEL1_IO should define the I/O pin used for slave 1 select"
+#endif
+#if !defined(CONFIG_SPI0_SSEL1_INV)
+#error "CONFIG_SPI0_SSEL1_INV should be defined as 1 or 0, depending if the SSEL1\
+ logic polarity should be inverted. (when 0, SSEL1 is active low.)"
+#endif
+#endif
+#if (CONFIG_SPI0_SLAVE_COUNT > 0)
+#if !defined(CONFIG_SPI0_SSEL0_IO)
+#error "CONFIG_SPI0_SSEL0_IO should define the I/O pin used for slave 0 select"
+#endif
+#if !defined(CONFIG_SPI0_SSEL0_INV)
+#error "CONFIG_SPI0_SSEL0_INV should be defined as 1 or 0, depending if the SSEL0\
+ logic polarity should be inverted. (when 0, SSEL0 is active low.)"
+#endif
+#endif
+#if !defined(CONFIG_SPI0_MSB_FIRST)
+#error "CONFIG_SPI0_MSB_FIRST should be set to 1 or 0 depending if the most\
+ significant bit should be transmitted first"
+#endif
+#if !defined(CONFIG_SPI0_PREDELAY)
+#error "CONFIG_SPI0_PREDELAY should define the delay between SSEL and first bit"
+#endif
+#if !defined(CONFIG_SPI0_POSTDELAY)
+#error "CONFIG_SPI0_POSTDELAY should define the delay between last bit and SSEL"
+#endif
+#if !defined(CONFIG_SPI0_FRAMEDELAY)
+#error "CONFIG_SPI0_FRAMEDELAY should define the delay between frames"
+#endif
+#if !defined(CONFIG_SPI0_TRANSFERDELAY)
+#error "CONFIG_SPI0_TRANSFERDELAY should define the minimum amount of time that SSEL's are\
+ deasserted between frames."
+#endif
+
+/// @brief: SPI modules
+#define SPI0	LPC_SPI0
+#define SPI1	LPC_SPI1
+typedef LPC_SPI_T* spi_e;
+
+
+/// 2brief: Defines the slave selection values
 typedef enum {
-	SPI0
-} spi_e;
+	SPI_SLAVE0 = (1 << 0),
+	SPI_SLAVE1 = (1 << 1),
+	SPI_SLAVE2 = (1 << 2),
+	SPI_SLAVE3 = (1 << 3)
+} spi_slaves_e;
 
 #endif
 
+
+/// @brief: Initializes the SPI interface(s)
 void _uv_spi_init(void);
 
 
 
-/// @brief: Initializes the SPI interface(s)
-void uv_spi_init();
-
-
-/// @brief: Sends the data to the selected slave device
+/// @brief: Writes and reads to the SPI bus. Since SPI is duplex serial protocol,
+/// reading and writing are done at the same time.
+/// The function returns after the transmission finishes.
 ///
-/// @param spi: The SPI peripheral which sends the data
-/// @param data: Pointer to the data  which should be sent
-/// @param len: The length of the data to be sent
-void uv_spi_send(spi_e spi, void *data, uint16_t len);
+/// @return: True if writing and reading was successful, otherwise false
+///
+/// @param spi: The SPI channel used
+/// @param slaves: Selected slaves to whom the data is sent
+/// @param writebuffer: Pointer to a buffer where write data is read. Note:
+/// Buffer has to be of type uint16_t or int16_t.
+/// @param readbuffer: Pointer to a buffer where read data is written. Note:
+/// Buffer has to be of type uint16_t or int16_t.
+/// @byte_len: The length of a individual bytes in bits (usually 8)
+/// @buffer_len: The length of the read and write buffers in bytes
+/// (not local bytes but *byte_len* bytes)
+bool uv_spi_readwrite_sync(const spi_e spi, spi_slaves_e slaves,
+		const uint16_t *writebuffer, uint16_t *readbuffer,
+		const uint8_t byte_len, const uint16_t buffer_len);
 
-
-/// @brief: step function should be called every step cycle
-void uv_spi_step(unsigned int step_ms);
 
 
 #endif
