@@ -13,7 +13,7 @@
 #include <uv_utilities.h>
 #include <uv_ui.h>
 
-#if CONFIG_LCD
+#if CONFIG_UI
 
 #if !CONFIG_UI_LIST_ENTRY_HEIGHT
 #error "CONFIG_UI_LIST_ENTRY_HEIGHT should define the height of a single entry in list in pixels"

@@ -9,7 +9,7 @@
 #include "ui/uv_uilayout.h"
 
 
-#if CONFIG_LCD
+#if CONFIG_UI
 
 
 void uv_uigridlayout_init(uv_uigridlayout_st *this, int16_t x, int16_t y,

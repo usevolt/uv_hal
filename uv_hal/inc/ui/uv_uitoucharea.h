@@ -18,12 +18,13 @@
 /// @file: uv_uitoucharea is an invisible area wich registers the touchscreen actions done
 /// over it.
 
-#if CONFIG_LCD
+#if CONFIG_UI
 
 
 typedef struct {
 	EXTENDS(uv_uiobject_st);
 
+	void (*draw_callb)(void);
 	uv_touch_st touch;
 } uv_uitoucharea_st;
 
@@ -33,6 +34,11 @@ void uv_uitoucharea_init(void *me);
 uv_uiobject_ret_e uv_uitoucharea_step(void *me, uv_touch_st *touch,
 		uint16_t step_ms, const uv_bounding_box_st *pbb);
 
+
+/// @brief: Sets the drawing callback function. This
+/// will be called every time the toucharea is refreshed.
+/// Can be used to draw something on the uitoucharea.
+void uv_uitoucharea_set_draw_callb(void *me, void (*callb)(void));
 
 #if defined(this)
 #undef this

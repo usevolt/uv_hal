@@ -12,9 +12,25 @@
 #include <uv_hal_config.h>
 #include "ui/uv_ui_styles.h"
 #include "uv_utilities.h"
-#include "uv_lcd.h"
-
 #if CONFIG_LCD
+#include "uv_lcd.h"
+#elif CONFIG_FT81X
+#include "uv_ft81x.h"
+#endif
+
+#if CONFIG_UI
+
+
+#if CONFIG_FT81X
+#if !defined(CONFIG_UI_DISPLAY)
+#error "CONFIG_UI_DISPLAY should define the name of the main uidisplay object.\
+ The UI library will call it to access UI display data."
+#endif
+#if !defined(CONFIG_UI_DISPLAY_H)
+#error "CONFIG_UI_DISPLAY_H should define the header file name string where \
+the uidisplay object is can be found as an extern declaration."
+#endif
+#endif
 
 
 
@@ -82,7 +98,7 @@ typedef uint8_t uv_uiobject_ret_e;
 /// @brief: Typedef of uv_uiwindow. uiobject has a pointer to it's parent,
 /// which is of type uv_uiwindow_st.
 typedef struct _uv_uiwindow_st uv_uiwindow_st;
-
+typedef struct _uv_uitransition_st uv_uitransition_st;
 
 /// @brief: Main struct for GUI object structure. Every GUI object should declare
 /// this struct as it's first variable, e.g. they should inherit from this.
@@ -107,6 +123,8 @@ typedef struct uv_uiobject_st {
 	/// this flag is used to determine if the object is enabled. Usually disabled
 	/// objects appear with less saturation
 	bool enabled;
+	/// @brief: Holds a pointer to a transition attached to this object (if any)
+	uv_uitransition_st *transition;
 } uv_uiobject_st;
 
 
@@ -124,9 +142,15 @@ void uv_bounding_box_init(uv_bounding_box_st *bb,
 /// dimensions doesn't change, this is enough to update the screen.
 ///
 /// @param this: Pointer to uv_uiobject_st casted to void*.
+#if CONFIG_LCD
 static inline void uv_ui_refresh(void *me) {
 	this->refresh = true;
 }
+
+#elif CONFIG_FT81X
+void uv_ui_refresh(void *me);
+#endif
+
 
 /// @brief: Refreshes the object's parent. With this it is guaranteed that
 /// everything gets refreshed the right way, but this has more overheat than uv_ui_refresh.
@@ -135,6 +159,11 @@ void uv_ui_refresh_parent(void *me);
 
 /// @brief: Initializes an object
 void uv_uiobject_init(void *me);
+
+
+/// @brief: uiobject step function
+uv_uiobject_ret_e uv_uiobject_step(void *me, uv_touch_st *touch,
+		uint16_t step_ms, const uv_bounding_box_st *pbb);
 
 
 /// @brief: Hides the object form the display
@@ -170,6 +199,11 @@ static inline uv_bounding_box_st* uv_ui_get_bb(const void *me) {
 }
 static inline uv_bounding_box_st *uv_uibb(const void *me) {
 	return &this->bb;
+}
+
+
+static inline void uv_ui_add_transition(void *me, void *transition) {
+	this->transition = transition;
 }
 
 

@@ -9,7 +9,7 @@
 #include <string.h>
 #include "ui/uv_uitabwindow.h"
 
-#if CONFIG_LCD
+#if CONFIG_UI
 
 #define this ((uv_uitabwindow_st*)me)
 
@@ -41,6 +41,8 @@ static void draw(const void *me, const uv_bounding_box_st *pbb) {
 	int16_t tab_w = 0;
 	int16_t active_tab_x = 0;
 	int16_t active_tab_w = 0;
+
+#if CONFIG_LCD
 
 	for (int16_t i = 0; i < this->tab_count; i++) {
 		tab_w = uv_ui_text_width_px((char *)this->tab_names[i], this->super.style->font, 1.0f) + 10;
@@ -79,6 +81,9 @@ static void draw(const void *me, const uv_bounding_box_st *pbb) {
 			ALIGN_CENTER_LEFT, this->super.style->active_font_c,
 			C(0xFFFFFFFF), (char *) this->tab_names[this->active_tab], 1.0f, pbb);
 
+#elif CONFIG_FT81X
+#warning "FT81X not implemented"
+#endif
 }
 
 uv_bounding_box_st uv_uitabwindow_get_contentbb(void *me) {

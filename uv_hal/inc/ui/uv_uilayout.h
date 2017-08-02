@@ -12,7 +12,7 @@
 #include <uv_ui.h>
 
 
-#if CONFIG_LCD
+#if CONFIG_UI
 
 /// @brief: Helper object which can be used to layout
 /// objects in a grid layout

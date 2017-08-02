@@ -22,5 +22,6 @@
 #include "ui/uv_uilayout.h"
 #include "ui/uv_uitoucharea.h"
 #include "ui/uv_uitreeview.h"
+#include "ui/uv_uitransition.h"
 
 #endif /* UW_UI_H_ */

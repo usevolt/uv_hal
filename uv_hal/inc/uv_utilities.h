@@ -359,7 +359,7 @@ float uv_lerpf(float t, float a, float b);
 /// @param t: "Lerping scale". Should be between 0 ... 1000
 /// @param a: The value at t=0
 /// @param b: The value at t=1000
-float uv_lerpi(int t, int a, int b);
+int uv_lerpi(int t, int a, int b);
 
 
 /// @brief: Returns the relative value of t in relation to a and b.

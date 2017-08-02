@@ -8,7 +8,7 @@
 #include <ui/uv_uilist.h>
 
 
-#if CONFIG_LCD
+#if CONFIG_UI
 
 #define this ((uv_uilist_st*)me)
 
@@ -37,6 +37,9 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t y = uv_ui_get_yglobal(this);
 	uint16_t entry_height = CONFIG_UI_LIST_ENTRY_HEIGHT;
 	int16_t sely = 0;
+
+#if CONFIG_LCD
+
 	while (this->selected_index >= uv_vector_size(&this->entries)) {
 		this->selected_index--;
 	}
@@ -73,6 +76,10 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 				this->style->active_bg_c,
 				*((char**) uv_vector_at(&this->entries, this->selected_index)), 1.0f, pbb);
 	}
+
+#elif CONFIG_FT81X
+#warning "ft81x not implemented"
+#endif
 }
 
 

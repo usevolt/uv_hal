@@ -13,7 +13,7 @@
 #include "uv_ui.h"
 #include "uv_lcd.h"
 
-#if CONFIG_LCD
+#if CONFIG_UI
 
 
 #if !defined(CONFIG_UI_TREEVIEW_ITEM_HEIGHT)

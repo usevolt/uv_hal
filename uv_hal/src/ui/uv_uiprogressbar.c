@@ -9,7 +9,7 @@
 #include "ui/uv_uiprogressbar.h"
 
 
-#if CONFIG_LCD
+#if CONFIG_UI
 
 
 #define this ((uv_uiprogressbar_st *)me)
@@ -51,6 +51,26 @@ void uv_uiprogressbar_set_limit(void *me, uiprogressbar_limit_e type,
 
 
 static void draw(void *me, const uv_bounding_box_st *pbb) {
+	color_t c = ((this->limit_type == UI_PROGRESSBAR_LIMIT_UNDER && this->value < this->limit) ||
+			(this->limit_type == UI_PROGRESSBAR_LIMIT_OVER && this->value > this->limit)) ?
+			this->limit_color :
+			this->style->active_fg_c;
+	int16_t x = this->horizontal ?
+			uv_ui_get_xglobal(this) :
+			uv_ui_get_xglobal(this) + uv_uibb(this)->width / 2 - CONFIG_UI_PROGRESSBAR_HEIGHT / 2;
+	int16_t y = this->horizontal ?
+			uv_ui_get_yglobal(this) + uv_uibb(this)->height / 2 - CONFIG_UI_PROGRESSBAR_HEIGHT / 2 :
+			uv_ui_get_yglobal(this) + uv_uibb(this)->height -
+			(this->title ? (uv_ui_text_height_px(this->title, this->style->font, 1.0f) + 3) : 0) -
+			CONFIG_UI_PROGRESSBAR_WIDTH;
+	int16_t rel = uv_reli(this->value, this->min_val, this->max_val);
+	if (rel < 0) { rel = 0; }
+
+#if CONFIG_LCD
+	int16_t w = this->horizontal ?
+			(CONFIG_UI_PROGRESSBAR_WIDTH) : CONFIG_UI_PROGRESSBAR_HEIGHT;
+	int16_t h = this->horizontal ?
+			CONFIG_UI_PROGRESSBAR_HEIGHT : CONFIG_UI_PROGRESSBAR_WIDTH;
 	// total amount of bars to draw
 	int16_t bars;
 	// amount of active bars
@@ -65,28 +85,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 				(this->title ? uv_ui_text_height_px(this->title, this->style->font, 1.0f) : 0)) /
 				(CONFIG_UI_PROGRESSBAR_WIDTH + CONFIG_UI_PROGRESSBAR_SPACE) - 1;
 	}
-	int16_t rel = uv_reli(this->value, this->min_val, this->max_val);
-	if (rel < 0) { rel = 0; }
 	active_bars = uv_lerpi(rel, 0, bars);
-
-
-	color_t c = ((this->limit_type == UI_PROGRESSBAR_LIMIT_UNDER && this->value < this->limit) ||
-			(this->limit_type == UI_PROGRESSBAR_LIMIT_OVER && this->value > this->limit)) ?
-			this->limit_color :
-			this->style->active_fg_c;
-	int16_t x = this->horizontal ?
-			uv_ui_get_xglobal(this) :
-			uv_ui_get_xglobal(this) + uv_uibb(this)->width / 2 - CONFIG_UI_PROGRESSBAR_HEIGHT / 2;
-	int16_t y = this->horizontal ?
-			uv_ui_get_yglobal(this) + uv_uibb(this)->height / 2 - CONFIG_UI_PROGRESSBAR_HEIGHT / 2 :
-			uv_ui_get_yglobal(this) + uv_uibb(this)->height -
-			(this->title ? (uv_ui_text_height_px(this->title, this->style->font, 1.0f) + 3) : 0) -
-			CONFIG_UI_PROGRESSBAR_WIDTH;
-	int16_t w = this->horizontal ?
-			(CONFIG_UI_PROGRESSBAR_WIDTH) : CONFIG_UI_PROGRESSBAR_HEIGHT;
-	int16_t h = this->horizontal ?
-			CONFIG_UI_PROGRESSBAR_HEIGHT : CONFIG_UI_PROGRESSBAR_WIDTH;
-
 	// draw all bars
 	for (int16_t i = 0; i < bars; i++) {
 		uv_lcd_draw_mrect(x, y, w, h, c, pbb);
@@ -107,6 +106,37 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 				this->style->font, ALIGN_BOTTOM_CENTER,
 				this->style->text_color, C(0xFFFFFFFF), this->title, 1.0f, pbb);
 	}
+
+#elif CONFIG_FT81X
+	int16_t w = this->horizontal ?
+			(uv_uibb(this)->width) : CONFIG_UI_PROGRESSBAR_HEIGHT;
+	int16_t h = this->horizontal ?
+			CONFIG_UI_PROGRESSBAR_HEIGHT : uv_uibb(this)->height;
+	int16_t barw = (this->horizontal) ?
+			w * rel / 1000 : w;
+	int16_t barh = (this->horizontal) ?
+			h : h * rel / 1000;
+	if (barw < CONFIG_UI_RADIUS + 4) {
+		barw = CONFIG_UI_RADIUS + 4;
+	}
+	else if (barh < CONFIG_UI_RADIUS + 4) {
+		barh = CONFIG_UI_RADIUS + 4;
+	}
+
+	uv_ft81x_draw_rrect(x, y, w - 4, h - 4, CONFIG_UI_RADIUS, this->style->shadow_c);
+	uv_ft81x_draw_rrect(x + 4, y + 4, w - 4, h - 4, CONFIG_UI_RADIUS, this->style->highlight_c);
+	uv_ft81x_draw_rrect(x + 2, y + 2, w - 4, h - 4, CONFIG_UI_RADIUS, this->style->display_c);
+
+	// draw handle
+	uv_ft81x_draw_rrect(x + 2, y + 2, barw - 4, barh - 4, CONFIG_UI_RADIUS, c);
+
+	if (this->title) {
+		uv_ft81x_draw_string(this->title, this->style->font->index,
+				x + w / 2, y + h, ALIGN_TOP_CENTER,
+				this->style->inactive_font_c);
+	}
+
+#endif
 }
 
 

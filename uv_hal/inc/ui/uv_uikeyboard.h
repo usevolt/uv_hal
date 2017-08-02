@@ -13,7 +13,7 @@
 #include "uv_utilities.h"
 #include "uv_ui.h"
 
-#if CONFIG_LCD
+#if CONFIG_UI
 
 
 /// @brief: Shows the touchscreen keyboard. The function returns when the user has

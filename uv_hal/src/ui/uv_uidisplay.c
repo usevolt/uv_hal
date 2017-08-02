@@ -10,9 +10,9 @@
 #include "uv_lcd.h"
 #include <stdlib.h>
 
-#if CONFIG_LCD
+#if CONFIG_UI
 
-#if CONFIG_LCD_TOUCHSCREEN
+#if CONFIG_UI_TOUCHSCREEN
 enum {
 	PRESSING,
 	DRAGGING,
@@ -28,23 +28,31 @@ enum {
 static void draw(const void *me, const uv_bounding_box_st *pbb);
 
 static void draw(const void *me, const uv_bounding_box_st *pbb) {
+#if CONFIG_LCD
 	uv_lcd_draw_rect(uv_uibb(this)->x, uv_uibb(this)->y, uv_uibb(this)->width,
 			uv_uibb(this)->height, ((uv_uiwindow_st*) this)->style->window_c);
+#elif CONFIG_FT81X
+	uv_ft81x_set_mask(uv_ui_get_xglobal(this), uv_ui_get_yglobal(this),
+			uv_uibb(this)->width, uv_uibb(this)->height);
+
+	uv_ft81x_clear(((uv_uiwindow_st*) this)->style->display_c);
+	uv_ft81x_draw_point(LCD_W(0.5f), -400, ((uv_uiwindow_st*) this)->style->active_bg_c, 1000);
+#endif
 }
 
 
 void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *style) {
 	uv_uiwindow_init(me, objects, style);
 	// display fills the whole screen
-	uv_ui_get_bb(me)->x = 0;
-	uv_ui_get_bb(me)->y = 0;
-	uv_ui_get_bb(me)->width = LCD_W_PX;
-	uv_ui_get_bb(me)->height = LCD_H_PX;
+	uv_uibb(me)->x = 0;
+	uv_uibb(me)->y = 0;
+	uv_uibb(me)->width = LCD_W_PX;
+	uv_uibb(me)->height = LCD_H_PX;
 	uv_ui_refresh_parent(this);
 	this->touch_callb = NULL;
 	((uv_uiwindow_st*) this)->vrtl_draw = &draw;
 
-#if CONFIG_LCD_TOUCHSCREEN
+#if CONFIG_UI_TOUCHSCREEN
 	uv_moving_aver_init(&this->avr_x, UI_TOUCH_AVERAGE_COUNT);
 	uv_moving_aver_init(&this->avr_y, UI_TOUCH_AVERAGE_COUNT);
 	this->press_state = RELEASED;
@@ -58,9 +66,13 @@ void uv_uidisplay_step(void *me, uint32_t step_ms) {
 	t.action = TOUCH_NONE;
 
 	// get touch data from the LCD
-#if CONFIG_LCD_TOUCHSCREEN
+#if CONFIG_UI_TOUCHSCREEN
 	bool touch;
+#if CONFIG_LCD
 	touch = uv_lcd_touch_get(&t.x, &t.y);
+#elif CONFIG_FT81X
+	touch = uv_ft81x_get_touch(&t.x, &t.y);
+#endif
 
 	if (touch) {
 		t.x = uv_moving_aver_step(&this->avr_x, t.x);
@@ -122,9 +134,14 @@ void uv_uidisplay_step(void *me, uint32_t step_ms) {
 
 	if (uv_uiwindow_step(me, &t, step_ms, uv_uibb(this))) {
 
+#if CONFIG_LCD
 		// if lcd is configured to use double buffering,
 		// swap buffers since all UI components should now be updated
 		uv_lcd_double_buffer_swap();
+#elif CONFIG_FT81X
+		// all UI components should now be updated, swap display list buffers
+		uv_ft81x_dlswap();
+#endif
 	}
 }
 

@@ -112,6 +112,33 @@ bool uv_spi_readwrite_sync(const spi_e spi, spi_slaves_e slaves,
 	return ret;
 }
 
+
+bool uv_spi_write_sync(const spi_e spi, spi_slaves_e slaves,
+		const uint16_t *writebuffer, const uint8_t byte_len, const uint16_t buffer_len) {
+	bool ret = true;
+
+	// note: Make sure to specifically deassert all nodes not used for transmission
+	SPI_DATA_SETUP_T setup;
+	setup.pTx = (uint16_t*) writebuffer;
+	setup.pRx = NULL;
+	setup.DataSize = byte_len;
+	setup.Length = buffer_len;
+	setup.ssel = SPI_TXCTL_DEASSERT_SSEL0 | SPI_TXCTL_DEASSERT_SSEL1 |
+			SPI_TXCTL_DEASSERT_SSEL2 | SPI_TXCTL_DEASSERT_SSEL3;
+	setup.ssel &= ~(slaves << 16);
+	setup.TxCnt = 0;
+	setup.RxCnt = 0;
+	// Transfer message as SPI master via polling
+	if (Chip_SPI_WriteFrames_Blocking(LPC_SPI0, &setup) <= 0) {
+		// SPI error
+		ret = false;
+	}
+
+	return ret;
+
+}
+
+
 #endif
 
 #endif

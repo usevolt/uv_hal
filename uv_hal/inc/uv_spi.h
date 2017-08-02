@@ -169,6 +169,21 @@ bool uv_spi_readwrite_sync(const spi_e spi, spi_slaves_e slaves,
 		const uint8_t byte_len, const uint16_t buffer_len);
 
 
+/// @brief: Writes to the SPI bus, while ignoring the received data.
+/// The function returns after the transmission finishes.
+///
+/// @return: True if writing and reading was successful, otherwise false
+///
+/// @param spi: The SPI channel used
+/// @param slaves: Selected slaves to whom the data is sent
+/// @param writebuffer: Pointer to a buffer where write data is read. Note:
+/// Buffer has to be of type uint16_t or int16_t.
+/// @byte_len: The length of a individual bytes in bits (usually 8)
+/// @buffer_len: The length of the write buffer in bytes
+/// (not local bytes but *byte_len* bytes)
+bool uv_spi_write_sync(const spi_e spi, spi_slaves_e slaves,
+		const uint16_t *writebuffer, const uint8_t byte_len, const uint16_t buffer_len);
+
 
 #endif
 

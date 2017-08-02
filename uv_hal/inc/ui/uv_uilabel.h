@@ -17,9 +17,10 @@
 #include <string.h>
 
 
-#if CONFIG_LCD
+#if CONFIG_UI
 
 /* Alignments */
+#if CONFIG_LCD
 enum {
 	ALIGN_H_LEFT 			= (1 << 0),
 	ALIGN_H_CENTER 			= (1 << 1),
@@ -38,6 +39,17 @@ enum {
 	ALIGN_BOTTOM_RIGHT 		= (ALIGN_V_BOTTOM | ALIGN_H_RIGHT)
 };
 typedef uint8_t alignment_e;
+#elif CONFIG_FT81X
+typedef enum {
+	ALIGN_TOP_LEFT 			= FT81X_ALIGN_LEFT_TOP,
+	ALIGN_CENTER_LEFT 		= FT81X_ALIGN_LEFT_CENTER,
+	ALIGN_TOP_CENTER 		= FT81X_ALIGN_CENTER_TOP,
+	ALIGN_CENTER 			= FT81X_ALIGN_CENTER,
+	ALIGN_TOP_RIGHT 		= FT81X_ALIGN_RIGHT_TOP,
+	ALIGN_CENTER_RIGHT 		= FT81X_ALIGN_RIGHT_CENTER,
+} alignment_e;
+
+#endif
 
 
 
@@ -51,13 +63,15 @@ typedef struct {
 	const uv_font_st *font;
 	/// @brief: Text color
 	color_t color;
-	color_t bg_color;
 	/// @brief: Null-terminated string which will be shown on the screen
 	char *str;
 	/// @brief: Label alignment
 	alignment_e align;
+#if CONFIG_LCD
+	color_t bg_color;
 	///@brief: Image scale multiplier
 	float scale;
+#endif
 } uv_uilabel_st;
 
 
@@ -74,8 +88,15 @@ uv_uiobject_ret_e uv_uilabel_step(void *me, uv_touch_st *touch,
 
 #define this		((uv_uilabel_st*)me)
 
+#if CONFIG_LCD
+
 /// @brief: sets the label scale
 void uv_uilabel_set_scale(void *me, float scale);
+
+/// @brief: Sets the background color
+void uv_uilabel_set_bg_color(void *me, color_t c);
+
+#endif
 
 /// @brief: Set's the text of all objects which are inherited from uv_uilabel_st
 ///
@@ -87,8 +108,6 @@ void uv_uilabel_set_text(void *me, char *str);
 /// @brief: Sets the color of the label text
 void uv_uilabel_set_color(void *me, color_t c);
 
-/// @brief: Sets the background color
-void uv_uilabel_set_bg_color(void *me, color_t c);
 
 
 #undef this
@@ -140,20 +159,24 @@ static inline void uv_uidigit_set_color(void *me, color_t c) {
 	uv_uilabel_set_color(me, c);
 }
 
+#if CONFIG_LCD
+
 /// @brief: Sets the background color
 static inline void uv_uidigit_set_bg_color(void *me, color_t c) {
 	uv_uilabel_set_bg_color(me, c);
 }
+
+static inline void uv_uidigit_set_scale(void *me, float scale) {
+	uv_uilabel_set_scale(me, scale);
+}
+
+#endif
 
 /// @brief: If set to true, uidigit will also show fractions divided by *value*
 static inline void uv_uidigit_set_divider(void *me, unsigned int value) {
 	if (!value) { value = 1; }
 	this->divider = value;
 	uv_ui_refresh(this);
-}
-
-static inline void uv_uidigit_set_scale(void *me, float scale) {
-	uv_uilabel_set_scale(me, scale);
 }
 
 
@@ -164,7 +187,7 @@ static inline int uv_uidigit_get_value(void *me) {
 
 /// @brief: Draws raw text on the screen.
 /// Should be used only inside this hal library
-
+#if CONFIG_LCD
 void _uv_ui_draw_mtext(int16_t x, int16_t y, const uv_font_st *font,
 		const alignment_e align, const color_t color, const color_t bgcolor,
 		const char *str, const float scale, const uv_bounding_box_st *maskbb);
@@ -175,6 +198,7 @@ static inline void _uv_ui_draw_text(int16_t x, int16_t y, const uv_font_st *font
 	uv_bounding_box_st bb = { 0, 0, LCD_W_PX, LCD_H_PX };
 	_uv_ui_draw_mtext(x, y, font, align, color, bgcolor, str, scale, &bb);
 }
+#endif
 
 
 /// @brief: Returns the strings length in pixels.

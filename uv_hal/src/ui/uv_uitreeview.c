@@ -9,7 +9,7 @@
 #include "ui/uv_uitreeview.h"
 
 
-#if CONFIG_LCD
+#if CONFIG_UI
 
 #define this ((uv_uitreeobject_st*) me)
 
@@ -66,6 +66,7 @@ static void uv_uitreeobject_draw(const void *me, const uv_bounding_box_st *pbb) 
 	int16_t x = uv_ui_get_xglobal(this);
 	int16_t y = uv_ui_get_yglobal(this);
 	int16_t w = uv_uibb(this)->width;
+#if CONFIG_LCD
 	if (!((uv_uiobject_st*) this)->enabled) {
 		_uv_ui_draw_mtext(x + XOFFSET, y + CONFIG_UI_TREEVIEW_ITEM_HEIGHT / 2,
 				&CONFIG_UI_TREEVIEW_ARROW_FONT, ALIGN_CENTER_LEFT,
@@ -96,7 +97,9 @@ static void uv_uitreeobject_draw(const void *me, const uv_bounding_box_st *pbb) 
 	}
 	uv_lcd_draw_mrect(x, y - 1, w, 1,
 			((uv_uiwindow_st*) me)->style->inactive_frame_c, pbb);
-
+#elif CONFIG_FT81X
+#warning "ft81x not implemented"
+#endif
 }
 
 

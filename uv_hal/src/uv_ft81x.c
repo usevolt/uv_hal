@@ -10,14 +10,18 @@
 #include "uv_ft81x.h"
 #include "uv_gpio.h"
 #include "uv_rtos.h"
+#include <string.h>
 
-#define READ8_LEN	5
-#define READ16_LEN	6
-#define READ32_LEN	8
-#define WRITE8_LEN	4
-#define WRITE16_LEN	5
-#define WRITE32_LEN	7
-
+#define READ8_LEN						5
+#define READ16_LEN						6
+#define READ32_LEN						8
+#define WRITE8_LEN						4
+#define WRITE16_LEN						5
+#define WRITE32_LEN						7
+#define DRAW_LINE_BUF_LEN				6
+#define FONT_METRICS_BASE_ADDR			0x201EE0
+#define FONT_METRICS_FONT_LEN			148
+#define FONT_METRICS_FONT_HEIGHT_OFFSET	140
 
 
 /// @brief: Prefixes are the first 2 bytes sent to the device
@@ -59,6 +63,7 @@ typedef enum {
 } ft81x_memmap_e;
 
 #define RAMDL_SIZE		0x2000
+#define RAMCMD_SIZE		0x1000
 
 typedef enum {
 	REG_ID 						= 0x302000,
@@ -346,7 +351,6 @@ typedef enum {
 
 
 static inline void writedl(uint32_t data);
-static void readstr(const ft81x_reg_e address, char *dest, const uint16_t len);
 static uint8_t read8(const ft81x_reg_e address);
 static uint16_t read16(const ft81x_reg_e address);
 static uint32_t read32(const ft81x_reg_e address);
@@ -355,31 +359,63 @@ static void write8(const ft81x_reg_e address, uint8_t value);
 static void write16(const ft81x_reg_e address, uint16_t value);
 static void write32(const ft81x_reg_e address, uint32_t value);
 static void writehostcmd(const ft81x_hostcmds_e hostcmd, uint8_t parameter);
-static void writecmd(const ft81x_cmds_e command);
 
 static void init_values(void);
 static void set_color(color_t c);
 static void set_begin(uint8_t begin_type);
 static void set_point_size(uint16_t diameter);
 static void set_line_width(const uint16_t width);
+static void set_font(const uint8_t font);
+static void set_cell(const uint8_t cell);
+static void cmd_wait(void);
+void draw_line(char *str, const ft81x_fonts_e font,
+		int16_t x, int16_t y, ft81x_align_e align, color_t color, uint16_t len);
+bool visible(const int16_t x, const int16_t y, const int16_t w, const int16_t height);
 
 
 
+/// @brief: Strucutre for assigning coordinates to VERTEX2F macro.
+/// Transforms signed coordinates to 15-bit space. Use **ux** and **uy**
+/// unsigned formats for bitwise operations.
+typedef struct {
+	union {
+		signed int sx	: 15;
+		unsigned int ux	: 15;
+	};
+	int _reserved 	: 1;
+	union {
+		signed int sy	: 15;
+		unsigned int uy	: 15;
+	};
+	int _reserved2	: 1;
+} vertex2f_st;
 
 /// @brief: Main FT81X data structure which contains the current values for
 /// colors, etc.
 typedef struct {
 	uint32_t dl_index;
+	uint32_t dl_index_max;
 	color_st color;
 	color_st clear_color;
+	bool color_init;
+	bool clear_color_init;
 	uint8_t backlight;
 	uint8_t begin_type;
 	uint16_t point_diameter;
 	uint16_t line_width;
-	uint8_t vertex_precision;
+	uint8_t font;
+	uint8_t cell;
 	// tells the next address for the co-processor ring buffer
 	uint32_t cmdwriteaddr;
+	struct {
+		int16_t x;
+		int16_t y;
+		int16_t width;
+		int16_t height;
+	} mask;
 } uv_ft81x_st;
+ft81x_font_st ft81x_fonts[FONT_COUNT];
+
 uv_ft81x_st ft81x;
 #define this (&ft81x)
 
@@ -390,24 +426,24 @@ static void init_values(void) {
 	this->begin_type = 0xFF;
 	this->point_diameter = 0xFFFF;
 	this->line_width = 0xFFFF;
+	this->font = 0xFF;
+	this->cell = 0xFF;
+	this->color_init = false;
+	this->clear_color_init = false;
 }
 
 
 
 void uv_ft81x_init(void) {
 	this->dl_index = 0;
-	this->color.a = 0xFF;
-	this->color.r = 0xFF;
-	this->color.g = 0xFF;
-	this->color.b = 0xFF;
-	this->clear_color.a = 0xFF;
-	this->clear_color.r = 0xFF;
-	this->clear_color.g = 0xFF;
-	this->clear_color.b = 0xFF;
+	this->dl_index_max = 0;
 	this->cmdwriteaddr = 0;
 	this->backlight = 50;
-	// set vertex precision
-	this->vertex_precision = 16;
+	this->mask.x = 0;
+	this->mask.y = 0;
+	this->mask.width = LCD_W_PX;
+	this->mask.height = LCD_H_PX;
+
 	init_values();
 
 	// toggle PD pin to reset the FT81X
@@ -456,6 +492,14 @@ void uv_ft81x_init(void) {
 
 		uv_ft81x_dlswap();
 
+		// download font height data
+		for (int i = 0; i < FONT_COUNT; i++) {
+			ft81x_fonts[i].index = i + FONT_1;
+			ft81x_fonts[i].char_height = read32(FONT_METRICS_BASE_ADDR +
+					i * FONT_METRICS_FONT_LEN +
+					FONT_METRICS_FONT_HEIGHT_OFFSET);
+			DEBUG("Font %u height: %u\n", i, ft81x_fonts[i].char_height);
+		}
 	}
 	else {
 		printf("Couldn't read FT81X device ID.\n");
@@ -463,10 +507,6 @@ void uv_ft81x_init(void) {
 }
 
 
-
-static void readstr(const ft81x_reg_e address, char *dest, const uint16_t len) {
-
-}
 
 
 
@@ -508,7 +548,7 @@ static uint32_t read32(const ft81x_reg_e address) {
 
 	uv_spi_readwrite_sync(CONFIG_FT81X_SPI_CHANNEL, CONFIG_FT81X_SSEL, wb, rb, 8, READ32_LEN);
 
-	uint16_t ret = (rb[7] << 24) + (rb[6] << 16) + (rb[5] << 8) + rb[4];
+	uint32_t ret = (rb[7] << 24) + (rb[6] << 16) + (rb[5] << 8) + rb[4];
 	return ret;
 }
 
@@ -523,7 +563,18 @@ static inline void writedl(uint32_t data) {
 
 
 
-static void writestr(const ft81x_reg_e address, const char *src, const uint16_t len) {
+#define ADDR_OFFSET		3
+static void writestr(const ft81x_reg_e address,
+		const char *src, const uint16_t len) {
+	uint16_t wb[len + ADDR_OFFSET];
+	wb[0] = FT81X_PREFIX_WRITE | ((address >> 16) & 0x3F);
+	wb[1] = (address >> 8) & 0xFF;
+	wb[2] = (address) & 0xFF;
+	for (uint16_t i = 0; i < len; i++) {
+		wb[i + ADDR_OFFSET] = src[i];
+	}
+	uv_spi_write_sync(CONFIG_FT81X_SPI_CHANNEL,
+			CONFIG_FT81X_SSEL, wb, 8, len + ADDR_OFFSET);
 
 }
 
@@ -531,34 +582,31 @@ static void writestr(const ft81x_reg_e address, const char *src, const uint16_t 
 
 static void write8(const ft81x_reg_e address, uint8_t value) {
 	uint16_t wb[WRITE8_LEN] = {};
-	uint16_t rb[WRITE8_LEN] = {};
 	wb[0] = FT81X_PREFIX_WRITE | ((address >> 16) & 0x3F);
 	wb[1] = (address >> 8) & 0xFF;
 	wb[2] = (address) & 0xFF;
 	wb[3] = value;
 
-	uv_spi_readwrite_sync(CONFIG_FT81X_SPI_CHANNEL, CONFIG_FT81X_SSEL, wb, rb, 8, WRITE8_LEN);
+	uv_spi_write_sync(CONFIG_FT81X_SPI_CHANNEL, CONFIG_FT81X_SSEL, wb, 8, WRITE8_LEN);
 }
 
 
 
 static void write16(const ft81x_reg_e address, uint16_t value) {
 	uint16_t wb[WRITE16_LEN] = {};
-	uint16_t rb[WRITE16_LEN] = {};
 	wb[0] = FT81X_PREFIX_WRITE | ((address >> 16) & 0x3F);
 	wb[1] = (address >> 8) & 0xFF;
 	wb[2] = (address) & 0xFF;
 	wb[3] = value & 0xFF;
 	wb[4] = (value >> 8) & 0xFF;
 
-	uv_spi_readwrite_sync(CONFIG_FT81X_SPI_CHANNEL, CONFIG_FT81X_SSEL, wb, rb, 8, WRITE16_LEN);
+	uv_spi_write_sync(CONFIG_FT81X_SPI_CHANNEL, CONFIG_FT81X_SSEL, wb, 8, WRITE16_LEN);
 }
 
 
 
 static void write32(const ft81x_reg_e address, uint32_t value) {
 	uint16_t wb[WRITE32_LEN] = {};
-	uint16_t rb[WRITE32_LEN] = {};
 	wb[0] = FT81X_PREFIX_WRITE | ((address >> 16) & 0x3F);
 	wb[1] = (address >> 8) & 0xFF;
 	wb[2] = (address) & 0xFF;
@@ -567,43 +615,34 @@ static void write32(const ft81x_reg_e address, uint32_t value) {
 	wb[5] = (value >> 16) & 0xFF;
 	wb[6] = (value >> 24) & 0xFF;
 
-	uv_spi_readwrite_sync(CONFIG_FT81X_SPI_CHANNEL, CONFIG_FT81X_SSEL, wb, rb, 8, WRITE32_LEN);
+	uv_spi_write_sync(CONFIG_FT81X_SPI_CHANNEL, CONFIG_FT81X_SSEL, wb, 8, WRITE32_LEN);
 }
 
 
 
 static void writehostcmd(const ft81x_hostcmds_e hostcmd, uint8_t parameter) {
 	uint16_t wb[3] = {};
-	uint16_t rb[3] = {};
 	wb[0] = hostcmd;
 	wb[1] = parameter;
 	wb[2] = 0;
-	uv_spi_readwrite_sync(CONFIG_FT81X_SPI_CHANNEL, CONFIG_FT81X_SSEL,
-							wb, rb, 8, 3);
-}
-
-
-static void writecmd(const ft81x_cmds_e command) {
-	write32(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, command);
-	this->cmdwriteaddr += 4;
-	if (this->cmdwriteaddr >= 4096) {
-		this->cmdwriteaddr = 0;
-	}
-	write16(REG_CMD_WRITE, this->cmdwriteaddr);
+	uv_spi_write_sync(CONFIG_FT81X_SPI_CHANNEL, CONFIG_FT81X_SSEL, wb, 8, 3);
 }
 
 
 
 static void set_color(color_t c) {
-	if (((color_st*) &c)->a != this->color.a) {
+	if ((!this->color_init) ||
+			(((color_st*) &c)->a != this->color.a)) {
 		DEBUG("set alpha\n");
 		writedl(COLOR_A(((color_st*) &c)->a));
 		this->color.a = ((color_st*) &c)->a;
 	}
-	if (*((color_t*) &this->color) != c) {
+	if ((!this->color_init) ||
+			(*((color_t*) &this->color) != c)) {
 		DEBUG("set color\n");
 		writedl(COLOR_RGB(((color_st*) &c)->r, ((color_st*) &c)->g, ((color_st*) &c)->b));
 		*((color_t*) &this->color) = c;
+		this->color_init = true;
 	}
 }
 
@@ -621,6 +660,10 @@ static void set_begin(uint8_t begin_type) {
 
 
 static void set_point_size(uint16_t diameter) {
+	// maximum point size is 1023
+	if (diameter > ((0x1FFF * 2) / 16)) {
+		diameter = 0x1FFF * 2 / 16;
+	}
 	if (this->point_diameter != diameter) {
 		DEBUG("set point diameter\n");
 		writedl(POINT_SIZE(diameter * 16 / 2));
@@ -642,6 +685,89 @@ static void set_line_width(const uint16_t width) {
 	}
 }
 
+static void set_font(const uint8_t font) {
+	if (this->font != font) {
+		DEBUG("Setting fobitmap handle (font)\n");
+		writedl(BITMAP_HANDLE(font));
+	}
+}
+
+
+static void set_cell(const uint8_t cell) {
+	if (this->cell != cell) {
+		DEBUG("Setting cell\n");
+		writedl(CELL(cell));
+	}
+}
+
+/// @brief: Waits until co-processor has processed all transactions
+static void cmd_wait(void) {
+	// co-processor might modify the begin type, thus set it to undefined
+	this->begin_type = 0xFF;
+	DEBUG("Waiting for the co-processor to finish... ");
+	uint16_t cmdread = read16(REG_CMD_READ);
+	uint16_t cmdwrite = read16(REG_CMD_WRITE);
+	while (cmdread != cmdwrite) {
+		cmdread = read16(REG_CMD_READ);
+		cmdwrite = read16(REG_CMD_WRITE);
+		uv_rtos_task_yield();
+	}
+	DEBUG("OK!\n");
+}
+
+void draw_line(char *str, const ft81x_fonts_e font,
+		int16_t x, int16_t y, ft81x_align_e align, color_t color, uint16_t len) {
+	set_color(color);
+
+	// set the RAMDL offset where co-processor writes the DL entries
+	write16(REG_CMD_DL, this->dl_index);
+
+	// write header information as a bulk transfer
+	// FT81X automatically wraps continuous writes to RAM_CMD ring buffer space
+	uint16_t buf[DRAW_LINE_BUF_LEN];
+	*((uint32_t*) &buf[0]) = CMD_TEXT;
+	buf[2] = x;
+	buf[3] = y;
+	buf[4] = font;
+	buf[5] = align;
+	writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char*) buf, DRAW_LINE_BUF_LEN * 2);
+	this->cmdwriteaddr = (this->cmdwriteaddr + DRAW_LINE_BUF_LEN * 2) % RAMCMD_SIZE;
+
+	DEBUG("Writing '%s'\n", str);
+	// write the whole string and termination character
+	writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, str, len);
+	this->cmdwriteaddr = (this->cmdwriteaddr + len) % RAMCMD_SIZE;
+
+	// write null termination marks until cmdwriteaddr is in world boundary
+	uint8_t nul = 4 - (this->cmdwriteaddr % 4);
+	write32(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, 0);
+	this->cmdwriteaddr = (this->cmdwriteaddr + nul) % RAMCMD_SIZE;
+
+	write16(REG_CMD_WRITE, this->cmdwriteaddr);
+
+	// last thing is to wait for the co-processor to finish
+	// and update current dl_index
+	cmd_wait();
+	this->dl_index = read16(REG_CMD_DL);
+
+}
+
+
+bool visible(const int16_t x, const int16_t y,
+		const int16_t width, const int16_t height) {
+	bool ret = true;
+	if (((x + width) < this->mask.x) ||
+			(x > (this->mask.x + this->mask.width)) ||
+			((y + height) < this->mask.y) ||
+			(y > (this->mask.y + this->mask.height))) {
+		return false;
+	}
+
+	return ret;
+}
+
+
+
 
 /* PUBLIC FUNCTIONS */
 
@@ -650,7 +776,10 @@ static void set_line_width(const uint16_t width) {
 void uv_ft81x_dlswap(void) {
 	writedl(DISPLAY());
 	write8(REG_DLSWAP, 0x2);
-	DEBUG("ramdl index: %u\n", (unsigned int) this->dl_index);
+	DEBUG("ramdl index: 0x%x\n", (unsigned int) this->dl_index);
+	if (this->dl_index_max < this->dl_index) {
+		this->dl_index_max = this->dl_index;
+	}
 	this->dl_index = 0;
 	init_values();
 	DEBUG("\n\ndlswap\n\n");
@@ -664,6 +793,8 @@ void uv_ft81x_dlswap(void) {
 		}
 		uv_rtos_task_yield();
 	}
+	// set the vertex format to pixel precision
+	writedl(VERTEX_FORMAT(0));
 }
 
 
@@ -690,15 +821,18 @@ uint8_t uv_ft81x_get_backlight(void) {
 
 
 void uv_ft81x_clear(color_t c) {
-	if (((color_st*) &c)->a != this->clear_color.a) {
+	if ((!this->clear_color_init) ||
+			(((color_st*) &c)->a != this->clear_color.a)) {
 		DEBUG("set clear alpha\n");
 		writedl(CLEAR_COLOR_A(((color_st*) &c)->a));
 		this->clear_color.a = ((color_st*) &c)->a;
 	}
-	if (*((color_t*) &this->clear_color) != c) {
+	if ((!this->clear_color_init) ||
+			(*((color_t*) &this->clear_color) != c)) {
 		DEBUG("set clear color\n");
 		writedl(CLEAR_COLOR_RGB(((color_st*) &c)->r, ((color_st*) &c)->g, ((color_st*) &c)->b));
 		*((color_t*) &this->clear_color) = c;
+		this->clear_color_init = true;
 	}
 	DEBUG("clear\n");
 	writedl(CLEAR(1, 1, 1));
@@ -707,43 +841,66 @@ void uv_ft81x_clear(color_t c) {
 
 
 uint32_t uv_ft81x_get_ramdl_usage(void) {
-	return this->dl_index;
+	return this->dl_index_max;
 }
 
 
 
 void uv_ft81x_draw_point(int16_t x, int16_t y, color_t color, uint16_t diameter) {
-	set_color(color);
-	set_begin(BEGIN_POINTS);
-	set_point_size(diameter);
-	DEBUG("vertex\n");
-	writedl(VERTEX2II(x, y, 0, 0));
+	if (visible(x - diameter / 2, y - diameter / 2, diameter, diameter)) {
+		set_color(color);
+		set_begin(BEGIN_POINTS);
+		set_point_size(diameter);
+		DEBUG("drawing point\n");
+		volatile vertex2f_st v;
+		v.sx = x;
+		v.sy = y;
+		writedl(VERTEX2F(v.ux, v.uy));
+	}
 }
 
 
 void uv_ft81x_draw_rrect(const int16_t x, const int16_t y,
 		const uint16_t width, const uint16_t height,
 		const uint16_t radius, const color_t color) {
-	set_color(color);
-	set_begin(BEGIN_RECTS);
-	set_line_width(radius);
-	set_color(color);
-	DEBUG("Drawing rectangle\n");
-	writedl(VERTEX2II(x, y, 0, 0));
-	writedl(VERTEX2II(x + width, y + height, 0, 0));
-
+	if (visible(x, y, width, height)) {
+		set_color(color);
+		set_begin(BEGIN_RECTS);
+		set_line_width(radius);
+		DEBUG("Drawing rectangle\n");
+		volatile vertex2f_st v;
+		v.sx = x + radius;
+		v.sy = y + radius;
+		writedl(VERTEX2F(v.ux, v.uy));
+		v.sx = x + width - radius;
+		v.sy = y + height - radius;
+		if (v.sx <= x + radius) {
+			v.sx = x + radius;
+		}
+		if (v.sy <= y + radius) {
+			v.sy = y + radius;
+		}
+		writedl(VERTEX2F(v.ux, v.uy));
+	}
 }
 
 
 void uv_ft81x_draw_line(const int16_t start_x, const int16_t start_y,
 		const int16_t end_x, const int16_t end_y,
 		const uint16_t width, const color_t color) {
-	set_color(color);
-	set_begin(BEGIN_LINES);
-	set_line_width(width);
-	DEBUG("Drawing line\n");
-	writedl(VERTEX2II(start_x, start_y, 0, 0));
-	writedl(VERTEX2II(end_x, end_y, 0, 0));
+	if (visible(start_x, start_y, end_x, end_y)) {
+		set_color(color);
+		set_begin(BEGIN_LINES);
+		set_line_width(width);
+		DEBUG("Drawing line\n");
+		vertex2f_st v;
+		v.sx = start_x;
+		v.sy = start_y;
+		writedl(VERTEX2F(v.ux, v.uy));
+		v.sx = end_x;
+		v.sy = end_y;
+		writedl(VERTEX2F(v.ux, v.uy));
+	}
 }
 
 
@@ -751,11 +908,18 @@ void uv_ft81x_draw_line(const int16_t start_x, const int16_t start_y,
 
 void uv_ft81x_touchscreen_calibrate(uint32_t *transform_matrix) {
 	DEBUG("Starting the screen calibration\n");
-	uv_ft81x_clear(C(0xFF002040));
+
 	uv_ft81x_dlswap();
+	uv_ft81x_set_mask(0, 0, LCD_W_PX, LCD_H_PX);
+	uv_ft81x_clear(C(0xFF002040));
+	uv_ft81x_draw_string("Calibrate the touchscreen\nby touching the flashing points", FONT_13,
+			LCD_W(0.5f), LCD_H(0.1f), FT81X_ALIGN_CENTER_TOP, C(0xFFFFFFFF));
 	write16(REG_CMD_DL, this->dl_index);
 
 	while (true) {
+		// wait until the screen is not pressed
+		while (uv_ft81x_get_touch(NULL, NULL));
+
 		write32(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, CMD_CALIBRATE);
 		this->cmdwriteaddr += 8;
 		if (this->cmdwriteaddr >= 4096) {
@@ -783,24 +947,153 @@ void uv_ft81x_touchscreen_calibrate(uint32_t *transform_matrix) {
 	uv_ft81x_dlswap();
 
 	if (transform_matrix) {
-		*transform_matrix = read32(REG_TOUCH_TRANSFORM_A);
+		*(transform_matrix++) = read32(REG_TOUCH_TRANSFORM_A);
 		*(transform_matrix++) = read32(REG_TOUCH_TRANSFORM_B);
 		*(transform_matrix++) = read32(REG_TOUCH_TRANSFORM_C);
 		*(transform_matrix++) = read32(REG_TOUCH_TRANSFORM_D);
 		*(transform_matrix++) = read32(REG_TOUCH_TRANSFORM_E);
-		*(transform_matrix++) = read32(REG_TOUCH_TRANSFORM_F);
+		*(transform_matrix) = read32(REG_TOUCH_TRANSFORM_F);
 	}
 }
 
 
+
 void uv_ft81x_touchscreen_set_transform_matrix(uint32_t *transform_matrix) {
-	write32(REG_TOUCH_TRANSFORM_A, *transform_matrix);
+	write32(REG_TOUCH_TRANSFORM_A, *(transform_matrix++));
 	write32(REG_TOUCH_TRANSFORM_B, *(transform_matrix++));
 	write32(REG_TOUCH_TRANSFORM_C, *(transform_matrix++));
 	write32(REG_TOUCH_TRANSFORM_D, *(transform_matrix++));
 	write32(REG_TOUCH_TRANSFORM_E, *(transform_matrix++));
-	write32(REG_TOUCH_TRANSFORM_F, *(transform_matrix++));
+	write32(REG_TOUCH_TRANSFORM_F, *(transform_matrix));
 }
+
+
+
+bool uv_ft81x_get_touch(int16_t *x, int16_t *y) {
+	uint32_t t = read32(REG_TOUCH_SCREEN_XY);
+	int16_t tx = t >> 16;
+	int16_t ty = t & 0xFFFF;
+	bool ret = (t == 0x80008000) ? false : true;
+	if (ret) {
+		if (x) {
+			*x = tx;
+		}
+		if (y) {
+			*y = ty;
+		}
+	}
+	return ret;
+}
+
+
+void uv_ft81x_draw_char(const char c, const uint16_t font,
+		int16_t x, int16_t y, color_t color) {
+	set_color(color);
+	set_begin(BEGIN_BITMAPS);
+	if ((x > 0) && (y > 0)) {
+		DEBUG("Drawing char\n");
+		writedl(VERTEX2II(x, y, font, c));
+	}
+	else {
+		set_font(font);
+		set_cell(c);
+		vertex2f_st v;
+		v.sx = x;
+		v.sy = y;
+		DEBUG("Drawing char\n");
+		writedl(VERTEX2F(v.ux, v.uy));
+	}
+
+}
+
+
+
+void uv_ft81x_draw_string(char *str, const ft81x_fonts_e font,
+		int16_t x, int16_t y, ft81x_align_e align, color_t color) {
+	char *str_ptr = str;
+	int16_t len = 0;
+
+	// find out the line count to adjust start y
+	if ((align == FT81X_ALIGN_CENTER) ||
+			(align == FT81X_ALIGN_LEFT_CENTER) ||
+			(align == FT81X_ALIGN_RIGHT_CENTER)) {
+		uint16_t line_count = 0;
+		while (*str_ptr != '\0') {
+			if (*str_ptr++ == '\n') {
+				line_count++;
+			}
+		}
+		y -= uv_ft81x_get_font_height(font) * line_count / 2;
+		str_ptr = str;
+	}
+
+	while (true) {
+		if (*str_ptr == '\0') {
+			draw_line(str, font, x, y, align, color, len);
+			break;
+		}
+		else if (*str_ptr == '\n') {
+			draw_line(str, font, x, y, align, color, len);
+			y += uv_ft81x_get_font_height(font);
+			str = str_ptr + 1;
+			len = -1;
+		}
+		else {
+
+		}
+
+		str_ptr++;
+		len++;
+	}
+
+}
+
+
+uint8_t uv_ft81x_get_font_height(const ft81x_fonts_e font) {
+	return ft81x_fonts[font - FONT_1].char_height;
+}
+
+
+
+
+void uv_ft81x_set_mask(int16_t x, int16_t y, uint16_t width, uint16_t height) {
+	if (x < 0) {
+		x = 0;
+	}
+	else if (x > 2047) {
+		x = 2047;
+	}
+	if (y < 0) {
+		y = 0;
+	}
+	else if (y > 2047) {
+		y = 2047;
+	}
+	if ((x != this->mask.x) || (y != this->mask.y)) {
+		DEBUG("Setting scissor x: %u, y: %u\n", x, y);
+		writedl(SCISSORS_XY(x , y));
+		this->mask.x = x;
+		this->mask.y = y;
+	}
+	if (width > 2048) {
+		width = 2048;
+	}
+	if (height > 2048) {
+		height = 2048;
+	}
+	if ((width != this->mask.width) || (height != this->mask.height)) {
+		DEBUG("Setting schissor width: %u, height: %u\n", width, height);
+		writedl(SCISSOR_SIZE(width, height));
+		this->mask.width = width;
+		this->mask.height = height;
+	}
+}
+
+
+
+
+
+
 
 
 

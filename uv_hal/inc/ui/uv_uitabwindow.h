@@ -14,7 +14,7 @@
 #include <uv_lcd.h>
 
 
-#if CONFIG_LCD
+#if CONFIG_UI
 
 
 #if !CONFIG_UI_TABWINDOW_HEADER_HEIGHT

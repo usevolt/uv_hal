@@ -99,6 +99,60 @@
 #define FT81X_PCLK_POL_FALLING	1
 
 
+typedef enum {
+	FONT_1 = 16,
+	FONT_2,
+	FONT_3,
+	FONT_4,
+	FONT_5,
+	FONT_6,
+	FONT_7,
+	FONT_8,
+	FONT_9,
+	FONT_10,
+	FONT_11,
+	FONT_12,
+	FONT_13,
+	FONT_14,
+	FONT_15,
+	FONT_16
+} ft81x_fonts_e;
+
+/// @brief: Wrapper for font data for UI library
+typedef struct {
+	uint16_t char_height;
+	uint8_t index;
+} ft81x_font_st;
+#define FONT_COUNT						(FONT_16 - FONT_1 + 1)
+extern ft81x_font_st ft81x_fonts[FONT_COUNT];
+
+
+typedef enum {
+	FT81X_ALIGN_LEFT_TOP = 0,
+	FT81X_ALIGN_LEFT_CENTER = 0x400,
+	FT81X_ALIGN_RIGHT_TOP = 0x800,
+	FT81X_ALIGN_RIGHT_CENTER = 0x800 | 0x400,
+	FT81X_ALIGN_CENTER = 0x600,
+	FT81X_ALIGN_CENTER_TOP = 0x200
+} ft81x_align_e;
+
+
+
+/// @brief: Width of the LCD in pixels
+#define LCD_W_PX		CONFIG_FT81X_HSIZE
+
+/// @brief: Height of the LCD in pixels
+#define LCD_H_PX		CONFIG_FT81X_VSIZE
+
+/// @brief: Converts from relative 0.0f - 1.0f width to actual pixel width
+#define LCD_W(rel_w)	(LCD_W_PX * (rel_w))
+#define LCD_WPPT(w_ppt) (LCD_W_PX * w_ppt / 100)
+
+/// @brief: Converts from relative 0.0f - 1.0f height to actual pixel height
+#define LCD_H(rel_h)	(LCD_H_PX * (rel_h))
+#define LCD_HPPT(h_ppt)	(LCD_H_PX * h_ppt / 100)
+
+
 
 /// @brief: Color typedef
 typedef struct {
@@ -113,8 +167,22 @@ typedef uint32_t color_t;
 #define C(x)		(x)
 
 
+/// @brief: Struct for individual object's bounding box.
+typedef struct {
+	/// @brief: local left-most GLOBAL x coordinate relative to the parent
+	int16_t x;
+	/// @brief: Local top-most y-coordinate relative to the parent
+	int16_t y;
+	/// @brief: Width, growing to right
+	int16_t width;
+	/// @brief: Height, growing to bottom
+	int16_t height;
+} uv_bounding_box_st;
 
-/// @brief: Initializes the FT81X LCD driver module
+
+
+/// @brief: Initializes the FT81X LCD driver module. Will be called from
+/// the HAL task
 void uv_ft81x_init(void);
 
 
@@ -136,7 +204,8 @@ uint8_t uv_ft81x_get_backlight(void);
 /// @brief: Clears the whole screen to color **c**
 void uv_ft81x_clear(color_t c);
 
-/// @brief: Returns the current display list RAM usage
+
+/// @brief: Returns the maximum display list RAM usage
 uint32_t uv_ft81x_get_ramdl_usage(void);
 
 
@@ -181,6 +250,36 @@ void uv_ft81x_touchscreen_calibrate(uint32_t *transform_matrix);
 void uv_ft81x_touchscreen_set_transform_matrix(uint32_t *transform_matrix);
 
 
+/// @brief: Gets the touch from the FT81X touchpanel
+///
+/// @return: True if the screen is touched, false if it is not touched
+///
+/// @param x: Pointer to where the x px coordinate will be written (or NULL)
+/// @param y: Pointer to where the y px coordinate will be written (or NULL)
+bool uv_ft81x_get_touch(int16_t *x, int16_t *y);
+
+
+/// @brief: Draws a letter on the screen
+///
+/// @param c: The letter to be drawn
+/// @param font: The FT81X font index (16-33)
+/// @param x: The top-left X coordinate
+/// @param y: The top-left Y coordinate
+/// @param color: The drawing color
+void uv_ft81x_draw_char(const char c, const uint16_t font, int16_t x, int16_t y, color_t color);
+
+
+/// @brief: uses the FT81X co-processor to draw a text string to the display.
+void uv_ft81x_draw_string(char *str, const ft81x_fonts_e font,
+		int16_t x, int16_t y, ft81x_align_e align, color_t color);
+
+
+/// @brief: Returns the font height in pixels
+uint8_t uv_ft81x_get_font_height(const ft81x_fonts_e font);
+
+
+/// @brief: Sets the drawing mask which masks all drawing functions to the masked area
+void uv_ft81x_set_mask(int16_t x, int16_t y, uint16_t width, uint16_t height);
 
 #endif
 

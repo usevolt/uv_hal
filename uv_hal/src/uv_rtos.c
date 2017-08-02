@@ -18,6 +18,7 @@
 #include "uv_emc.h"
 #include "uv_rtc.h"
 #include "uv_dma.h"
+#include "uv_ft81x.h"
 #if CONFIG_WDT
 #include "uv_wdt.h"
 #endif
@@ -29,6 +30,7 @@ typedef struct {
 	void (*idle_task)(void *user_ptr);
 	void (*tick_task)(void *user_ptr, unsigned int step_ms);
 } this_st;
+bool rtos_init = false;
 
 static volatile this_st _this = {
 		.idle_task = NULL,
@@ -138,7 +140,6 @@ void vApplicationTickHook(void) {
 }
 
 
-bool rtos_init = false;
 
 
 
@@ -218,7 +219,6 @@ void uv_init(void *device) {
 #endif
 
 
-
 #if CONFIG_TARGET_LPC11C14
 	// delay of half a second on start up.
 	// Makes entering ISP mode possible on startup before freeRTOS scheduler is started
@@ -236,6 +236,7 @@ void uv_init(void *device) {
 	}
 #endif
 
+
 	uv_rtos_task_create(hal_task, "uv_hal", UV_RTOS_MIN_STACK_SIZE, NULL, 0xFFFF, NULL);
 }
 
@@ -250,11 +251,12 @@ void uv_data_reset() {
 
 
 void hal_task(void *nullptr) {
+
 	uint16_t step_ms = 2;
 	rtos_init = true;
 
-
 	while (true) {
+
 #if CONFIG_CAN
 	_uv_can_hal_step(step_ms);
 #endif
@@ -266,9 +268,9 @@ void hal_task(void *nullptr) {
 #if CONFIG_CANOPEN
 	_uv_canopen_step(step_ms);
 #endif
+
 	uv_rtos_task_delay(step_ms);
 	}
-
 }
 
 

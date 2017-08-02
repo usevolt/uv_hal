@@ -12,14 +12,14 @@
 #include "uv_utilities.h"
 #include "uv_ui.h"
 
-#if CONFIG_LCD
+#if CONFIG_UI
 
 #if !CONFIG_UI_SLIDER_WIDTH
 #error "CONFIG_UI_SLIDER_WIDTH should define the slider *width*. For horizontal slider this means the height.\
  Also handle height is taken from this value."
 #endif
 #if !CONFIG_UI_SLIDER_INC_DEC_WIDTH
-#error "CONFIG_UI_SIDER_INC_DEC_WIDTH should define the width of uilisder increase and decrease buttons in pizels."
+#error "CONFIG_UI_SLIDER_INC_DEC_WIDTH should define the width of uilisder increase and decrease buttons in pizels."
 #endif
 
 

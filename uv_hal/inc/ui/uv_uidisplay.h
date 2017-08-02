@@ -14,7 +14,7 @@
 #include <uv_filters.h>
 #include "uv_utilities.h"
 
-#if CONFIG_LCD
+#if CONFIG_UI
 
 
 #if !defined(CONFIG_UI_CLICK_THRESHOLD)
@@ -22,7 +22,10 @@
  a touchscreen click event can sustain. If the touch moves more than this\
  number of pixels, touchscreen drag event is triggered."
 #endif
-
+#if !defined(CONFIG_UI_TOUCHSCREEN)
+#error "CONFIG_UI_TOUCHSCREEN should be defined as 1 or 0 dpending if the UI is \
+used on a touchscreen display."
+#endif
 
 
 
@@ -33,12 +36,12 @@
 
 
 
-#if CONFIG_LCD
+#if CONFIG_UI
 
 /// @brief: Main display class. This represents a whole display.
 typedef struct {
 	EXTENDS(uv_uiwindow_st);
-#if CONFIG_LCD_TOUCHSCREEN
+#if CONFIG_UI_TOUCHSCREEN
 	uv_moving_aver_st avr_x;
 	uv_moving_aver_st avr_y;
 	/// @brief: Variables holding the press coordinates
@@ -61,10 +64,10 @@ static inline void uv_uidisplay_set_touch_callb(void *me, void (*touch_callb)(co
 	((uv_uidisplay_st *) me)->touch_callb = touch_callb;
 }
 
-/// @brief: Adds a window object to th screen
-static inline void uv_uidisplay_add(void *me, uv_uiwindow_st *window,
+/// @brief: Adds an object to the screen
+static inline void uv_uidisplay_add(void *me, void *obj,
 		uint16_t x, uint16_t y, uint16_t width, uint16_t height) {
-	uv_uiwindow_add(me, window, x, y, width, height);
+	uv_uiwindow_add(me, obj, x, y, width, height);
 }
 
 

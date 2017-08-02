@@ -9,7 +9,7 @@
 #include "ui/uv_ui_styles.h"
 
 
-#if CONFIG_LCD
+#if CONFIG_UI
 
 
 #define STYLE(x)			,{\
@@ -23,8 +23,12 @@
 		.inactive_font_c = CAT(CONFIG_UI_STYLE_INACTIVE_FONT_C_, INC(INC(x))), \
 		.font = & CAT(CONFIG_UI_STYLE_FONT_, INC(INC(x))), \
 		.text_color = CAT(CONFIG_UI_STYLE_TEXT_COLOR_, INC(INC(x))), \
-		.window_c = CAT(CONFIG_UI_STYLE_WINDOW_C_, INC(INC(x))) \
+		.window_c = CAT(CONFIG_UI_STYLE_WINDOW_C_, INC(INC(x))), \
+		.display_c = CAT(CONFIG_UI_STYLE_DISPLAY_C_, INC(INC(x))), \
+		.shadow_c = CAT(CONFIG_UI_STYLE_SHADOW_C_, INC(INC(x))), \
+		.highlight_c = CAT(CONFIG_UI_STYLE_HIGHLIGHT_C_, INC(INC(x))) \
 	}
+
 const uv_uistyle_st uv_uistyles[CONFIG_UI_STYLES_COUNT] = {
 		{
 				.active_bg_c = CONFIG_UI_STYLE_ACTIVE_BG_C_1,
@@ -37,7 +41,10 @@ const uv_uistyle_st uv_uistyles[CONFIG_UI_STYLES_COUNT] = {
 				.inactive_font_c = CONFIG_UI_STYLE_INACTIVE_FONT_C_1,
 				.font = & CONFIG_UI_STYLE_FONT_1,
 				.text_color = CONFIG_UI_STYLE_TEXT_COLOR_1,
-				.window_c = CONFIG_UI_STYLE_WINDOW_C_1
+				.window_c = CONFIG_UI_STYLE_WINDOW_C_1,
+				.display_c = CONFIG_UI_STYLE_DISPLAY_C_1,
+				.shadow_c = CONFIG_UI_STYLE_SHADOW_C_1,
+				.highlight_c = CONFIG_UI_STYLE_HIGHLIGHT_C_1
 		}
 		REPEAT(DEC(CONFIG_UI_STYLES_COUNT), STYLE)
 };

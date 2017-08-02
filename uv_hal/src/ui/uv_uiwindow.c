@@ -10,11 +10,11 @@
 #include "ui/uv_uilabel.h"
 
 
-#if CONFIG_LCD
+#if CONFIG_UI
 
 #define this	((uv_uiwindow_st*) me)
 
-#define SCROLLBAR_PADDING		5
+#define SCROLLBAR_PADDING		2
 
 static void draw_scrollbar(void *me, bool horizontal, const uv_bounding_box_st *pbb);
 
@@ -23,16 +23,12 @@ static void draw_scrollbar(void *me, bool horizontal, const uv_bounding_box_st *
 	int16_t y = uv_ui_get_yglobal(this);
 	int16_t w = uv_uibb(this)->width;
 	int16_t h = uv_uibb(this)->height;
-	int16_t bar_x = (horizontal) ? (x + SCROLLBAR_PADDING) : (x + w - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH);
-	int16_t bar_y = (horizontal) ? (y + h - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH) : (y + SCROLLBAR_PADDING);
+	int16_t bar_x = (horizontal) ? (x + SCROLLBAR_PADDING) :
+			(x + w - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH - SCROLLBAR_PADDING);
+	int16_t bar_y = (horizontal) ? (y + h - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH - SCROLLBAR_PADDING) :
+			(y + SCROLLBAR_PADDING);
 	int16_t bar_w = (horizontal) ? (w - SCROLLBAR_PADDING * 2) : CONFIG_UI_WINDOW_SCROLLBAR_WIDTH;
 	int16_t bar_h = (horizontal) ? CONFIG_UI_WINDOW_SCROLLBAR_WIDTH : (h - SCROLLBAR_PADDING * 2);
-
-
-
-	// draw scroll bar background
-	uv_lcd_draw_mrect(bar_x, bar_y, bar_w, bar_h,
-			this->style->inactive_bg_c, pbb);
 
 	float scale;
 	uint16_t handle_h;
@@ -59,14 +55,31 @@ static void draw_scrollbar(void *me, bool horizontal, const uv_bounding_box_st *
 		handle_y = bar_y + ((bar_h - handle_h) * pos_scale);
 	}
 
+#if CONFIG_LCD
+	// draw scroll bar background
+	uv_lcd_draw_mrect(bar_x, bar_y, bar_w, bar_h,
+			this->style->inactive_bg_c, pbb);
+
 	// draw handle
 	uv_lcd_draw_mrect(handle_x, handle_y,handle_w, handle_h,
 			this->style->active_fg_c, pbb);
+
+#elif CONFIG_FT81X
+	// draw background
+	uv_ft81x_draw_rrect(bar_x, bar_y, bar_w, bar_h,
+			CONFIG_UI_WINDOW_SCROLLBAR_WIDTH / 2, this->style->inactive_fg_c);
+
+	// draw handle
+	uv_ft81x_draw_rrect(handle_x, handle_y, handle_w, handle_h,
+			CONFIG_UI_WINDOW_SCROLLBAR_WIDTH / 2, this->style->active_fg_c);
+#endif
 }
 
 
 /// @brief: Redraws this window
 void _uv_uiwindow_redraw(const void *me, const uv_bounding_box_st *pbb) {
+
+#if CONFIG_LCD
 	if ((this->content_bb.height > uv_uibb(this)->height) ||
 			(this->content_bb.width > uv_uibb(this)->width) ||
 			!this->transparent) {
@@ -74,12 +87,35 @@ void _uv_uiwindow_redraw(const void *me, const uv_bounding_box_st *pbb) {
 		uv_lcd_draw_mrect(uv_ui_get_xglobal(this), uv_ui_get_yglobal(this), uv_uibb(this)->width,
 				uv_uibb(this)->height, this->style->window_c, pbb);
 	}
+#elif CONFIG_FT81X
+	uv_bounding_box_st bb = *uv_uibb(this);
+	bb.x = uv_ui_get_xglobal(this);
+	bb.y = uv_ui_get_yglobal(this);
+	if (bb.x < pbb->x) {
+		bb.x = pbb->x;
+	}
+	if (bb.y < pbb->y) {
+		bb.y = pbb->y;
+	}
+	if ((bb.x + bb.width) > (pbb->x + pbb->width)) {
+		bb.width -= (bb.x + bb.width) - (pbb->x + pbb->width);
+	}
+	if ((bb.y + bb.height) > (pbb->y + pbb->height)) {
+		bb.height -= (bb.y + bb.height) - (pbb->y + pbb->height);
+	}
+
+	uv_ft81x_set_mask(bb.x, bb.y, bb.width, bb.height);
+	if (!this->transparent) {
+		uv_ft81x_clear(this->style->window_c);
+	}
+#endif
 	if (this->content_bb.height > uv_uibb(this)->height) {
 		draw_scrollbar(this, false, pbb);
 	}
 	if (this->content_bb.width > uv_uibb(this)->width) {
 		draw_scrollbar(this, true, pbb);
 	}
+
 }
 
 void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array, const uv_uistyle_st *style) {
@@ -91,7 +127,15 @@ void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array, const uv_ui
 	this->objects_count = 0;
 	this->style = style;
 	this->dragging = false;
+#if CONFIG_LCD
+	// on LCD module transparent is by default false since
+	// only part of the screen is updated
 	this->transparent = false;
+#elif CONFIG_FT81X
+	// on FT81x transparent is by default true since whole screen
+	// is always updated
+	this->transparent = true;
+#endif
 	this->app_step_callb = NULL;
 	this->vrtl_draw = &_uv_uiwindow_redraw;
 	((uv_uiobject_st*) this)->step_callb = &uv_uiwindow_step;
@@ -186,15 +230,29 @@ uv_uiobject_ret_e uv_uiwindow_step(void *me, uv_touch_st *touch,
 		// then request redraw all children objects
 		uint16_t i;
 		for (i = 0; i < this->objects_count; i++) {
-			uv_ui_refresh(this->objects[i]);
+			((uv_uiobject_st*) this->objects[i])->refresh = true;
 		}
 		((uv_uiobject_st*) this)->refresh = false;
 	}
 	// call step functions for all children which are visible
-	uint16_t i;
-	int16_t globx = uv_ui_get_xglobal(this);
-	int16_t globy = uv_ui_get_yglobal(this);
 	if (((uv_uiobject_st*) this)->enabled) {
+		uint16_t i;
+		uv_bounding_box_st bb = *uv_uibb(this);
+		bb.x = uv_ui_get_xglobal(this);
+		bb.y = uv_ui_get_yglobal(this);
+		if (bb.x < pbb->x) {
+			bb.x = pbb->x;
+		}
+		if (bb.y < pbb->y) {
+			bb.y = pbb->y;
+		}
+		if ((bb.x + bb.width) > (pbb->x + pbb->width)) {
+			bb.width -= (bb.x + bb.width) - (pbb->x + pbb->width);
+		}
+		if ((bb.y + bb.height) > (pbb->y + pbb->height)) {
+			bb.height -= (bb.y + bb.height) - (pbb->y + pbb->height);
+		}
+
 		for (i = 0; i < this->objects_count; i++) {
 			if (this->objects[i]->visible) {
 
@@ -215,24 +273,9 @@ uv_uiobject_ret_e uv_uiwindow_step(void *me, uv_touch_st *touch,
 				}
 				uv_touch_action_e touch_propagate = t2.action;
 
-				// call child object's step callback
-				uv_bounding_box_st bb = *uv_uibb(this);
-				bb.x = globx;
-				bb.y = globy;
-				if (bb.x < pbb->x) {
-					bb.x = pbb->x;
-				}
-				if (bb.y < pbb->y) {
-					bb.y = pbb->y;
-				}
-				if ((bb.x + bb.width) > (pbb->x + pbb->width)) {
-					bb.width -= (bb.x + bb.width) - (pbb->x + pbb->width);
-				}
-				if ((bb.y + bb.height) > (pbb->y + pbb->height)) {
-					bb.height -= (bb.y + bb.height) - (pbb->y + pbb->height);
-				}
+				// call child object's step function
 				if (this->objects[i]->step_callb) {
-					ret |= this->objects[i]->step_callb(this->objects[i], &t2, step_ms, &bb);
+					ret |= uv_uiobject_step(this->objects[i], &t2, step_ms, &bb);
 				}
 				if (ret & UIOBJECT_RETURN_KILLED) {
 					break;

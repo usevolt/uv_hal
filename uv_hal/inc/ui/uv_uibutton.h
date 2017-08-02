@@ -13,7 +13,14 @@
 #include "ui/uv_uilabel.h"
 #include "uv_utilities.h"
 
-#if CONFIG_LCD
+#if CONFIG_UI
+
+
+#if CONFIG_FT81X
+#if !defined(CONFIG_UI_RADIUS)
+#error "CONFIG_UI_RADIUS hsould define the radius of various UI elements on the screen"
+#endif
+#endif
 
 
 enum {

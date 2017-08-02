@@ -9,7 +9,7 @@
 #include "ui/uv_uitoucharea.h"
 
 
-#if CONFIG_LCD
+#if CONFIG_UI
 
 #define this ((uv_uitoucharea_st*)me)
 
@@ -17,6 +17,7 @@
 void uv_uitoucharea_init(void *me) {
 	uv_uiobject_init(this);
 	((uv_uiobject_st*) this)->step_callb = &uv_uitoucharea_step;
+	this->draw_callb = NULL;
 }
 
 uv_uiobject_ret_e uv_uitoucharea_step(void *me, uv_touch_st *touch,
@@ -24,6 +25,9 @@ uv_uiobject_ret_e uv_uitoucharea_step(void *me, uv_touch_st *touch,
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
 	if (this->super.refresh) {
+		if (this->draw_callb) {
+			this->draw_callb();
+		}
 		this->super.refresh = false;
 	}
 	if (!this->super.enabled) {
@@ -38,6 +42,11 @@ uv_uiobject_ret_e uv_uitoucharea_step(void *me, uv_touch_st *touch,
 		}
 	}
 	return ret;
+}
+
+
+void uv_uitoucharea_set_draw_callb(void *me, void (*callb)(void)) {
+	this->draw_callb = callb;
 }
 
 

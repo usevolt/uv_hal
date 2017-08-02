@@ -48,7 +48,6 @@
 #define UV_RTOS_MAX_DELAY				portMAX_DELAY
 
 
-#if CONFIG_RTOS
 /// @brief: Disables all interrupt. This shouldn't be called from
 /// interrupt routines, use uv_disable_int_ISR instead!
 #define uv_disable_int()		taskENTER_CRITICAL()
@@ -61,7 +60,12 @@
 /// @brief: Enabled all interrupts. This is meant to be called from
 /// inside interrupt routines.
 #define uv_enable_int_ISR()		taskEXIT_CRITICAL_FROM_ISR(1)
-#endif
+
+#define uv_enter_critical()		taskENTER_CRITICAL()
+
+#define uv_exit_critical()		taskEXIT_CRITICAL()
+
+
 
 
 typedef xTaskHandle 		uv_rtos_task_ptr;
@@ -178,8 +182,6 @@ static inline void uv_rtos_start_scheduler(void) {
 static inline void uv_rtos_end_scheduler(void) {
 	vTaskEndScheduler();
 }
-
-
 
 
 

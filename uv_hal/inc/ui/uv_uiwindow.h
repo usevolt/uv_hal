@@ -18,7 +18,7 @@
 
 
 
-#if CONFIG_LCD
+#if CONFIG_UI
 
 
 #if !defined(CONFIG_UI_WINDOW_SCROLLBAR_WIDTH)

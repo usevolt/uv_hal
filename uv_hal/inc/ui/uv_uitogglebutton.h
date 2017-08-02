@@ -13,7 +13,7 @@
 #include "uv_ui.h"
 
 
-#if CONFIG_LCD
+#if CONFIG_UI
 
 /// @brief: uitogglebutton is a button with a toggleable state.
 typedef struct {

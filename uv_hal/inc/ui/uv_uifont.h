@@ -12,6 +12,8 @@
 #include <uv_hal_config.h>
 #include <uv_utilities.h>
 
+#if CONFIG_LCD
+
 /* -------------------------------------------------------------------------------- */
 /* -- �GUI FONTS                                                                 -- */
 /* -- Source: http://www.mikrocontroller.net/user/show/benedikt                  -- */
@@ -97,5 +99,29 @@ typedef struct
    extern const uv_font_st num_32X53;
 #endif
 
+#elif CONFIG_FT81X
+
+#include "uv_ft81x.h"
+
+typedef ft81x_font_st uv_font_st;
+
+#define font1	ft81x_fonts[0]
+#define font2	ft81x_fonts[1]
+#define font3	ft81x_fonts[2]
+#define font4	ft81x_fonts[3]
+#define font5	ft81x_fonts[4]
+#define font6	ft81x_fonts[5]
+#define font7	ft81x_fonts[6]
+#define font8	ft81x_fonts[7]
+#define font9	ft81x_fonts[8]
+#define font10	ft81x_fonts[9]
+#define font11	ft81x_fonts[10]
+#define font12	ft81x_fonts[11]
+#define font13	ft81x_fonts[12]
+#define font14	ft81x_fonts[13]
+#define font15	ft81x_fonts[14]
+#define font16	ft81x_fonts[15]
+
+#endif
 
 #endif /* UV_HAL_INC_UI_UV_UIFONT_H_ */

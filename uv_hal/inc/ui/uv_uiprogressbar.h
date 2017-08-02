@@ -14,7 +14,7 @@
 #include <uv_utilities.h>
 
 
-#if CONFIG_LCD
+#if CONFIG_UI
 
 #if !CONFIG_UI_PROGRESSBAR_WIDTH
 #error "CONFIG_UI_PROGRESSBAR_WIDTH should define the width of individual\

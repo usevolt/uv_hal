@@ -9,7 +9,7 @@
 #include <string.h>
 #include "uv_rtos.h"
 
-#if CONFIG_LCD
+#if CONFIG_UI
 
 
 
@@ -53,6 +53,7 @@ static void update_input(char *input, const uv_uistyle_st *style);
 
 
 static void draw(const char *title, char *buffer, const uv_uistyle_st *style) {
+#if CONFIG_LCD
 	// fill whole screen
 	uv_lcd_draw_rect(0, 0, LCD_W_PX, LCD_H_PX, style->window_c);
 
@@ -122,6 +123,10 @@ static void draw(const char *title, char *buffer, const uv_uistyle_st *style) {
 			style->text_color, style->inactive_bg_c, "Space", 1.0f);
 
 	uv_lcd_double_buffer_swap();
+
+#elif CONFIG_FT81X
+#warning "ft81x not implemented"
+#endif
 }
 
 
@@ -144,6 +149,7 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 		if (touch->x >= x && touch->x <= x + BUTTON_W &&
 				touch->y >= y && touch->y <= y + BUTTON_H) {
 			if (touch->action == TOUCH_PRESSED) {
+#if CONFIG_LCD
 				uv_lcd_draw_rect(x, y, BUTTON_W, BUTTON_H, style->active_bg_c);
 				uv_lcd_draw_frame(x, y, BUTTON_W + 1, BUTTON_H + 1, 1, style->active_frame_c);
 				char str[2];
@@ -152,6 +158,9 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 				_uv_ui_draw_text(x + BUTTON_W / 2, y + BUTTON_H / 2, style->font, ALIGN_CENTER,
 						style->text_color, C(0xFFFFFFFF), str, 1.0f);
 				uv_lcd_double_buffer_swap();
+#elif CONFIG_FT81X
+#warning "ft81x not implemented"
+#endif
 				return '\0';
 			}
 			else if (touch->action == TOUCH_RELEASED) {
@@ -164,11 +173,15 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 				if (touch->x >= x &&
 						touch->y >= y && touch->y <= y + BUTTON_H) {
 					if (touch->action == TOUCH_PRESSED) {
+#if CONFIG_LCD
 						uv_lcd_draw_rect(x + BUTTON_W, y, BUTTON_W * 2, BUTTON_H, style->active_bg_c);
 						uv_lcd_draw_frame(x + BUTTON_W, y, BUTTON_W * 2 + 1, BUTTON_H + 1, 1, style->active_frame_c);
 						_uv_ui_draw_text(x + BUTTON_W * 2, y + BUTTON_H / 2, style->font, ALIGN_CENTER,
 								style->text_color, C(0xFFFFFFFF), "Backspace", 1.0f);
 						uv_lcd_double_buffer_swap();
+#elif CONFIG_FT81X
+#warning "ft81x not implemented"
+#endif
 					}
 					else if (touch->action == TOUCH_RELEASED) {
 						refresh = true;
@@ -180,6 +193,7 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 				if (touch->x >= x + BUTTON_W &&
 						touch->y >= y && touch->y <= y + BUTTON_H * 2) {
 					if (touch->action == TOUCH_PRESSED) {
+#if CONFIG_LCD
 						uv_lcd_draw_rect(x + BUTTON_W, y, BUTTON_W * 1.5, BUTTON_H * 2, style->active_bg_c);
 						uv_lcd_draw_frame(x + BUTTON_W, y, BUTTON_W * 1.5 + 1, BUTTON_H * 2 + 1, 1, style->active_frame_c);
 						uv_lcd_draw_rect(x + BUTTON_W - BUTTON_W / 2 + 2, y + BUTTON_H + 1, BUTTON_W / 2, BUTTON_H - 1,
@@ -187,6 +201,9 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 						_uv_ui_draw_text(x + BUTTON_W * 1.75, y + BUTTON_H, style->font, ALIGN_CENTER,
 								style->text_color, C(0xFFFFFFFF), "Enter", 1.0f);
 						uv_lcd_double_buffer_swap();
+#elif CONFIG_FT81X
+#warning "ft81x not implemented"
+#endif
 					}
 					else if (touch->action == TOUCH_RELEASED) {
 						refresh = true;
@@ -198,11 +215,15 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 				if (touch->x >= x &&
 						touch->y >= y && touch->y <= y + BUTTON_H) {
 					if (touch->action == TOUCH_PRESSED) {
+#if CONFIG_LCD
 						uv_lcd_draw_rect(x + BUTTON_W, y, BUTTON_W * 2, BUTTON_H, style->active_bg_c);
 						uv_lcd_draw_frame(x + BUTTON_W, y, BUTTON_W * 2 + 1, BUTTON_H + 1, 1, style->active_frame_c);
 						_uv_ui_draw_text(x + BUTTON_W * 2, y + BUTTON_H / 2, style->font, ALIGN_CENTER,
 								style->text_color, C(0xFFFFFFFF), "Shift", 1.0f);
 						uv_lcd_double_buffer_swap();
+#elif CONFIG_FT81X
+#warning "ft81x not implemented"
+#endif
 					}
 					else if (touch->action == TOUCH_RELEASED) {
 						refresh = true;
@@ -224,11 +245,15 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 	if (touch->x >= LCD_W(0.1f) && touch->x <= LCD_W(0.9f) &&
 			touch->y >= y) {
 		if (touch->action == TOUCH_PRESSED) {
+#if CONFIG_LCD
 			uv_lcd_draw_rect(LCD_W(0.1), y, LCD_W(0.8), BUTTON_H, style->active_bg_c);
 			uv_lcd_draw_frame(LCD_W(0.1), y, LCD_W(0.8), BUTTON_H, 1, style->active_frame_c);
 			_uv_ui_draw_text(LCD_W(0.5), y + BUTTON_H / 2, style->font, ALIGN_CENTER,
 					style->text_color, C(0xFFFFFFFF), "Space", 1.0f);
 			uv_lcd_double_buffer_swap();
+#elif CONFIG_FT81X
+#warning "ft81x not implemented"
+#endif
 		}
 		else if (touch->action == TOUCH_RELEASED) {
 			refresh = true;
@@ -241,8 +266,12 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 
 static void update_input(char *input, const uv_uistyle_st *style) {
 	// clear all previous texts
+#if CONFIG_LCD
 	uv_lcd_draw_rect(0, style->font->char_height,
 			LCD_W(1), LCD_H(1 - KEYBOARD_HEIGHT) - 2 - style->font->char_height, style->window_c);
+#elif CONFIG_FT81X
+#warning "ft81x not implemented"
+#endif
 
 	// if the text is too long to fit to the screen,
 	// replace the last space with a new line
@@ -254,8 +283,12 @@ static void update_input(char *input, const uv_uistyle_st *style) {
 			}
 		}
 	}
+#if CONFIG_LCD
 	_uv_ui_draw_text(0, style->font->char_height, style->font,
 			ALIGN_TOP_LEFT, style->text_color, style->window_c, input, 1.0f);
+#elif CONFIG_FT81X
+#warning "ft81x not implemented"
+#endif
 
 }
 
@@ -267,13 +300,21 @@ bool uv_uikeyboard_show(const char *title, char *buffer,
 	uv_touch_st t;
 	uint16_t input_len = 0;
 	shift = false;
+#if CONFIG_LCD
 	bool pressed = uv_lcd_touch_get(&t.x, &t.y);
+#elif CONFIG_FT81X
+	bool pressed = uv_ft81x_get_touch(&t.x, &t.y);
+#endif
 	refresh = true;
 	buffer[0] = '\0';
 
 	while (true) {
 
+#if CONFIG_LCD
 		bool state = uv_lcd_touch_get(&t.x, &t.y);
+#elif CONFIG_FT81X
+		bool state = uv_ft81x_get_touch(&t.x, &t.y);
+#endif
 		// either pressed or released
 		if (state && !pressed) {
 			t.action = TOUCH_PRESSED;
