@@ -14,6 +14,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include "uv_errors.h"
 
 
@@ -227,34 +228,28 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, u
 
 #if CONFIG_TARGET_LPC1549
 
-typedef uint8_t uv_gpio_e;
+uint8_t uv_gpio_get_port(uv_gpios_e gpio);
 
-static inline uint8_t uv_gpio_get_port(uv_gpio_e gpio) {
-	return ((gpio - 1) / 31);
-}
+uint8_t uv_gpio_get_pin(uv_gpios_e gpio);
 
-static inline uint8_t uv_gpio_get_pin(uv_gpio_e gpio) {
-	return ((gpio - 1) % 31);
-}
-
-static inline bool uv_gpio_get(uv_gpio_e gpio) {
+static inline bool uv_gpio_get(uv_gpios_e gpio) {
 	return Chip_GPIO_GetPinState(LPC_GPIO, uv_gpio_get_port(gpio), uv_gpio_get_pin(gpio));
 }
 
-static inline void uv_gpio_set(uv_gpio_e gpio, bool value) {
+static inline void uv_gpio_set(uv_gpios_e gpio, bool value) {
 	Chip_GPIO_SetPinState(LPC_GPIO, uv_gpio_get_port(gpio), uv_gpio_get_pin(gpio), value);
 }
 
-static inline void uv_gpio_toggle(uv_gpio_e gpio) {
+static inline void uv_gpio_toggle(uv_gpios_e gpio) {
 	Chip_GPIO_SetPinToggle(LPC_GPIO, uv_gpio_get_port(gpio), uv_gpio_get_pin(gpio));
 }
 
-static inline void uv_gpio_init_input(uv_gpio_e gpio, uint32_t confs) {
+static inline void uv_gpio_init_input(uv_gpios_e gpio, uint32_t confs) {
 	Chip_GPIO_SetPinDIRInput(LPC_GPIO, uv_gpio_get_port(gpio), uv_gpio_get_pin(gpio));
 	UV_GPIO_CONFIGURE(gpio, confs);
 }
 
-static inline void uv_gpio_init_output(uv_gpio_e gpio, bool value) {
+static inline void uv_gpio_init_output(uv_gpios_e gpio, bool value) {
 	UV_GPIO_CONFIGURE(gpio, 0);
 	Chip_GPIO_SetPinDIROutput(LPC_GPIO, uv_gpio_get_port(gpio), uv_gpio_get_pin(gpio));
 	uv_gpio_set(gpio, value);

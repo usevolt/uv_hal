@@ -14,7 +14,7 @@
 #include "uv_errors.h"
 #include <stdbool.h>
 #include <stdint.h>
-#if CONFIG_ADC
+#if CONFIG_ADC || CONFIG_ADC1 || CONFIG_ADC0
 
 
 #if CONFIG_TARGET_LPC1785

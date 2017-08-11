@@ -7,13 +7,13 @@
 
 
 #include "ui/uv_uiobject.h"
-#include "ui/uv_uiwindow.h"
-#include "uv_utilities.h"
-#include CONFIG_UI_DISPLAY_H
-#include <stddef.h>
-
 
 #if CONFIG_UI
+
+#include "ui/uv_uiwindow.h"
+#include "uv_utilities.h"
+#include <stddef.h>
+#include CONFIG_UI_DISPLAY_H
 
 #define this ((uv_uiobject_st*) me)
 

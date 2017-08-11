@@ -45,6 +45,7 @@ typedef uint8_t canopen_permissions_e;
 #define CANOPEN_ARRAY_MASK 	0b11000000
 #define CANOPEN_STRING_MASK 0b00110000
 #define CANOPEN_NUMBER_MASK	0b00000111
+#define CANOPEN_TYPE_LEN(type)	(type & (CANOPEN_NUMBER_MASK))
 enum {
 	CANOPEN_UNSIGNED8 = 1,
 	CANOPEN_SIGNED8 = 1,

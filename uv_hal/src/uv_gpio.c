@@ -118,5 +118,16 @@ void GPIO_IRQHandler(void) {
 	__NOP();
 }
 
+#elif CONFIG_TARGET_LPC1549
+uint8_t uv_gpio_get_port(uv_gpios_e gpio) {
+	return ((gpio - 1) / 31);
+}
+
+uint8_t uv_gpio_get_pin(uv_gpios_e gpio) {
+	return ((gpio - 1) % 31);
+}
+
+
+
 #endif
 

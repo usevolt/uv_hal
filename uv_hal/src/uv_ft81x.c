@@ -12,6 +12,9 @@
 #include "uv_rtos.h"
 #include <string.h>
 
+
+#if CONFIG_FT81X
+
 #define READ8_LEN						5
 #define READ16_LEN						6
 #define READ32_LEN						8
@@ -342,6 +345,9 @@ typedef enum {
 
 #define _DEBUG		0
 
+#if defined(DEBUG)
+#undef DEBUG
+#endif
 #if _DEBUG
 #define DEBUG(...) printf(__VA_ARGS__)
 #else
@@ -1101,3 +1107,4 @@ void uv_ft81x_set_mask(int16_t x, int16_t y, uint16_t width, uint16_t height) {
 
 
 
+#endif

@@ -20,7 +20,7 @@
 #include "uv_gpio.h"
 #endif
 
-#if CONFIG_ADC
+#if CONFIG_ADC || CONFIG_ADC0 || CONFIG_ADC1
 
 #if CONFIG_TARGET_LPC11C14
 ///controller specific initializations for AD pins
@@ -330,6 +330,11 @@ int16_t uv_adc_read(uv_adc_channels_e channel) {
 		Chip_ADC_SetupSequencer(LPC_ADC0, ADC_SEQA_IDX,
 				ADC_SEQ_CTRL_CHANSEL(channel) | ADC_SEQ_CTRL_HWTRIG_POLPOS);
 		Chip_ADC_EnableSequencer(LPC_ADC0, ADC_SEQA_IDX);
+		// for unknown reason delay is added here.
+		// Otherwise multiple reads affect each other
+		for (uint8_t i = 0; i < 0x80; i++) {
+			__NOP();
+		}
 		Chip_ADC_StartSequencer(LPC_ADC0, ADC_SEQA_IDX);
 		// wait for the conversion to finish
 		while (!(LPC_ADC0->SEQ_GDAT[ADC_SEQA_IDX] & (1 << 31))) {
