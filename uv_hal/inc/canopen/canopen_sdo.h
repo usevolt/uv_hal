@@ -35,61 +35,66 @@ typedef uint32_t uv_sdo_error_codes_e;
 
 
 
-/// @brief: Defines the indexspaces for CANopen object main indexes.
-/// 0x1000 - 0x1FFF objects are reserved for CANopen communication parameters
-/// and many of them are defined in CiA documents.
-/// 0x2000 - 0x2FFF is mainly for application objects.
-typedef enum {
-	CANOPEN_SDO_COMMUNICATION_INDEXSPACE =		0x1000,
-	CANOPEN_SDO_APPLICATION_INDEXSPACE =		0x2000
-} uv_sdo_mindex_namespaces_e;
-
-
 
 enum {
 	CANOPEN_SDO_STATE_READY = 1,
-	CANOPEN_SDO_STATE_TRANSFER_ABORTED = 2,
-	CANOPEN_SDO_STATE_TRANSFER_DONE = 3,
-	CANOPEN_SDO_STATE_EXPEDITED_WRITE = (1 << 4),
-	CANOPEN_SDO_STATE_EXPEDITED_READ = (2 << 4),
-	CANOPEN_SDO_STATE_SEGMENTED_READ = (3 << 4),
-	CANOPEN_SDO_STATE_SEGMENTED_WRITE = (4 << 4)
+	CANOPEN_SDO_STATE_TRANSFER_ABORTED,
+	CANOPEN_SDO_STATE_TRANSFER_DONE,
+	CANOPEN_SDO_STATE_EXPEDITED_WRITE,
+	CANOPEN_SDO_STATE_EXPEDITED_READ,
+	CANOPEN_SDO_STATE_SEGMENTED_READ,
+	CANOPEN_SDO_STATE_SEGMENTED_WRITE
 };
 typedef uint8_t canopen_sdo_state_e;
-#define CANOPEN_SDO_STATE_FINISHED_MASK	(0b1111)
+
+
+enum {
+	INVALID_MSG = 0,
+	UNKNOWN_SDO_MSG,
+	ABORT_DOMAIN_TRANSFER,
+	INITIATE_DOMAIN_DOWNLOAD_EXPEDITED,
+	INITIATE_DOMAIN_DOWNLOAD_SEGMENTED,
+	DOWNLOAD_DOMAIN_SEGMENT,
+	INITIATE_DOMAIN_UPLOAD,
+	UPLOAD_DOMAIN_SEGMENT
+};
+typedef uint8_t sdo_request_type_e;
+
 
 
 void _uv_canopen_sdo_init(void);
 
-void _uv_canopen_sdo_reset(void);
 
-void _uv_canopen_sdo_step(uint16_t step_ms);
+extern void _uv_canopen_sdo_client_reset(void);
+extern void _uv_canopen_sdo_server_reset(void);
+
+static inline void _uv_canopen_sdo_reset(void) {
+	_uv_canopen_sdo_client_reset();
+	_uv_canopen_sdo_server_reset();
+}
+
+void _uv_canopen_sdo_client_step(uint16_t step_ms);
+void _uv_canopen_sdo_server_step(uint16_t step_ms);
+
+static inline void _uv_canopen_sdo_step(uint16_t step_ms) {
+	_uv_canopen_sdo_client_step(step_ms);
+	_uv_canopen_sdo_server_step(step_ms);
+}
+
+
 
 void _uv_canopen_sdo_rx(const uv_can_message_st *msg);
-
-/// @brief: Sends a CANOpen SDO write request without waiting for the response
-uv_errors_e _uv_canopen_sdo_write(uint8_t node_id,
-		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *data);
-
-
-#if CONFIG_CANOPEN_SDO_SYNC
-/// @brief: Sends a CANOpen SDO write request and waits for the response
-/// **timeout_ms** milliseconds. If the write request failed or the timeout
-/// expires, returns an error.
-uv_errors_e _uv_canopen_sdo_write_sync(uint8_t node_id, uint16_t mindex,
-		uint8_t sindex, uint32_t data_len, void *data, int32_t timeout_ms);
-
-/// @brief: Sends a CANOpen SDO read request and waits for the response
-/// **timeout_ms** milliseconds. If the read request failed or the timeout
-/// expires, returns an error.
-uv_errors_e _uv_canopen_sdo_read_sync(uint8_t node_id,
-		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *data, int32_t timeout_ms);
-#endif
 
 
 /// @brief: Sends a CANOpen SDO abort message
 void _uv_canopen_sdo_abort(uint16_t request_response, uint16_t main_index,
 		uint8_t sub_index, uv_sdo_error_codes_e err_code);
+
+
+
+/// @brief: Finds the object dictionary object. Used by canopen_sdo_client and server modules
+bool _canopen_find_object(const uv_can_message_st *msg,
+		canopen_object_st *obj, canopen_permissions_e permission_req);
 
 
 

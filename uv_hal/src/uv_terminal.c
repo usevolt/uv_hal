@@ -289,7 +289,7 @@ void uv_terminal_help_callb(void *me, unsigned int cmd, unsigned int args, argum
 	}
 }
 void uv_terminal_dev_callb(void *me, unsigned int cmd, unsigned int args, argument_st *argv) {
-	printf("%s Build on %s\n", uv_projname, uv_datetime);
+	printf("%s, if revision %u, Build on %s\n", uv_projname, CONFIG_INTERFACE_REVISION, uv_datetime);
 }
 
 #if CONFIG_TERMINAL_INSTRUCTIONS
@@ -320,7 +320,6 @@ void uv_terminal_reset_callb(void *me, unsigned int cmd, unsigned int args, argu
 	else {
 		uv_system_reset(false);
 	}
-
 }
 #if CONFIG_NON_VOLATILE_MEMORY
 void uv_terminal_save_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv) {

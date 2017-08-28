@@ -17,6 +17,8 @@
 #include "canopen/canopen_nmt.h"
 #include "canopen/canopen_pdo.h"
 #include "canopen/canopen_sdo.h"
+#include "canopen/canopen_sdo_client.h"
+#include "canopen/canopen_sdo_server.h"
 #include "canopen/canopen_emcy.h"
 #include "canopen/canopen_obj_dict.h"
 
@@ -97,13 +99,11 @@
 #if !defined(CONFIG_CANOPEN_IDENTITY_INDEX)
 #define CONFIG_CANOPEN_IDENTITY_INDEX		0x1018
 #endif
+#if CONFIG_INTERFACE_REVISION
+#define CONFIG_CANOPEN_INTERFACE_REVISION_INDEX	0x2FF0
+#endif
 #if !defined(CONFIG_CANOPEN_PDO_MAPPING_COUNT)
 #define CONFIG_CANOPEN_PDO_MAPPING_COUNT	8
-#endif
-#if !defined(CONFIG_CANOPEN_SDO_SYNC)
-#error "CONFIG_CANOPEN_SDO_SYNC should define if synchronized SDO transmission is enabled.\
- It defaults to 0."
-#define CONFIG_CANOPEN_SDO_SYNC				0
 #endif
 #if !defined(CONFIG_CANOPEN_SDO_SEGMENTED)
 #error "CONFIG_CANOPEN_SDO_SEGMENTED should be defined as 1 if SDO segmented transfers \
@@ -141,6 +141,10 @@ should be enabled. Defaults to 0."
 #endif
 #if !defined(CONFIG_CANOPEN_EMCY_RX_BUFFER_SIZE)
 #error "CONFIG_CANOPEN_EMCY_RX_BUFFER_SIZE should define the buffer size for received EMCY messages"
+#endif
+#if !CONFIG_CANOPEN_SDO_TIMEOUT_MS
+#error "CONFIG_CANOPEN_SDO_TIMEOUT_MS should define the SDO protocol timeout in segmented and block transfers\
+ in milliseconds."
 #endif
 #if CONFIG_TARGET_LPC1785
 #if !defined(CONFIG_CANOPEN_EMCY_MSG_COUNT)
@@ -192,16 +196,18 @@ typedef struct {
 
 	// SDO member variables
 	struct {
-		canopen_sdo_state_e state;
 		struct {
-			uint16_t mindex;
-			uint8_t sindex;
-			uint8_t node_id;
-			void *rx_data;
-			uint32_t rx_data_len;
-		} transfer;
+			canopen_sdo_state_e state;
+		} client;
+		struct {
+			canopen_sdo_state_e state;
+		} server;
 	} sdo;
 	void (*can_callback)(void *user_ptr, uv_can_message_st* msg);
+
+#if CONFIG_INTERFACE_REVISION
+	uint16_t if_revision;
+#endif
 
 } _uv_canopen_st;
 
@@ -340,7 +346,7 @@ canopen_node_states_e uv_canopen_get_state(void);
 /// @brief: Quick way for sending a SDO write request
 static inline uv_errors_e uv_canopen_sdo_write(uint8_t node_id,
 		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *data) {
-	return _uv_canopen_sdo_write(node_id, mindex, sindex, data_len, data);
+	return _uv_canopen_sdo_client_write(node_id, mindex, sindex, data_len, data);
 }
 
 /// @brief: Sets a CAN message callback. This can be used in order to manually receive messages
@@ -349,12 +355,12 @@ static inline uv_errors_e uv_canopen_sdo_write(uint8_t node_id,
 #if CONFIG_CANOPEN_SDO_SYNC
 static inline uv_errors_e uv_canopen_sdo_write_sync(uint8_t node_id, uint16_t mindex,
 		uint8_t sindex, uint32_t data_len, void *data, int32_t timeout_ms) {
-	return _uv_canopen_sdo_write_sync(node_id, mindex, sindex, data_len, data, timeout_ms);
+	return _uv_canopen_sdo_client_write_sync(node_id, mindex, sindex, data_len, data, timeout_ms);
 }
 
 static inline uv_errors_e uv_canopen_sdo_read_sync(uint8_t node_id, uint16_t mindex,
 		uint8_t sindex, uint32_t data_len, void *data, int32_t timeout_ms) {
-	return _uv_canopen_sdo_read_sync(node_id, mindex, sindex, data_len, data, timeout_ms);
+	return _uv_canopen_sdo_client_read_sync(node_id, mindex, sindex, data_len, data, timeout_ms);
 }
 #endif
 

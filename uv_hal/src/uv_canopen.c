@@ -37,12 +37,12 @@ _uv_canopen_st _canopen;
 
 void _uv_canopen_init(void) {
 	this->can_callback = NULL;
+	this->if_revision = CONFIG_INTERFACE_REVISION;
 	_uv_canopen_nmt_init();
 	_uv_canopen_heartbeat_init();
 	_uv_canopen_sdo_init();
 	_uv_canopen_pdo_init();
 	_uv_canopen_emcy_init();
-
 }
 
 void _uv_canopen_reset(void) {
