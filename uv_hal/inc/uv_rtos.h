@@ -50,13 +50,13 @@
 
 /// @brief: Disables all interrupt. This shouldn't be called from
 /// interrupt routines, use uv_disable_int_ISR instead!
-#define uv_disable_int()		taskENTER_CRITICAL()
+#define uv_disable_int()		__disable_irq()
 /// @brief: Disabled all interrupts. This is meant to be called from
 /// inside interrupt routines.
 #define uv_disable_int_ISR()	taskENTER_CRITICAL_FROM_ISR()
 /// @brief: Enables all interrupts. This shouldn't be called from
 /// interrupt routines, use uv_enable_int_ISR instead!
-#define uv_enable_int()			taskEXIT_CRITICAL()
+#define uv_enable_int()			__enable_irq()
 /// @brief: Enabled all interrupts. This is meant to be called from
 /// inside interrupt routines.
 #define uv_enable_int_ISR()		taskEXIT_CRITICAL_FROM_ISR(1)

@@ -316,6 +316,21 @@ int uv_mini(int a, int b) {
 }
 
 
+uint32_t uv_ctz(uint32_t a) {
+	uint32_t c = 32; // c will be the number of zero bits on the right
+	a &= - ((int32_t) a);
+	if (a) c--;
+	if (a & 0x0000FFFF) c -= 16;
+	if (a & 0x00FF00FF) c -= 8;
+	if (a & 0x0F0F0F0F) c -= 4;
+	if (a & 0x33333333) c -= 2;
+	if (a & 0x55555555) c -= 1;
+
+	return c;
+}
+
+
+
 void _delay_ms (uint16_t ms)
 {
 	volatile uint16_t delay;

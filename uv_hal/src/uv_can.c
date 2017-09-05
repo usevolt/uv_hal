@@ -146,9 +146,9 @@ typedef struct {
 	// defined here to be global instead of local
 	hal_can_msg_obj_st temp_obj;
 	bool init;
-	uv_can_message_st rx_buffer_data[CONFIG_CAN1_RX_BUFFER_SIZE];
+	uv_can_message_st rx_buffer_data[CONFIG_CAN0_RX_BUFFER_SIZE];
 	uv_ring_buffer_st rx_buffer;
-	uv_can_message_st tx_buffer_data[CONFIG_CAN1_TX_BUFFER_SIZE];
+	uv_can_message_st tx_buffer_data[CONFIG_CAN0_TX_BUFFER_SIZE];
 	uv_ring_buffer_st tx_buffer;
 	int16_t tx_pending;
 #if CONFIG_TERMINAL_CAN
@@ -163,13 +163,13 @@ typedef struct {
 typedef struct {
 	bool init;
 	void (*rx_callback[CAN_COUNT])(void *user_ptr);
-#if CONFIG_CAN1
-	uv_can_message_st rx_buffer_data1[CONFIG_CAN1_RX_BUFFER_SIZE];
-	uv_can_message_st tx_buffer_data1[CONFIG_CAN1_TX_BUFFER_SIZE];
+#if CONFIG_CAN0
+	uv_can_message_st rx_buffer_data1[CONFIG_CAN0_RX_BUFFER_SIZE];
+	uv_can_message_st tx_buffer_data1[CONFIG_CAN0_TX_BUFFER_SIZE];
 #endif
-#if CONFIG_CAN2
-	uv_can_message_st rx_buffer_data2[CONFIG_CAN2_RX_BUFFER_SIZE];
-	uv_can_message_st tx_buffer_data2[CONFIG_CAN2_TX_BUFFER_SIZE];
+#if CONFIG_CAN1
+	uv_can_message_st rx_buffer_data2[CONFIG_CAN1_RX_BUFFER_SIZE];
+	uv_can_message_st tx_buffer_data2[CONFIG_CAN1_TX_BUFFER_SIZE];
 #endif
 	uv_ring_buffer_st rx_buffer[CAN_COUNT];
 	uv_ring_buffer_st tx_buffer[CAN_COUNT];
@@ -194,9 +194,9 @@ typedef struct {
 	// defined here to be global instead of local
 	hal_can_msg_obj_st temp_obj;
 	bool init;
-	uv_can_message_st rx_buffer_data[CONFIG_CAN1_RX_BUFFER_SIZE];
+	uv_can_message_st rx_buffer_data[CONFIG_CAN0_RX_BUFFER_SIZE];
 	uv_ring_buffer_st rx_buffer;
-	uv_can_message_st tx_buffer_data[CONFIG_CAN1_TX_BUFFER_SIZE];
+	uv_can_message_st tx_buffer_data[CONFIG_CAN0_TX_BUFFER_SIZE];
 	uv_ring_buffer_st tx_buffer;
 	int16_t tx_pending;
 #if CONFIG_TERMINAL_CAN
@@ -446,15 +446,15 @@ uv_errors_e _uv_can_init() {
 	this->tx_pending = 0;
 	this->used_msg_objs = (1 << TX_MSG_OBJ);
 	uv_ring_buffer_init(&this->rx_buffer, this->rx_buffer_data,
-			CONFIG_CAN1_RX_BUFFER_SIZE, sizeof(uv_can_message_st));
+			CONFIG_CAN0_RX_BUFFER_SIZE, sizeof(uv_can_message_st));
 	uv_ring_buffer_init(&this->tx_buffer, this->tx_buffer_data,
-			CONFIG_CAN1_TX_BUFFER_SIZE, sizeof(uv_can_message_st));
+			CONFIG_CAN0_TX_BUFFER_SIZE, sizeof(uv_can_message_st));
 	SystemCoreClockUpdate();
 	uint32_t CanApiClkInitTable[] = {
 		//CANCLKDIV register
 		0,
 		//BTR register: TSEG2 = 2, TSEG1 = 1, SJW = 0 (equals to 0x2300)
-		0x2300 + ((SystemCoreClock / (8 * CONFIG_CAN1_BAUDRATE) - 1) & 0x3F)
+		0x2300 + ((SystemCoreClock / (8 * CONFIG_CAN0_BAUDRATE) - 1) & 0x3F)
 	};
 	/* Publish CAN Callback Functions */
 	CCAN_CALLBACKS_T callbacks = {
@@ -483,7 +483,7 @@ uv_errors_e _uv_can_init() {
 #if CONFIG_TERMINAL_CAN
 	uv_ring_buffer_init(&this->char_buffer, this->char_buffer_data, CONFIG_TERMINAL_BUFFER_SIZE, sizeof(char));
 #if !CONFIG_CANOPEN
-	uv_can_config_rx_message(CAN1, UV_TERMINAL_CAN_RX_ID + uv_get_id(), CAN_STD);
+	uv_can_config_rx_message(CAN0, UV_TERMINAL_CAN_RX_ID + uv_get_id(), CAN_STD);
 #endif
 #endif
 	return uv_err(ERR_NONE);
@@ -612,24 +612,24 @@ uv_errors_e uv_can_reset(uv_can_channels_e channel) {
 
 // same handler for both CAN channels
 void CAN_IRQHandler(void) {
-#if CONFIG_CAN1
+#if CONFIG_CAN0
 	// CAN tranceiver is either in bus off or error active state
-	if (LPC_CAN1->ICR & (0b11 << 2)) {
-		LPC_CAN1->MOD &= ~1;
+	if (LPC_CAN0->ICR & (0b11 << 2)) {
+		LPC_CAN0->MOD &= ~1;
 		return;
 	}
 
-	if (LPC_CAN1->GSR & (1 << 2)) {
-		_uv_can_hal_send(CAN1);
+	if (LPC_CAN0->GSR & (1 << 2)) {
+		_uv_can_hal_send(CAN0);
 	}
-	while (LPC_CAN1->GSR & 1) {
+	while (LPC_CAN0->GSR & 1) {
 		// data ready to be received
-		this->temp.id = LPC_CAN1->RID;
-		this->temp.data_length = ((LPC_CAN1->RFS & (0b1111 << 16)) >> 16);
+		this->temp.id = LPC_CAN0->RID;
+		this->temp.data_length = ((LPC_CAN0->RFS & (0b1111 << 16)) >> 16);
 		if (this->temp.data_length > 8) this->temp.data_length = 8;
-		this->temp.type = (LPC_CAN1->RFS & (1 << 31)) ? CAN_EXT : CAN_STD;
-		this->temp.data_32bit[0] = LPC_CAN1->RDA;
-		this->temp.data_32bit[1] = LPC_CAN1->RDB;
+		this->temp.type = (LPC_CAN0->RFS & (1 << 31)) ? CAN_EXT : CAN_STD;
+		this->temp.data_32bit[0] = LPC_CAN0->RDA;
+		this->temp.data_32bit[1] = LPC_CAN0->RDB;
 
 #if CONFIG_TERMINAL_CAN
 	// terminal characters are sent to their specific buffer
@@ -645,19 +645,19 @@ void CAN_IRQHandler(void) {
 			uv_ring_buffer_push(&this->char_buffer, (char*) &this->temp.data_8bit[4 + i]);
 		}
 		// clear received flag
-		LPC_CAN1->CMR |= (1 << 2);
+		LPC_CAN0->CMR |= (1 << 2);
 		continue;
 	}
 #endif
 		uv_ring_buffer_push(&this->rx_buffer[0], &this->temp);
 
 		// clear received flag
-		LPC_CAN1->CMR = (1 << 2);
+		LPC_CAN0->CMR = (1 << 2);
 	}
 
 #endif
-#if CONFIG_CAN2
-#error "Todo: copy CAN1 message reception to here"
+#if CONFIG_CAN1
+#error "Todo: copy CAN0 message reception to here"
 #endif
 }
 
@@ -665,12 +665,12 @@ void CAN_IRQHandler(void) {
 uv_errors_e _uv_can_init() {
 	uv_errors_e ret = ERR_NONE;
 
-#if CONFIG_CAN1
+#if CONFIG_CAN0
 	uv_ring_buffer_init(&this->rx_buffer[0], this->rx_buffer_data1,
-			CONFIG_CAN1_RX_BUFFER_SIZE, sizeof(uv_can_message_st));
+			CONFIG_CAN0_RX_BUFFER_SIZE, sizeof(uv_can_message_st));
 
 	uv_ring_buffer_init(&this->tx_buffer[0], this->tx_buffer_data1,
-			CONFIG_CAN1_TX_BUFFER_SIZE, sizeof(uv_can_message_st));
+			CONFIG_CAN0_TX_BUFFER_SIZE, sizeof(uv_can_message_st));
 
 	this->rx_callback[0] = NULL;
 
@@ -678,52 +678,52 @@ uv_errors_e _uv_can_init() {
 	LPC_SC->PCONP |= (1 << 13);
 
 	// configure the IO pins
-#if CONFIG_CAN1_TX_PIN == PIO0_1
+#if CONFIG_CAN0_TX_PIN == PIO0_1
 	LPC_IOCON->P0_1 = 1;
-#elif CONFIG_CAN1_TX_PIN == PIO0_22
+#elif CONFIG_CAN0_TX_PIN == PIO0_22
 	LPC_IOCON->P0_22 = 0b100;
 #endif
-#if CONFIG_CAN1_RX_PIN == PIO0_0
+#if CONFIG_CAN0_RX_PIN == PIO0_0
 	LPC_IOCON->P0_0 = 1;
-#elif CONFIG_CAN1_RX_PIN == PIO0_21
+#elif CONFIG_CAN0_RX_PIN == PIO0_21
 	LPC_IOCON->P0_21 = 0b100;
 #endif
 	// enter reset mode
-	LPC_CAN1->MOD |= 1;
+	LPC_CAN0->MOD |= 1;
 	// normal mode, transmit priority to CAN IDs, no sleep mode
-	LPC_CAN1->MOD &= ~(0b10111110);
+	LPC_CAN0->MOD &= ~(0b10111110);
 	// enable receive interrupts and transmit interrupts
-	LPC_CAN1->IER = 1 | (1 << 2) | (1 << 1) | (1 << 9) | (1 << 10);
+	LPC_CAN0->IER = 1 | (1 << 2) | (1 << 1) | (1 << 9) | (1 << 10);
 	NVIC_EnableIRQ(CAN_IRQn);
 	// TSEG1, TSEG2
-	LPC_CAN1->BTR = (12 << 16) | (1 << 20);
+	LPC_CAN0->BTR = (12 << 16) | (1 << 20);
 	// for some reason incrementing TSEG by 1 needs CANX_BAUDRATE to be divided by 2
-	LPC_CAN1->BTR |= (SystemCoreClock / (CONFIG_CAN1_BAUDRATE * 32) - 1) & 0x3FF;
+	LPC_CAN0->BTR |= (SystemCoreClock / (CONFIG_CAN0_BAUDRATE * 32) - 1) & 0x3FF;
 
-//	LPC_CAN->BT = (SystemCoreClock / (CONFIG_CAN1_BAUDRATE * 8) & 0x3F)
+//	LPC_CAN->BT = (SystemCoreClock / (CONFIG_CAN0_BAUDRATE * 8) & 0x3F)
 //				  | (1 << 8) | (2 << 12);
 
 	// set CAN peripheral ON
-	LPC_CAN1->MOD &= ~1;
+	LPC_CAN0->MOD &= ~1;
 
 #endif
-#if CONFIG_CAN2
+#if CONFIG_CAN1
 	uv_ring_buffer_init(&this->rx_buffer[1], this->rx_buffer_data2,
-			CONFIG_CAN2_RX_BUFFER_SIZE, sizeof(uv_can_message_st));
+			CONFIG_CAN1_RX_BUFFER_SIZE, sizeof(uv_can_message_st));
 
 	this->rx_callback[1] = NULL;
-#error "Todo: Copy CAN1 initialization here"
+#error "Todo: Copy CAN0 initialization here"
 
 	LPC_SC->PCONP |= (1 << 14);
 
-#if CONFIG_CAN2_TX_PIN == PIO0_5
+#if CONFIG_CAN1_TX_PIN == PIO0_5
 	LPC_IOCON->P0_5 = 0b10;
-#elif CONFIG_CAN2_TX_PIN == PIO2_8
+#elif CONFIG_CAN1_TX_PIN == PIO2_8
 	LPC_IOCON->P2_8 = 1;
 #endif
-#if CONFIG_CAN2_RX_PIN == PIO0_4
+#if CONFIG_CAN1_RX_PIN == PIO0_4
 	LPC_IOCON->P0_4 = 0b10;
-#elif CONFIG_CAN2_RX_PIN == PIO2_7
+#elif CONFIG_CAN1_RX_PIN == PIO2_7
 	LPC_IOCON->P2_7 = 1;
 #endif
 
@@ -745,7 +745,7 @@ uv_errors_e _uv_can_init() {
 #if CONFIG_TERMINAL_CAN
 	uv_ring_buffer_init(&this->char_buffer, this->char_buffer_data, CONFIG_TERMINAL_BUFFER_SIZE, sizeof(char));
 #if !CONFIG_CANOPEN
-	uv_can_config_rx_message(CAN1, UV_TERMINAL_CAN_RX_ID + uv_get_id(), CAN_STD);
+	uv_can_config_rx_message(CAN0, UV_TERMINAL_CAN_RX_ID + uv_get_id(), CAN_STD);
 #endif
 
 #endif
@@ -805,11 +805,11 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 	// set acceptance filter to idle mode
 	LPC_CANAF->AFMR = 0b10;
 
-#if CONFIG_CAN1
-		if (channel == CAN1) channel = 0;
+#if CONFIG_CAN0
+		if (channel == CAN0) channel = 0;
 #endif
-#if CONFIG_CAN2
-		if (channel == CAN2) channel = 1;
+#if CONFIG_CAN1
+		if (channel == CAN1) channel = 1;
 #endif
 
 	if (type == CAN_STD) {
@@ -939,8 +939,8 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 
 
 void _uv_can_hal_send(uv_can_channels_e channel) {
-#if CONFIG_CAN1
-	if (channel == CAN1) {
+#if CONFIG_CAN0
+	if (channel == CAN0) {
 		uv_can_message_st msg;
 		uv_errors_e e = uv_ring_buffer_peek(&this->tx_buffer[0], &msg);
 		if (e) {
@@ -949,54 +949,54 @@ void _uv_can_hal_send(uv_can_channels_e channel) {
 
 		// if any transmit buffer has same ID message to be transmitted, wait until
 		// the older message is transmitted.
-		while ((LPC_CAN1->TID1 == msg.id && !(LPC_CAN1->SR & (1 << 2))) ||
-				(LPC_CAN1->TID2 == msg.id && !(LPC_CAN1->SR & (1 << 10))) ||
-				(LPC_CAN1->TID3 == msg.id && !(LPC_CAN1->SR & (1 << 18)))) {
+		while ((LPC_CAN0->TID1 == msg.id && !(LPC_CAN0->SR & (1 << 2))) ||
+				(LPC_CAN0->TID2 == msg.id && !(LPC_CAN0->SR & (1 << 10))) ||
+				(LPC_CAN0->TID3 == msg.id && !(LPC_CAN0->SR & (1 << 18)))) {
 			// CAN tranceiver is in bus off
-			if (LPC_CAN1->GSR & (0b1 << 7)) {
-				LPC_CAN1->MOD &= ~1;
+			if (LPC_CAN0->GSR & (0b1 << 7)) {
+				LPC_CAN0->MOD &= ~1;
 			}
 			return;
 		}
 
 		// wait until any one transmit buffer is available for transmitting
-		while (!(LPC_CAN1->SR & ((1 << 2) | (1 << 10) | (1 << 18)))) {
+		while (!(LPC_CAN0->SR & ((1 << 2) | (1 << 10) | (1 << 18)))) {
 			// CAN tranceiver is either in bus off or error passive state
 			// and last received error was in ACK slot.
 			// This means that the device may be the only one in the CAN bus,
 			// and in that case its OK to discard the message transmission
-			if (LPC_CAN1->GSR & (0b1 << 7)) {
-				LPC_CAN1->MOD &= ~1;
+			if (LPC_CAN0->GSR & (0b1 << 7)) {
+				LPC_CAN0->MOD &= ~1;
 				return;
 			}
 		}
 
-		if (LPC_CAN1->SR & (1 << 2)) {
-			LPC_CAN1->TFI1 = (msg.data_length << 16) |
+		if (LPC_CAN0->SR & (1 << 2)) {
+			LPC_CAN0->TFI1 = (msg.data_length << 16) |
 					((msg.type == CAN_EXT) ? (1 << 31) : 0);
-			LPC_CAN1->TID1 = msg.id;
-			LPC_CAN1->TDA1 = msg.data_32bit[0];
-			LPC_CAN1->TDB1 = msg.data_32bit[1];
+			LPC_CAN0->TID1 = msg.id;
+			LPC_CAN0->TDA1 = msg.data_32bit[0];
+			LPC_CAN0->TDB1 = msg.data_32bit[1];
 			// send message
-			LPC_CAN1->CMR = (1 | (1 << 5));
+			LPC_CAN0->CMR = (1 | (1 << 5));
 		}
-		else if (LPC_CAN1->SR & (1 << 10)) {
-			LPC_CAN1->TFI2 = (msg.data_length << 16) |
+		else if (LPC_CAN0->SR & (1 << 10)) {
+			LPC_CAN0->TFI2 = (msg.data_length << 16) |
 					((msg.type == CAN_EXT) ? (1 << 31) : 0);
-			LPC_CAN1->TID2 = msg.id;
-			LPC_CAN1->TDA2 = msg.data_32bit[0];
-			LPC_CAN1->TDB2 = msg.data_32bit[1];
+			LPC_CAN0->TID2 = msg.id;
+			LPC_CAN0->TDA2 = msg.data_32bit[0];
+			LPC_CAN0->TDB2 = msg.data_32bit[1];
 			// send message
-			LPC_CAN1->CMR = (1 | (1 << 6));
+			LPC_CAN0->CMR = (1 | (1 << 6));
 		}
-		else if (LPC_CAN1->SR & (1 << 18)) {
-			LPC_CAN1->TFI3 = (msg.data_length << 16) |
+		else if (LPC_CAN0->SR & (1 << 18)) {
+			LPC_CAN0->TFI3 = (msg.data_length << 16) |
 					((msg.type == CAN_EXT) ? (1 << 31) : 0);
-			LPC_CAN1->TID3 = msg.id;
-			LPC_CAN1->TDA3 = msg.data_32bit[0];
-			LPC_CAN1->TDB3 = msg.data_32bit[1];
+			LPC_CAN0->TID3 = msg.id;
+			LPC_CAN0->TDA3 = msg.data_32bit[0];
+			LPC_CAN0->TDB3 = msg.data_32bit[1];
 			// send message
-			LPC_CAN1->CMR = (1 | (1 << 7));
+			LPC_CAN0->CMR = (1 | (1 << 7));
 		}
 		// message succesfully sent, remove it from the buffer
 		uv_ring_buffer_pop(&this->tx_buffer[0], NULL);
@@ -1004,9 +1004,9 @@ void _uv_can_hal_send(uv_can_channels_e channel) {
 		return;
 	}
 #endif
-#if CONFIG_CAN2
-	if (channel == CAN2) {
-#error "Copy CAN1 message transmission here"
+#if CONFIG_CAN1
+	if (channel == CAN1) {
+#error "Copy CAN0 message transmission here"
 	}
 #endif
 
@@ -1017,12 +1017,12 @@ void _uv_can_hal_send(uv_can_channels_e channel) {
 
 uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
 	uv_can_errors_e ret = CAN_ERROR_ACTIVE;
-#if CONFIG_CAN1
-	if (channel == CAN1) {
-		if (LPC_CAN1->GSR & (1 << 7)) {
+#if CONFIG_CAN0
+	if (channel == CAN0) {
+		if (LPC_CAN0->GSR & (1 << 7)) {
 			ret = CAN_ERROR_BUS_OFF;
 		}
-		else if (LPC_CAN1->GSR & (1 << 6)) {
+		else if (LPC_CAN0->GSR & (1 << 6)) {
 			ret = CAN_ERROR_PASSIVE;
 		}
 		else {
@@ -1030,8 +1030,8 @@ uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
 		}
 	}
 #endif
-#if CONFIG_CAN2
-#error "Copy CAN1 error state getter here"
+#if CONFIG_CAN1
+#error "Copy CAN0 error state getter here"
 #endif
 	return ret;
 }
@@ -1164,7 +1164,7 @@ void CAN_IRQHandler(void) {
 
 					if ((msg_obj + 1) != TX_MSG_OBJ) {
 						// copy the message data and push it into rx ring buffer
-						uv_canmsg_st msg;
+						uv_can_msg_st msg;
 						msg.type = (LPC_CAN->IF1_ARB2 & (1 << 14)) ? CAN_EXT : CAN_STD;
 						msg.data_length = LPC_CAN->IF1_MCTRL & 0b1111;
 						msg.id = get_msgif_id(msg.type == CAN_EXT);
@@ -1199,8 +1199,7 @@ void CAN_IRQHandler(void) {
 					__enable_irq();
 
 					if ((msg_obj + 1) == TX_MSG_OBJ) {
-						this->tx_pending = 0;
-						_uv_can_hal_send(CAN1);
+						_uv_can_hal_send(CAN0);
 					}
 				}
 			}
@@ -1226,13 +1225,12 @@ uv_errors_e _uv_can_init() {
 		this->rx_callback[i] = NULL;
 	}
 	this->init = true;
-	this->tx_pending = 0;
 	this->used_msg_objs = (1 << (TX_MSG_OBJ - 1));
 
 	uv_ring_buffer_init(&this->rx_buffer, this->rx_buffer_data,
-			CONFIG_CAN1_RX_BUFFER_SIZE, sizeof(uv_can_message_st));
+			CONFIG_CAN0_RX_BUFFER_SIZE, sizeof(uv_can_message_st));
 	uv_ring_buffer_init(&this->tx_buffer, this->tx_buffer_data,
-			CONFIG_CAN1_TX_BUFFER_SIZE, sizeof(uv_can_message_st));
+			CONFIG_CAN0_TX_BUFFER_SIZE, sizeof(uv_can_message_st));
 
 	SystemCoreClockUpdate();
 
@@ -1245,7 +1243,7 @@ uv_errors_e _uv_can_init() {
 
 	// baudrate prescaler
 	// BTR register: TSEG1 = 4, TSEG2 = 3, SJW = 0
-	LPC_CAN->BT = ((SystemCoreClock / (CONFIG_CAN1_BAUDRATE * 8) - 1) & 0x3F)
+	LPC_CAN->BT = ((SystemCoreClock / (CONFIG_CAN0_BAUDRATE * 8) - 1) & 0x3F)
 				  | (3 << 8) | (2 << 12);
 	LPC_CAN->CLKDIV = 0;
 
@@ -1257,14 +1255,14 @@ uv_errors_e _uv_can_init() {
 	/* Enable the CAN Interrupt */
 	NVIC_EnableIRQ(CAN_IRQn);
 
-	Chip_IOCON_PinMuxSet(LPC_IOCON, UV_GPIO_PORT(CONFIG_CAN1_TX_PIN),
-			UV_GPIO_PIN(CONFIG_CAN1_TX_PIN), (IOCON_MODE_INACT | IOCON_DIGMODE_EN));
-	Chip_IOCON_PinMuxSet(LPC_IOCON, UV_GPIO_PORT(CONFIG_CAN1_RX_PIN),
-			UV_GPIO_PIN(CONFIG_CAN1_RX_PIN), (IOCON_MODE_INACT | IOCON_DIGMODE_EN));
-	Chip_SWM_MovablePortPinAssign(SWM_CAN_TD1_O, UV_GPIO_PORT(CONFIG_CAN1_TX_PIN),
-			UV_GPIO_PIN(CONFIG_CAN1_TX_PIN));
-	Chip_SWM_MovablePortPinAssign(SWM_CAN_RD1_I,  UV_GPIO_PORT(CONFIG_CAN1_RX_PIN),
-			UV_GPIO_PIN(CONFIG_CAN1_RX_PIN));
+	Chip_IOCON_PinMuxSet(LPC_IOCON, UV_GPIO_PORT(CONFIG_CAN0_TX_PIN),
+			UV_GPIO_PIN(CONFIG_CAN0_TX_PIN), (IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+	Chip_IOCON_PinMuxSet(LPC_IOCON, UV_GPIO_PORT(CONFIG_CAN0_RX_PIN),
+			UV_GPIO_PIN(CONFIG_CAN0_RX_PIN), (IOCON_MODE_INACT | IOCON_DIGMODE_EN));
+	Chip_SWM_MovablePortPinAssign(SWM_CAN_TD1_O, UV_GPIO_PORT(CONFIG_CAN0_TX_PIN),
+			UV_GPIO_PIN(CONFIG_CAN0_TX_PIN));
+	Chip_SWM_MovablePortPinAssign(SWM_CAN_RD1_I,  UV_GPIO_PORT(CONFIG_CAN0_RX_PIN),
+			UV_GPIO_PIN(CONFIG_CAN0_RX_PIN));
 
 
 #if CAN_LOOP_BACK_MODE
@@ -1277,7 +1275,7 @@ uv_errors_e _uv_can_init() {
 	uv_ring_buffer_init(&this->char_buffer, this->char_buffer_data,
 			CONFIG_TERMINAL_BUFFER_SIZE, sizeof(char));
 #if !CONFIG_CANOPEN
-	uv_can_config_rx_message(CAN1, UV_TERMINAL_CAN_RX_ID + uv_get_id(),
+	uv_can_config_rx_message(CAN0, UV_TERMINAL_CAN_RX_ID + uv_get_id(),
 			CAN_ID_MASK_DEFAULT, CAN_STD);
 #endif
 #endif
@@ -1372,7 +1370,7 @@ void _uv_can_hal_send(uv_can_channels_e chn) {
 	if (chn);
 
 	// if tx object is pending, try to wait for the HAl task to release the pending msg obj
-	if (this->tx_pending > 0) {
+	if ((LPC_CAN->TXREQ1 & 1)) {
 		return;
 	}
 
@@ -1407,8 +1405,6 @@ void _uv_can_hal_send(uv_can_channels_e chn) {
 
 		msg_obj_enable(TX_MSG_OBJ);
 
-		this->tx_pending = PENDING_MSG_OBJ_TIME_LIMIT_MS;
-
 		__enable_irq();
 	}
 }
@@ -1432,6 +1428,62 @@ uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
 
 	}
 	return e;
+}
+
+
+uv_errors_e uv_can_send_sync(uv_can_channels_e channel, uv_can_message_st *msg) {
+	uv_errors_e ret = ERR_NONE;
+
+	// wait until tx msg obj is free
+	while (LPC_CAN->TXREQ1 & 1);
+
+	uv_disable_int();
+
+	msg_obj_disable(TX_MSG_OBJ);
+
+	set_msgif_id(msg->id, (msg->type == CAN_EXT));
+
+	LPC_CAN->IF1_ARB2 |= (1 << 13) |					// transmit msg
+			(((msg->type == CAN_EXT) ? 1 : 0) << 14) |	// frame type
+			(1 << 15);									// message valid
+
+	LPC_CAN->IF1_MCTRL = (msg->data_length << 0) |		// data length
+			(1 << 7) |									// single message (end of buffer)
+			(1 << 8) |									// transmit request
+			(1 << 11) |									// transmit int enabled
+			(1 << 15);									// new data written by CPU
+	LPC_CAN->IF1_DA1 = msg->data_16bit[0];
+	LPC_CAN->IF1_DA2 = msg->data_16bit[1];
+	LPC_CAN->IF1_DB1 = msg->data_16bit[2];
+	LPC_CAN->IF1_DB2 = msg->data_16bit[3];
+
+	// load the message into msg obj
+	write_msg_obj(TX_MSG_OBJ, true);
+
+	msg_obj_enable(TX_MSG_OBJ);
+
+
+	uv_enable_int();
+
+	// wait until message is transferred or CAN status changes
+	bool br = false;
+	while (true) {
+		if (!(LPC_CAN->TXREQ1 & 1)) {
+			br = true;
+		}
+		else if (LPC_CAN->STAT & (0b111 << 5)) {
+			br = true;
+			ret = ERR_CAN_BUS_OFF;
+		}
+		else {
+
+		}
+		if (br) {
+			break;
+		}
+	}
+
+	return ret;
 }
 
 
@@ -1520,11 +1572,11 @@ void _uv_can_hal_step(unsigned int step_ms) {
 #endif
 
 	// send the next message from the buffer
+#if CONFIG_CAN0
+	_uv_can_hal_send(CAN0);
+#endif
 #if CONFIG_CAN1
 	_uv_can_hal_send(CAN1);
-#endif
-#if CONFIG_CAN2
-	_uv_can_hal_send(CAN2);
 #endif
 }
 

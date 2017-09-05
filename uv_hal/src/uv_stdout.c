@@ -25,7 +25,9 @@
 #define CAN_DELAY_MS		4
 static uint8_t can_buffer[4];
 static uv_vector_st can_vec = UV_VECTOR_INIT(can_buffer, 4, 1);
+#if !CONFIG_TARGET_LPC1549
 static int8_t can_delay = 0;
+#endif
 #endif
 
 #if CONFIG_TERMINAL_CAN
@@ -44,18 +46,22 @@ static void send_can_msg(void) {
 		msg.data_8bit[4 + i] = *((uint8_t*)uv_vector_at(&can_vec, i));
 	}
 	uv_vector_clear(&can_vec);
+#if !CONFIG_TARGET_LPC1549
 	can_delay = CAN_DELAY_MS;
 
 	// if CAN is in active state, wait until putting the message to the queue was succeeded.
 	// otherwise just try to put it in queue. If the queue is full, message will be discarded.
-	if (uv_can_get_error_state(CAN1) == CAN_ERROR_ACTIVE) {
-		while (uv_can_send_message(CAN1, &msg) != ERR_NONE) {
+	if (uv_can_get_error_state(CAN0) == CAN_ERROR_ACTIVE) {
+		while (uv_can_send_message(CAN0, &msg) != ERR_NONE) {
 			uv_rtos_task_yield();
 		}
 	}
 	else {
-		uv_can_send_message(CAN1, &msg);
+		uv_can_send_message(CAN0, &msg);
 	}
+#else
+	uv_can_send_sync(CAN0, &msg);
+#endif
 
 }
 #endif
@@ -72,9 +78,13 @@ int outbyte(int c) {
 
 		uint8_t ch = c;
 		uv_vector_push_back(&can_vec, &ch);
+#if !CONFIG_TARGET_LPC1549
 		if (uv_vector_size(&can_vec) == uv_vector_max_size(&can_vec)) {
 			send_can_msg();
 		}
+#else
+		send_can_msg();
+#endif
 
 #endif
 	}
@@ -92,7 +102,7 @@ void uv_stdout_send(char* str, unsigned int count) {
 
 
 void _uv_stdout_hal_step(unsigned int step_ms) {
-#if CONFIG_TERMINAL_CAN
+#if (CONFIG_TERMINAL_CAN && (!CONFIG_TARGET_LPC1549))
 	if (uv_vector_size(&can_vec) != 0) {
 		if (can_delay > 0) {
 			can_delay -= step_ms;
