@@ -130,7 +130,6 @@ typedef struct {
 	/// Message objects should not be multiplexed among many messages.
 	/// For receiving multiple messages with a single message object, use mask bits.
 	uint8_t msgobj;
-
 } hal_can_msg_obj_st;
 
 #endif
@@ -1370,7 +1369,7 @@ void _uv_can_hal_send(uv_can_channels_e chn) {
 	if (chn);
 
 	// if tx object is pending, try to wait for the HAl task to release the pending msg obj
-	if ((LPC_CAN->TXREQ1 & 1)) {
+	if ((LPC_CAN->TXREQ1 & 1) || !this->init) {
 		return;
 	}
 
@@ -1434,53 +1433,70 @@ uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
 uv_errors_e uv_can_send_sync(uv_can_channels_e channel, uv_can_message_st *msg) {
 	uv_errors_e ret = ERR_NONE;
 
-	// wait until tx msg obj is free
-	while (LPC_CAN->TXREQ1 & 1);
+	if (this->init) {
 
-	uv_disable_int();
-
-	msg_obj_disable(TX_MSG_OBJ);
-
-	set_msgif_id(msg->id, (msg->type == CAN_EXT));
-
-	LPC_CAN->IF1_ARB2 |= (1 << 13) |					// transmit msg
-			(((msg->type == CAN_EXT) ? 1 : 0) << 14) |	// frame type
-			(1 << 15);									// message valid
-
-	LPC_CAN->IF1_MCTRL = (msg->data_length << 0) |		// data length
-			(1 << 7) |									// single message (end of buffer)
-			(1 << 8) |									// transmit request
-			(1 << 11) |									// transmit int enabled
-			(1 << 15);									// new data written by CPU
-	LPC_CAN->IF1_DA1 = msg->data_16bit[0];
-	LPC_CAN->IF1_DA2 = msg->data_16bit[1];
-	LPC_CAN->IF1_DB1 = msg->data_16bit[2];
-	LPC_CAN->IF1_DB2 = msg->data_16bit[3];
-
-	// load the message into msg obj
-	write_msg_obj(TX_MSG_OBJ, true);
-
-	msg_obj_enable(TX_MSG_OBJ);
-
-
-	uv_enable_int();
-
-	// wait until message is transferred or CAN status changes
-	bool br = false;
-	while (true) {
-		if (!(LPC_CAN->TXREQ1 & 1)) {
-			br = true;
+		// wait until tx msg obj is free
+		while (LPC_CAN->TXREQ1 & (1 << (TX_MSG_OBJ - 1))) {
+			// if CAN bus is in error state, stop and return
+			uv_can_errors_e e = uv_can_get_error_state(channel);
+			if (e != CAN_ERROR_ACTIVE) {
+				ret = ERR_CAN_BUS_OFF;
+				break;
+			}
+			uv_rtos_task_yield();
 		}
-		else if (LPC_CAN->STAT & (0b111 << 5)) {
-			br = true;
-			ret = ERR_CAN_BUS_OFF;
-		}
-		else {
 
+		if (ret == ERR_NONE) {
+
+		uv_disable_int();
+
+			msg_obj_disable(TX_MSG_OBJ);
+
+			set_msgif_id(msg->id, (msg->type == CAN_EXT));
+
+			LPC_CAN->IF1_ARB2 |= (1 << 13) |					// transmit msg
+					(((msg->type == CAN_EXT) ? 1 : 0) << 14) |	// frame type
+					(1 << 15);									// message valid
+
+			LPC_CAN->IF1_MCTRL = (msg->data_length << 0) |		// data length
+					(1 << 7) |									// single message (end of buffer)
+					(1 << 8) |									// transmit request
+					(1 << 11) |									// transmit int enabled
+					(1 << 15);									// new data written by CPU
+			LPC_CAN->IF1_DA1 = msg->data_16bit[0];
+			LPC_CAN->IF1_DA2 = msg->data_16bit[1];
+			LPC_CAN->IF1_DB1 = msg->data_16bit[2];
+			LPC_CAN->IF1_DB2 = msg->data_16bit[3];
+
+			// load the message into msg obj
+			write_msg_obj(TX_MSG_OBJ, true);
+
+			msg_obj_enable(TX_MSG_OBJ);
+
+
+			uv_enable_int();
+
+			// wait until message is transferred or CAN status changes
+			bool br = false;
+			while (true) {
+				if (!(LPC_CAN->TXREQ1 & 1)) {
+					br = true;
+				}
+				else if (LPC_CAN->STAT & (0b111 << 5)) {
+					br = true;
+					ret = ERR_CAN_BUS_OFF;
+				}
+				else {
+
+				}
+				if (br) {
+					break;
+				}
+			}
 		}
-		if (br) {
-			break;
-		}
+	}
+	else {
+		ret = ERR_NOT_INITIALIZED;
 	}
 
 	return ret;
