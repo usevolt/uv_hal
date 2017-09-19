@@ -148,6 +148,8 @@ void uv_init(void *device) {
 
 #if CONFIG_TARGET_LPC1549
 	Chip_SYSCTL_PeriphReset(RESET_MUX);
+	Chip_SYSCTL_PeriphReset(RESET_IOCON);
+	Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_IOCON);
 	Chip_SWM_Init();
 	Chip_GPIO_Init(LPC_GPIO);
 #endif

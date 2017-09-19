@@ -63,7 +63,7 @@ typedef uint32_t uv_gpios_e;
 #define 	P1_11       44
 
 
-#define __TABLE1(value) (value | (1 << 7))
+#define __TABLE1(value) (value)
 
 
 

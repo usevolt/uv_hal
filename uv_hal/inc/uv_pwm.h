@@ -418,14 +418,16 @@
 
 /// @brief: Variable to separate different PWM channels from each other
 /// Possible values are PWM channel macros defined upper.
-typedef volatile uint32_t* uv_pwm_channel_t;
+typedef volatile uint8_t uv_pwm_channel_t;
 
 
 
-#define PWM_MAX_VALUE		1000.0f
+#define PWM_MAX_VALUE		1000U
 
 /// @brief: Can be used to adjust the PWM duty cycle regardless of the MAX value
-#define DUTY_CYCLE(x_float)	(uint16_t)(PWM_MAX_VALUE * ((float) x_float))
+#define DUTY_CYCLE(x_float)	(uint16_t)((float) PWM_MAX_VALUE * ((float) x_float))
+
+#define DUTY_CYCLEPPT(ppt)	((uint32_t) PWM_MAX_VALUE * ppt / 1000)
 
 
 /// @brief: Initializes the PWM modules

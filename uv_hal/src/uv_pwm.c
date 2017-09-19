@@ -16,8 +16,23 @@
 
 #if CONFIG_PWM
 
+
+#if CONFIG_TARGET_LPC1549
+typedef struct {
+	LPC_SCT_T *modules[4];
+} pwm_st;
+static pwm_st pwm;
+#define this (&pwm)
+#endif
+
+
 uv_errors_e _uv_pwm_init() {
 #if CONFIG_TARGET_LPC1549
+	this->modules[0] = LPC_SCT0;
+	this->modules[1] = LPC_SCT1;
+	this->modules[2] = LPC_SCT2;
+	this->modules[3] = LPC_SCT3;
+
 #if CONFIG_PWM0
 	Chip_SCTPWM_Init(LPC_SCT0);
 	Chip_SCTPWM_SetRate(LPC_SCT0, CONFIG_PWM0_FREQ);
@@ -28,8 +43,126 @@ uv_errors_e _uv_pwm_init() {
 	Chip_SCTPWM_SetOutPin(LPC_SCT0, 1, 0);
 	Chip_SCTPWM_SetDutyCycle(LPC_SCT0, 1, Chip_SCTPWM_GetTicksPerCycle(LPC_SCT0) / 2);
 #endif
+#if CONFIG_PWM0_1
+	Chip_SWM_MovablePortPinAssign(SWM_SCT0_OUT1_O,  UV_GPIO_PORT(CONFIG_PWM0_1_IO),
+			UV_GPIO_PIN(CONFIG_PWM0_1_IO));
+	Chip_SCTPWM_SetOutPin(LPC_SCT0, 2, 1);
+	Chip_SCTPWM_SetDutyCycle(LPC_SCT0, 2, 0);
+#endif
+#if CONFIG_PWM0_2
+	Chip_SWM_MovablePortPinAssign(SWM_SCT0_OUT2_O,  UV_GPIO_PORT(CONFIG_PWM0_2_IO),
+			UV_GPIO_PIN(CONFIG_PWM0_2_IO));
+	Chip_SCTPWM_SetOutPin(LPC_SCT0, 3, 2);
+	Chip_SCTPWM_SetDutyCycle(LPC_SCT0, 3, 0);
+#endif
+#if CONFIG_PWM0_4
+#error "PWM0_4 is fixed pin function which is not yet implemented"
+#endif
+#if CONFIG_PWM0_5
+#error "PWM0_5 is fixed pin function which is not yet implemented"
+#endif
+#if CONFIG_PWM0_6
+#error "PWM0_6 is fixed pin function which is not yet implemented"
+#endif
+#if CONFIG_PWM0_7
+#error "PWM0_7 is fixed pin function which is not yet implemented"
+#endif
+#if CONFIG_PWM1_0
+	Chip_SWM_MovablePortPinAssign(SWM_SCT1_OUT0_O,  UV_GPIO_PORT(CONFIG_PWM1_0_IO),
+			UV_GPIO_PIN(CONFIG_PWM1_0_IO));
+	Chip_SCTPWM_SetOutPin(LPC_SCT1, 1, 0);
+	Chip_SCTPWM_SetDutyCycle(LPC_SCT1, 1, 0);
+#endif
+#if CONFIG_PWM1_1
+	Chip_SWM_MovablePortPinAssign(SWM_SCT1_OUT1_O,  UV_GPIO_PORT(CONFIG_PWM1_1_IO),
+			UV_GPIO_PIN(CONFIG_PWM1_1_IO));
+	Chip_SCTPWM_SetOutPin(LPC_SCT1, 2, 1);
+	Chip_SCTPWM_SetDutyCycle(LPC_SCT1, 2, 0);
+#endif
+#if CONFIG_PWM1_2
+	Chip_SWM_MovablePortPinAssign(SWM_SCT1_OUT2_O,  UV_GPIO_PORT(CONFIG_PWM1_2_IO),
+			UV_GPIO_PIN(CONFIG_PWM1_2_IO));
+	Chip_SCTPWM_SetOutPin(LPC_SCT1, 3, 2);
+	Chip_SCTPWM_SetDutyCycle(LPC_SCT1, 3, 0);
+#endif
+#if CONFIG_PWM1_4
+#error "PWM1_4 is fixed pin function which is not yet implemented"
+#endif
+#if CONFIG_PWM1_5
+#error "PWM1_5 is fixed pin function which is not yet implemented"
+#endif
+#if CONFIG_PWM1_6
+#error "PWM1_6 is fixed pin function which is not yet implemented"
+#endif
+#if CONFIG_PWM1_7
+#error "PWM1_7 is fixed pin function which is not yet implemented"
+#endif
+#if CONFIG_PWM2_0
+	Chip_SWM_MovablePortPinAssign(SWM_SCT2_OUT0_O,  UV_GPIO_PORT(CONFIG_PWM2_0_IO),
+			UV_GPIO_PIN(CONFIG_PWM2_0_IO));
+	Chip_SCTPWM_SetOutPin(LPC_SCT2, 1, 0);
+	Chip_SCTPWM_SetDutyCycle(LPC_SCT2, 1, 0);
+#endif
+#if CONFIG_PWM2_1
+	Chip_SWM_MovablePortPinAssign(SWM_SCT2_OUT1_O,  UV_GPIO_PORT(CONFIG_PWM2_1_IO),
+			UV_GPIO_PIN(CONFIG_PWM2_1_IO));
+	Chip_SCTPWM_SetOutPin(LPC_SCT2, 2, 1);
+	Chip_SCTPWM_SetDutyCycle(LPC_SCT2, 2, 0);
+#endif
+#if CONFIG_PWM2_2
+	Chip_SWM_MovablePortPinAssign(SWM_SCT2_OUT2_O,  UV_GPIO_PORT(CONFIG_PWM2_2_IO),
+			UV_GPIO_PIN(CONFIG_PWM2_2_IO));
+	Chip_SCTPWM_SetOutPin(LPC_SCT2, 3, 2);
+	Chip_SCTPWM_SetDutyCycle(LPC_SCT2, 3, 0);
+#endif
+#if CONFIG_PWM2_4
+#error "PWM2_4 is fixed pin function which is not yet implemented"
+#endif
+#if CONFIG_PWM2_5
+#error "PWM2_5 is fixed pin function which is not yet implemented"
+#endif
+#if CONFIG_PWM2_6
+#error "PWM2_6 is fixed pin function which is not yet implemented"
+#endif
+#if CONFIG_PWM3_0
+	Chip_SWM_MovablePortPinAssign(SWM_SCT3_OUT0_O,  UV_GPIO_PORT(CONFIG_PWM3_0_IO),
+			UV_GPIO_PIN(CONFIG_PWM3_0_IO));
+	Chip_SCTPWM_SetOutPin(LPC_SCT3, 1, 0);
+	Chip_SCTPWM_SetDutyCycle(LPC_SCT3, 1, 0);
+#endif
+#if CONFIG_PWM3_1
+	Chip_SWM_MovablePortPinAssign(SWM_SCT3_OUT1_O,  UV_GPIO_PORT(CONFIG_PWM3_1_IO),
+			UV_GPIO_PIN(CONFIG_PWM3_1_IO));
+	Chip_SCTPWM_SetOutPin(LPC_SCT3, 2, 1);
+	Chip_SCTPWM_SetDutyCycle(LPC_SCT3, 2, 0);
+#endif
+#if CONFIG_PWM3_2
+	Chip_SWM_MovablePortPinAssign(SWM_SCT3_OUT2_O,  UV_GPIO_PORT(CONFIG_PWM3_2_IO),
+			UV_GPIO_PIN(CONFIG_PWM3_2_IO));
+	Chip_SCTPWM_SetOutPin(LPC_SCT3, 3, 2);
+	Chip_SCTPWM_SetDutyCycle(LPC_SCT3, 3, 0);
+#endif
+#if CONFIG_PWM3_4
+#error "PWM3_4 is fixed pin function which is not yet implemented"
+#endif
+#if CONFIG_PWM3_5
+#error "PWM3_5 is fixed pin function which is not yet implemented"
+#endif
+#if CONFIG_PWM3_6
+#error "PWM3_6 is fixed pin function which is not yet implemented"
+#endif
+
 #if CONFIG_PWM0
 	Chip_SCTPWM_Start(LPC_SCT0);
+#endif
+#if CONFIG_PWM1
+	Chip_SCTPWM_Start(LPC_SCT1);
+#endif
+#if CONFIG_PWM2
+	Chip_SCTPWM_Start(LPC_SCT2);
+#endif
+#if CONFIG_PWM3
+	Chip_SCTPWM_Start(LPC_SCT3);
 #endif
 
 
@@ -217,8 +350,9 @@ uv_errors_e _uv_pwm_init() {
 }
 
 
+
 uv_errors_e uv_pwm_set(uv_pwm_channel_t chn, uint16_t value) {
-	if (value >= PWM_MAX_VALUE) {
+	if (value > PWM_MAX_VALUE) {
 		value = PWM_MAX_VALUE;
 	}
 #if CONFIG_TARGET_LPC1785
@@ -232,6 +366,10 @@ uv_errors_e uv_pwm_set(uv_pwm_channel_t chn, uint16_t value) {
 
 #elif CONFIG_TARGET_LPC11C14
 	*chn = PWM_MAX_VALUE - value;
+
+#elif CONFIG_TARGET_LPC1549
+	Chip_SCTPWM_SetDutyCycle(this->modules[PWM_GET_MODULE(chn)], PWM_GET_CHANNEL(chn) + 1,
+			Chip_SCTPWM_GetTicksPerCycle(this->modules[PWM_GET_MODULE(chn)]) * value / PWM_MAX_VALUE);
 #endif
 
 	return ERR_NONE;
