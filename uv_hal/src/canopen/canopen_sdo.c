@@ -43,18 +43,7 @@ sdo_request_type_e _canopen_sdo_get_request_type(const uv_can_message_st *msg) {
 	}
 	// initiate domain download message
 	else if ((GET_CMD_BYTE(msg) & 0b11100000) == 0b100000) {
-		// expedited transfer
-		if (GET_CMD_BYTE(msg) & (1 << 1)) {
-			ret = INITIATE_DOMAIN_DOWNLOAD_EXPEDITED;
-		}
-		// segmented transfer
-		else {
-			ret = INITIATE_DOMAIN_DOWNLOAD_SEGMENTED;
-			// for segmented transfer 's' bit should be one
-			if (!(GET_CMD_BYTE(msg) & (1 << 0))) {
-				ret = UNKNOWN_SDO_MSG;
-			}
-		}
+		ret = INITIATE_DOMAIN_DOWNLOAD;
 	}
 	else if ((GET_CMD_BYTE(msg) & 0b11100000) == 0) {
 		ret = DOWNLOAD_DOMAIN_SEGMENT;
@@ -142,6 +131,39 @@ bool _canopen_find_object(const uv_can_message_st *msg,
 
 
 
+void _canopen_copy_data(uv_can_message_st *dest, const canopen_object_st *src, uint8_t subindex) {
+	if (CANOPEN_IS_ARRAY(src->type)) {
+		// for objects subindex 0 returns the array max size
+		if (subindex == 0) {
+			dest->data_32bit[1] = src->array_max_size;
+		}
+		else {
+			dest->data_32bit[1] = ((uint8_t*) src->data_ptr)[(subindex - 1) * CANOPEN_TYPE_LEN(src->type)];
+		}
+	}
+	else {
+		memcpy(&dest->data_32bit[1], src->data_ptr, CANOPEN_TYPE_LEN(src->type));
+	}
+}
+
+bool _canopen_write_data(canopen_object_st *dest, const uv_canmsg_st *src, uint8_t subindex) {
+	bool ret = true;
+	if (CANOPEN_IS_ARRAY(dest->type)) {
+		// cannot write to subindex 0
+		if (subindex == 0) {
+			ret = false;
+		}
+		else {
+			memcpy(&((uint8_t*) dest->data_ptr)[(subindex - 1) * CANOPEN_TYPE_LEN(dest->type)],
+					&src->data_32bit[1], CANOPEN_TYPE_LEN(dest->type));
+		}
+	}
+	else {
+		memcpy(dest->data_ptr, &src->data_32bit[1], CANOPEN_TYPE_LEN(dest->type));
+	}
+
+	return ret;
+}
 
 
 

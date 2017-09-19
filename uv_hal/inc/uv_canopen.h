@@ -201,6 +201,12 @@ typedef struct {
 		} client;
 		struct {
 			canopen_sdo_state_e state;
+			uint16_t mindex;
+			uint8_t sindex;
+			// contains the index of next data to be transmitted
+			uint8_t data_index;
+			uint8_t toggle;
+			int delay;
 		} server;
 	} sdo;
 	void (*can_callback)(void *user_ptr, uv_can_message_st* msg);

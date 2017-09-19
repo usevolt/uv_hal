@@ -40,23 +40,24 @@ enum {
 	CANOPEN_SDO_STATE_READY = 1,
 	CANOPEN_SDO_STATE_TRANSFER_ABORTED,
 	CANOPEN_SDO_STATE_TRANSFER_DONE,
-	CANOPEN_SDO_STATE_EXPEDITED_WRITE,
-	CANOPEN_SDO_STATE_EXPEDITED_READ,
-	CANOPEN_SDO_STATE_SEGMENTED_READ,
-	CANOPEN_SDO_STATE_SEGMENTED_WRITE
+	CANOPEN_SDO_STATE_EXPEDITED_DOWNLOAD,
+	CANOPEN_SDO_STATE_EXPEDITED_UPLOAD,
+	CANOPEN_SDO_STATE_SEGMENTED_UPLOAD,
+	CANOPEN_SDO_STATE_SEGMENTED_UPLOAD_WFR,
+	CANOPEN_SDO_STATE_SEGMENTED_DOWNLOAD,
+	CANOPEN_SDO_STATE_SEGMENTED_DOWNLOAD_WFR
 };
 typedef uint8_t canopen_sdo_state_e;
 
 
 enum {
 	INVALID_MSG = 0,
-	UNKNOWN_SDO_MSG,
-	ABORT_DOMAIN_TRANSFER,
-	INITIATE_DOMAIN_DOWNLOAD_EXPEDITED,
-	INITIATE_DOMAIN_DOWNLOAD_SEGMENTED,
-	DOWNLOAD_DOMAIN_SEGMENT,
-	INITIATE_DOMAIN_UPLOAD,
-	UPLOAD_DOMAIN_SEGMENT
+	UNKNOWN_SDO_MSG = 0xFF,
+	ABORT_DOMAIN_TRANSFER = 0b10000000,
+	INITIATE_DOMAIN_DOWNLOAD = 0b00100000,
+	DOWNLOAD_DOMAIN_SEGMENT = 0b0000000,
+	INITIATE_DOMAIN_UPLOAD = 0b01000000,
+	UPLOAD_DOMAIN_SEGMENT = 0b01100000
 };
 typedef uint8_t sdo_request_type_e;
 
@@ -96,6 +97,27 @@ void _uv_canopen_sdo_abort(uint16_t request_response, uint16_t main_index,
 bool _canopen_find_object(const uv_can_message_st *msg,
 		canopen_object_st *obj, canopen_permissions_e permission_req);
 
+
+/// @brief: Copies canopen object data to message
+///
+/// @param dest: Pointer to can message where data is written
+/// @param src: Pointer to canopen object where data is read
+/// @param subindex: The original request message's subindex field. This is used for
+/// indexing array and string type data
+void _canopen_copy_data(uv_can_message_st *dest,
+		const canopen_object_st *src, uint8_t subindex);
+
+
+/// @brief: Writes canopen object data from message to object
+///
+/// @return: True if succeess, false if unsupported access to object
+///
+/// @param dest: Pointer to canopen object where data is written
+/// @param src: Pointer to can message from where the data is read
+/// @param subindex: The original request message's subindex field. This is used for
+/// indexing array and string type data
+bool _canopen_write_data(canopen_object_st *dest,
+		const uv_canmsg_st *src, uint8_t subindex);
 
 
 #endif /* UV_HAL_INC_CANOPEN_CANOPEN_SDO_H_ */
