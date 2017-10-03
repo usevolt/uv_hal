@@ -358,6 +358,9 @@ int16_t uv_adc_read(uv_adc_channels_e channel) {
 		Chip_ADC_DisableSequencer(LPC_ADC0, ADC_SEQA_IDX);
 		Chip_ADC_SetupSequencer(LPC_ADC0, ADC_SEQA_IDX,
 				channel | ADC_SEQ_CTRL_HWTRIG_POLPOS);
+		for (uint16_t i = 0; i < 0x800; i++) {
+			__NOP();
+		}
 		Chip_ADC_EnableSequencer(LPC_ADC0, ADC_SEQA_IDX);
 		Chip_ADC_StartSequencer(LPC_ADC0, ADC_SEQA_IDX);
 		// wait for the conversion to finish
