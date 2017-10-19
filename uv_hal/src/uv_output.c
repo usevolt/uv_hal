@@ -36,10 +36,24 @@ void uv_output_init(uv_output_st *this, const uv_adc_channels_e adc_chn, const u
 void uv_output_set_state(uv_output_st *this, const uv_output_state_e state) {
 	if ((this->state != OUTPUT_STATE_FAULT) &&
 			(this->state != OUTPUT_STATE_OVERLOAD)) {
+#if CONFIG_CANOPEN
+		if ((state == OUTPUT_STATE_FAULT) && (this->emcy_fault)) {
+			uv_canopen_emcy_send(CANOPEN_EMCY_DEVICE_SPECIFIC, this->emcy_fault);
+		}
+		else if ((state == OUTPUT_STATE_OVERLOAD) && (this->emcy_overload)) {
+			uv_canopen_emcy_send(CANOPEN_EMCY_DEVICE_SPECIFIC, this->emcy_overload);
+		}
+		else {
+
+		}
+#endif
 		this->state = state;
 	}
 	else if (state == OUTPUT_STATE_OFF) {
 		this->state = state;
+	}
+	else {
+
 	}
 }
 
@@ -74,20 +88,9 @@ void uv_output_step(uv_output_st *this, uint16_t step_ms) {
 	}
 	else if (this->state == OUTPUT_STATE_OVERLOAD) {
 		uv_gpio_set(this->gate_io, false);
-		// send EMCY message
-#if CONFIG_CANOPEN
-		if (this->emcy_overload) {
-			uv_canopen_emcy_send(CANOPEN_EMCY_DEVICE_SPECIFIC, this->emcy_overload);
-		}
-#endif
 	}
 	else if (this->state == OUTPUT_STATE_FAULT) {
 		uv_gpio_set(this->gate_io, false);
-#if CONFIG_CANOPEN
-		if (this->emcy_fault) {
-			uv_canopen_emcy_send(CANOPEN_EMCY_DEVICE_SPECIFIC, this->emcy_fault);
-		}
-#endif
 	}
 	else {
 		uv_gpio_set(this->gate_io, false);
