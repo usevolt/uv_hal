@@ -9,6 +9,7 @@
 #include "uv_spi.h"
 #include "chip.h"
 #include "spi_15xx.h"
+#include "uv_rtos.h"
 
 #if CONFIG_SPI
 
@@ -92,6 +93,7 @@ bool uv_spi_readwrite_sync(const spi_e spi, spi_slaves_e slaves,
 		const uint8_t byte_len, const uint16_t buffer_len) {
 	bool ret = true;
 
+	uv_disable_int();
 	// note: Make sure to specifically deassert all nodes not used for transmission
 	SPI_DATA_SETUP_T setup;
 	setup.pTx = (uint16_t*) writebuffer;
@@ -108,6 +110,7 @@ bool uv_spi_readwrite_sync(const spi_e spi, spi_slaves_e slaves,
 		// SPI error
 		ret = false;
 	}
+	uv_enable_int();
 
 	return ret;
 }
@@ -117,6 +120,7 @@ bool uv_spi_write_sync(const spi_e spi, spi_slaves_e slaves,
 		const uint16_t *writebuffer, const uint8_t byte_len, const uint16_t buffer_len) {
 	bool ret = true;
 
+	uv_disable_int();
 	// note: Make sure to specifically deassert all nodes not used for transmission
 	SPI_DATA_SETUP_T setup;
 	setup.pTx = (uint16_t*) writebuffer;
@@ -133,6 +137,7 @@ bool uv_spi_write_sync(const spi_e spi, spi_slaves_e slaves,
 		// SPI error
 		ret = false;
 	}
+	uv_enable_int();
 
 	return ret;
 
