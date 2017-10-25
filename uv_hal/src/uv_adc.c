@@ -69,9 +69,6 @@ static volatile adc_st adc;
 
 
 uv_errors_e _uv_adc_init() {
-	this->adc0_channels = 0;
-	this->adc1_channels = 0;
-
 
 #if CONFIG_TARGET_LPC11C14
 
@@ -160,6 +157,9 @@ uv_errors_e _uv_adc_init() {
 	LPC_ADC->CR|= (1 << 21);
 
 #elif CONFIG_TARGET_LPC1549
+	this->adc0_channels = 0;
+	this->adc1_channels = 0;
+
 
 #if CONFIG_ADC0
 	// initialize ADC0

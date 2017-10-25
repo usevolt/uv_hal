@@ -7,11 +7,12 @@
 
 
 #include "uv_spi.h"
+
+#if CONFIG_SPI
+
 #include "chip.h"
 #include "spi_15xx.h"
 #include "uv_rtos.h"
-
-#if CONFIG_SPI
 
 #if CONFIG_TARGET_LPC1549
 

@@ -22,6 +22,8 @@
 
 #if CONFIG_TARGET_LPC1549
 #define ADC_MAX_FREQ	50000000
+#elif CONFIG_TARGET_LPC1785
+#define ADC_MAX_FREQ	99999999
 #endif
 
 #if !defined(CONFIG_ADC_MODE)
@@ -39,7 +41,7 @@
 #error "CONFIG_ADC_CONVERSION_FREQ should define the ADC conversion frequency in Hz."
 #endif
 #if ((CONFIG_ADC_CONVERSION_FREQ * 25) > ADC_MAX_FREQ)
-#error "CONFIG_ADC_FREQ exceeds the maximum frequency on this target MCU"
+#error "CONFIG_ADC_CONVERSION_FREQ exceeds the maximum frequency on this target MCU"
 #endif
 
 

@@ -608,27 +608,26 @@ uv_errors_e uv_can_reset(uv_can_channels_e channel) {
 
 
 
-
 // same handler for both CAN channels
 void CAN_IRQHandler(void) {
 #if CONFIG_CAN0
 	// CAN tranceiver is either in bus off or error active state
-	if (LPC_CAN0->ICR & (0b11 << 2)) {
-		LPC_CAN0->MOD &= ~1;
+	if (LPC_CAN1->ICR & (0b11 << 2)) {
+		LPC_CAN1->MOD &= ~1;
 		return;
 	}
 
-	if (LPC_CAN0->GSR & (1 << 2)) {
+	if (LPC_CAN1->GSR & (1 << 2)) {
 		_uv_can_hal_send(CAN0);
 	}
-	while (LPC_CAN0->GSR & 1) {
+	while (LPC_CAN1->GSR & 1) {
 		// data ready to be received
-		this->temp.id = LPC_CAN0->RID;
-		this->temp.data_length = ((LPC_CAN0->RFS & (0b1111 << 16)) >> 16);
+		this->temp.id = LPC_CAN1->RID;
+		this->temp.data_length = ((LPC_CAN1->RFS & (0b1111 << 16)) >> 16);
 		if (this->temp.data_length > 8) this->temp.data_length = 8;
-		this->temp.type = (LPC_CAN0->RFS & (1 << 31)) ? CAN_EXT : CAN_STD;
-		this->temp.data_32bit[0] = LPC_CAN0->RDA;
-		this->temp.data_32bit[1] = LPC_CAN0->RDB;
+		this->temp.type = (LPC_CAN1->RFS & (1 << 31)) ? CAN_EXT : CAN_STD;
+		this->temp.data_32bit[0] = LPC_CAN1->RDA;
+		this->temp.data_32bit[1] = LPC_CAN1->RDB;
 
 #if CONFIG_TERMINAL_CAN
 	// terminal characters are sent to their specific buffer
@@ -644,14 +643,14 @@ void CAN_IRQHandler(void) {
 			uv_ring_buffer_push(&this->char_buffer, (char*) &this->temp.data_8bit[4 + i]);
 		}
 		// clear received flag
-		LPC_CAN0->CMR |= (1 << 2);
+		LPC_CAN1->CMR |= (1 << 2);
 		continue;
 	}
 #endif
 		uv_ring_buffer_push(&this->rx_buffer[0], &this->temp);
 
 		// clear received flag
-		LPC_CAN0->CMR = (1 << 2);
+		LPC_CAN1->CMR = (1 << 2);
 	}
 
 #endif
@@ -688,22 +687,22 @@ uv_errors_e _uv_can_init() {
 	LPC_IOCON->P0_21 = 0b100;
 #endif
 	// enter reset mode
-	LPC_CAN0->MOD |= 1;
+	LPC_CAN1->MOD |= 1;
 	// normal mode, transmit priority to CAN IDs, no sleep mode
-	LPC_CAN0->MOD &= ~(0b10111110);
+	LPC_CAN1->MOD &= ~(0b10111110);
 	// enable receive interrupts and transmit interrupts
-	LPC_CAN0->IER = 1 | (1 << 2) | (1 << 1) | (1 << 9) | (1 << 10);
+	LPC_CAN1->IER = 1 | (1 << 2) | (1 << 1) | (1 << 9) | (1 << 10);
 	NVIC_EnableIRQ(CAN_IRQn);
 	// TSEG1, TSEG2
-	LPC_CAN0->BTR = (12 << 16) | (1 << 20);
+	LPC_CAN1->BTR = (12 << 16) | (1 << 20);
 	// for some reason incrementing TSEG by 1 needs CANX_BAUDRATE to be divided by 2
-	LPC_CAN0->BTR |= (SystemCoreClock / (CONFIG_CAN0_BAUDRATE * 32) - 1) & 0x3FF;
+	LPC_CAN1->BTR |= (SystemCoreClock / (CONFIG_CAN0_BAUDRATE * 32) - 1) & 0x3FF;
 
 //	LPC_CAN->BT = (SystemCoreClock / (CONFIG_CAN0_BAUDRATE * 8) & 0x3F)
 //				  | (1 << 8) | (2 << 12);
 
 	// set CAN peripheral ON
-	LPC_CAN0->MOD &= ~1;
+	LPC_CAN1->MOD &= ~1;
 
 #endif
 #if CONFIG_CAN1
@@ -948,54 +947,54 @@ void _uv_can_hal_send(uv_can_channels_e channel) {
 
 		// if any transmit buffer has same ID message to be transmitted, wait until
 		// the older message is transmitted.
-		while ((LPC_CAN0->TID1 == msg.id && !(LPC_CAN0->SR & (1 << 2))) ||
-				(LPC_CAN0->TID2 == msg.id && !(LPC_CAN0->SR & (1 << 10))) ||
-				(LPC_CAN0->TID3 == msg.id && !(LPC_CAN0->SR & (1 << 18)))) {
+		while ((LPC_CAN1->TID1 == msg.id && !(LPC_CAN1->SR & (1 << 2))) ||
+				(LPC_CAN1->TID2 == msg.id && !(LPC_CAN1->SR & (1 << 10))) ||
+				(LPC_CAN1->TID3 == msg.id && !(LPC_CAN1->SR & (1 << 18)))) {
 			// CAN tranceiver is in bus off
-			if (LPC_CAN0->GSR & (0b1 << 7)) {
-				LPC_CAN0->MOD &= ~1;
+			if (LPC_CAN1->GSR & (0b1 << 7)) {
+				LPC_CAN1->MOD &= ~1;
 			}
 			return;
 		}
 
 		// wait until any one transmit buffer is available for transmitting
-		while (!(LPC_CAN0->SR & ((1 << 2) | (1 << 10) | (1 << 18)))) {
+		while (!(LPC_CAN1->SR & ((1 << 2) | (1 << 10) | (1 << 18)))) {
 			// CAN tranceiver is either in bus off or error passive state
 			// and last received error was in ACK slot.
 			// This means that the device may be the only one in the CAN bus,
 			// and in that case its OK to discard the message transmission
-			if (LPC_CAN0->GSR & (0b1 << 7)) {
-				LPC_CAN0->MOD &= ~1;
+			if (LPC_CAN1->GSR & (0b1 << 7)) {
+				LPC_CAN1->MOD &= ~1;
 				return;
 			}
 		}
 
-		if (LPC_CAN0->SR & (1 << 2)) {
-			LPC_CAN0->TFI1 = (msg.data_length << 16) |
+		if (LPC_CAN1->SR & (1 << 2)) {
+			LPC_CAN1->TFI1 = (msg.data_length << 16) |
 					((msg.type == CAN_EXT) ? (1 << 31) : 0);
-			LPC_CAN0->TID1 = msg.id;
-			LPC_CAN0->TDA1 = msg.data_32bit[0];
-			LPC_CAN0->TDB1 = msg.data_32bit[1];
+			LPC_CAN1->TID1 = msg.id;
+			LPC_CAN1->TDA1 = msg.data_32bit[0];
+			LPC_CAN1->TDB1 = msg.data_32bit[1];
 			// send message
-			LPC_CAN0->CMR = (1 | (1 << 5));
+			LPC_CAN1->CMR = (1 | (1 << 5));
 		}
-		else if (LPC_CAN0->SR & (1 << 10)) {
-			LPC_CAN0->TFI2 = (msg.data_length << 16) |
+		else if (LPC_CAN1->SR & (1 << 10)) {
+			LPC_CAN1->TFI2 = (msg.data_length << 16) |
 					((msg.type == CAN_EXT) ? (1 << 31) : 0);
-			LPC_CAN0->TID2 = msg.id;
-			LPC_CAN0->TDA2 = msg.data_32bit[0];
-			LPC_CAN0->TDB2 = msg.data_32bit[1];
+			LPC_CAN1->TID2 = msg.id;
+			LPC_CAN1->TDA2 = msg.data_32bit[0];
+			LPC_CAN1->TDB2 = msg.data_32bit[1];
 			// send message
-			LPC_CAN0->CMR = (1 | (1 << 6));
+			LPC_CAN1->CMR = (1 | (1 << 6));
 		}
-		else if (LPC_CAN0->SR & (1 << 18)) {
-			LPC_CAN0->TFI3 = (msg.data_length << 16) |
+		else if (LPC_CAN1->SR & (1 << 18)) {
+			LPC_CAN1->TFI3 = (msg.data_length << 16) |
 					((msg.type == CAN_EXT) ? (1 << 31) : 0);
-			LPC_CAN0->TID3 = msg.id;
-			LPC_CAN0->TDA3 = msg.data_32bit[0];
-			LPC_CAN0->TDB3 = msg.data_32bit[1];
+			LPC_CAN1->TID3 = msg.id;
+			LPC_CAN1->TDA3 = msg.data_32bit[0];
+			LPC_CAN1->TDB3 = msg.data_32bit[1];
 			// send message
-			LPC_CAN0->CMR = (1 | (1 << 7));
+			LPC_CAN1->CMR = (1 | (1 << 7));
 		}
 		// message succesfully sent, remove it from the buffer
 		uv_ring_buffer_pop(&this->tx_buffer[0], NULL);
@@ -1018,10 +1017,10 @@ uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
 	uv_can_errors_e ret = CAN_ERROR_ACTIVE;
 #if CONFIG_CAN0
 	if (channel == CAN0) {
-		if (LPC_CAN0->GSR & (1 << 7)) {
+		if (LPC_CAN1->GSR & (1 << 7)) {
 			ret = CAN_ERROR_BUS_OFF;
 		}
-		else if (LPC_CAN0->GSR & (1 << 6)) {
+		else if (LPC_CAN1->GSR & (1 << 6)) {
 			ret = CAN_ERROR_PASSIVE;
 		}
 		else {

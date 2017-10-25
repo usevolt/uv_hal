@@ -418,8 +418,11 @@
 
 /// @brief: Variable to separate different PWM channels from each other
 /// Possible values are PWM channel macros defined upper.
+#if CONFIG_TARGET_LPC1549
 typedef volatile uint8_t uv_pwm_channel_t;
-
+#elif CONFIG_TARGET_LPC1785
+typedef volatile uint32_t * uv_pwm_channel_t;
+#endif
 
 
 #define PWM_MAX_VALUE		1000U
