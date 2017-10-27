@@ -52,7 +52,7 @@ bool uv_uitoucharea_pressed(void *me, int16_t *x, int16_t *y);
 
 /// @brief: Returns true if the touch area is released. If *x* and *y* are not NULL,
 /// the touch local coordinates are stored to them.
-bool uv_uitoucharea_released(void *me, int16_t *x, int16_t *y);
+bool uv_uitoucharea_drag_released(void *me, int16_t *x, int16_t *y);
 
 /// @brief: Returns true if the touch area is held down. If *x* and *y* are not NULL,
 /// the touch local coordinates are stored to them.

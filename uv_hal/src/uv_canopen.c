@@ -91,5 +91,30 @@ void uv_canopen_set_can_callback(void (*callb)(void *user_ptr, uv_can_message_st
 }
 
 
+#if CONFIG_CANOPEN_SDO_SYNC
+
+uint8_t uv_canopen_sdo_read8(uint8_t node_id, uint16_t mindex,
+		uint8_t sindex, uint32_t data_len) {
+	uint8_t ret = 0;
+	uv_canopen_sdo_read_sync(node_id, mindex, sindex, data_len, &ret, 100);
+	return ret;
+}
+
+uint16_t uv_canopen_sdo_read16(uint8_t node_id, uint16_t mindex,
+		uint8_t sindex, uint32_t data_len) {
+	uint16_t ret = 0;
+	uv_canopen_sdo_read_sync(node_id, mindex, sindex, data_len, &ret, 100);
+	return ret;
+}
+
+uint32_t uv_canopen_sdo_read32(uint8_t node_id, uint16_t mindex,
+		uint8_t sindex, uint32_t data_len) {
+	uint32_t ret = 0;
+	uv_canopen_sdo_read_sync(node_id, mindex, sindex, data_len, &ret, 100);
+	return ret;
+}
+
+#endif
+
 
 #endif

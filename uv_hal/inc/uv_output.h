@@ -22,6 +22,11 @@
 #endif
 
 
+#if !defined(CONFIG_OUTPUT)
+#error "CONFIG_OUTPUT should be defined as 1 or 0, depending if uv_output module is used"
+#endif
+
+
 /// @brief: Defines the state of a single thruster power supply
 enum {
 	OUTPUT_STATE_OFF = 0,

@@ -356,6 +356,16 @@ static inline uv_errors_e uv_canopen_sdo_read_sync(uint8_t node_id, uint16_t min
 		uint8_t sindex, uint32_t data_len, void *data, int32_t timeout_ms) {
 	return _uv_canopen_sdo_read_sync(node_id, mindex, sindex, data_len, data, timeout_ms);
 }
+
+uint8_t uv_canopen_sdo_read8(uint8_t node_id, uint16_t mindex,
+		uint8_t sindex, uint32_t data_len);
+
+uint16_t uv_canopen_sdo_read16(uint8_t node_id, uint16_t mindex,
+		uint8_t sindex, uint32_t data_len);
+
+uint32_t uv_canopen_sdo_read32(uint8_t node_id, uint16_t mindex,
+		uint8_t sindex, uint32_t data_len);
+
 #endif
 
 #endif

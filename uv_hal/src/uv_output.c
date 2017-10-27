@@ -12,6 +12,7 @@
 
 #include <uv_canopen.h>
 
+#if CONFIG_OUTPUT
 
 
 void uv_output_init(uv_output_st *this, const uv_adc_channels_e adc_chn, const uv_gpios_e gate_io,
@@ -99,7 +100,7 @@ void uv_output_step(uv_output_st *this, uint16_t step_ms) {
 }
 
 
-
+#endif
 
 
 
