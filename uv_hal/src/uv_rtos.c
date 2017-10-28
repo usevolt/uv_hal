@@ -17,7 +17,6 @@
 #include "uv_eeprom.h"
 #include "uv_emc.h"
 #include "uv_rtc.h"
-#include "uv_dma.h"
 #include "uv_ft81x.h"
 #if CONFIG_WDT
 #include "uv_wdt.h"
@@ -194,10 +193,6 @@ void uv_init(void *device) {
 
 #if CONFIG_SPI
 	_uv_spi_init();
-#endif
-
-#if CONFIG_DMA
-	_uv_dma_init();
 #endif
 
 #if CONFIG_EMC

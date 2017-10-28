@@ -8,6 +8,8 @@
 
 #include "canopen/canopen_sdo_server.h"
 #include "uv_canopen.h"
+#include CONFIG_MAIN_H
+#include <string.h>
 
 #if CONFIG_CANOPEN
 
@@ -55,7 +57,7 @@ void _uv_canopen_sdo_server_step(uint16_t step_ms) {
 
 void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e sdo_type) {
 	canopen_object_st obj;
-	uv_canmsg_st reply_msg;
+	uv_can_msg_st reply_msg;
 	reply_msg.type = CAN_STD;
 	reply_msg.id = CANOPEN_SDO_RESPONSE_ID + NODEID;
 	reply_msg.data_length = 8;
@@ -76,7 +78,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 			if (_canopen_find_object(msg, &obj, CANOPEN_WO)) {
 
 				// segmented transfer
-				if (GET_CMD_BYTE(msg) & (1 << 1)) {
+				if (!(GET_CMD_BYTE(msg) & (1 << 1))) {
 					// segmented transfer can be started only on string type objects
 					if (uv_canopen_is_string(&obj)) {
 						this->state = CANOPEN_SDO_STATE_SEGMENTED_DOWNLOAD;
@@ -89,7 +91,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 								INITIATE_DOMAIN_DOWNLOAD);
 						// data bytes indicate data index which starts from 0
 						memset(&reply_msg.data_8bit[1], 0, 7);
-						uv_can_send(&reply_msg);
+						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 					}
 					else {
 						sdo_server_abort(GET_MINDEX(msg), GET_SINDEX(msg),
@@ -102,7 +104,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 					// expedited transfer can be started to all other than string type objects
 					if (!uv_canopen_is_string(&obj)) {
 						SET_CMD_BYTE(&reply_msg,
-								INITIATE_DOMAIN_DOWNLOAD | (1 << 1));
+								INITIATE_DOMAIN_DOWNLOAD_REPLY);
 						if (_canopen_write_data(&obj, msg, GET_SINDEX(msg))) {
 							memcpy(&reply_msg.data_32bit[1], &msg->data_32bit[1], 4);
 							uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
@@ -149,7 +151,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 					// object type len set correctly
 					SET_CMD_BYTE(&reply_msg,
 							INITIATE_DOMAIN_UPLOAD | (1 << 1) | (1 << 0) |
-							((4 - CANOPEN_TYPE_LEN(obj.type)) << 3));
+							((4 - CANOPEN_TYPE_LEN(obj.type)) << 2));
 					_canopen_copy_data(&reply_msg, &obj, GET_SINDEX(msg));
 					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 				}
@@ -214,13 +216,13 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 				if ((this->data_index + data_count) <= obj.string_len) {
 					// copy data to destination. Bits 1-4 in command byte indicate
 					// how much data is copied
-					memcpy(((uint8_t*)obj->data_ptr) + this->data_index,
+					memcpy(((uint8_t*)obj.data_ptr) + this->data_index,
 							&msg->data_8bit[1], data_count);
 					this->data_index += data_count;
 
 					SET_CMD_BYTE(&reply_msg, DOWNLOAD_DOMAIN_SEGMENT | this->toggle);
 					memset(&reply_msg.data_8bit[1], 0, 7);
-					memcpy(&reply_msg.data_8bit[1], this->data_index, sizeof(this->data_index));
+					memcpy(&reply_msg.data_8bit[1], &this->data_index, sizeof(this->data_index));
 					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 				}
 				else {

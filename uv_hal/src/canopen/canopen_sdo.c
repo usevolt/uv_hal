@@ -146,7 +146,7 @@ void _canopen_copy_data(uv_can_message_st *dest, const canopen_object_st *src, u
 	}
 }
 
-bool _canopen_write_data(canopen_object_st *dest, const uv_canmsg_st *src, uint8_t subindex) {
+bool _canopen_write_data(canopen_object_st *dest, const uv_can_msg_st *src, uint8_t subindex) {
 	bool ret = true;
 	if (CANOPEN_IS_ARRAY(dest->type)) {
 		// cannot write to subindex 0

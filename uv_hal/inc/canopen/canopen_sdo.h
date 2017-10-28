@@ -55,9 +55,11 @@ enum {
 	UNKNOWN_SDO_MSG = 0xFF,
 	ABORT_DOMAIN_TRANSFER = 0b10000000,
 	INITIATE_DOMAIN_DOWNLOAD = 0b00100000,
+	INITIATE_DOMAIN_DOWNLOAD_REPLY = 0b01100000,
 	DOWNLOAD_DOMAIN_SEGMENT = 0b0000000,
 	INITIATE_DOMAIN_UPLOAD = 0b01000000,
-	UPLOAD_DOMAIN_SEGMENT = 0b01100000
+	UPLOAD_DOMAIN_SEGMENT = 0b01100000,
+	UPLOAD_DOMAIN_SEGMENT_REPLY = 0b00000000
 };
 typedef uint8_t sdo_request_type_e;
 
@@ -117,7 +119,7 @@ void _canopen_copy_data(uv_can_message_st *dest,
 /// @param subindex: The original request message's subindex field. This is used for
 /// indexing array and string type data
 bool _canopen_write_data(canopen_object_st *dest,
-		const uv_canmsg_st *src, uint8_t subindex);
+		const uv_can_msg_st *src, uint8_t subindex);
 
 
 #endif /* UV_HAL_INC_CANOPEN_CANOPEN_SDO_H_ */
