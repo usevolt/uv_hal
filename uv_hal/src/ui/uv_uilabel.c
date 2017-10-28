@@ -208,11 +208,10 @@ void uv_uilabel_set_text(void *me, char *str) {
 
 /// @brief: Sets the color of the label text
 void uv_uilabel_set_color(void *me, color_t c) {
-	if (this->color == c) {
-		return;
+	if (this->color != c) {
+		this->color = c;
+		uv_ui_refresh(me);
 	}
-	uv_ui_refresh(me);
-	this->color = c;
 }
 
 #if CONFIG_LCD
