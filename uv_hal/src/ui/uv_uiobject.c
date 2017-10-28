@@ -52,6 +52,13 @@ uv_uiobject_ret_e uv_uiobject_step(void *me, uv_touch_st *touch,
 }
 
 
+void uv_ui_hide(void *me) {
+	if (this->visible) {
+		uv_ui_refresh_parent(this);
+	}
+	this->visible = false;
+}
+
 
 void uv_ui_refresh_parent(void *me) {
 #if CONFIG_LCD

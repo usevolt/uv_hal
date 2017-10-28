@@ -120,11 +120,11 @@ void GPIO_IRQHandler(void) {
 
 #elif CONFIG_TARGET_LPC1549
 uint8_t uv_gpio_get_port(uv_gpios_e gpio) {
-	return ((gpio - 1) / 31);
+	return ((gpio - 1) / 32);
 }
 
 uint8_t uv_gpio_get_pin(uv_gpios_e gpio) {
-	return ((gpio - 1) % 31);
+	return ((gpio - 1) % 32);
 }
 
 

@@ -158,10 +158,10 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, u
 	port(CAT(CAT(GPIO_, gpio), _port))->DIR |= (1 << CAT(CAT(GPIO_, gpio), _pin)); \
 	UV_GPIO_SET(gpio, initial_val)
 #elif CONFIG_TARGET_LPC1549
-#define UV_GPIO_INIT_OUTPUT(gpio, initial_val) \
+#define UV_GPIO_INIT_OUTPUT(gpio, initial_val) do { \
 	UV_GPIO_CONFIGURE(gpio, 0); \
 	Chip_GPIO_SetPinDIROutput(LPC_GPIO, UV_GPIO_PORT(gpio), UV_GPIO_PIN(gpio)); \
-	UV_GPIO_SET(gpio, initial_val)
+	UV_GPIO_SET(gpio, initial_val); } while(0)
 #endif
 
 
@@ -206,9 +206,9 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, u
 	port(CAT(CAT(GPIO_, gpio), _port))->DIR &= ~(1 << CAT(CAT(GPIO_, gpio), _pin)); \
 	UV_GPIO_CONFIGURE(gpio, confs)
 #elif CONFIG_TARGET_LPC1549
-#define UV_GPIO_INIT_INPUT(gpio, confs) \
+#define UV_GPIO_INIT_INPUT(gpio, confs) do {\
 	Chip_GPIO_SetPinDIRInput(LPC_GPIO, UV_GPIO_PORT(gpio), UV_GPIO_PIN(gpio)); \
-	UV_GPIO_CONFIGURE(gpio, confs)
+	UV_GPIO_CONFIGURE(gpio, confs); } while(0)
 #endif
 
 
@@ -218,7 +218,7 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, u
 /// @note: Only to be used inside this HAL library!
 #if CONFIG_TARGET_LPC1549
 #define UV_GPIO_CONFIGURE(gpio, input_config)\
-	LPC_IOCON->PIO[uv_gpio_get_port(gpio)][uv_gpio_get_pin(gpio)] = __TABLE1(input_config)
+	LPC_IOCON->PIO[uv_gpio_get_port(gpio)][uv_gpio_get_pin(gpio)] = input_config
 #else
 #define UV_GPIO_CONFIGURE(gpio, input_config)\
 	CAT(CAT(GPIO_, gpio), _config)(input_config)

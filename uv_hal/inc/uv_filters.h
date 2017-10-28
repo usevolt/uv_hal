@@ -42,7 +42,7 @@ typedef struct {
 /// @param Hysteresis: The hysteresis around trigger_value
 void uv_hysteresis_init(uv_hysteresis_st *this, int32_t trigger_value, int32_t hysteresis, bool invert);
 
-void uv_hysteresis_step(uv_hysteresis_st *this, int32_t value);
+bool uv_hysteresis_step(uv_hysteresis_st *this, int32_t value);
 
 static inline uint8_t uv_hysteresis_get_output(uv_hysteresis_st *this) {
 	return this->result;

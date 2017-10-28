@@ -384,6 +384,10 @@ int uv_maxi(int a, int b);
 int uv_mini(int a, int b);
 
 
+/// @brief: Calculates and returns the trailing zeroes in *a*.
+/// Useful for "reversing" bit shifting, i.e. returning *x* from **var = (1 << x)**
+uint32_t uv_ctz(uint32_t a);
+
 
 
 #if CONFIG_TARGET_LPC11C14

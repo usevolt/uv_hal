@@ -31,32 +31,55 @@
  CONFIG_CAN_ERROR_LOG should be definded as 0 or 1, to disable or enable error logging."
 #endif
 #if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549
-#if !CONFIG_CAN1
+#if !CONFIG_CAN0
 #error "At least one CAN channel should be defined"
 #endif
-#if CONFIG_CAN2
-#error "Hardware doesn't support CAN2 module. Set CONFIG_CAN2 to 0."
-#endif
 #if CONFIG_CAN1
-#if !defined(CONFIG_CAN1_BAUDRATE)
-#error "CONFIG_CAN1_BAUDRATE not defined. It should define the baudrate used for CAN1 module."
+#error "Hardware doesn't support CAN1 module. Set CONFIG_CAN1 to 0."
 #endif
-#if !defined(CONFIG_CAN1_RX_BUFFER_SIZE)
-#error "CONFIG_CAN1_RX_BUFFER_SIZE not defined. It should define the buffer size used for receiving messages."
+#if CONFIG_CAN0
+#if !defined(CONFIG_CAN0_BAUDRATE)
+#error "CONFIG_CAN0_BAUDRATE not defined. It should define the baudrate used for CAN0 module."
 #endif
-#if !defined(CONFIG_CAN1_TX_BUFFER_SIZE)
-#error "CONFIG_CAN1_TX_BUFFER_SIZE not defined. It should define the buffer size used for transmit messages."
+#if !defined(CONFIG_CAN0_RX_BUFFER_SIZE)
+#error "CONFIG_CAN0_RX_BUFFER_SIZE not defined. It should define the buffer size used for receiving messages."
+#endif
+#if !defined(CONFIG_CAN0_TX_BUFFER_SIZE)
+#error "CONFIG_CAN0_TX_BUFFER_SIZE not defined. It should define the buffer size used for transmit messages."
 #endif
 #if CONFIG_TARGET_LPC1549
-#if !defined(CONFIG_CAN1_RX_PIN)
-#error "CONFIG_CAN1_RX_PIN should define the pin to be used as CAN RX pin"
+#if !defined(CONFIG_CAN0_RX_PIN)
+#error "CONFIG_CAN0_RX_PIN should define the pin to be used as CAN RX pin"
 #endif
-#if !defined(CONFIG_CAN1_TX_PIN)
-#error "CONFIG_CAN1_TX_PIN should define the pin to be used as CAN TX pin"
+#if !defined(CONFIG_CAN0_TX_PIN)
+#error "CONFIG_CAN0_TX_PIN should define the pin to be used as CAN TX pin"
 #endif
 #endif
 #endif
 #elif CONFIG_TARGET_LPC1785
+#if CONFIG_CAN0
+#if !defined(CONFIG_CAN0_BAUDRATE)
+#error "CONFIG_CAN0_BAUDRATE not defined. It should define the baudrate used for CAN0 module."
+#endif
+#if !defined(CONFIG_CAN0_RX_BUFFER_SIZE)
+#error "CONFIG_CAN0_RX_BUFFER_SIZE not defined. It should define the buffer size used for receiving messages."
+#endif
+#if !defined(CONFIG_CAN0_TX_BUFFER_SIZE)
+#error "CONFIG_CAN0_TX_BUFFER_SIZE not defined. It should define the buffer size used for transmit messages."
+#endif
+#if !defined(CONFIG_CAN0_TX_PIN)
+#error "CONFIG_CAN0_TX_PIN should define the GPIO pin used as the CAN0 transmit pin"
+#endif
+#if !defined(CONFIG_CAN0_RX_PIN)
+#error "CONFIG_CAN0_RX_PIN should define the GPIO pin used as the CAN0 receive pin"
+#endif
+#if CONFIG_CAN0_TX_PIN != PIO0_1 && CONFIG_CAN0_TX_PIN != PIO0_22
+#error "CONFIG_CAN0_TX_PIN can be PIO0_1 or PIO0_22"
+#endif
+#if CONFIG_CAN0_RX_PIN != PIO0_0 && CONFIG_CAN0_RX_PIN != PIO0_21
+#error "CONFIG_CAN0_RX_PIN can be PIO0_0 or PIO0_21"
+#endif
+#endif
 #if CONFIG_CAN1
 #if !defined(CONFIG_CAN1_BAUDRATE)
 #error "CONFIG_CAN1_BAUDRATE not defined. It should define the baudrate used for CAN1 module."
@@ -73,34 +96,11 @@
 #if !defined(CONFIG_CAN1_RX_PIN)
 #error "CONFIG_CAN1_RX_PIN should define the GPIO pin used as the CAN1 receive pin"
 #endif
-#if CONFIG_CAN1_TX_PIN != PIO0_1 && CONFIG_CAN1_TX_PIN != PIO0_22
-#error "CONFIG_CAN1_TX_PIN can be PIO0_1 or PIO0_22"
+#if CONFIG_CAN1_TX_PIN != PIO0_5 && CONFIG_CAN1_TX_PIN != PIO2_8
+#error "CONFIG_CAN1_TX_PIN can be PIO0_5 or PIO2_8"
 #endif
-#if CONFIG_CAN1_RX_PIN != PIO0_0 && CONFIG_CAN1_RX_PIN != PIO0_21
-#error "CONFIG_CAN1_RX_PIN can be PIO0_0 or PIO0_21"
-#endif
-#endif
-#if CONFIG_CAN2
-#if !defined(CONFIG_CAN2_BAUDRATE)
-#error "CONFIG_CAN2_BAUDRATE not defined. It should define the baudrate used for CAN2 module."
-#endif
-#if !defined(CONFIG_CAN2_RX_BUFFER_SIZE)
-#error "CONFIG_CAN2_RX_BUFFER_SIZE not defined. It should define the buffer size used for receiving messages."
-#endif
-#if !defined(CONFIG_CAN2_TX_BUFFER_SIZE)
-#error "CONFIG_CAN2_TX_BUFFER_SIZE not defined. It should define the buffer size used for transmit messages."
-#endif
-#if !defined(CONFIG_CAN2_TX_PIN)
-#error "CONFIG_CAN2_TX_PIN should define the GPIO pin used as the CAN2 transmit pin"
-#endif
-#if !defined(CONFIG_CAN2_RX_PIN)
-#error "CONFIG_CAN2_RX_PIN should define the GPIO pin used as the CAN2 receive pin"
-#endif
-#if CONFIG_CAN2_TX_PIN != PIO0_5 && CONFIG_CAN2_TX_PIN != PIO2_8
-#error "CONFIG_CAN2_TX_PIN can be PIO0_5 or PIO2_8"
-#endif
-#if CONFIG_CAN2_RX_PIN != PIO0_4 && CONFIG_CAN2_RX_PIN != PIO2_7
-#error "CONFIG_CAN2_RX_PIN can be PIO0_4 or PIO2_7"
+#if CONFIG_CAN1_RX_PIN != PIO0_4 && CONFIG_CAN1_RX_PIN != PIO2_7
+#error "CONFIG_CAN1_RX_PIN can be PIO0_4 or PIO2_7"
 #endif
 #endif
 #endif
@@ -133,7 +133,7 @@ typedef struct {
 	/// @brief: The type of the message. Either 29 or 11 bit (extended or standard)
 	uv_can_msg_types_e type;
 } uv_can_message_st;
-typedef uv_can_message_st uv_canmsg_st;
+typedef uv_can_message_st uv_can_msg_st;
 
 
 
@@ -150,18 +150,18 @@ typedef enum {
 /// @brief: Describes all the available CAN channels on this hardware
 typedef enum {
 #if CONFIG_TARGET_LPC11C14
-	CAN1 = 0,
+	CAN0 = 0,
 	CAN_COUNT
 #elif CONFIG_TARGET_LPC1785
+#if CONFIG_CAN0
+	CAN0,
+#endif
 #if CONFIG_CAN1
 	CAN1,
 #endif
-#if CONFIG_CAN2
-	CAN2,
-#endif
 	CAN_COUNT
 #elif CONFIG_TARGET_LPC1549
-	CAN1 = 0,
+	CAN0 = 0,
 	CAN_COUNT = 1
 #else
 #error "Unknown hardware"
@@ -243,6 +243,11 @@ static inline uv_errors_e uv_can_send(uv_can_channels_e channel, uv_can_message_
 }
 
 
+/// @brief: Sends a CAN message synchronously. Returns when the message has been sent
+/// or when an error is received (CAN is in error passive or bus off)
+uv_errors_e uv_can_send_sync(uv_can_channels_e channel, uv_can_message_st *msg);
+
+
 /// @brief: Pops the lastly received message from the RX buffer and returns it in
 /// *message* parameter
 ///
@@ -255,8 +260,6 @@ uv_errors_e uv_can_pop_message(uv_can_channels_e channel, uv_can_message_st *mes
 
 /// @brief: Returns the CAN 2.0 specification error state. Error active is the normal state.
 uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel);
-
-
 
 
 

@@ -58,7 +58,7 @@ bool uv_uitoucharea_pressed(void *me, int16_t *x, int16_t *y) {
 	return this->touch.action == TOUCH_PRESSED;
 }
 
-bool uv_uitoucharea_released(void *me, int16_t *x, int16_t *y) {
+bool uv_uitoucharea_drag_released(void *me, int16_t *x, int16_t *y) {
 	if (x && y && this->touch.action == TOUCH_RELEASED) {
 		*x = this->touch.x;
 		*y = this->touch.y;

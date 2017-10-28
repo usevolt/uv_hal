@@ -146,11 +146,11 @@ typedef enum {
 
 /// @brief: Converts from relative 0.0f - 1.0f width to actual pixel width
 #define LCD_W(rel_w)	(LCD_W_PX * (rel_w))
-#define LCD_WPPT(w_ppt) (LCD_W_PX * w_ppt / 100)
+#define LCD_WPPT(w_ppt) (LCD_W_PX * w_ppt / 1000)
 
 /// @brief: Converts from relative 0.0f - 1.0f height to actual pixel height
 #define LCD_H(rel_h)	(LCD_H_PX * (rel_h))
-#define LCD_HPPT(h_ppt)	(LCD_H_PX * h_ppt / 100)
+#define LCD_HPPT(h_ppt)	(LCD_H_PX * h_ppt / 1000)
 
 
 
