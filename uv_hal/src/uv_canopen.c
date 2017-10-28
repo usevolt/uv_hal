@@ -91,30 +91,40 @@ void uv_canopen_set_can_callback(void (*callb)(void *user_ptr, uv_can_message_st
 }
 
 
-#if CONFIG_CANOPEN_SDO_SYNC
-
 uint8_t uv_canopen_sdo_read8(uint8_t node_id, uint16_t mindex,
-		uint8_t sindex, uint32_t data_len) {
+		uint8_t sindex) {
 	uint8_t ret = 0;
-	uv_canopen_sdo_read_sync(node_id, mindex, sindex, data_len, &ret, 100);
+	uv_canopen_sdo_read(node_id, mindex, sindex, sizeof(uint8_t), &ret);
 	return ret;
 }
 
 uint16_t uv_canopen_sdo_read16(uint8_t node_id, uint16_t mindex,
-		uint8_t sindex, uint32_t data_len) {
+		uint8_t sindex) {
 	uint16_t ret = 0;
-	uv_canopen_sdo_read_sync(node_id, mindex, sindex, data_len, &ret, 100);
+	uv_canopen_sdo_read(node_id, mindex, sindex, sizeof(uint16_t), &ret);
 	return ret;
 }
 
 uint32_t uv_canopen_sdo_read32(uint8_t node_id, uint16_t mindex,
-		uint8_t sindex, uint32_t data_len) {
+		uint8_t sindex) {
 	uint32_t ret = 0;
-	uv_canopen_sdo_read_sync(node_id, mindex, sindex, data_len, &ret, 100);
+	uv_canopen_sdo_read(node_id, mindex, sindex, sizeof(uint32_t), &ret);
 	return ret;
 }
 
-#endif
+
+uv_errors_e uv_canopen_sdo_write8(uint8_t node_id, uint16_t mindex, uint8_t sindex, uint8_t data) {
+	return uv_canopen_sdo_write(node_id, mindex, sindex, sizeof(uint8_t), &data);
+}
+
+uv_errors_e uv_canopen_sdo_write16(uint8_t node_id, uint16_t mindex, uint8_t sindex, uint16_t data) {
+	return uv_canopen_sdo_write(node_id, mindex, sindex, sizeof(uint16_t), &data);
+}
+
+uv_errors_e uv_canopen_sdo_write32(uint8_t node_id, uint16_t mindex, uint8_t sindex, uint32_t data) {
+	return uv_canopen_sdo_write(node_id, mindex, sindex, sizeof(uint32_t), &data);
+}
+
 
 
 #endif

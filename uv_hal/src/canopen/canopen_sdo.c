@@ -42,20 +42,23 @@ sdo_request_type_e _canopen_sdo_get_request_type(const uv_can_message_st *msg) {
 		ret = UNKNOWN_SDO_MSG;
 	}
 	// initiate domain download message
-	else if ((GET_CMD_BYTE(msg) & 0b11100000) == 0b100000) {
+	else if ((GET_CMD_BYTE(msg) & 0b11100000) == INITIATE_DOMAIN_DOWNLOAD) {
 		ret = INITIATE_DOMAIN_DOWNLOAD;
 	}
-	else if ((GET_CMD_BYTE(msg) & 0b11100000) == 0) {
+	else if ((GET_CMD_BYTE(msg) & 0b11100000) == INITIATE_DOMAIN_DOWNLOAD_REPLY) {
+		ret = INITIATE_DOMAIN_DOWNLOAD_REPLY;
+	}
+	else if ((GET_CMD_BYTE(msg) & 0b11100000) == DOWNLOAD_DOMAIN_SEGMENT) {
 		ret = DOWNLOAD_DOMAIN_SEGMENT;
 	}
 	// initiate domain upload
-	else if ((GET_CMD_BYTE(msg) & 0b11100000) == 0b1000000) {
+	else if ((GET_CMD_BYTE(msg) & 0b11100000) == INITIATE_DOMAIN_UPLOAD) {
 		ret = INITIATE_DOMAIN_UPLOAD;
 	}
-	else if ((GET_CMD_BYTE(msg) & 0b11100000) == 0b01100000) {
+	else if ((GET_CMD_BYTE(msg) & 0b11100000) == UPLOAD_DOMAIN_SEGMENT) {
 		ret = UPLOAD_DOMAIN_SEGMENT;
 	}
-	else if ((GET_CMD_BYTE(msg) & 0b11100000) == 0x80) {
+	else if ((GET_CMD_BYTE(msg) & 0b11100000) == ABORT_DOMAIN_TRANSFER) {
 		// abort
 		ret = ABORT_DOMAIN_TRANSFER;
 	}
@@ -132,6 +135,7 @@ bool _canopen_find_object(const uv_can_message_st *msg,
 
 
 void _canopen_copy_data(uv_can_message_st *dest, const canopen_object_st *src, uint8_t subindex) {
+	uv_disable_int();
 	if (CANOPEN_IS_ARRAY(src->type)) {
 		// for objects subindex 0 returns the array max size
 		if (subindex == 0) {
@@ -144,9 +148,11 @@ void _canopen_copy_data(uv_can_message_st *dest, const canopen_object_st *src, u
 	else {
 		memcpy(&dest->data_32bit[1], src->data_ptr, CANOPEN_TYPE_LEN(src->type));
 	}
+	uv_enable_int();
 }
 
 bool _canopen_write_data(canopen_object_st *dest, const uv_can_msg_st *src, uint8_t subindex) {
+	uv_disable_int();
 	bool ret = true;
 	if (CANOPEN_IS_ARRAY(dest->type)) {
 		// cannot write to subindex 0
@@ -162,6 +168,7 @@ bool _canopen_write_data(canopen_object_st *dest, const uv_can_msg_st *src, uint
 		memcpy(dest->data_ptr, &src->data_32bit[1], CANOPEN_TYPE_LEN(dest->type));
 	}
 
+	uv_enable_int();
 	return ret;
 }
 

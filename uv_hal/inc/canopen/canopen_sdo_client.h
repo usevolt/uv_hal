@@ -27,22 +27,17 @@ void _uv_canopen_sdo_client_step(uint16_t step_ms);
 void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 		sdo_request_type_e sdo_type, uint8_t node_id);
 
-/// @brief: Sends a CANOpen SDO write request without waiting for the response
+/// @brief: Sends a CANOpen SDO write request and waits for the reply as confirmation
 uv_errors_e _uv_canopen_sdo_client_write(uint8_t node_id,
 		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *data);
 
 
-/// @brief: Sends a CANOpen SDO write request and waits for the response
-/// **timeout_ms** milliseconds. If the write request failed or the timeout
-/// expires, returns an error.
-uv_errors_e _uv_canopen_sdo_client_write_sync(uint8_t node_id, uint16_t mindex,
-		uint8_t sindex, uint32_t data_len, void *data, int32_t timeout_ms);
 
 /// @brief: Sends a CANOpen SDO read request and waits for the response
 /// **timeout_ms** milliseconds. If the read request failed or the timeout
 /// expires, returns an error.
-uv_errors_e _uv_canopen_sdo_client_read_sync(uint8_t node_id,
-		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *data, int32_t timeout_ms);
+uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
+		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *data);
 
 
 

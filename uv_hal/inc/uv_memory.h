@@ -30,7 +30,7 @@
  This way the name is automatically updated for new projects."
 #endif
 #if !defined(CONFIG_INTERFACE_REVISION)
-#error "__UV_INTERFACE_REVISION should define the CAN interface revision number which starts from 1 and\
+#error "CONFIG_INTERFACE_REVISION should define the CAN interface revision number which starts from 1 and\
  rises every time the CAN interface is changed. It is used to support older interfaces on CAN-bus devices.\
  If the device dosn't use interface revisioning, set this to 0."
 #endif

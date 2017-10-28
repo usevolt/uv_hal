@@ -198,6 +198,13 @@ typedef struct {
 	struct {
 		struct {
 			canopen_sdo_state_e state;
+			uint8_t server_node_id;
+			uint8_t sindex;
+			uint8_t data_index;
+			uint8_t toggle;
+			uint16_t mindex;
+			void *data_ptr;
+			int delay;
 		} client;
 		struct {
 			canopen_sdo_state_e state;
@@ -355,30 +362,30 @@ static inline uv_errors_e uv_canopen_sdo_write(uint8_t node_id,
 	return _uv_canopen_sdo_client_write(node_id, mindex, sindex, data_len, data);
 }
 
+static inline uv_errors_e uv_canopen_sdo_read(uint8_t node_id,
+		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *dest) {
+	return _uv_canopen_sdo_client_read(node_id, mindex, sindex, data_len, dest);
+}
+
 /// @brief: Sets a CAN message callback. This can be used in order to manually receive messages
 	void uv_canopen_set_can_callback(void (*callb)(void *user_ptr, uv_can_message_st *msg));
 
-#if CONFIG_CANOPEN_SDO_SYNC
-static inline uv_errors_e uv_canopen_sdo_write_sync(uint8_t node_id, uint16_t mindex,
-		uint8_t sindex, uint32_t data_len, void *data, int32_t timeout_ms) {
-	return _uv_canopen_sdo_client_write_sync(node_id, mindex, sindex, data_len, data, timeout_ms);
-}
 
-static inline uv_errors_e uv_canopen_sdo_read_sync(uint8_t node_id, uint16_t mindex,
-		uint8_t sindex, uint32_t data_len, void *data, int32_t timeout_ms) {
-	return _uv_canopen_sdo_client_read_sync(node_id, mindex, sindex, data_len, data, timeout_ms);
-}
+uint8_t uv_canopen_sdo_read8(uint8_t node_id, uint16_t mindex, uint8_t sindex);
 
-uint8_t uv_canopen_sdo_read8(uint8_t node_id, uint16_t mindex,
-		uint8_t sindex, uint32_t data_len);
+uint16_t uv_canopen_sdo_read16(uint8_t node_id, uint16_t mindex, uint8_t sindex);
 
-uint16_t uv_canopen_sdo_read16(uint8_t node_id, uint16_t mindex,
-		uint8_t sindex, uint32_t data_len);
+uint32_t uv_canopen_sdo_read32(uint8_t node_id, uint16_t mindex, uint8_t sindex);
 
-uint32_t uv_canopen_sdo_read32(uint8_t node_id, uint16_t mindex,
-		uint8_t sindex, uint32_t data_len);
+uv_errors_e uv_canopen_sdo_write8(uint8_t node_id, uint16_t mindex,
+		uint8_t sindex, uint8_t data);
 
-#endif
+uv_errors_e uv_canopen_sdo_write16(uint8_t node_id, uint16_t mindex,
+		uint8_t sindex, uint16_t data);
+
+uv_errors_e uv_canopen_sdo_write32(uint8_t node_id, uint16_t mindex,
+		uint8_t sindex, uint32_t data);
+
 
 #endif
 
