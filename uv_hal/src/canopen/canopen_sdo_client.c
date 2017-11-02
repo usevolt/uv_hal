@@ -45,7 +45,7 @@ void _uv_canopen_sdo_client_init(void) {
 #else
 	// configure to receive all SDO response messages
 	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
-			CANOPEN_SDO_RESONSE_ID, ~0x7F, CAN_STD);
+			CANOPEN_SDO_RESPONSE_ID, ~0x7F, CAN_STD);
 #endif
 
 }
