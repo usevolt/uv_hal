@@ -204,6 +204,11 @@ static inline void uv_delay_init(unsigned int delay_ms, int* p) {
 /// 	}
 bool uv_delay(unsigned int step_ms, int* p);
 
+/// @brief: returns true if the delay has ended
+static inline bool uv_delay_has_ended(int* p) {
+	return (*p <= 0);
+}
+
 
 /// @brief: Set's the user's application pointer.
 /// User can set a pointer to any variable which will be passed to all this library's
