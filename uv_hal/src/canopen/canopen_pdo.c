@@ -350,7 +350,7 @@ void _uv_canopen_pdo_rx(const uv_can_message_st *msg) {
 
 
 				// if main index & sub index were zero, jump to next mapping
-				if ((!mapping->main_index) && (!mapping->sub_index)) {
+				if (!(mapping->main_index) && !(mapping->sub_index)) {
 					byte_count += mapping->length;
 					valid = false;
 				}
