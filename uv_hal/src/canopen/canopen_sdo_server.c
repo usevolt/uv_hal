@@ -88,7 +88,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 						this->toggle = 0;
 						uv_delay_init(CONFIG_CANOPEN_SDO_TIMEOUT_MS, &this->delay);
 						SET_CMD_BYTE(&reply_msg,
-								INITIATE_DOMAIN_DOWNLOAD);
+								INITIATE_DOMAIN_DOWNLOAD_REPLY);
 						// data bytes indicate data index which starts from 0
 						memset(&reply_msg.data_8bit[1], 0, 7);
 						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
