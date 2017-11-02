@@ -72,6 +72,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 		// aborted transfers
 		if (sdo_type == ABORT_DOMAIN_TRANSFER) {
 			this->state = CANOPEN_SDO_STATE_TRANSFER_ABORTED;
+			uv_delay_init(CONFIG_CANOPEN_SDO_TIMEOUT_MS, &this->delay);
 		}
 		// reply to expedited downloads
 		else if ((this->state == CANOPEN_SDO_STATE_EXPEDITED_DOWNLOAD) &&
@@ -91,6 +92,9 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 			}
 			// transfer done
 			this->state = CANOPEN_SDO_STATE_READY;
+		}
+		else {
+
 		}
 	}
 }

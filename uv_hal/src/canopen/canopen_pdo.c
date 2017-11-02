@@ -348,12 +348,21 @@ void _uv_canopen_pdo_rx(const uv_can_message_st *msg) {
 					valid = false;
 				}
 
-				// fetch the mapped object
-				if (!_uv_canopen_obj_dict_get(mapping->main_index, mapping->sub_index, &obj)) {
+
+				// if main index & sub index were zero, jump to next mapping
+				if ((!mapping->main_index) && (!mapping->sub_index)) {
+					byte_count += mapping->length;
+					valid = false;
+				}
+				// otherwise try to fetch the mapped object
+				else if (!_uv_canopen_obj_dict_get(mapping->main_index, mapping->sub_index, &obj)) {
 					_uv_canopen_sdo_abort(CANOPEN_SDO_REQUEST_ID, mapping->main_index,
 							mapping->sub_index, CANOPEN_SDO_ERROR_OBJECT_DOES_NOT_EXIST);
 					byte_count += mapping->length;
 					valid = false;
+				}
+				else {
+
 				}
 
 				if (valid) {
