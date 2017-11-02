@@ -44,6 +44,13 @@ void uv_hysteresis_init(uv_hysteresis_st *this, int32_t trigger_value, int32_t h
 
 bool uv_hysteresis_step(uv_hysteresis_st *this, int32_t value);
 
+/// @brief: Sets the trigger value
+///
+/// @note: Glitching or flickering or output might happen from unnecessary changes
+static inline void uv_hysteresis_set_trigger_value(uv_hysteresis_st *this, int32_t value) {
+	this->trigger_value = value;
+}
+
 static inline uint8_t uv_hysteresis_get_output(uv_hysteresis_st *this) {
 	return this->result;
 }
