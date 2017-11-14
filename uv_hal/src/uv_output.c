@@ -25,39 +25,29 @@
 #if CONFIG_OUTPUT
 
 
-/// @brief: Sets the output GPIO or PWM accordingly.
-/// In OUTPUT_MODE_DIGITAL **value** is evaluated as boolean value,
-/// in PWM-based modes value is evaluated as the pwm duty cycle. See uv_pwm.h
-/// for more details.
-static void set_out(uv_output_st *this, uint16_t value);
+/// @brief: Sets the output GPIO if one is assigned. When extending
+/// different output modules from this, set gate_io to 0.
+static inline void set_out(uv_output_st *this, uint16_t value) {
+	if (this->gate_io) {
+		uv_gpio_set(this->gate_io, value);
+	}
+}
 
 
-void uv_output_init(uv_output_st *this, const output_mode_e mode,
-		const uv_adc_channels_e adc_chn, const uint32_t io_pwm,
-		const uint16_t sense_mohm, const uint16_t min_val, const uint16_t max_val,
-		const uint16_t moving_avg_count, uint32_t emcy_overload, uint32_t emcy_fault) {
-	this->mode = mode;
+void uv_output_init(uv_output_st *this,  uv_adc_channels_e adc_chn, uv_gpios_e gate_io,
+		uint16_t sense_ampl, uint16_t max_val, uint16_t fault_val,
+		uint16_t moving_avg_count, uint32_t emcy_overload, uint32_t emcy_fault) {
 	this->adc_chn = adc_chn;
-	this->target_val = 0;
-	if (this->mode == OUTPUT_MODE_DIGITAL) {
-		this->gate_io = io_pwm;
-		uv_gpio_init_output(this->gate_io, false);
-	}
-	else {
-		this->pwm_channel = io_pwm;
-	}
+	this->gate_io = gate_io;
 	set_out(this, 0);
-	this->sense_mohm = sense_mohm;
-	this->sense_ampl = 50;
-	this->limit_min = min_val;
+	this->sense_ampl = sense_ampl;
 	this->limit_max = max_val;
+	this->limit_fault = fault_val;
 	uv_moving_aver_init(&this->moving_avg, moving_avg_count);
 	this->emcy_overload = emcy_overload;
 	this->emcy_fault = emcy_fault;
 	this->state = OUTPUT_STATE_OFF;
 	this->current = 0;
-	uv_delay_init(&this->dither.delay, CONFIG_OUTPUT_DITHER_FREQ);
-	this->dither.addition = 0;
 }
 
 
@@ -95,42 +85,24 @@ void uv_output_step(uv_output_st *this, uint16_t step_ms) {
 	if (this->state == OUTPUT_STATE_ON) {
 		// current sense feedback
 		if (this->adc_chn) {
-			int16_t adc = uv_adc_read(this->adc_chn) - 0x24;
+			int16_t adc = uv_adc_read(this->adc_chn);
 			if (adc < 0) {
 				adc = 0;
 			}
-			int32_t mv = (int32_t) adc * 3300 / ADC_MAX_VALUE ;
-			// current is multiplied by inverted resistor value (1 / 0.002) and divided
-			// by current sensing amplification
-			int32_t current = mv * (1000 / (this->sense_mohm * this->sense_ampl));
-			if (current < 0) {
-				current = 0;
-			}
+			int32_t current = adc * this->sense_ampl;
 			this->current = uv_moving_aver_step(&this->moving_avg, current);
 		}
 
-		if ((this->current > this->limit_max)) {
-			set_out(this, false);
-			uv_output_set_state(this, OUTPUT_STATE_OVERLOAD);
-		}
-		else if (this->current < this->limit_min) {
+		if (this->current > this->limit_fault) {
 			set_out(this, false);
 			uv_output_set_state(this, OUTPUT_STATE_FAULT);
 		}
+		else if ((this->current > this->limit_max)) {
+			set_out(this, false);
+			uv_output_set_state(this, OUTPUT_STATE_OVERLOAD);
+		}
 		else {
-			// normal operation in different modes
-			if (this->mode == OUTPUT_MODE_DIGITAL) {
-				set_out(this, true);
-			}
-			else if (this->mode == OUTPUT_MODE_PWM) {
-				set_out(this, this->target_val);
-			}
-			else if (this->mode == OUTPUT_MODE_SOLENOID) {
-
-			}
-			else {
-
-			}
+			set_out(this, true);
 		}
 	}
 	else if (this->state == OUTPUT_STATE_OVERLOAD) {
@@ -144,28 +116,6 @@ void uv_output_step(uv_output_st *this, uint16_t step_ms) {
 	}
 }
 
-
-void uv_output_set(uv_output_st *this, const uint16_t value) {
-	if (this->mode == OUTPUT_MODE_DIGITAL) {
-		uv_output_set_state(this, value ? OUTPUT_STATE_ON : OUTPUT_STATE_OFF);
-	}
-	else {
-		this->target_val = value;
-	}
-}
-
-
-
-static void set_out(uv_output_st *this, uint16_t value) {
-	if (this->mode == OUTPUT_MODE_DIGITAL) {
-		uv_gpio_set(this->gate_io, value ? true : false);
-	}
-	else {
-#if CONFIG_PWM
-		uv_pwm_set(this->pwm_channel, DUTY_CYCLE(value));
-#endif
-	}
-}
 
 
 

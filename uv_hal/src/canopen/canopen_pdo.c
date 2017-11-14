@@ -185,7 +185,7 @@ void _uv_canopen_pdo_step(uint16_t step_ms) {
 			if (IS_ENABLED(com)) {
 
 				// check if event timer in this PDO triggers
-				if (uv_delay((uv_delay_st*) &this->txpdo_time[i], CONFIG_OUTPUT_DITHER_FREQ)) {
+				if (uv_delay((uv_delay_st*) &this->txpdo_time[i], step_ms)) {
 					// initialize delay again
 					uv_delay_init((uv_delay_st*) &this->txpdo_time[i], com->event_timer);
 
