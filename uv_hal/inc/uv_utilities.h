@@ -191,10 +191,12 @@ extern CONFIG_APP_ST;
 
 
 
+typedef int32_t uv_delay_st;
+
 /// @brief: Initializes a delay.
 /// @param delay_ms The desired length of the delay
 /// @param p A pointer to variable which will hold the current delay count
-static inline void uv_delay_init(unsigned int delay_ms, int* p) {
+static inline void uv_delay_init(uv_delay_st* p, uint16_t delay_ms) {
 	*p = delay_ms;
 }
 
@@ -212,10 +214,10 @@ static inline void uv_delay_init(unsigned int delay_ms, int* p) {
 ///				...
 ///			}
 /// 	}
-bool uv_delay(unsigned int step_ms, int* p);
+bool uv_delay(uv_delay_st* p, uint16_t step_ms);
 
 /// @brief: returns true if the delay has ended
-static inline bool uv_delay_has_ended(int* p) {
+static inline bool uv_delay_has_ended(uv_delay_st* p) {
 	return (*p <= 0);
 }
 

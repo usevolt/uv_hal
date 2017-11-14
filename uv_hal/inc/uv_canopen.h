@@ -198,7 +198,7 @@ typedef struct {
 	uint32_t store_req;
 	uint32_t restore_req;
 	canopen_identity_object_st identity;
-	int heartbeat_time;
+	uv_delay_st heartbeat_time;
 	uint32_t txpdo_time[CONFIG_CANOPEN_TXPDO_COUNT];
 
 	uv_ring_buffer_st emcy_rx;
@@ -214,7 +214,7 @@ typedef struct {
 			uint8_t toggle;
 			uint16_t mindex;
 			void *data_ptr;
-			int delay;
+			uv_delay_st delay;
 		} client;
 		struct {
 			canopen_sdo_state_e state;
@@ -223,7 +223,7 @@ typedef struct {
 			// contains the index of next data to be transmitted
 			uint8_t data_index;
 			uint8_t toggle;
-			int delay;
+			uv_delay_st delay;
 		} server;
 	} sdo;
 	void (*can_callback)(void *user_ptr, uv_can_message_st* msg);

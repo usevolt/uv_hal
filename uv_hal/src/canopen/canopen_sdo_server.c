@@ -47,7 +47,7 @@ void _uv_canopen_sdo_server_reset(void) {
 void _uv_canopen_sdo_server_step(uint16_t step_ms) {
 	if ((this->state == DOWNLOAD_DOMAIN_SEGMENT) ||
 			this->state == UPLOAD_DOMAIN_SEGMENT) {
-		if (uv_delay(step_ms, &this->delay)) {
+		if (uv_delay(&this->delay, step_ms)) {
 			sdo_server_abort(this->mindex, this->sindex,
 					CANOPEN_SDO_ERROR_GENERAL);
 			this->state = CANOPEN_SDO_STATE_READY;
@@ -86,7 +86,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 						this->mindex = GET_MINDEX(msg);
 						this->sindex = GET_SINDEX(msg);
 						this->toggle = 0;
-						uv_delay_init(CONFIG_CANOPEN_SDO_TIMEOUT_MS, &this->delay);
+						uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 						SET_CMD_BYTE(&reply_msg,
 								INITIATE_DOMAIN_DOWNLOAD_REPLY);
 						// data bytes indicate data index which starts from 0
@@ -136,7 +136,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 					this->mindex = GET_MINDEX(msg);
 					this->sindex = GET_SINDEX(msg);
 					this->toggle = 0;
-					uv_delay_init(CONFIG_CANOPEN_SDO_TIMEOUT_MS, &this->delay);
+					uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 					// initiate segmented domain upload with data size indicated
 					SET_CMD_BYTE(&reply_msg,
 							INITIATE_DOMAIN_UPLOAD | (1 << 0));
@@ -166,7 +166,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 	else if ((this->state == CANOPEN_SDO_STATE_SEGMENTED_UPLOAD) &&
 			(sdo_type == UPLOAD_DOMAIN_SEGMENT)) {
 
-		uv_delay_init(CONFIG_CANOPEN_SDO_TIMEOUT_MS, &this->delay);
+		uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 		SET_MINDEX(&reply_msg, this->mindex);
 		SET_SINDEX(&reply_msg, this->sindex);
 		if (_canopen_find_object(&reply_msg, &obj, CANOPEN_RO)) {
@@ -202,7 +202,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 	else if ((this->state == CANOPEN_SDO_STATE_SEGMENTED_DOWNLOAD) &&
 			(sdo_type == DOWNLOAD_DOMAIN_SEGMENT)) {
 
-		uv_delay_init(CONFIG_CANOPEN_SDO_TIMEOUT_MS, &this->delay);
+		uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 		SET_MINDEX(&reply_msg, this->mindex);
 		SET_SINDEX(&reply_msg, this->sindex);
 		if (_canopen_find_object(&reply_msg, &obj, CANOPEN_WO)) {

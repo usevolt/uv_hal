@@ -56,7 +56,7 @@ void _uv_canopen_sdo_client_reset(void) {
 
 void _uv_canopen_sdo_client_step(uint16_t step_ms) {
 	if ((this->state != CANOPEN_SDO_STATE_READY) &&
-			uv_delay(step_ms, &this->delay)) {
+			uv_delay(&this->delay, step_ms)) {
 		sdo_client_abort(this->mindex, this->sindex, CANOPEN_SDO_ERROR_SDO_PROTOCOL_TIMED_OUT);
 		this->state = CANOPEN_SDO_STATE_READY;
 	}
@@ -72,7 +72,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 		// aborted transfers
 		if (sdo_type == ABORT_DOMAIN_TRANSFER) {
 			this->state = CANOPEN_SDO_STATE_TRANSFER_ABORTED;
-			uv_delay_init(CONFIG_CANOPEN_SDO_TIMEOUT_MS, &this->delay);
+			uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 		}
 		// reply to expedited downloads
 		else if ((this->state == CANOPEN_SDO_STATE_EXPEDITED_DOWNLOAD) &&
@@ -118,7 +118,7 @@ uv_errors_e _uv_canopen_sdo_client_write(uint8_t node_id,
 		this->server_node_id = node_id;
 		this->mindex = mindex;
 		this->sindex = sindex;
-		uv_delay_init(CONFIG_CANOPEN_SDO_TIMEOUT_MS, &this->delay);
+		uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 
 		if (data_len <= 4) {
 			// expedited write
@@ -175,7 +175,7 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 		this->mindex = mindex;
 		this->sindex = sindex;
 		this->data_ptr = data;
-		uv_delay_init(CONFIG_CANOPEN_SDO_TIMEOUT_MS, &this->delay);
+		uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 
 		if (data_len <= 4) {
 			// expedited read

@@ -18,7 +18,7 @@
 
 
 void _uv_canopen_heartbeat_init(void) {
-	uv_delay_init(this_nonvol->producer_heartbeat_time_ms, &this->heartbeat_time);
+	uv_delay_init(&this->heartbeat_time, this_nonvol->producer_heartbeat_time_ms);
 }
 
 void _uv_canopen_heartbeat_reset(void) {
@@ -33,8 +33,8 @@ void _uv_canopen_heartbeat_reset(void) {
 
 void _uv_canopen_heartbeat_step(uint16_t step_ms) {
 
-	if (uv_delay(step_ms, &this->heartbeat_time)) {
-		uv_delay_init(this_nonvol->producer_heartbeat_time_ms, &this->heartbeat_time);
+	if (uv_delay(&this->heartbeat_time, step_ms)) {
+		uv_delay_init(&this->heartbeat_time, this_nonvol->producer_heartbeat_time_ms);
 
 		uv_can_message_st msg;
 		msg.type = CAN_STD;

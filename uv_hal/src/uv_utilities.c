@@ -38,7 +38,7 @@ void uv_set_application_ptr(void *ptr) {
 
 
 
-bool uv_delay(unsigned int step_ms, int* p) {
+bool uv_delay(uv_delay_st* p, uint16_t step_ms) {
 	if (p != NULL) {
 		if (*p >= step_ms) {
 			*p -= step_ms;
