@@ -37,22 +37,44 @@ void uv_pid_init(uv_pid_st *this, uint8_t p, uint8_t i, uint8_t d) {
 /// @brief: PID step function
 void uv_pid_step(uv_pid_st *this, uint16_t step_ms, int16_t input) {
 
-	// d has to be summed beforehand to get the derivation
-	int32_t d = (int32_t) (this->input - input) * this->d / 255;
+	bool on = true;
 
-	// input is updated after d has been calculated
-	this->input = input;
+	if (this->state == PID_STATE_OFF) {
+		on = false;
+	}
+	else if (this->state == PID_STATE_OFF_REQ) {
+		input = 0;
+		if ((this->output < PID_OFF_REQ_TOLERANCE) &&
+				(this->output > -PID_OFF_REQ_TOLERANCE)) {
+			this->state = PID_STATE_OFF;
+			on = false;
+		}
+	}
+	else {
 
-	// error value
-	int32_t err = this->input - this->output;
-	// error sum
-	this->sum += err;
+	}
 
-	int32_t p = (uint32_t) err * this->p / 255;
-	int32_t i = this->sum * this->i / 255;
+	if (on) {
+		// d has to be summed beforehand to get the derivation
+		int32_t d = (int32_t) (this->input - input) * this->d / 255;
 
-	// lastly sum everything up
-	this->output += p + i + d;
+		// input is updated after d has been calculated
+		this->input = input;
+
+		// error value
+		int32_t err = this->input - this->output;
+		// error sum
+		this->sum += err;
+
+		int32_t p = (uint32_t) err * this->p / 255;
+		int32_t i = this->sum * this->i / 255;
+
+		// lastly sum everything up
+		this->output += p + i + d;
+	}
+	else {
+		uv_pid_reset(this);
+	}
 }
 
 

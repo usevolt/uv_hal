@@ -89,14 +89,12 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms);
 
 
 /// @brief: Sets the solenoid output target current in mA
-static inline void uv_solenoid_output_set(uv_solenoid_output_st *this, uint16_t value_ma) {
-	this->target = value_ma;
-}
+void uv_solenoid_output_set(uv_solenoid_output_st *this, uint16_t value_ma);
 
 /// @brief: Sets the output state
 static inline void uv_solenoid_output_set_state(uv_solenoid_output_st *this,
 		uv_output_state_e state) {
-	((uv_output_st*) this)->state = state;
+	uv_output_set_state((uv_output_st *) this, state);
 }
 
 /// @brief: returns the state of the output

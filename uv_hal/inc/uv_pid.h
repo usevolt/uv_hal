@@ -20,6 +20,7 @@
 #define UV_HAL_INC_UV_PID_H_
 
 #include <uv_hal_config.h>
+#include <uv_utilities.h>
 
 /// @file: UV implementation of a PID controller
 
@@ -27,6 +28,8 @@
 
 #if CONFIG_PID
 
+
+#define PID_OFF_REQ_TOLERANCE	5
 
 /// @brief: PID states. Will be used internally.
 typedef enum {
@@ -60,6 +63,11 @@ void uv_pid_step(uv_pid_st *this, uint16_t step_ms, int16_t input);
 /// @brief: Returns the output from the PID
 static inline int16_t uv_pid_get_output(uv_pid_st *this) {
 	return this->output;
+}
+
+/// @brief: Resets the PID state to zero
+static inline void uv_pid_reset(uv_pid_st *this) {
+	uv_pid_init(this, this->p, this->i, this->d);
 }
 
 /// @brief: Sets the P factor. Valid range is from 0 to 255.
@@ -102,6 +110,8 @@ static inline void uv_pid_enable(uv_pid_st *this) {
 static inline void uv_pid_disable(uv_pid_st *this) {
 	this->state = PID_STATE_OFF_REQ;
 }
+
+
 
 #endif
 

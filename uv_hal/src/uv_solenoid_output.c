@@ -60,6 +60,7 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 			(state == OUTPUT_STATE_OVERLOAD) ||
 			(state == OUTPUT_STATE_FAULT)) {
 		set_out(this, 0);
+		this->target = 0;
 	}
 	else {
 		// output is ON
@@ -72,6 +73,14 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 
 		set_out(this, this->target + this->dither_ampl);
 	}
+}
+
+
+
+void uv_solenoid_output_set(uv_solenoid_output_st *this, uint16_t value_ma) {
+	this->target = value_ma;
+	uv_solenoid_output_set_state(this,
+			value_ma ? OUTPUT_STATE_ON : OUTPUT_STATE_OFF);
 }
 
 
