@@ -39,6 +39,8 @@
 #include "chip.h"
 #include "gpio_15xx.h"
 #include "uv_gpio_lpc1549.h"
+#elif CONFIG_TARGET_LINUX
+typedef uint32_t uv_gpios_e;
 #endif
 
 
@@ -70,6 +72,11 @@ typedef enum {
 	PULL_DOWN_ENABLED = (1 << 3),
 	PULL_UP_ENABLED = (1 << 4),
 	HYSTERESIS_ENABLED = (1 << 5)
+#elif CONFIG_TARGET_LINUX
+	PULL_UP_DISABLED = 0,
+	PULL_DOWN_ENABLED = (1 << 3),
+	PULL_UP_ENABLED = (1 << 4),
+	HYSTERESIS_ENABLED = (1 << 5)
 #endif
 } uv_gpio_input_config_e;
 
@@ -85,6 +92,11 @@ typedef enum {
 	INT_BOTH_EDGES = (0x2),
 	INT_DISABLE = 0
 #elif CONFIG_TARGET_LPC1549
+	INT_RISING_EDGE = (0x1 << 0),
+	INT_FALLING_EDGE = (0x1 << 1),
+	INT_BOTH_EDGES = (0x2),
+	INT_DISABLE = 0
+#elif CONFIG_TARGET_LINUX
 	INT_RISING_EDGE = (0x1 << 0),
 	INT_FALLING_EDGE = (0x1 << 1),
 	INT_BOTH_EDGES = (0x2),
@@ -121,6 +133,8 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, u
 			& ~(1 << CAT(CAT(GPIO_, gpio), _pin))) | (value << CAT(CAT(GPIO_, gpio), _pin)))
 #elif CONFIG_TARGET_LPC1549
 #define UV_GPIO_SET(gpio, value)  Chip_GPIO_SetPinState(LPC_GPIO, UV_GPIO_PORT(gpio), UV_GPIO_PIN(gpio), value)
+#elif CONFIG_TARGET_LINUX
+#define UV_PGIO_SET(gpio, value)	()
 #else
 #error "not implemented"
 #endif
@@ -136,6 +150,8 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, u
 	(port(CAT(CAT(GPIO_, gpio), _port))->DATA ^= (1 << CAT(CAT(GPIO_, gpio), _pin)))
 #elif CONFIG_TARGET_LPC1549
 #define UV_GPIO_TOGGLE(gpio) Chip_GPIO_SetPinToggle(LPC_GPIO, UV_GPIO_PORT(gpio), UV_GPIO_PIN(gpio))
+#elif CONFIG_TARGET_LINUX
+#define UV_GPIO_TOGGLE(gpio)	()
 #else
 #error "not implemented"
 #endif
@@ -151,7 +167,9 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, u
 #define UV_GPIO_GET(gpio) \
 	((port(CAT(CAT(GPIO_, gpio), _port))->DATA & (1 << UV_GPIO_PIN(gpio))) >> UV_GPIO_PIN(gpio))
 #elif CONFIG_TARGET_LPC1549
-#define UV_GPIO_GET		Chip_GPIO_GetPinState(LPC_GPIO, UV_GPIO_PORT(gpio), UV_GPIO_PIN(gpio))
+#define UV_GPIO_GET(gpio)		Chip_GPIO_GetPinState(LPC_GPIO, UV_GPIO_PORT(gpio), UV_GPIO_PIN(gpio))
+#elif CONFIG_TARGET_LINUX
+#define UV_GPIO_GET(gpio)s	()
 #else
 #error "not implemented"
 #endif

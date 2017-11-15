@@ -47,31 +47,6 @@ static volatile this_st _this = {
 };
 
 
-void uv_rtos_mutex_unlock(uv_mutex *this) {
-	__disable_irq();
-	this->locked = false;
-	__enable_irq();
-}
-
-
-uint32_t uv_rtos_mutex_lock(uv_mutex *this) {
-	uint32_t time = 0;
-	while (true) {
-		__disable_irq();
-		if (this->locked) {
-			time++;
-		}
-		else {
-			this->locked = true;
-			__enable_irq();
-			return time;
-		}
-		__enable_irq();
-
-		uv_rtos_task_delay(1);
-	}
-}
-
 
 
 #define this (&_this)

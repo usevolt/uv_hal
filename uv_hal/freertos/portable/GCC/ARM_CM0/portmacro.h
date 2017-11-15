@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V9.0.0rc1 - Copyright (C) 2016 Real Time Engineers Ltd.
+    FreeRTOS V9.0.0 - Copyright (C) 2016 Real Time Engineers Ltd.
     All rights reserved
 
     VISIT http://www.FreeRTOS.org TO ENSURE YOU ARE USING THE LATEST VERSION.
@@ -74,11 +74,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-
-#include "uv_hal_config.h"
-
-#if CONFIG_TARGET_LPC11C14
 
 /*-----------------------------------------------------------
  * Port specific definitions.
@@ -156,9 +151,6 @@ extern void vClearInterruptMaskFromISR( uint32_t ulMask )  __attribute__((naked)
 
 #ifdef __cplusplus
 }
-#endif
-
-
 #endif
 
 #endif /* PORTMACRO_H */

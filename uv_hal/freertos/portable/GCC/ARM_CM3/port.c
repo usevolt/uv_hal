@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V9.0.0rc1 - Copyright (C) 2016 Real Time Engineers Ltd.
+    FreeRTOS V9.0.0 - Copyright (C) 2016 Real Time Engineers Ltd.
     All rights reserved
 
     VISIT http://www.FreeRTOS.org TO ENSURE YOU ARE USING THE LATEST VERSION.
@@ -71,11 +71,6 @@
  * Implementation of functions defined in portable.h for the ARM CM3 port.
  *----------------------------------------------------------*/
 
-#include "uv_hal_config.h"
-
-#if CONFIG_TARGET_LPC1785 || CONFIG_TARGET_LPC1549
-
-
 /* Scheduler includes. */
 #include "FreeRTOS.h"
 #include "task.h"
@@ -135,6 +130,10 @@ FreeRTOS.org versions prior to V4.4.0 did not include this definition. */
 occurred while the SysTick counter is stopped during tickless idle
 calculations. */
 #define portMISSED_COUNTS_FACTOR			( 45UL )
+
+/* For strict compliance with the Cortex-M spec the task start address should
+have bit-0 clear, as it is loaded into the PC on exit from an ISR. */
+#define portSTART_ADDRESS_MASK				( ( StackType_t ) 0xfffffffeUL )
 
 /* Let the user override the pre-loading of the initial LR with the address of
 prvTaskExitError() in case it messes up unwinding of the stack in the
@@ -221,7 +220,7 @@ StackType_t *pxPortInitialiseStack( StackType_t *pxTopOfStack, TaskFunction_t px
 	pxTopOfStack--; /* Offset added to account for the way the MCU uses the stack on entry/exit of interrupts. */
 	*pxTopOfStack = portINITIAL_XPSR;	/* xPSR */
 	pxTopOfStack--;
-	*pxTopOfStack = ( StackType_t ) pxCode;	/* PC */
+	*pxTopOfStack = ( ( StackType_t ) pxCode ) & portSTART_ADDRESS_MASK;	/* PC */
 	pxTopOfStack--;
 	*pxTopOfStack = ( StackType_t ) portTASK_RETURN_ADDRESS;	/* LR */
 	pxTopOfStack -= 5;	/* R12, R3, R2 and R1. */
@@ -436,7 +435,6 @@ void xPortPendSVHandler( void )
 
 void xPortSysTickHandler( void )
 {
-
 	/* The SysTick runs at the lowest interrupt priority, so when this interrupt
 	executes all interrupts must be unmasked.  There is therefore no need to
 	save and then restore the interrupt mask value as its value is already
@@ -486,6 +484,8 @@ void xPortSysTickHandler( void )
 		/* Enter a critical section but don't use the taskENTER_CRITICAL()
 		method as that will mask interrupts that should exit sleep mode. */
 		__asm volatile( "cpsid i" );
+		__asm volatile( "dsb" );
+		__asm volatile( "isb" );
 
 		/* If a context switch is pending or a task is waiting for the scheduler
 		to be unsuspended then abandon the low power entry. */
@@ -686,11 +686,11 @@ __attribute__(( weak )) void vPortSetupTimerInterrupt( void )
 		configASSERT( ( portAIRCR_REG & portPRIORITY_GROUP_MASK ) <= ulMaxPRIGROUPValue );
 	}
 
-
-#endif
-
-
 #endif /* configASSERT_DEFINED */
+
+
+
+
 
 
 

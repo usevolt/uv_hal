@@ -1,5 +1,5 @@
 /*
-    FreeRTOS V9.0.0rc1 - Copyright (C) 2016 Real Time Engineers Ltd.
+    FreeRTOS V9.0.0 - Copyright (C) 2016 Real Time Engineers Ltd.
     All rights reserved
 
     VISIT http://www.FreeRTOS.org TO ENSURE YOU ARE USING THE LATEST VERSION.
@@ -75,11 +75,6 @@
 extern "C" {
 #endif
 
-
-#include "uv_hal_config.h"
-
-#if CONFIG_TARGET_LPC1785 || CONFIG_TARGET_LPC1549
-
 /*-----------------------------------------------------------
  * Port specific definitions.
  *
@@ -97,7 +92,7 @@ extern "C" {
 #define portLONG		long
 #define portSHORT		short
 #define portSTACK_TYPE	uint32_t
-#define portBASE_TYPE   long
+#define portBASE_TYPE	long
 
 typedef portSTACK_TYPE StackType_t;
 typedef long BaseType_t;
@@ -283,8 +278,6 @@ portFORCE_INLINE static void vPortSetBASEPRI( uint32_t ulNewMaskValue )
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif
 
 #endif /* PORTMACRO_H */

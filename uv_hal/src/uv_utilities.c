@@ -60,6 +60,8 @@ char *uv_get_hardware_name() {
 	return "CONFIG_TARGET_LPC1785";
 #elif CONFIG_TARGET_LPC1549
 	return "CONFIG_TARGET_LPC1549";
+#elif CONFIG_TARGET_LINUX
+	return "CONFIG_TARGET_LINUX";
 #else
 	#error "Error: Hardware name not specified in uv_utilities.c"
 #endif
@@ -341,23 +343,13 @@ uint32_t uv_ctz(uint32_t a) {
 
 
 
-void _delay_ms (uint16_t ms)
-{
-	volatile uint16_t delay;
-	volatile uint32_t i;
-	for (delay = ms; delay > 0; delay--) {
-		// with code optimization this is not at all precise!
-		for (i = 0; i < SystemCoreClock / 15000; i++){ __NOP(); }
-	}
-}
-
-
 
 
 void *__uv_get_user_ptr() {
 	return user_ptr;
 }
 
+#if (CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LPC1785)
 
 void NMI_Handler(void) {
 	printf(CLRL "NMI\r");
@@ -383,4 +375,6 @@ void IntDefaultHandler(void) {
 	printf(CLRL "Default\r");
 	_delay_ms(100);
 }
+
+#endif
 

@@ -19,6 +19,7 @@
 
 
 #include "uv_reset.h"
+#include <stdlib.h>
 
 #if CONFIG_TARGET_LPC11C14
 #include "LPC11xx.h"
@@ -31,7 +32,11 @@
 
 
 void uv_system_reset() {
+#if !CONFIG_TARGET_LINUX
 	NVIC_SystemReset();
+#else
+	exit(0);
+#endif
 }
 
 

@@ -172,7 +172,10 @@ typedef enum {
 	CAN_COUNT
 #elif CONFIG_TARGET_LPC1549
 	CAN0 = 0,
-	CAN_COUNT = 1
+	CAN_COUNT
+#elif CONFIG_TARGET_LINUX
+	CAN0 = 0,
+	CAN_COUNT
 #else
 #error "Unknown hardware"
 #endif

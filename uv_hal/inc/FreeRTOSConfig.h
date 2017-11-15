@@ -65,8 +65,9 @@
 #include "LPC177x_8x.h"
 #elif CONFIG_TARGET_LPC11C14
 #include "LPC11xx.h"
-#else
+#elif CONFIG_TARGET_LPC1549
 #include "chip.h"
+#elif CONFIG_TARGET_LINUX
 #endif
 #endif
 
@@ -82,17 +83,22 @@
 #define configUSE_PREEMPTION		1
 #define configUSE_IDLE_HOOK			0
 #if CONFIG_TARGET_LPC1785 || CONFIG_TARGET_LPC1549
+#define configCPU_CLOCK_HZ			( ( unsigned long ) SystemCoreClock )
 #define configMAX_PRIORITIES		( 8 )
 #elif CONFIG_TARGET_LPC11C14
+#define configCPU_CLOCK_HZ			( ( unsigned long ) SystemCoreClock )
 #define configMAX_PRIORITIES		( ( unsigned portBASE_TYPE ) 5 )
+#elif CONFIG_TARGET_LINUX
+#define configMAX_PRIORITIES		( ( unsigned portBASE_TYPE ) 10 )
 #endif
 #define configUSE_TICK_HOOK			0
-#define configCPU_CLOCK_HZ			( ( unsigned long ) SystemCoreClock )
 #define configTICK_RATE_HZ			( ( portTickType ) 1000 )
 #if CONFIG_TARGET_LPC1785 || CONFIG_TARGET_LPC1549
 #define configMINIMAL_STACK_SIZE	( ( unsigned short ) 128 )
 #elif CONFIG_TARGET_LPC11C14
 #define configMINIMAL_STACK_SIZE	( ( unsigned short ) 64 )
+#elif CONFIG_TARGET_LINUX
+#define configMINIMAL_STACK_SIZE	( ( unsigned short ) 1024 )
 #endif
 #define configSUPPORT_DYNAMIC_ALLOCATION	1
 #define configTOTAL_HEAP_SIZE 		CONFIG_RTOS_HEAP_SIZE
@@ -182,10 +188,28 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 #else
 #if defined(CORE_M0)
 #else
+#if defined(CORE_LINUX)
+/* The lowest interrupt priority that can be used in a call to a "set priority"
+function. */
+#define configLIBRARY_LOWEST_INTERRUPT_PRIORITY			0x1f
+
+/* The highest interrupt priority that can be used by any interrupt service
+routine that makes calls to interrupt safe FreeRTOS API functions.  DO NOT CALL
+INTERRUPT SAFE FREERTOS API FUNCTIONS FROM ANY INTERRUPT THAT HAS A HIGHER
+PRIORITY THAN THIS! (higher priorities are lower numeric values. */
+#define configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY	5
+
+/* Interrupt priorities used by the kernel port layer itself.  These are generic
+to all Cortex-M ports, and do not rely on any particular library functions. */
+#define configKERNEL_INTERRUPT_PRIORITY 		( configLIBRARY_LOWEST_INTERRUPT_PRIORITY << (8 - configPRIO_BITS) )
+#define configMAX_SYSCALL_INTERRUPT_PRIORITY 	( configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY << (8 - configPRIO_BITS) )
+
+#else
 #error FreeRTOS setup NOT DEFINED
 #endif /* defined(CORE_M0) */
 #endif /* defined(CORE_M4) */
 #endif /* defined(CORE_M3) */
+#endif /* defined(CORE_LINUX) */
 
 /* Definitions that map the FreeRTOS port interrupt handlers to their CMSIS
 standard names - or at least those used in the unmodified vector table. */

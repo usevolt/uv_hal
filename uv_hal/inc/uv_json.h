@@ -22,6 +22,8 @@
 #include "uv_hal_config.h"
 
 
+#if CONFIG_JSON
+
 /// @file: A lightweight JSON parser capable of creating or parsing JSON strings.
 /// Note that floating points aren't currently supported.
 
@@ -248,5 +250,6 @@ bool uv_jsonreader_get_bool(char *object);
 /// @note: Do not overindex!
 bool uv_jsonreader_array_get_bool(char *object, unsigned int index);
 
+#endif
 
 #endif /* UW_JSON_H_ */

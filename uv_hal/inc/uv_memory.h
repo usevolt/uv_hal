@@ -69,6 +69,7 @@
 /// @brief: Defines the RAM size in bytes on this controller
 #define RAM_SIZE_BYTES	0x8000
 #define RAM_BASE_ADDRESS 0x2000000
+#elif CONFIG_TARGET_LINUX
 #else
 #warning "Controller not defined"
 #endif

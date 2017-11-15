@@ -216,6 +216,10 @@ typedef struct {
 
 } can_st;
 
+#elif CONFIG_TARGET_LINUX
+typedef struct {
+	bool init;
+} can_st;
 #endif
 
 
@@ -1513,6 +1517,12 @@ uv_errors_e uv_can_send_sync(uv_can_channels_e channel, uv_can_message_st *msg) 
 
 
 
+#elif CONFIG_TARGET_LINUX
+uv_errors_e _uv_can_init() {
+	uv_errors_e ret = ERR_NONE;
+
+	return ret;
+}
 
 #else
 #error "Controller not defined"
@@ -1542,28 +1552,28 @@ uv_errors_e uv_can_get_char(char *dest) {
 
 
 uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message) {
-	__disable_irq();
-	uv_errors_e ret;
+	uv_disable_int();
+	uv_errors_e ret = ERR_NONE;
 #if (CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LPC11C14)
 	ret = uv_ring_buffer_push(&this->tx_buffer, message);
 #elif CONFIG_TARGET_LPC1785
 	ret = uv_ring_buffer_push(&this->tx_buffer[channel], message);
 #endif
-	__enable_irq();
+	uv_enable_int();
 	return ret;
 }
 
 
 
 uv_errors_e uv_can_pop_message(uv_can_channels_e channel, uv_can_message_st *message) {
-	uv_errors_e ret;
-	__disable_irq();
+	uv_errors_e ret = ERR_NONE;
+	uv_disable_int();
 #if (CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LPC11C14)
 	ret = uv_ring_buffer_pop(&this->rx_buffer, message);
 #elif CONFIG_TARGET_LPC1785
 	ret = uv_ring_buffer_pop(&this->rx_buffer[channel], message);
 #endif
-	__enable_irq();
+	uv_enable_int();
 	return ret;
 }
 

@@ -24,6 +24,13 @@
 	replace outbyte(c) by your own function call.
 
 */
+
+
+#include <uv_hal_config.h>
+
+
+#if !CONFIG_TARGET_LINUX
+
 #define putchar(c) outbyte(c)
 
 #include <stdarg.h>
@@ -285,3 +292,4 @@ int main(void)
 #endif
 
 
+#endif

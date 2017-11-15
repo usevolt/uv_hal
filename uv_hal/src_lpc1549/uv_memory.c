@@ -87,6 +87,8 @@ const char *uv_datetime = __DATE__ " " __TIME__;
 
 
 void uv_enter_ISP_mode(void) {
+#if !CONFIG_TARGET_LINUX
+
 	unsigned int command_param[5];
 	unsigned int status_result[4];
 	IAP iap_entry = (IAP) IAP_LOCATION;
@@ -99,11 +101,14 @@ void uv_enter_ISP_mode(void) {
 	//call IAP
 	iap_entry( command_param, status_result );
 
+#endif
 }
 
 
 
 void uv_get_device_serial(unsigned int dest[4]) {
+#if !CONFIG_TARGET_LINUX
+
 	unsigned int command_param[5];
 	IAP iap_entry = (IAP) IAP_LOCATION;
 
@@ -124,6 +129,8 @@ void uv_get_device_serial(unsigned int dest[4]) {
 	dest[2] = swap;
 
 	__enable_irq();
+
+#endif
 }
 
 #if CONFIG_NON_VOLATILE_MEMORY
@@ -370,7 +377,11 @@ void uv_set_id(uint16_t id) {
 }
 
 uint8_t uv_get_id() {
+#if !CONFIG_TARGET_LINUX
 	return *((uint8_t*)(NON_VOLATILE_MEMORY_START_ADDRESS + 8));
+#else
+	return 0;
+#endif
 }
 
 
@@ -417,7 +428,10 @@ const char *uv_memory_get_project_date(uv_data_start_t *start_ptr) {
 
 
 uv_errors_e _uv_memory_hal_load(void) {
+#if !CONFIG_TARGET_LINUX
 	memcpy(&CONFIG_NON_VOLATILE_START, (void*) NON_VOLATILE_MEMORY_START_ADDRESS, sizeof(uv_data_start_t));
+#endif
+
 
 	return uv_memory_load();
 }

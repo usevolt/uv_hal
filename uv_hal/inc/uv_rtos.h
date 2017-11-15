@@ -60,13 +60,21 @@
 
 /// @brief: Disables all interrupt. This shouldn't be called from
 /// interrupt routines, use uv_disable_int_ISR instead!
+#if (CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LPC1785)
 #define uv_disable_int()		__disable_irq()
+#elif CONFIG_TARGET_LINUX
+#define uv_disable_int()
+#endif
 /// @brief: Disabled all interrupts. This is meant to be called from
 /// inside interrupt routines.
 #define uv_disable_int_ISR()	taskENTER_CRITICAL_FROM_ISR()
 /// @brief: Enables all interrupts. This shouldn't be called from
 /// interrupt routines, use uv_enable_int_ISR instead!
+#if (CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LPC1785)
 #define uv_enable_int()			__enable_irq()
+#elif CONFIG_TARGET_LINUX
+#define uv_enable_int()
+#endif
 /// @brief: Enabled all interrupts. This is meant to be called from
 /// inside interrupt routines.
 #define uv_enable_int_ISR()		taskEXIT_CRITICAL_FROM_ISR(1)
@@ -81,6 +89,23 @@
 typedef xTaskHandle 		uv_rtos_task_ptr;
 
 
+/// @brief: Wrapper for FreeRTOS mutex semaphore
+typedef SemaphoreHandle_t 	uv_mutex_st;
+
+/// @brief: Initializes a mutex. Must be called before uv_mutex_lock and uv_mutex_unlock
+static inline void uv_mutex_init(uv_mutex_st *mutex) {
+	*mutex = xSemaphoreCreateMutex();
+}
+
+/// @brief: Locks the mutex. No one else can lock the mutex before it is unlocked.
+static inline void uv_mutex_lock(uv_mutex_st *mutex) {
+	xSemaphoreTake(*mutex, portMAX_DELAY);
+}
+
+/// @brief: Unlocks the mutex after which others can lock it again.
+static inline void uv_mutex_unlock(uv_mutex_st *mutex) {
+	xSemaphoreGive(*mutex);
+}
 
 
 
@@ -117,23 +142,6 @@ uv_errors_e uv_rtos_add_idle_task(void (*task_function)(void *user_ptr));
 
 
 
-typedef struct {
-	bool locked;
-} uv_mutex;
-
-
-static inline void uv_rtos_mutex_init(uv_mutex* this) {
-	this->locked = false;
-}
-
-/// @brief: Unlocks the mutex
-void uv_rtos_mutex_unlock(uv_mutex *this);
-
-/// @brief: Waits until the mutex has been locked. Returns time in milliseconds
-/// how long it took to lock the mutex
-uint32_t uv_rtos_mutex_lock(uv_mutex *this);
-
-
 
 
 /// @brief: Wrapper for FreeRTOS vTaskDelaiUntil-function. Use this to
@@ -147,7 +155,9 @@ static inline void uv_rtos_task_yield(void) {
 }
 
 
-
+#if CONFIG_TARGET_LINUX
+#define __NOP()
+#endif
 
 
 

@@ -19,6 +19,8 @@
 #include "uv_terminal.h"
 
 
+#if CONFIG_TERMINAL
+
 #include "uv_reset.h"
 #include "uv_canopen.h"
 #include <stdio.h>
@@ -354,4 +356,6 @@ bool uv_terminal_parse_bool(char *arg) {
 	return ret;
 }
 
+
+#endif
 

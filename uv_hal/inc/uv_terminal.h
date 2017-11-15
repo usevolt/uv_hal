@@ -50,6 +50,8 @@
 /// the serial interfaces the terminal will never receive any characters sent to it.
 
 
+#if CONFIG_TERMINAL
+
 #if !defined(CONFIG_TERMINAL_BUFFER_SIZE)
 #error "CONFIG_TERMINAL_BUFFER_SIZE not defined. It should define the maximum buffer size for\
  the terminal in bytes. Note that the buffer has to be big enough to fit all command arguments."
@@ -166,5 +168,6 @@ bool uv_terminal_parse_bool(char *arg);
 void _uv_terminal_add_rx_buffer(char c);
 
 
+#endif
 
 #endif /* UW_TERMINAL_H_ */

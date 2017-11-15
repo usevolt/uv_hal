@@ -17,6 +17,7 @@
 
 #include "uv_json.h"
 
+#if CONFIG_JSON
 
 #include <string.h>
 #include <stdio.h>
@@ -545,3 +546,4 @@ bool uv_jsonreader_array_get_bool(char *object, unsigned int index) {
 }
 
 
+#endif
