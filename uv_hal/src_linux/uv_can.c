@@ -59,11 +59,15 @@ extern bool can_log;
 
 typedef struct {
 	bool init;
+	unsigned int baudrate;
+	char dev_name[20];
 } can_st;
 
 
 static can_st _can = {
-		.init = false
+		.init = false,
+		.baudrate = CONFIG_CAN0_BAUDRATE,
+		.dev_name = "can0"
 };
 #define this (&_can)
 
@@ -72,8 +76,25 @@ void _uv_can_hal_send(uv_can_channels_e chn);
 
 
 
+void uv_can_set_baudrate(uv_can_channels_e channel, unsigned int baudrate) {
+	this->baudrate = baudrate;
+}
+
+void uv_can_set_name(uv_can_channels_e channel, const char *dev_name) {
+	strcpy(this->dev_name, dev_name);
+}
+
+
 uv_errors_e _uv_can_init() {
 	uv_errors_e ret = ERR_NONE;
+
+	if (!this->baudrate) {
+		printf("Error: Baudrate has to be set for CAN before initialization.\n");
+		ret = ERR_NOT_INITIALIZED;
+	}
+	else {
+		//todo: socket can initialization
+	}
 
 	return ret;
 }

@@ -113,6 +113,10 @@
 #error "CONFIG_CAN1_RX_PIN can be PIO0_4 or PIO2_7"
 #endif
 #endif
+#elif CONFIG_TARGET_LINUX
+#if !defined(CONFIG_CAN0_BAUDRATE)
+#error "CONFIG_CAN0_BAUDRATE should define the default baudrate for CAN."
+#endif
 #endif
 
 
@@ -293,6 +297,18 @@ uv_errors_e uv_can_add_rx_callback(uv_can_channels_e channel,
 
 uv_errors_e uv_can_reset(uv_can_channels_e channel);
 
+#if CONFIG_TARGET_LINUX
+/// @brief: Baudrate setting only possible on Linux systems. Otherwise baudrate is
+/// specified via CONFIG_CAN_BAUDRATE symbol.
+///
+/// @note: Should be called prior to _uv_can_init function.
+void uv_can_set_baudrate(uv_can_channels_e channel, unsigned int baudrate);
+
+/// @brief: Sets the device name for the CAN. Defaults to can0.
+///
+/// @note: Should be called prior to _uv_can_init function.
+void uv_can_set_name(uv_can_channels_e channel, const char *dev_name);
+#endif
 
 
 #if CONFIG_TERMINAL_CAN
