@@ -26,7 +26,7 @@ static void set_out(uv_solenoid_output_st *this, int16_t value) {
 	if (value < 0) {
 		value = 0;
 	}
-	uv_pwm_set(this->pwm_chn, value);
+	uv_pwm_set(this->pwm_chn, DUTY_CYCLEPPT(value));
 }
 
 
@@ -40,7 +40,7 @@ void uv_solenoid_output_init(uv_solenoid_output_st *this, uv_pwm_channel_t pwm_c
 
 	this->dither_ampl = dither_ampl;
 	if (dither_freq) {
-		this->dither_ms = 1 / (dither_freq * 2);
+		this->dither_ms = 1000 / (dither_freq * 2);
 		uv_delay_init(&this->delay, this->dither_ms);
 	}
 	else {
