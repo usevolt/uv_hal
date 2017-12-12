@@ -28,61 +28,39 @@
 #define SET_MINDEX(msg_ptr, value)		do {(msg_ptr)->data_8bit[1] = (value) % 256; \
 										(msg_ptr)->data_8bit[2] = (value) / 256; } while (0)
 #define SET_SINDEX(msg_ptr, value)		(msg_ptr)->data_8bit[3] = (value)
+#define IS_SDO_REQUEST(msg_ptr)			(((msg_ptr)->id & (~0x7F)) == CANOPEN_SDO_REQUEST_ID)
+#define IS_SDO_RESPONSE(msg_ptr)		(((msg_ptr)->id & (~0x7F)) == CANOPEN_SDO_RESPONSE_ID)
 
 
-enum {
-	INVALID_MSG = 0,
-	UNKNOWN_SDO_MSG,
-	ABORT_MSG,
-	INITIATE_WRITE_EXPEDITED_MSG,
-	INITIATE_WRITE_SEGMENTED_MSG,
-	INITIATE_READ_MSG
-};
-typedef uint8_t sdo_request_type_e;
-
-
-static inline bool sdo_transfer_finished() {
-	return this->sdo.state & CANOPEN_SDO_STATE_FINISHED_MASK;
-}
-
-static sdo_request_type_e get_request_type(const uv_can_message_st *msg, int32_t *byte_count) {
+sdo_request_type_e _canopen_sdo_get_request_type(const uv_can_message_st *msg) {
 	sdo_request_type_e ret;
 
-	if (msg->data_length != 8) {
+	if ((msg->data_length != 8) ||
+			(msg->type != CAN_STD) ||
+			(((msg->id & (~0x7F)) != CANOPEN_SDO_REQUEST_ID) &&
+					(msg->id & (~0x7F)) != CANOPEN_SDO_RESPONSE_ID)) {
 		ret = UNKNOWN_SDO_MSG;
 	}
 	// initiate domain download message
-	else if ((GET_CMD_BYTE(msg) & 0b11100000) == 0b100000) {
-		// expedited transfer
-		if (GET_CMD_BYTE(msg) & (1 << 1)) {
-			if (GET_CMD_BYTE(msg) & (1 << 0)) {
-				*byte_count = 4 - ((GET_CMD_BYTE(msg) & (0b1100)) >> 2);
-			}
-			else {
-				*byte_count = -1;
-			}
-			ret = INITIATE_WRITE_EXPEDITED_MSG;
-		}
-		// segmented transfer
-		else {
-			ret = INITIATE_WRITE_SEGMENTED_MSG;
-			// for segmented transfer 's' bit should be one
-			if (GET_CMD_BYTE(msg) & (1 << 0)) {
-				*byte_count = msg->data_32bit[1];
-			}
-			else {
-				ret = UNKNOWN_SDO_MSG;
-			}
-		}
+	else if ((GET_CMD_BYTE(msg) & 0b11100000) == INITIATE_DOMAIN_DOWNLOAD) {
+		ret = INITIATE_DOMAIN_DOWNLOAD;
+	}
+	else if ((GET_CMD_BYTE(msg) & 0b11100000) == INITIATE_DOMAIN_DOWNLOAD_REPLY) {
+		ret = INITIATE_DOMAIN_DOWNLOAD_REPLY;
+	}
+	else if ((GET_CMD_BYTE(msg) & 0b11100000) == DOWNLOAD_DOMAIN_SEGMENT) {
+		ret = DOWNLOAD_DOMAIN_SEGMENT;
 	}
 	// initiate domain upload
-	else if ((GET_CMD_BYTE(msg) & 0b11100000) == 0b1000000) {
-		*byte_count = -1;
-		ret = INITIATE_READ_MSG;
+	else if ((GET_CMD_BYTE(msg) & 0b11100000) == INITIATE_DOMAIN_UPLOAD) {
+		ret = INITIATE_DOMAIN_UPLOAD;
 	}
-	else if ((GET_CMD_BYTE(msg) & 0b11100000) == 0x80) {
+	else if ((GET_CMD_BYTE(msg) & 0b11100000) == UPLOAD_DOMAIN_SEGMENT) {
+		ret = UPLOAD_DOMAIN_SEGMENT;
+	}
+	else if ((GET_CMD_BYTE(msg) & 0b11100000) == ABORT_DOMAIN_TRANSFER) {
 		// abort
-		ret = ABORT_MSG;
+		ret = ABORT_DOMAIN_TRANSFER;
 	}
 	else {
 		ret = UNKNOWN_SDO_MSG;
@@ -101,20 +79,33 @@ void _uv_canopen_sdo_init(void) {
 	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
 			CANOPEN_SDO_REQUEST_ID + NODEID, CAN_ID_MASK_DEFAULT, CAN_STD);
 #endif
-
-	this->sdo.state = CANOPEN_SDO_STATE_READY;
-}
-
-void _uv_canopen_sdo_reset(void) {
-
-}
-
-void _uv_canopen_sdo_step(uint16_t step_ms) {
+	_uv_canopen_sdo_client_init();
+	_uv_canopen_sdo_server_init();
 
 }
 
 
-static bool find_object(const uv_can_message_st *msg,
+
+void _uv_canopen_sdo_rx(const uv_can_message_st *msg) {
+
+	// parse received message and filter only SDO reponses and requests
+	sdo_request_type_e msg_type = _canopen_sdo_get_request_type(msg);
+	if (msg_type != UNKNOWN_SDO_MSG) {
+		// SDO Server receives only SDO requested dedicated to this device
+		if ((GET_NODEID(msg) == NODEID) &&
+				IS_SDO_REQUEST(msg)) {
+			_uv_canopen_sdo_server_rx(msg, msg_type);
+		}
+		// SDO Client receives only SDO responses from other nodes than this device
+		else if ((GET_NODEID(msg) != NODEID) &&
+				IS_SDO_RESPONSE(msg)) {
+			_uv_canopen_sdo_client_rx(msg, msg_type, GET_NODEID(msg));
+		}
+	}
+}
+
+
+bool _canopen_find_object(const uv_can_message_st *msg,
 		canopen_object_st *obj, canopen_permissions_e permission_req) {
 	bool ret = true;
 
@@ -141,485 +132,47 @@ static bool find_object(const uv_can_message_st *msg,
 	return ret;
 }
 
-void _uv_canopen_sdo_rx(const uv_can_message_st *msg) {
-
-#if CONFIG_CANOPEN_SDO_SYNC
-	// SDO responses from other nodes are parsed only if there was an active transfer
-	if ((GET_NODEID(msg) != NODEID) &&
-			(!sdo_transfer_finished()) &&
-			(msg->data_length > 4)) {
-
-		// check that this SDO was actually from the currently open active transfer
-		if (GET_MINDEX(msg) == this->sdo.transfer.mindex &&
-				GET_SINDEX(msg) == this->sdo.transfer.sindex &&
-				GET_NODEID(msg) == this->sdo.transfer.node_id) {
-			/*
-			 * ABORT SDO TRANSFER
-			 */
-			if (GET_CMD_BYTE(msg) == 0x80) {
-				this->sdo.state = CANOPEN_SDO_STATE_TRANSFER_ABORTED;
-			}
-			/*
-			 * EXPEDITED WRITE
-			 */
-
-			else if (this->sdo.state == CANOPEN_SDO_STATE_EXPEDITED_WRITE) {
-				// write done
-				this->sdo.state = CANOPEN_SDO_STATE_TRANSFER_DONE;
-			}
-			/*
-			 * EXPEDITED READ
-			 */
-			else if (this->sdo.state == CANOPEN_SDO_STATE_EXPEDITED_READ) {
-				uint8_t data_len = uv_mini(msg->data_length - 4, this->sdo.transfer.rx_data_len);
-				if (GET_CMD_BYTE(msg) & (1 << 0)) {
-					data_len = uv_mini(4 - ((GET_CMD_BYTE(msg) & 0b1100) >> 2), data_len);
-				}
-				memcpy(this->sdo.transfer.rx_data, &msg->data_8bit[4], data_len);
-				this->sdo.state = CANOPEN_SDO_STATE_TRANSFER_DONE;
-			}
-#if CONFIG_CANOPEN_SDO_SEGMENTED
-			/*
-			 * SEGMENTED WRITE
-			 */
-			else if (this->sdo.state == CANOPEN_SDO_STATE_SEGMENTED_READ) {
-
-			}
-			/*
-			 * SEGMENTED READ
-			 */
-			else if (this->sdo.state == CANOPEN_SDO_STATE_SEGMENTED_READ) {
-
-			}
-#endif
-			else {
-
-			}
-		}
-	}
-#endif
-
-	// from this point onward, only messages addressed to this device are parsed
-	if (GET_NODEID(msg) == NODEID) {
-
-		int32_t byte_len = 0;
-		sdo_request_type_e type = get_request_type(msg, &byte_len);
 
 
-		if (type == ABORT_MSG) {
-			uv_can_message_st response;
-			response.type = CAN_STD;
-			response.id = CANOPEN_SDO_RESPONSE_ID + NODEID;
-			response.data_length = 8;
-			memcpy(response.data_8bit, msg->data_8bit, 8);
-			uv_can_send_message(CONFIG_CANOPEN_CHANNEL, &response);
-
-			// abort transfer if it is addressed to us
-			__disable_irq();
-			if (this->sdo.state != CANOPEN_SDO_STATE_READY) {
-				if (GET_NODEID(msg) == this->sdo.transfer.node_id &&
-						GET_MINDEX(msg) == this->sdo.transfer.mindex &&
-						GET_SINDEX(msg) == this->sdo.transfer.sindex) {
-					this->sdo.state = CANOPEN_SDO_STATE_TRANSFER_ABORTED;
-				}
-			}
-			__enable_irq();
-		}
-		/*
-		 * CANOPEN READ REQUESTS
-		 */
-		else if (type == INITIATE_READ_MSG) {
-			canopen_object_st obj;
-			if (find_object(msg, &obj, CANOPEN_RO)) {
-
-				if (uv_canopen_is_string(&obj)) {
-					__disable_irq();
-					if (this->sdo.state == CANOPEN_SDO_STATE_READY) {
-						this->sdo.state = CANOPEN_SDO_STATE_SEGMENTED_READ;
-						this->sdo.transfer.mindex = GET_MINDEX(msg);
-						this->sdo.transfer.sindex = GET_SINDEX(msg);
-						this->sdo.transfer.node_id = NODEID;
-#if CONFIG_CANOPEN_SDO_SEGMENTED
-
-						// todo: initiate a segmented read transfer for string type object
-#endif
-
-					}
-					else {
-						_uv_canopen_sdo_abort(CANOPEN_SDO_RESPONSE_ID, obj.main_index, obj.sub_index,
-								CANOPEN_SDO_ERROR_OBJECT_ACCESS_FAILED_DUE_TO_HARDWARE);
-					}
-					__enable_irq();
-				}
-				else {
-					// respond to an expedited read transfer
-					uv_can_message_st response;
-					response.type = CAN_STD;
-					response.id = CANOPEN_SDO_RESPONSE_ID + NODEID;
-					response.data_length = 8;
-					memset(response.data_8bit, 0, 8);
-
-					SET_CMD_BYTE(&response, (1 << 6) | (1 << 1) | (1 << 0) |
-							((4 - uv_canopen_get_object_data_size(&obj)) << 2));
-					SET_MINDEX(&response, obj.main_index);
-					// note: subindex is taken from the request message since array type objects
-					// differ in subindex handling
-					SET_SINDEX(&response, GET_SINDEX(msg));
-
-					// if ojbect is array, subindex 0 returns the array size
-					if (uv_canopen_is_array(&obj) && !GET_SINDEX(msg)) {
-						response.data_8bit[4] = obj.array_max_size;
-					}
-					else {
-						// copy data bytes to response message from the object
-						for (int8_t i = 0; i < uv_canopen_get_object_data_size(&obj); i++) {
-							if (uv_canopen_is_array(&obj)) {
-								response.data_8bit[4 + i] = ((uint8_t*) obj.data_ptr)
-										[(GET_SINDEX(msg) - 1) * uv_canopen_get_object_data_size(&obj) + i];
-							}
-							else {
-								response.data_8bit[4 + i] = ((uint8_t*) obj.data_ptr)[i];
-							}
-						}
-					}
-					uv_can_send(CONFIG_CANOPEN_CHANNEL, &response);
-				}
-			}
-		}
-		/*
-		 * CANOPEN EXPEDITED WRITE REQUEST
-		 */
-		else if (type == INITIATE_WRITE_EXPEDITED_MSG) {
-			canopen_object_st obj;
-			if (find_object(msg, &obj, CANOPEN_WO)) {
-
-				bool valid = true;
-
-				// check that requested data length matches
-				if (GET_CMD_BYTE(msg) & (1 << 0)) {
-					if (uv_canopen_get_object_data_size(&obj) !=
-							4 - ((GET_CMD_BYTE(msg) & 0b1100) >> 2)) {
-						_uv_canopen_sdo_abort(CANOPEN_SDO_RESPONSE_ID, GET_MINDEX(msg), GET_SINDEX(msg),
-								CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
-						valid = false;
-					}
-				}
-				// if object is an array, writing to subindex 0 is prohibited
-				if (uv_canopen_is_array(&obj) && !GET_SINDEX(msg)) {
-					_uv_canopen_sdo_abort(CANOPEN_SDO_RESPONSE_ID, GET_MINDEX(msg), GET_SINDEX(msg),
-							CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
-					valid = false;
-				}
-
-				if (valid) {
-					// if object is a string, start segmented write transfer
-					if (uv_canopen_is_string(&obj)) {
-						__disable_irq();
-						if (this->sdo.state == CANOPEN_SDO_STATE_READY) {
-							this->sdo.state = CANOPEN_SDO_STATE_SEGMENTED_WRITE;
-							this->sdo.transfer.mindex = GET_MINDEX(msg);
-							this->sdo.transfer.sindex = GET_SINDEX(msg);
-							this->sdo.transfer.node_id = NODEID;
-
-	#if CONFIG_CANOPEN_SDO_SEGMENTED
-							// todo: respond to segmented transfer
-
-	#endif
-							valid = false;
-						}
-						else {
-							// busy, only 1 segmented transfer can be active at one time
-							_uv_canopen_sdo_abort(CANOPEN_SDO_RESPONSE_ID, obj.main_index, obj.sub_index,
-									CANOPEN_SDO_ERROR_OBJECT_ACCESS_FAILED_DUE_TO_HARDWARE);
-							valid = false;
-						}
-						__enable_irq();
-					}
-					else {
-						// copy data to destination object
-						for (int8_t i = 0; i < uv_canopen_get_object_data_size(&obj); i++) {
-							if (uv_canopen_is_array(&obj)) {
-								((uint8_t*) obj.data_ptr)
-										[(GET_SINDEX(msg) - 1) * uv_canopen_get_object_data_size(&obj) + i] =
-												msg->data_8bit[4 + i];
-							}
-							else {
-								((uint8_t*) obj.data_ptr)[i] = msg->data_8bit[4 + i];
-							}
-						}
-
-						// send a response message from a successful expedited write
-						uv_can_message_st response;
-						response.id = CANOPEN_SDO_RESPONSE_ID + NODEID;
-						response.type = CAN_STD;
-						response.data_length = 8;
-						memset(response.data_8bit, 0, 8);
-						SET_CMD_BYTE(&response, 0x60);
-						SET_MINDEX(&response, obj.main_index);
-						SET_SINDEX(&response, GET_SINDEX(msg));
-						memcpy(&response.data_8bit[4], &msg->data_8bit[4],
-								uv_canopen_get_object_data_size(&obj));
-						uv_can_send(CONFIG_CANOPEN_CHANNEL, &response);
-
-					}
-				}
-			}
-		}
-		/*
-		 * CANOPEN SEGMENTED WRITE REQUEST
-		 */
-#if CONFIG_CANOPEN_SDO_SEGMENTED
-		else if (type == INITIATE_WRITE_SEGMENTED_MSG) {
-
-			// todo: segmented transfer needs to be implemented
-
-		}
-#endif
-		else if (type == UNKNOWN_SDO_MSG) {
-			_uv_canopen_sdo_abort(CANOPEN_SDO_RESPONSE_ID, GET_MINDEX(msg), GET_SINDEX(msg),
-					CANOPEN_SDO_ERROR_CMD_SPECIFIER_NOT_FOUND);
+void _canopen_copy_data(uv_can_message_st *dest, const canopen_object_st *src, uint8_t subindex) {
+	uv_disable_int();
+	if (CANOPEN_IS_ARRAY(src->type)) {
+		// for objects subindex 0 returns the array max size
+		if (subindex == 0) {
+			dest->data_32bit[1] = src->array_max_size;
 		}
 		else {
-
+			dest->data_32bit[1] = ((uint8_t*) src->data_ptr)[(subindex - 1) * CANOPEN_TYPE_LEN(src->type)];
 		}
-	}
-}
-
-
-
-
-uv_errors_e _uv_canopen_sdo_write(uint8_t node_id,
-		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *data) {
-	uv_errors_e ret = ERR_NONE;
-	uv_can_message_st msg = {
-			.type = CAN_STD,
-			.data_length = 8
-	};
-	msg.id = CANOPEN_SDO_REQUEST_ID + node_id;
-	memset(msg.data_8bit, 0, 8);
-	if (data_len <= 4) {
-		SET_CMD_BYTE(&msg, (1 << 5) |
-				(1 << 1) | (1 << 0) | ((4 - data_len) << 2));
-		SET_MINDEX(&msg, mindex);
-		SET_SINDEX(&msg, sindex);
-		memcpy(&msg.data_8bit[4], data, data_len);
 	}
 	else {
-#if CONFIG_CANOPEN_SDO_SEGMENTED
-		// todo: start a SDO segmented write
+		memcpy(&dest->data_32bit[1], src->data_ptr, CANOPEN_TYPE_LEN(src->type));
+	}
+	uv_enable_int();
+}
 
-#endif
-		ret = ERR_NOT_IMPLEMENTED;
+bool _canopen_write_data(canopen_object_st *dest, const uv_can_msg_st *src, uint8_t subindex) {
+	uv_disable_int();
+	bool ret = true;
+	if (CANOPEN_IS_ARRAY(dest->type)) {
+		// cannot write to subindex 0
+		if (subindex == 0) {
+			ret = false;
+		}
+		else {
+			memcpy(&((uint8_t*) dest->data_ptr)[(subindex - 1) * CANOPEN_TYPE_LEN(dest->type)],
+					&src->data_32bit[1], CANOPEN_TYPE_LEN(dest->type));
+		}
+	}
+	else {
+		memcpy(dest->data_ptr, &src->data_32bit[1], CANOPEN_TYPE_LEN(dest->type));
 	}
 
-	if (ret == ERR_NONE) {
-		ret = uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
-	}
-
+	uv_enable_int();
 	return ret;
 }
 
 
-#if CONFIG_CANOPEN_SDO_SYNC
-
-uv_errors_e _uv_canopen_sdo_write_sync(uint8_t node_id, uint16_t mindex,
-		uint8_t sindex, uint32_t data_len, void *data, int32_t timeout_ms) {
-	uv_errors_e ret = ERR_NONE;
-
-	while (true) {
-		bool br = false;
-		__disable_irq();
-		if (this->sdo.state == CANOPEN_SDO_STATE_READY) {
-			if (data_len <= 4) {
-				this->sdo.state = CANOPEN_SDO_STATE_EXPEDITED_WRITE;
-			}
-			else {
-				this->sdo.state = CANOPEN_SDO_STATE_SEGMENTED_WRITE;
-			}
-			this->sdo.transfer.mindex = mindex;
-			this->sdo.transfer.sindex = sindex;
-			this->sdo.transfer.node_id = node_id;
-			br = true;
-		}
-		__enable_irq();
-
-		if (timeout_ms > 0) {
-			timeout_ms--;
-		}
-		else {
-			br = true;
-			ret = ERR_HW_BUSY;
-		}
-		if (br) {
-			break;
-		}
-		else {
-			uv_rtos_task_delay(1);
-		}
-	}
-
-	if (ret == ERR_NONE) {
-		// make sure that CAN module is configured to receive response from this node
-#if CONFIG_TARGET_LPC1785
-		ret = uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
-				CANOPEN_SDO_RESPONSE_ID + node_id, CAN_STD);
-#else
-		ret = uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
-				CANOPEN_SDO_RESPONSE_ID + node_id, CAN_ID_MASK_DEFAULT, CAN_STD);
-#endif
-
-		_uv_canopen_sdo_write(node_id, mindex, sindex, data_len, data);
-
-		if (ret == ERR_NONE) {
-			while (true) {
-				bool br = false;
-				__disable_irq();
-				if (this->sdo.state == CANOPEN_SDO_STATE_TRANSFER_DONE) {
-					// got response
-					this->sdo.state = CANOPEN_SDO_STATE_READY;
-					br = true;
-				}
-				else if (this->sdo.state == CANOPEN_SDO_STATE_TRANSFER_ABORTED) {
-					this->sdo.state = CANOPEN_SDO_STATE_READY;
-					br = true;
-					ret = ERR_ABORTED;
-				}
-				else {
-
-				}
-				__enable_irq();
-
-				if (timeout_ms > 0) {
-					timeout_ms--;
-				}
-				else {
-					this->sdo.state = CANOPEN_SDO_STATE_READY;
-					br = true;
-					ret = ERR_NOT_RESPONDING;
-				}
-
-				if (!br) {
-					uv_rtos_task_delay(1);
-				}
-				else {
-					break;
-				}
-			}
-		}
-	}
-
-	return ret;
-}
-
-
-
-
-uv_errors_e _uv_canopen_sdo_read_sync(uint8_t node_id, uint16_t mindex,
-		uint8_t sindex, uint32_t data_len, void *data, int32_t timeout_ms) {
-	uv_errors_e ret = ERR_NONE;
-	while (true) {
-		bool br = false;
-		__disable_irq();
-		if (this->sdo.state == CANOPEN_SDO_STATE_READY) {
-			if (data_len <= 4) {
-				this->sdo.state = CANOPEN_SDO_STATE_EXPEDITED_READ;
-			}
-			else {
-				this->sdo.state = CANOPEN_SDO_STATE_SEGMENTED_READ;
-			}
-			this->sdo.transfer.mindex = mindex;
-			this->sdo.transfer.sindex = sindex;
-			this->sdo.transfer.node_id = node_id;
-			this->sdo.transfer.rx_data = data;
-			this->sdo.transfer.rx_data_len = data_len;
-			br = true;
-		}
-		__enable_irq();
-
-		if (timeout_ms > 0) {
-			timeout_ms--;
-		}
-		else {
-			ret = ERR_HW_BUSY;
-			br = true;
-		}
-
-		if (!br) {
-			uv_rtos_task_delay(1);
-		}
-		else {
-			break;
-		}
-	}
-
-	if (ret == ERR_NONE) {
-		// make sure that CAN module is configured to receive response from this node
-#if CONFIG_TARGET_LPC1785
-		ret = uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
-				CANOPEN_SDO_RESPONSE_ID + node_id, CAN_STD);
-#else
-		ret = uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
-				CANOPEN_SDO_RESPONSE_ID + node_id, CAN_ID_MASK_DEFAULT, CAN_STD);
-#endif
-
-		// send SDO read request
-		uv_can_message_st msg = {
-				.type = CAN_STD,
-				.data_length = 8
-		};
-		msg.id = CANOPEN_SDO_REQUEST_ID + node_id;
-		if (data_len <= 4) {
-			SET_CMD_BYTE(&msg, (1 << 6));
-			SET_MINDEX(&msg, mindex);
-			SET_SINDEX(&msg, sindex);
-			memset(&msg.data_8bit[4], 0, 4);
-			ret = uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
-		}
-		else {
-#if CONFIG_CANOPEN_SDO_SEGMENTED
-			// todo: send segmented read transfer start message
-
-#endif
-		}
-
-		if (ret == ERR_NONE) {
-
-			while (true) {
-				bool br = false;
-				__disable_irq();
-				if (this->sdo.state == CANOPEN_SDO_STATE_TRANSFER_DONE) {
-					// got response
-					this->sdo.state = CANOPEN_SDO_STATE_READY;
-					br = true;
-				}
-				else if (this->sdo.state == CANOPEN_SDO_STATE_TRANSFER_ABORTED) {
-					this->sdo.state = CANOPEN_SDO_STATE_READY;
-					br = true;
-					ret = ERR_ABORTED;
-				}
-
-				if (timeout_ms > 0) {
-					timeout_ms--;
-				}
-				else {
-					this->sdo.state = CANOPEN_SDO_STATE_READY;
-					br = true;
-					ret = ERR_NOT_RESPONDING;
-				}
-				__enable_irq();
-
-				if (!br) {
-					uv_rtos_task_delay(1);
-				}
-				else {
-					break;
-				}
-			}
-		}
-	}
-	return ret;
-}
-#endif
 
 
 

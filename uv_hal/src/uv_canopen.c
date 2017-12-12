@@ -1,9 +1,19 @@
-/*
- * uv_canopen.c
+/* 
+ * This file is part of the uv_hal distribution (www.usevolt.fi).
+ * Copyright (c) 2017 Usevolt Oy.
+ * 
+ * This program is free software: you can redistribute it and/or modify  
+ * it under the terms of the GNU General Public License as published by  
+ * the Free Software Foundation, version 3.
  *
- *  Created on: Dec 1, 2015
- *      Author: usevolt
- */
+ * This program is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty of 
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License 
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 
 #include "uv_canopen.h"
@@ -37,12 +47,12 @@ _uv_canopen_st _canopen;
 
 void _uv_canopen_init(void) {
 	this->can_callback = NULL;
+	this->if_revision = CONFIG_INTERFACE_REVISION;
 	_uv_canopen_nmt_init();
 	_uv_canopen_heartbeat_init();
 	_uv_canopen_sdo_init();
 	_uv_canopen_pdo_init();
 	_uv_canopen_emcy_init();
-
 }
 
 void _uv_canopen_reset(void) {
@@ -88,6 +98,41 @@ canopen_node_states_e uv_canopen_get_state(void) {
 
 void uv_canopen_set_can_callback(void (*callb)(void *user_ptr, uv_can_message_st *msg)) {
 	this->can_callback = callb;
+}
+
+
+uint8_t uv_canopen_sdo_read8(uint8_t node_id, uint16_t mindex,
+		uint8_t sindex) {
+	uint8_t ret = 0;
+	uv_canopen_sdo_read(node_id, mindex, sindex, sizeof(uint8_t), &ret);
+	return ret;
+}
+
+uint16_t uv_canopen_sdo_read16(uint8_t node_id, uint16_t mindex,
+		uint8_t sindex) {
+	uint16_t ret = 0;
+	uv_canopen_sdo_read(node_id, mindex, sindex, sizeof(uint16_t), &ret);
+	return ret;
+}
+
+uint32_t uv_canopen_sdo_read32(uint8_t node_id, uint16_t mindex,
+		uint8_t sindex) {
+	uint32_t ret = 0;
+	uv_canopen_sdo_read(node_id, mindex, sindex, sizeof(uint32_t), &ret);
+	return ret;
+}
+
+
+uv_errors_e uv_canopen_sdo_write8(uint8_t node_id, uint16_t mindex, uint8_t sindex, uint8_t data) {
+	return uv_canopen_sdo_write(node_id, mindex, sindex, sizeof(uint8_t), &data);
+}
+
+uv_errors_e uv_canopen_sdo_write16(uint8_t node_id, uint16_t mindex, uint8_t sindex, uint16_t data) {
+	return uv_canopen_sdo_write(node_id, mindex, sindex, sizeof(uint16_t), &data);
+}
+
+uv_errors_e uv_canopen_sdo_write32(uint8_t node_id, uint16_t mindex, uint8_t sindex, uint32_t data) {
+	return uv_canopen_sdo_write(node_id, mindex, sindex, sizeof(uint32_t), &data);
 }
 
 

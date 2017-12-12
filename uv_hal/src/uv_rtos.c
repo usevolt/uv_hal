@@ -1,9 +1,19 @@
-/*
- * uv_rtos.c
+/* 
+ * This file is part of the uv_hal distribution (www.usevolt.fi).
+ * Copyright (c) 2017 Usevolt Oy.
+ * 
+ * This program is free software: you can redistribute it and/or modify  
+ * it under the terms of the GNU General Public License as published by  
+ * the Free Software Foundation, version 3.
  *
- *  Created on: Mar 18, 2016
- *      Author: usevolt
- */
+ * This program is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty of 
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License 
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 
 #include "uv_rtos.h"
@@ -17,7 +27,6 @@
 #include "uv_eeprom.h"
 #include "uv_emc.h"
 #include "uv_rtc.h"
-#include "uv_dma.h"
 #include "uv_ft81x.h"
 #if CONFIG_WDT
 #include "uv_wdt.h"
@@ -194,10 +203,6 @@ void uv_init(void *device) {
 
 #if CONFIG_SPI
 	_uv_spi_init();
-#endif
-
-#if CONFIG_DMA
-	_uv_dma_init();
 #endif
 
 #if CONFIG_EMC

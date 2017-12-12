@@ -45,7 +45,8 @@ typedef uint8_t canopen_permissions_e;
 #define CANOPEN_ARRAY_MASK 	0b11000000
 #define CANOPEN_STRING_MASK 0b00110000
 #define CANOPEN_NUMBER_MASK	0b00000111
-#define CANOPEN_TYPE_LEN(type)	(type & (CANOPEN_NUMBER_MASK))
+#define CANOPEN_TYPE_LEN(type)	((type) & (CANOPEN_NUMBER_MASK))
+#define CANOPEN_IS_ARRAY(type)	((type) & (CANOPEN_ARRAY_MASK))
 enum {
 	CANOPEN_UNSIGNED8 = 1,
 	CANOPEN_SIGNED8 = 1,
@@ -83,6 +84,9 @@ typedef struct {
 		/// Since arrays don't use sub-index, the same data location
 		/// can be used for sub_index and array_max_size.
 		uint8_t array_max_size;
+		/// @brief: If this object is string type,
+		/// this indicates the string length.
+		uint8_t string_len;
 	};
 	/// @brief: Data type for this CANopen object dictionary entry.
 	canopen_object_type_e type;

@@ -1,9 +1,19 @@
-/*
- * uv_iap.h
+/* 
+ * This file is part of the uv_hal distribution (www.usevolt.fi).
+ * Copyright (c) 2017 Usevolt Oy.
+ * 
+ * This program is free software: you can redistribute it and/or modify  
+ * it under the terms of the GNU General Public License as published by  
+ * the Free Software Foundation, version 3.
  *
- *  Created on: Oct 26, 2015
- *      Author: usevolt
- */
+ * This program is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty of 
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License 
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #ifndef UW_MEMORY_H_
 #define UW_MEMORY_H_
@@ -28,6 +38,11 @@
  define it in project include paths and symbols (eclipse project settings) with the ${projName},\
  '_' and ${configName} variables.\
  This way the name is automatically updated for new projects."
+#endif
+#if !defined(CONFIG_INTERFACE_REVISION)
+#error "CONFIG_INTERFACE_REVISION should define the CAN interface revision number which starts from 1 and\
+ rises every time the CAN interface is changed. It is used to support older interfaces on CAN-bus devices.\
+ If the device dosn't use interface revisioning, set this to 0."
 #endif
 #if !defined(CONFIG_APP_ST)
 #error "CONFIG_APP_ST should define the main user application structure type and name."

@@ -1,10 +1,19 @@
-/*
+/* 
+ * This file is part of the uv_hal distribution (www.usevolt.fi).
+ * Copyright (c) 2017 Usevolt Oy.
+ * 
+ * This program is free software: you can redistribute it and/or modify  
+ * it under the terms of the GNU General Public License as published by  
+ * the Free Software Foundation, version 3.
  *
- * uv_adc.h
+ * This program is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty of 
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+ * General Public License for more details.
  *
- *  Created on: Oct 26, 2015
- *      Author: usevolt
- */
+ * You should have received a copy of the GNU General Public License 
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #ifndef UW_ADC_H_
 #define UW_ADC_H_
@@ -22,6 +31,8 @@
 
 #if CONFIG_TARGET_LPC1549
 #define ADC_MAX_FREQ	50000000
+#elif CONFIG_TARGET_LPC1785
+#define ADC_MAX_FREQ	99999999
 #endif
 
 #if !defined(CONFIG_ADC_MODE)
@@ -39,7 +50,7 @@
 #error "CONFIG_ADC_CONVERSION_FREQ should define the ADC conversion frequency in Hz."
 #endif
 #if ((CONFIG_ADC_CONVERSION_FREQ * 25) > ADC_MAX_FREQ)
-#error "CONFIG_ADC_FREQ exceeds the maximum frequency on this target MCU"
+#error "CONFIG_ADC_CONVERSION_FREQ exceeds the maximum frequency on this target MCU"
 #endif
 
 

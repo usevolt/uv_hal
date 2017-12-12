@@ -104,6 +104,15 @@ const canopen_object_st com_params[] = {
 				.type = CANOPEN_UNSIGNED16,
 				.data_ptr = &CONFIG_NON_VOLATILE_START.canopen_data.producer_heartbeat_time_ms
 		},
+#if CONFIG_INTERFACE_REVISION
+		{
+				.main_index = CONFIG_CANOPEN_INTERFACE_REVISION_INDEX,
+				.sub_index = 0,
+				.permissions = CANOPEN_RO,
+				.type = CANOPEN_UNSIGNED16,
+				.data_ptr = &_canopen.if_revision
+		},
+#endif
 		{
 				.main_index = CONFIG_CANOPEN_IDENTITY_INDEX,
 				.array_max_size = CANOPEN_IDENTITY_OBJECT_ARRAY_SIZE,
@@ -111,7 +120,6 @@ const canopen_object_st com_params[] = {
 				.type = CANOPEN_ARRAY32,
 				.data_ptr = &_canopen.identity
 		}
-
 		REPEAT(CONFIG_CANOPEN_RXPDO_COUNT, RXPDO_COM)
 		REPEAT(CONFIG_CANOPEN_RXPDO_COUNT, RXPDO_MAP)
 

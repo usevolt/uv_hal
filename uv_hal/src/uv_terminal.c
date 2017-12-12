@@ -1,9 +1,19 @@
-/*
- * hal_debug.c
+/* 
+ * This file is part of the uv_hal distribution (www.usevolt.fi).
+ * Copyright (c) 2017 Usevolt Oy.
+ * 
+ * This program is free software: you can redistribute it and/or modify  
+ * it under the terms of the GNU General Public License as published by  
+ * the Free Software Foundation, version 3.
  *
- *  Created on: Nov 13, 2015
- *      Author: usevolt
- */
+ * This program is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty of 
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License 
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 
 #include "uv_terminal.h"
@@ -289,7 +299,7 @@ void uv_terminal_help_callb(void *me, unsigned int cmd, unsigned int args, argum
 	}
 }
 void uv_terminal_dev_callb(void *me, unsigned int cmd, unsigned int args, argument_st *argv) {
-	printf("%s Build on %s\n", uv_projname, uv_datetime);
+	printf("%s, if revision %u, Build on %s\n", uv_projname, CONFIG_INTERFACE_REVISION, uv_datetime);
 }
 
 #if CONFIG_TERMINAL_INSTRUCTIONS
@@ -320,7 +330,6 @@ void uv_terminal_reset_callb(void *me, unsigned int cmd, unsigned int args, argu
 	else {
 		uv_system_reset(false);
 	}
-
 }
 #if CONFIG_NON_VOLATILE_MEMORY
 void uv_terminal_save_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv) {

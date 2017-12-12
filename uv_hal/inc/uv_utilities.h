@@ -1,10 +1,20 @@
-/*
- * uv_utilities.h
- * Reusable utility functions
+/* 
+ * This file is part of the uv_hal distribution (www.usevolt.fi).
+ * Copyright (c) 2017 Usevolt Oy.
+ * 
+ * This program is free software: you can redistribute it and/or modify  
+ * it under the terms of the GNU General Public License as published by  
+ * the Free Software Foundation, version 3.
  *
- *  Created on: Feb 18, 2015
- *      Author: usenius
- */
+ * This program is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty of 
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License 
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+
 
 #ifndef UW_UTILITIES_H_
 #define UW_UTILITIES_H_
@@ -181,10 +191,12 @@ extern CONFIG_APP_ST;
 
 
 
+typedef int32_t uv_delay_st;
+
 /// @brief: Initializes a delay.
 /// @param delay_ms The desired length of the delay
 /// @param p A pointer to variable which will hold the current delay count
-static inline void uv_delay_init(unsigned int delay_ms, int* p) {
+static inline void uv_delay_init(uv_delay_st* p, uint16_t delay_ms) {
 	*p = delay_ms;
 }
 
@@ -202,7 +214,12 @@ static inline void uv_delay_init(unsigned int delay_ms, int* p) {
 ///				...
 ///			}
 /// 	}
-bool uv_delay(unsigned int step_ms, int* p);
+bool uv_delay(uv_delay_st* p, uint16_t step_ms);
+
+/// @brief: returns true if the delay has ended
+static inline bool uv_delay_has_ended(uv_delay_st* p) {
+	return (*p <= 0);
+}
 
 
 /// @brief: Set's the user's application pointer.

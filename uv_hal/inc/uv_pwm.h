@@ -1,9 +1,19 @@
-/*
- * uv_pwm.h
+/* 
+ * This file is part of the uv_hal distribution (www.usevolt.fi).
+ * Copyright (c) 2017 Usevolt Oy.
+ * 
+ * This program is free software: you can redistribute it and/or modify  
+ * it under the terms of the GNU General Public License as published by  
+ * the Free Software Foundation, version 3.
  *
- *  Created on: Sep 19, 2016
- *      Author: usevolt
- */
+ * This program is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty of 
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License 
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #ifndef UV_HAL_INC_UV_PWM_H_
 #define UV_HAL_INC_UV_PWM_H_
@@ -418,8 +428,11 @@
 
 /// @brief: Variable to separate different PWM channels from each other
 /// Possible values are PWM channel macros defined upper.
+#if CONFIG_TARGET_LPC1549
 typedef volatile uint8_t uv_pwm_channel_t;
-
+#elif CONFIG_TARGET_LPC1785
+typedef volatile uint32_t * uv_pwm_channel_t;
+#endif
 
 
 #define PWM_MAX_VALUE		1000U

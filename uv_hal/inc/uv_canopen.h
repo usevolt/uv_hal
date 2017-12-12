@@ -1,9 +1,19 @@
-/*
- * uv_canopen.h
+/* 
+ * This file is part of the uv_hal distribution (www.usevolt.fi).
+ * Copyright (c) 2017 Usevolt Oy.
+ * 
+ * This program is free software: you can redistribute it and/or modify  
+ * it under the terms of the GNU General Public License as published by  
+ * the Free Software Foundation, version 3.
  *
- *  Created on: Dec 1, 2015
- *      Author: usevolt
- */
+ * This program is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty of 
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License 
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #ifndef UW_CANOPEN_H_
 #define UW_CANOPEN_H_
@@ -17,6 +27,8 @@
 #include "canopen/canopen_nmt.h"
 #include "canopen/canopen_pdo.h"
 #include "canopen/canopen_sdo.h"
+#include "canopen/canopen_sdo_client.h"
+#include "canopen/canopen_sdo_server.h"
 #include "canopen/canopen_emcy.h"
 #include "canopen/canopen_obj_dict.h"
 
@@ -97,13 +109,11 @@
 #if !defined(CONFIG_CANOPEN_IDENTITY_INDEX)
 #define CONFIG_CANOPEN_IDENTITY_INDEX		0x1018
 #endif
+#if CONFIG_INTERFACE_REVISION
+#define CONFIG_CANOPEN_INTERFACE_REVISION_INDEX	0x2FF0
+#endif
 #if !defined(CONFIG_CANOPEN_PDO_MAPPING_COUNT)
 #define CONFIG_CANOPEN_PDO_MAPPING_COUNT	8
-#endif
-#if !defined(CONFIG_CANOPEN_SDO_SYNC)
-#error "CONFIG_CANOPEN_SDO_SYNC should define if synchronized SDO transmission is enabled.\
- It defaults to 0."
-#define CONFIG_CANOPEN_SDO_SYNC				0
 #endif
 #if !defined(CONFIG_CANOPEN_SDO_SEGMENTED)
 #error "CONFIG_CANOPEN_SDO_SEGMENTED should be defined as 1 if SDO segmented transfers \
@@ -141,6 +151,10 @@ should be enabled. Defaults to 0."
 #endif
 #if !defined(CONFIG_CANOPEN_EMCY_RX_BUFFER_SIZE)
 #error "CONFIG_CANOPEN_EMCY_RX_BUFFER_SIZE should define the buffer size for received EMCY messages"
+#endif
+#if !CONFIG_CANOPEN_SDO_TIMEOUT_MS
+#error "CONFIG_CANOPEN_SDO_TIMEOUT_MS should define the SDO protocol timeout in segmented and block transfers\
+ in milliseconds."
 #endif
 #if CONFIG_TARGET_LPC1785
 #if !defined(CONFIG_CANOPEN_EMCY_MSG_COUNT)
@@ -184,7 +198,7 @@ typedef struct {
 	uint32_t store_req;
 	uint32_t restore_req;
 	canopen_identity_object_st identity;
-	int heartbeat_time;
+	uv_delay_st heartbeat_time;
 	uint32_t txpdo_time[CONFIG_CANOPEN_TXPDO_COUNT];
 
 	uv_ring_buffer_st emcy_rx;
@@ -192,16 +206,31 @@ typedef struct {
 
 	// SDO member variables
 	struct {
-		canopen_sdo_state_e state;
 		struct {
+			canopen_sdo_state_e state;
+			uint8_t server_node_id;
+			uint8_t sindex;
+			uint8_t data_index;
+			uint8_t toggle;
+			uint16_t mindex;
+			void *data_ptr;
+			uv_delay_st delay;
+		} client;
+		struct {
+			canopen_sdo_state_e state;
 			uint16_t mindex;
 			uint8_t sindex;
-			uint8_t node_id;
-			void *rx_data;
-			uint32_t rx_data_len;
-		} transfer;
+			// contains the index of next data to be transmitted
+			uint8_t data_index;
+			uint8_t toggle;
+			uv_delay_st delay;
+		} server;
 	} sdo;
 	void (*can_callback)(void *user_ptr, uv_can_message_st* msg);
+
+#if CONFIG_INTERFACE_REVISION
+	uint16_t if_revision;
+#endif
 
 } _uv_canopen_st;
 
@@ -340,23 +369,33 @@ canopen_node_states_e uv_canopen_get_state(void);
 /// @brief: Quick way for sending a SDO write request
 static inline uv_errors_e uv_canopen_sdo_write(uint8_t node_id,
 		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *data) {
-	return _uv_canopen_sdo_write(node_id, mindex, sindex, data_len, data);
+	return _uv_canopen_sdo_client_write(node_id, mindex, sindex, data_len, data);
+}
+
+static inline uv_errors_e uv_canopen_sdo_read(uint8_t node_id,
+		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *dest) {
+	return _uv_canopen_sdo_client_read(node_id, mindex, sindex, data_len, dest);
 }
 
 /// @brief: Sets a CAN message callback. This can be used in order to manually receive messages
 	void uv_canopen_set_can_callback(void (*callb)(void *user_ptr, uv_can_message_st *msg));
 
-#if CONFIG_CANOPEN_SDO_SYNC
-static inline uv_errors_e uv_canopen_sdo_write_sync(uint8_t node_id, uint16_t mindex,
-		uint8_t sindex, uint32_t data_len, void *data, int32_t timeout_ms) {
-	return _uv_canopen_sdo_write_sync(node_id, mindex, sindex, data_len, data, timeout_ms);
-}
 
-static inline uv_errors_e uv_canopen_sdo_read_sync(uint8_t node_id, uint16_t mindex,
-		uint8_t sindex, uint32_t data_len, void *data, int32_t timeout_ms) {
-	return _uv_canopen_sdo_read_sync(node_id, mindex, sindex, data_len, data, timeout_ms);
-}
-#endif
+uint8_t uv_canopen_sdo_read8(uint8_t node_id, uint16_t mindex, uint8_t sindex);
+
+uint16_t uv_canopen_sdo_read16(uint8_t node_id, uint16_t mindex, uint8_t sindex);
+
+uint32_t uv_canopen_sdo_read32(uint8_t node_id, uint16_t mindex, uint8_t sindex);
+
+uv_errors_e uv_canopen_sdo_write8(uint8_t node_id, uint16_t mindex,
+		uint8_t sindex, uint8_t data);
+
+uv_errors_e uv_canopen_sdo_write16(uint8_t node_id, uint16_t mindex,
+		uint8_t sindex, uint16_t data);
+
+uv_errors_e uv_canopen_sdo_write32(uint8_t node_id, uint16_t mindex,
+		uint8_t sindex, uint32_t data);
+
 
 #endif
 

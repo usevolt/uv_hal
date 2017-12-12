@@ -1,3 +1,20 @@
+/* 
+ * This file is part of the uv_hal distribution (www.usevolt.fi).
+ * Copyright (c) 2017 Usevolt Oy.
+ * 
+ * This program is free software: you can redistribute it and/or modify  
+ * it under the terms of the GNU General Public License as published by  
+ * the Free Software Foundation, version 3.
+ *
+ * This program is distributed in the hope that it will be useful, but 
+ * WITHOUT ANY WARRANTY; without even the implied warranty of 
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License 
+ * along with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
+
 
 #ifndef UW_FILTERS_H_
 #define UW_FILTERS_H_
@@ -43,6 +60,13 @@ typedef struct {
 void uv_hysteresis_init(uv_hysteresis_st *this, int32_t trigger_value, int32_t hysteresis, bool invert);
 
 bool uv_hysteresis_step(uv_hysteresis_st *this, int32_t value);
+
+/// @brief: Sets the trigger value
+///
+/// @note: Glitching or flickering or output might happen from unnecessary changes
+static inline void uv_hysteresis_set_trigger_value(uv_hysteresis_st *this, int32_t value) {
+	this->trigger_value = value;
+}
 
 static inline uint8_t uv_hysteresis_get_output(uv_hysteresis_st *this) {
 	return this->result;

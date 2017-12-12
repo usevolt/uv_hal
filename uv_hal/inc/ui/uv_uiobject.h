@@ -169,10 +169,7 @@ uv_uiobject_ret_e uv_uiobject_step(void *me, uv_touch_st *touch,
 /// @brief: Hides the object form the display
 ///
 /// @param this: Pointer to uv_uiobject_st casted to void*.
-static inline void uv_ui_hide(void *me) {
-	this->visible = false;
-	uv_ui_refresh_parent(this);
-}
+void uv_ui_hide(void *me);
 
 
 /// @brief: Shows the object
