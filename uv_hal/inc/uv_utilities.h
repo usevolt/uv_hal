@@ -375,13 +375,13 @@ float uv_relf(float t, float min, float max);
 /// value of t.
 ///
 /// @note: Should be min <= t <= max and min != max
-int uv_reli(int t, int min, int max);
+int32_t uv_reli(int32_t t, int32_t min, int32_t max);
 
 /// @brief: Returns the bigger argument
-int uv_maxi(int a, int b);
+int32_t uv_maxi(int32_t a, int32_t b);
 
 /// @brief: Returns the smaller argument
-int uv_mini(int a, int b);
+int32_t uv_mini(int32_t a, int32_t b);
 
 
 /// @brief: Calculates and returns the trailing zeroes in *a*.

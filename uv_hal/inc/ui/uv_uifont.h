@@ -121,6 +121,8 @@ typedef ft81x_font_st uv_font_st;
 #define font14	ft81x_fonts[13]
 #define font15	ft81x_fonts[14]
 #define font16	ft81x_fonts[15]
+#define font17  ft81x_fonts[16]
+#define font18  ft81x_fonts[17]
 
 #endif
 
