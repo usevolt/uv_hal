@@ -87,6 +87,11 @@ static inline void uv_output_set_ampl(uv_output_st *this, const uint16_t value) 
 	this->sense_ampl = value;
 }
 
+/// @brief: Sets the maximum allowed current value
+static inline void uv_output_set_max(uv_output_st *this, uint16_t value) {
+	this->limit_max = value;
+}
+
 /// @brief: Returns the state of the output
 static inline uv_output_state_e uv_output_get_state(const uv_output_st *this) {
 	return this->state;
