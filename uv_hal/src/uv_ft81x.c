@@ -457,13 +457,11 @@ static void init_values(void) {
 void uv_ft81x_init(void) {
 	this->dl_index = 0;
 	this->dl_index_max = 0;
-	this->cmdwriteaddr = 0;
 	this->backlight = 50;
 	this->mask.x = 0;
 	this->mask.y = 0;
 	this->mask.width = LCD_W_PX;
 	this->mask.height = LCD_H_PX;
-
 	init_values();
 
 	// toggle PD pin to reset the FT81X
@@ -482,6 +480,12 @@ void uv_ft81x_init(void) {
 	uint8_t id = read8(REG_ID);
 	if (id == 0x7C) {
 		DEBUG("FT81X id: 0x%x\n", id);
+
+		// read co-processor command fifo buffer address.
+		// Address is 0 only if power-on-reset happened,
+		// otherwise it can be anything.
+		this->cmdwriteaddr = read16(REG_CMD_WRITE);
+
 		// configure display registers
 		write16(REG_HCYCLE, CONFIG_FT81X_HCYCLE);
 		write16(REG_HOFFSET, CONFIG_FT81X_HOFFSET);
@@ -510,20 +514,30 @@ void uv_ft81x_init(void) {
 		write8(REG_GPIO_DIR, 0x80  | read8(REG_GPIO_DIR));
 		write8(REG_GPIO, 0x80 | read8(REG_GPIO));
 
+		// initialize ROM fonts 32-34
+		cmd_romfont(FONT_17, 32);
+		cmd_romfont(FONT_18, 33);
+		cmd_romfont(FONT_19, 34);
+
 		uv_ft81x_dlswap();
 
-		// download font height data
-		for (int i = 0; i < FONT_COUNT; i++) {
+		// download font height data for 3 biggest fonts, mapped to
+		// FONT_1, FONT_2, FONT_3
+		for (uint8_t i = 0; i < 3; i++) {
+			ft81x_fonts[i].index = i + FONT_1;
+			ft81x_fonts[i].char_height = read32(FONT_METRICS_BASE_ADDR +
+					(16 + i) * FONT_METRICS_FONT_LEN +
+					FONT_METRICS_FONT_HEIGHT_OFFSET);
+			DEBUG("Font %u height: %u\n", i, ft81x_fonts[i].char_height);
+		}
+		// download font height data for normal fonts
+		for (int i = 3; i < FONT_COUNT; i++) {
 			ft81x_fonts[i].index = i + FONT_1;
 			ft81x_fonts[i].char_height = read32(FONT_METRICS_BASE_ADDR +
 					i * FONT_METRICS_FONT_LEN +
 					FONT_METRICS_FONT_HEIGHT_OFFSET);
 			DEBUG("Font %u height: %u\n", i, ft81x_fonts[i].char_height);
 		}
-		// initialize ROM fonts 32-34
-		cmd_romfont(FONT_17, 32);
-		cmd_romfont(FONT_18, 33);
-		cmd_romfont(FONT_19, 34);
 	}
 	else {
 		printf("Couldn't read FT81X device ID.\n");
@@ -748,8 +762,8 @@ static void cmd_romfont(uint8_t bitmap_handle, uint8_t font_number) {
 	// create rom font structure, based on communication manual data
 	uint32_t cmd[3];
 	cmd[0] = CMD_ROMFONT;
-	cmd[1] = font_number;
-	cmd[2] = bitmap_handle;
+	cmd[1] = bitmap_handle;
+	cmd[2] = font_number;
 	writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr,
 			(const char*) cmd, sizeof(cmd));
 
