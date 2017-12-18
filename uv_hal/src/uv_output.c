@@ -29,7 +29,7 @@
 /// different output modules from this, set gate_io to 0.
 static inline void set_out(uv_output_st *this, uint16_t value) {
 	if (this->gate_io) {
-		uv_gpio_set(this->gate_io, value);
+//		uv_gpio_set(this->gate_io, value);
 	}
 }
 
@@ -39,6 +39,9 @@ void uv_output_init(uv_output_st *this,  uv_adc_channels_e adc_chn, uv_gpios_e g
 		uint16_t moving_avg_count, uint32_t emcy_overload, uint32_t emcy_fault) {
 	this->adc_chn = adc_chn;
 	this->gate_io = gate_io;
+	if (this->gate_io) {
+		uv_gpio_init_input(this->gate_io, PULL_UP_DISABLED);
+	}
 	set_out(this, 0);
 	this->sense_ampl = sense_ampl;
 	this->limit_max = max_val;
