@@ -128,10 +128,10 @@ void uv_uilabel_set_color(void *me, color_t c);
 typedef struct {
 	EXTENDS(uv_uilabel_st);
 
-	unsigned int divider;
+	uint32_t divider;
 	char str[13];
 	char format[10];
-	int value;
+	int32_t value;
 } uv_uidigit_st;
 
 
@@ -152,6 +152,9 @@ static inline uv_uiobject_ret_e uv_uidigit_step(void *me, uv_touch_st *touch, ui
 
 void uv_uidigit_set_value(void *me, int value);
 
+
+/// @brief: a way for setting any string to digit. Can be used to disable digit numbers.
+void uv_uidigit_set_text(void *me, char *str);
 
 
 /// @brief: Sets the color of the label text

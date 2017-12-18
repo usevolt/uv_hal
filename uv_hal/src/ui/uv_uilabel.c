@@ -199,7 +199,7 @@ void uv_uilabel_set_bg_color(void *me, color_t c) {
 
 
 void uv_uilabel_set_text(void *me, char *str) {
-	if ((str != this->str)) {
+	if (strcmp(this->str, str) != 0) {
 		this->str = str;
 		uv_ui_refresh(me);
 	}
@@ -327,6 +327,10 @@ void uv_uidigit_set_value(void *me, int value) {
 }
 
 
+void uv_uidigit_set_text(void *me, char *str) {
+	strcpy(this->str, str);
+	uv_uilabel_set_text(this, str);
+}
 
 
 
