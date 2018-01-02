@@ -181,7 +181,7 @@ static uv_uiobject_ret_e numpad_step(void *me, uint16_t step_ms, const uv_boundi
 	}
 	// 0 pressed
 	else if (this->released_index == 10) {
-		if (strlen(this->value_str)) {
+		if (this->value != 0) {
 			add_number(this, '0');
 		}
 	}
@@ -191,6 +191,10 @@ static uv_uiobject_ret_e numpad_step(void *me, uint16_t step_ms, const uv_boundi
 	}
 	// other numbers pressed
 	else if (this->released_index != -1) {
+		// remove MSB zero
+		if (this->value == 0) {
+			strcpy(this->value_str, "");
+		}
 		add_number(this, '0' + this->released_index + 1);
 	}
 	else {
