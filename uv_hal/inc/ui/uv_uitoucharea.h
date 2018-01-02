@@ -24,21 +24,23 @@
 typedef struct {
 	EXTENDS(uv_uiobject_st);
 
-	void (*draw_callb)(void);
 	uv_touch_st touch;
 } uv_uitoucharea_st;
 
 
 void uv_uitoucharea_init(void *me);
 
-uv_uiobject_ret_e uv_uitoucharea_step(void *me, uv_touch_st *touch,
-		uint16_t step_ms, const uv_bounding_box_st *pbb);
+uv_uiobject_ret_e uv_uitoucharea_step(void *me, uint16_t step_ms,
+		const uv_bounding_box_st *pbb);
 
 
 /// @brief: Sets the drawing callback function. This
 /// will be called every time the toucharea is refreshed.
 /// Can be used to draw something on the uitoucharea.
-void uv_uitoucharea_set_draw_callb(void *me, void (*callb)(void));
+static inline void uv_uitoucharea_set_draw_callb(void *me,
+		void (*vrtl_draw)(void *, const uv_bounding_box_st *)) {
+	uv_uiobject_set_draw_callb(me, vrtl_draw);
+}
 
 #if defined(this)
 #undef this

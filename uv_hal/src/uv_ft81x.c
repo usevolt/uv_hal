@@ -382,7 +382,7 @@ static void init_values(void);
 static void set_color(color_t c);
 static void set_begin(uint8_t begin_type);
 static void set_point_size(uint16_t diameter);
-static void set_line_width(const uint16_t width);
+static void set_line_diameter(const uint16_t diameter);
 static void set_font(const uint8_t font);
 static void set_cell(const uint8_t cell);
 static void cmd_wait(void);
@@ -710,16 +710,16 @@ static void set_point_size(uint16_t diameter) {
 }
 
 
-static void set_line_width(const uint16_t width) {
-	if (this->line_width != width) {
-		DEBUG("set line width\n");
-		if (width == 0) {
+static void set_line_diameter(const uint16_t diameter) {
+	if (this->line_width != diameter) {
+		DEBUG("set line diameter\n");
+		if (diameter == 0) {
 			writedl(LINE_WIDTH(8));
 		}
 		else {
-			writedl(LINE_WIDTH(width * 16));
+			writedl(LINE_WIDTH(diameter * 8));
 		}
-		this->line_width = width;
+		this->line_width = diameter;
 	}
 }
 
@@ -930,7 +930,7 @@ void uv_ft81x_draw_rrect(const int16_t x, const int16_t y,
 	if (visible(x, y, width, height)) {
 		set_color(color);
 		set_begin(BEGIN_RECTS);
-		set_line_width(radius);
+		set_line_diameter(radius);
 		DEBUG("Drawing rectangle\n");
 		volatile vertex2f_st v;
 		v.sx = x + radius;
@@ -954,7 +954,7 @@ void uv_ft81x_draw_shadowrrect(const int16_t x, const int16_t y,
 		const color_t highlight_c, const color_t shadow_c) {
 	uv_ft81x_draw_rrect(x, y, width - 4, height - 4, radius, shadow_c);
 	uv_ft81x_draw_rrect(x + 4, y + 4, width - 4, height - 4, radius, highlight_c);
-	uv_ft81x_draw_rrect(x + 2, y + 2, width - 2, height - 2, radius, color);
+	uv_ft81x_draw_rrect(x + 2, y + 2, width - 4, height - 4, radius, color);
 }
 
 
@@ -964,7 +964,7 @@ void uv_ft81x_draw_line(const int16_t start_x, const int16_t start_y,
 	if (visible(start_x, start_y, end_x, end_y)) {
 		set_color(color);
 		set_begin(BEGIN_LINES);
-		set_line_width(width);
+		set_line_diameter(width);
 		DEBUG("Drawing line\n");
 		vertex2f_st v;
 		v.sx = start_x;
@@ -1131,12 +1131,14 @@ uint8_t uv_ft81x_get_font_height(const ft81x_fonts_e font) {
 
 void uv_ft81x_set_mask(int16_t x, int16_t y, uint16_t width, uint16_t height) {
 	if (x < 0) {
+		width += x;
 		x = 0;
 	}
 	else if (x > 2047) {
 		x = 2047;
 	}
 	if (y < 0) {
+		height += y;
 		y = 0;
 	}
 	else if (y > 2047) {

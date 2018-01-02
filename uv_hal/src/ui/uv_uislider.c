@@ -11,6 +11,10 @@
 
 #if CONFIG_UI
 
+static void draw(void *me, const uv_bounding_box_st *pbb);
+static void touch(void *me, uv_touch_st *touch);
+
+
 #define this ((uv_uislider_st*) me)
 
 
@@ -30,10 +34,12 @@ void uv_uislider_init(void *me, int16_t min_value, int16_t max_value, int16_t cu
 	this->drag_val = 0;
 	this->title = NULL;
 	((uv_uiobject_st*) this)->step_callb = &uv_uislider_step;
+	uv_uiobject_set_draw_callb(this, &draw);
+	uv_uiobject_set_touch_callb(this, &touch);
 }
 
 
-static void draw(const void *me, const uv_bounding_box_st *pbb) {
+static void draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t x, y, w, h;
 	if (this->horizontal) {
 		if (uv_uibb(this)->height > CONFIG_UI_SLIDER_WIDTH) {
@@ -42,7 +48,8 @@ static void draw(const void *me, const uv_bounding_box_st *pbb) {
 		uv_uibb(this)->height = CONFIG_UI_SLIDER_WIDTH;
 
 		x = uv_ui_get_xglobal(this);
-		y = uv_ui_get_yglobal(this) + uv_uibb(this)->height / 2 - CONFIG_UI_SLIDER_WIDTH / 2;
+		y = uv_ui_get_yglobal(this) + uv_uibb(this)->height / 2 - CONFIG_UI_SLIDER_WIDTH / 2 -
+				((this->title) ? uv_ft81x_get_font_height(this->style->font->index) / 2 : 0);
 		w = uv_uibb(this)->width;
 		h = CONFIG_UI_SLIDER_WIDTH;
 		// handle relative position
@@ -69,25 +76,17 @@ static void draw(const void *me, const uv_bounding_box_st *pbb) {
 		_uv_ui_draw_mtext(x + w - 1, y + h / 2, this->style->font, ALIGN_CENTER_RIGHT,
 				this->style->text_color, C(0xFFFFFFFF), "\x10", 1.0f, pbb);
 #elif CONFIG_FT81X
-		uv_ft81x_draw_rrect(x, y + h / 2 - 7, w - 5, 10,
-				CONFIG_UI_RADIUS, this->style->shadow_c);
-		uv_ft81x_draw_rrect(x + 4, y + 4 + h / 2 - 7, w - 5, 10,
-				CONFIG_UI_RADIUS, this->style->highlight_c);
-		uv_ft81x_draw_rrect(x + 2, y + 2 + h / 2 - 7, w - 5, 10,
-				CONFIG_UI_RADIUS, this->style->inactive_bg_c);
+		uv_ft81x_draw_shadowrrect(x, y + h / 2 - 5, w, 10, CONFIG_UI_RADIUS,
+				this->style->inactive_bg_c, this->style->highlight_c, this->style->shadow_c);
 		// handle
-		uv_ft81x_draw_rrect(x + hx, y, CONFIG_UI_SLIDER_WIDTH, h - 4,
-				CONFIG_UI_RADIUS, this->style->shadow_c);
-		uv_ft81x_draw_rrect(x + hx + 4, y + 4, CONFIG_UI_SLIDER_WIDTH - 4, h - 4,
-				CONFIG_UI_RADIUS, this->style->highlight_c);
-		uv_ft81x_draw_rrect(x + hx + 2, y + 2, CONFIG_UI_SLIDER_WIDTH - 4, h - 4,
-				CONFIG_UI_RADIUS, this->style->active_fg_c);
+		uv_ft81x_draw_shadowrrect(x + hx, y, CONFIG_UI_SLIDER_WIDTH, h, CONFIG_UI_RADIUS,
+				this->style->active_fg_c, this->style->highlight_c, this->style->shadow_c);
 		// handle text
 		if (this->show_value) {
 			char str[10];
 			itoa(this->cur_val, str, 10);
 			uv_ft81x_draw_string(str, this->style->font->index,
-					x + x + CONFIG_UI_SLIDER_WIDTH / 2, y + (h / 2),
+					x + hx + CONFIG_UI_SLIDER_WIDTH / 2, y + (h / 2),
 					ALIGN_CENTER, this->style->inactive_font_c);
 		}
 #endif
@@ -164,16 +163,20 @@ static void draw(const void *me, const uv_bounding_box_st *pbb) {
 }
 
 
-uv_uiobject_ret_e uv_uislider_step(void *me, uv_touch_st *touch,
-		uint16_t step_ms, const uv_bounding_box_st *pbb) {
+uv_uiobject_ret_e uv_uislider_step(void *me, uint16_t step_ms,
+		const uv_bounding_box_st *pbb) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
 	if (this->super.refresh && this->super.visible) {
-		draw(this, pbb);
+		((uv_uiobject_st*) this)->vrtl_draw(this, pbb);
 		this->super.refresh = false;
 		ret = UIOBJECT_RETURN_REFRESH;
 	}
 
+	return ret;
+}
+
+static void touch(void *me, uv_touch_st *touch) {
 	if (touch->action == TOUCH_PRESSED) {
 		this->dragging = true;
 		// prevent action from propagating to other elements
@@ -230,8 +233,8 @@ uv_uiobject_ret_e uv_uislider_step(void *me, uv_touch_st *touch,
 		touch->action = TOUCH_NONE;
 	}
 
-	return ret;
 }
+
 
 
 /// @brief: Sets the current value

@@ -12,6 +12,9 @@
 
 #define this ((uv_uilist_st*)me)
 
+static void draw(void *me, const uv_bounding_box_st *pbb);
+static void touch(void *me, uv_touch_st *touch);
+
 
 void uv_uilist_init(void *me, char **buffer, uint16_t buffer_len, const uv_uistyle_st *style) {
 	uv_uiobject_init(me);
@@ -19,6 +22,8 @@ void uv_uilist_init(void *me, char **buffer, uint16_t buffer_len, const uv_uisty
 	uv_vector_init(&this->entries, buffer, buffer_len, sizeof(char*));
 	this->style = style;
 	((uv_uiobject_st*) this)->step_callb = &uv_uilist_step;
+	uv_uiobject_set_draw_callb(this, &draw);
+	uv_uiobject_set_touch_callb(this, &touch);
 }
 
 
@@ -97,10 +102,20 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 
 
-uv_uiobject_ret_e uv_uilist_step(void *me, uv_touch_st *touch,
-		uint16_t step_ms, const uv_bounding_box_st *pbb) {
+uv_uiobject_ret_e uv_uilist_step(void *me, uint16_t step_ms,
+		const uv_bounding_box_st *pbb) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
+	if (this->super.refresh) {
+		((uv_uiobject_st*) this)->vrtl_draw(this, pbb);
+		this->super.refresh = false;
+		ret = UIOBJECT_RETURN_REFRESH;
+	}
+
+	return ret;
+}
+
+static void touch(void *me, uv_touch_st *touch) {
 	if (touch->action == TOUCH_CLICKED) {
 		if (touch->y <= uv_vector_size(&this->entries) * CONFIG_UI_LIST_ENTRY_HEIGHT) {
 			this->selected_index = touch->y / CONFIG_UI_LIST_ENTRY_HEIGHT;
@@ -109,14 +124,8 @@ uv_uiobject_ret_e uv_uilist_step(void *me, uv_touch_st *touch,
 			uv_ui_refresh(this);
 		}
 	}
-	if (this->super.refresh) {
-		draw(this, pbb);
-		this->super.refresh = false;
-		ret = UIOBJECT_RETURN_REFRESH;
-	}
-
-	return ret;
 }
+
 
 /// @brief: Pushes a new element into the end of the list
 void uv_uilist_push_back(void *me, char *str) {

@@ -66,8 +66,13 @@ static inline void draw_char(int16_t x, int16_t y,
 
 
 
+#if CONFIG_LCD
 void uv_uilabel_init(void *me, const uv_font_st *font,
 		alignment_e alignment, color_t color, color_t bgcolor, char *str) {
+#elif CONFIG_FT81X
+	void uv_uilabel_init(void *me, const uv_font_st *font,
+			alignment_e alignment, color_t color, char *str) {
+#endif
 	uv_uiobject_init(this);
 	this->font = font;
 	this->str = str;
@@ -116,7 +121,7 @@ void draw_line(int16_t x, int16_t y, const uv_font_st *font,
 #endif
 
 
-uv_uiobject_ret_e uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
+uv_uiobject_ret_e uv_uilabel_step(void *me, uint16_t step_ms, const uv_bounding_box_st *pbb) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 	// do nothing if refresh is not called
 	// (label is a static object, it doesn't have any animations, etc.
@@ -296,9 +301,15 @@ int16_t uv_ui_text_height_px(char *str, const uv_font_st *font, float scale) {
 
 
 /// @brief: Initializes the digit label.
+#if CONFIG_LCD
 void uv_uidigit_init(void *me, const uv_font_st *font,
 		alignment_e alignment, color_t color, color_t bgcolor, char *format, int value) {
 	uv_uilabel_init(me, font, alignment, color, bgcolor, "");
+#elif CONFIG_FT81X
+	void uv_uidigit_init(void *me, const uv_font_st *font,
+			alignment_e alignment, color_t color, char *format, int value) {
+		uv_uilabel_init(me, font, alignment, color, "");
+#endif
 	this->divider = 1;
 	strcpy(this->format, format);
 	// force redraw

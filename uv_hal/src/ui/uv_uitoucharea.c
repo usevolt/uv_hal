@@ -14,22 +14,30 @@
 #define this ((uv_uitoucharea_st*)me)
 
 
+static void touch(void *me, uv_touch_st* touch);
+
 void uv_uitoucharea_init(void *me) {
 	uv_uiobject_init(this);
 	((uv_uiobject_st*) this)->step_callb = &uv_uitoucharea_step;
-	this->draw_callb = NULL;
+	uv_uiobject_set_touch_callb(this, &touch);
+	this->touch.action = TOUCH_NONE;
 }
 
-uv_uiobject_ret_e uv_uitoucharea_step(void *me, uv_touch_st *touch,
-		uint16_t step_ms, const uv_bounding_box_st *pbb) {
+uv_uiobject_ret_e uv_uitoucharea_step(void *me, uint16_t step_ms,
+		const uv_bounding_box_st *pbb) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
 	if (this->super.refresh) {
-		if (this->draw_callb) {
-			this->draw_callb();
+		if (((uv_uiobject_st*) this)->vrtl_draw) {
+			((uv_uiobject_st*) this)->vrtl_draw(this, pbb);
 		}
 		this->super.refresh = false;
 	}
+	return ret;
+}
+
+
+static void touch(void *me, uv_touch_st* touch) {
 	if (!this->super.enabled) {
 		this->touch.action = TOUCH_NONE;
 	}
@@ -41,12 +49,6 @@ uv_uiobject_ret_e uv_uitoucharea_step(void *me, uv_touch_st *touch,
 			touch->action = TOUCH_NONE;
 		}
 	}
-	return ret;
-}
-
-
-void uv_uitoucharea_set_draw_callb(void *me, void (*callb)(void)) {
-	this->draw_callb = callb;
 }
 
 

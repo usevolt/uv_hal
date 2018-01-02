@@ -21,17 +21,6 @@
 #if CONFIG_UI
 
 
-#if CONFIG_FT81X
-#if !defined(CONFIG_UI_DISPLAY)
-#error "CONFIG_UI_DISPLAY should define the name of the main uidisplay object.\
- The UI library will call it to access UI display data."
-#endif
-#if !defined(CONFIG_UI_DISPLAY_H)
-#error "CONFIG_UI_DISPLAY_H should define the header file name string where \
-the uidisplay object is can be found as an extern declaration."
-#endif
-#endif
-
 
 
 /// @brief: Lists all different touchscreen actions
@@ -48,9 +37,6 @@ enum {
 	/// @brief: Will be triggered after TOUCH_PRESSED until releasing press
 	/// or starting the dragging.
 	TOUCH_IS_DOWN,
-	/// @brief: User pressed the touchscreen long without moving
-	/// x and y variables contain the local coordinates of the long press
-	TOUCH_LONG_PRESSED,
 	/// @brief: User released from the touchscreen
 	/// x and y variables contain the local coordinates of the release
 	TOUCH_RELEASED,
@@ -111,8 +97,15 @@ typedef struct uv_uiobject_st {
 	/// @param this: Pointer to this object
 	/// @param step_ms: The step cycle duration in milliseconds
 	/// @param touch: Touchscreen structure which holds the touchscreen actions made on this object
-	uv_uiobject_ret_e (*step_callb)(void *this, uv_touch_st *touch,
-			uint16_t step_ms, const uv_bounding_box_st *pbb);
+	uv_uiobject_ret_e (*step_callb)(void *this, uint16_t step_ms,
+			const uv_bounding_box_st *pbb);
+	/// @brief: Virtual drawing function. This will be called anytime when
+	/// the object needs redrawing.
+	void (*vrtl_draw)(void *me, const uv_bounding_box_st *pbb);
+	/// @brief: Virtual touch function. This will be called when the object
+	/// is clicked. This is separate from the step function because objects are
+	/// drawn back-to-front, but touches are processed front-to-back.
+	void (*vrtl_touch)(void *me, uv_touch_st *touch);
 	/// @brief: Object will be rendered on the screen only if this is set to true
 	bool visible;
 	/// @brief: A request to refresh this object. When this is set, the object will be completely
@@ -131,7 +124,7 @@ typedef struct uv_uiobject_st {
 
 /// @brief: Initializes the bounding box
 void uv_bounding_box_init(uv_bounding_box_st *bb,
-		uint16_t x, uint16_t y, uint16_t width, uint16_t height);
+		int16_t x, int16_t y, uint16_t width, uint16_t height);
 
 
 
@@ -162,9 +155,26 @@ void uv_uiobject_init(void *me);
 
 
 /// @brief: uiobject step function
-uv_uiobject_ret_e uv_uiobject_step(void *me, uv_touch_st *touch,
-		uint16_t step_ms, const uv_bounding_box_st *pbb);
+uv_uiobject_ret_e uv_uiobject_step(void *me, uint16_t step_ms,
+		const uv_bounding_box_st *pbb);
 
+/// @brief: Set's the drawing function
+static inline void uv_uiobject_set_draw_callb(void *me,
+		void (*vrtl_draw)(void *, const uv_bounding_box_st *)) {
+	((uv_uiobject_st*) me)->vrtl_draw = vrtl_draw;
+}
+
+/// @brief: Sets the virtual touch function pointer
+static inline void uv_uiobject_set_touch_callb(void *me,
+		void (*vrtl_touch)(void *, uv_touch_st *)) {
+	((uv_uiobject_st*) me)->vrtl_touch = vrtl_touch;
+}
+
+/// @brief: Sets the step callback function
+static inline void uv_uiobject_set_step_callb(void *me,
+		uv_uiobject_ret_e (*step_callb)(void *, uint16_t, const uv_bounding_box_st *)) {
+	((uv_uiobject_st*) me)->step_callb = step_callb;
+}
 
 /// @brief: Hides the object form the display
 ///
@@ -183,6 +193,15 @@ static inline void uv_ui_show(void *me) {
 /// @brief: Enabled the object. This functionality might not be implemented
 /// on all obejcts.
 void uv_ui_set_enabled(void *me, bool enabled);
+static inline void uv_uiobject_enable(void *me) {
+	uv_ui_set_enabled(me, true);
+}
+static inline void uv_uiobject_disable(void *me) {
+	uv_ui_set_enabled(me, false);
+}
+static inline void uv_uiobject_set_enabled(void *me, bool value) {
+	uv_ui_set_enabled(me, value);
+}
 
 static inline bool uv_ui_get_enabled(const void *me) {
 	return this->enabled;

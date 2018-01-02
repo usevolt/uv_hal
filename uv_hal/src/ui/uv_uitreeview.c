@@ -17,11 +17,10 @@
 
 
 static void uitreeview_recalc_height(void *me);
-static uv_uiobject_ret_e _uv_uitreeobject_step(void *me, uv_touch_st *touch, uint16_t step_ms,
+static uv_uiobject_ret_e _uv_uitreeobject_step(void *me, uint16_t step_ms,
 		const uv_bounding_box_st *pbb);
-static void uv_uitreeobject_draw(const void *me, const uv_bounding_box_st *pbb);
-static void uv_uitreeobject_draw(const void *me, const uv_bounding_box_st *pbb);
-
+static void uv_uitreeobject_draw(void *me, const uv_bounding_box_st *pbb);
+static void touch(void *me, uv_touch_st *touch);
 
 
 
@@ -32,18 +31,23 @@ void uv_uitreeobject_init(void *me, uv_uiobject_st **object_array,
 	this->name = name;
 	this->show_callb = show_callb;
 	((uv_uiobject_st*) this)->step_callb = &_uv_uitreeobject_step;
-	((uv_uiwindow_st*) this)->vrtl_draw = &uv_uitreeobject_draw;
+	uv_uiobject_set_draw_callb(this, &uv_uitreeobject_draw);
+	uv_uiobject_set_touch_callb(this, &touch);
 	uv_uiwindow_set_transparent(this, true);
 }
 
 
 
-static uv_uiobject_ret_e _uv_uitreeobject_step(void *me, uv_touch_st *touch, uint16_t step_ms,
+static uv_uiobject_ret_e _uv_uitreeobject_step(void *me, uint16_t step_ms,
 		const uv_bounding_box_st *pbb) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
-	ret = uv_uiwindow_step(this, touch, step_ms, pbb);
+	ret = uv_uiwindow_step(this, step_ms, pbb);
 
+	return ret;
+}
+
+static void touch(void *me, uv_touch_st *touch) {
 	if (touch->action == TOUCH_CLICKED) {
 		if ((touch->y >= 0) && (touch->y < CONFIG_UI_TREEVIEW_ITEM_HEIGHT)) {
 			if (((uv_uiobject_st *) this)->enabled) {
@@ -55,13 +59,11 @@ static uv_uiobject_ret_e _uv_uitreeobject_step(void *me, uv_touch_st *touch, uin
 			touch->action = TOUCH_NONE;
 		}
 	}
-
-	return ret;
 }
 
 
 
-static void uv_uitreeobject_draw(const void *me, const uv_bounding_box_st *pbb) {
+static void uv_uitreeobject_draw(void *me, const uv_bounding_box_st *pbb) {
 
 	int16_t x = uv_ui_get_xglobal(this);
 	int16_t y = uv_ui_get_yglobal(this);

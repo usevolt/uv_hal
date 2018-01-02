@@ -25,6 +25,7 @@
 typedef enum {
 	UITRANSITION_INIT = 0,
 	UITRANSITION_PLAY,
+	UITRANSITION_REVERSEPLAY,
 	UITRANSITION_PAUSE,
 	UITRANSITION_FINISH
 } uv_uitransition_state_e;
@@ -46,8 +47,8 @@ struct _uv_uitransition_st {
 	uv_uitransition_st *parallel;
 	uv_uitransition_st *series;
 	uv_uitransition_easing_e easing;
-	uint16_t duration_ms;
-	uint16_t current_time_ms;
+	int16_t duration_ms;
+	int16_t current_time_ms;
 	uint16_t speed_ppt;
 	/// @brief: Virtual function which should implement
 	/// the calculations every step cycle
@@ -66,7 +67,10 @@ void uv_uitransition_init(void *me, uv_uitransition_easing_e easing,
 
 
 /// @brief: Starts the uitransition
-void uv_uitransition_start(void *me);
+void uv_uitransition_play(void *me);
+
+/// @brief: Starts the uitransition in reverse direction
+void uv_uitransition_reverseplay(void *me);
 
 
 /// @brief: Pauses the uitransition
@@ -91,6 +95,7 @@ static inline bool uv_uitransition_is_finished(void *me) {
 	return (this->state == UITRANSITION_FINISH);
 }
 
+/// @brief: Returns the current state of the transition
 static inline uv_uitransition_state_e uv_uitransition_get_state(const void *me) {
 	return this->state;
 }
@@ -104,7 +109,7 @@ static inline void uv_uitransition_set_speed(void *me, uint16_t speed_ppt) {
 /// the transition is attached.
 ///
 /// @param parent: The parent object to which this uitransition is attached
-void uv_uitransition_step(void *me, uv_uiobject_st *parent, uint16_t step_ms);
+void uv_uitransition_step(void *me, void *parent, uint16_t step_ms);
 
 
 /// @bief: Transition animating a signed 16 bit integer value.
