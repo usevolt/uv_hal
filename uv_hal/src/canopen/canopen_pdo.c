@@ -436,7 +436,7 @@ void uv_canopen_pdo_mapping_update(uint16_t main_index, uint8_t subindex) {
 			for (uint8_t j = 0; j < CONFIG_CANOPEN_PDO_MAPPING_COUNT; j++) {
 				if ((mapping_par->mappings[j].main_index == main_index) &&
 						(mapping_par->mappings[j].sub_index == subindex)) {
-					uv_delay_end(&this->txpdo_time[i]);
+					uv_delay_trigger(&this->txpdo_time[i]);
 					break;
 				}
 			}
