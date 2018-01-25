@@ -25,9 +25,12 @@ enum {
 #define this ((uv_uidisplay_st*) me)
 
 
-static void draw(const void *me, const uv_bounding_box_st *pbb);
+static void draw(void *me, const uv_bounding_box_st *pbb);
+extern void uv_uiwindow_touch_callb(void *me, uv_touch_st *touch);
 
-static void draw(const void *me, const uv_bounding_box_st *pbb) {
+
+
+static void draw(void *me, const uv_bounding_box_st *pbb) {
 #if CONFIG_LCD
 	uv_lcd_draw_rect(uv_uibb(this)->x, uv_uibb(this)->y, uv_uibb(this)->width,
 			uv_uibb(this)->height, ((uv_uiwindow_st*) this)->style->window_c);
@@ -49,8 +52,9 @@ void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *
 	uv_uibb(me)->width = LCD_W_PX;
 	uv_uibb(me)->height = LCD_H_PX;
 	uv_ui_refresh_parent(this);
-	this->touch_callb = NULL;
-	((uv_uiwindow_st*) this)->vrtl_draw = &draw;
+	uv_uiobject_set_draw_callb(this, &draw);
+	// ave to set touch callback to null as uiwindow tries to set it to itself
+	uv_uiobject_set_touch_callb(this, NULL);
 
 #if CONFIG_UI_TOUCHSCREEN
 	uv_moving_aver_init(&this->avr_x, UI_TOUCH_AVERAGE_COUNT);
@@ -61,7 +65,7 @@ void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *
 
 
 
-void uv_uidisplay_step(void *me, uint32_t step_ms) {
+uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 	uv_touch_st t = {};
 	t.action = TOUCH_NONE;
 
@@ -127,12 +131,17 @@ void uv_uidisplay_step(void *me, uint32_t step_ms) {
 		}
 	}
 #endif
-
-	if ((this->touch_callb) && (t.action != TOUCH_NONE)) {
-		this->touch_callb(&t);
+	// call user touch callback
+	if ((((uv_uiobject_st*) this)->vrtl_touch) && (t.action != TOUCH_NONE)) {
+		((uv_uiobject_st*) this)->vrtl_touch(this, &t);
 	}
 
-	if (uv_uiwindow_step(me, &t, step_ms, uv_uibb(this))) {
+	// call uiwindow's touch callback to
+	// propagate touches to all objects in reverse order
+	uv_uiwindow_touch_callb(this, &t);
+
+	uv_uiobject_ret_e ret = uv_uiwindow_step(me, step_ms, uv_uibb(this));
+	if (ret != UIOBJECT_RETURN_ALIVE) {
 
 #if CONFIG_LCD
 		// if lcd is configured to use double buffering,
@@ -143,6 +152,8 @@ void uv_uidisplay_step(void *me, uint32_t step_ms) {
 		uv_ft81x_dlswap();
 #endif
 	}
+
+	return ret;
 }
 
 

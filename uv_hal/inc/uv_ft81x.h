@@ -117,8 +117,9 @@ typedef enum {
 	FONT_5,
 	FONT_6,
 	FONT_7,
-	// FONT_8, 9 & 10 disabled, replaced with FONT_17, 18, 19 instead
-	//
+	FONT_8,
+	FONT_9,
+	FONT_10,
 	FONT_11,
 	FONT_12,
 	FONT_13,
@@ -127,9 +128,9 @@ typedef enum {
 	FONT_16,
 	// note: The biggest fonts are not set to any bitmap handles,
 	// use anti-alised font handles instead
-	FONT_17 = FONT_7 + 1,
-	FONT_18 = FONT_7 + 2,
-	FONT_19 = FONT_7 + 3
+	FONT_17 = FONT_1,
+	FONT_18 = FONT_2,
+	FONT_19 = FONT_3
 } ft81x_fonts_e;
 
 /// @brief: Wrapper for font data for UI library
@@ -137,6 +138,8 @@ typedef struct {
 	uint16_t char_height;
 	uint8_t index;
 } ft81x_font_st;
+/// @brief: Fonts 17-19 are shortcuts to fonts 1-3, thats
+/// why they are not included in calculating the font count.
 #define FONT_COUNT						(FONT_16 - FONT_1 + 1)
 extern ft81x_font_st ft81x_fonts[FONT_COUNT];
 
@@ -183,7 +186,7 @@ typedef uint32_t color_t;
 
 /// @brief: Struct for individual object's bounding box.
 typedef struct {
-	/// @brief: local left-most GLOBAL x coordinate relative to the parent
+	/// @brief: local left-most x coordinate relative to the parent
 	int16_t x;
 	/// @brief: Local top-most y-coordinate relative to the parent
 	int16_t y;

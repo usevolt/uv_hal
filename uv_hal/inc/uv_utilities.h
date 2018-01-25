@@ -200,6 +200,11 @@ static inline void uv_delay_init(uv_delay_st* p, uint16_t delay_ms) {
 	*p = delay_ms;
 }
 
+/// @brief: Ends the delay
+static inline void uv_delay_end(uv_delay_st *p) {
+	*p = -1;
+}
+
 /// @brief: Delay function. Can be used to create different delays in a discrete cyclical step function system.
 /// @param delay_ms The length of the delay in ms.
 /// @param step_ms The duration between cyclic calls in ms.
@@ -208,7 +213,7 @@ static inline void uv_delay_init(uv_delay_st* p, uint16_t delay_ms) {
 /// when it exceeds delay_ms, true is returned.
 /// @example:
 /// 	static int p;
-/// 	uv_start_delay(1500, &p);
+/// 	uv_delay_init(1500, &p);
 /// 	while (true) {
 ///			if (uv_delay(1, &p)) {
 ///				...

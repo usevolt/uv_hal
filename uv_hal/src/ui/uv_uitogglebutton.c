@@ -16,6 +16,9 @@
 #define this ((uv_uitogglebutton_st*)me)
 
 
+static void touch(void *me, uv_touch_st *touch);
+
+
 static inline void draw(void *me, const uv_bounding_box_st *pbb) {
 	color_t bgc = (this->state) ? this->super.style->active_bg_c : this->super.style->inactive_bg_c;
 	color_t fontc = (this->super.state) ? this->super.style->active_font_c : this->super.style->inactive_font_c;
@@ -50,23 +53,30 @@ void uv_uitogglebutton_init(void *me, bool state, char *text, const uv_uistyle_s
 	this->state = state;
 	this->clicked = false;
 	((uv_uiobject_st*) this)->step_callb = uv_uitogglebutton_step;
+	uv_uiobject_set_draw_callb(this, &draw);
+	uv_uiobject_set_touch_callb(this, &touch);
 }
 
 
-uv_uiobject_ret_e uv_uitogglebutton_step(void *me, uv_touch_st *touch,
-		uint16_t step_ms, const uv_bounding_box_st *pbb) {
+uv_uiobject_ret_e uv_uitogglebutton_step(void *me, uint16_t step_ms,
+		const uv_bounding_box_st *pbb) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
 	this->clicked = false;
 
 	// update if necessary
 	if (((uv_uiobject_st*) this)->refresh) {
-		draw(this, pbb);
+		((uv_uiobject_st*) this)->vrtl_draw(this, pbb);
 		((uv_uiobject_st*) this)->refresh = false;
 		ret = UIOBJECT_RETURN_REFRESH;
 	}
 
 
+	return ret;
+}
+
+
+static void touch(void *me, uv_touch_st *touch) {
 	if (touch->action == TOUCH_CLICKED) {
 		this->clicked = true;
 		this->state = !this->state;
@@ -74,9 +84,7 @@ uv_uiobject_ret_e uv_uitogglebutton_step(void *me, uv_touch_st *touch,
 		touch->action = TOUCH_NONE;
 	}
 
-	return ret;
 }
-
 
 
 

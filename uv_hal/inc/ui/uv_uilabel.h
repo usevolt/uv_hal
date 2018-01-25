@@ -79,12 +79,17 @@ typedef struct {
 #define this ((uv_uilabel_st*)me)
 
 
+#if CONFIG_LCD
 void uv_uilabel_init(void *me, const uv_font_st *font,
 		alignment_e alignment, color_t color, color_t bgcolor, char *str);
+#elif CONFIG_FT81X
+void uv_uilabel_init(void *me, const uv_font_st *font,
+		alignment_e alignment, color_t color, char *str);
+#endif
 
 /// @brief: Step function which should be called every step cycle
-uv_uiobject_ret_e uv_uilabel_step(void *me, uv_touch_st *touch,
-		uint16_t step_ms, const uv_bounding_box_st *pbb);
+uv_uiobject_ret_e uv_uilabel_step(void *me, uint16_t step_ms,
+		const uv_bounding_box_st *pbb);
 
 #define this		((uv_uilabel_st*)me)
 
@@ -128,10 +133,10 @@ void uv_uilabel_set_color(void *me, color_t c);
 typedef struct {
 	EXTENDS(uv_uilabel_st);
 
-	unsigned int divider;
+	uint32_t divider;
 	char str[13];
 	char format[10];
-	int value;
+	int32_t value;
 } uv_uidigit_st;
 
 
@@ -141,17 +146,25 @@ typedef struct {
 /// @param format: Printf-format for showing the digit. Without fractions the
 /// format should contain only one number. If fractions are used, it should define
 /// exactly 2 numbers separated by a dot or a comma.
+#if CONFIG_LCD
 void uv_uidigit_init(void *me, const uv_font_st *font,
 		alignment_e alignment, color_t color, color_t bgcolor, char *format, int value);
+#elif CONFIG_FT81X
+void uv_uidigit_init(void *me, const uv_font_st *font,
+		alignment_e alignment, color_t color, char *format, int value);
+#endif
 
 
-static inline uv_uiobject_ret_e uv_uidigit_step(void *me, uv_touch_st *touch, uint16_t step_ms,
+static inline uv_uiobject_ret_e uv_uidigit_step(void *me, uint16_t step_ms,
 		const uv_bounding_box_st *pbb) {
-	return uv_uilabel_step(me, touch, step_ms, pbb);
+	return uv_uilabel_step(me, step_ms, pbb);
 }
 
 void uv_uidigit_set_value(void *me, int value);
 
+
+/// @brief: a way for setting any string to digit. Can be used to disable digit numbers.
+void uv_uidigit_set_text(void *me, char *str);
 
 
 /// @brief: Sets the color of the label text

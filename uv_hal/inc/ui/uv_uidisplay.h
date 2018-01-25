@@ -50,9 +50,6 @@ typedef struct {
 	/// @brief: Stores the current state of the press event
 	int16_t press_state;
 #endif
-	/// @brief: Optional touch callback which will be called everytime the
-	/// user touches the display
-	void (*touch_callb)(const uv_touch_st *touch);
 } uv_uidisplay_st;
 
 
@@ -60,19 +57,28 @@ typedef struct {
 void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *style);
 
 
-static inline void uv_uidisplay_set_touch_callb(void *me, void (*touch_callb)(const uv_touch_st *touch)) {
-	((uv_uidisplay_st *) me)->touch_callb = touch_callb;
+/// @brief: For uidisplay, uiobejct's virtual touch function is used as a user touch callback
+static inline void uv_uidisplay_set_touch_callb(void *me, void (*touch_callb)(void *, uv_touch_st *)) {
+	uv_uiobject_set_touch_callb(me, touch_callb);
 }
 
 /// @brief: Adds an object to the screen
 static inline void uv_uidisplay_add(void *me, void *obj,
-		uint16_t x, uint16_t y, uint16_t width, uint16_t height) {
+		int16_t x, int16_t y, uint16_t width, uint16_t height) {
 	uv_uiwindow_add(me, obj, x, y, width, height);
 }
 
+/// @brief: Removes an object from the screen
+static inline void uv_uidisplay_remove(void *me, void *obj) {
+	uv_uiwindow_remove(me, obj);
+}
+
+static inline void uv_uidisplay_clear(void *me) {
+	uv_uiwindow_clear(me);
+}
 
 /// @brief: Step function takes care of updating the screen and touch events
-void uv_uidisplay_step(void *me, uint32_t step_ms);
+uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms);
 
 #endif
 

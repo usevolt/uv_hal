@@ -17,6 +17,7 @@
 #define SCROLLBAR_PADDING		2
 
 static void draw_scrollbar(void *me, bool horizontal, const uv_bounding_box_st *pbb);
+void uv_uiwindow_touch_callb(void *me, uv_touch_st *touch);
 
 static void draw_scrollbar(void *me, bool horizontal, const uv_bounding_box_st *pbb) {
 	int16_t x = uv_ui_get_xglobal(this);
@@ -77,7 +78,7 @@ static void draw_scrollbar(void *me, bool horizontal, const uv_bounding_box_st *
 
 
 /// @brief: Redraws this window
-void _uv_uiwindow_redraw(const void *me, const uv_bounding_box_st *pbb) {
+void _uv_uiwindow_redraw(void *me, const uv_bounding_box_st *pbb) {
 
 #if CONFIG_LCD
 	if ((this->content_bb.height > uv_uibb(this)->height) ||
@@ -92,9 +93,11 @@ void _uv_uiwindow_redraw(const void *me, const uv_bounding_box_st *pbb) {
 	bb.x = uv_ui_get_xglobal(this);
 	bb.y = uv_ui_get_yglobal(this);
 	if (bb.x < pbb->x) {
+		bb.width -= pbb->x - bb.x;
 		bb.x = pbb->x;
 	}
 	if (bb.y < pbb->y) {
+		bb.height -= pbb->y - bb.y;
 		bb.y = pbb->y;
 	}
 	if ((bb.x + bb.width) > (pbb->x + pbb->width)) {
@@ -137,14 +140,15 @@ void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array, const uv_ui
 	this->transparent = true;
 #endif
 	this->app_step_callb = NULL;
-	this->vrtl_draw = &_uv_uiwindow_redraw;
+	uv_uiobject_set_draw_callb(this, &_uv_uiwindow_redraw);
+	uv_uiobject_set_touch_callb(this, &uv_uiwindow_touch_callb);
 	((uv_uiobject_st*) this)->step_callb = &uv_uiwindow_step;
 }
 
 
 
 void uv_uiwindow_add(void *me, void *object,
-		uint16_t x, uint16_t y, uint16_t width, uint16_t height) {
+		int16_t x, int16_t y, uint16_t width, uint16_t height) {
 
 	uv_bounding_box_init(&((uv_uiobject_st*) object)->bb, x, y, width, height);
 	((uv_uiobject_st*) object)->parent = this;
@@ -157,6 +161,26 @@ void uv_uiwindow_add(void *me, void *object,
 		this->content_bb.height = uv_uibb(this)->height;
 	}
 }
+
+
+void uv_uiwindow_remove(void *me, void *object) {
+	bool found = false;
+	for (uint16_t i = 0; i < this->objects_count; i++) {
+		// move all objects after the found object one slot higher
+		if (found) {
+			this->objects[i - 1] = this->objects[i];
+		}
+		if (((void*) this->objects[i]) == object) {
+			found = true;
+		}
+	}
+	// lastly reduce object count by 1
+	if (found) {
+		this->objects_count--;
+		uv_ui_refresh(this);
+	}
+}
+
 
 uv_bounding_box_st uv_uiwindow_get_contentbb(const void *me) {
 	// if bounding box dimensions are 0, it is not set
@@ -219,13 +243,13 @@ void uv_uiwindow_content_move(const void *me, const int16_t dx, const int16_t dy
 
 
 
-uv_uiobject_ret_e uv_uiwindow_step(void *me, uv_touch_st *touch,
-		uint16_t step_ms, const uv_bounding_box_st *pbb) {
+uv_uiobject_ret_e uv_uiwindow_step(void *me, uint16_t step_ms,
+		const uv_bounding_box_st *pbb) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
 	if (((uv_uiobject_st*)this)->refresh) {
 		// first redraw this window
-		this->vrtl_draw(this, pbb);
+		((uv_uiobject_st*) this)->vrtl_draw(this, pbb);
 		ret = UIOBJECT_RETURN_REFRESH;
 		// then request redraw all children objects
 		uint16_t i;
@@ -236,10 +260,12 @@ uv_uiobject_ret_e uv_uiwindow_step(void *me, uv_touch_st *touch,
 	}
 	// call step functions for all children which are visible
 	if (((uv_uiobject_st*) this)->enabled) {
-		uint16_t i;
+		int16_t i;
 		uv_bounding_box_st bb = *uv_uibb(this);
-		bb.x = uv_ui_get_xglobal(this);
-		bb.y = uv_ui_get_yglobal(this);
+		int16_t globx = uv_ui_get_xglobal(this);
+		int16_t globy = uv_ui_get_yglobal(this);
+		bb.x = globx;
+		bb.y = globy;
 		if (bb.x < pbb->x) {
 			bb.x = pbb->x;
 		}
@@ -256,64 +282,25 @@ uv_uiobject_ret_e uv_uiwindow_step(void *me, uv_touch_st *touch,
 		for (i = 0; i < this->objects_count; i++) {
 			if (this->objects[i]->visible) {
 
-				// touch event is unique for each children object
-				uv_touch_st t2 = *touch;
-
-				if (t2.action != TOUCH_NONE) {
-					if (t2.action != TOUCH_DRAG) {
-						t2.x -= uv_uibb(this->objects[i])->x + this->content_bb.x;
-						t2.y -= uv_uibb(this->objects[i])->y + this->content_bb.y;
-						if (t2.x > uv_uibb(this->objects[i])->width ||
-								t2.y > uv_uibb(this->objects[i])->height ||
-								t2.x < 0 ||
-								t2.y < 0) {
-							t2.action = TOUCH_NONE;
-						}
-					}
-				}
-				uv_touch_action_e touch_propagate = t2.action;
-
 				// call child object's step function
 				if (this->objects[i]->step_callb) {
-					ret |= uv_uiobject_step(this->objects[i], &t2, step_ms, &bb);
+					ret |= uv_uiobject_step(this->objects[i], step_ms, &bb);
 				}
+#if CONFIG_FT81X
+				// ensure that scissors mask is not changed by child object
+				if (ret & UIOBJECT_RETURN_REFRESH) {
+					uv_ft81x_set_mask(globx, globy,
+							uv_uibb(this)->width, uv_uibb(this)->height);
+				}
+#endif
 				if (ret & UIOBJECT_RETURN_KILLED) {
 					break;
-				}
-
-				// check if the object changed the touch event.
-				// This means that the touch event is processed and it shouldn't
-				// be propagating to other objects.
-				if (t2.action != touch_propagate) {
-					touch->action = TOUCH_NONE;
 				}
 
 			}
 		}
 
 		if (!(ret & UIOBJECT_RETURN_KILLED)) {
-			// if touch events were still pending, check if scroll bars have been clicked
-			if ((this->content_bb.width > uv_uibb(this)->width) ||
-					(this->content_bb.height > uv_uibb(this)->height)) {
-				if (touch->action == TOUCH_PRESSED) {
-					this->dragging = true;
-					touch->action = TOUCH_NONE;
-				}
-				else if (touch->action == TOUCH_RELEASED) {
-					this->dragging = false;
-					touch->action = TOUCH_NONE;
-				}
-				else if (touch->action == TOUCH_DRAG) {
-					if (this->dragging) {
-						uv_uiwindow_content_move(this, touch->x, touch->y);
-						touch->action = TOUCH_NONE;
-					}
-				}
-				else {
-
-				}
-			}
-
 			// lastly call application step callback if one is assigned
 			if ((this->app_step_callb != NULL) &&
 					(((uv_uiobject_st*) this)->enabled)) {
@@ -321,10 +308,70 @@ uv_uiobject_ret_e uv_uiwindow_step(void *me, uv_touch_st *touch,
 			}
 		}
 	}
-
-
 	return ret;
 }
+
+void uv_uiwindow_touch_callb(void *me, uv_touch_st *touch) {
+	// touch event is unique for each children object
+
+	int16_t i;
+	for (i = this->objects_count - 1; i >= 0; i--) {
+		uv_touch_st t2 = *touch;
+
+		if (this->objects[i]->visible && this->objects[i]->vrtl_touch) {
+			if (t2.action != TOUCH_NONE) {
+				if (t2.action != TOUCH_DRAG) {
+					t2.x -= uv_uibb(this->objects[i])->x + this->content_bb.x;
+					t2.y -= uv_uibb(this->objects[i])->y + this->content_bb.y;
+					if (t2.x > uv_uibb(this->objects[i])->width ||
+							t2.y > uv_uibb(this->objects[i])->height ||
+							t2.x < 0 ||
+							t2.y < 0) {
+						t2.action = TOUCH_NONE;
+					}
+				}
+			}
+			uv_touch_action_e touch_propagate = t2.action;
+
+			// call child's touch callback
+			this->objects[i]->vrtl_touch(this->objects[i], &t2);
+
+			// check if the object changed the touch event.
+			// This means that the touch event is processed and it shouldn't
+			// be propagating to other objects.
+			if (t2.action != touch_propagate) {
+				touch->action = TOUCH_NONE;
+			}
+		}
+	}
+	// lastly handle own touch events
+	// if touch events were still pending, check if scroll bars have been clicked or dragged
+	if ((this->content_bb.width > uv_uibb(this)->width) ||
+			(this->content_bb.height > uv_uibb(this)->height)) {
+		if (touch->action == TOUCH_PRESSED) {
+			this->dragging = true;
+			touch->action = TOUCH_NONE;
+		}
+		else if (touch->action == TOUCH_RELEASED) {
+			this->dragging = false;
+			touch->action = TOUCH_NONE;
+		}
+		else if (touch->action == TOUCH_DRAG) {
+			if (this->dragging) {
+				uv_uiwindow_content_move(this, touch->x, touch->y);
+				touch->action = TOUCH_NONE;
+			}
+		}
+		else {
+
+		}
+	}
+	// if window is not transparent, touches are always catched
+	if (!this->transparent) {
+		touch->action = TOUCH_NONE;
+	}
+}
+
 
 void uv_uiwindow_set_content_bb_default_pos(void *me,
 		const int16_t x, const int16_t y) {

@@ -11,15 +11,15 @@
 #if CONFIG_UI
 
 #include "ui/uv_uiwindow.h"
+#include "ui/uv_uitransition.h"
 #include "uv_utilities.h"
 #include <stddef.h>
-#include CONFIG_UI_DISPLAY_H
 
 #define this ((uv_uiobject_st*) me)
 
 /// @brief: Initializes the bounding box
 void uv_bounding_box_init(uv_bounding_box_st *bb,
-		uint16_t x, uint16_t y, uint16_t width, uint16_t height) {
+		int16_t x, int16_t y, uint16_t width, uint16_t height) {
 	bb->x = x;
 	bb->y = y;
 	bb->width = width;
@@ -32,6 +32,8 @@ void uv_uiobject_init(void *me) {
 	uv_bounding_box_init(&this->bb, 0, 0, 0, 0);
 	this->parent = NULL;
 	this->step_callb = NULL;
+	this->vrtl_draw = NULL;
+	this->vrtl_touch = NULL;
 	this->visible = true;
 	uv_ui_refresh(this);
 	this->enabled = true;
@@ -39,14 +41,14 @@ void uv_uiobject_init(void *me) {
 }
 
 
-uv_uiobject_ret_e uv_uiobject_step(void *me, uv_touch_st *touch,
-		uint16_t step_ms, const uv_bounding_box_st *pbb) {
+uv_uiobject_ret_e uv_uiobject_step(void *me, uint16_t step_ms,
+		const uv_bounding_box_st *pbb) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 	if (this->transition) {
 		uv_uitransition_step(this->transition, this, step_ms);
 	}
 	if (this->step_callb) {
-		ret = this->step_callb(this, touch, step_ms, pbb);
+		ret = this->step_callb(this, step_ms, pbb);
 	}
 	return ret;
 }
@@ -118,7 +120,11 @@ int16_t uv_ui_get_yglobal(const void *me) {
 
 void uv_ui_refresh(void *me) {
 	((uv_uiobject_st*) me)->refresh = true;
-	((uv_uiobject_st*) &CONFIG_UI_DISPLAY)->refresh = true;
+	uv_uiwindow_st *parent = this->parent;
+	while (parent != NULL) {
+		((uv_uiobject_st*) parent)->refresh = true;
+		parent = ((uv_uiobject_st*) parent)->parent;
+	}
 }
 
 #endif

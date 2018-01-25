@@ -11,6 +11,7 @@
 
 #if CONFIG_UI
 
+static void draw(void *me, const uv_bounding_box_st *pbb);
 
 #define this ((uv_uiprogressbar_st *)me)
 
@@ -28,6 +29,7 @@ void uv_uiprogressbar_init(void *me, int16_t min_value,
 	this->limit_type = UI_PROGRESSBAR_LIMIT_NONE;
 	this->title = NULL;
 	((uv_uiobject_st*) this)->step_callb = &uv_uiprogressbar_step;
+	uv_uiobject_set_draw_callb(this, &draw);
 }
 
 
@@ -141,16 +143,17 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 
 
-uv_uiobject_ret_e uv_uiprogressbar_step(void *me, uv_touch_st *touch,
-		uint16_t step_ms, const uv_bounding_box_st *pbb) {
+uv_uiobject_ret_e uv_uiprogressbar_step(void *me, uint16_t step_ms,
+		const uv_bounding_box_st *pbb) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 	if (this->super.refresh) {
-		draw(this, pbb);
+		((uv_uiobject_st*) this)->vrtl_draw(this, pbb);
 		ret = UIOBJECT_RETURN_REFRESH;
 		this->super.refresh = false;
 	}
 	return ret;
 }
+
 
 
 #endif
