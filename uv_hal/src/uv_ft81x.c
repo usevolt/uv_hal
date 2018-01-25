@@ -25,6 +25,8 @@
 
 #if CONFIG_FT81X
 
+
+
 #define READ8_LEN						5
 #define READ16_LEN						6
 #define READ32_LEN						8
@@ -380,10 +382,11 @@ static void init_values(void);
 static void set_color(color_t c);
 static void set_begin(uint8_t begin_type);
 static void set_point_size(uint16_t diameter);
-static void set_line_width(const uint16_t width);
+static void set_line_diameter(const uint16_t diameter);
 static void set_font(const uint8_t font);
 static void set_cell(const uint8_t cell);
 static void cmd_wait(void);
+static void cmd_romfont(uint8_t bitmap_handle, uint8_t font_number);
 void draw_line(char *str, const ft81x_fonts_e font,
 		int16_t x, int16_t y, ft81x_align_e align, color_t color, uint16_t len);
 bool visible(const int16_t x, const int16_t y, const int16_t w, const int16_t height);
@@ -430,6 +433,7 @@ typedef struct {
 		int16_t height;
 	} mask;
 } uv_ft81x_st;
+
 ft81x_font_st ft81x_fonts[FONT_COUNT];
 
 uv_ft81x_st ft81x;
@@ -453,13 +457,11 @@ static void init_values(void) {
 void uv_ft81x_init(void) {
 	this->dl_index = 0;
 	this->dl_index_max = 0;
-	this->cmdwriteaddr = 0;
 	this->backlight = 50;
 	this->mask.x = 0;
 	this->mask.y = 0;
 	this->mask.width = LCD_W_PX;
 	this->mask.height = LCD_H_PX;
-
 	init_values();
 
 	// toggle PD pin to reset the FT81X
@@ -478,6 +480,12 @@ void uv_ft81x_init(void) {
 	uint8_t id = read8(REG_ID);
 	if (id == 0x7C) {
 		DEBUG("FT81X id: 0x%x\n", id);
+
+		// read co-processor command fifo buffer address.
+		// Address is 0 only if power-on-reset happened,
+		// otherwise it can be anything.
+		this->cmdwriteaddr = read16(REG_CMD_WRITE);
+
 		// configure display registers
 		write16(REG_HCYCLE, CONFIG_FT81X_HCYCLE);
 		write16(REG_HOFFSET, CONFIG_FT81X_HOFFSET);
@@ -506,10 +514,24 @@ void uv_ft81x_init(void) {
 		write8(REG_GPIO_DIR, 0x80  | read8(REG_GPIO_DIR));
 		write8(REG_GPIO, 0x80 | read8(REG_GPIO));
 
+		// initialize ROM fonts 32-34
+		cmd_romfont(FONT_17, 32);
+		cmd_romfont(FONT_18, 33);
+		cmd_romfont(FONT_19, 34);
+
 		uv_ft81x_dlswap();
 
-		// download font height data
-		for (int i = 0; i < FONT_COUNT; i++) {
+		// download font height data for 3 biggest fonts, mapped to
+		// FONT_1, FONT_2, FONT_3
+		for (uint8_t i = 0; i < 3; i++) {
+			ft81x_fonts[i].index = i + FONT_1;
+			ft81x_fonts[i].char_height = read32(FONT_METRICS_BASE_ADDR +
+					(16 + i) * FONT_METRICS_FONT_LEN +
+					FONT_METRICS_FONT_HEIGHT_OFFSET);
+			DEBUG("Font %u height: %u\n", i, ft81x_fonts[i].char_height);
+		}
+		// download font height data for normal fonts
+		for (int i = 3; i < FONT_COUNT; i++) {
 			ft81x_fonts[i].index = i + FONT_1;
 			ft81x_fonts[i].char_height = read32(FONT_METRICS_BASE_ADDR +
 					i * FONT_METRICS_FONT_LEN +
@@ -688,16 +710,16 @@ static void set_point_size(uint16_t diameter) {
 }
 
 
-static void set_line_width(const uint16_t width) {
-	if (this->line_width != width) {
-		DEBUG("set line width\n");
-		if (width == 0) {
+static void set_line_diameter(const uint16_t diameter) {
+	if (this->line_width != diameter) {
+		DEBUG("set line diameter\n");
+		if (diameter == 0) {
 			writedl(LINE_WIDTH(8));
 		}
 		else {
-			writedl(LINE_WIDTH(width * 16));
+			writedl(LINE_WIDTH(diameter * 8));
 		}
-		this->line_width = width;
+		this->line_width = diameter;
 	}
 }
 
@@ -730,6 +752,32 @@ static void cmd_wait(void) {
 	}
 	DEBUG("OK!\n");
 }
+
+static void cmd_romfont(uint8_t bitmap_handle, uint8_t font_number) {
+	// set the RAMDL offset where co-processor writes the DL entries
+	write16(REG_CMD_DL, this->dl_index);
+
+	DEBUG("Loading ROM font %u to bitmap handle %u\n",
+			font_number, bitmap_handle);
+	// create rom font structure, based on communication manual data
+	uint32_t cmd[3];
+	cmd[0] = CMD_ROMFONT;
+	cmd[1] = bitmap_handle;
+	cmd[2] = font_number;
+	writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr,
+			(const char*) cmd, sizeof(cmd));
+
+	// increase cmdwriteaddr by the length of this command
+	this->cmdwriteaddr = (this->cmdwriteaddr + sizeof(cmd)) % RAMCMD_SIZE;
+
+	write16(REG_CMD_WRITE, this->cmdwriteaddr);
+
+	// last thing is to wait for the co-processor to finish
+	// and update current dl_index
+	cmd_wait();
+	this->dl_index = read16(REG_CMD_DL);
+}
+
 
 void draw_line(char *str, const ft81x_fonts_e font,
 		int16_t x, int16_t y, ft81x_align_e align, color_t color, uint16_t len) {
@@ -882,7 +930,7 @@ void uv_ft81x_draw_rrect(const int16_t x, const int16_t y,
 	if (visible(x, y, width, height)) {
 		set_color(color);
 		set_begin(BEGIN_RECTS);
-		set_line_width(radius);
+		set_line_diameter(radius);
 		DEBUG("Drawing rectangle\n");
 		volatile vertex2f_st v;
 		v.sx = x + radius;
@@ -900,6 +948,15 @@ void uv_ft81x_draw_rrect(const int16_t x, const int16_t y,
 	}
 }
 
+void uv_ft81x_draw_shadowrrect(const int16_t x, const int16_t y,
+		const uint16_t width, const uint16_t height,
+		const uint16_t radius, const color_t color,
+		const color_t highlight_c, const color_t shadow_c) {
+	uv_ft81x_draw_rrect(x, y, width - 4, height - 4, radius, shadow_c);
+	uv_ft81x_draw_rrect(x + 4, y + 4, width - 4, height - 4, radius, highlight_c);
+	uv_ft81x_draw_rrect(x + 2, y + 2, width - 4, height - 4, radius, color);
+}
+
 
 void uv_ft81x_draw_line(const int16_t start_x, const int16_t start_y,
 		const int16_t end_x, const int16_t end_y,
@@ -907,7 +964,7 @@ void uv_ft81x_draw_line(const int16_t start_x, const int16_t start_y,
 	if (visible(start_x, start_y, end_x, end_y)) {
 		set_color(color);
 		set_begin(BEGIN_LINES);
-		set_line_width(width);
+		set_line_diameter(width);
 		DEBUG("Drawing line\n");
 		vertex2f_st v;
 		v.sx = start_x;
@@ -1074,12 +1131,14 @@ uint8_t uv_ft81x_get_font_height(const ft81x_fonts_e font) {
 
 void uv_ft81x_set_mask(int16_t x, int16_t y, uint16_t width, uint16_t height) {
 	if (x < 0) {
+		width += x;
 		x = 0;
 	}
 	else if (x > 2047) {
 		x = 2047;
 	}
 	if (y < 0) {
+		height += y;
 		y = 0;
 	}
 	else if (y > 2047) {

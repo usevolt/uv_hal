@@ -47,7 +47,9 @@ _uv_canopen_st _canopen;
 
 void _uv_canopen_init(void) {
 	this->can_callback = NULL;
+#if CONFIG_INTERFACE_REVISION
 	this->if_revision = CONFIG_INTERFACE_REVISION;
+#endif
 	_uv_canopen_nmt_init();
 	_uv_canopen_heartbeat_init();
 	_uv_canopen_sdo_init();

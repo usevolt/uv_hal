@@ -17,11 +17,10 @@
 
 
 static void uitreeview_recalc_height(void *me);
-static uv_uiobject_ret_e _uv_uitreeobject_step(void *me, uv_touch_st *touch, uint16_t step_ms,
+static uv_uiobject_ret_e _uv_uitreeobject_step(void *me, uint16_t step_ms,
 		const uv_bounding_box_st *pbb);
-static void uv_uitreeobject_draw(const void *me, const uv_bounding_box_st *pbb);
-static void uv_uitreeobject_draw(const void *me, const uv_bounding_box_st *pbb);
-
+static void uv_uitreeobject_draw(void *me, const uv_bounding_box_st *pbb);
+static void touch(void *me, uv_touch_st *touch);
 
 
 
@@ -32,18 +31,23 @@ void uv_uitreeobject_init(void *me, uv_uiobject_st **object_array,
 	this->name = name;
 	this->show_callb = show_callb;
 	((uv_uiobject_st*) this)->step_callb = &_uv_uitreeobject_step;
-	((uv_uiwindow_st*) this)->vrtl_draw = &uv_uitreeobject_draw;
+	uv_uiobject_set_draw_callb(this, &uv_uitreeobject_draw);
+	uv_uiobject_set_touch_callb(this, &touch);
 	uv_uiwindow_set_transparent(this, true);
 }
 
 
 
-static uv_uiobject_ret_e _uv_uitreeobject_step(void *me, uv_touch_st *touch, uint16_t step_ms,
+static uv_uiobject_ret_e _uv_uitreeobject_step(void *me, uint16_t step_ms,
 		const uv_bounding_box_st *pbb) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
-	ret = uv_uiwindow_step(this, touch, step_ms, pbb);
+	ret = uv_uiwindow_step(this, step_ms, pbb);
 
+	return ret;
+}
+
+static void touch(void *me, uv_touch_st *touch) {
 	if (touch->action == TOUCH_CLICKED) {
 		if ((touch->y >= 0) && (touch->y < CONFIG_UI_TREEVIEW_ITEM_HEIGHT)) {
 			if (((uv_uiobject_st *) this)->enabled) {
@@ -55,39 +59,56 @@ static uv_uiobject_ret_e _uv_uitreeobject_step(void *me, uv_touch_st *touch, uin
 			touch->action = TOUCH_NONE;
 		}
 	}
-
-	return ret;
 }
 
 
 
-static void uv_uitreeobject_draw(const void *me, const uv_bounding_box_st *pbb) {
+static void uv_uitreeobject_draw(void *me, const uv_bounding_box_st *pbb) {
 
 	int16_t x = uv_ui_get_xglobal(this);
 	int16_t y = uv_ui_get_yglobal(this);
 	int16_t w = uv_uibb(this)->width;
-#if CONFIG_LCD
 	if (!((uv_uiobject_st*) this)->enabled) {
+#if CONFIG_LCD
 		_uv_ui_draw_mtext(x + XOFFSET, y + CONFIG_UI_TREEVIEW_ITEM_HEIGHT / 2,
 				&CONFIG_UI_TREEVIEW_ARROW_FONT, ALIGN_CENTER_LEFT,
 				((uv_uiwindow_st*) me)->style->active_bg_c,
 				((uv_uiwindow_st*) me)->style->window_c, "\x10", 1.0f, pbb);
+#elif CONFIG_FT81X
+		uv_ft81x_draw_string("-", ((uv_uiwindow_st*) this)->style->font->index,
+				x + XOFFSET, y + CONFIG_UI_TREEVIEW_ITEM_HEIGHT / 2, ALIGN_CENTER_LEFT,
+				((uv_uiwindow_st*) this)->style->active_bg_c);
+#endif
 	}
 	else {
 		// super draw function
 		_uv_uiwindow_redraw(this, pbb);
 
+#if CONFIG_LCD
 		_uv_ui_draw_mtext(x + XOFFSET, y + CONFIG_UI_TREEVIEW_ITEM_HEIGHT / 2,
 				&CONFIG_UI_TREEVIEW_ARROW_FONT, ALIGN_CENTER_LEFT,
 				((uv_uiwindow_st*) me)->style->active_bg_c,
 				((uv_uiwindow_st*) me)->style->window_c, "\x1f", 1.0f, pbb);
+#elif CONFIG_FT81X
+		uv_ft81x_draw_string("+", ((uv_uiwindow_st*) this)->style->font->index,
+				x + XOFFSET, y + CONFIG_UI_TREEVIEW_ITEM_HEIGHT / 2,
+				ALIGN_CENTER_LEFT, ((uv_uiwindow_st*) this)->style->active_bg_c);
+#endif
 	}
 
+#if CONFIG_LCD
 	_uv_ui_draw_mtext(x + XOFFSET * 2 + CONFIG_UI_TREEVIEW_ARROW_FONT.char_width,
 			y + CONFIG_UI_TREEVIEW_ITEM_HEIGHT / 2,
 			((uv_uiwindow_st*) me)->style->font, ALIGN_CENTER_LEFT,
 			((uv_uiwindow_st*) me)->style->text_color, C(0xFFFFFFFF),
 			this->name, 1.0f, pbb);
+#elif CONFIG_FT81X
+	uv_ft81x_draw_string((char*) this->name, ((uv_uiwindow_st*) this)->style->font->index,
+			x + XOFFSET * 2 +
+			uv_ft81x_get_font_height(((uv_uiwindow_st*) this)->style->font->index),
+			y + CONFIG_UI_TREEVIEW_ITEM_HEIGHT / 2,
+			ALIGN_CENTER_LEFT, ((uv_uiwindow_st*) this)->style->text_color);
+#endif
 
 	if (((uv_uiobject_st*) this)->enabled) {
 		y += uv_uibb(this)->height;
@@ -95,10 +116,12 @@ static void uv_uitreeobject_draw(const void *me, const uv_bounding_box_st *pbb) 
 	else {
 		y += CONFIG_UI_TREEVIEW_ITEM_HEIGHT;
 	}
+#if CONFIG_LCD
 	uv_lcd_draw_mrect(x, y - 1, w, 1,
 			((uv_uiwindow_st*) me)->style->inactive_frame_c, pbb);
 #elif CONFIG_FT81X
-#warning "ft81x not implemented"
+	uv_ft81x_draw_line(x, y - 1, x + w, y - 1, 1,
+			((uv_uiwindow_st*) this)->style->inactive_frame_c);
 #endif
 }
 

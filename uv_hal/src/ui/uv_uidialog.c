@@ -15,26 +15,57 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "uv_ui.h"
+#include "uv_rtos.h"
 
-#ifndef UW_UI_H_
-#define UW_UI_H_
 
-#include <ui/uv_uibutton.h>
-#include "ui/uv_uitogglebutton.h"
-#include <ui/uv_uidisplay.h>
-#include <ui/uv_uilabel.h>
-#include <ui/uv_uislider.h>
-#include <ui/uv_uiwindow.h>
-#include "ui/uv_ui_styles.h"
-#include "ui/uv_uilist.h"
-#include "ui/uv_uikeyboard.h"
-#include "ui/uv_uitabwindow.h"
-#include "ui/uv_uiprogressbar.h"
-#include "ui/uv_uilayout.h"
-#include "ui/uv_uitoucharea.h"
-#include "ui/uv_uitreeview.h"
-#include "ui/uv_uitransition.h"
-#include "ui/uv_uidialog.h"
-#include "ui/uv_uinumpad.h"
+#if CONFIG_UI
 
-#endif /* UW_UI_H_ */
+#define this ((uv_uidialog_st*) me)
+
+
+
+
+void uv_uidialog_init(void *me, uv_uiobject_st **object_array, const uv_uistyle_st* style) {
+
+	uv_uidisplay_init(this, object_array, style);
+	// uidialog uses uiwindow's draw function
+	uv_uiobject_set_draw_callb(this, &_uv_uiwindow_redraw);
+	// dialog defaults to non-transparent.
+	uv_uidialog_set_transparent(this, false);
+}
+
+
+void uv_uidialog_exec(void *me) {
+	while (true) {
+		int16_t step_ms = 20;
+
+		uv_uiobject_ret_e ret;
+		ret = uv_uidisplay_step(this, step_ms);
+
+		if (ret & UIOBJECT_RETURN_KILLED) {
+			break;
+		}
+
+		uv_rtos_task_delay(step_ms);
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#endif

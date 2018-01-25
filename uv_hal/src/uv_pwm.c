@@ -51,7 +51,7 @@ uv_errors_e _uv_pwm_init() {
 	Chip_SWM_MovablePortPinAssign(SWM_SCT0_OUT0_O,  UV_GPIO_PORT(CONFIG_PWM0_0_IO),
 			UV_GPIO_PIN(CONFIG_PWM0_0_IO));
 	Chip_SCTPWM_SetOutPin(LPC_SCT0, 1, 0);
-	Chip_SCTPWM_SetDutyCycle(LPC_SCT0, 1, Chip_SCTPWM_GetTicksPerCycle(LPC_SCT0) / 2);
+	Chip_SCTPWM_SetDutyCycle(LPC_SCT0, 1, 0);
 #endif
 #if CONFIG_PWM0_1
 	Chip_SWM_MovablePortPinAssign(SWM_SCT0_OUT1_O,  UV_GPIO_PORT(CONFIG_PWM0_1_IO),
@@ -385,6 +385,16 @@ uv_errors_e uv_pwm_set(uv_pwm_channel_t chn, uint16_t value) {
 	return ERR_NONE;
 }
 
+
+uint16_t uv_pwm_get(uv_pwm_channel_t chn) {
+	uint16_t ret = 0;
+#if CONFIG_TARGET_LPC1549
+	ret = PWM_MAX_VALUE * Chip_SCTPWM_GetDutyCycle(this->modules[PWM_GET_MODULE(chn)], PWM_GET_CHANNEL(chn) + 1) /
+			Chip_SCTPWM_GetTicksPerCycle(this->modules[PWM_GET_MODULE(chn)]);
+#endif
+
+	return ret;
+}
 
 
 #endif

@@ -201,6 +201,9 @@ uv_errors_e uv_vector_insert(uv_vector_st *this, uint16_t index, void *src) {
 	else if (this->len >= this->buffer_size) {
 		ret = ERR_BUFFER_OVERFLOW;
 	}
+	else if (index == this->len) {
+		uv_vector_push_back(this, src);
+	}
 	else if (this->len <= index) {
 		ret = ERR_INDEX_OVERFLOW;
 	}
@@ -312,18 +315,18 @@ float uv_relf(float t, float min, float max) {
 /// value of t.
 ///
 /// @note: Should be min <= t <= max and min != max
-int uv_reli(int t, int min, int max) {
+int32_t uv_reli(int32_t t, int32_t min, int32_t max) {
 	if (min == max) return 0;
 	return 1000 * (t-min)/(max-min);
 }
 
 /// @brief: Returns the bigger argument
-int uv_maxi(int a, int b) {
+int32_t uv_maxi(int32_t a, int32_t b) {
 	return (a > b) ? a : b;
 }
 
 /// @brief: Returns the smaller argument
-int uv_mini(int a, int b) {
+int32_t uv_mini(int32_t a, int32_t b) {
 	return (a < b) ? a : b;
 }
 

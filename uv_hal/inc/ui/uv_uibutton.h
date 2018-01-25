@@ -21,6 +21,10 @@
 #error "CONFIG_UI_RADIUS hsould define the radius of various UI elements on the screen"
 #endif
 #endif
+#if !defined(CONFIG_UI_BUTTON_LONGPRESS_DELAY_MS)
+#error "CONFIG_UI_BUTTON_LONGPRESS_DELAY_MS should define the delay in milliseconds which\
+ results in a long press action on a uibutton."
+#endif
 
 
 enum {
@@ -38,8 +42,10 @@ typedef struct {
 	EXTENDS(uv_uiobject_st);
 
 	uibutton_state_e state;
+	uv_delay_st delay;
 	char *text;
 	const uv_uistyle_st *style;
+
 } uv_uibutton_st;
 
 #ifdef this
@@ -83,8 +89,8 @@ static inline bool uv_uibutton_long_pressed(void *me) {
 
 
 /// @brief: Step function should be called every step cycle
-uv_uiobject_ret_e uv_uibutton_step(void *me, uv_touch_st *touch,
-		uint16_t step_ms, const uv_bounding_box_st *pbb);
+uv_uiobject_ret_e uv_uibutton_step(void *me, uint16_t step_ms,
+		const uv_bounding_box_st *pbb);
 
 
 

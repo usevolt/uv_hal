@@ -13,8 +13,8 @@
 
 #define this ((uv_uitabwindow_st*)me)
 
-static void draw(const void *me, const uv_bounding_box_st *pbb);
-
+static void draw(void *me, const uv_bounding_box_st *pbb);
+static void touch(void *me, uv_touch_st *touch);
 
 
 void uv_uitabwindow_init(void *me, int16_t tab_count,
@@ -27,28 +27,29 @@ void uv_uitabwindow_init(void *me, int16_t tab_count,
 	this->tab_count = tab_count;
 	this->tab_names = tab_names;
 	((uv_uiobject_st*) this)->step_callb = &uv_uitabwindow_step;
-	((uv_uiwindow_st*) this)->vrtl_draw = &draw;
+	uv_uiobject_set_draw_callb(this, &draw);
+	uv_uiobject_set_touch_callb(this, &touch);
 }
 
 
-static void draw(const void *me, const uv_bounding_box_st *pbb) {
+static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 	// super draw function
 	_uv_uiwindow_redraw(this, pbb);
 
-	int16_t x = uv_ui_get_xglobal(this);
+	int16_t thisx = uv_ui_get_xglobal(this);
+	int16_t x = thisx;
 	int16_t y = uv_ui_get_yglobal(this);
 	int16_t tab_w = 0;
 	int16_t active_tab_x = 0;
 	int16_t active_tab_w = 0;
 
-#if CONFIG_LCD
 
 	for (int16_t i = 0; i < this->tab_count; i++) {
 		tab_w = uv_ui_text_width_px((char *)this->tab_names[i], this->super.style->font, 1.0f) + 10;
 		if (tab_w < CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH) tab_w = CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH;
 		if (this->active_tab != i) {
-
+#if CONFIG_LCD
 			uv_lcd_draw_mrect(x, y, tab_w, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
 					this->super.style->inactive_bg_c, pbb);
 			uv_lcd_draw_mframe(x, y, tab_w + 1, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
@@ -56,6 +57,16 @@ static void draw(const void *me, const uv_bounding_box_st *pbb) {
 			_uv_ui_draw_mtext(x + 5, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, this->super.style->font,
 					ALIGN_CENTER_LEFT, this->super.style->inactive_font_c, C(0xFFFFFFFF),
 					(char*) this->tab_names[i], 1.0f, pbb);
+#elif CONFIG_FT81X
+			uv_ft81x_draw_shadowrrect(x, y, tab_w, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
+					CONFIG_UI_RADIUS, ((uv_uiwindow_st*) this)->style->inactive_bg_c,
+					((uv_uiwindow_st*) this)->style->highlight_c,
+					((uv_uiwindow_st*) this)->style->shadow_c);
+			uv_ft81x_draw_string((char*) this->tab_names[i],
+					((uv_uiwindow_st*) this)->style->font->index,
+					x + x, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, ALIGN_CENTER_LEFT,
+					((uv_uiwindow_st*) this)->style->inactive_font_c);
+#endif
 		}
 		else {
 			active_tab_x = x;
@@ -63,9 +74,10 @@ static void draw(const void *me, const uv_bounding_box_st *pbb) {
 		}
 		x += tab_w;
 	}
+#if CONFIG_LCD
 	// draw horizontal line
 	uv_lcd_draw_mrect(x, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT - 1,
-			uv_ui_get_xglobal(this) + uv_uibb(this)->width - x,
+			thisx + uv_uibb(this)->width - x,
 			1, this->super.style->inactive_frame_c, pbb);
 
 	// lastly draw active tab
@@ -80,10 +92,24 @@ static void draw(const void *me, const uv_bounding_box_st *pbb) {
 	_uv_ui_draw_mtext(active_tab_x + 5, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, this->super.style->font,
 			ALIGN_CENTER_LEFT, this->super.style->active_font_c,
 			C(0xFFFFFFFF), (char *) this->tab_names[this->active_tab], 1.0f, pbb);
-
 #elif CONFIG_FT81X
-#warning "FT81X not implemented"
+	// draw horizontal line
+	uv_ft81x_draw_line(thisx, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT - 1,
+			thisx + uv_uibb(this)->width,
+			y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT- 1, 1,
+			((uv_uiwindow_st*) this)->style->inactive_frame_c);
+	// draw active tab
+	uv_ft81x_draw_shadowrrect(active_tab_x, y, active_tab_w, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
+			CONFIG_UI_RADIUS, ((uv_uiwindow_st*) this)->style->active_bg_c,
+			((uv_uiwindow_st*) this)->style->highlight_c,
+			((uv_uiwindow_st*) this)->style->shadow_c);
+	uv_ft81x_draw_string((char*) this->tab_names[this->active_tab],
+			((uv_uiwindow_st*) this)->style->font->index, active_tab_x + 5,
+			y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, ALIGN_CENTER_LEFT,
+			((uv_uiwindow_st*) this)->style->active_font_c);
+
 #endif
+
 }
 
 uv_bounding_box_st uv_uitabwindow_get_contentbb(void *me) {
@@ -95,14 +121,19 @@ uv_bounding_box_st uv_uitabwindow_get_contentbb(void *me) {
 
 
 
-uv_uiobject_ret_e uv_uitabwindow_step(void *me, uv_touch_st *touch,
-		uint16_t step_ms, const uv_bounding_box_st *pbb) {
+uv_uiobject_ret_e uv_uitabwindow_step(void *me, uint16_t step_ms,
+		const uv_bounding_box_st *pbb) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
-	ret = uv_uiwindow_step(this, touch, step_ms, pbb);
+	ret = uv_uiwindow_step(this, step_ms, pbb);
 
 	// When tab has been changed, this->tab_changed has to be true for 1 step cycle
 	this->tab_changed = false;
+	return ret;
+}
+
+
+static void touch(void *me, uv_touch_st *touch) {
 	if (touch->action == TOUCH_CLICKED) {
 		if (touch->y <= CONFIG_UI_TABWINDOW_HEADER_HEIGHT) {
 			int16_t total_w = 0;
@@ -123,9 +154,6 @@ uv_uiobject_ret_e uv_uitabwindow_step(void *me, uv_touch_st *touch,
 			}
 		}
 	}
-
-
-	return ret;
-
 }
+
 #endif

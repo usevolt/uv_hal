@@ -125,7 +125,12 @@ typedef enum {
 	FONT_13,
 	FONT_14,
 	FONT_15,
-	FONT_16
+	FONT_16,
+	// note: The biggest fonts are not set to any bitmap handles,
+	// use anti-alised font handles instead
+	FONT_17 = FONT_1,
+	FONT_18 = FONT_2,
+	FONT_19 = FONT_3
 } ft81x_fonts_e;
 
 /// @brief: Wrapper for font data for UI library
@@ -133,6 +138,8 @@ typedef struct {
 	uint16_t char_height;
 	uint8_t index;
 } ft81x_font_st;
+/// @brief: Fonts 17-19 are shortcuts to fonts 1-3, thats
+/// why they are not included in calculating the font count.
 #define FONT_COUNT						(FONT_16 - FONT_1 + 1)
 extern ft81x_font_st ft81x_fonts[FONT_COUNT];
 
@@ -179,7 +186,7 @@ typedef uint32_t color_t;
 
 /// @brief: Struct for individual object's bounding box.
 typedef struct {
-	/// @brief: local left-most GLOBAL x coordinate relative to the parent
+	/// @brief: local left-most x coordinate relative to the parent
 	int16_t x;
 	/// @brief: Local top-most y-coordinate relative to the parent
 	int16_t y;
@@ -188,6 +195,27 @@ typedef struct {
 	/// @brief: Height, growing to bottom
 	int16_t height;
 } uv_bounding_box_st;
+
+
+/// @brief: Bitmap formats for custom fonts
+typedef enum {
+	BITMAP_FORMAT_L1 = 0,
+	BITMAP_FORMAT_L4 = 2,
+	BITMAP_FORMAT_L8 = 3
+} _bitmap_format_e;
+typedef _bitmap_format_e bitmap_format_e;
+
+
+
+/// @brief: FT81X font metric declaration
+typedef struct {
+	uint8_t char_widths[128];
+	bitmap_format_e bitmap_format;
+	uint32_t font_line_stride;
+	uint32_t font_width;
+	uint32_t font_height;
+	void *data_ptr;
+} uv_fontmetric_st;
 
 
 
@@ -239,6 +267,13 @@ void uv_ft81x_draw_point(int16_t x, int16_t y, color_t color, uint16_t diameter)
 void uv_ft81x_draw_rrect(const int16_t x, const int16_t y,
 		const uint16_t width, const uint16_t height,
 		const uint16_t radius, const color_t color);
+
+
+/// @brief: helper function to draw a shadowed rounded rectangle
+void uv_ft81x_draw_shadowrrect(const int16_t x, const int16_t y,
+		const uint16_t width, const uint16_t height,
+		const uint16_t radius, const color_t color,
+		const color_t highlight_c, const color_t shadow_c);
 
 
 /// @brief: Draws a single line on the screen

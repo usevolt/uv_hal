@@ -200,6 +200,11 @@ static inline void uv_delay_init(uv_delay_st* p, uint16_t delay_ms) {
 	*p = delay_ms;
 }
 
+/// @brief: Ends the delay
+static inline void uv_delay_end(uv_delay_st *p) {
+	*p = -1;
+}
+
 /// @brief: Delay function. Can be used to create different delays in a discrete cyclical step function system.
 /// @param delay_ms The length of the delay in ms.
 /// @param step_ms The duration between cyclic calls in ms.
@@ -208,7 +213,7 @@ static inline void uv_delay_init(uv_delay_st* p, uint16_t delay_ms) {
 /// when it exceeds delay_ms, true is returned.
 /// @example:
 /// 	static int p;
-/// 	uv_start_delay(1500, &p);
+/// 	uv_delay_init(1500, &p);
 /// 	while (true) {
 ///			if (uv_delay(1, &p)) {
 ///				...
@@ -221,6 +226,10 @@ static inline bool uv_delay_has_ended(uv_delay_st* p) {
 	return (*p <= 0);
 }
 
+/// @brief: Triggers the delay right away
+static inline void uv_delay_trigger(uv_delay_st *p) {
+	*p = 0;
+}
 
 /// @brief: Set's the user's application pointer.
 /// User can set a pointer to any variable which will be passed to all this library's
@@ -392,13 +401,13 @@ float uv_relf(float t, float min, float max);
 /// value of t.
 ///
 /// @note: Should be min <= t <= max and min != max
-int uv_reli(int t, int min, int max);
+int32_t uv_reli(int32_t t, int32_t min, int32_t max);
 
 /// @brief: Returns the bigger argument
-int uv_maxi(int a, int b);
+int32_t uv_maxi(int32_t a, int32_t b);
 
 /// @brief: Returns the smaller argument
-int uv_mini(int a, int b);
+int32_t uv_mini(int32_t a, int32_t b);
 
 
 /// @brief: Calculates and returns the trailing zeroes in *a*.

@@ -32,7 +32,7 @@ void uv_uitransition_init(void *me, uv_uitransition_easing_e easing,
 }
 
 
-void uv_uitransition_step(void *me, uv_uiobject_st *parent, uint16_t step_ms) {
+void uv_uitransition_step(void *me, void *parent, uint16_t step_ms) {
 	if (this->state == UITRANSITION_PLAY) {
 		// call virtual function to calculate changes in the variables
 		this->calc_callb(this);
@@ -43,9 +43,24 @@ void uv_uitransition_step(void *me, uv_uiobject_st *parent, uint16_t step_ms) {
 			this->current_time_ms = this->duration_ms;
 			this->state = UITRANSITION_FINISH;
 			if (this->series) {
-				uv_uitransition_start(this->series);
+				uv_uitransition_play(this->series);
 			}
 		}
+	}
+	else if (this->state == UITRANSITION_REVERSEPLAY) {
+		// update parent object
+		uv_ui_refresh(parent);
+		this->current_time_ms -= step_ms * this->speed_ppt / 1000;
+		if (this->current_time_ms < 0) {
+			this->current_time_ms = 0;
+			this->state = UITRANSITION_INIT;
+
+			if (this->series) {
+				uv_uitransition_reverseplay(this->series);
+			}
+		}
+		// call virtual function to calculate changes in the variables
+		this->calc_callb(this);
 	}
 	else if (this->state == UITRANSITION_FINISH) {
 		// calculate the last value change
@@ -70,7 +85,7 @@ void uv_uitransition_step(void *me, uv_uiobject_st *parent, uint16_t step_ms) {
 
 
 /// @brief: Starts the uitransition
-void uv_uitransition_start(void *me) {
+void uv_uitransition_play(void *me) {
 	if (this->state == UITRANSITION_FINISH) {
 		this->current_time_ms = 0;
 	}
@@ -81,9 +96,26 @@ void uv_uitransition_start(void *me) {
 		this->state = UITRANSITION_FINISH;
 	}
 	if (this->parallel) {
-		uv_uitransition_start(this->parallel);
+		uv_uitransition_play(this->parallel);
 	}
 }
+
+void uv_uitransition_reverseplay(void *me) {
+	if (this->state == UITRANSITION_INIT) {
+		this->current_time_ms = this->duration_ms;
+	}
+	if (this->current_time_ms > 0) {
+		this->state = UITRANSITION_REVERSEPLAY;
+	}
+	else {
+		this->state = UITRANSITION_INIT;
+	}
+	if (this->parallel) {
+		uv_uitransition_reverseplay(this->parallel);
+	}
+}
+
+
 
 
 /// @brief: Stops the uitransition
@@ -108,7 +140,6 @@ void uv_uiscalartransition_init(void *me, uv_uitransition_easing_e easing,
 	this->start_val = start_val;
 	this->end_val = end_val;
 	this->cur_val = val_ptr;
-	*this->cur_val = start_val;
 }
 
 
@@ -126,7 +157,7 @@ void uv_uiscalartransition_calc(void *me) {
 	else if (((uv_uitransition_st*) this)->easing == UITRANSITION_EASING_OUT_QUAD) {
 		int16_t rel = uv_reli(((uv_uitransition_st*) this)->current_time_ms,
 				0, ((uv_uitransition_st*) this)->duration_ms);
-		*this->cur_val = uv_lerpi(- rel * (rel - 2000) / 1000 + 1, this->start_val, this->end_val);
+		*this->cur_val = uv_lerpi(- rel * (rel - 2000) / 1000, this->start_val, this->end_val);
 	}
 	else if (((uv_uitransition_st*) this)->easing == UITRANSITION_EASING_INOUT_QUAD) {
 		int16_t rel = uv_reli(((uv_uitransition_st*) this)->current_time_ms,

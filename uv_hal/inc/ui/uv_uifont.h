@@ -105,22 +105,23 @@ typedef struct
 
 typedef ft81x_font_st uv_font_st;
 
-#define font1	ft81x_fonts[0]
-#define font2	ft81x_fonts[1]
-#define font3	ft81x_fonts[2]
-#define font4	ft81x_fonts[3]
-#define font5	ft81x_fonts[4]
-#define font6	ft81x_fonts[5]
-#define font7	ft81x_fonts[6]
-#define font8	ft81x_fonts[7]
-#define font9	ft81x_fonts[8]
-#define font10	ft81x_fonts[9]
-#define font11	ft81x_fonts[10]
-#define font12	ft81x_fonts[11]
-#define font13	ft81x_fonts[12]
-#define font14	ft81x_fonts[13]
-#define font15	ft81x_fonts[14]
-#define font16	ft81x_fonts[15]
+// non-antialiazed fonts not supported
+//#define font4	ft81x_fonts[3]
+//#define font5	ft81x_fonts[4]
+//#define font6	ft81x_fonts[5]
+//#define font7	ft81x_fonts[6]
+//#define font8	ft81x_fonts[7]
+//#define font9	ft81x_fonts[8]
+//#define font10	ft81x_fonts[9]
+#define font16	ft81x_fonts[10]
+#define font20	ft81x_fonts[11]
+#define font25	ft81x_fonts[12]
+#define font28	ft81x_fonts[13]
+#define font36	ft81x_fonts[14]
+#define font49	ft81x_fonts[15]
+#define font63	ft81x_fonts[0]
+#define font83	ft81x_fonts[1]
+#define font108	ft81x_fonts[2]
 
 #endif
 

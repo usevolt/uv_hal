@@ -38,11 +38,11 @@
 #endif
 
 
-#if !defined(CONFIG_SOLENOID_P)
-#error "CONFIG_SOLENOID_P should define the P factor for solenoid output."
+#if !defined(CONFIG_SOLENOID_MA_P)
+#error "CONFIG_SOLENOID_MA_P should define the P factor for load resistance measurement."
 #endif
-#if !defined(CONFIG_SOLENOID_I)
-#error "CONFIG_SOLENOID_I should define the I factor for solenoid output."
+#if !defined(CONFIG_SOLENOID_MA_I)
+#error "CONFIG_SOLENOID_MA_I should define the I factor for load resistance measurement."
 #endif
 
 
@@ -55,8 +55,8 @@ typedef struct {
 	int16_t dither_ampl;
 	/// @brief: Dither delay
 	uv_delay_st delay;
-	/// @brief: PID controller for controlling the output current
-	uv_pid_st pid;
+	/// @brief: PID controller for controlling the current
+	uv_pid_st ma_pid;
 	/// @brief: Target current in mA
 	uint16_t target;
 	/// @brief: PWM channel configured for this output
@@ -81,7 +81,6 @@ typedef struct {
 void uv_solenoid_output_init(uv_solenoid_output_st *this, uv_pwm_channel_t pwm_chn,
 		uint16_t dither_freq, int16_t dither_ampl, uv_adc_channels_e adc_chn,
 		uint16_t sense_ampl, uint16_t max_current, uint16_t fault_current,
-		uint16_t moving_avg_count,
 		uint32_t emcy_overload, uint32_t emcy_fault);
 
 /// @brief: Step funtion
@@ -89,14 +88,12 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms);
 
 
 /// @brief: Sets the solenoid output target current in mA
-static inline void uv_solenoid_output_set(uv_solenoid_output_st *this, uint16_t value_ma) {
-	this->target = value_ma;
-}
+void uv_solenoid_output_set(uv_solenoid_output_st *this, uint16_t value_ma);
 
 /// @brief: Sets the output state
 static inline void uv_solenoid_output_set_state(uv_solenoid_output_st *this,
 		uv_output_state_e state) {
-	((uv_output_st*) this)->state = state;
+	uv_output_set_state((uv_output_st *) this, state);
 }
 
 /// @brief: returns the state of the output
@@ -108,6 +105,12 @@ static inline uv_output_state_e uv_solenoid_output_get_state(
 /// @brief: Returns the current measured from the sense feedback
 static inline uint16_t uv_solenoid_output_get_current(uv_solenoid_output_st *this) {
 	return uv_output_get_current(((uv_output_st*) this));
+}
+
+/// @brief: Returns the milliamp PID controller pointer. Can be used to
+/// set PID controller Kp and Ki.
+static inline uv_pid_st *uv_solenoid_output_get_ma_pid(uv_solenoid_output_st *this) {
+	return &this->ma_pid;
 }
 
 /// @brief: Sets the dither frequency
