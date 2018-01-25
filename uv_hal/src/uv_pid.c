@@ -19,19 +19,23 @@
 
 
 #include "uv_pid.h"
+#include <uv_can.h>
 
 
 #if CONFIG_PID
 
 
 /// @brief: Initializes the PID structure
-void uv_pid_init(uv_pid_st *this, uint8_t p, uint8_t i, uint8_t d) {
+void uv_pid_init(uv_pid_st *this, uint16_t p, uint16_t i, uint16_t d) {
 	this->p = p;
 	this->i = i;
 	this->d = d;
 	this->input = 0;
 	this->output = 0;
 	this->sum = 0;
+	this->max_sum = INT16_MAX / 10;
+	this->target = 0;
+	this->state = PID_STATE_ON;
 }
 
 /// @brief: PID step function
@@ -56,21 +60,34 @@ void uv_pid_step(uv_pid_st *this, uint16_t step_ms, int16_t input) {
 
 	if (on) {
 		// d has to be summed beforehand to get the derivation
-		int32_t d = (int32_t) (this->input - input) * this->d / 255;
+		int32_t d = (int32_t) (this->input - input) * this->d / 0xFF;
 
 		// input is updated after d has been calculated
 		this->input = input;
 
 		// error value
-		int32_t err = this->input - this->output;
+		int32_t err = (this->target - this->input);
 		// error sum
-		this->sum += err;
+		if (abs((int32_t) this->sum + err) > this->max_sum) {
+			this->sum = this->max_sum / abs(this->max_sum) * this->max_sum;
+		}
+		else {
+			this->sum += err;
+		}
 
-		int32_t p = (uint32_t) err * this->p / 255;
-		int32_t i = this->sum * this->i / 255;
+		int32_t p = (int32_t) err * this->p / 0xFFFF;
+		int32_t i = (int32_t) this->sum * this->i / 0xFFFF;
+
+//		uv_can_msg_st msg;
+//		msg.type = CAN_STD;
+//		msg.id = 0x11;
+//		msg.data_length = 8;
+//		msg.data_32bit[0] = p;
+//		msg.data_32bit[1] = i;
+//		uv_can_send(CAN0, &msg);
 
 		// lastly sum everything up
-		this->output += p + i + d;
+		this->output = p + i + d;
 	}
 	else {
 		uv_pid_reset(this);

@@ -42,20 +42,22 @@ typedef enum {
 /// @brief: Main PID controller structure
 typedef struct {
 	/// @brief: P factor
-	uint8_t p;
+	uint16_t p;
 	/// @brief: I factor
-	uint8_t i;
+	uint16_t i;
 	/// @brief: D factor
-	uint8_t d;
+	uint16_t d;
 	int16_t sum;
+	int16_t max_sum;
 	int16_t input;
+	int16_t target;
 	int16_t output;
 	pid_state_e state;
 } uv_pid_st;
 
 
 /// @brief: Initializes the PID structure
-void uv_pid_init(uv_pid_st *this, uint8_t p, uint8_t i, uint8_t d);
+void uv_pid_init(uv_pid_st *this, uint16_t p, uint16_t i, uint16_t d);
 
 /// @brief: PID step function
 void uv_pid_step(uv_pid_st *this, uint16_t step_ms, int16_t input);
@@ -65,33 +67,47 @@ static inline int16_t uv_pid_get_output(uv_pid_st *this) {
 	return this->output;
 }
 
+/// @brief: Used to set the output of the PID to specific value.
+static inline void uv_pid_set_output(uv_pid_st *this, int16_t value) {
+	this->output = value;
+}
+
+/// @brief: Sets the PID controller target value
+static inline void uv_pid_set_target(uv_pid_st *this, int16_t value) {
+	this->target = value;
+}
+
 /// @brief: Resets the PID state to zero
 static inline void uv_pid_reset(uv_pid_st *this) {
 	uv_pid_init(this, this->p, this->i, this->d);
 }
 
-/// @brief: Sets the P factor. Valid range is from 0 to 255.
-static inline void uv_pid_set_p(uv_pid_st *this, uint8_t p) {
+static inline void uv_pid_set_max_sum(uv_pid_st *this, uint16_t max_sum) {
+	this->max_sum = max_sum;
+}
+
+/// @brief: Sets the P factor. Valid range is from 0 to 65535.
+static inline void uv_pid_set_p(uv_pid_st *this, uint16_t p) {
 	this->p = p;
 }
 
-/// @brief: Returns the P factor. Valid range is from 0 to 255.
+/// @brief: Returns the P factor. Valid range is from 0 to 65535.
 static inline uint8_t uv_pid_get_p(uv_pid_st *this) {
 	return this->p;
 }
 
-/// @brief: Sets the I factor. Valid range is from 0 to 255.
-static inline void uv_pid_set_i(uv_pid_st *this, uint8_t i) {
+/// @brief: Sets the I factor. Valid range is from 0 to 65535.
+static inline void uv_pid_set_i(uv_pid_st *this, uint16_t i) {
 	this->i = i;
 }
 
-/// @brief: Return the I factor. Valid range is from 0 to 255.
+/// @brief: Return the I factor. Valid range is from 0 to 65535.
 static inline uint8_t uv_pid_get_i(uv_pid_st *this) {
 	return this->i;
 }
 
-/// @brief: Sets the D factor. Valid range is from 0 to 255.
-static inline void uv_pid_set_d(uv_pid_st *this, uint8_t d) {
+/// @brief: Sets the D factor. Valid range is from 0 to 65535.
+static inline void uv_pid_set_d(uv_pid_st *this, uint16_t d) {
 	this->d = d;
 }
 

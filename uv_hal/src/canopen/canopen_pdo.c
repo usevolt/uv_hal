@@ -26,6 +26,7 @@
 #define PDO_COB_ID(pdo)						(CAT(CONFIG_CANOPEN_, CAT(pdo, _ID)))
 #define PDO_TTYPE(pdo)						(CAT(CONFIG_CANOPEN_, CAT(pdo, _TRANSMISSION_TYPE)))
 #define PDO_EVENT_TIMER(pdo)				(CAT(CONFIG_CANOPEN_, CAT(pdo, _EVENT_TIMER)))
+#define PDO_INHIBIT_TIME(pdo)				(CAT(CONFIG_CANOPEN_, CAT(pdo, _INHIBIT_TIME)))
 #define PDO_MAPPING_MINDEX(pdo, mapping)	(CAT(CONFIG_CANOPEN_, CAT(pdo, CAT(mapping, _MAIN_INDEX))))
 #define PDO_MAPPING_SINDEX(pdo, mapping)	(CAT(CONFIG_CANOPEN_, CAT(pdo, CAT(mapping, _SUB_INDEX))))
 #define PDO_MAPPING_LENGTH(pdo, mapping)	(CAT(CONFIG_CANOPEN_, CAT(pdo, CAT(mapping, _LEN))))
@@ -59,7 +60,7 @@
 	.cob_id = PDO_COB_ID(TXPDO(x)),\
 	.transmission_type = PDO_TTYPE(TXPDO(x)), \
 	.event_timer = PDO_EVENT_TIMER(TXPDO(x)), \
-	.inhibit_time = 0, \
+	.inhibit_time = PDO_INHIBIT_TIME(TXPDO(x)), \
 	._reserved = 0 \
 },
 
@@ -127,6 +128,7 @@ void _uv_canopen_pdo_init() {
 			canopen_txpdo_com_parameter_st *com;
 			com = obj.data_ptr;
 			uv_delay_init((uv_delay_st*) &this->txpdo_time[i], com->event_timer);
+			this->inhibit_time[i] = 0;
 		}
 		else {
 			// something went wrong
@@ -181,13 +183,21 @@ void _uv_canopen_pdo_step(uint16_t step_ms) {
 			canopen_txpdo_com_parameter_st *com;
 			com = obj.data_ptr;
 
+			// check inhibit time
+			if (this->inhibit_time[i] > 0) {
+				this->inhibit_time[i] -= step_ms;
+			}
+
 			// if PDO is not enabled, skip it
 			if (IS_ENABLED(com)) {
 
-				// check if event timer in this PDO triggers
-				if (uv_delay((uv_delay_st*) &this->txpdo_time[i], step_ms)) {
+				// check if event timer in this PDO triggers and the inhibit time has passed
+				// since last transmission
+				if ((uv_delay((uv_delay_st*) &this->txpdo_time[i], step_ms)) &&
+						(this->inhibit_time[i] <= 0)) {
 					// initialize delay again
 					uv_delay_init((uv_delay_st*) &this->txpdo_time[i], com->event_timer);
+					this->inhibit_time[i] = com->inhibit_time;
 
 					uint8_t byte_count = 0;
 					uv_can_message_st msg;
@@ -409,6 +419,25 @@ void _uv_canopen_pdo_rx(const uv_can_message_st *msg) {
 						// increase byte counter
 						byte_count += mapping->length;
 					}
+				}
+			}
+		}
+	}
+}
+
+
+void uv_canopen_pdo_mapping_update(uint16_t main_index, uint8_t subindex) {
+	// check for PDO mappings and trigger that PDO
+	for (uint16_t i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
+		canopen_object_st obj;
+		if (_uv_canopen_obj_dict_get(
+				CONFIG_CANOPEN_TXPDO_MAP_INDEX + i, 0, &obj)) {
+			canopen_pdo_mapping_parameter_st *mapping_par = obj.data_ptr;
+			for (uint8_t j = 0; j < CONFIG_CANOPEN_PDO_MAPPING_COUNT; j++) {
+				if ((mapping_par->mappings[j].main_index == main_index) &&
+						(mapping_par->mappings[j].sub_index == subindex)) {
+					uv_delay_end(&this->txpdo_time[i]);
+					break;
 				}
 			}
 		}

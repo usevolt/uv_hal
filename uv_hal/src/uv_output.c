@@ -85,16 +85,16 @@ void uv_output_set_state(uv_output_st *this, const uv_output_state_e state) {
 /// @brief: Step function should be called every step cycle.
 void uv_output_step(uv_output_st *this, uint16_t step_ms) {
 
-	if (this->state == OUTPUT_STATE_ON) {
-		// current sense feedback
-		if (this->adc_chn) {
-			int16_t adc = uv_adc_read(this->adc_chn);
-			if (adc < 0) {
-				adc = 0;
-			}
-			int32_t current = adc * this->sense_ampl;
-			this->current = uv_moving_aver_step(&this->moving_avg, current);
+	// current sense feedback
+	if (this->adc_chn) {
+		int16_t adc = uv_adc_read(this->adc_chn);
+		if (adc < 0) {
+			adc = 0;
 		}
+		int32_t current = (int32_t) adc * this->sense_ampl / 1000;
+		this->current = uv_moving_aver_step(&this->moving_avg, current);
+	}
+	if (this->state == OUTPUT_STATE_ON) {
 
 		if (this->current > this->limit_fault) {
 			set_out(this, false);

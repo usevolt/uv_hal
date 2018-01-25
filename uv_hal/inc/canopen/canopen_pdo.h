@@ -59,8 +59,8 @@ typedef struct {
 	/// transmissions are supported, so this must be set to PDO_TRANSMISSION_ASYNC
 	/// by the application.
 	canopen_pdo_transmission_types_e transmission_type;
-	// currently not supported
-	uint32_t inhibit_time;
+	// minimum time the pdo can be sent
+	int32_t inhibit_time;
 	// reserved data for internal use
 	int32_t _reserved;
 	// the time delay for sending the PDO messages
@@ -101,6 +101,11 @@ void _uv_canopen_pdo_reset();
 void _uv_canopen_pdo_step(uint16_t step_ms);
 
 void _uv_canopen_pdo_rx(const uv_can_message_st *msg);
+
+/// @brief: If the given object is mapped to a transmit PDO, the PDO is updated
+/// and transmitted immediately
+void uv_canopen_pdo_mapping_update(uint16_t main_index, uint8_t subindex);
+
 
 
 #endif

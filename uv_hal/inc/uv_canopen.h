@@ -199,7 +199,8 @@ typedef struct {
 	uint32_t restore_req;
 	canopen_identity_object_st identity;
 	uv_delay_st heartbeat_time;
-	uint32_t txpdo_time[CONFIG_CANOPEN_TXPDO_COUNT];
+	int32_t txpdo_time[CONFIG_CANOPEN_TXPDO_COUNT];
+	int16_t inhibit_time[CONFIG_CANOPEN_TXPDO_COUNT];
 
 	uv_ring_buffer_st emcy_rx;
 	canopen_emcy_msg_st emcy_rx_buffer[CONFIG_CANOPEN_EMCY_RX_BUFFER_SIZE];

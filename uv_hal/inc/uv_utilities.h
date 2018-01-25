@@ -221,6 +221,10 @@ static inline bool uv_delay_has_ended(uv_delay_st* p) {
 	return (*p <= 0);
 }
 
+/// @brief: Ends the delay right away
+static inline void uv_delay_end(uv_delay_st *p) {
+	*p = 0;
+}
 
 /// @brief: Set's the user's application pointer.
 /// User can set a pointer to any variable which will be passed to all this library's

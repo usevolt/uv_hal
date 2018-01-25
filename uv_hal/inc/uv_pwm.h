@@ -449,9 +449,11 @@ uv_errors_e _uv_pwm_init();
 /// @brief: Sets the PWM channels output.
 ///
 /// @param chn: The PWM channel to be set
-/// @param value: The PWM value is 16-bit unsigned value between 0 ... 65536
 uv_errors_e uv_pwm_set(uv_pwm_channel_t chn, uint16_t value);
 
+
+/// @brief: Returns the current PWM value
+uint16_t uv_pwm_get(uv_pwm_channel_t chn);
 
 
 #endif

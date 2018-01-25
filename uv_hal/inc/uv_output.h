@@ -35,6 +35,8 @@
 
 
 
+
+
 /// @brief: Defines the state of a single thruster power supply
 enum {
 	OUTPUT_STATE_OFF = 0,
@@ -52,7 +54,9 @@ typedef uint8_t uv_output_state_e;
 typedef struct {
 	/// @brief: ADC channel of the sense resistor
 	uv_adc_channels_e adc_chn;
-	/// @brief: Current sense resistor amplification
+	/// @brief: Current sense resistor amplification. Multiplying the
+	/// ADC reading with this value should result into microamperes
+	/// which is then converted into milliamps in the output_st.
 	uint16_t sense_ampl;
 	/// @brief: Current max limit in mA
 	uint16_t limit_max;
@@ -113,9 +117,6 @@ void uv_output_set_state(uv_output_st *this, const uv_output_state_e state);
 
 /// @brief: Step function should be called every step cycle.
 void uv_output_step(uv_output_st *this, uint16_t step_ms);
-
-
-
 
 
 #endif
