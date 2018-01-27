@@ -18,7 +18,12 @@
 
 
 
-
+#if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
+/// @brief: Returns true if the heartbeat producer indicated by **node_id**
+/// has been expired, i.e. no heartbeat messages has been received from that node
+/// in time specified in index [1016].
+bool uv_canopen_heartbeat_producer_is_expired(uint8_t node_id);
+#endif
 
 void _uv_canopen_heartbeat_init(void);
 

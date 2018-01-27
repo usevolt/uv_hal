@@ -94,7 +94,7 @@ typedef enum {
 #elif CONFIG_TARGET_LPC1549
 	INT_RISING_EDGE = (0x1 << 0),
 	INT_FALLING_EDGE = (0x1 << 1),
-	INT_BOTH_EDGES = (0x2),
+	INT_BOTH_EDGES = INT_RISING_EDGE | INT_FALLING_EDGE,
 	INT_DISABLE = 0
 #elif CONFIG_TARGET_LINUX
 	INT_RISING_EDGE = (0x1 << 0),
@@ -112,7 +112,7 @@ typedef enum {
 /// @param callback_function: A function pointer to the callback function which will be called
 /// The callback function takes 2 parameter: user pointer (see uv_utilities.h) and gpio pin
 /// which caused the interrupt.
-void uv_gpio_add_interrupt_callback(void (*callback_function)(void * user_ptr, uv_gpios_e));
+void uv_gpio_add_interrupt_callback(void (*callback_function)(uv_gpios_e));
 
 
 #define UV_GPIO_PORT(gpio) \
@@ -283,6 +283,9 @@ static inline void uv_gpio_init_output(uv_gpios_e gpio, bool value) {
 	uv_gpio_set(gpio, value);
 }
 
+
+/// @brief: Initializes interrupt on pin **gpio**
+void uv_gpio_init_int(uv_gpios_e gpio, uv_gpio_interrupt_config_e confs);
 
 
 

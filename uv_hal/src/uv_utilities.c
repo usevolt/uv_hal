@@ -355,28 +355,22 @@ void *__uv_get_user_ptr() {
 #if (CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LPC1785)
 
 void NMI_Handler(void) {
-	printf(CLRL "NMI\r");
-	_delay_ms(100);
+	printf("NMI\r");
 }
 void HardFault_Handler(void) {
-	printf(CLRL "HardFault\r");
-	_delay_ms(100);
+	printf("HardFault\r");
 }
 void MemManage_Handler(void) {
-	printf(CLRL "MemManage\r");
-	_delay_ms(100);
+	printf("MemManage\r");
 }
 void BusFault_Handler(void) {
-	printf(CLRL "BusFault\r");
-	_delay_ms(100);
+	printf("BusFault\r");
 }
 void UsageFault_Handler(void) {
-	printf(CLRL "UsageFault\r");
-	_delay_ms(100);
+	printf("UsageFault\r");
 }
 void IntDefaultHandler(void) {
-	printf(CLRL "Default\r");
-	_delay_ms(100);
+	printf("Default\r");
 }
 
 #endif

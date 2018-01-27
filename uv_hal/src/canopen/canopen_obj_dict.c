@@ -24,6 +24,7 @@ extern unsigned int CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS_COUNT (void);
 
 
 
+
 #define RXPDO_COM(x)	,{	\
 	.main_index = CONFIG_CANOPEN_RXPDO_COM_INDEX + x,\
 	.array_max_size = CANOPEN_RXPDO_COM_ARRAY_SIZE,\
@@ -88,10 +89,10 @@ const canopen_object_st com_params[] = {
 				.type = CANOPEN_UNSIGNED32,
 				.data_ptr = &_canopen.restore_req
 		},
-#if CONFIG_CANOPEN_CONSUMER_HEARTBEAT_COUNT
+#if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
 		{
 				.main_index = CONFIG_CANOPEN_CONSUMER_HEARTBEAT_INDEX,
-				.array_max_size = CONFIG_CANOPEN_CONSUMER_HEARTBEAT_COUNT,
+				.array_max_size = CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT,
 				.permissions = CANOPEN_RW,
 				.type = CANOPEN_ARRAY32,
 				.data_ptr = CONFIG_NON_VOLATILE_START.canopen_data.consumer_heartbeats
@@ -111,6 +112,15 @@ const canopen_object_st com_params[] = {
 				.permissions = CANOPEN_RO,
 				.type = CANOPEN_UNSIGNED16,
 				.data_ptr = &_canopen.if_revision
+		},
+#endif
+#if CONFIG_CANOPEN_SDO_SEGMENTED
+		{
+				.main_index = CONFIG_CANOPEN_DEVNAME_INDEX,
+				.array_max_size = sizeof(STRINGIFY(__UV_PROJECT_NAME)),
+				.permissions = CANOPEN_RO,
+				.type = CANOPEN_STRING,
+				.data_ptr = (void*) uv_projname
 		},
 #endif
 		{

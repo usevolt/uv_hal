@@ -109,6 +109,9 @@
 #if !defined(CONFIG_CANOPEN_IDENTITY_INDEX)
 #define CONFIG_CANOPEN_IDENTITY_INDEX		0x1018
 #endif
+#if !defined(CONFIG_CANOPEN_DEVNAME_INDEX)
+#define CONFIG_CANOPEN_DEVNAME_INDEX		0x1FFF
+#endif
 #if CONFIG_INTERFACE_REVISION
 #define CONFIG_CANOPEN_INTERFACE_REVISION_INDEX	0x2FF0
 #endif
@@ -142,10 +145,6 @@ should be enabled. Defaults to 0."
 #if !defined(CONFIG_CANOPEN_PRODUCER_HEARTBEAT_TIME_MS)
 #error "CONFIG_CANOPEN_PRODUCER_HEARTBEAT_TIME_MS should define the producer heartbeat time in ms"
 #endif
-#if !defined(CONFIG_CANOPEN_CONSUMER_HEARTBEAT_COUNT)
-#error "CONFIG_CANOPEN_CONSUMER_HEARTBEAT_COUNT should defined the number of nodes whose heartbeat \
- this node monitors. If heartbeats are not monitored, set this to 0."
-#endif
 #if !defined(CONFIG_CANOPEN_CHANNEL)
 #error "CONFIG_CANOPEN_CHANNEL should define the uv_can channel to be used for CANopen communication"
 #endif
@@ -155,6 +154,14 @@ should be enabled. Defaults to 0."
 #if !CONFIG_CANOPEN_SDO_TIMEOUT_MS
 #error "CONFIG_CANOPEN_SDO_TIMEOUT_MS should define the SDO protocol timeout in segmented and block transfers\
  in milliseconds."
+#endif
+#if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
+#if !CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT
+#error "CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT should define the number of Heartbeat producers\
+ which are to be followed. Also CONFIG_CANOPEN_HEARTBEAT_PRODUCER_NODEIDx macros should be used to\
+ define the Node ID's of the producers, as well as CONFIG_CANOPEN_HEARTBEAT_PRODUCER_TIMEx should define\
+ the time limit which indicates a node connection loss."
+#endif
 #endif
 #if CONFIG_TARGET_LPC1785
 #if !defined(CONFIG_CANOPEN_EMCY_MSG_COUNT)
@@ -173,9 +180,15 @@ typedef struct {
 
 
 typedef struct {
+	uint16_t cycle_time;
+	uint8_t node_id;
+	uint8_t _reserved;
+} canopen_heartbeat_consumer_st;
+
+typedef struct {
 	uint16_t producer_heartbeat_time_ms;
-#if CONFIG_CANOPEN_CONSUMER_HEARTBEAT_COUNT
-	uint32_t consumer_heartbeats[CONFIG_CANOPEN_CONSUMER_HEARTBEAT_COUNT];
+#if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
+	canopen_heartbeat_consumer_st consumer_heartbeats[CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT];
 #endif
 
 	canopen_rxpdo_com_parameter_st rxpdo_coms[CONFIG_CANOPEN_RXPDO_COUNT];
@@ -199,6 +212,11 @@ typedef struct {
 	uint32_t restore_req;
 	canopen_identity_object_st identity;
 	uv_delay_st heartbeat_time;
+#if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
+	// stores the times for each heartbeat producer since last heartbeat message
+	uint16_t consumer_heartbeat_times[CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT];
+#endif
+
 	int32_t txpdo_time[CONFIG_CANOPEN_TXPDO_COUNT];
 	int16_t inhibit_time[CONFIG_CANOPEN_TXPDO_COUNT];
 
@@ -212,6 +230,7 @@ typedef struct {
 			uint8_t server_node_id;
 			uint8_t sindex;
 			uint8_t data_index;
+			uint8_t data_count;
 			uint8_t toggle;
 			uint16_t mindex;
 			void *data_ptr;

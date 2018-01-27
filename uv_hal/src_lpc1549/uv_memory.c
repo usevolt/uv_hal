@@ -78,8 +78,8 @@ typedef void (*IAP)(unsigned int [],unsigned int[]);
 #if CONFIG_NON_VOLATILE_MEMORY
 
 
-const char *uv_projname = STRINGIFY(__UV_PROJECT_NAME);
-const char *uv_datetime = __DATE__ " " __TIME__;
+const char uv_projname[] = STRINGIFY(__UV_PROJECT_NAME);
+const char uv_datetime[] = __DATE__ " " __TIME__;
 
 #endif
 

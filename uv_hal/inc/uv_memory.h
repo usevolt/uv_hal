@@ -163,8 +163,8 @@ uint16_t uv_memory_get_project_id(uv_data_start_t *start_ptr);
 const char *uv_memory_get_project_date(uv_data_start_t *start_ptr);
 
 
-extern const char *uv_projname;
-extern const char *uv_datetime;
+extern const char uv_projname[];
+extern const char uv_datetime[];
 
 
 

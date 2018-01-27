@@ -175,12 +175,12 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 				uint8_t data_count = uv_mini(obj.string_len - this->data_index, 7);
 				// transmission continues
 				if (obj.string_len - this->data_index > 7) {
-					SET_CMD_BYTE(&reply_msg, UPLOAD_DOMAIN_SEGMENT |
+					SET_CMD_BYTE(&reply_msg, UPLOAD_DOMAIN_SEGMENT_REPLY |
 							(this->toggle << 4));
 				}
 				// last message
 				else {
-					SET_CMD_BYTE(&reply_msg, UPLOAD_DOMAIN_SEGMENT |
+					SET_CMD_BYTE(&reply_msg, UPLOAD_DOMAIN_SEGMENT_REPLY |
 							(this->toggle << 4) | (7 - data_count) | (1 << 0));
 					this->state = CANOPEN_SDO_STATE_READY;
 				}
@@ -220,7 +220,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 							&msg->data_8bit[1], data_count);
 					this->data_index += data_count;
 
-					SET_CMD_BYTE(&reply_msg, DOWNLOAD_DOMAIN_SEGMENT | this->toggle);
+					SET_CMD_BYTE(&reply_msg, DOWNLOAD_DOMAIN_SEGMENT_REPLY | this->toggle);
 					memset(&reply_msg.data_8bit[1], 0, 7);
 					memcpy(&reply_msg.data_8bit[1], &this->data_index, sizeof(this->data_index));
 					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
