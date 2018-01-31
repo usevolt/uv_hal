@@ -26,107 +26,48 @@
 #include "LPC11xx.h"
 #elif CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
+#elif CONFIG_TARGET_LPC1549
+#include "chip.h"
+#include "sct_15xx.h"
 #endif
 
 #if CONFIG_TIMER0 || CONFIG_TIMER1 || CONFIG_TIMER2 || CONFIG_TIMER3
 typedef struct {
 
-} this_st;
+} timers_st;
 
-this_st _this;
-#define this (&_this)
+timers_st _timers;
+#define this (&_timers)
 
 
 
-// timer interrupt handler
-
-static void parse_timer_interrupt(uv_timers_e timer) {
-
-}
-
-// interrupt handlers
-#if CONFIG_TARGET_LPC11C14
-#if CONFIG_TIMER0
-void TIMER16_0_IRQHandler(void) {
-	parse_timer_interrupt(TIMER0);
-}
-#endif
-#if CONFIG_TIMER1
-void TIMER16_1_IRQHandler(void) {
-	parse_timer_interrupt(TIMER1);
-}
-#endif
-#if CONFIG_TIMER2
-void TIMER32_0_IRQHandler(void) {
-	parse_timer_interrupt(TIMER2);
-}
-#endif
-#if CONFIG_TIMER3
-void TIMER32_1_IRQHandler(void) {
-	parse_timer_interrupt(TIMER3);
-}
-#endif
-#elif CONFIG_TARGET_LPC1785
-#if CONFIG_TIMER0
-void TIMER0_IRQHandler(void) {
-	parse_timer_interrupt(TIMER0);
-}
-#endif
-#if CONFIG_TIMER1
-void TIMER1_IRQHandler(void) {
-	parse_timer_interrupt(TIMER1);
-}
-#endif
-#if CONFIG_TIMER2
-void TIMER2_IRQHandler(void) {
-	parse_timer_interrupt(TIMER2);
-}
-#endif
-#if CONFIG_TIMER3
-void TIMER3_IRQHandler(void) {
-	parse_timer_interrupt(TIMER3);
-}
-#endif
+#if CONFIG_TARGET_LPC1549
+LPC_SCT_T *timers[TIMER_COUNT] = {
+		LPC_SCT0,
+		LPC_SCT1,
+		LPC_SCT2,
+		LPC_SCT3
+};
 #endif
 
 
-static void init_timer(unsigned int timer, unsigned int freq) {
+uv_errors_e uv_timer_init(uv_timers_e timer) {
+	uv_errors_e ret = ERR_NONE;
+	if (timer >= TIMER_COUNT) {
+		ret = ERR_HARDWARE_NOT_SUPPORTED;
+	}
+	else {
+		Chip_SCT_Init(timers[timer]);
+		Chip_SCT_Config(timers[timer], SCT_CONFIG_32BIT_COUNTER);
+	}
 
-}
-
-
-uv_errors_e uv_timer_init(uv_timers_e timer, float freq) {
-
-	return uv_err(ERR_NONE);
-}
-
-
-
-
-
-
-
-
-uv_errors_e uv_timer_set_freq(uv_timers_e timer, float freq) {
-
-	return uv_err(ERR_NONE);
-}
-
-
-
-
-
-
-
-
-uv_errors_e uv_counter_init(uv_timers_e timer) {
-
-	return uv_err(ERR_NONE);
+	return ret;
 }
 
 
 
 void uv_timer_start(uv_timers_e timer) {
+	Chip_SCT_ClearControl(timers[timer], SCT_CTRL_HALT_L | SCT_CTRL_STOP_L);
 }
 
 
@@ -134,22 +75,30 @@ void uv_timer_start(uv_timers_e timer) {
 
 
 void uv_timer_stop(uv_timers_e timer) {
+	Chip_SCT_SetControl(timers[timer], SCT_CTRL_HALT_L);
 }
 
 
 
 
 void uv_timer_clear(uv_timers_e timer) {
+	bool halt = timers[timer]->CTRL_U & (SCT_CTRL_HALT_L);
+	Chip_SCT_SetControl(timers[timer], SCT_CTRL_HALT_L);
+	Chip_SCT_SetCount(timers[timer], 0);
+	if (!halt) {
+		Chip_SCT_ClearControl(timers[timer], SCT_CTRL_HALT_L);
+	}
 }
 
 
 
 
 
-int uv_timer_get_value(uv_timers_e timer) {
-	return 0;
+int32_t uv_timer_get_us(uv_timers_e timer) {
+	uint32_t count = (uint64_t) timers[timer]->COUNT_U * 1000000 /
+			Chip_Clock_GetSystemClockRate();
+	return count;
 }
-
 
 
 

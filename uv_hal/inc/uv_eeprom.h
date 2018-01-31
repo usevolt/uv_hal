@@ -22,18 +22,22 @@
 #include "uv_utilities.h"
 #if CONFIG_EEPROM
 
+#if CONFIG_EEPROM_RING_BUFFER
 #ifndef CONFIG_EEPROM_RING_BUFFER_END_ADDR
 #error "CONFIG_EEPROM_RING_BUFFER_END_ADDR should define the end EEPROM address of the ring buffer.\
  Ring buffer starts from address 0."
+#endif
 #endif
 
 #if CONFIG_TARGET_LPC11C14
 #error "LPC11C14 doesn't have an EEPROM memory. Please undefine CONFIG_EEPROM or set it to 0."
 #elif CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
-
 #define _UV_EEPROM_SIZE			4032
 #define _UV_EEPROM_PAGE_SIZE	64
+#elif CONFIG_TARGET_LPC1549
+#define _UV_EEPROM_SIZE			(4032 - 64)
+#endif
 
 /// @brief: Initializes the EEPROM memory
 ///
@@ -70,6 +74,8 @@ uv_errors_e uv_eeprom_read(unsigned char *dest, uint16_t len, uint16_t eeprom_ad
 
 
 
+
+#if CONFIG_EEPROM_RING_BUFFER
 
 
 /*

@@ -33,7 +33,6 @@ void uv_pid_init(uv_pid_st *this, uint16_t p, uint16_t i, uint16_t d) {
 	this->input = 0;
 	this->output = 0;
 	this->sum = 0;
-	this->max_sum = INT16_MAX / 10;
 	this->target = 0;
 	this->state = PID_STATE_ON;
 }
@@ -68,26 +67,14 @@ void uv_pid_step(uv_pid_st *this, uint16_t step_ms, int16_t input) {
 		// error value
 		int32_t err = (this->target - this->input);
 		// error sum
-		if (abs((int32_t) this->sum + err) > this->max_sum) {
-			this->sum = this->max_sum / abs(this->max_sum) * this->max_sum;
-		}
-		else {
-			this->sum += err;
-		}
+		this->sum += err;
 
 		int32_t p = (int32_t) err * this->p / 0xFFFF;
 		int32_t i = (int32_t) this->sum * this->i / 0xFFFF;
 
-//		uv_can_msg_st msg;
-//		msg.type = CAN_STD;
-//		msg.id = 0x11;
-//		msg.data_length = 8;
-//		msg.data_32bit[0] = p;
-//		msg.data_32bit[1] = i;
-//		uv_can_send(CAN0, &msg);
-
 		// lastly sum everything up
 		this->output = p + i + d;
+
 	}
 	else {
 		uv_pid_reset(this);

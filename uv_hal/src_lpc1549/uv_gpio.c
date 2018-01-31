@@ -55,8 +55,6 @@ void uv_gpio_init_int(uv_gpios_e gpio, uv_gpio_interrupt_config_e confs) {
 	if (int_count < 8) {
 		NVIC_EnableIRQ(PIN_INT0_IRQn + int_count);
 
-		Chip_IOCON_PinMuxSet(LPC_IOCON, uv_gpio_get_port(gpio),
-				uv_gpio_get_pin(gpio), (IOCON_MODE_INACT | IOCON_DIGMODE_EN));
 		Chip_INMUX_PinIntSel(int_count, uv_gpio_get_port(gpio), uv_gpio_get_pin(gpio));
 
 		Chip_PININT_SetPinModeEdge(LPC_GPIO_PIN_INT, PININTCH(int_count));

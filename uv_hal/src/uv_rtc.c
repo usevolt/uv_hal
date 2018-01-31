@@ -19,6 +19,9 @@
 #include "uv_rtc.h"
 #if CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
+#elif CONFIG_TARGET_LPC1549
+#include "chip.h"
+#include "rtc_15xx.h"
 #endif
 
 
@@ -28,6 +31,7 @@
 
 
 void _uv_rtc_init() {
+#if CONFIG_TARGET_LPC1785
 	LPC_SC->PCONP |= (1 << 9);
 	// disable the clock counters for initialization
 	LPC_RTC->CCR = 1;
@@ -57,23 +61,33 @@ void _uv_rtc_init() {
 	if (LPC_RTC->SEC >= 60) {
 		LPC_RTC->SEC = 0;
 	}
+#elif CONFIG_TARGET_LPC1549
+	Chip_RTC_Init(LPC_RTC);
 
-
-
+#endif
 }
 
 
 void uv_rtc_get_time(uv_time_st *dest) {
+#if CONFIG_TARGET_LPC1785
 	dest->hour = LPC_RTC->HOUR;
 	dest->min = LPC_RTC->MIN;
 	dest->sec = LPC_RTC->SEC;
 	dest->year = LPC_RTC->YEAR;
 	dest->month = LPC_RTC->MONTH;
 	dest->day = LPC_RTC->DOM;
+#elif CONFIG_TARGET_LPC1549
+	dest->sec = Chip_RTC_GetCount(LPC_RTC) / 60;
+	dest->min = Chip_RTC_GetCount(LPC_RTC) / (60 * 60);
+	dest->hour = Chip_RTC_GetCount(LPC_RTC) / (60 * 60 * 24);
+	// todo: date
+
+#endif
 }
 
 
 void uv_rtc_set_time(uv_time_st *src) {
+#if CONFIG_TARGET_LPC1785
 	// disable RTC in order to enable access to the clock registers
 	LPC_RTC->CCR = 0;
 	LPC_RTC->SEC = src->sec;
@@ -84,6 +98,10 @@ void uv_rtc_set_time(uv_time_st *src) {
 	LPC_RTC->YEAR = src->year;
 	// enable rtc
 	LPC_RTC->CCR = 1;
+#elif CONFIG_TARGET_LPC1549
+
+
+#endif
 }
 
 

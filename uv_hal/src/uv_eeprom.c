@@ -21,6 +21,12 @@
 
 #if CONFIG_EEPROM
 
+#if CONFIG_TARGET_LPC1549
+#include "chip.h"
+#include "eeprom.h"
+#include "iap.h"
+#endif
+
 
 typedef struct {
 	// address for the newest data
@@ -35,6 +41,7 @@ static this_st _this;
 #define this (&_this)
 
 uv_errors_e _uv_eeprom_init(void) {
+#if CONFIG_TARGET_LPC1785
 	// enable power
 	LPC_EEPROM->PWRDWN = 0;
 
@@ -50,18 +57,30 @@ uv_errors_e _uv_eeprom_init(void) {
 	// end with a BUSY error code
 	LPC_EEPROM->INT_CLR_STATUS = ((1 << 26) | (1 << 28));
 
+#elif CONFIG_TARGET_LPC1549
+	Chip_SYSCTL_PowerUp(SYSCTL_POWERDOWN_EEPROM_PD);
+	Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_EEPROM);
+	Chip_SYSCTL_PeriphReset(RESET_EEPROM);
+
+#endif
 	return ERR_NONE;
 }
 
 
 uv_errors_e uv_eeprom_write(const void *data, uint16_t len, uint16_t eeprom_addr) {
 	uv_errors_e ret = ERR_NONE;
+#if CONFIG_TARGET_LPC1549
+	// top 64 bytes are reserved
+	eeprom_addr += 64;
+#endif
 
 	// out of EEPROM memory
 	if (eeprom_addr + len > _UV_EEPROM_SIZE) {
 		ret = ERR_NOT_ENOUGH_MEMORY;
 	}
 	else {
+#if CONFIG_TARGET_LPC1785
+
 		__disable_irq();
 
 		// clear pending interrupt flag
@@ -104,18 +123,31 @@ uv_errors_e uv_eeprom_write(const void *data, uint16_t len, uint16_t eeprom_addr
 		LPC_EEPROM->INT_CLR_STATUS = ((1 << 26) | (1 << 28));
 
 		__enable_irq();
-	}
 
+#elif CONFIG_TARGET_LPC1549
+		if (Chip_EEPROM_Write(eeprom_addr, (void*) data, len) != IAP_CMD_SUCCESS) {
+			ret = ERR_HARDWARE_NOT_SUPPORTED;
+		}
+#endif
+	}
 	return ret;
 }
 
 
 uv_errors_e uv_eeprom_read(unsigned char *dest, uint16_t len, uint16_t eeprom_addr) {
 	uv_errors_e ret = ERR_NONE;
+#if CONFIG_TARGET_LPC1549
+	// top 64 bytes are reserved
+	eeprom_addr += 64;
+#endif
+
 	if (eeprom_addr + len > _UV_EEPROM_SIZE) {
 		ret = ERR_NOT_ENOUGH_MEMORY;
 	}
 	else {
+
+#if CONFIG_TARGET_LPC1785
+
 		__disable_irq();
 		// set the reading address
 		LPC_EEPROM->ADDR = eeprom_addr;
@@ -136,10 +168,18 @@ uv_errors_e uv_eeprom_read(unsigned char *dest, uint16_t len, uint16_t eeprom_ad
 		LPC_EEPROM->INT_CLR_STATUS = ((1 << 26) | (1 << 28));
 
 		__enable_irq();
-	}
 
+#elif CONFIG_TARGET_LPC1549
+		if (Chip_EEPROM_Read(eeprom_addr, dest, len) != IAP_CMD_SUCCESS) {
+			ret = ERR_HARDWARE_NOT_SUPPORTED;
+		}
+#endif
+	}
 	return ret;
 }
+
+
+#if CONFIG_EEPROM_RING_BUFFER
 
 void uv_eeprom_init_circular_buffer(const uint16_t entry_len) {
 	uint16_t i;
@@ -322,6 +362,7 @@ uv_errors_e uv_eeprom_at(void *dest, uint16_t *eeprom_addr, uint16_t index) {
 	return ret;
 }
 
+#endif
 
 
 void uv_eeprom_clear(void) {
@@ -332,6 +373,7 @@ void uv_eeprom_clear(void) {
 	this->back_addr = 0;
 	this->front_addr = 0;
 }
+
 
 
 #endif

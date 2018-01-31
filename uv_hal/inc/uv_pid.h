@@ -48,7 +48,6 @@ typedef struct {
 	/// @brief: D factor
 	uint16_t d;
 	int16_t sum;
-	int16_t max_sum;
 	int16_t input;
 	int16_t target;
 	int16_t output;
@@ -80,10 +79,6 @@ static inline void uv_pid_set_target(uv_pid_st *this, int16_t value) {
 /// @brief: Resets the PID state to zero
 static inline void uv_pid_reset(uv_pid_st *this) {
 	uv_pid_init(this, this->p, this->i, this->d);
-}
-
-static inline void uv_pid_set_max_sum(uv_pid_st *this, uint16_t max_sum) {
-	this->max_sum = max_sum;
 }
 
 /// @brief: Sets the P factor. Valid range is from 0 to 65535.
