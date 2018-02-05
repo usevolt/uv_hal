@@ -50,7 +50,7 @@ void uv_hysteresis_init(uv_hysteresis_st *this, int32_t trigger_value,
 	this->trigger_value = trigger_value;
 	this->invert = invert;
 	this->hysteresis = hysteresis;
-	this->result = 0;
+	this->result = this->invert;
 }
 
 bool uv_hysteresis_step(uv_hysteresis_st *this, int32_t value) {

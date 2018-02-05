@@ -137,9 +137,12 @@ void uv_get_device_serial(unsigned int dest[4]) {
 
 uv_errors_e uv_memory_save(void) {
 	uv_errors_e ret = ERR_NONE;
+	uint16_t crc = uv_memory_calc_crc(&CONFIG_NON_VOLATILE_START,
+			(uint32_t) &CONFIG_NON_VOLATILE_END - (uint32_t) &CONFIG_NON_VOLATILE_START);
 
-	int length = ((unsigned int) &CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
-			(unsigned int) &CONFIG_NON_VOLATILE_START;
+
+	int length = (((unsigned int) &CONFIG_NON_VOLATILE_END) + sizeof(uv_data_end_t)) -
+			((unsigned int) &CONFIG_NON_VOLATILE_START);
 
 	bool match = true;
 	unsigned int i;
@@ -150,6 +153,10 @@ uv_errors_e uv_memory_save(void) {
 			break;
 		}
 	}
+	if (crc != CONFIG_NON_VOLATILE_END.crc) {
+		match = false;
+	}
+
 	if (match) {
 		ret = ERR_NONE;
 	}
@@ -188,9 +195,7 @@ uv_errors_e uv_memory_save(void) {
 			// add the right value to data checksum
 			CONFIG_NON_VOLATILE_START.project_name = uv_projname;
 			CONFIG_NON_VOLATILE_START.build_date = uv_datetime;
-			CONFIG_NON_VOLATILE_END.crc = uv_memory_calc_crc(&CONFIG_NON_VOLATILE_START,
-					(uint32_t) &CONFIG_NON_VOLATILE_END - (uint32_t) &CONFIG_NON_VOLATILE_START);
-			// note: id should be assigned by the canopen module
+			CONFIG_NON_VOLATILE_END.crc = crc;
 
 			uv_iap_status_e status = uv_erase_and_write_to_flash((unsigned int) &CONFIG_NON_VOLATILE_START,
 					length, NON_VOLATILE_MEMORY_START_ADDRESS);

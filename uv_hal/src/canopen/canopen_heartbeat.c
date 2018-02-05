@@ -92,7 +92,7 @@ void _uv_canopen_heartbeat_rx(const uv_can_message_st *msg) {
 bool uv_canopen_heartbeat_producer_is_expired(uint8_t node_id) {
 	for (uint16_t i = 0; i < CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT; i++) {
 		if (this_nonvol->consumer_heartbeats[i].node_id == node_id) {
-			return (this->consumer_heartbeat_times[i] >
+			return (this->consumer_heartbeat_times[i] >=
 				this_nonvol->consumer_heartbeats[i].cycle_time);
 		}
 	}
