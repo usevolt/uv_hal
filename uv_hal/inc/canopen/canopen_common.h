@@ -84,9 +84,6 @@ typedef struct {
 		/// Since arrays don't use sub-index, the same data location
 		/// can be used for sub_index and array_max_size.
 		uint8_t array_max_size;
-		/// @brief: If this object is string type,
-		/// this indicates the string length.
-		uint8_t string_len;
 	};
 	/// @brief: Data type for this CANopen object dictionary entry.
 	canopen_object_type_e type;
@@ -95,6 +92,9 @@ typedef struct {
 	/// @brief: Type for this CANopen object dictionary entry
 	/// Can be read, write or read-write.
 	canopen_permissions_e permissions;
+	/// @brief: If this object is string type,
+	/// this indicates the string length.
+	uint8_t string_len;
 } canopen_object_st;
 
 

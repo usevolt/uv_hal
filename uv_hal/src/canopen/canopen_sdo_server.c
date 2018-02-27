@@ -31,7 +31,7 @@
 /// @brief: Send a SDO Server abort response message
 static inline void sdo_server_abort(uint16_t main_index,
 				uint8_t sub_index, uv_sdo_error_codes_e err_code) {
-	_uv_canopen_sdo_abort(CANOPEN_SDO_REQUEST_ID, main_index, sub_index, err_code);
+	_uv_canopen_sdo_abort(CANOPEN_SDO_RESPONSE_ID, main_index, sub_index, err_code);
 }
 
 
@@ -45,8 +45,8 @@ void _uv_canopen_sdo_server_reset(void) {
 }
 
 void _uv_canopen_sdo_server_step(uint16_t step_ms) {
-	if ((this->state == DOWNLOAD_DOMAIN_SEGMENT) ||
-			this->state == UPLOAD_DOMAIN_SEGMENT) {
+	if ((this->state == CANOPEN_SDO_STATE_SEGMENTED_DOWNLOAD) ||
+			this->state == CANOPEN_SDO_STATE_SEGMENTED_UPLOAD) {
 		if (uv_delay(&this->delay, step_ms)) {
 			sdo_server_abort(this->mindex, this->sindex,
 					CANOPEN_SDO_ERROR_GENERAL);
@@ -90,7 +90,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 						SET_CMD_BYTE(&reply_msg,
 								INITIATE_DOMAIN_DOWNLOAD_REPLY);
 						// data bytes indicate data index which starts from 0
-						memset(&reply_msg.data_8bit[1], 0, 7);
+						memset(&reply_msg.data_8bit[4], 0, 4);
 						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 					}
 					else {
@@ -141,7 +141,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 					SET_CMD_BYTE(&reply_msg,
 							INITIATE_DOMAIN_UPLOAD | (1 << 0));
 					// data bytes contain byte counter which starts from 0
-					memset(&reply_msg.data_8bit[1], 0, 7);
+					memset(&reply_msg.data_8bit[4], 0, 4);
 					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 				}
 
@@ -240,6 +240,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 	else {
 		sdo_server_abort(GET_MINDEX(msg), GET_SINDEX(msg),
 				CANOPEN_SDO_ERROR_OBJECT_ACCESS_FAILED_DUE_TO_HARDWARE);
+		printf("sdo type: %u\n", sdo_type);
 	}
 }
 
