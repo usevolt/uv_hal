@@ -117,7 +117,8 @@ const canopen_object_st com_params[] = {
 #if CONFIG_CANOPEN_SDO_SEGMENTED
 		{
 				.main_index = CONFIG_CANOPEN_DEVNAME_INDEX,
-				.array_max_size = sizeof(STRINGIFY(__UV_PROJECT_NAME)),
+				.sub_index = 0,
+				.string_len = sizeof(STRINGIFY(__UV_PROJECT_NAME)),
 				.permissions = CANOPEN_RO,
 				.type = CANOPEN_STRING,
 				.data_ptr = (void*) uv_projname
@@ -172,7 +173,7 @@ bool cpy(canopen_object_st *dest, const canopen_object_st *src, uint8_t subindex
 bool _uv_canopen_obj_dict_get(uint16_t main_index, uint8_t subindex, canopen_object_st *dest) {
 	bool ret;
 	bool match = false;
-	for (unsigned int i = 0; i < com_params_count(); i++) {
+	for (uint16_t i = 0; i < com_params_count(); i++) {
 		if (com_params[i].main_index == main_index) {
 			ret = cpy(dest, &com_params[i], subindex);
 			match = true;
