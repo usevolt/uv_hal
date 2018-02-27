@@ -171,7 +171,7 @@ void _uv_spi_init(void);
 /// Buffer has to be of type uint16_t or int16_t.
 /// @param readbuffer: Pointer to a buffer where read data is written. Note:
 /// Buffer has to be of type uint16_t or int16_t.
-/// @byte_len: The length of a individual bytes in bits (usually 8)
+/// @byte_len: The length of individual bytes in bits (usually 8)
 /// @buffer_len: The length of the read and write buffers in bytes
 /// (not local bytes but *byte_len* bytes)
 bool uv_spi_readwrite_sync(const spi_e spi, spi_slaves_e slaves,

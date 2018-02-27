@@ -463,8 +463,6 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 
 				this->used_msg_objs |= (1 << i);
 				match = true;
-
-				printf("configured msg to be received with msg obj %u\n", i);
 				break;
 			}
 		}
