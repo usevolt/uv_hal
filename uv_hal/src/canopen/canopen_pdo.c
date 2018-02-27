@@ -8,6 +8,7 @@
 
 #include "canopen/canopen_pdo.h"
 #include "string.h"
+#include "uv_rtos.h"
 #include CONFIG_MAIN_H
 
 
@@ -193,7 +194,8 @@ void _uv_canopen_pdo_step(uint16_t step_ms) {
 
 				// check if event timer in this PDO triggers and the inhibit time has passed
 				// since last transmission
-				if ((uv_delay((uv_delay_st*) &this->txpdo_time[i], step_ms)) &&
+				uv_delay((uv_delay_st*) &this->txpdo_time[i], step_ms);
+				if ((uv_delay_has_ended(&this->txpdo_time[i])) &&
 						(this->inhibit_time[i] <= 0)) {
 					// initialize delay again
 					uv_delay_init((uv_delay_st*) &this->txpdo_time[i], com->event_timer);
@@ -427,6 +429,7 @@ void _uv_canopen_pdo_rx(const uv_can_message_st *msg) {
 
 
 void uv_canopen_pdo_mapping_update(uint16_t main_index, uint8_t subindex) {
+
 	// check for PDO mappings and trigger that PDO
 	for (uint16_t i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
 		canopen_object_st obj;
@@ -442,6 +445,7 @@ void uv_canopen_pdo_mapping_update(uint16_t main_index, uint8_t subindex) {
 			}
 		}
 	}
+
 }
 
 

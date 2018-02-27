@@ -140,8 +140,23 @@ uv_errors_e uv_rtos_add_idle_task(void (*task_function)(void *user_ptr));
 
 
 
+extern uv_mutex_st halmutex;
 
+/// @brief: Locks the HAL layer mutex for hal task functions.
+///
+/// @note: Only for HAL library inner use. Can be unlocked only from
+/// other threads.
+static inline void _uv_rtos_halmutex_lock(void) {
+	uv_mutex_lock(&halmutex);
+}
 
+/// @brief: Unlocks the HAL layer mutex for hal task functions
+///
+/// @note: Only for HAL library inner use. Can be unlocked only from
+/// other threads.
+static inline void _uv_rtos_halmutex_unlock(void) {
+	uv_mutex_unlock(&halmutex);
+}
 
 
 /// @brief: Wrapper for FreeRTOS vTaskDelaiUntil-function. Use this to

@@ -47,6 +47,7 @@ static volatile this_st _this = {
 };
 
 
+uv_mutex_st halmutex;
 
 
 #define this (&_this)
@@ -129,6 +130,7 @@ void vApplicationTickHook(void) {
 
 void uv_init(void *device) {
 	uv_set_application_ptr(device);
+	uv_mutex_init(&halmutex);
 
 #if CONFIG_TARGET_LPC1549
 	Chip_SYSCTL_PeriphReset(RESET_MUX);
@@ -238,20 +240,23 @@ void hal_task(void *nullptr) {
 	rtos_init = true;
 
 	while (true) {
+		_uv_rtos_halmutex_lock();
 
 #if CONFIG_CAN
-	_uv_can_hal_step(step_ms);
+		_uv_can_hal_step(step_ms);
 #endif
 
 #if CONFIG_TERMINAL_CAN
-	_uv_stdout_hal_step(step_ms);
+		_uv_stdout_hal_step(step_ms);
 #endif
 
 #if CONFIG_CANOPEN
-	_uv_canopen_step(step_ms);
+		_uv_canopen_step(step_ms);
 #endif
 
-	uv_rtos_task_delay(step_ms);
+		_uv_rtos_halmutex_unlock();
+
+		uv_rtos_task_delay(step_ms);
 	}
 }
 
