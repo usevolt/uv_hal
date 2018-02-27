@@ -258,8 +258,9 @@ uv_errors_e _uv_canopen_sdo_client_write(uint8_t node_id,
 			this->data_index = 0;
 			this->data_ptr = data;
 			this->toggle = 0;
-			SET_CMD_BYTE(&msg, INITIATE_DOMAIN_DOWNLOAD);
-			memset(&msg.data_32bit[1], 0, 4);
+			SET_CMD_BYTE(&msg, INITIATE_DOMAIN_DOWNLOAD | (1 << 0));
+			// data count inditcated in the data bytes
+			msg.data_32bit[1] = this->data_count;
 			uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
 
 		}

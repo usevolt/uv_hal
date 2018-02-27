@@ -89,12 +89,12 @@ typedef struct {
 	canopen_object_type_e type;
 	/// @brief: Pointer to the location where data of this object is saved
 	void* data_ptr;
+	/// @brief: If this object is string type,
+	/// this indicates the string length.
+	uint16_t string_len;
 	/// @brief: Type for this CANopen object dictionary entry
 	/// Can be read, write or read-write.
 	canopen_permissions_e permissions;
-	/// @brief: If this object is string type,
-	/// this indicates the string length.
-	uint8_t string_len;
 } canopen_object_st;
 
 

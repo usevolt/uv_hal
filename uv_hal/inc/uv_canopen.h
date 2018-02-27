@@ -229,8 +229,8 @@ typedef struct {
 			canopen_sdo_state_e state;
 			uint8_t server_node_id;
 			uint8_t sindex;
-			uint8_t data_index;
-			uint8_t data_count;
+			uint16_t data_index;
+			uint16_t data_count;
 			uint8_t toggle;
 			uint16_t mindex;
 			void *data_ptr;
@@ -241,7 +241,7 @@ typedef struct {
 			uint16_t mindex;
 			uint8_t sindex;
 			// contains the index of next data to be transmitted
-			uint8_t data_index;
+			uint16_t data_index;
 			uint8_t toggle;
 			uv_delay_st delay;
 		} server;
