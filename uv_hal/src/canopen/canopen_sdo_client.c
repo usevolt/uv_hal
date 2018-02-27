@@ -168,6 +168,13 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 				this->state = CANOPEN_SDO_STATE_READY;
 			}
 			else {
+				// segmented transfer
+				if (GET_CMD_BYTE(msg) & (1 << 0)) {
+					// data size indicated
+					if (msg->data_32bit[1] < this->data_count) {
+						this->data_count = msg->data_32bit[1];
+					}
+				}
 				//segmented transfer, send upload domain segment message
 				SET_CMD_BYTE(&reply_msg, UPLOAD_DOMAIN_SEGMENT | (this->toggle << 4));
 				uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);

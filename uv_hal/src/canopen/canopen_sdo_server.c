@@ -140,8 +140,8 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 					// initiate segmented domain upload with data size indicated
 					SET_CMD_BYTE(&reply_msg,
 							INITIATE_DOMAIN_UPLOAD | (1 << 0));
-					// data bytes contain byte counter which starts from 0
-					memset(&reply_msg.data_8bit[4], 0, 4);
+					// data bytes contain the total byte count
+					reply_msg.data_32bit[1] = obj.string_len;
 					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 				}
 
