@@ -20,9 +20,6 @@
 
 
 #define GET_CMD_BYTE(msg_ptr)			((msg_ptr)->data_8bit[0])
-#define GET_TOGGLE_BIT(msg_ptr)			(((msg_ptr)->data_8bit[0] & (1 << 4)) >> 4)
-#define SET_TOGGLE_BIT(msg_ptr, toggle) do { (msg_ptr)->data_8bit[0] &= ~(1 << 4); \
-											 (msg_ptr)->data_8bit[0] |= (toggle << 4); } while (0)
 #define GET_MINDEX(msg_ptr)				((msg_ptr)->data_8bit[1] + ((msg_ptr)->data_8bit[2] * 256))
 #define GET_SINDEX(msg_ptr)				((msg_ptr)->data_8bit[3])
 #define GET_NODEID(msg_ptr)				((msg_ptr)->id & 0x7F)
@@ -128,7 +125,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 		// segmented downloads
 		else if ((this->state == CANOPEN_SDO_STATE_SEGMENTED_DOWNLOAD) &&
 				(sdo_type == DOWNLOAD_DOMAIN_SEGMENT_REPLY)) {
-			if (GET_TOGGLE_BIT(msg) == this->toggle) {
+			if (((GET_CMD_BYTE(msg) & (1 << 4)) >> 4) == this->toggle) {
 				sdo_client_abort(this->mindex, this->sindex,
 						CANOPEN_SDO_ERROR_SDO_TOGGLE_BIT_NOT_ALTERED);
 				this->state = CANOPEN_SDO_STATE_TRANSFER_ABORTED;
@@ -259,7 +256,7 @@ uv_errors_e _uv_canopen_sdo_client_write(uint8_t node_id,
 			this->data_ptr = data;
 			this->toggle = 0;
 			SET_CMD_BYTE(&msg, INITIATE_DOMAIN_DOWNLOAD | (1 << 0));
-			// data count inditcated in the data bytes
+			// data count indicated in the data bytes
 			msg.data_32bit[1] = this->data_count;
 			uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
 
