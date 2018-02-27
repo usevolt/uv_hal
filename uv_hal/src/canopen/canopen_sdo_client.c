@@ -72,7 +72,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 
 	uv_can_msg_st reply_msg;
 	reply_msg.type = CAN_STD;
-	reply_msg.id = CANOPEN_SDO_RESPONSE_ID + node_id;
+	reply_msg.id = CANOPEN_SDO_REQUEST_ID + node_id;
 	reply_msg.data_length = 8;
 	memset(reply_msg.data_8bit, 0, 8);
 	SET_MINDEX(&reply_msg, GET_MINDEX(msg));

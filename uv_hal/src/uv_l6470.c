@@ -20,6 +20,8 @@
 #include "uv_l6470.h"
 #include <string.h>
 
+#if CONFIG_L6470
+
 
 #define CMD_NOP					0x0
 #define CMD_SETPARAM			0x0
@@ -279,3 +281,4 @@ void readwrite(uv_l6470_st *this, uint8_t *write_ptr, uint8_t *read_ptr, uint8_t
 }
 
 
+#endif
