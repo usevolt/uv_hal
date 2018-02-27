@@ -186,10 +186,10 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 				this->state = CANOPEN_SDO_STATE_TRANSFER_ABORTED;
 			}
 			else {
-				uint8_t byte_count = 4 - ((GET_CMD_BYTE(msg) & (0b111 << 1)) >> 1);
+				uint8_t byte_count = 7 - ((GET_CMD_BYTE(msg) & (0b111 << 1)) >> 1);
 				for (uint8_t i = 0; i < byte_count; i++) {
 					if (this->data_index < this->data_count) {
-						((uint8_t*) this->data_ptr)[this->data_index++] = msg->data_8bit[4 + i];
+						((uint8_t*) this->data_ptr)[this->data_index++] = msg->data_8bit[1 + i];
 					}
 					else {
 						// segmented transfer is finished
@@ -200,6 +200,12 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 				// check if the transfer is finished
 				if ((GET_CMD_BYTE(msg) & (1 << 0)) || finished) {
 					this->state = CANOPEN_SDO_STATE_READY;
+				}
+				else {
+					// ask for more data
+					SET_CMD_BYTE(&reply_msg, UPLOAD_DOMAIN_SEGMENT | (this->toggle << 4));
+					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+					this->toggle = !this->toggle;
 				}
 			}
 			uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
