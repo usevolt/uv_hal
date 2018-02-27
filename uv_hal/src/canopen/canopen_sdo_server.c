@@ -71,7 +71,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 	}
 	else if (this->state == CANOPEN_SDO_STATE_READY) {
 
-		// download (write request)
+		// initiate download (write request)
 		if (sdo_type == INITIATE_DOMAIN_DOWNLOAD) {
 			// try to find the requested object. If object was not found,
 			// abort message is sent automatically
@@ -123,7 +123,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 			}
 		}
 
-		// upload (read request)
+		// initiate upload (read request)
 		else if (sdo_type == INITIATE_DOMAIN_UPLOAD) {
 			// try to find the requested object. If object was not found,
 			// abort message is sent automatically
@@ -163,6 +163,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 		}
 	}
 
+	// segmented upload
 	else if ((this->state == CANOPEN_SDO_STATE_SEGMENTED_UPLOAD) &&
 			(sdo_type == UPLOAD_DOMAIN_SEGMENT)) {
 
@@ -199,6 +200,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 		}
 	}
 
+	// segmented download
 	else if ((this->state == CANOPEN_SDO_STATE_SEGMENTED_DOWNLOAD) &&
 			(sdo_type == DOWNLOAD_DOMAIN_SEGMENT)) {
 
@@ -212,7 +214,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 				if (GET_CMD_BYTE(msg) & (1 << 0)) {
 					this->state = CANOPEN_SDO_STATE_READY;
 				}
-				uint8_t data_count = 8 - ((GET_CMD_BYTE(msg) & 0b1110) >> 1);
+				uint8_t data_count = 7 - ((GET_CMD_BYTE(msg) & 0b1110) >> 1);
 				if ((this->data_index + data_count) <= obj.string_len) {
 					// copy data to destination. Bits 1-4 in command byte indicate
 					// how much data is copied

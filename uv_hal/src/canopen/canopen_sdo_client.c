@@ -109,17 +109,17 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 		// start of segmented download
 		else if ((this->state == CANOPEN_SDO_STATE_SEGMENTED_DOWNLOAD) &&
 				(sdo_type == INITIATE_DOMAIN_DOWNLOAD_REPLY)) {
-			int16_t n = 4 - (this->data_count - this->data_index);
+			int16_t n = 7 - (this->data_count - this->data_index);
 			uint8_t c = (n < 0) ? 0 : 1;
 			if (n < 0) {
 				n = 0;
 			}
-
 			SET_CMD_BYTE(&reply_msg, DOWNLOAD_DOMAIN_SEGMENT | (this->toggle << 4) | (n << 1) | c);
 			// copy data to message
 			c = 0;
-			while ((this->data_index < this->data_count) && (c < 4)) {
-				reply_msg.data_8bit[4 + c++] = ((uint8_t*) this->data_ptr)[this->data_index++];
+			while ((this->data_index < this->data_count) && (c < 7)) {
+				reply_msg.data_8bit[1 + c] = ((uint8_t*) this->data_ptr)[this->data_index++];
+				c++;
 			}
 			uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 			this->toggle = !this->toggle;
