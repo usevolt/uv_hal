@@ -190,13 +190,13 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 						((uint8_t*) obj.data_ptr) + this->data_index, data_count);
 				this->data_index += data_count;
 				uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+				this->toggle = !this->toggle;
 
 			}
 			else {
 				sdo_server_abort(this->mindex, this->sindex,
 						CANOPEN_SDO_ERROR_GENERAL);
 			}
-			this->toggle = !this->toggle;
 		}
 	}
 
@@ -222,16 +222,15 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 							&msg->data_8bit[1], data_count);
 					this->data_index += data_count;
 
-					SET_CMD_BYTE(&reply_msg, DOWNLOAD_DOMAIN_SEGMENT_REPLY | this->toggle);
+					SET_CMD_BYTE(&reply_msg, DOWNLOAD_DOMAIN_SEGMENT_REPLY | (this->toggle << 4));
 					memset(&reply_msg.data_8bit[1], 0, 7);
-					memcpy(&reply_msg.data_8bit[1], &this->data_index, sizeof(this->data_index));
 					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+					this->toggle = !this->toggle;
 				}
 				else {
 					sdo_server_abort(this->mindex, this->sindex,
 							CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
 				}
-				this->toggle = !this->toggle;
 			}
 			else {
 				sdo_server_abort(this->mindex, this->sindex,
