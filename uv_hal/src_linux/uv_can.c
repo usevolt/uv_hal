@@ -57,14 +57,8 @@
 extern bool can_log;
 #endif
 
-typedef struct {
-	bool init;
-	unsigned int baudrate;
-	char dev_name[20];
-} can_st;
 
-
-static can_st _can = {
+can_st _can = {
 		.init = false,
 		.baudrate = CONFIG_CAN0_BAUDRATE,
 		.dev_name = "can0"
@@ -93,11 +87,11 @@ uv_errors_e _uv_can_init() {
 		ret = ERR_NOT_INITIALIZED;
 	}
 	else {
-		//todo: socket can initialization
 	}
 
 	return ret;
 }
+
 
 
 #if CONFIG_TERMINAL_CAN
