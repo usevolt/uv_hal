@@ -11,6 +11,7 @@
 #include "uv_utilities.h"
 #include "uv_rtos.h"
 #include <string.h>
+#include CONFIG_MAIN_H
 
 
 #if CONFIG_CANOPEN

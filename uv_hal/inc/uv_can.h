@@ -117,12 +117,6 @@
 #if !defined(CONFIG_CAN0_BAUDRATE)
 #error "CONFIG_CAN0_BAUDRATE should define the default baudrate for CAN."
 #endif
-typedef struct {
-	bool init;
-	unsigned int baudrate;
-	char dev_name[20];
-} can_st;
-extern can_st _can;
 #endif
 
 
@@ -168,6 +162,10 @@ typedef enum {
 
 
 /// @brief: Describes all the available CAN channels on this hardware
+#if CONFIG_TARGET_LINUX
+/// @brief: On Linux CAN channels are separated by the netdev name
+typedef char * uv_can_channels_e;
+#else
 typedef enum {
 #if CONFIG_TARGET_LPC11C14
 	CAN0 = 0,
@@ -183,13 +181,11 @@ typedef enum {
 #elif CONFIG_TARGET_LPC1549
 	CAN0 = 0,
 	CAN_COUNT
-#elif CONFIG_TARGET_LINUX
-	CAN0 = 0,
-	CAN_COUNT
 #else
 #error "Unknown hardware"
 #endif
 } uv_can_channels_e;
+#endif
 
 
 /// @brief: A enum describing popular CAN masks used when configuring receive messages.
@@ -213,6 +209,8 @@ uv_errors_e _uv_can_init();
 /// The maximum number of messages which can be registered with this is hardware dependent.
 /// If the maximum message count is exceeded, this function returns error from that.
 ///
+/// On Linux this is just a wrap function, since SocketCAN doens't support mesage filtering.
+///
 /// @param channel: The CAN hardware channel to be configured
 /// @param id: The messages ID which is wanted to be received
 /// @param mask: The mask for message ID. This can be used to mask off unwanted
@@ -220,7 +218,7 @@ uv_errors_e _uv_can_init();
 /// To receive only a single dedicated message, this should be set to 0xFFFFFFFF or
 /// CAN_ID_MASK_DEFAULT
 /// @param type: The type of the message ID. Either 11-bit or 29-bit identifier is supported.
-#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LINUX
 uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		unsigned int id,
 		unsigned int mask,
@@ -243,6 +241,9 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		uv_can_msg_types_e type);
 #endif
 
+
+/// @brief: Sets the baudrate for the CAN bus. CAN initializes with baudrate of CONFIG_CAN_BAUDRATE.
+void uv_can_set_baudrate(uv_can_channels_e channel, uint32_t baudrate);
 
 
 /// @brief: An alternative way to send a CAN message

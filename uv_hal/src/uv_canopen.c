@@ -23,13 +23,13 @@
 #include "uv_reset.h"
 #include "uv_utilities.h"
 #include "uv_memory.h"
+#include CONFIG_MAIN_H
 #include <string.h>
 #if CONFIG_CANOPEN_LOG
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #endif
-
 
 
 

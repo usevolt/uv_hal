@@ -30,7 +30,7 @@
 
 
 // callback function
-static void (*callback)(void*, uv_gpios_e) = 0;
+static void (*callback)(uv_gpios_e) = 0;
 
 #if CONFIG_TARGET_LPC11C14
 // interrupt handler routine
@@ -42,7 +42,7 @@ static void isr(LPC_GPIO_TypeDef *GPIO, uv_gpios_e port);
 
 
 
-void uv_gpio_add_interrupt_callback(void (*callback_function)(void*, uv_gpios_e)) {
+void uv_gpio_add_interrupt_callback(void (*callback_function)(uv_gpios_e)) {
 
 	callback = callback_function;
 #if CONFIG_TARGET_LPC11C14

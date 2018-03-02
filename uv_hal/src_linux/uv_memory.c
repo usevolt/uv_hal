@@ -30,8 +30,8 @@
 #include "uv_rtos.h"
 #endif
 
-const char * const uv_projname = STRINGIFY(__UV_PROJECT_NAME);
-const char * const uv_datetime = __DATE__ " " __TIME__;
+const char const uv_projname[] = STRINGIFY(__UV_PROJECT_NAME);
+const char const uv_datetime[] = __DATE__ " " __TIME__;
 
 
 

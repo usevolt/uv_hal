@@ -100,7 +100,7 @@ static const canopen_pdo_mapping_parameter_st rxpdo_map_defs[] = {
 
 
 /// @brief: Configures the HW CAN message object to receive this RXPDO
-#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LINUX
 #define RXPDO_CONFIG_MESSAGE_OBJ(x) \
 		uv_can_config_rx_message(this->can_channel, \
 			this->obj_dict.com_params.rxpdo_coms[x].cob_id, \

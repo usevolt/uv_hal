@@ -57,8 +57,14 @@
 extern bool can_log;
 #endif
 
+typedef struct {
+	bool init;
+	unsigned int baudrate;
+	char dev_name[20];
+} can_st;
 
-can_st _can = {
+
+static can_st _can = {
 		.init = false,
 		.baudrate = CONFIG_CAN0_BAUDRATE,
 		.dev_name = "can0"
@@ -70,23 +76,31 @@ void _uv_can_hal_send(uv_can_channels_e chn);
 
 
 
-void uv_can_set_baudrate(uv_can_channels_e channel, unsigned int baudrate) {
-	this->baudrate = baudrate;
-}
 
-void uv_can_set_name(uv_can_channels_e channel, const char *dev_name) {
-	strcpy(this->dev_name, dev_name);
+uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
+		unsigned int id,
+		unsigned int mask,
+		uv_can_msg_types_e type) {
+
+	if (channel || id || mask || type) {
+
+	}
+	return ERR_NONE;
 }
 
 
 uv_errors_e _uv_can_init() {
 	uv_errors_e ret = ERR_NONE;
 
-	if (!this->baudrate) {
-		printf("Error: Baudrate has to be set for CAN before initialization.\n");
-		ret = ERR_NOT_INITIALIZED;
-	}
-	else {
+	// prevent initializing twice
+	if (!this->init) {
+		if (!this->baudrate) {
+			printf("Error: Baudrate has to be set for CAN before initialization.\n");
+			ret = ERR_NOT_INITIALIZED;
+		}
+		else {
+			this->init = true;
+		}
 	}
 
 	return ret;
@@ -110,7 +124,7 @@ uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* me
 
 
 uv_errors_e uv_can_pop_message(uv_can_channels_e channel, uv_can_message_st *message) {
-	uv_errors_e ret = ERR_NONE;
+	uv_errors_e ret = ERR_BUFFER_EMPTY;
 	return ret;
 }
 
