@@ -167,7 +167,7 @@ bool check(const canopen_object_st *src, uint8_t subindex) {
 
 
 const canopen_object_st *_uv_canopen_obj_dict_get(uint16_t main_index, uint8_t subindex) {
-	canopen_object_st *ret = NULL;
+	const canopen_object_st *ret = NULL;
 	bool match = false;
 	for (uint16_t i = 0; i < com_params_count(); i++) {
 		if (com_params[i].main_index == main_index) {
