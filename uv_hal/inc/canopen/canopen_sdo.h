@@ -119,8 +119,8 @@ void _uv_canopen_sdo_abort(uint16_t request_response, uint16_t main_index,
 
 
 /// @brief: Finds the object dictionary object. Used by canopen_sdo_client and server modules
-bool _canopen_find_object(const uv_can_message_st *msg,
-		canopen_object_st *obj, canopen_permissions_e permission_req);
+canopen_object_st *_canopen_find_object(const uv_can_message_st *msg,
+		canopen_permissions_e permission_req);
 
 
 /// @brief: Copies canopen object data to message

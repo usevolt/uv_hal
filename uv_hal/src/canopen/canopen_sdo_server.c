@@ -60,7 +60,7 @@ void _uv_canopen_sdo_server_step(uint16_t step_ms) {
 }
 
 void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e sdo_type) {
-	canopen_object_st obj;
+	canopen_object_st *obj;
 	uv_can_msg_st reply_msg;
 	reply_msg.type = CAN_STD;
 	reply_msg.id = CANOPEN_SDO_RESPONSE_ID + NODEID;
@@ -76,24 +76,27 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 	else if (this->state == CANOPEN_SDO_STATE_READY) {
 		// try to find the requested object. If object was not found,
 		// abort message is sent automatically
-		if (_canopen_find_object(msg, &obj, CANOPEN_WO)) {
 #if (CONFIG_CANOPEN_SDO_SEGMENTED || CONFIG_CANOPEN_SDO_BLOCK_TRANSFER)
-			// initialize data variables
-			this->data_index = 0;
-			this->mindex = GET_MINDEX(msg);
-			this->sindex = GET_SINDEX(msg);
-			this->toggle = 0;
-			this->obj = &obj;
-			uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
+		// initialize data variables
+		this->data_index = 0;
+		this->mindex = GET_MINDEX(msg);
+		this->sindex = GET_SINDEX(msg);
+		this->toggle = 0;
+		uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 #endif
+		if (this->mindex == 0x1FFF) {
+			printf("sdo_type: 0x%x\n", sdo_type);
+		}
 
-			// initiate download (write request)
-			if (sdo_type == INITIATE_DOMAIN_DOWNLOAD) {
+		// initiate download (write request)
+		if (sdo_type == INITIATE_DOMAIN_DOWNLOAD) {
+			if ((obj = _canopen_find_object(msg, CANOPEN_WO))) {
 				// segmented transfer
 				if (!(GET_CMD_BYTE(msg) & (1 << 1))) {
 #if CONFIG_CANOPEN_SDO_SEGMENTED
 					// segmented transfer can be started only on string type objects
-					if (uv_canopen_is_string(&obj)) {
+					if (uv_canopen_is_string(obj)) {
+						this->obj = obj;
 						this->state = CANOPEN_SDO_STATE_SEGMENTED_DOWNLOAD;
 						SET_CMD_BYTE(&reply_msg,
 								INITIATE_DOMAIN_DOWNLOAD_REPLY);
@@ -110,10 +113,10 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 				// expedited transfer
 				else {
 					// expedited transfer can be started to all other than string type objects
-					if (!uv_canopen_is_string(&obj)) {
+					if (!uv_canopen_is_string(obj)) {
 						SET_CMD_BYTE(&reply_msg,
 								INITIATE_DOMAIN_DOWNLOAD_REPLY);
-						if (_canopen_write_data(&obj, msg, GET_SINDEX(msg))) {
+						if (_canopen_write_data(obj, msg, GET_SINDEX(msg))) {
 							memcpy(&reply_msg.data_32bit[1], &msg->data_32bit[1], 4);
 							uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 						}
@@ -129,18 +132,21 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 					}
 				}
 			}
+		}
 
-			// initiate upload (read request)
-			else if (sdo_type == INITIATE_DOMAIN_UPLOAD) {
+		// initiate upload (read request)
+		else if (sdo_type == INITIATE_DOMAIN_UPLOAD) {
+			if ((obj = _canopen_find_object(msg, CANOPEN_RO))) {
 				// segmented transfer
-				if (obj.type == CANOPEN_STRING) {
+				if (obj->type == CANOPEN_STRING) {
 #if CONFIG_CANOPEN_SDO_SEGMENTED
 					this->state = CANOPEN_SDO_STATE_SEGMENTED_UPLOAD;
+					this->obj = obj;
 					// initiate segmented domain upload with data size indicated
 					SET_CMD_BYTE(&reply_msg,
 							INITIATE_DOMAIN_UPLOAD | (1 << 0));
 					// data bytes contain the total byte count
-					reply_msg.data_32bit[1] = obj.string_len;
+					reply_msg.data_32bit[1] = obj->string_len;
 					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 #endif
 				}
@@ -151,16 +157,19 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 					// object type len set correctly
 					SET_CMD_BYTE(&reply_msg,
 							INITIATE_DOMAIN_UPLOAD | (1 << 1) | (1 << 0) |
-							((4 - CANOPEN_TYPE_LEN(obj.type)) << 2));
-					_canopen_copy_data(&reply_msg, &obj, GET_SINDEX(msg));
+							((4 - CANOPEN_TYPE_LEN(obj->type)) << 2));
+					_canopen_copy_data(&reply_msg, obj, GET_SINDEX(msg));
 					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 				}
 			}
+		}
 #if CONFIG_CANOPEN_SDO_BLOCK_TRANSFER
-			// Initiate block download (write)
-			else if (sdo_type == INITIATE_BLOCK_DOWNLOAD) {
-				if (obj.type == CANOPEN_STRING) {
+		// Initiate block download (write)
+		else if (sdo_type == INITIATE_BLOCK_DOWNLOAD) {
+			if ((obj = _canopen_find_object(msg, CANOPEN_WO))) {
+				if (obj->type == CANOPEN_STRING) {
 					this->state = CANOPEN_SDO_STATE_BLOCK_DOWNLOAD;
+					this->obj = obj;
 					this->seq = -1;
 					this->crc_enabled = (GET_CMD_BYTE(msg) & (1 << 2));
 					SET_CMD_BYTE(&reply_msg,
@@ -173,16 +182,19 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 							CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
 				}
 			}
-			// Initiate block upload (read)
-			else if (sdo_type == INITIATE_BLOCK_UPLOAD) {
-				if (obj.type == CANOPEN_STRING) {
+		}
+		// Initiate block upload (read)
+		else if (sdo_type == INITIATE_BLOCK_UPLOAD) {
+			if ((obj = _canopen_find_object(msg, CANOPEN_RO))) {
+				if (obj->type == CANOPEN_STRING) {
 					this->state = CANOPEN_SDO_STATE_BLOCK_UPLOAD_WFR;
+					this->obj = obj;
 					this->seq = -1;
 					this->crc_enabled = (GET_CMD_BYTE(msg) & (1 << 2));
 					this->client_blksize = msg->data_8bit[4];
 					SET_CMD_BYTE(&reply_msg,
 							INITIATE_BLOCK_UPLOAD | (1 << 2) | (1 << 1));
-					reply_msg.data_32bit[1] = obj.string_len;
+					reply_msg.data_32bit[1] = obj->string_len;
 					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 				}
 				else {
@@ -190,11 +202,11 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 							CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
 				}
 			}
+		}
 #endif
-			else {
-				sdo_server_abort(GET_MINDEX(msg), GET_SINDEX(msg),
-						CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
-			}
+		else {
+			sdo_server_abort(GET_MINDEX(msg), GET_SINDEX(msg),
+					CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
 		}
 	}
 
@@ -210,7 +222,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 		if (((GET_CMD_BYTE(msg) & (1 << 4)) >> 4) == this->toggle) {
 			uint8_t data_count = uv_mini(this->obj->string_len - this->data_index, 7);
 			// transmission continues
-			if (obj.string_len - this->data_index > 7) {
+			if (this->obj->string_len - this->data_index > 7) {
 				SET_CMD_BYTE(&reply_msg, UPLOAD_DOMAIN_SEGMENT_REPLY |
 						(this->toggle << 4));
 			}

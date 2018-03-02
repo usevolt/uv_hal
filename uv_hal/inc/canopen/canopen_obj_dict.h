@@ -22,8 +22,8 @@
 /// if the object was an array type and that the object had as many indexes as
 /// requested.
 ///
-/// @return: False if the object couldn't be found.
-bool _uv_canopen_obj_dict_get(uint16_t main_index, uint8_t subindex, canopen_object_st *dest);
+/// @return: Null if the object couldn't be found.
+const canopen_object_st *_uv_canopen_obj_dict_get(uint16_t main_index, uint8_t subindex);
 
 
 
