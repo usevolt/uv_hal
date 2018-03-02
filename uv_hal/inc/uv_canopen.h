@@ -434,6 +434,21 @@ static inline uv_errors_e uv_canopen_sdo_read(uint8_t node_id,
 	return _uv_canopen_sdo_client_read(node_id, mindex, sindex, data_len, dest);
 }
 
+
+#if CONFIG_CANOPEN_SDO_BLOCK_TRANSFER
+
+static inline uv_errors_e uv_canopen_sdo_block_read(uint8_t node_id,
+		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *dest) {
+	return _uv_canopen_sdo_client_block_read(node_id, mindex, sindex, data_len, dest);
+}
+
+static inline uv_errors_e uv_canopen_sdo_block_write(uint8_t node_id,
+		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *src) {
+	return _uv_canopen_sdo_client_block_write(node_id, mindex, sindex, data_len, src);
+}
+
+#endif
+
 /// @brief: Sets a CAN message callback. This can be used in order to manually receive messages
 	void uv_canopen_set_can_callback(void (*callb)(void *user_ptr, uv_can_message_st *msg));
 
