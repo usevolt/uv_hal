@@ -131,12 +131,12 @@ void _uv_canopen_sdo_rx(const uv_can_message_st *msg) {
 }
 
 
-bool _canopen_find_object(const uv_can_message_st *msg,
-		canopen_object_st *obj, canopen_permissions_e permission_req) {
-	bool ret = true;
+canopen_object_st *_canopen_find_object(const uv_can_message_st *msg,
+		canopen_permissions_e permission_req) {
+	canopen_object_st *ret;
 
-	if (_uv_canopen_obj_dict_get(GET_MINDEX(msg), GET_SINDEX(msg), obj)) {
-		if (!(obj->permissions & permission_req)) {
+	if (ret = _uv_canopen_obj_dict_get(GET_MINDEX(msg), GET_SINDEX(msg))) {
+		if (!(ret->permissions & permission_req)) {
 			// object is not readable
 			if (permission_req == CANOPEN_RO) {
 				_uv_canopen_sdo_abort(CANOPEN_SDO_RESPONSE_ID, GET_MINDEX(msg), GET_SINDEX(msg),

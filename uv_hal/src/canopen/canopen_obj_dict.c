@@ -145,7 +145,7 @@ static inline unsigned int com_params_count() {
 }
 
 
-bool cpy(canopen_object_st *dest, const canopen_object_st *src, uint8_t subindex) {
+bool check(const canopen_object_st *src, uint8_t subindex) {
 	bool ret;
 	if (uv_canopen_is_array(src)) {
 		if (subindex > src->array_max_size) {
@@ -161,28 +161,28 @@ bool cpy(canopen_object_st *dest, const canopen_object_st *src, uint8_t subindex
 	else {
 		ret = true;
 	}
-
-	if (ret && dest) {
-		memcpy(dest, src, sizeof(canopen_object_st));
-	}
 	return ret;
 }
 
 
 
-bool _uv_canopen_obj_dict_get(uint16_t main_index, uint8_t subindex, canopen_object_st *dest) {
-	bool ret;
+const canopen_object_st *_uv_canopen_obj_dict_get(uint16_t main_index, uint8_t subindex) {
+	canopen_object_st *ret = NULL;
 	bool match = false;
 	for (uint16_t i = 0; i < com_params_count(); i++) {
 		if (com_params[i].main_index == main_index) {
-			ret = cpy(dest, &com_params[i], subindex);
+			if (check(&com_params[i], subindex)) {
+				ret = &com_params[i];
+			}
 			match = true;
 		}
 	}
 	if (!match) {
 		for (int i = 0; i < CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS_COUNT(); i++) {
 			if (CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS [i].main_index == main_index) {
-				ret = cpy(dest, & CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS [i], subindex);
+				if (check(& CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS [i], subindex)) {
+					ret = & CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS [i];
+				}
 			}
 		}
 	}
