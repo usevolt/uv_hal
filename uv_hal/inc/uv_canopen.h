@@ -120,8 +120,20 @@
 #endif
 #if !defined(CONFIG_CANOPEN_SDO_SEGMENTED)
 #error "CONFIG_CANOPEN_SDO_SEGMENTED should be defined as 1 if SDO segmented transfers \
-should be enabled. Defaults to 0."
+should be enabled. Defaults to 0. Segmented parth takes roughly 1k4 bytes of flash space."
 #define CONFIG_CANOPEN_SDO_SEGMENTED		0
+#endif
+#if !defined(CONFIG_CANOPEN_SDO_BLOCK_TRANSFER)
+#error "CONFIG_CANOPEN_SDO_BLOCK_TRANSFER should be defined as 1 or 0, depending if\
+ block transfers are enabled or disabled."
+#endif
+#if CONFIG_CANOPEN_SDO_BLOCK_TRANSFER
+#if !defined(CONFIG_CANOPEN_SDO_BLOCK_SIZE)
+#error "CONFIG_CANOPEN_SDO_BLOCK_SIZE should define the block transfer segment size in bytes."
+#endif
+#if (CONFIG_CANOPEN_SDO_BLOCK_SIZE > 889)
+#error "CONFIG_CANOPEN_SDO_BLOCK_SIZE cannot be greater than 889."
+#endif
 #endif
 #if !defined(CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS)
 #error "CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS should define the name of the canopen_object_st array\
@@ -240,10 +252,22 @@ typedef struct {
 			canopen_sdo_state_e state;
 			uint16_t mindex;
 			uint8_t sindex;
+#if (CONFIG_CANOPEN_SDO_SEGMENTED || CONFIG_CANOPEN_SDO_BLOCK_TRANSFER)
 			// contains the index of next data to be transmitted
 			uint16_t data_index;
-			uint8_t toggle;
+			canopen_object_st *obj;
+			union {
+				uint8_t toggle;
+				/// @brief: Last correctly received sequence number for block transfer
+				int8_t seq;
+			};
 			uv_delay_st delay;
+#if CONFIG_CANOPEN_SDO_BLOCK_TRANSFER
+			uint8_t data_buffer[7];
+			uint8_t client_blksize;
+			bool crc_enabled;
+#endif
+#endif
 		} server;
 	} sdo;
 	void (*can_callback)(void *user_ptr, uv_can_message_st* msg);

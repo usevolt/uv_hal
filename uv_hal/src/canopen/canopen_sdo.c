@@ -35,11 +35,11 @@
 sdo_request_type_e _canopen_sdo_get_request_type(const uv_can_message_st *msg) {
 	sdo_request_type_e ret;
 
-	if ((msg->data_length != 8) ||
-			(msg->type != CAN_STD) ||
+	if ((msg->type != CAN_STD) ||
+			(msg->data_length != 8) ||
 			(((msg->id & (~0x7F)) != CANOPEN_SDO_REQUEST_ID) &&
 					(msg->id & (~0x7F)) != CANOPEN_SDO_RESPONSE_ID)) {
-		ret = UNKNOWN_SDO_MSG;
+		ret = INVALID_MSG;
 	}
 	// initiate domain download message
 	else if ((GET_CMD_BYTE(msg) & 0b11100000) == INITIATE_DOMAIN_DOWNLOAD) {
@@ -65,6 +65,29 @@ sdo_request_type_e _canopen_sdo_get_request_type(const uv_can_message_st *msg) {
 		// abort
 		ret = ABORT_DOMAIN_TRANSFER;
 	}
+#if CONFIG_CANOPEN_SDO_BLOCK_TRANSFER
+	else if ((GET_CMD_BYTE(msg) & 0b11100001) == INITIATE_BLOCK_DOWNLOAD) {
+		ret = INITIATE_BLOCK_DOWNLOAD;
+	}
+	else if ((GET_CMD_BYTE(msg) & 0b11100011) == INITIATE_BLOCK_DOWNLOAD_REPLY) {
+		ret = INITIATE_BLOCK_DOWNLOAD_REPLY;
+	}
+	else if ((GET_CMD_BYTE(msg) & 0b11100011) == DOWNLOAD_BLOCK_SEGMENT_REPLY) {
+		ret = DOWNLOAD_BLOCK_SEGMENT_REPLY;
+	}
+	else if ((GET_CMD_BYTE(msg) & 0b11100001) == END_BLOCK_DOWNLOAD) {
+		ret = END_BLOCK_DOWNLOAD;
+	}
+	else if ((GET_CMD_BYTE(msg) & 0b11100001) == END_BLOCK_DOWNLOAD_REPLY) {
+		ret = END_BLOCK_DOWNLOAD_REPLY;
+	}
+	else if ((GET_CMD_BYTE(msg) & 0b11100011) == INITIATE_BLOCK_UPLOAD_REPLY2) {
+		ret = INITIATE_BLOCK_UPLOAD_REPLY2;
+	}
+	else if ((GET_CMD_BYTE(msg) & 0b11100011) == DOWNLOAD_BLOCK_SEGMENT_REPLY) {
+		ret = DOWNLOAD_BLOCK_SEGMENT_REPLY;
+	}
+#endif
 	else {
 		ret = UNKNOWN_SDO_MSG;
 	}
@@ -93,7 +116,7 @@ void _uv_canopen_sdo_rx(const uv_can_message_st *msg) {
 
 	// parse received message and filter only SDO reponses and requests
 	sdo_request_type_e msg_type = _canopen_sdo_get_request_type(msg);
-	if (msg_type != UNKNOWN_SDO_MSG) {
+	if (msg_type != INVALID_MSG) {
 		// SDO Server receives only SDO requested dedicated to this device
 		if ((GET_NODEID(msg) == NODEID) &&
 				IS_SDO_REQUEST(msg)) {

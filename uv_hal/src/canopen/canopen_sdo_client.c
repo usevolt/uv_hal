@@ -103,6 +103,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 			// transfer done
 			this->state = CANOPEN_SDO_STATE_READY;
 		}
+#if CONFIG_CANOPEN_SDO_SEGMENTED
 		// start of segmented download
 		else if ((this->state == CANOPEN_SDO_STATE_SEGMENTED_DOWNLOAD) &&
 				(sdo_type == INITIATE_DOMAIN_DOWNLOAD_REPLY)) {
@@ -214,6 +215,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 			}
 			uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 		}
+#endif
 		else {
 
 		}
@@ -249,6 +251,7 @@ uv_errors_e _uv_canopen_sdo_client_write(uint8_t node_id,
 			uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
 		}
 		else {
+#if CONFIG_CANOPEN_SDO_SEGMENTED
 			// segmented write
 			this->state = CANOPEN_SDO_STATE_SEGMENTED_DOWNLOAD;
 			this->data_count = data_len;
@@ -259,7 +262,7 @@ uv_errors_e _uv_canopen_sdo_client_write(uint8_t node_id,
 			// data count indicated in the data bytes
 			msg.data_32bit[1] = this->data_count;
 			uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
-
+#endif
 		}
 		// wait for transfer to finish
 		while ((this->state != CANOPEN_SDO_STATE_READY) &&
@@ -312,6 +315,7 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 
 		}
 		else {
+#if CONFIG_CANOPEN_SDO_SEGMENTED
 			// segmented read
 			this->state = CANOPEN_SDO_STATE_SEGMENTED_UPLOAD;
 			this->data_index = 0;
@@ -319,6 +323,7 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 			this->toggle = 0;
 			SET_CMD_BYTE(&msg, INITIATE_DOMAIN_UPLOAD);
 			uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
+#endif
 		}
 
 		// wait for reply
