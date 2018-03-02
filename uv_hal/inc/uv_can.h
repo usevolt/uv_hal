@@ -117,6 +117,12 @@
 #if !defined(CONFIG_CAN0_BAUDRATE)
 #error "CONFIG_CAN0_BAUDRATE should define the default baudrate for CAN."
 #endif
+typedef struct {
+	bool init;
+	unsigned int baudrate;
+	char dev_name[20];
+} can_st;
+extern can_st _can;
 #endif
 
 
@@ -192,15 +198,9 @@ enum {
 	CAN_ID_MASK_DEFAULT = 0xFFFFFFFF
 };
 
-/// @brief: Initializes the can module either in synchronous mode or in asynchronous mode.
-///
-/// @note: The mode is synchronous if tx_buffer and rx_buffer parameters are set to NULL
-/// In this mode every message is sent synchronously and the message transmit function
-/// will return after the message was sent.
-/// In asynchronous mode, call to transmit functions wil cause the message to be queued in
-/// the transmit buffer and it will be sent some time later.
-uv_errors_e _uv_can_init();
 
+/// @brief: Initializes the can module
+uv_errors_e _uv_can_init();
 
 
 
