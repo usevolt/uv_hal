@@ -127,6 +127,8 @@ void _uv_canopen_sdo_rx(const uv_can_message_st *msg) {
 				IS_SDO_RESPONSE(msg)) {
 			_uv_canopen_sdo_client_rx(msg, msg_type, GET_NODEID(msg));
 		}
+		else {
+		}
 	}
 }
 

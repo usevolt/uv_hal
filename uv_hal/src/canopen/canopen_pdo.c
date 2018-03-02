@@ -228,7 +228,7 @@ void _uv_canopen_pdo_step(uint16_t step_ms) {
 								br = true;
 							}
 							// otherwise map some data to the message bytes
-							if (!(obj = _uv_canopen_obj_dict_get(mapping->main_index, mapping->sub_index))) {
+							else if (!(obj = _uv_canopen_obj_dict_get(mapping->main_index, mapping->sub_index))) {
 								// mapped object not found
 								_uv_canopen_sdo_abort(CANOPEN_SDO_REQUEST_ID, mapping->main_index,
 										mapping->sub_index, CANOPEN_SDO_ERROR_OBJECT_DOES_NOT_EXIST);
