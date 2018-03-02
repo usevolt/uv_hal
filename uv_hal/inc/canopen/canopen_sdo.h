@@ -119,7 +119,7 @@ void _uv_canopen_sdo_abort(uint16_t request_response, uint16_t main_index,
 
 
 /// @brief: Finds the object dictionary object. Used by canopen_sdo_client and server modules
-canopen_object_st *_canopen_find_object(const uv_can_message_st *msg,
+const canopen_object_st *_canopen_find_object(const uv_can_message_st *msg,
 		canopen_permissions_e permission_req);
 
 
@@ -141,7 +141,7 @@ void _canopen_copy_data(uv_can_message_st *dest,
 /// @param src: Pointer to can message from where the data is read
 /// @param subindex: The original request message's subindex field. This is used for
 /// indexing array and string type data
-bool _canopen_write_data(canopen_object_st *dest,
+bool _canopen_write_data(const canopen_object_st *dest,
 		const uv_can_msg_st *src, uint8_t subindex);
 
 

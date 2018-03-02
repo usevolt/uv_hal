@@ -267,7 +267,7 @@ typedef struct {
 #if (CONFIG_CANOPEN_SDO_SEGMENTED || CONFIG_CANOPEN_SDO_BLOCK_TRANSFER)
 			// contains the index of next data to be transmitted
 			uint16_t data_index;
-			canopen_object_st *obj;
+			const canopen_object_st *obj;
 			union {
 				uint8_t toggle;
 				/// @brief: Last correctly received sequence number for block transfer.

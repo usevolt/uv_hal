@@ -60,7 +60,7 @@ void _uv_canopen_sdo_server_step(uint16_t step_ms) {
 }
 
 void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e sdo_type) {
-	canopen_object_st *obj;
+	const canopen_object_st *obj;
 	uv_can_msg_st reply_msg;
 	reply_msg.type = CAN_STD;
 	reply_msg.id = CANOPEN_SDO_RESPONSE_ID + NODEID;
