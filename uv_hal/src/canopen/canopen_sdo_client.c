@@ -28,6 +28,9 @@
 #define SET_MINDEX(msg_ptr, value)		do {(msg_ptr)->data_8bit[1] = (value) % 256; \
 										(msg_ptr)->data_8bit[2] = (value) / 256; } while (0)
 #define SET_SINDEX(msg_ptr, value)		(msg_ptr)->data_8bit[3] = (value)
+#define BLKSIZE()						((CONFIG_CANOPEN_SDO_BLOCK_SIZE % 7) ? \
+										(CONFIG_CANOPEN_SDO_BLOCK_SIZE / 7 + 1) : \
+										(CONFIG_CANOPEN_SDO_BLOCK_SIZE / 7))
 
 
 
@@ -35,6 +38,7 @@
 static inline void sdo_client_abort(uint16_t main_index,
 				uint8_t sub_index, uv_sdo_error_codes_e err_code) {
 	_uv_canopen_sdo_abort(CANOPEN_SDO_RESPONSE_ID, main_index, sub_index, err_code);
+	this->state = CANOPEN_SDO_STATE_TRANSFER_ABORTED;
 }
 
 
@@ -130,7 +134,6 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 			if (((GET_CMD_BYTE(msg) & (1 << 4)) >> 4) == this->toggle) {
 				sdo_client_abort(this->mindex, this->sindex,
 						CANOPEN_SDO_ERROR_SDO_TOGGLE_BIT_NOT_ALTERED);
-				this->state = CANOPEN_SDO_STATE_TRANSFER_ABORTED;
 			}
 			else {
 				// all data transfered
@@ -189,7 +192,6 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 			if (((GET_CMD_BYTE(msg) & (1 << 4)) >> 4) == this->toggle) {
 				sdo_client_abort(this->mindex, this->sindex,
 						CANOPEN_SDO_ERROR_SDO_TOGGLE_BIT_NOT_ALTERED);
-				this->state = CANOPEN_SDO_STATE_TRANSFER_ABORTED;
 			}
 			else {
 				uint8_t byte_count = 7 - ((GET_CMD_BYTE(msg) & (0b111 << 1)) >> 1);
@@ -215,6 +217,164 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 				}
 			}
 			uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
+		}
+#endif
+#if CONFIG_CANOPEN_SDO_BLOCK_TRANSFER
+		// block downloads
+		else if (this->state == CANOPEN_SDO_STATE_BLOCK_DOWNLOAD) {
+			// initiate block download
+			if (sdo_type == INITIATE_BLOCK_DOWNLOAD_REPLY) {
+				this->crc_enabled = ((GET_CMD_BYTE(msg) & (1 << 2)) >> 2);
+				this->server_blksize = msg->data_8bit[4];
+				if ((this->server_blksize == 0) || (this->server_blksize >= 128)) {
+					sdo_client_abort(this->mindex, this->sindex,
+							CANOPEN_SDO_ERROR_INVALID_BLOCK_SIZE);
+				}
+				else {
+					// download block segments
+					for (uint8_t i = 0; i < this->server_blksize; i++) {
+						uint8_t data_len = ((this->data_index + 7) > this->data_count) ?
+								(this->data_count - this->data_index) : 7;
+						SET_CMD_BYTE(&reply_msg, ++this->seq | ((data_len == 7) << 7));
+						memcpy(&reply_msg.data_8bit[1], this->data_ptr + this->data_index, data_len);
+						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+						this->data_index += data_len;
+
+						if (data_len != 7) {
+							// data transfer finished
+							break;
+						}
+					}
+				}
+			}
+			// download block segment reply
+			else if (sdo_type == DOWNLOAD_BLOCK_SEGMENT_REPLY) {
+				if (msg->data_8bit[1] == this->seq) {
+					// transfer finished correctly
+					if (this->data_index >= this->data_count) {
+						// end the transfer
+						uint8_t n = 7 - (this->data_count % 7);
+						SET_CMD_BYTE(&reply_msg, END_BLOCK_DOWNLOAD | (n << 2));
+						uint16_t crc = uv_memory_calc_crc(this->data_ptr, this->data_count);
+						reply_msg.data_8bit[1] = crc;
+						reply_msg.data_8bit[2] = crc / 256;
+						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+					}
+					else {
+						// download more data
+						for (uint8_t i = 0; i < this->server_blksize; i++) {
+							uint8_t data_len = ((this->data_index + 7) > this->data_count) ?
+									(this->data_count - this->data_index) : 7;
+							SET_CMD_BYTE(&reply_msg, ++this->seq | ((data_len == 7) << 7));
+							memcpy(&reply_msg.data_8bit[1], this->data_ptr + this->data_index, data_len);
+							uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+							this->data_index += data_len;
+
+							if (data_len != 7) {
+								// data transfer finished
+								break;
+							}
+						}
+					}
+				}
+				else {
+					sdo_client_abort(this->mindex, this->sindex,
+							CANOPEN_SDO_ERROR_INVALID_SEQ_NUMBER);
+				}
+			}
+			// end block download
+			else if (sdo_type == END_BLOCK_DOWNLOAD_REPLY) {
+				this->state = CANOPEN_SDO_STATE_READY;
+			}
+			else {
+				// invalid message received
+				sdo_client_abort(this->mindex, this->sindex,
+						CANOPEN_SDO_ERROR_GENERAL);
+			}
+
+		}
+		// block uploads
+		else if (this->state == CANOPEN_SDO_STATE_BLOCK_UPLOAD) {
+
+			// initiate block upload reply
+			if ((this->seq == -1) && (sdo_type == INITIATE_BLOCK_UPLOAD_REPLY)) {
+				this->seq = 0;
+				this->crc_enabled = GET_CMD_BYTE(msg) & (1 << 2);
+				if (msg->data_32bit[1] > this->data_count) {
+					sdo_client_abort(this->mindex, this->sindex,
+							CANOPEN_SDO_ERROR_OUT_OF_MEMORY);
+				}
+				else {
+					SET_CMD_BYTE(&reply_msg, INITIATE_BLOCK_UPLOAD_REPLY2);
+					reply_msg.data_8bit[4] = BLKSIZE();
+					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+				}
+			}
+			// end block upload
+			else if ((this->seq == -1) && (sdo_type == END_BLOCK_UPLOAD)) {
+				uint8_t n = 7 - ((GET_CMD_BYTE(msg) & (0b111 << 2)) >> 2);
+				// copy the last set of data to destination address
+				if (this->data_index + n <= this->data_count) {
+					memcpy(this->data_ptr + this->data_index, this->data_buffer, n);
+					this->data_index += n;
+				}
+				else {
+					sdo_client_abort(this->mindex, this->sindex,
+							CANOPEN_SDO_ERROR_OUT_OF_MEMORY);
+				}
+				bool done = true;
+				if (this->crc_enabled) {
+					uint16_t crc = uv_memory_calc_crc(this->data_ptr, this->data_index);
+					uint16_t server_crc = msg->data_8bit[1] + (msg->data_8bit[2] * 256);
+					if (crc != server_crc) {
+						sdo_client_abort(this->mindex, this->sindex,
+								CANOPEN_SDO_ERROR_CRC_ERROR);
+						done = false;
+					}
+				}
+				if (done) {
+					// transfer finished successfully
+					SET_CMD_BYTE(&reply_msg, END_BLOCK_UPLOAD_REPLY);
+					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+					this->state = CANOPEN_SDO_STATE_READY;
+				}
+			}
+			// upload block segment
+			else {
+				// check the sequence number
+				if ((GET_CMD_BYTE(msg) & 0x7F) == this->seq) {
+					// copy last message data to destination
+					if (this->seq != 0) {
+						if ((this->data_index + 7) <= this->data_count) {
+							memcpy(this->data_ptr + this->data_index, this->data_buffer, 7);
+							this->data_index += 7;
+						}
+						else {
+							sdo_client_abort(this->mindex, this->sindex,
+									CANOPEN_SDO_ERROR_OUT_OF_MEMORY);
+						}
+					}
+					// copy new data to the buffer
+					memcpy(this->data_buffer, &msg->data_8bit[1], 7);
+					// increase sequence number
+					this->seq++;
+
+					// check if this was the last message of this block
+					if (GET_CMD_BYTE(msg) & (1 << 7)) {
+						// reply to block and get ready for a new one
+						SET_CMD_BYTE(&reply_msg, DOWNLOAD_BLOCK_SEGMENT_REPLY);
+						reply_msg.data_8bit[1] = this->seq;
+						reply_msg.data_8bit[2] = BLKSIZE();
+						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+						this->seq = -1;
+					}
+				}
+				else {
+					// wrong sequence number
+					sdo_client_abort(this->mindex, this->sindex,
+							CANOPEN_SDO_ERROR_INVALID_SEQ_NUMBER);
+				}
+			}
 		}
 #endif
 		else {
@@ -320,7 +480,8 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 			// segmented read
 			this->state = CANOPEN_SDO_STATE_SEGMENTED_UPLOAD;
 			this->data_index = 0;
-			this->data_count = data_len;
+			this->data_count = (data_len < CONFIG_CANOPEN_SDO_BLOCK_SIZE) ?
+					data_len : CONFIG_CANOPEN_SDO_BLOCK_SIZE;
 			this->toggle = 0;
 			SET_CMD_BYTE(&msg, INITIATE_DOMAIN_UPLOAD);
 			uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
@@ -344,6 +505,100 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 	return ret;
 }
 
+
+#if CONFIG_CANOPEN_SDO_BLOCK_TRANSFER
+
+uv_errors_e _uv_canopen_sdo_client_block_write(uint8_t node_id,
+		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *data) {
+	uv_errors_e ret = ERR_NONE;
+	uv_can_msg_st msg;
+	msg.type = CAN_STD;
+	msg.id = CANOPEN_SDO_REQUEST_ID + node_id;
+	msg.data_length = 8;
+	memset(&msg.data_32bit[1], 0, 4);
+	SET_MINDEX(&msg, mindex);
+	SET_SINDEX(&msg, sindex);
+	this->server_node_id = node_id;
+	this->mindex = mindex;
+	this->sindex = sindex;
+	this->data_ptr = data;
+	this->data_count = data_len;
+	this->data_index = 0;
+	this->seq = -1;
+
+	if (this->state != CANOPEN_SDO_STATE_READY) {
+		ret = ERR_HW_BUSY;
+	}
+	else {
+		uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
+
+		this->state = CANOPEN_SDO_STATE_BLOCK_DOWNLOAD;
+		SET_CMD_BYTE(&msg, INITIATE_BLOCK_DOWNLOAD | (1 << 2) | (1 << 1));
+		msg.data_32bit[1] = this->data_count;
+		uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
+
+		// wait for transfer to finish
+		while ((this->state != CANOPEN_SDO_STATE_READY) &&
+				(this->state != CANOPEN_SDO_STATE_TRANSFER_ABORTED)) {
+			uv_rtos_task_yield();
+		}
+
+		if (this->state == CANOPEN_SDO_STATE_TRANSFER_ABORTED) {
+			this->state = CANOPEN_SDO_STATE_READY;
+			ret = ERR_ABORTED;
+		}
+	}
+
+	return ret;
+}
+
+
+uv_errors_e _uv_canopen_sdo_client_block_read(uint8_t node_id,
+		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *data) {
+	uv_errors_e ret = ERR_NONE;
+	uv_can_msg_st msg;
+	msg.type = CAN_STD;
+	msg.data_length = 8;
+	msg.id = CANOPEN_SDO_REQUEST_ID + node_id;
+	memset(&msg.data_32bit[1], 0, 4);
+	SET_MINDEX(&msg, mindex);
+	SET_SINDEX(&msg, sindex);
+	this->server_node_id = node_id;
+	this->mindex = mindex;
+	this->sindex = sindex;
+	this->data_ptr = data;
+	this->data_count = data_len;
+	this->data_index = 0;
+	this->seq = -1;
+
+	if (this->state != CANOPEN_SDO_STATE_READY) {
+		ret = ERR_HW_BUSY;
+	}
+	else {
+		uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
+
+		this->state = CANOPEN_SDO_STATE_BLOCK_UPLOAD;
+		SET_CMD_BYTE(&msg, INITIATE_BLOCK_UPLOAD | (1 << 2));
+		msg.data_8bit[4] = BLKSIZE();
+		uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
+
+		// wait for transfer to finish
+		while ((this->state != CANOPEN_SDO_STATE_READY) &&
+				(this->state != CANOPEN_SDO_STATE_TRANSFER_ABORTED)) {
+			uv_rtos_task_yield();
+		}
+
+		if (this->state == CANOPEN_SDO_STATE_TRANSFER_ABORTED) {
+			this->state = CANOPEN_SDO_STATE_READY;
+			ret = ERR_ABORTED;
+		}
+		// data should now be copied and transfer is finished
+	}
+
+	return ret;
+}
+
+#endif
 
 
 #endif

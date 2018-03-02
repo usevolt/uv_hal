@@ -32,7 +32,6 @@ uv_errors_e _uv_canopen_sdo_client_write(uint8_t node_id,
 		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *data);
 
 
-
 /// @brief: Sends a CANOpen SDO read request and waits for the response
 /// **timeout_ms** milliseconds. If the read request failed or the timeout
 /// expires, returns an error.
@@ -40,7 +39,20 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *data);
 
 
+#if CONFIG_CANOPEN_SDO_BLOCK_TRANSFER
 
+/// @brief: Sends CANOpen SDO block write request and returns after the
+/// transfer is finished or an error is received.
+uv_errors_e _uv_canopen_sdo_client_block_write(uint8_t node_id,
+		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *data);
+
+
+/// @brief: Sends a CANOpen SDO block read request and returns after the
+/// transfer is finished or an error is received.
+uv_errors_e _uv_canopen_sdo_client_block_read(uint8_t node_id,
+		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *data);
+
+#endif
 
 #endif
 

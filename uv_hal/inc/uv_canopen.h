@@ -241,12 +241,24 @@ typedef struct {
 			canopen_sdo_state_e state;
 			uint8_t server_node_id;
 			uint8_t sindex;
+			uint16_t mindex;
+#if (CONFIG_CANOPEN_SDO_SEGMENTED || CONFIG_CANOPEN_SDO_BLOCK_TRANSFER)
 			uint16_t data_index;
 			uint16_t data_count;
-			uint8_t toggle;
-			uint16_t mindex;
+			union {
+				uint8_t toggle;
+				/// @brief: Last correctly received sequence number for block transfer.
+				/// Starts from -1.
+				int8_t seq;
+			};
 			void *data_ptr;
 			uv_delay_st delay;
+#if CONFIG_CANOPEN_SDO_BLOCK_TRANSFER
+			uint8_t data_buffer[7];
+			uint8_t server_blksize;
+			bool crc_enabled;
+#endif
+#endif
 		} client;
 		struct {
 			canopen_sdo_state_e state;
@@ -258,7 +270,8 @@ typedef struct {
 			canopen_object_st *obj;
 			union {
 				uint8_t toggle;
-				/// @brief: Last correctly received sequence number for block transfer
+				/// @brief: Last correctly received sequence number for block transfer.
+				/// Starts from -1.
 				int8_t seq;
 			};
 			uv_delay_st delay;
