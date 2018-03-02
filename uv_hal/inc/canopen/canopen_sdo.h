@@ -61,9 +61,9 @@ enum {
 typedef uint8_t canopen_sdo_state_e;
 
 
-enum {
-	INVALID_MSG = 0,
-	UNKNOWN_SDO_MSG = 0xFF,
+typedef enum {
+	INVALID_MSG = 0xFFFE,
+	UNKNOWN_SDO_MSG = 0xFFFF,
 	ABORT_DOMAIN_TRANSFER = 0b10000000,
 	INITIATE_DOMAIN_DOWNLOAD = 0b00100000,
 	INITIATE_DOMAIN_DOWNLOAD_REPLY = 0b01100000,
@@ -83,8 +83,7 @@ enum {
 	END_BLOCK_DOWNLOAD_REPLY = 0b10100001,
 	END_BLOCK_UPLOAD = END_BLOCK_DOWNLOAD,
 	END_BLOCK_UPLOAD_REPLY = END_BLOCK_DOWNLOAD_REPLY
-};
-typedef uint8_t sdo_request_type_e;
+} sdo_request_type_e;
 
 
 
