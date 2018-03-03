@@ -75,14 +75,14 @@ sdo_request_type_e _canopen_sdo_get_request_type(const uv_can_message_st *msg) {
 	else if ((GET_CMD_BYTE(msg) & 0b11100011) == DOWNLOAD_BLOCK_SEGMENT_REPLY) {
 		ret = DOWNLOAD_BLOCK_SEGMENT_REPLY;
 	}
+	else if ((GET_CMD_BYTE(msg) & 0b11100011) == INITIATE_BLOCK_UPLOAD_REPLY2) {
+		ret = INITIATE_BLOCK_UPLOAD_REPLY2;
+	}
 	else if ((GET_CMD_BYTE(msg) & 0b11100001) == END_BLOCK_DOWNLOAD) {
 		ret = END_BLOCK_DOWNLOAD;
 	}
 	else if ((GET_CMD_BYTE(msg) & 0b11100001) == END_BLOCK_DOWNLOAD_REPLY) {
 		ret = END_BLOCK_DOWNLOAD_REPLY;
-	}
-	else if ((GET_CMD_BYTE(msg) & 0b11100011) == INITIATE_BLOCK_UPLOAD_REPLY2) {
-		ret = INITIATE_BLOCK_UPLOAD_REPLY2;
 	}
 	else if ((GET_CMD_BYTE(msg) & 0b11100011) == DOWNLOAD_BLOCK_SEGMENT_REPLY) {
 		ret = DOWNLOAD_BLOCK_SEGMENT_REPLY;
