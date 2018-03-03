@@ -61,7 +61,7 @@ sdo_request_type_e _canopen_sdo_get_request_type(const uv_can_message_st *msg) {
 	else if ((GET_CMD_BYTE(msg) & 0b11100000) == UPLOAD_DOMAIN_SEGMENT) {
 		ret = UPLOAD_DOMAIN_SEGMENT;
 	}
-	else if ((GET_CMD_BYTE(msg) & 0b11100000) == ABORT_DOMAIN_TRANSFER) {
+	else if ((GET_CMD_BYTE(msg) & 0b11111111) == ABORT_DOMAIN_TRANSFER) {
 		// abort
 		ret = ABORT_DOMAIN_TRANSFER;
 	}
