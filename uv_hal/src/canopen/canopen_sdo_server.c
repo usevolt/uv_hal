@@ -168,6 +168,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 					this->state = CANOPEN_SDO_STATE_BLOCK_DOWNLOAD;
 					this->obj = obj;
 					this->seq = 0;
+					this->new_data = false;
 					this->crc_enabled = (GET_CMD_BYTE(msg) & (1 << 2));
 					SET_CMD_BYTE(&reply_msg,
 							INITIATE_BLOCK_DOWNLOAD_REPLY | (1 << 2));
@@ -317,10 +318,11 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 		else if ((GET_CMD_BYTE(msg) & 0x7F) == this->seq + 1) {
 			// copy data to destination
 			// copy last message data from buffer to destination
-			if (this->seq != 0) {
+			if (this->new_data) {
 				if (this->obj->string_len >= this->data_index + 7) {
 					memcpy(this->obj->data_ptr + this->data_index, this->data_buffer, 7);
 					this->data_index += 7;
+					this->new_data = false;
 				}
 				else {
 					// tried to write too long data to object, aborting.
@@ -330,11 +332,13 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 			}
 			// copy new data into data buffer
 			memcpy(this->data_buffer, &msg->data_8bit[1], msg->data_length - 1);
+			this->new_data = true;
 			// increase the sequence number of correctly received messages
 			this->seq++;
 
-			if (!(GET_CMD_BYTE(msg) & (1 << 7))) {
+			if ((GET_CMD_BYTE(msg) & (1 << 7))) {
 				// last sequence received, reply to the client and possibly wait for another block
+				memset(reply_msg.data_8bit, 0, 8);
 				SET_CMD_BYTE(&reply_msg, DOWNLOAD_BLOCK_SEGMENT_REPLY);
 				reply_msg.data_8bit[1] = this->seq;
 				reply_msg.data_8bit[2] = BLKSIZE();
@@ -405,6 +409,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 						i = this->client_blksize - 1;
 					}
 					this->seq++;
+					memset(reply_msg.data_8bit, 0, 8);
 					SET_CMD_BYTE(&reply_msg, (((i + 1) == this->client_blksize) << 7) | this->seq);
 					memcpy(&reply_msg.data_8bit[1], this->obj->data_ptr + this->data_index, len);
 					this->data_index += len;
