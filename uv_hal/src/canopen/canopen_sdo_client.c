@@ -238,7 +238,9 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 						if (data_len != 7) {
 							i = this->server_blksize - 1;
 						}
-						SET_CMD_BYTE(&reply_msg, ++this->seq | (((i + 1) == this->server_blksize) << 7));
+						memset(reply_msg.data_8bit, 0, 8);
+						this->seq++;
+						SET_CMD_BYTE(&reply_msg, this->seq | (((i + 1) == this->server_blksize) << 7));
 						memcpy(&reply_msg.data_8bit[1], this->data_ptr + this->data_index, data_len);
 						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 						this->data_index += data_len;
@@ -264,6 +266,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 					}
 					else {
+						this->seq = 0;
 						// download more data
 						for (uint8_t i = 0; i < this->server_blksize; i++) {
 							uint8_t data_len = ((this->data_index + 7) > this->data_count) ?
@@ -271,7 +274,9 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 							if (data_len != 7) {
 								i = this->server_blksize - 1;
 							}
-							SET_CMD_BYTE(&reply_msg, ++this->seq | (((i + 1) == this->server_blksize) << 7));
+							memset(reply_msg.data_8bit, 0, 8);
+							this->seq++;
+							SET_CMD_BYTE(&reply_msg, this->seq | (((i + 1) == this->server_blksize) << 7));
 							memcpy(&reply_msg.data_8bit[1], this->data_ptr + this->data_index, data_len);
 							uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 							this->data_index += data_len;
