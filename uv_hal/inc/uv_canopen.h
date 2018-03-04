@@ -277,6 +277,7 @@ typedef struct {
 			uv_delay_st delay;
 #if CONFIG_CANOPEN_SDO_BLOCK_TRANSFER
 			uint8_t data_buffer[7];
+			bool new_data;
 			uint8_t client_blksize;
 			bool crc_enabled;
 #endif
