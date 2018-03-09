@@ -225,6 +225,12 @@ void uv_init(void *device) {
 }
 
 
+
+void uv_deinit(void) {
+	uv_can_deinit();
+}
+
+
 void uv_data_reset() {
 #if CONFIG_CANOPEN
 	_uv_canopen_reset();

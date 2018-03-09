@@ -28,7 +28,7 @@ void _uv_canopen_nmt_init(void) {
 #else
 	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, CANOPEN_NMT_ID, CAN_ID_MASK_DEFAULT, CAN_STD);
 #endif
-
+#if CONFIG_CANOPEN_NMT_SLAVE
 	// uv bootloader sends the NMT boot up message,
 	// we should sent here NMT preoperational message
 	uv_can_message_st msg;
@@ -37,7 +37,7 @@ void _uv_canopen_nmt_init(void) {
 	msg.data_8bit[0] = 128;
 	msg.data_length = 1;
 	uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
-
+#endif
 }
 
 void _uv_canopen_nmt_reset(void) {
@@ -82,6 +82,34 @@ canopen_node_states_e _uv_canopen_nmt_get_state(void) {
 void _uv_canopen_nmt_set_state(canopen_node_states_e state) {
 	this->state = state;
 }
+
+
+
+#if CONFIG_CANOPEN_NMT_MASTER
+
+void uv_canopen_nmt_master_reset_node(uint8_t nodeid) {
+	uv_can_msg_st msg;
+	msg.type = CAN_STD;
+	msg.data_length = 2;
+	msg.id = CANOPEN_NMT_ID;
+	msg.data_8bit[0] = CANOPEN_NMT_RESET_NODE;
+	msg.data_8bit[1] = nodeid;
+	uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
+}
+
+
+void uv_canopen_nmt_master_set_node_state(uint8_t nodeid, canopen_nmt_commands_e state) {
+	uv_can_msg_st msg;
+	msg.type = CAN_STD;
+	msg.data_length = 2;
+	msg.id = CANOPEN_NMT_ID;
+	msg.data_8bit[0] = state;
+	msg.data_8bit[1] = nodeid;
+	uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
+}
+
+
+#endif
 
 
 #endif

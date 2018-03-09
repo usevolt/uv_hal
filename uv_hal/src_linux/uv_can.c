@@ -52,29 +52,141 @@
 #endif
 #include <stdio.h>
 #include <string.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <linux/can.h>
+#include <linux/can/raw.h>
+#include <linux/can/error.h>
+#include <unistd.h>
+#include <errno.h>
+#include <time.h>
 
 #if CONFIG_CAN_LOG
 extern bool can_log;
 #endif
 
 typedef struct {
-	bool init;
+	bool connection;
 	unsigned int baudrate;
-	char dev_name[20];
+	// can dev socket
+	int soc;
+	char dev[32];
+	uv_can_message_st rx_buffer_data[CONFIG_CAN0_RX_BUFFER_SIZE];
+	uv_ring_buffer_st rx_buffer;
+	uv_can_message_st tx_buffer_data[CONFIG_CAN0_TX_BUFFER_SIZE];
+	uv_ring_buffer_st tx_buffer;
+	struct timeval lastrxtime;
+
 } can_st;
 
 
 static can_st _can = {
-		.init = false,
+		.connection = false,
 		.baudrate = CONFIG_CAN0_BAUDRATE,
-		.dev_name = "can0"
+		.dev = "can0"
 };
 #define this (&_can)
 
 
 void _uv_can_hal_send(uv_can_channels_e chn);
+static bool cclose(void);
+static bool copen(void);
 
 
+
+/// @brief: Opens a connection to a SocketCAN device
+static bool copen(void) {
+	bool ret = true;
+
+	if (this->connection) {
+		cclose();
+	}
+
+	struct ifreq ifr;
+	struct sockaddr_can addr;
+
+	/* open socket */
+	this->soc = socket(PF_CAN, SOCK_RAW, CAN_RAW);
+	if(this->soc < 0) {
+		printf("Opening the socket failed with error code %i\n", this->soc);
+		ret = false;
+	}
+	else {
+		addr.can_family = AF_CAN;
+		strcpy(ifr.ifr_name, this->dev);
+
+		if (ioctl(this->soc, SIOCGIFINDEX, &ifr) < 0) {
+			printf("ioctl failed\n");
+			ret = false;
+		}
+		else {
+			addr.can_ifindex = ifr.ifr_ifindex;
+
+			// no need to set the socket to non-blocking, at least for now...
+			// fcntl(this->soc, F_SETFL, O_NONBLOCK);
+
+			if (bind(this->soc, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+				printf("Binding to the CAN socket failed\n");
+				ret = false;
+			}
+			else {
+				can_err_mask_t err_mask = ( CAN_ERR_MASK );
+				setsockopt(this->soc, SOL_CAN_RAW, CAN_RAW_ERR_FILTER,
+						&err_mask, sizeof(err_mask));
+				printf("CAN connection opened to device %s\n", this->dev);
+				this->connection = true;
+			}
+		}
+	}
+
+	return ret;
+}
+
+
+/// @brief: Closes the connection to the SocketCAN device
+static bool cclose(void) {
+	bool ret = true;
+
+	if (this->connection) {
+		close(this->soc);
+		this->connection = false;
+		printf("Connection closed.\n");
+	}
+
+	this->connection = false;
+	return ret;
+}
+
+
+#if CONFIG_TARGET_LINUX
+
+bool uv_can_set_baudrate(uv_can_channels_e channel, unsigned int baudrate) {
+	bool ret;
+	if (this->connection) {
+		cclose();
+	}
+	strcpy(this->dev, channel);
+	this->baudrate = baudrate;
+	// open the connection
+	ret = copen();
+
+	return ret;
+}
+
+void uv_can_deinit(void) {
+	if (this->connection) {
+		cclose();
+	}
+}
+
+
+struct timeval uv_can_get_rx_time(void) {
+	return this->lastrxtime;
+}
+
+
+#endif
 
 
 uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
@@ -82,9 +194,8 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		unsigned int mask,
 		uv_can_msg_types_e type) {
 
-	if (channel || id || mask || type) {
+	// SocketCAN doesn't support message filtering, this function does nothing.
 
-	}
 	return ERR_NONE;
 }
 
@@ -92,16 +203,10 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 uv_errors_e _uv_can_init() {
 	uv_errors_e ret = ERR_NONE;
 
-	// prevent initializing twice
-	if (!this->init) {
-		if (!this->baudrate) {
-			printf("Error: Baudrate has to be set for CAN before initialization.\n");
-			ret = ERR_NOT_INITIALIZED;
-		}
-		else {
-			this->init = true;
-		}
-	}
+	// CAN is already initialized. Connection will be opened when baudrate is set.
+	uv_ring_buffer_init(&this->rx_buffer, this->rx_buffer_data,
+			sizeof(this->rx_buffer_data) / sizeof(this->rx_buffer_data[0]),
+			sizeof(this->rx_buffer_data[0]));
 
 	return ret;
 }
@@ -118,13 +223,43 @@ uv_errors_e uv_can_get_char(char *dest) {
 
 uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message) {
 	uv_errors_e ret = ERR_NONE;
+
+	if (this->connection) {
+		int retval;
+		struct can_frame frame;
+		frame.can_id = message->id | ((message->type == CAN_EXT) ? CAN_EFF_FLAG : 0);
+		frame.can_dlc = message->data_length;
+		memcpy(frame.data, message->data_8bit, message->data_length);
+
+		retval = write(this->soc, &frame, sizeof(struct can_frame));
+		if (retval != sizeof(struct can_frame)) {
+			printf("Sending a message with ID of 0x%x resulted in a CAN error: %u , %s***\n",
+					message->id, errno, strerror(errno));
+			if (errno == ENETDOWN) {
+				printf("The network is down. Initialize the network with command:\n\n"
+						"sudo ip link set CHANNEL type can bitrate BAUDRATE\n\n"
+						"And open the network with command:\n\n"
+						"sudo ip link set dev CHANNEL up\n\n"
+						"After that you can communicate with the device.\n");
+				// exit the program to prevent further error messages
+				exit(0);
+			}
+			printf("Failed to send message with id 0f 0x%x to CAN channel %s\n",
+					message->id, channel);
+			ret = ERR_HARDWARE_NOT_SUPPORTED;
+		}
+		else {
+			printf("message sent 0x%x 0x%x 0x%x\n", message->id, message->data_8bit[0], message->data_8bit[1]);
+		}
+	}
+
 	return ret;
 }
 
 
 
 uv_errors_e uv_can_pop_message(uv_can_channels_e channel, uv_can_message_st *message) {
-	uv_errors_e ret = ERR_BUFFER_EMPTY;
+	uv_errors_e ret = uv_ring_buffer_pop(&this->rx_buffer, message);
 	return ret;
 }
 
@@ -138,8 +273,60 @@ uv_errors_e uv_can_reset(uv_can_channels_e channel) {
 
 /// @brief: Inner hal step function which is called in rtos hal task
 void _uv_can_hal_step(unsigned int step_ms) {
+	if (this->connection) {
+		struct can_frame frame_rd;
+		int recvbytes = 0;
 
+		struct timeval timeout = {1, 0};
+		fd_set readSet;
+		FD_ZERO(&readSet);
+		FD_SET(this->soc, &readSet);
+
+		if (select((this->soc + 1), &readSet, NULL, NULL, &timeout) >= 0) {
+			if (FD_ISSET(this->soc, &readSet)) {
+				recvbytes = read(this->soc, &frame_rd, sizeof(struct can_frame));
+
+				if(recvbytes > 0) {
+					uv_can_msg_st msg;
+					if (frame_rd.can_id & CAN_ERR_FLAG) {
+						// error frame
+						msg.id = frame_rd.can_id & CAN_ERR_MASK;
+						msg.type = CAN_ERR;
+					}
+					else if (frame_rd.can_id & CAN_EFF_FLAG) {
+						// extended frame
+						msg.id = frame_rd.can_id & CAN_EFF_MASK;
+						msg.type = CAN_EXT;
+					}
+					else {
+						// standard frame
+						msg.id = frame_rd.can_id & CAN_SFF_MASK;
+						msg.type = CAN_STD;
+					}
+					msg.data_length = frame_rd.can_dlc;
+					memcpy(msg.data_8bit, frame_rd.data, msg.data_length);
+					uv_ring_buffer_push(&this->rx_buffer, &msg);
+
+					ioctl(this->soc, SIOCGSTAMP, &this->lastrxtime);
+				}
+				else if (recvbytes == -1) {
+					printf("*** CAN RX error: %u , %s***\n", errno, strerror(errno));
+					if (errno == ENETDOWN) {
+						printf("The network is down. Initialize the network with command:\n\n"
+								"sudo ip link set CHANNEL type can bitrate BAUDRATE\n\n"
+								"And open the network with command:\n\n"
+								"sudo ip link set dev CHANNEL up\n\n"
+								"After that you can communicate with the device.\n");
+						// exit the program to prevent further error messages
+						exit(0);
+					}
+				}
+			}
+		}
+	}
 }
+
+
 
 
 #endif

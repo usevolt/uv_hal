@@ -58,7 +58,8 @@ uv_errors_e uv_memory_save(void) {
 
 
 uv_errors_e uv_memory_load(void) {
-	uv_errors_e ret = ERR_NONE;
+	// on linux memory cannot be saved for now
+	uv_errors_e ret = ERR_HARDWARE_NOT_SUPPORTED;
 
 	//todo: load the data
 

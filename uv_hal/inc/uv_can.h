@@ -127,7 +127,9 @@ typedef enum {
 	CAN_STD = CAN_11_BIT_ID,
 	/// @brief: CAN 2.0B messages with 29-bit identifier
 	CAN_29_BIT_ID = 0x20000000UL,
-	CAN_EXT = CAN_29_BIT_ID
+	CAN_EXT = CAN_29_BIT_ID,
+	/// @brief: CAN error frame
+	CAN_ERR = 0x40000000UL
 } uv_can_msg_types_e;
 
 
@@ -242,9 +244,6 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 #endif
 
 
-/// @brief: Sets the baudrate for the CAN bus. CAN initializes with baudrate of CONFIG_CAN_BAUDRATE.
-void uv_can_set_baudrate(uv_can_channels_e channel, uint32_t baudrate);
-
 
 /// @brief: An alternative way to send a CAN message
 ///
@@ -303,12 +302,14 @@ uv_errors_e uv_can_reset(uv_can_channels_e channel);
 /// specified via CONFIG_CAN_BAUDRATE symbol.
 ///
 /// @note: Should be called prior to _uv_can_init function.
-void uv_can_set_baudrate(uv_can_channels_e channel, unsigned int baudrate);
+bool uv_can_set_baudrate(uv_can_channels_e channel, unsigned int baudrate);
 
-/// @brief: Sets the device name for the CAN. Defaults to can0.
-///
-/// @note: Should be called prior to _uv_can_init function.
-void uv_can_set_name(uv_can_channels_e channel, const char *dev_name);
+
+/// @brief: Closes all available connections
+void uv_can_deinit(void);
+
+struct timeval uv_can_get_rx_time(void);
+
 #endif
 
 

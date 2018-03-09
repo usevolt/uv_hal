@@ -76,6 +76,13 @@
 #if !defined(CONFIG_CANOPEN_DEVICE_TYPE_INDEX)
 #define CONFIG_CANOPEN_DEVICE_TYPE_INDEX	0x1000
 #endif
+#if ((!defined(CONFIG_CANOPEN_NMT_MASTER)) && (!defined(CONFIG_CANOPEN_NMT_SLAVE)))
+#error "CANOPEN device should be defined as a NMT Master or Slave by defining either\
+ CONFIG_CANOPEN_NMT_MASTER or CONFIG_CANOPEN_NMT_SLAVE as 1."
+#endif
+#if (CONFIG_CANOPEN_NMT_MASTER && CONFIG_CANOPEN_NMT_SLAVE)
+#error "Both CONFIG_CANOPEN_NMT_MASTER and CONFIG_CANOPEN_NMT_SLAVE cannot be set."
+#endif
 #if !defined(CONFIG_CANOPEN_NODEID_INDEX)
 #define CONFIG_CANOPEN_NODEID_INDEX			0x100B
 #endif

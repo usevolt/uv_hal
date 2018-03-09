@@ -22,6 +22,15 @@
 
 #define CLOCKS_PER_SEC __CLK_TCK
 
+/* A time value that is accurate to the nearest
+   microsecond but also has a range of years.  */
+struct timeval
+{
+	uint32_t tv_sec;		/* Seconds.  */
+	uint32_t tv_usec;	/* Microseconds.  */
+};
+
+
 #ifndef __SIZE_T_DEFINED
 #define __SIZE_T_DEFINED
 #if __SIZEOF_INT < __SIZEOF_VOID_P

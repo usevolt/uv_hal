@@ -117,6 +117,12 @@ static inline void uv_mutex_unlock(uv_mutex_st *mutex) {
 void uv_init(void *device);
 
 
+#if CONFIG_TARGET_LINUX
+/// @brief: Deinitializes all modules and closes open sockets.
+void uv_deinit(void);
+#endif
+
+
 /// @brief: Resets the non-volatile data from all HAL modules to defaults
 void uv_data_reset();
 

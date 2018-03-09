@@ -289,6 +289,11 @@ static inline bool uv_ring_buffer_empty(uv_ring_buffer_st *buffer) {
 	return !buffer->element_count;
 }
 
+/// @brief: Returns the current element count in the buffer
+static inline uint16_t uv_ring_buffer_get_element_count(uv_ring_buffer_st *buffer) {
+	return buffer->element_count;
+}
+
 
 
 /// @brief: Simple vector data structure.
