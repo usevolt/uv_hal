@@ -235,7 +235,12 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 					for (uint8_t i = 0; i < this->server_blksize; i++) {
 						uint8_t data_len = ((this->data_index + 7) > this->data_count) ?
 								(this->data_count - this->data_index) : 7;
-						SET_CMD_BYTE(&reply_msg, ++this->seq | ((data_len == 7) << 7));
+						if (data_len != 7) {
+							i = this->server_blksize - 1;
+						}
+						memset(reply_msg.data_8bit, 0, 8);
+						this->seq++;
+						SET_CMD_BYTE(&reply_msg, this->seq | (((i + 1) == this->server_blksize) << 7));
 						memcpy(&reply_msg.data_8bit[1], this->data_ptr + this->data_index, data_len);
 						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 						this->data_index += data_len;
@@ -261,11 +266,17 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 					}
 					else {
+						this->seq = 0;
 						// download more data
 						for (uint8_t i = 0; i < this->server_blksize; i++) {
 							uint8_t data_len = ((this->data_index + 7) > this->data_count) ?
 									(this->data_count - this->data_index) : 7;
-							SET_CMD_BYTE(&reply_msg, ++this->seq | ((data_len == 7) << 7));
+							if (data_len != 7) {
+								i = this->server_blksize - 1;
+							}
+							memset(reply_msg.data_8bit, 0, 8);
+							this->seq++;
+							SET_CMD_BYTE(&reply_msg, this->seq | (((i + 1) == this->server_blksize) << 7));
 							memcpy(&reply_msg.data_8bit[1], this->data_ptr + this->data_index, data_len);
 							uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 							this->data_index += data_len;
@@ -297,8 +308,8 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 		else if (this->state == CANOPEN_SDO_STATE_BLOCK_UPLOAD) {
 
 			// initiate block upload reply
-			if ((this->seq == -1) && (sdo_type == INITIATE_BLOCK_UPLOAD_REPLY)) {
-				this->seq = 0;
+			if ((this->seq == 0) && (sdo_type == INITIATE_BLOCK_UPLOAD_REPLY)) {
+				this->seq = 1;
 				this->crc_enabled = GET_CMD_BYTE(msg) & (1 << 2);
 				if (msg->data_32bit[1] > this->data_count) {
 					sdo_client_abort(this->mindex, this->sindex,
@@ -311,9 +322,10 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 				}
 			}
 			// end block upload
-			else if ((this->seq == -1) && (sdo_type == END_BLOCK_UPLOAD)) {
+			else if ((this->seq == 1) && (sdo_type == END_BLOCK_UPLOAD)) {
 				uint8_t n = 7 - ((GET_CMD_BYTE(msg) & (0b111 << 2)) >> 2);
-				// copy the last set of data to destination address
+				// copy the last set of data to destination address.
+				// Note: No need to check if there is new data, as there always should be.
 				if (this->data_index + n <= this->data_count) {
 					memcpy(this->data_ptr + this->data_index, this->data_buffer, n);
 					this->data_index += n;
@@ -343,11 +355,12 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 			else {
 				// check the sequence number
 				if ((GET_CMD_BYTE(msg) & 0x7F) == this->seq) {
-					// copy last message data to destination
-					if (this->seq != 0) {
+					// copy last message data to destination, if new data is available in the buffer
+					if (this->new_data) {
 						if ((this->data_index + 7) <= this->data_count) {
 							memcpy(this->data_ptr + this->data_index, this->data_buffer, 7);
 							this->data_index += 7;
+							this->new_data = false;
 						}
 						else {
 							sdo_client_abort(this->mindex, this->sindex,
@@ -356,17 +369,18 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 					}
 					// copy new data to the buffer
 					memcpy(this->data_buffer, &msg->data_8bit[1], 7);
+					this->new_data = true;
 					// increase sequence number
 					this->seq++;
 
 					// check if this was the last message of this block
 					if (GET_CMD_BYTE(msg) & (1 << 7)) {
 						// reply to block and get ready for a new one
-						SET_CMD_BYTE(&reply_msg, DOWNLOAD_BLOCK_SEGMENT_REPLY);
+						SET_CMD_BYTE(&reply_msg, UPLOAD_BLOCK_SEGMENT_REPLY);
 						reply_msg.data_8bit[1] = this->seq;
 						reply_msg.data_8bit[2] = BLKSIZE();
 						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
-						this->seq = -1;
+						this->seq = 1;
 					}
 				}
 				else {
@@ -524,7 +538,7 @@ uv_errors_e _uv_canopen_sdo_client_block_write(uint8_t node_id,
 	this->data_ptr = data;
 	this->data_count = data_len;
 	this->data_index = 0;
-	this->seq = -1;
+	this->seq = 0;
 
 	if (this->state != CANOPEN_SDO_STATE_READY) {
 		ret = ERR_HW_BUSY;
@@ -569,7 +583,8 @@ uv_errors_e _uv_canopen_sdo_client_block_read(uint8_t node_id,
 	this->data_ptr = data;
 	this->data_count = data_len;
 	this->data_index = 0;
-	this->seq = -1;
+	this->new_data = false;
+	this->seq = 0;
 
 	if (this->state != CANOPEN_SDO_STATE_READY) {
 		ret = ERR_HW_BUSY;

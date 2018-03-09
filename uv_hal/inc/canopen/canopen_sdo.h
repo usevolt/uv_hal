@@ -61,9 +61,9 @@ enum {
 typedef uint8_t canopen_sdo_state_e;
 
 
-enum {
-	INVALID_MSG = 0,
-	UNKNOWN_SDO_MSG = 0xFF,
+typedef enum {
+	INVALID_MSG = 0xFFFE,
+	UNKNOWN_SDO_MSG = 0xFFFF,
 	ABORT_DOMAIN_TRANSFER = 0b10000000,
 	INITIATE_DOMAIN_DOWNLOAD = 0b00100000,
 	INITIATE_DOMAIN_DOWNLOAD_REPLY = 0b01100000,
@@ -78,13 +78,12 @@ enum {
 	INITIATE_BLOCK_UPLOAD = INITIATE_BLOCK_DOWNLOAD_REPLY,
 	INITIATE_BLOCK_UPLOAD_REPLY = INITIATE_BLOCK_DOWNLOAD,
 	INITIATE_BLOCK_UPLOAD_REPLY2 = 0b10100011,
-	UPLOAD_BLOCK_SEGMENT_REPLY = 0b11000010,
+	UPLOAD_BLOCK_SEGMENT_REPLY = INITIATE_BLOCK_UPLOAD_REPLY,
 	END_BLOCK_DOWNLOAD = 0b11000001,
 	END_BLOCK_DOWNLOAD_REPLY = 0b10100001,
 	END_BLOCK_UPLOAD = END_BLOCK_DOWNLOAD,
 	END_BLOCK_UPLOAD_REPLY = END_BLOCK_DOWNLOAD_REPLY
-};
-typedef uint8_t sdo_request_type_e;
+} sdo_request_type_e;
 
 
 
@@ -119,8 +118,8 @@ void _uv_canopen_sdo_abort(uint16_t request_response, uint16_t main_index,
 
 
 /// @brief: Finds the object dictionary object. Used by canopen_sdo_client and server modules
-bool _canopen_find_object(const uv_can_message_st *msg,
-		canopen_object_st *obj, canopen_permissions_e permission_req);
+const canopen_object_st *_canopen_find_object(const uv_can_message_st *msg,
+		canopen_permissions_e permission_req);
 
 
 /// @brief: Copies canopen object data to message
@@ -141,7 +140,7 @@ void _canopen_copy_data(uv_can_message_st *dest,
 /// @param src: Pointer to can message from where the data is read
 /// @param subindex: The original request message's subindex field. This is used for
 /// indexing array and string type data
-bool _canopen_write_data(canopen_object_st *dest,
+bool _canopen_write_data(const canopen_object_st *dest,
 		const uv_can_msg_st *src, uint8_t subindex);
 
 

@@ -61,7 +61,7 @@ sdo_request_type_e _canopen_sdo_get_request_type(const uv_can_message_st *msg) {
 	else if ((GET_CMD_BYTE(msg) & 0b11100000) == UPLOAD_DOMAIN_SEGMENT) {
 		ret = UPLOAD_DOMAIN_SEGMENT;
 	}
-	else if ((GET_CMD_BYTE(msg) & 0b11100000) == ABORT_DOMAIN_TRANSFER) {
+	else if ((GET_CMD_BYTE(msg) & 0b11111111) == ABORT_DOMAIN_TRANSFER) {
 		// abort
 		ret = ABORT_DOMAIN_TRANSFER;
 	}
@@ -75,14 +75,14 @@ sdo_request_type_e _canopen_sdo_get_request_type(const uv_can_message_st *msg) {
 	else if ((GET_CMD_BYTE(msg) & 0b11100011) == DOWNLOAD_BLOCK_SEGMENT_REPLY) {
 		ret = DOWNLOAD_BLOCK_SEGMENT_REPLY;
 	}
+	else if ((GET_CMD_BYTE(msg) & 0b11100011) == INITIATE_BLOCK_UPLOAD_REPLY2) {
+		ret = INITIATE_BLOCK_UPLOAD_REPLY2;
+	}
 	else if ((GET_CMD_BYTE(msg) & 0b11100001) == END_BLOCK_DOWNLOAD) {
 		ret = END_BLOCK_DOWNLOAD;
 	}
 	else if ((GET_CMD_BYTE(msg) & 0b11100001) == END_BLOCK_DOWNLOAD_REPLY) {
 		ret = END_BLOCK_DOWNLOAD_REPLY;
-	}
-	else if ((GET_CMD_BYTE(msg) & 0b11100011) == INITIATE_BLOCK_UPLOAD_REPLY2) {
-		ret = INITIATE_BLOCK_UPLOAD_REPLY2;
 	}
 	else if ((GET_CMD_BYTE(msg) & 0b11100011) == DOWNLOAD_BLOCK_SEGMENT_REPLY) {
 		ret = DOWNLOAD_BLOCK_SEGMENT_REPLY;
@@ -127,16 +127,18 @@ void _uv_canopen_sdo_rx(const uv_can_message_st *msg) {
 				IS_SDO_RESPONSE(msg)) {
 			_uv_canopen_sdo_client_rx(msg, msg_type, GET_NODEID(msg));
 		}
+		else {
+		}
 	}
 }
 
 
-bool _canopen_find_object(const uv_can_message_st *msg,
-		canopen_object_st *obj, canopen_permissions_e permission_req) {
-	bool ret = true;
+const canopen_object_st *_canopen_find_object(const uv_can_message_st *msg,
+		canopen_permissions_e permission_req) {
+	const canopen_object_st *ret;
 
-	if (_uv_canopen_obj_dict_get(GET_MINDEX(msg), GET_SINDEX(msg), obj)) {
-		if (!(obj->permissions & permission_req)) {
+	if ((ret = _uv_canopen_obj_dict_get(GET_MINDEX(msg), GET_SINDEX(msg)))) {
+		if (!(ret->permissions & permission_req)) {
 			// object is not readable
 			if (permission_req == CANOPEN_RO) {
 				_uv_canopen_sdo_abort(CANOPEN_SDO_RESPONSE_ID, GET_MINDEX(msg), GET_SINDEX(msg),
@@ -177,7 +179,7 @@ void _canopen_copy_data(uv_can_message_st *dest, const canopen_object_st *src, u
 	uv_enable_int();
 }
 
-bool _canopen_write_data(canopen_object_st *dest, const uv_can_msg_st *src, uint8_t subindex) {
+bool _canopen_write_data(const canopen_object_st *dest, const uv_can_msg_st *src, uint8_t subindex) {
 	uv_disable_int();
 	bool ret = true;
 	if (CANOPEN_IS_ARRAY(dest->type)) {
