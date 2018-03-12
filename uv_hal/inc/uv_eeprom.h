@@ -69,7 +69,7 @@ uv_errors_e uv_eeprom_write(const void *data, uint16_t len, uint16_t eeprom_addr
 /// @param dest: Pointer to the destination address where the read data is copied
 /// @param len: Indicates how many bytes of data should be read
 /// @param eeprom_addr: The EEPROM address from which forward the data is read
-uv_errors_e uv_eeprom_read(unsigned char *dest, uint16_t len, uint16_t eeprom_addr);
+uv_errors_e uv_eeprom_read(void *dest, uint16_t len, uint16_t eeprom_addr);
 
 
 

@@ -25,6 +25,8 @@ void _uv_canopen_sdo_server_step(uint16_t step_ms);
 
 void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e sdo_type);
 
+void _uv_canopen_sdo_server_add_callb(void (*callb)(uint16_t mindex, uint8_t sindex));
+
 
 
 #endif

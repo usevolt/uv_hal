@@ -265,6 +265,9 @@ typedef struct {
 			canopen_sdo_state_e state;
 			uint16_t mindex;
 			uint8_t sindex;
+			// an optional callback to be called when something has been written to an object
+			// pointed by **mindex** and **sindex**.
+			void (*callb)(uint16_t mindex, uint8_t sindex);
 #if (CONFIG_CANOPEN_SDO_SEGMENTED || CONFIG_CANOPEN_SDO_BLOCK_TRANSFER)
 			// contains the index of next data to be transmitted
 			uint16_t data_index;
@@ -452,8 +455,15 @@ static inline uv_errors_e uv_canopen_sdo_block_write(uint8_t node_id,
 #endif
 
 /// @brief: Sets a CAN message callback. This can be used in order to manually receive messages
-	void uv_canopen_set_can_callback(void (*callb)(void *user_ptr, uv_can_message_st *msg));
+void uv_canopen_set_can_callback(void (*callb)(void *user_ptr, uv_can_message_st *msg));
 
+/// @brief: Sets an SDO write callback. This can be used to get a notification of when an
+/// SDO write request has been received.
+///
+/// @note: The callback will be called from the HAL task
+static inline void uv_canopen_set_sdo_write_callback(void (*callb)(uint16_t mindex, uint8_t sindex)) {
+	_uv_canopen_sdo_server_add_callb(callb);
+}
 
 uint8_t uv_canopen_sdo_read8(uint8_t node_id, uint16_t mindex, uint8_t sindex);
 
