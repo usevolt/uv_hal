@@ -57,6 +57,16 @@ canopen_node_states_e _uv_canopen_nmt_get_state(void);
 void _uv_canopen_nmt_set_state(canopen_node_states_e state);
 
 
+#if CONFIG_CANOPEN_NMT_MASTER
+
+/// @brief: Resets the specified CANopen node. All nodes can be reset by giving **nodeid** as 0.
+void uv_canopen_nmt_master_reset_node(uint8_t nodeid);
+
+/// @brief: Sets the node state to **state**
+void uv_canopen_nmt_master_set_node_state(uint8_t nodeid, canopen_nmt_commands_e state);
+
+#endif
+
 
 #endif
 
