@@ -227,7 +227,9 @@ void uv_init(void *device) {
 
 
 void uv_deinit(void) {
+#if CONFIG_TARGET_LINUX
 	uv_can_deinit();
+#endif
 }
 
 
