@@ -62,8 +62,14 @@ void _uv_canopen_sdo_client_reset(void) {
 void _uv_canopen_sdo_client_step(uint16_t step_ms) {
 	if ((this->state != CANOPEN_SDO_STATE_READY) &&
 			uv_delay(&this->delay, step_ms)) {
-		sdo_client_abort(this->mindex, this->sindex, CANOPEN_SDO_ERROR_SDO_PROTOCOL_TIMED_OUT);
-		this->state = CANOPEN_SDO_STATE_READY;
+		if (this->state == CANOPEN_SDO_STATE_TRANSFER_ABORTED) {
+			this->state = CANOPEN_SDO_STATE_READY;
+		}
+		else {
+			sdo_client_abort(this->mindex, this->sindex, CANOPEN_SDO_ERROR_SDO_PROTOCOL_TIMED_OUT);
+			this->state = CANOPEN_SDO_STATE_TRANSFER_ABORTED;
+			uv_delay_init(&this->delay, step_ms);
+		}
 	}
 }
 
@@ -540,27 +546,25 @@ uv_errors_e _uv_canopen_sdo_client_block_write(uint8_t node_id,
 	this->data_index = 0;
 	this->seq = 0;
 
-	if (this->state != CANOPEN_SDO_STATE_READY) {
-		ret = ERR_HW_BUSY;
+	while (this->state != CANOPEN_SDO_STATE_READY) {
+		uv_rtos_task_yield();
 	}
-	else {
-		uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
+	uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 
-		this->state = CANOPEN_SDO_STATE_BLOCK_DOWNLOAD;
-		SET_CMD_BYTE(&msg, INITIATE_BLOCK_DOWNLOAD | (1 << 2) | (1 << 1));
-		msg.data_32bit[1] = this->data_count;
-		uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
+	this->state = CANOPEN_SDO_STATE_BLOCK_DOWNLOAD;
+	SET_CMD_BYTE(&msg, INITIATE_BLOCK_DOWNLOAD | (1 << 2) | (1 << 1));
+	msg.data_32bit[1] = this->data_count;
+	uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
 
-		// wait for transfer to finish
-		while ((this->state != CANOPEN_SDO_STATE_READY) &&
-				(this->state != CANOPEN_SDO_STATE_TRANSFER_ABORTED)) {
-			uv_rtos_task_yield();
-		}
+	// wait for transfer to finish
+	while ((this->state != CANOPEN_SDO_STATE_READY) &&
+			(this->state != CANOPEN_SDO_STATE_TRANSFER_ABORTED)) {
+		uv_rtos_task_yield();
+	}
 
-		if (this->state == CANOPEN_SDO_STATE_TRANSFER_ABORTED) {
-			this->state = CANOPEN_SDO_STATE_READY;
-			ret = ERR_ABORTED;
-		}
+	if (this->state == CANOPEN_SDO_STATE_TRANSFER_ABORTED) {
+		this->state = CANOPEN_SDO_STATE_READY;
+		ret = ERR_ABORTED;
 	}
 
 	return ret;

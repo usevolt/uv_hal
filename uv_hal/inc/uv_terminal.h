@@ -50,6 +50,20 @@
 /// the serial interfaces the terminal will never receive any characters sent to it.
 
 
+/* ASCII special character values which can be used in terminal printing */
+#define CLRL			"\x1B[K"
+#define CLRS			"\x1B[2J"
+#define ENDL			"\n"
+
+
+/// @brief: Prefix for CAN message ID's used for command line interface.
+/// The actual CAN ID consists of this and a CANopen node id
+#define UV_TERMINAL_CAN_ID			0x580
+#define UV_TERMINAL_CAN_RX_ID		0x600
+#define UV_TERMINAL_CAN_INDEX		0x5FFF
+#define UV_TERMINAL_CAN_SUBINDEX	0
+
+
 #if CONFIG_TERMINAL
 
 #if !defined(CONFIG_TERMINAL_BUFFER_SIZE)
@@ -67,19 +81,6 @@
 #error "either CONFIG_TERMINAL_UART or CONFIG_TERMINAL_CAN has to be defined as 1, to redirect printf to\
  corresponding peripherals."
 #endif
-
-/* ASCII special character values which can be used in terminal printing */
-#define CLRL			"\x1B[K"
-#define CLRS			"\x1B[2J"
-#define ENDL			"\n"
-
-
-/// @brief: Prefix for CAN message ID's used for command line interface.
-/// The actual CAN ID consists of this and a CANopen node id
-#define UV_TERMINAL_CAN_ID			0x580
-#define UV_TERMINAL_CAN_RX_ID		0x600
-#define UV_TERMINAL_CAN_INDEX		0x5FFF
-#define UV_TERMINAL_CAN_SUBINDEX	0
 
 
 

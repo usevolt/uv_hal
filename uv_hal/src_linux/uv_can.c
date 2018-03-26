@@ -249,7 +249,10 @@ uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* me
 			ret = ERR_HARDWARE_NOT_SUPPORTED;
 		}
 		else {
-			printf("message sent 0x%x 0x%x 0x%x\n", message->id, message->data_8bit[0], message->data_8bit[1]);
+//			printf("message sent 0x%x 0x%x 0x%x 0%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
+//					message->id, message->data_8bit[0], message->data_8bit[1],
+//					message->data_8bit[2], message->data_8bit[3], message->data_8bit[4],
+//					message->data_8bit[5], message->data_8bit[6], message->data_8bit[7]);
 		}
 	}
 
@@ -274,51 +277,59 @@ uv_errors_e uv_can_reset(uv_can_channels_e channel) {
 /// @brief: Inner hal step function which is called in rtos hal task
 void _uv_can_hal_step(unsigned int step_ms) {
 	if (this->connection) {
-		struct can_frame frame_rd;
-		int recvbytes = 0;
+		bool go = true;
+		while (go) {
+			struct can_frame frame_rd;
+			int recvbytes = 0;
 
-		struct timeval timeout = {1, 0};
-		fd_set readSet;
-		FD_ZERO(&readSet);
-		FD_SET(this->soc, &readSet);
+			struct timeval timeout = {1, 0};
+			fd_set readSet;
+			FD_ZERO(&readSet);
+			FD_SET(this->soc, &readSet);
 
-		if (select((this->soc + 1), &readSet, NULL, NULL, &timeout) >= 0) {
-			if (FD_ISSET(this->soc, &readSet)) {
-				recvbytes = read(this->soc, &frame_rd, sizeof(struct can_frame));
+			go = false;
 
-				if(recvbytes > 0) {
-					uv_can_msg_st msg;
-					if (frame_rd.can_id & CAN_ERR_FLAG) {
-						// error frame
-						msg.id = frame_rd.can_id & CAN_ERR_MASK;
-						msg.type = CAN_ERR;
+			if (select((this->soc + 1), &readSet, NULL, NULL, &timeout) >= 0) {
+				if (FD_ISSET(this->soc, &readSet)) {
+					recvbytes = read(this->soc, &frame_rd, sizeof(struct can_frame));
+
+					if(recvbytes > 0) {
+						uv_can_msg_st msg;
+						if (frame_rd.can_id & CAN_ERR_FLAG) {
+							// error frame
+							msg.id = frame_rd.can_id & CAN_ERR_MASK;
+							msg.type = CAN_ERR;
+						}
+						else if (frame_rd.can_id & CAN_EFF_FLAG) {
+							// extended frame
+							msg.id = frame_rd.can_id & CAN_EFF_MASK;
+							msg.type = CAN_EXT;
+						}
+						else {
+							// standard frame
+							msg.id = frame_rd.can_id & CAN_SFF_MASK;
+							msg.type = CAN_STD;
+						}
+						msg.data_length = frame_rd.can_dlc;
+						memcpy(msg.data_8bit, frame_rd.data, msg.data_length);
+						if (uv_ring_buffer_push(&this->rx_buffer, &msg) != ERR_NONE) {
+							printf("** CAN RX buffer full**\n");
+						}
+
+						ioctl(this->soc, SIOCGSTAMP, &this->lastrxtime);
+						go = true;
 					}
-					else if (frame_rd.can_id & CAN_EFF_FLAG) {
-						// extended frame
-						msg.id = frame_rd.can_id & CAN_EFF_MASK;
-						msg.type = CAN_EXT;
-					}
-					else {
-						// standard frame
-						msg.id = frame_rd.can_id & CAN_SFF_MASK;
-						msg.type = CAN_STD;
-					}
-					msg.data_length = frame_rd.can_dlc;
-					memcpy(msg.data_8bit, frame_rd.data, msg.data_length);
-					uv_ring_buffer_push(&this->rx_buffer, &msg);
-
-					ioctl(this->soc, SIOCGSTAMP, &this->lastrxtime);
-				}
-				else if (recvbytes == -1) {
-					printf("*** CAN RX error: %u , %s***\n", errno, strerror(errno));
-					if (errno == ENETDOWN) {
-						printf("The network is down. Initialize the network with command:\n\n"
-								"sudo ip link set CHANNEL type can bitrate BAUDRATE\n\n"
-								"And open the network with command:\n\n"
-								"sudo ip link set dev CHANNEL up\n\n"
-								"After that you can communicate with the device.\n");
-						// exit the program to prevent further error messages
-						exit(0);
+					else if (recvbytes == -1) {
+						printf("*** CAN RX error: %u , %s***\n", errno, strerror(errno));
+						if (errno == ENETDOWN) {
+							printf("The network is down. Initialize the network with command:\n\n"
+									"sudo ip link set CHANNEL type can bitrate BAUDRATE\n\n"
+									"And open the network with command:\n\n"
+									"sudo ip link set dev CHANNEL up\n\n"
+									"After that you can communicate with the device.\n");
+							// exit the program to prevent further error messages
+							exit(0);
+						}
 					}
 				}
 			}
