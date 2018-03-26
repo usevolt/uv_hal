@@ -189,6 +189,11 @@ that the CANopen EMCY module is configured to receive. For each message, \
 CONFIG_CANOPEN_EMCY_MSG_ID_x symbol should define the message ID, starting from 1."
 #endif
 #endif
+#if CONFIG_CANOPEN_SDO_BLOCK_TRANSFER
+#if !CONFIG_CANOPEN_SDO_BLOCK_SIZE
+#error "CONFIG_CANOPEN_SDO_BLOCK_SIZE should define the size of SDO block transfers in bytes."
+#endif
+#endif
 
 
 
