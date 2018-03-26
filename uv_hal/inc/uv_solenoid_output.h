@@ -96,6 +96,17 @@ static inline void uv_solenoid_output_set_state(uv_solenoid_output_st *this,
 	uv_output_set_state((uv_output_st *) this, state);
 }
 
+/// @brief: Disables the output. Output can be enabled only by calling
+/// *uv_solenoid_output_enable*.
+static inline void uv_solenoid_output_disable(uv_solenoid_output_st *this) {
+	uv_output_disable((uv_output_st *) this);
+}
+
+/// @brief: Enabled the output once it's disabled with *uv_solenoid_output_disable*.
+static inline void uv_solenoid_output_enable(uv_solenoid_output_st *this) {
+	uv_output_enable((uv_output_st *) this);
+}
+
 /// @brief: returns the state of the output
 static inline uv_output_state_e uv_solenoid_output_get_state(
 		const uv_solenoid_output_st *this) {

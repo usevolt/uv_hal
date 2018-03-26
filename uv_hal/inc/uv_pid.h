@@ -48,6 +48,8 @@ typedef struct {
 	/// @brief: D factor
 	uint16_t d;
 	int16_t sum;
+	int16_t max_sum;
+	int16_t min_sum;
 	int16_t input;
 	int16_t target;
 	int16_t output;
@@ -94,6 +96,16 @@ static inline uint8_t uv_pid_get_p(uv_pid_st *this) {
 /// @brief: Sets the I factor. Valid range is from 0 to 65535.
 static inline void uv_pid_set_i(uv_pid_st *this, uint16_t i) {
 	this->i = i;
+}
+
+/// @brief: Sets the maximum sum value. Defaults to INT16_MAX.
+static inline void uv_pid_set_max_sum(uv_pid_st *this, int16_t value) {
+	this->max_sum = value;
+}
+
+/// @brief: Sets the minimum sum value. Defaults to INT16_MIN.
+static inline void uv_pid_set_min_sum(uv_pid_st *this, int16_t value) {
+	this->min_sum = value;
 }
 
 /// @brief: Return the I factor. Valid range is from 0 to 65535.

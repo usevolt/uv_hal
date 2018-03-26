@@ -33,6 +33,8 @@ void uv_pid_init(uv_pid_st *this, uint16_t p, uint16_t i, uint16_t d) {
 	this->input = 0;
 	this->output = 0;
 	this->sum = 0;
+	this->max_sum = INT16_MAX;
+	this->min_sum = INT16_MIN;
 	this->target = 0;
 	this->state = PID_STATE_ON;
 }
@@ -67,7 +69,15 @@ void uv_pid_step(uv_pid_st *this, uint16_t step_ms, int16_t input) {
 		// error value
 		int32_t err = (this->target - this->input);
 		// error sum
-		this->sum += err;
+		if ((int32_t) this->sum + err > this->max_sum) {
+			this->sum = this->max_sum;
+		}
+		else if ((int32_t) this->sum + err < this->min_sum) {
+			this->sum = this->min_sum;
+		}
+		else {
+			this->sum += err;
+		}
 
 		int32_t p = (int32_t) err * this->p / 0xFFFF;
 		int32_t i = (int32_t) this->sum * this->i / 0xFFFF;

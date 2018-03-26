@@ -23,6 +23,7 @@
 #if CONFIG_SOLENOID_OUTPUT
 
 
+static uv_delay_st d;
 
 
 void uv_solenoid_output_init(uv_solenoid_output_st *this, uv_pwm_channel_t pwm_chn,
@@ -31,6 +32,8 @@ void uv_solenoid_output_init(uv_solenoid_output_st *this, uv_pwm_channel_t pwm_c
 		uint32_t emcy_overload, uint32_t emcy_fault) {
 	uv_output_init(((uv_output_st*) this), adc_chn, 0, sense_ampl, max_current,
 			fault_current, 1, emcy_overload, emcy_fault);
+
+	uv_delay_init(&d, 200);
 
 	this->dither_ampl = dither_ampl;
 	if (dither_freq) {
@@ -51,9 +54,7 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 	uv_output_step((uv_output_st *)this, step_ms);
 
 	uv_output_state_e state = uv_solenoid_output_get_state(this);
-	if ((state == OUTPUT_STATE_OFF) ||
-			(state == OUTPUT_STATE_OVERLOAD) ||
-			(state == OUTPUT_STATE_FAULT)) {
+	if (state != OUTPUT_STATE_ON) {
 		// set target to zero
 		this->target = 0;
 		// make sure dither doesn't remain in the output
@@ -82,11 +83,18 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 	int16_t output = uv_pwm_get(this->pwm_chn) +
 			uv_pid_get_output(&this->ma_pid) +
 			this->dither_ampl / 2;
+
+	if (uv_delay(&d, step_ms)) {
+		uv_delay_init(&d, 200);
+	}
+
 	if (output < 0) {
 		output = 0;
 	}
 	// set the output value
 	uv_pwm_set(this->pwm_chn, output);
+
+
 }
 
 

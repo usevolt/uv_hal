@@ -39,10 +39,16 @@
 
 /// @brief: Defines the state of a single thruster power supply
 enum {
+	// output is kept at 0
 	OUTPUT_STATE_OFF = 0,
+	// output is on
 	OUTPUT_STATE_ON,
+	// overload detected in the current sense
 	OUTPUT_STATE_OVERLOAD,
-	OUTPUT_STATE_FAULT
+	// fault value detected in the current sense
+	OUTPUT_STATE_FAULT,
+	// output is disabled and can be set to ON only after enabling it
+	OUTPUT_STATE_DISABLED
 };
 typedef uint8_t uv_output_state_e;
 
@@ -114,6 +120,14 @@ static inline uint16_t uv_output_get_current(uv_output_st *this) {
 /// @brief: Sets the output state
 void uv_output_set_state(uv_output_st *this, const uv_output_state_e state);
 
+/// @brief: Enabled output. Needs to be called only after calling *uv_output_disable* in order
+/// to enable it once again. Once enabled, output will be in state OFF.
+void uv_output_enable(uv_output_st *this);
+
+/// @brief: Disables the output. Output can be enabled only by calling *uv_output_enable*
+static inline void uv_output_disable(uv_output_st *this) {
+	this->state = OUTPUT_STATE_DISABLED;
+}
 
 /// @brief: Step function should be called every step cycle.
 void uv_output_step(uv_output_st *this, uint16_t step_ms);

@@ -56,28 +56,38 @@ void uv_output_init(uv_output_st *this,  uv_adc_channels_e adc_chn, uv_gpios_e g
 
 /// @brief: Sets the output state
 void uv_output_set_state(uv_output_st *this, const uv_output_state_e state) {
-	if ((this->state != OUTPUT_STATE_FAULT) &&
-			(this->state != OUTPUT_STATE_OVERLOAD)) {
+	// stat can be changed only if output is not disabled
+	if (this->state != OUTPUT_STATE_DISABLED) {
+		if ((this->state != OUTPUT_STATE_FAULT) &&
+				(this->state != OUTPUT_STATE_OVERLOAD)) {
 #if CONFIG_CANOPEN
-		if ((state == OUTPUT_STATE_FAULT) &&
-				(this->emcy_fault)) {
-			uv_canopen_emcy_send(CANOPEN_EMCY_DEVICE_SPECIFIC, this->emcy_fault);
+			if ((state == OUTPUT_STATE_FAULT) &&
+					(this->emcy_fault)) {
+				uv_canopen_emcy_send(CANOPEN_EMCY_DEVICE_SPECIFIC, this->emcy_fault);
+			}
+			else if ((state == OUTPUT_STATE_OVERLOAD) &&
+					(this->emcy_overload)) {
+				uv_canopen_emcy_send(CANOPEN_EMCY_DEVICE_SPECIFIC, this->emcy_overload);
+			}
+			else {
+
+			}
+#endif
+			this->state = state;
 		}
-		else if ((state == OUTPUT_STATE_OVERLOAD) &&
-				(this->emcy_overload)) {
-			uv_canopen_emcy_send(CANOPEN_EMCY_DEVICE_SPECIFIC, this->emcy_overload);
+		else if (state == OUTPUT_STATE_OFF) {
+			this->state = state;
 		}
 		else {
 
 		}
-#endif
-		this->state = state;
 	}
-	else if (state == OUTPUT_STATE_OFF) {
-		this->state = state;
-	}
-	else {
+}
 
+
+void uv_output_enable(uv_output_st *this) {
+	if (this->state == OUTPUT_STATE_DISABLED) {
+		this->state = OUTPUT_STATE_OFF;
 	}
 }
 
@@ -107,12 +117,6 @@ void uv_output_step(uv_output_st *this, uint16_t step_ms) {
 		else {
 			set_out(this, true);
 		}
-	}
-	else if (this->state == OUTPUT_STATE_OVERLOAD) {
-		set_out(this, false);
-	}
-	else if (this->state == OUTPUT_STATE_FAULT) {
-		set_out(this, false);
 	}
 	else {
 		set_out(this, false);
