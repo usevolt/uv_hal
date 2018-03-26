@@ -134,7 +134,7 @@ uv_errors_e uv_eeprom_write(const void *data, uint16_t len, uint16_t eeprom_addr
 }
 
 
-uv_errors_e uv_eeprom_read(unsigned char *dest, uint16_t len, uint16_t eeprom_addr) {
+uv_errors_e uv_eeprom_read(void *dest, uint16_t len, uint16_t eeprom_addr) {
 	uv_errors_e ret = ERR_NONE;
 #if CONFIG_TARGET_LPC1549
 	// top 64 bytes are reserved

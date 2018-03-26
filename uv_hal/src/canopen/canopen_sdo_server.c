@@ -32,6 +32,11 @@
 										(CONFIG_CANOPEN_SDO_BLOCK_SIZE / 7))
 
 
+
+void _uv_canopen_sdo_server_add_callb(void (*callb)(uint16_t mindex, uint8_t sindex)) {
+	this->callb = callb;
+}
+
 /// @brief: Send a SDO Server abort response message
 static void sdo_server_abort(uint16_t main_index,
 				uint8_t sub_index, uv_sdo_error_codes_e err_code) {
@@ -43,6 +48,7 @@ static void sdo_server_abort(uint16_t main_index,
 
 void _uv_canopen_sdo_server_init(void) {
 	this->state = CANOPEN_SDO_STATE_READY;
+	this->callb = NULL;
 }
 
 void _uv_canopen_sdo_server_reset(void) {
@@ -116,6 +122,9 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 						if (_canopen_write_data(obj, msg, GET_SINDEX(msg))) {
 							memcpy(&reply_msg.data_32bit[1], &msg->data_32bit[1], 4);
 							uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+							if (this->callb) {
+								this->callb(this->mindex, this->sindex);
+							}
 						}
 						else {
 							// tried to write to array index 0, abort transfer
@@ -255,6 +264,9 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 			// last segment
 			if (GET_CMD_BYTE(msg) & (1 << 0)) {
 				this->state = CANOPEN_SDO_STATE_READY;
+				if (this->callb) {
+					this->callb(this->mindex, this->sindex);
+				}
 			}
 			uint8_t data_count = 7 - ((GET_CMD_BYTE(msg) & 0b1110) >> 1);
 			if ((this->data_index + data_count) <= this->obj->string_len) {
@@ -311,6 +323,9 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 					SET_CMD_BYTE(&reply_msg, END_BLOCK_DOWNLOAD_REPLY);
 					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 					this->state = CANOPEN_SDO_STATE_READY;
+					if (this->callb) {
+						this->callb(this->mindex, this->sindex);
+					}
 				}
 			}
 		}
