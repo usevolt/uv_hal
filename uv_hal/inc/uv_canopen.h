@@ -189,6 +189,11 @@ that the CANopen EMCY module is configured to receive. For each message, \
 CONFIG_CANOPEN_EMCY_MSG_ID_x symbol should define the message ID, starting from 1."
 #endif
 #endif
+#if CONFIG_CANOPEN_SDO_BLOCK_TRANSFER
+#if !CONFIG_CANOPEN_SDO_BLOCK_SIZE
+#error "CONFIG_CANOPEN_SDO_BLOCK_SIZE should define the size of SDO block transfers in bytes."
+#endif
+#endif
 
 
 
@@ -249,6 +254,8 @@ typedef struct {
 			uint8_t server_node_id;
 			uint8_t sindex;
 			uint16_t mindex;
+			void *data_ptr;
+			uv_delay_st delay;
 #if (CONFIG_CANOPEN_SDO_SEGMENTED || CONFIG_CANOPEN_SDO_BLOCK_TRANSFER)
 			uint16_t data_index;
 			uint16_t data_count;
@@ -258,8 +265,6 @@ typedef struct {
 				/// Starts from -1.
 				int8_t seq;
 			};
-			void *data_ptr;
-			uv_delay_st delay;
 #if CONFIG_CANOPEN_SDO_BLOCK_TRANSFER
 			uint8_t data_buffer[7];
 			bool new_data;

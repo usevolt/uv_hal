@@ -500,8 +500,7 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 			// segmented read
 			this->state = CANOPEN_SDO_STATE_SEGMENTED_UPLOAD;
 			this->data_index = 0;
-			this->data_count = (data_len < CONFIG_CANOPEN_SDO_BLOCK_SIZE) ?
-					data_len : CONFIG_CANOPEN_SDO_BLOCK_SIZE;
+			this->data_count = data_len;
 			this->toggle = 0;
 			SET_CMD_BYTE(&msg, INITIATE_DOMAIN_UPLOAD);
 			uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);

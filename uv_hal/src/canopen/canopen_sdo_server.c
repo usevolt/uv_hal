@@ -56,6 +56,7 @@ void _uv_canopen_sdo_server_reset(void) {
 }
 
 void _uv_canopen_sdo_server_step(uint16_t step_ms) {
+#if (CONFIG_CANOPEN_SDO_SEGMENTED || CONFIG_CANOPEN_SDO_BLOCK_TRANSFER)
 	if (this->state >= CANOPEN_SDO_STATE_SEGMENTED_UPLOAD) {
 		if (uv_delay(&this->delay, step_ms)) {
 			sdo_server_abort(this->mindex, this->sindex,
@@ -63,6 +64,7 @@ void _uv_canopen_sdo_server_step(uint16_t step_ms) {
 			this->state = CANOPEN_SDO_STATE_READY;
 		}
 	}
+#endif
 }
 
 void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e sdo_type) {
