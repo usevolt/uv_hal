@@ -237,7 +237,7 @@ uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* me
 					message->id, errno, strerror(errno));
 			if (errno == ENETDOWN) {
 				printf("The network is down. Initialize the network with command:\n\n"
-						"sudo ip link set CHANNEL type can bitrate BAUDRATE\n\n"
+						"sudo ip link set CHANNEL type can bitrate BAUDRATE txqueuelen 1000\n\n"
 						"And open the network with command:\n\n"
 						"sudo ip link set dev CHANNEL up\n\n"
 						"After that you can communicate with the device.\n");
