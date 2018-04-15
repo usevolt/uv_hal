@@ -338,6 +338,10 @@ void _uv_can_hal_step(unsigned int step_ms) {
 }
 
 
+void uv_can_clear_rx_buffer(uv_can_channels_e channel) {
+	uv_ring_buffer_clear(&this->rx_buffer);
+}
+
 
 
 #endif

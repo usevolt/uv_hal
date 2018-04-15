@@ -297,6 +297,9 @@ uv_errors_e uv_can_add_rx_callback(uv_can_channels_e channel,
 
 uv_errors_e uv_can_reset(uv_can_channels_e channel);
 
+/// @brief: Clears the rx buffer
+void uv_can_clear_rx_buffer(uv_can_channels_e channel);
+
 #if CONFIG_TARGET_LINUX
 /// @brief: Baudrate setting only possible on Linux systems. Otherwise baudrate is
 /// specified via CONFIG_CAN_BAUDRATE symbol.
