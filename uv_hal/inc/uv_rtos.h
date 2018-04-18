@@ -181,6 +181,15 @@ static inline void uv_rtos_task_yield(void) {
 #endif
 
 
+/// @brief: Returns the current tick timer count. Multiplying this value
+/// with tick delay gives real world time.
+static inline uint32_t uv_rtos_get_tick_count(void) {
+	return xTaskGetTickCount();
+}
+
+static inline uint32_t uv_rtos_get_tick_rate_hz(void) {
+	return configTICK_RATE_HZ;
+}
 
 
 

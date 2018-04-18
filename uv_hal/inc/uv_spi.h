@@ -136,6 +136,13 @@ typedef enum {
 #error "CONFIG_SPI0_TRANSFERDELAY should define the minimum amount of time that SSEL's are\
  deasserted between frames."
 #endif
+#if !defined(CONFIG_SPI0_CLOCK_POL)
+#error "CONFIG_SPI0_CLOCK_POL should define the clock rest state"
+#endif
+#if !defined(CONFIG_SPI0_CLOCK_PHASE)
+#error "CONFIG_SPI0_CLOCK_PHASE should be defined as 0 if SPI captures data on first clock transition, or\
+ as 1 if SPI should change the serial data on first clock transition."
+#endif
 
 /// @brief: SPI modules
 #define SPI0	LPC_SPI0

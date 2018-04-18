@@ -190,6 +190,20 @@ void uv_l6470_set_pwm(uv_l6470_st *this, uint8_t acc_duty_cycle, uint8_t dec_dut
 }
 
 
+void uv_l6470_set_overcurrent(uv_l6470_st *this, uint16_t value_ma) {
+	uv_l6470_wait(this);
+	uint8_t write[REG_OCD_TH_LEN + 1];
+	uint8_t value = (value_ma / 375);
+	if (value > 0) {
+		value--;
+	}
+	write[0] = CMD_SETPARAM | REG_OCD_TH;
+	write[1] = value;
+	readwrite(this, write, NULL, sizeof(write));
+}
+
+
+
 void uv_l6470_find_home(uv_l6470_st *this) {
 	uv_l6470_wait(this);
 	uint8_t write = CMD_RELEASESWREVERSE;
@@ -215,8 +229,10 @@ int32_t uv_l6470_get_pos(uv_l6470_st *this) {
 	write[0] = CMD_GETPARAM | REG_ABS_POS;
 	readwrite(this, write, read, sizeof(write));
 	int32_t result = (read[1] << 16) | (read[2] << 8) | read[3];
+	printf("result: 0x%x 0x%x 0x%x 0x%x\n", read[0], read[1], read[2], read[3]);
 	// apply 2's complement sign
-	result = (int32_t) (result << (32 - 22)) / (1 << (32 - 22));
+	result = (int32_t) (result << (32 - 22));
+	result /= (1 << (32 - 22));
 	this->current_pos = result;
 	return result;
 }
@@ -235,13 +251,17 @@ void uv_l6470_goto(uv_l6470_st *this, int32_t pos) {
 	write[1] = (value >> 16) & 0xFF;
 	write[2] = (value >> 8) & 0xFF;
 	write[3] = value & 0xFF;
+	printf("going to 0x%x\n", value);
 	readwrite(this, write, NULL, sizeof(write));
 	this->current_pos = pos;
+	// small delay so that L6470 has enough time to process the command
+	uv_rtos_task_delay(1);
 }
 
 
 
 void uv_l6470_stop(uv_l6470_st *this) {
+	printf("stop\n");
 	uint8_t write = CMD_SOFTSTOP;
 	readwrite(this, &write, NULL, sizeof(write));
 	uv_rtos_task_delay(1);
@@ -277,6 +297,7 @@ void readwrite(uv_l6470_st *this, uint8_t *write_ptr, uint8_t *read_ptr, uint8_t
 		if (read_ptr) {
 			read_ptr[i] = (uint8_t) r;
 		}
+		uv_rtos_task_delay(1);
 	}
 }
 

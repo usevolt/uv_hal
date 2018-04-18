@@ -49,7 +49,7 @@ void _uv_spi_init(void) {
 
 	cfg.ClkDiv = Chip_SPI_CalClkRateDivider(LPC_SPI0, CONFIG_SPI0_BAUDRATE);
 	cfg.Mode = SPI_MODE_MASTER;
-	cfg.ClockMode = SPI_CLOCK_MODE0;
+	cfg.ClockMode = (CONFIG_SPI0_CLOCK_PHASE << 4) | (CONFIG_SPI0_CLOCK_POL << 5);
 	// MSB or LSB first
 	cfg.DataOrder = CONFIG_SPI0_MSB_FIRST ?
 			SPI_DATA_MSB_FIRST : SPI_DATA_LSB_FIRST;
