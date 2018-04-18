@@ -266,9 +266,6 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 			// last segment
 			if (GET_CMD_BYTE(msg) & (1 << 0)) {
 				this->state = CANOPEN_SDO_STATE_READY;
-				if (this->callb) {
-					this->callb(this->mindex, this->sindex);
-				}
 			}
 			uint8_t data_count = 7 - ((GET_CMD_BYTE(msg) & 0b1110) >> 1);
 			if ((this->data_index + data_count) <= this->obj->string_len) {
@@ -286,6 +283,9 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 			else {
 				sdo_server_abort(this->mindex, this->sindex,
 						CANOPEN_SDO_ERROR_OUT_OF_MEMORY);
+			}
+			if ((this->state == CANOPEN_SDO_STATE_READY) && this->callb) {
+				this->callb(this->mindex, this->sindex);
 			}
 		}
 		else {
