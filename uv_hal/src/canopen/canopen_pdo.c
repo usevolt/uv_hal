@@ -378,6 +378,7 @@ void _uv_canopen_pdo_rx(const uv_can_message_st *msg) {
 				}
 
 				if (valid) {
+
 					// cannot write to an object which is not writable
 					if (!(obj->permissions | CANOPEN_WO)) {
 						_uv_canopen_sdo_abort(CANOPEN_SDO_REQUEST_ID, mapping->main_index,

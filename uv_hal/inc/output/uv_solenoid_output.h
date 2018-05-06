@@ -46,8 +46,17 @@
 #endif
 
 
+typedef enum {
+	/// @brief: Output is current controlled with a current sensing feedback
+	SOLENOID_OUTPUT_MODE_CURRENT,
+	/// @brief: Output is raw PWM output, controlled with duty cycle
+	SOLENOID_OUTPUT_MODE_PWM
+} uv_solenoid_output_mode_st;
+
 typedef struct {
 	EXTENDS(uv_output_st);
+
+	uv_solenoid_output_mode_st mode;
 
 	/// @brief: Dither time cycle (1 / frequency)
 	uint16_t dither_ms;
@@ -83,12 +92,25 @@ void uv_solenoid_output_init(uv_solenoid_output_st *this, uv_pwm_channel_t pwm_c
 		uint16_t sense_ampl, uint16_t max_current, uint16_t fault_current,
 		uint32_t emcy_overload, uint32_t emcy_fault);
 
+
+/// @brief: Sets the output mode. Defaults to current controlled.
+static inline void uv_solenoid_output_set_mode(uv_solenoid_output_st *this,
+		uv_solenoid_output_mode_st mode) {
+	this->mode = mode;
+}
+
+/// @brief: Returns the solenoid output mode
+static inline uv_solenoid_output_mode_st uv_solenoid_output_get_mode(uv_solenoid_output_st *this) {
+	return this->mode;
+}
+
 /// @brief: Step funtion
 void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms);
 
 
-/// @brief: Sets the solenoid output target current in mA
-void uv_solenoid_output_set(uv_solenoid_output_st *this, uint16_t value_ma);
+/// @brief: Sets the solenoid output target value. In current mode this is milliamps,
+/// in PWM mode the duty cycle, maximum value being PWM_MAX_VALUE
+void uv_solenoid_output_set(uv_solenoid_output_st *this, uint16_t value);
 
 /// @brief: Sets the output state
 static inline void uv_solenoid_output_set_state(uv_solenoid_output_st *this,

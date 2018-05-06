@@ -23,17 +23,16 @@
 #if CONFIG_SOLENOID_OUTPUT
 
 
-static uv_delay_st d;
-
 
 void uv_solenoid_output_init(uv_solenoid_output_st *this, uv_pwm_channel_t pwm_chn,
 		uint16_t dither_freq, int16_t dither_ampl, uv_adc_channels_e adc_chn,
 		uint16_t sense_ampl, uint16_t max_current, uint16_t fault_current,
 		uint32_t emcy_overload, uint32_t emcy_fault) {
+
 	uv_output_init(((uv_output_st*) this), adc_chn, 0, sense_ampl, max_current,
 			fault_current, 1, emcy_overload, emcy_fault);
 
-	uv_delay_init(&d, 200);
+	this->mode = SOLENOID_OUTPUT_MODE_CURRENT;
 
 	this->dither_ampl = dither_ampl;
 	if (dither_freq) {
@@ -73,19 +72,24 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 		}
 	}
 
-	// set the target value for the pid
-	uv_pid_set_target(&this->ma_pid, this->target);
+	int16_t output = 0;
 
-	// milliamp PID controller
-	uv_pid_step(&this->ma_pid, step_ms,
-			uv_solenoid_output_get_current(this));
+	// solenoid is current driven
+	if (this->mode == SOLENOID_OUTPUT_MODE_CURRENT) {
+		// set the target value for the pid
+		uv_pid_set_target(&this->ma_pid, this->target);
 
-	int16_t output = uv_pwm_get(this->pwm_chn) +
+		// milliamp PID controller
+		uv_pid_step(&this->ma_pid, step_ms,
+				uv_solenoid_output_get_current(this));
+
+		output = uv_pwm_get(this->pwm_chn) +
 			uv_pid_get_output(&this->ma_pid) +
 			this->dither_ampl / 2;
-
-	if (uv_delay(&d, step_ms)) {
-		uv_delay_init(&d, 200);
+	}
+	// solenoid is PWM driven
+	else {
+		output = this->target + this->dither_ampl / 2;
 	}
 
 	if (output < 0) {
@@ -99,10 +103,10 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 
 
 
-void uv_solenoid_output_set(uv_solenoid_output_st *this, uint16_t value_ma) {
-	this->target = value_ma;
+void uv_solenoid_output_set(uv_solenoid_output_st *this, uint16_t value) {
+	this->target = value;
 	uv_solenoid_output_set_state(this,
-			value_ma ? OUTPUT_STATE_ON : OUTPUT_STATE_OFF);
+			value ? OUTPUT_STATE_ON : OUTPUT_STATE_OFF);
 }
 
 
