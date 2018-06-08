@@ -66,8 +66,13 @@ static inline void draw_char(int16_t x, int16_t y,
 
 
 
+#if CONFIG_LCD
 void uv_uilabel_init(void *me, const uv_font_st *font,
 		alignment_e alignment, color_t color, color_t bgcolor, char *str) {
+#elif CONFIG_FT81X
+	void uv_uilabel_init(void *me, const uv_font_st *font,
+			alignment_e alignment, color_t color, char *str) {
+#endif
 	uv_uiobject_init(this);
 	this->font = font;
 	this->str = str;
@@ -116,7 +121,7 @@ void draw_line(int16_t x, int16_t y, const uv_font_st *font,
 #endif
 
 
-uv_uiobject_ret_e uv_uilabel_step(void *me, uv_touch_st *touch, uint16_t step_ms, const uv_bounding_box_st *pbb) {
+uv_uiobject_ret_e uv_uilabel_step(void *me, uint16_t step_ms, const uv_bounding_box_st *pbb) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 	// do nothing if refresh is not called
 	// (label is a static object, it doesn't have any animations, etc.
@@ -199,7 +204,7 @@ void uv_uilabel_set_bg_color(void *me, color_t c) {
 
 
 void uv_uilabel_set_text(void *me, char *str) {
-	if (strcmp(str, this->str) != 0) {
+	if (strcmp(this->str, str) != 0) {
 		this->str = str;
 		uv_ui_refresh(me);
 	}
@@ -296,9 +301,15 @@ int16_t uv_ui_text_height_px(char *str, const uv_font_st *font, float scale) {
 
 
 /// @brief: Initializes the digit label.
+#if CONFIG_LCD
 void uv_uidigit_init(void *me, const uv_font_st *font,
 		alignment_e alignment, color_t color, color_t bgcolor, char *format, int value) {
 	uv_uilabel_init(me, font, alignment, color, bgcolor, "");
+#elif CONFIG_FT81X
+	void uv_uidigit_init(void *me, const uv_font_st *font,
+			alignment_e alignment, color_t color, char *format, int value) {
+		uv_uilabel_init(me, font, alignment, color, "");
+#endif
 	this->divider = 1;
 	strcpy(this->format, format);
 	// force redraw
@@ -312,8 +323,8 @@ void uv_uidigit_set_value(void *me, int value) {
 	if (this->value != value) {
 		uv_uilabel_set_text(me, "");
 		this->value = value;
-		int32_t val = value / ((int32_t) this->divider);
-		uint32_t cval = abs(value) % (this->divider);
+		int val = value / (this->divider);
+		unsigned int cval = abs(value) % (this->divider);
 
 		if (this->divider != 1) {
 			sprintf(this->str, this->format, val, cval);
@@ -327,6 +338,10 @@ void uv_uidigit_set_value(void *me, int value) {
 }
 
 
+void uv_uidigit_set_text(void *me, char *str) {
+	strcpy(this->str, str);
+	uv_uilabel_set_text(this, str);
+}
 
 
 
