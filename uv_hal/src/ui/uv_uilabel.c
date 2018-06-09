@@ -82,7 +82,8 @@ void uv_uilabel_init(void *me, const uv_font_st *font,
 	this->bg_color = bgcolor;
 	this->scale = 1.0f;
 #endif
-	((uv_uiobject_st*) this)->step_callb = &uv_uilabel_step;
+	uv_uiobject_set_draw_callb(this, &_uv_uilabel_draw);
+	uv_uiobject_set_step_callb(this, &uv_uilabel_step);
 }
 
 
@@ -121,86 +122,37 @@ void draw_line(int16_t x, int16_t y, const uv_font_st *font,
 #endif
 
 
+void _uv_uilabel_draw(void *me, const uv_bounding_box_st *pbb) {
+	uint16_t x = uv_ui_get_xglobal(this),
+			y = uv_ui_get_yglobal(this);
+
+	if ((this->align == ALIGN_CENTER) ||
+			(this->align == ALIGN_TOP_CENTER)) {
+		x += uv_uibb(this)->width / 2;
+	}
+	else if ((this->align == ALIGN_CENTER_RIGHT) ||
+			(this->align == ALIGN_TOP_RIGHT)) {
+		x += uv_uibb(this)->width;
+	}
+	if ((this->align == ALIGN_CENTER) ||
+			(this->align == ALIGN_CENTER_LEFT) ||
+			(this->align == ALIGN_CENTER_RIGHT)) {
+		y += uv_uibb(this)->height / 2;
+	}
+	uv_ft81x_draw_string(this->str, this->font->index, x, y, this->align, this->color);
+
+}
+
 uv_uiobject_ret_e uv_uilabel_step(void *me, uint16_t step_ms, const uv_bounding_box_st *pbb) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
-	// do nothing if refresh is not called
-	// (label is a static object, it doesn't have any animations, etc.
-	if (this->super.refresh && this->super.visible && this->super.enabled) {
 
-#if CONFIG_LCD
-		uint16_t x = uv_ui_get_xglobal(this),
-				y = uv_ui_get_yglobal(this);
-
-		if (!(this->bg_color & 0xFF000000)) {
-			uv_lcd_draw_mrect(x, y, uv_uibb(this)->width, uv_uibb(this)->height, this->bg_color, pbb);
-		}
-
-		if (this->align & ALIGN_H_CENTER) {
-			x += uv_ui_get_bb(this)->width / 2;
-		}
-		else if (this->align & ALIGN_H_RIGHT) {
-			x += uv_ui_get_bb(this)->width;
-		}
-		if (this->align & ALIGN_V_CENTER) {
-			y += uv_ui_get_bb(this)->height / 2;
-		}
-		else if (this->align & ALIGN_V_BOTTOM) {
-			y += uv_ui_get_bb(this)->height;
-		}
-		else {
-
-		}
-		_uv_ui_draw_mtext(x, y, this->font, this->align, this->color,
-				this->bg_color, this->str, this->scale, pbb);
-#elif CONFIG_FT81X
-		uint16_t x = uv_ui_get_xglobal(this),
-				y = uv_ui_get_yglobal(this);
-
-		if ((this->align == ALIGN_CENTER) ||
-				(this->align == ALIGN_TOP_CENTER)) {
-			x += uv_uibb(this)->width / 2;
-		}
-		else if ((this->align == ALIGN_CENTER_RIGHT) ||
-				(this->align == ALIGN_TOP_RIGHT)) {
-			x += uv_uibb(this)->width;
-		}
-		if ((this->align == ALIGN_CENTER) ||
-				(this->align == ALIGN_CENTER_LEFT) ||
-				(this->align == ALIGN_CENTER_RIGHT)) {
-			y += uv_uibb(this)->height / 2;
-		}
-		uv_ft81x_draw_string(this->str, this->font->index, x, y, this->align, this->color);
-
-#endif
-
-		this->super.refresh = false;
-		ret = UIOBJECT_RETURN_REFRESH;
-
+	if (((uv_uiobject_st*) this)->refresh) {
+		_uv_uiobject_draw(this, pbb);
 	}
+
 	return ret;
 }
 
-
-#if CONFIG_LCD
-
-void uv_uilabel_set_scale(void *me, float scale) {
-	if (!scale) {
-		scale = 1.0f;
-	}
-	this->scale = scale;
-	uv_ui_refresh(this);
-}
-
-/// @brief: Sets the background color
-void uv_uilabel_set_bg_color(void *me, color_t c) {
-	if (this->bg_color == c) {
-		return;
-	}
-	uv_ui_refresh(me);
-	this->bg_color = c;
-}
-
-#endif
 
 
 void uv_uilabel_set_text(void *me, char *str) {
@@ -219,62 +171,6 @@ void uv_uilabel_set_color(void *me, color_t c) {
 	}
 }
 
-#if CONFIG_LCD
-void _uv_ui_draw_mtext(int16_t x, int16_t y, const uv_font_st *font,
-		const alignment_e align, const color_t color, const color_t bgcolor,
-		const char *str, const float scale, const uv_bounding_box_st *maskbb) {
-	if (str) {
-		uint16_t len = strlen(str);
-		uint16_t line_count = 1;
-		uint16_t i;
-		int16_t yy = 0;
-		// calculate line count
-		for (i = 0; i < len; i++) {
-			if (str[i] == '\n') {
-				line_count++;
-			}
-		}
-
-		if (align & ALIGN_V_CENTER) {
-			yy = -line_count * font->char_height * scale / 2;
-		}
-		else if (align & ALIGN_V_BOTTOM) {
-			yy = -line_count * font->char_height * scale;
-		}
-
-		i = 0;
-		while(str[i] != '\0') {
-			while(str[i] == '\n' || str[i] == '\r') {
-				i++;
-			}
-			draw_line(x, y + yy, font, &str[i], color, bgcolor, align, scale, maskbb);
-			yy += font->char_height * scale;
-			while(str[i] != '\n' && str[i] != '\r' && str[i] != '\0') {
-				i++;
-			}
-		}
-	}
-}
-
-
-int16_t uv_ui_text_width_px(char *str, const uv_font_st *font, float scale) {
-	int16_t len = 0;
-	int16_t cur_len = 0;
-	char *c = str;
-	while (*c != '\0') {
-		cur_len++;
-		if (len < cur_len) {
-			len = cur_len;
-		}
-		if (*c == '\n' || *c == '\r') {
-			cur_len = 0;
-		}
-		c++;
-	}
-	return len * font->char_width * scale;
-}
-
-#endif
 
 
 
@@ -301,15 +197,9 @@ int16_t uv_ui_text_height_px(char *str, const uv_font_st *font, float scale) {
 
 
 /// @brief: Initializes the digit label.
-#if CONFIG_LCD
-void uv_uidigit_init(void *me, const uv_font_st *font,
-		alignment_e alignment, color_t color, color_t bgcolor, char *format, int value) {
-	uv_uilabel_init(me, font, alignment, color, bgcolor, "");
-#elif CONFIG_FT81X
 	void uv_uidigit_init(void *me, const uv_font_st *font,
 			alignment_e alignment, color_t color, char *format, int value) {
 		uv_uilabel_init(me, font, alignment, color, "");
-#endif
 	this->divider = 1;
 	strcpy(this->format, format);
 	// force redraw

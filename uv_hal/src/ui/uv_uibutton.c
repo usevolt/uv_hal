@@ -110,4 +110,12 @@ static void touch(void *me, uv_touch_st *touch) {
 }
 
 
+void uv_uibutton_set_text(void *me, char *text) {
+	if (strcmp(this->text, text) != 0) {
+		uv_ui_refresh(this);
+	}
+	this->text = text;
+}
+
+
 #endif

@@ -247,65 +247,67 @@ uv_uiobject_ret_e uv_uiwindow_step(void *me, uint16_t step_ms,
 		const uv_bounding_box_st *pbb) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
-	if (((uv_uiobject_st*)this)->refresh) {
-		// first redraw this window
-		((uv_uiobject_st*) this)->vrtl_draw(this, pbb);
-		ret = UIOBJECT_RETURN_REFRESH;
-		// then request redraw all children objects
-		uint16_t i;
-		for (i = 0; i < this->objects_count; i++) {
-			((uv_uiobject_st*) this->objects[i])->refresh = true;
-		}
-		((uv_uiobject_st*) this)->refresh = false;
+	// call application step callback if one is assigned
+	if ((this->app_step_callb != NULL) &&
+			(((uv_uiobject_st*) this)->enabled)) {
+		ret |= this->app_step_callb(step_ms);
 	}
-	// call step functions for all children which are visible
-	if (((uv_uiobject_st*) this)->enabled) {
-		int16_t i;
-		uv_bounding_box_st bb = *uv_uibb(this);
-		int16_t globx = uv_ui_get_xglobal(this);
-		int16_t globy = uv_ui_get_yglobal(this);
-		bb.x = globx;
-		bb.y = globy;
-		if (bb.x < pbb->x) {
-			bb.x = pbb->x;
-		}
-		if (bb.y < pbb->y) {
-			bb.y = pbb->y;
-		}
-		if ((bb.x + bb.width) > (pbb->x + pbb->width)) {
-			bb.width -= (bb.x + bb.width) - (pbb->x + pbb->width);
-		}
-		if ((bb.y + bb.height) > (pbb->y + pbb->height)) {
-			bb.height -= (bb.y + bb.height) - (pbb->y + pbb->height);
+
+	if (!(ret & UIOBJECT_RETURN_KILLED)) {
+		if (((uv_uiobject_st*)this)->refresh) {
+			// first redraw this window
+			((uv_uiobject_st*) this)->vrtl_draw(this, pbb);
+			ret = UIOBJECT_RETURN_REFRESH;
+			// then request redraw all children objects
+			uint16_t i;
+			for (i = 0; i < this->objects_count; i++) {
+				((uv_uiobject_st*) this->objects[i])->refresh = true;
+			}
+			((uv_uiobject_st*) this)->refresh = false;
 		}
 
-		for (i = 0; i < this->objects_count; i++) {
-			if (this->objects[i]->visible) {
+		// call step functions for all children which are visible
+		if (((uv_uiobject_st*) this)->enabled) {
+			int16_t i;
+			uv_bounding_box_st bb = *uv_uibb(this);
+			int16_t globx = uv_ui_get_xglobal(this);
+			int16_t globy = uv_ui_get_yglobal(this);
+			bb.x = globx;
+			bb.y = globy;
+			if (bb.x < pbb->x) {
+				bb.x = pbb->x;
+			}
+			if (bb.y < pbb->y) {
+				bb.y = pbb->y;
+			}
+			if ((bb.x + bb.width) > (pbb->x + pbb->width)) {
+				bb.width -= (bb.x + bb.width) - (pbb->x + pbb->width);
+			}
+			if ((bb.y + bb.height) > (pbb->y + pbb->height)) {
+				bb.height -= (bb.y + bb.height) - (pbb->y + pbb->height);
+			}
 
-				// call child object's step function
-				if (this->objects[i]->step_callb) {
-					ret |= uv_uiobject_step(this->objects[i], step_ms, &bb);
-				}
+			for (i = 0; i < this->objects_count; i++) {
+				if (this->objects[i]->visible) {
+
+					// call child object's step function
+					if (this->objects[i]->step_callb) {
+						ret |= uv_uiobject_step(this->objects[i], step_ms, &bb);
+					}
 #if CONFIG_FT81X
-				// ensure that scissors mask is not changed by child object
-				if (ret & UIOBJECT_RETURN_REFRESH) {
-					uv_ft81x_set_mask(globx, globy,
-							uv_uibb(this)->width, uv_uibb(this)->height);
-				}
+					// ensure that scissors mask is not changed by child object
+					if (ret & UIOBJECT_RETURN_REFRESH) {
+						uv_ft81x_set_mask(globx, globy,
+								uv_uibb(this)->width, uv_uibb(this)->height);
+					}
 #endif
-				if (ret & UIOBJECT_RETURN_KILLED) {
-					break;
+					if (ret & UIOBJECT_RETURN_KILLED) {
+						break;
+					}
+
 				}
-
 			}
-		}
 
-		if (!(ret & UIOBJECT_RETURN_KILLED)) {
-			// lastly call application step callback if one is assigned
-			if ((this->app_step_callb != NULL) &&
-					(((uv_uiobject_st*) this)->enabled)) {
-				ret |= this->app_step_callb(step_ms);
-			}
 		}
 	}
 	return ret;
@@ -367,7 +369,7 @@ void uv_uiwindow_touch_callb(void *me, uv_touch_st *touch) {
 		}
 	}
 	// if window is not transparent, touches are always catched
-	if (!this->transparent) {
+	if (!this->transparent && (touch->action != TOUCH_DRAG)) {
 		touch->action = TOUCH_NONE;
 	}
 }

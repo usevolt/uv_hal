@@ -36,5 +36,6 @@
 #include "ui/uv_uitransition.h"
 #include "ui/uv_uidialog.h"
 #include "ui/uv_uinumpad.h"
+#include "ui/uv_uidigitedit.h"
 
 #endif /* UW_UI_H_ */

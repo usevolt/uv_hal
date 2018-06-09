@@ -867,11 +867,14 @@ void uv_ft81x_set_backlight(uint8_t percent) {
 	if (percent > 100) {
 		percent = 100;
 	}
+	else if (percent < 4) {
+		percent = 4;
+	}
 	write8(REG_PWM_DUTY,
 #if CONFIG_FT81X_BACKLIGHT_INVERT
 			128 - (uint32_t) percent * 128 / 100);
 #else
-			(uint32_t) percent * 128 / 100);
+			(uint32_t) (percent) * 128 / 100);
 #endif
 	this->backlight = percent;
 }

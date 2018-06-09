@@ -91,6 +91,9 @@ void uv_uilabel_init(void *me, const uv_font_st *font,
 uv_uiobject_ret_e uv_uilabel_step(void *me, uint16_t step_ms,
 		const uv_bounding_box_st *pbb);
 
+void _uv_uilabel_draw(void *me, const uv_bounding_box_st *pbb);
+
+
 #define this		((uv_uilabel_st*)me)
 
 #if CONFIG_LCD
