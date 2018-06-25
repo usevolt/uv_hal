@@ -134,7 +134,6 @@ static inline bool uv_rtos_initialized() {
 }
 
 
-#if configUSE_IDLE_HOOK
 /// @brief: e.g. FreeRTOS applicationIdleHook, this function can be used
 /// to add a idle task function. Idle function will be called every time
 /// the application is performing the idle task loop.
@@ -142,7 +141,6 @@ static inline bool uv_rtos_initialized() {
 /// @param task_function: The task function pointer. Takes user_ptr as a parameter.
 /// Refer to uv_utilities.h for more details.
 uv_errors_e uv_rtos_add_idle_task(void (*task_function)(void *user_ptr));
-#endif
 
 
 

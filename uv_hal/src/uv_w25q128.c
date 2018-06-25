@@ -20,6 +20,8 @@
 #include "uv_w25q128.h"
 
 
+#if CONFIG_W25Q128
+
 
 #define CMD_READ_STATUS_REGISTER_1		0x05
 #define CMD_WRITE_STATUS_REGISTER_1		0x01
@@ -94,3 +96,4 @@ void uv_w25q128_write_sync(uv_w25q128_st *this,
 
 
 
+#endif

@@ -442,3 +442,12 @@ uv_errors_e _uv_memory_hal_load(void) {
 }
 
 
+
+uint32_t uv_memory_get_can_baudrate(void) {
+	return CONFIG_NON_VOLATILE_START.can_baudrate;
+}
+
+void uv_memory_set_can_baudrate(uint32_t baudrate) {
+	CONFIG_NON_VOLATILE_START.can_baudrate = baudrate;
+}
+

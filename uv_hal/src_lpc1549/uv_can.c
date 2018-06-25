@@ -36,6 +36,9 @@
 #include "chip.h"
 #include "romapi_15xx.h"
 #include "rom_can_15xx.h"
+#if CONFIG_NON_VOLATILE_MEMORY
+#include CONFIG_MAIN_H
+#endif
 
 /*------------- CAN Controller (CAN) ----------------------------*/
 /** @addtogroup LPC15xx_CAN LPC15xx Controller Area Network(CAN)
@@ -358,7 +361,16 @@ uv_errors_e _uv_can_init() {
 
 	// baudrate prescaler
 	// BTR register: TSEG1 = 4, TSEG2 = 3, SJW = 0
-	LPC_CAN->BT = ((SystemCoreClock / (CONFIG_CAN0_BAUDRATE * 8) - 1) & 0x3F)
+	uint32_t baudrate;
+#if CONFIG_NON_VOLATILE_MEMORY
+	baudrate = CONFIG_NON_VOLATILE_START.can_baudrate;
+#else
+	baudrate = CONFIG_CAN0_BAUDRATE;
+#endif
+	if (!baudrate || (baudrate > 2000000)) {
+		baudrate = CONFIG_CAN0_BAUDRATE;
+	}
+	LPC_CAN->BT = ((SystemCoreClock / (baudrate * 8) - 1) & 0x3F)
 				  | (3 << 8) | (2 << 12);
 	LPC_CAN->CLKDIV = 0;
 
