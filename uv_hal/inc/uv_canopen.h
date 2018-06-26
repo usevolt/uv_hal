@@ -38,7 +38,7 @@
 /// ### IMPORTANT:
 ///
 /// * In order to function properly, this CANopen stack requires CANOPEN_OBJ_DICT()-macro to be called
-/// in the beginning of the object dictionary constant array, which defines the applications
+/// at the end of the object dictionary constant array, which defines the applications
 /// objects. Read through this header file for more info.
 ///
 /// ###DIFFERENCES TO A COMPLETE CANOPEN:
@@ -119,8 +119,9 @@
 #if !defined(CONFIG_CANOPEN_DEVNAME_INDEX)
 #define CONFIG_CANOPEN_DEVNAME_INDEX		0x1FFF
 #endif
-#if CONFIG_INTERFACE_REVISION
-#define CONFIG_CANOPEN_INTERFACE_REVISION_INDEX	0x2FF0
+#if !defined(CONFIG_CANOPEN_VARIABLE_PDO_MAPPING)
+#error "CONFIG_CANOPEN_VARIABLE_PDO_MAPPING should be defined 1 or 0 depending if\
+ PDO's can be remapped. If 0, PDO mappings are not found from object dictionary."
 #endif
 #if !defined(CONFIG_CANOPEN_PDO_MAPPING_COUNT)
 #define CONFIG_CANOPEN_PDO_MAPPING_COUNT	8
@@ -174,6 +175,10 @@ should be enabled. Defaults to 0. Segmented parth takes roughly 1k4 bytes of fla
 #error "CONFIG_CANOPEN_SDO_TIMEOUT_MS should define the SDO protocol timeout in segmented and block transfers\
  in milliseconds."
 #endif
+#if !defined(CONFIG_CANOPEN_HEARTBEAT_CONSUMER)
+#error "CONFIG_CANOPEN_HEARTBEAT_CONSUMER should be defined as 1 or 0 depending if this device\
+ listens to any other node's heartbeats and consumes them."
+#endif
 #if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
 #if !CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT
 #error "CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT should define the number of Heartbeat producers\
@@ -201,6 +206,7 @@ CONFIG_CANOPEN_EMCY_MSG_ID_x symbol should define the message ID, starting from 
 typedef struct {
 	canopen_pdo_mapping_st mappings[CONFIG_CANOPEN_PDO_MAPPING_COUNT];
 } canopen_pdo_mapping_parameter_st;
+#define CANOPEN_PDO_MAPPING_PARAMETER_TYPE	CANOPEN_ARRAY32
 
 
 typedef struct {
@@ -208,6 +214,7 @@ typedef struct {
 	uint8_t node_id;
 	uint8_t _reserved;
 } canopen_heartbeat_consumer_st;
+#define CANOPEN_HEARTBEAT_CONSUMER_ST_TYPE	sizeof(canopen_heartbeat_consumer_st)
 
 typedef struct {
 	uint16_t producer_heartbeat_time_ms;
