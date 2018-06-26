@@ -12,7 +12,7 @@
 
 #define this (&_canopen)
 #define this_nonvol	(&CONFIG_NON_VOLATILE_START.canopen_data)
-#define NODEID			(CONFIG_NON_VOLATILE_START.id)
+#define NODEID			this->current_node_id
 
 
 #define CONFIG_RX_MSG(i)	do { uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, \

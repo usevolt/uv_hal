@@ -243,6 +243,7 @@ typedef struct {
 	uint32_t restore_req;
 	canopen_identity_object_st identity;
 	uv_delay_st heartbeat_time;
+	uint8_t current_node_id;
 #if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
 	// stores the times for each heartbeat producer since last heartbeat message
 	uint16_t consumer_heartbeat_times[CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT];
@@ -309,9 +310,6 @@ typedef struct {
 	} sdo;
 	void (*can_callback)(void *user_ptr, uv_can_message_st* msg);
 
-#if CONFIG_INTERFACE_REVISION
-	uint16_t if_revision;
-#endif
 
 } _uv_canopen_st;
 

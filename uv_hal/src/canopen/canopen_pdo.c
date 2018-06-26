@@ -17,7 +17,7 @@
 #define this 								(&_canopen)
 #define thisnv								(&CONFIG_NON_VOLATILE_START.canopen_data)
 
-#define NODEID								(CONFIG_NON_VOLATILE_START.id)
+#define NODEID								this->current_node_id
 
 
 #define RXPDO(x)							CAT(RXPDO, INC(x))

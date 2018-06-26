@@ -17,7 +17,7 @@
 
 #define this (&_canopen)
 #define this_nonvol	(&CONFIG_NON_VOLATILE_START.canopen_data)
-#define NODEID			(CONFIG_NON_VOLATILE_START.id)
+#define NODEID			this->current_node_id
 
 
 void _uv_canopen_nmt_init(void) {

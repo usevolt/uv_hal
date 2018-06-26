@@ -15,7 +15,7 @@
 
 #define this (&_canopen)
 #define this_nonvol	(&CONFIG_NON_VOLATILE_START.canopen_data)
-#define NODEID			(CONFIG_NON_VOLATILE_START.id)
+#define NODEID			this->current_node_id
 
 
 #define PRODUCER_NODEID(x)	CAT(CONFIG_CANOPEN_HEARTBEAT_PRODUCER_NODEID, INC(x))

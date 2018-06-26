@@ -17,7 +17,7 @@
 #if CONFIG_CANOPEN
 
 #define this (&_canopen.sdo.client)
-#define NODEID			(CONFIG_NON_VOLATILE_START.id)
+#define NODEID			this->current_node_id
 
 
 #define GET_CMD_BYTE(msg_ptr)			((msg_ptr)->data_8bit[0])
