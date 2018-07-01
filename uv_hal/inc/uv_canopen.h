@@ -119,10 +119,6 @@
 #if !defined(CONFIG_CANOPEN_DEVNAME_INDEX)
 #define CONFIG_CANOPEN_DEVNAME_INDEX		0x1FFF
 #endif
-#if !defined(CONFIG_CANOPEN_VARIABLE_PDO_MAPPING)
-#error "CONFIG_CANOPEN_VARIABLE_PDO_MAPPING should be defined 1 or 0 depending if\
- PDO's can be remapped. If 0, PDO mappings are not found from object dictionary."
-#endif
 #if !defined(CONFIG_CANOPEN_PDO_MAPPING_COUNT)
 #define CONFIG_CANOPEN_PDO_MAPPING_COUNT	8
 #endif

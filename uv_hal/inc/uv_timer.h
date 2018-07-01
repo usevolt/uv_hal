@@ -92,7 +92,7 @@ void uv_timer_clear(uv_timers_e timer);
 ///
 /// @param timer: Selects the timer which will be initialized. Available values depend
 /// on hardware used.
-int32_t uv_timer_get_us(uv_timers_e timer);
+uint32_t uv_timer_get_us(uv_timers_e timer);
 
 
 

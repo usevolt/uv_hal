@@ -452,6 +452,10 @@ uv_errors_e _uv_pwm_init();
 uv_errors_e uv_pwm_set(uv_pwm_channel_t chn, uint16_t value);
 
 
+/// @brief: Sets the PWM frequency. Note that all pwm channels from the same pwm module
+/// share the same frequency. (PWM0_0, PWM0_1, PWM0_2, etc)
+void uv_pwm_set_freq(uv_pwm_channel_t chn, uint32_t value);
+
 /// @brief: Returns the current PWM value
 uint16_t uv_pwm_get(uv_pwm_channel_t chn);
 

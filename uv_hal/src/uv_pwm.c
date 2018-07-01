@@ -46,7 +46,6 @@ uv_errors_e _uv_pwm_init() {
 #if CONFIG_PWM0
 	Chip_SCTPWM_Init(LPC_SCT0);
 	Chip_SCTPWM_SetRate(LPC_SCT0, CONFIG_PWM0_FREQ);
-#endif
 #if CONFIG_PWM0_0
 	Chip_SWM_MovablePortPinAssign(SWM_SCT0_OUT0_O,  UV_GPIO_PORT(CONFIG_PWM0_0_IO),
 			UV_GPIO_PIN(CONFIG_PWM0_0_IO));
@@ -90,6 +89,11 @@ uv_errors_e _uv_pwm_init() {
 	Chip_SCTPWM_SetOutPin(LPC_SCT0, 8, 7);
 	Chip_SCTPWM_SetDutyCycle(LPC_SCT0, 8, 0);
 #endif
+	Chip_SCTPWM_Start(LPC_SCT0);
+#endif
+#if CONFIG_PWM1
+	Chip_SCTPWM_Init(LPC_SCT1);
+	Chip_SCTPWM_SetRate(LPC_SCT1, CONFIG_PWM1_FREQ);
 #if CONFIG_PWM1_0
 	Chip_SWM_MovablePortPinAssign(SWM_SCT1_OUT0_O,  UV_GPIO_PORT(CONFIG_PWM1_0_IO),
 			UV_GPIO_PIN(CONFIG_PWM1_0_IO));
@@ -133,6 +137,11 @@ uv_errors_e _uv_pwm_init() {
 	Chip_SCTPWM_SetOutPin(LPC_SCT1, 8, 7);
 	Chip_SCTPWM_SetDutyCycle(LPC_SCT1, 8, 0);
 #endif
+	Chip_SCTPWM_Start(LPC_SCT1);
+#endif
+#if CONFIG_PWM2
+	Chip_SCTPWM_Init(LPC_SCT2);
+	Chip_SCTPWM_SetRate(LPC_SCT2, CONFIG_PWM0_FREQ);
 #if CONFIG_PWM2_0
 	Chip_SWM_MovablePortPinAssign(SWM_SCT2_OUT0_O,  UV_GPIO_PORT(CONFIG_PWM2_0_IO),
 			UV_GPIO_PIN(CONFIG_PWM2_0_IO));
@@ -166,6 +175,11 @@ uv_errors_e _uv_pwm_init() {
 	Chip_SCTPWM_SetOutPin(LPC_SCT2, 6, 5);
 	Chip_SCTPWM_SetDutyCycle(LPC_SCT2, 6, 0);
 #endif
+	Chip_SCTPWM_Start(LPC_SCT2);
+#endif
+#if CONFIG_PWM3
+	Chip_SCTPWM_Init(LPC_SCT3);
+	Chip_SCTPWM_SetRate(LPC_SCT3, CONFIG_PWM3_FREQ);
 #if CONFIG_PWM3_0
 	Chip_SWM_MovablePortPinAssign(SWM_SCT3_OUT0_O,  UV_GPIO_PORT(CONFIG_PWM3_0_IO),
 			UV_GPIO_PIN(CONFIG_PWM3_0_IO));
@@ -199,17 +213,6 @@ uv_errors_e _uv_pwm_init() {
 	Chip_SCTPWM_SetOutPin(LPC_SCT3, 6, 5);
 	Chip_SCTPWM_SetDutyCycle(LPC_SCT3, 6, 0);
 #endif
-
-#if CONFIG_PWM0
-	Chip_SCTPWM_Start(LPC_SCT0);
-#endif
-#if CONFIG_PWM1
-	Chip_SCTPWM_Start(LPC_SCT1);
-#endif
-#if CONFIG_PWM2
-	Chip_SCTPWM_Start(LPC_SCT2);
-#endif
-#if CONFIG_PWM3
 	Chip_SCTPWM_Start(LPC_SCT3);
 #endif
 
@@ -432,6 +435,14 @@ uint16_t uv_pwm_get(uv_pwm_channel_t chn) {
 #endif
 
 	return ret;
+}
+
+
+
+void uv_pwm_set_freq(uv_pwm_channel_t chn, uint32_t value) {
+	Chip_SCTPWM_Stop(this->modules[PWM_GET_MODULE(chn)]);
+	Chip_SCTPWM_SetRate(this->modules[PWM_GET_MODULE(chn)], value);
+	Chip_SCTPWM_Start(this->modules[PWM_GET_MODULE(chn)]);
 }
 
 
