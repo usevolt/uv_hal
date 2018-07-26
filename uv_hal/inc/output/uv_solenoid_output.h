@@ -53,10 +53,28 @@ typedef enum {
 	SOLENOID_OUTPUT_MODE_PWM
 } uv_solenoid_output_mode_st;
 
+
+/// @brief: Data structure for solenoid output configuration data.
+/// This can be stored in non-volatile memory.
+typedef struct {
+	// minimum current in positive direction in milliamps. Used only in SOLENOID_OUTPUT_MODE_CURRENT.
+	uint16_t min_ma;
+	// maximum current in positive direction in milliamps Used only in SOLENOID_OUTPUT_MODE_CURRENT.
+	uint16_t max_ma;
+	// acceleration factor, from 0 ... 1000. Divides the PID P factor when decreasing the output
+	uint16_t acc;
+	// deceleration factor, from 0 ... 1000. Divides the PID P factor when increasing the output
+	uint16_t dec;
+} uv_solenoid_output_conf_st;
+
+
 typedef struct {
 	EXTENDS(uv_output_st);
 
 	uv_solenoid_output_mode_st mode;
+
+	// solenoid configuration parameters
+	uv_solenoid_output_conf_st conf;
 
 	/// @brief: Dither time cycle (1 / frequency)
 	uint16_t dither_ms;
@@ -66,7 +84,8 @@ typedef struct {
 	uv_delay_st delay;
 	/// @brief: PID controller for controlling the current
 	uv_pid_st ma_pid;
-	/// @brief: Target current in mA
+	/// @brief: Target value from 0 ... 1000. This is scaled to the output value
+	/// depending on the output mode.
 	uint16_t target;
 	/// @brief: PWM channel configured for this output
 	uv_pwm_channel_t pwm_chn;
@@ -104,13 +123,17 @@ static inline uv_solenoid_output_mode_st uv_solenoid_output_get_mode(uv_solenoid
 	return this->mode;
 }
 
+
 /// @brief: Step funtion
 void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms);
 
 
-/// @brief: Sets the solenoid output target value. In current mode this is milliamps,
-/// in PWM mode the duty cycle, maximum value being PWM_MAX_VALUE
+/// @brief: Sets the solenoid output target value. In current mode this is scaled to milliamps
+/// according to configuration values,
+/// in PWM mode the duty cycle.
+/// Values should be 0 ... 1000.
 void uv_solenoid_output_set(uv_solenoid_output_st *this, uint16_t value);
+
 
 /// @brief: Sets the output state
 static inline void uv_solenoid_output_set_state(uv_solenoid_output_st *this,
@@ -118,16 +141,19 @@ static inline void uv_solenoid_output_set_state(uv_solenoid_output_st *this,
 	uv_output_set_state((uv_output_st *) this, state);
 }
 
+
 /// @brief: Disables the output. Output can be enabled only by calling
 /// *uv_solenoid_output_enable*.
 static inline void uv_solenoid_output_disable(uv_solenoid_output_st *this) {
 	uv_output_disable((uv_output_st *) this);
 }
 
+
 /// @brief: Enabled the output once it's disabled with *uv_solenoid_output_disable*.
 static inline void uv_solenoid_output_enable(uv_solenoid_output_st *this) {
 	uv_output_enable((uv_output_st *) this);
 }
+
 
 /// @brief: returns the state of the output
 static inline uv_output_state_e uv_solenoid_output_get_state(
@@ -135,16 +161,25 @@ static inline uv_output_state_e uv_solenoid_output_get_state(
 	return uv_output_get_state(((uv_output_st*) this));
 }
 
+
 /// @brief: Returns the current measured from the sense feedback
 static inline uint16_t uv_solenoid_output_get_current(uv_solenoid_output_st *this) {
 	return uv_output_get_current(((uv_output_st*) this));
 }
 
-/// @brief: Returns the milliamp PID controller pointer. Can be used to
-/// set PID controller Kp and Ki.
-static inline uv_pid_st *uv_solenoid_output_get_ma_pid(uv_solenoid_output_st *this) {
-	return &this->ma_pid;
+
+/// @brief: Copies the configuration parameters to the output
+static inline void uv_solenoid_output_set_conf(uv_solenoid_output_st *this,
+		uv_solenoid_output_conf_st *conf) {
+	this->conf = *conf;
 }
+
+
+/// @brief: returns the configuration parameter structure
+static inline uv_solenoid_output_conf_st *uv_solenoid_output_get_conf(uv_solenoid_output_st *this) {
+	return &this->conf;
+}
+
 
 /// @brief: Sets the dither frequency
 static inline void uv_solenoid_output_set_dither_freq(
@@ -152,11 +187,13 @@ static inline void uv_solenoid_output_set_dither_freq(
 	this->dither_ms = (1 / (freq * 2));
 }
 
+
 /// @brief: Returns the dither amplitude
 static inline int16_t uv_solenoid_output_get_dither_ampl(
 		uv_solenoid_output_st *this) {
 	return abs(this->dither_ampl);
 }
+
 
 /// @brief: Sets the dither amplitude. Amplitude is in same unit as in uv_pwm.h
 static inline void uv_solenoid_output_set_dither_ampl(

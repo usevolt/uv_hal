@@ -22,6 +22,18 @@
 
 #if CONFIG_SOLENOID_OUTPUT
 
+/// @brief: Resets the output values to defaults
+static void uv_solenoid_output_conf_init(uv_solenoid_output_conf_st *conf);
+
+
+
+static void uv_solenoid_output_conf_init(uv_solenoid_output_conf_st *conf) {
+	conf->acc = 1000;
+	conf->dec = 1000;
+	conf->min_ma = 0;
+	conf->max_ma = 4000;
+}
+
 
 
 void uv_solenoid_output_init(uv_solenoid_output_st *this, uv_pwm_channel_t pwm_chn,
@@ -45,6 +57,9 @@ void uv_solenoid_output_init(uv_solenoid_output_st *this, uv_pwm_channel_t pwm_c
 	this->target = 0;
 	this->pwm_chn = pwm_chn;
 	uv_pwm_set(this->pwm_chn, 0);
+
+	uv_solenoid_output_conf_init(&this->conf);
+
 	uv_pid_init(&this->ma_pid, CONFIG_SOLENOID_MA_P, CONFIG_SOLENOID_MA_I, 0);
 
 }
@@ -76,8 +91,31 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 
 	// solenoid is current driven
 	if (this->mode == SOLENOID_OUTPUT_MODE_CURRENT) {
-		// set the target value for the pid
-		uv_pid_set_target(&this->ma_pid, this->target);
+		// set the target current for the pid
+
+		int16_t target_ma = 0;
+		// clamp the output current to min & max current limits
+		if (this->target) {
+			uv_lerpi(this->target, this->conf.min_ma, this->conf.max_ma);
+			if (target_ma < this->conf.min_ma) {
+				target_ma = this->conf.min_ma;
+			}
+			else if (target_ma > this->conf.max_ma) {
+				target_ma = this->conf.max_ma;
+			}
+			else {
+
+			}
+		}
+		uv_pid_set_target(&this->ma_pid, target_ma);
+
+		// update the PID controller P value depending if the value is rising or lowering
+		if (target_ma > uv_solenoid_output_get_current(this)) {
+			uv_pid_set_p(&this->ma_pid, uv_lerpi(this->conf.acc, 0, CONFIG_SOLENOID_MA_P));
+		}
+		else {
+			uv_pid_set_p(&this->ma_pid, uv_lerpi(this->conf.dec, 0, CONFIG_SOLENOID_MA_P));
+		}
 
 		// milliamp PID controller
 		uv_pid_step(&this->ma_pid, step_ms,
@@ -97,8 +135,6 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 	}
 	// set the output value
 	uv_pwm_set(this->pwm_chn, output);
-
-
 }
 
 

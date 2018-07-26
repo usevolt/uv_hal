@@ -47,6 +47,10 @@ _uv_canopen_st _canopen;
 
 void _uv_canopen_init(void) {
 	this->current_node_id = (CONFIG_NON_VOLATILE_START.id);
+	// Greater Node ID than 0x7F is invalid, revert to default
+	if (this->current_node_id > 0x7F) {
+		this->current_node_id = 0x7F;
+	}
 	this->can_callback = NULL;
 	this->device_type = 'U';
 	this->identity.vendor_id = ('U' << 24) | ('S' << 16) | ('E' << 8) | ('V');

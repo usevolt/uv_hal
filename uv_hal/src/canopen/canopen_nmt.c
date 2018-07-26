@@ -41,7 +41,7 @@ void _uv_canopen_nmt_init(void) {
 }
 
 void _uv_canopen_nmt_reset(void) {
-	NODEID = CONFIG_CANOPEN_DEFAULT_NODE_ID;
+	CONFIG_NON_VOLATILE_START.id = CONFIG_CANOPEN_DEFAULT_NODE_ID;
 }
 
 void _uv_canopen_nmt_step(uint16_t step_ms) {

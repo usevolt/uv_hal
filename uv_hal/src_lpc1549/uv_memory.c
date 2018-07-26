@@ -383,7 +383,11 @@ void uv_set_id(uint16_t id) {
 
 uint8_t uv_get_id() {
 #if !CONFIG_TARGET_LINUX
-	return *((uint8_t*)(NON_VOLATILE_MEMORY_START_ADDRESS + 8));
+	uint8_t id = *((uint8_t*)(NON_VOLATILE_MEMORY_START_ADDRESS + 8));
+	if (id > 0x7F) {
+		id = 0x7F;
+	}
+	return id;
 #else
 	return 0;
 #endif

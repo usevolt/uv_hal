@@ -83,12 +83,6 @@
 #endif
 #define PWM0_6		6
 #endif
-#if CONFIG_PWM0_7
-#if CONFIG_PWM0_7_IO
-#error "PWM0_7 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM0_7_IO undefined or set to 0"
-#endif
-#define PWM0_7		7
-#endif
 #endif
 #if CONFIG_PWM1
 #if !defined(CONFIG_PWM1_FREQ)
@@ -136,12 +130,6 @@
 #endif
 #define PWM1_6		14
 #endif
-#if CONFIG_PWM1_7
-#if CONFIG_PWM1_7_IO
-#error "PWM1_7 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM1_7_IO undefined or set to 0"
-#endif
-#define PWM1_7		15
-#endif
 #endif
 #if CONFIG_PWM2
 #if !defined(CONFIG_PWM2_FREQ)
@@ -177,12 +165,6 @@
 #endif
 #define PWM2_4		20
 #endif
-#if CONFIG_PWM2_5
-#if CONFIG_PWM2_5_IO
-#error "PWM2_5 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM2_5_IO undefined or set to 0"
-#endif
-#define PWM2_5		21
-#endif
 #endif
 #if CONFIG_PWM3
 #if !defined(CONFIG_PWM3_FREQ)
@@ -217,12 +199,6 @@
 #error "PWM3_4 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM3_4_IO undefined or set to 0"
 #endif
 #define PWM3_4		28
-#endif
-#if CONFIG_PWM3_5
-#if CONFIG_PWM3_5_IO
-#error "PWM3_5 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM3_5_IO undefined or set to 0"
-#endif
-#define PWM3_5		29
 #endif
 #endif
 
