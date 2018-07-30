@@ -42,39 +42,39 @@ typedef enum {
 /// @brief: Main PID controller structure
 typedef struct {
 	/// @brief: P factor
-	uint16_t p;
+	uint32_t p;
 	/// @brief: I factor
-	uint16_t i;
+	uint32_t i;
 	/// @brief: D factor
-	uint16_t d;
-	int16_t sum;
-	int16_t max_sum;
-	int16_t min_sum;
-	int16_t input;
-	int16_t target;
-	int16_t output;
+	uint32_t d;
+	int32_t sum;
+	int32_t max_sum;
+	int32_t min_sum;
+	int32_t input;
+	int32_t target;
+	int32_t output;
 	pid_state_e state;
 } uv_pid_st;
 
 
 /// @brief: Initializes the PID structure
-void uv_pid_init(uv_pid_st *this, uint16_t p, uint16_t i, uint16_t d);
+void uv_pid_init(uv_pid_st *this, uint32_t p, uint32_t i, uint32_t d);
 
 /// @brief: PID step function
-void uv_pid_step(uv_pid_st *this, uint16_t step_ms, int16_t input);
+void uv_pid_step(uv_pid_st *this, uint16_t step_ms, int32_t input);
 
 /// @brief: Returns the output from the PID
-static inline int16_t uv_pid_get_output(uv_pid_st *this) {
+static inline int32_t uv_pid_get_output(uv_pid_st *this) {
 	return this->output;
 }
 
 /// @brief: Used to set the output of the PID to specific value.
-static inline void uv_pid_set_output(uv_pid_st *this, int16_t value) {
+static inline void uv_pid_set_output(uv_pid_st *this, int32_t value) {
 	this->output = value;
 }
 
 /// @brief: Sets the PID controller target value
-static inline void uv_pid_set_target(uv_pid_st *this, int16_t value) {
+static inline void uv_pid_set_target(uv_pid_st *this, int32_t value) {
 	this->target = value;
 }
 
@@ -84,7 +84,7 @@ static inline void uv_pid_reset(uv_pid_st *this) {
 }
 
 /// @brief: Sets the P factor. Valid range is from 0 to 65535.
-static inline void uv_pid_set_p(uv_pid_st *this, uint16_t p) {
+static inline void uv_pid_set_p(uv_pid_st *this, uint32_t p) {
 	this->p = p;
 }
 
@@ -94,17 +94,17 @@ static inline uint8_t uv_pid_get_p(uv_pid_st *this) {
 }
 
 /// @brief: Sets the I factor. Valid range is from 0 to 65535.
-static inline void uv_pid_set_i(uv_pid_st *this, uint16_t i) {
+static inline void uv_pid_set_i(uv_pid_st *this, uint32_t i) {
 	this->i = i;
 }
 
 /// @brief: Sets the maximum sum value. Defaults to INT16_MAX.
-static inline void uv_pid_set_max_sum(uv_pid_st *this, int16_t value) {
+static inline void uv_pid_set_max_sum(uv_pid_st *this, int32_t value) {
 	this->max_sum = value;
 }
 
 /// @brief: Sets the minimum sum value. Defaults to INT16_MIN.
-static inline void uv_pid_set_min_sum(uv_pid_st *this, int16_t value) {
+static inline void uv_pid_set_min_sum(uv_pid_st *this, int32_t value) {
 	this->min_sum = value;
 }
 
@@ -114,7 +114,7 @@ static inline uint8_t uv_pid_get_i(uv_pid_st *this) {
 }
 
 /// @brief: Sets the D factor. Valid range is from 0 to 65535.
-static inline void uv_pid_set_d(uv_pid_st *this, uint16_t d) {
+static inline void uv_pid_set_d(uv_pid_st *this, uint32_t d) {
 	this->d = d;
 }
 

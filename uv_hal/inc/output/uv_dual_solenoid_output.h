@@ -33,18 +33,26 @@
 #endif
 
 
-
 typedef enum {
 	DUAL_OUTPUT_SOLENOID_A = 0,
 	DUAL_OUTPUT_SOLENOID_B,
 	DUAL_OUTPUT_SOLENOID_COUNT
 } uv_dual_solenoid_output_solenoids_e;
 
+
+#define DUAL_SOLENOID_ACC_MAX	100
+#define DUAL_SOLENOID_DEC_MAX	100
+
 /// @brief: Configuration structure for the dual solenoid module
 typedef struct {
+	//NOTE: All of these variables should
 	uv_solenoid_output_conf_st solenoid_conf[DUAL_OUTPUT_SOLENOID_COUNT];
+	/// @brief: Control value acceleration factor, from 0 ... 100
+	uint16_t acc;
+	/// @brief: Control value deceleration factor, from 0 ... 100
+	uint16_t dec;
 	/// @brief: Inverts the solenoid direction
-	uint8_t invert;
+	uint16_t invert;
 } uv_dual_solenoid_output_conf_st;
 
 
@@ -58,12 +66,15 @@ typedef struct {
 	// parameter configurations
 	uv_dual_solenoid_output_conf_st conf;
 
-	// the target output value from -1000 ... 1000, the actual drive current is
+	// the requested target output value from -1000 ... 1000, the actual drive current is
 	// based on solenoid output configurations.
-	int16_t value;
+	int16_t target_req;
+	// the actual target value. This is smoothened with acc and dec.
+	int16_t target;
+	uv_moving_aver_st target_avg;
+
 	// signed output current
 	int16_t current_ma;
-
 } uv_dual_solenoid_output_st;
 
 
@@ -106,8 +117,10 @@ static inline int16_t uv_dual_solenoid_output_get_current(uv_dual_solenoid_outpu
 
 /// @brief: Sets the output current.
 ///
-/// @param value: current in milliamps which is set to the output module
-void uv_dual_solenoid_output_set(uv_dual_solenoid_output_st *this, int16_t value_ma);
+/// @param value: current in -1000 ... 1000 which is set to the actual solenoid output modules
+static inline void uv_dual_solenoid_output_set(uv_dual_solenoid_output_st *this, int16_t value) {
+	this->target_req = value;
+}
 
 
 /// @brief: Copies the configuration settings to the module

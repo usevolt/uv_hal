@@ -28,8 +28,6 @@ static void uv_solenoid_output_conf_init(uv_solenoid_output_conf_st *conf);
 
 
 static void uv_solenoid_output_conf_init(uv_solenoid_output_conf_st *conf) {
-	conf->acc = 1000;
-	conf->dec = 1000;
 	conf->min_ma = 0;
 	conf->max_ma = 4000;
 }
@@ -55,8 +53,9 @@ void uv_solenoid_output_init(uv_solenoid_output_st *this, uv_pwm_channel_t pwm_c
 		this->dither_ms = 0;
 	}
 	this->target = 0;
+	this->pwm = 0;
 	this->pwm_chn = pwm_chn;
-	uv_pwm_set(this->pwm_chn, 0);
+	uv_pwm_set(this->pwm_chn, this->pwm);
 
 	uv_solenoid_output_conf_init(&this->conf);
 
@@ -67,82 +66,91 @@ void uv_solenoid_output_init(uv_solenoid_output_st *this, uv_pwm_channel_t pwm_c
 void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 	uv_output_step((uv_output_st *)this, step_ms);
 
+	// set output to OFF state when target is zero and either PWM or ADC value is zero.
+	// This disables the ADC current measuring, even when there's open load.
+	if ((this->target == 0) &&
+			((this->pwm == 0) || (uv_solenoid_output_get_current(this) == 0))) {
+		uv_solenoid_output_set_state(this, OUTPUT_STATE_OFF);
+	}
+	else {
+		uv_solenoid_output_set_state(this, OUTPUT_STATE_ON);
+	}
+
+
 	uv_output_state_e state = uv_solenoid_output_get_state(this);
 	if (state != OUTPUT_STATE_ON) {
-		// set target to zero
+		// output is off for any reason
 		this->target = 0;
+		// reset PID controller just to make sure that it is always initialized correctly
+		uv_pid_init(&this->ma_pid, CONFIG_SOLENOID_MA_P, CONFIG_SOLENOID_MA_I, 0);
 		// make sure dither doesn't remain in the output
 		if (this->dither_ampl > 0) {
 			this->dither_ampl *= -1;
 		}
+		this->pwm = 0;
 	}
 	else {
 		// output is ON
-
 		if (this->dither_ms &&
 				uv_delay(&this->delay, step_ms)) {
 			// toggle dither
 			this->dither_ampl *= -1;
 			uv_delay_init(&this->delay, this->dither_ms);
 		}
-	}
 
-	int16_t output = 0;
+		int16_t output = 0;
 
-	// solenoid is current driven
-	if (this->mode == SOLENOID_OUTPUT_MODE_CURRENT) {
-		// set the target current for the pid
+		// solenoid is current driven
+		if (this->mode == SOLENOID_OUTPUT_MODE_CURRENT) {
+			// set the target current for the pid
 
-		int16_t target_ma = 0;
-		// clamp the output current to min & max current limits
-		if (this->target) {
-			uv_lerpi(this->target, this->conf.min_ma, this->conf.max_ma);
-			if (target_ma < this->conf.min_ma) {
-				target_ma = this->conf.min_ma;
+			int16_t target_ma = 0;
+			// clamp the output current to min & max current limits
+			if (this->target) {
+				target_ma = uv_lerpi(this->target, this->conf.min_ma, this->conf.max_ma);
+				if (target_ma < this->conf.min_ma) {
+					target_ma = this->conf.min_ma;
+				}
+				else if (target_ma > this->conf.max_ma) {
+					target_ma = this->conf.max_ma;
+				}
+				else {
+
+				}
 			}
-			else if (target_ma > this->conf.max_ma) {
-				target_ma = this->conf.max_ma;
-			}
-			else {
+			uv_pid_set_target(&this->ma_pid, target_ma);
 
-			}
+			// milliamp PID controller
+			uv_pid_step(&this->ma_pid, step_ms,
+					uv_solenoid_output_get_current(this));
+
+			output = uv_pwm_get(this->pwm_chn) +
+				uv_pid_get_output(&this->ma_pid) +
+				this->dither_ampl / 2;
 		}
-		uv_pid_set_target(&this->ma_pid, target_ma);
-
-		// update the PID controller P value depending if the value is rising or lowering
-		if (target_ma > uv_solenoid_output_get_current(this)) {
-			uv_pid_set_p(&this->ma_pid, uv_lerpi(this->conf.acc, 0, CONFIG_SOLENOID_MA_P));
-		}
+		// solenoid is PWM driven
 		else {
-			uv_pid_set_p(&this->ma_pid, uv_lerpi(this->conf.dec, 0, CONFIG_SOLENOID_MA_P));
+			output = this->target + this->dither_ampl / 2;
 		}
 
-		// milliamp PID controller
-		uv_pid_step(&this->ma_pid, step_ms,
-				uv_solenoid_output_get_current(this));
-
-		output = uv_pwm_get(this->pwm_chn) +
-			uv_pid_get_output(&this->ma_pid) +
-			this->dither_ampl / 2;
-	}
-	// solenoid is PWM driven
-	else {
-		output = this->target + this->dither_ampl / 2;
+		if (output < 0) {
+			output = 0;
+		}
+		else if (output > PWM_MAX_VALUE) {
+			output = PWM_MAX_VALUE;
+		}
+		// set the output value
+		this->pwm = output;
 	}
 
-	if (output < 0) {
-		output = 0;
-	}
-	// set the output value
-	uv_pwm_set(this->pwm_chn, output);
+	// set the output pwm
+	uv_pwm_set(this->pwm_chn, this->pwm);
 }
 
 
 
 void uv_solenoid_output_set(uv_solenoid_output_st *this, uint16_t value) {
 	this->target = value;
-	uv_solenoid_output_set_state(this,
-			value ? OUTPUT_STATE_ON : OUTPUT_STATE_OFF);
 }
 
 

@@ -45,6 +45,11 @@ static inline int32_t uv_moving_aver_get_val(uv_moving_aver_st *this) {
 	return (this->val / 0x100);
 }
 
+/// @brief: Sets the moving average filter count
+static inline void uv_moving_aver_set_count(uv_moving_aver_st *this, int32_t value) {
+	this->count = value;
+}
+
 
 typedef struct {
 	int32_t trigger_value;

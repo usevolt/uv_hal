@@ -30,8 +30,16 @@ void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 		uint16_t sense_ampl, uint16_t max_current, uint16_t fault_current,
 		uint32_t emcy_overload_a, uint32_t emcy_overload_b,
 		uint32_t emcy_fault_a, uint32_t emcy_fault_b) {
-	this->value = 0;
+	this->target_req = 0;
+	this->target = 0;
 	this->current_ma = 0;
+
+	// init the configuration structure
+	this->conf.invert = false;
+	this->conf.acc = 100;
+	this->conf.dec = 100;
+
+	uv_moving_aver_init(&this->target_avg, this->conf.acc);
 
 	uv_solenoid_output_init(&this->solenoid[DUAL_OUTPUT_SOLENOID_A], pwm_a, dither_freq,
 			dither_ampl, adc_common, sense_ampl, max_current, fault_current,
@@ -49,10 +57,60 @@ void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 
 void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t step_ms) {
 
+
+	uv_dual_solenoid_output_solenoids_e sa = (this->conf.invert) ?
+			DUAL_OUTPUT_SOLENOID_B : DUAL_OUTPUT_SOLENOID_A;
+	uv_dual_solenoid_output_solenoids_e sb = (this->conf.invert) ?
+			DUAL_OUTPUT_SOLENOID_A : DUAL_OUTPUT_SOLENOID_B;
+
+
+	if (this->conf.acc > 100) {
+		this->conf.acc = 100;
+	}
+	if (this->conf.dec > 100) {
+		this->conf.dec = 100;
+	}
+
+	// different moving average values for accelerating and decelerating
+	// maximum decelerating time is 1 sec
+	int32_t scaler = 1000 / step_ms;
+	if (((int32_t) this->target_req * this->target >= 0) &&
+			(abs(this->target_req) > abs(this->target))) {
+		// accelerating
+		uv_moving_aver_set_count(&this->target_avg, (scaler + 1) - this->conf.acc * scaler / 100);
+	}
+	else {
+		// decelerating
+		uv_moving_aver_set_count(&this->target_avg, (scaler + 1) - this->conf.dec * scaler / 100);
+	}
+	uv_moving_aver_step(&this->target_avg, this->target_req);
+	this->target = uv_moving_aver_get_val(&this->target_avg);
+
+	if (this->target > 0) {
+		uv_solenoid_output_set(&this->solenoid[sb], 0);
+		// only set output active if the other direction has gone to zero
+		if (uv_solenoid_output_get_pwm_dc(&this->solenoid[sb]) == 0) {
+			uv_solenoid_output_set(&this->solenoid[sa], abs(this->target));
+		}
+	}
+	else {
+		uv_solenoid_output_set(&this->solenoid[sa], 0);
+		// only set output active if the other direction has gone to zero
+		if (uv_solenoid_output_get_pwm_dc(&this->solenoid[sa]) == 0) {
+			uv_solenoid_output_set(&this->solenoid[sb], abs(this->target));
+		}
+	}
+
+
+	uv_solenoid_output_step(&this->solenoid[DUAL_OUTPUT_SOLENOID_A], step_ms);
+	uv_solenoid_output_step(&this->solenoid[DUAL_OUTPUT_SOLENOID_B], step_ms);
+
+
 	// update current output
 	int16_t ca = uv_solenoid_output_get_current(&this->solenoid[DUAL_OUTPUT_SOLENOID_A]);
 	int16_t cb = uv_solenoid_output_get_current(&this->solenoid[DUAL_OUTPUT_SOLENOID_B]);
 	this->current_ma = (ca) ? ca : -cb;
+
 }
 
 
@@ -66,11 +124,6 @@ void uv_dual_solenoid_output_set_conf(uv_dual_solenoid_output_st *this,
 			&this->conf.solenoid_conf[DUAL_OUTPUT_SOLENOID_B]);
 }
 
-
-
-void uv_dual_solenoid_output_set(uv_dual_solenoid_output_st *this, int16_t value_ma) {
-
-}
 
 
 

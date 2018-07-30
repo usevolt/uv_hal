@@ -61,10 +61,6 @@ typedef struct {
 	uint16_t min_ma;
 	// maximum current in positive direction in milliamps Used only in SOLENOID_OUTPUT_MODE_CURRENT.
 	uint16_t max_ma;
-	// acceleration factor, from 0 ... 1000. Divides the PID P factor when decreasing the output
-	uint16_t acc;
-	// deceleration factor, from 0 ... 1000. Divides the PID P factor when increasing the output
-	uint16_t dec;
 } uv_solenoid_output_conf_st;
 
 
@@ -82,11 +78,13 @@ typedef struct {
 	int16_t dither_ampl;
 	/// @brief: Dither delay
 	uv_delay_st delay;
-	/// @brief: PID controller for controlling the current
+	/// @brief: PID controller for controlling the current. Has to be as fast as possible
 	uv_pid_st ma_pid;
 	/// @brief: Target value from 0 ... 1000. This is scaled to the output value
 	/// depending on the output mode.
 	uint16_t target;
+	/// @brief: Stores the current PWM duty cycle
+	uint16_t pwm;
 	/// @brief: PWM channel configured for this output
 	uv_pwm_channel_t pwm_chn;
 
@@ -201,6 +199,11 @@ static inline void uv_solenoid_output_set_dither_ampl(
 	this->dither_ampl = ampl;
 }
 
+
+/// @brief: Returns the solenoid's current PWM duty cycle value
+static inline uint16_t uv_solenoid_output_get_pwm_dc(uv_solenoid_output_st *this) {
+	return this->pwm;
+}
 
 #endif
 

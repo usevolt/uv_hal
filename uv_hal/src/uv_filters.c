@@ -34,8 +34,7 @@ int32_t uv_moving_aver_step (uv_moving_aver_st *avr, int32_t val) {
 	avr->cur_count += 1;
 	avr->val = avr->sum / avr->cur_count;
 
-	if (avr->cur_count > avr->count)
-	{
+	while (avr->cur_count > avr->count) {
 		avr->sum -= avr->val;
 		avr->cur_count -= 1;
 	}
