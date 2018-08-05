@@ -25,9 +25,11 @@
 #include "uv_spi.h"
 #include <uv_hal_config.h>
 
-#if CONFIG_SPI
+#if CONFIG_W25Q128
 
-#define CONFIG_W25Q128		1
+#if !CONFIG_SPI
+#error "SPI module is needed for W25Q128 module. Define CONFIG_SPI as 1."
+#endif
 
 typedef struct {
 	spi_e spi;
@@ -61,5 +63,6 @@ void uv_w25q128_write_sync(uv_w25q128_st *this,
 		int32_t address, void *src, uint32_t byte_count);
 
 #endif
+
 
 #endif /* UV_HAL_INC_UV_W25Q128_H_ */

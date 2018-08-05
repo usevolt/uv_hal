@@ -369,6 +369,7 @@ uv_errors_e _uv_can_init() {
 #endif
 	if (!baudrate || (baudrate > 2000000)) {
 		baudrate = CONFIG_CAN0_BAUDRATE;
+		CONFIG_NON_VOLATILE_START.can_baudrate = baudrate;
 	}
 	LPC_CAN->BT = ((SystemCoreClock / (baudrate * 8) - 1) & 0x3F)
 				  | (3 << 8) | (2 << 12);

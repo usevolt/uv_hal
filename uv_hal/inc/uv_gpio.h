@@ -108,13 +108,6 @@ typedef enum {
 
 
 
-/// @brief: Register a callback function to be called when external interrupt occurs
-/// @param callback_function: A function pointer to the callback function which will be called
-/// The callback function takes 2 parameter: user pointer (see uv_utilities.h) and gpio pin
-/// which caused the interrupt.
-void uv_gpio_add_interrupt_callback(void (*callback_function)(uv_gpios_e));
-
-
 #define UV_GPIO_PORT(gpio) \
 	(CAT(CAT(GPIO_, gpio), _port))
 #define UV_GPIO_PIN(gpio) \
@@ -251,6 +244,15 @@ void uv_gpio_add_interrupt_callback(void (*callback_function)(uv_gpios_e));
 #define UV_GPIO_CONFIGURE(gpio, input_config)\
 	CAT(CAT(GPIO_, gpio), _config)(input_config)
 #endif
+
+
+
+
+/// @brief: Register a callback function to be called when external interrupt occurs
+/// @param callback_function: A function pointer to the callback function which will be called
+/// The callback function takes 2 parameter: user pointer (see uv_utilities.h) and gpio pin
+/// which caused the interrupt.
+void uv_gpio_interrupt_init(void (*callback_function)(uv_gpios_e));
 
 
 

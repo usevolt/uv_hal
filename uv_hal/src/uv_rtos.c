@@ -143,7 +143,7 @@ void uv_init(void *device) {
 #endif
 
 	// try to load non-volatile settings. If loading failed,
-	// reset all peripherals which are denpending on the
+	// reset all peripherals which are depending on the
 	// non-volatile settings.
 	if (_uv_memory_hal_load()) {
 #if CONFIG_CANOPEN
