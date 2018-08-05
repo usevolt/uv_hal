@@ -243,6 +243,7 @@ typedef struct {
 #if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
 	// stores the times for each heartbeat producer since last heartbeat message
 	uint16_t consumer_heartbeat_times[CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT];
+	canopen_node_states_e consumer_heartbeat_states[CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT];
 #endif
 
 	int32_t txpdo_time[CONFIG_CANOPEN_TXPDO_COUNT];

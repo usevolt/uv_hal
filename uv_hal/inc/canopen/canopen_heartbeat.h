@@ -13,6 +13,7 @@
 #include <uv_hal_config.h>
 #include "uv_can.h"
 #include "canopen/canopen_common.h"
+#include "canopen/canopen_nmt.h"
 
 #if CONFIG_CANOPEN
 
@@ -23,6 +24,8 @@
 /// has been expired, i.e. no heartbeat messages has been received from that node
 /// in time specified in index [1016].
 bool uv_canopen_heartbeat_producer_is_expired(uint8_t node_id);
+
+canopen_node_states_e uv_canopen_heartbeat_producer_get_state(uint8_t nodeid);
 #endif
 
 void _uv_canopen_heartbeat_init(void);

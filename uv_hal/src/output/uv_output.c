@@ -119,6 +119,7 @@ void uv_output_step(uv_output_st *this, uint16_t step_ms) {
 		}
 	}
 	else {
+		this->current = 0;
 		set_out(this, false);
 	}
 }

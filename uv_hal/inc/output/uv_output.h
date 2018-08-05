@@ -114,7 +114,7 @@ static inline void uv_output_set_sense_ampl(uv_output_st *this, uint16_t sense_a
 
 /// @brief: Returns the current measured form the current sense feedback
 static inline uint16_t uv_output_get_current(uv_output_st *this) {
-	return uv_moving_aver_get_val(&this->moving_avg);
+	return this->current;
 }
 
 /// @brief: Sets the output state

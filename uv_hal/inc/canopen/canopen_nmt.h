@@ -42,6 +42,8 @@ typedef enum {
 } canopen_nmt_commands_e;
 
 
+/// @brief: Tries to set CANOpen state for node indicated with **nodeid**
+void uv_canopen_command(uint8_t nodeid, canopen_nmt_commands_e cmd);
 
 
 void _uv_canopen_nmt_init(void);
