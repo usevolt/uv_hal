@@ -42,6 +42,13 @@ int32_t uv_moving_aver_step (uv_moving_aver_st *avr, int32_t val) {
 	return (avr->val / 0x100);
 }
 
+void uv_moving_aver_set_count(uv_moving_aver_st *this, int32_t value) {
+	if (!value) {
+		value = 1;
+	}
+	this->count = value;
+}
+
 
 
 void uv_hysteresis_init(uv_hysteresis_st *this, int32_t trigger_value,

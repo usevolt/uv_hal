@@ -22,8 +22,11 @@
 #if CONFIG_DUAL_SOLENOID_OUTPUT
 
 
+#define PID_P_MAX			1000
+
 
 void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
+		uv_dual_solenoid_output_conf_st *conf,
 		uv_pwm_channel_t pwm_a, uv_pwm_channel_t pwm_b,
 		uv_adc_channels_e adc_common,
 		uint16_t dither_freq, int16_t dither_ampl,
@@ -33,19 +36,17 @@ void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 	this->target_req = 0;
 	this->target = 0;
 	this->current_ma = 0;
+	this->conf = conf;
+	uv_pid_init(&this->target_pid, PID_P_MAX, 0, 0);
 
-	// init the configuration structure
-	this->conf.invert = false;
-	this->conf.acc = 100;
-	this->conf.dec = 100;
 
-	uv_moving_aver_init(&this->target_avg, this->conf.acc);
-
-	uv_solenoid_output_init(&this->solenoid[DUAL_OUTPUT_SOLENOID_A], pwm_a, dither_freq,
+	uv_solenoid_output_init(&this->solenoid[DUAL_OUTPUT_SOLENOID_A],
+			&this->conf->solenoid_conf[DUAL_OUTPUT_SOLENOID_A], pwm_a, dither_freq,
 			dither_ampl, adc_common, sense_ampl, max_current, fault_current,
 			emcy_overload_a, emcy_fault_a);
 
-	uv_solenoid_output_init(&this->solenoid[DUAL_OUTPUT_SOLENOID_B], pwm_b, dither_freq,
+	uv_solenoid_output_init(&this->solenoid[DUAL_OUTPUT_SOLENOID_B],
+			&this->conf->solenoid_conf[DUAL_OUTPUT_SOLENOID_B], pwm_b, dither_freq,
 			dither_ampl, adc_common, sense_ampl, max_current, fault_current,
 			emcy_overload_b, emcy_fault_b);
 }
@@ -58,33 +59,50 @@ void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t step_ms) {
 
 
-	uv_dual_solenoid_output_solenoids_e sa = (this->conf.invert) ?
+	uv_dual_solenoid_output_solenoids_e sa = (this->conf->invert) ?
 			DUAL_OUTPUT_SOLENOID_B : DUAL_OUTPUT_SOLENOID_A;
-	uv_dual_solenoid_output_solenoids_e sb = (this->conf.invert) ?
+	uv_dual_solenoid_output_solenoids_e sb = (this->conf->invert) ?
 			DUAL_OUTPUT_SOLENOID_A : DUAL_OUTPUT_SOLENOID_B;
 
 
-	if (this->conf.acc > 100) {
-		this->conf.acc = 100;
+	if (this->conf->acc > 100) {
+		this->conf->acc = 100;
 	}
-	if (this->conf.dec > 100) {
-		this->conf.dec = 100;
+	else if (this->conf->acc < 10) {
+		this->conf->acc = 10;
+	}
+	else {
+
+	}
+	if (this->conf->dec > 100) {
+		this->conf->dec = 100;
+	}
+	else if (this->conf->dec < 10) {
+		this->conf->dec = 10;
+	}
+	else {
+
 	}
 
 	// different moving average values for accelerating and decelerating
 	// maximum decelerating time is 1 sec
-	int32_t scaler = 1000 / step_ms;
-	if (((int32_t) this->target_req * this->target >= 0) &&
-			(abs(this->target_req) > abs(this->target))) {
+	if ((abs(this->target_req) > abs(this->target)) &&
+			((int32_t) this->target_req * this->target >= 0)) {
 		// accelerating
-		uv_moving_aver_set_count(&this->target_avg, (scaler + 1) - this->conf.acc * scaler / 100);
+		uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * this->conf->acc * this->conf->acc / 10000);
 	}
 	else {
 		// decelerating
-		uv_moving_aver_set_count(&this->target_avg, (scaler + 1) - this->conf.dec * scaler / 100);
+		uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * this->conf->dec * this->conf->dec / 10000);
 	}
-	uv_moving_aver_step(&this->target_avg, this->target_req);
-	this->target = uv_moving_aver_get_val(&this->target_avg);
+	uv_pid_set_target(&this->target_pid, this->target_req);
+	uv_pid_step(&this->target_pid, step_ms, this->target);
+	this->target += uv_pid_get_output(&this->target_pid);
+
+	if (uv_pid_get_output(&this->target_pid) == 0) {
+		this->target = this->target_req;
+	}
+
 
 	if (this->target > 0) {
 		uv_solenoid_output_set(&this->solenoid[sb], 0);
@@ -117,11 +135,11 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 
 void uv_dual_solenoid_output_set_conf(uv_dual_solenoid_output_st *this,
 					uv_dual_solenoid_output_conf_st *conf) {
-	this->conf = *conf;
+	this->conf = conf;
 	uv_solenoid_output_set_conf(&this->solenoid[DUAL_OUTPUT_SOLENOID_A],
-			&this->conf.solenoid_conf[DUAL_OUTPUT_SOLENOID_A]);
+			&this->conf->solenoid_conf[DUAL_OUTPUT_SOLENOID_A]);
 	uv_solenoid_output_set_conf(&this->solenoid[DUAL_OUTPUT_SOLENOID_B],
-			&this->conf.solenoid_conf[DUAL_OUTPUT_SOLENOID_B]);
+			&this->conf->solenoid_conf[DUAL_OUTPUT_SOLENOID_B]);
 }
 
 

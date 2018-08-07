@@ -64,14 +64,14 @@ typedef struct {
 	uv_solenoid_output_st solenoid[DUAL_OUTPUT_SOLENOID_COUNT];
 
 	// parameter configurations
-	uv_dual_solenoid_output_conf_st conf;
+	uv_dual_solenoid_output_conf_st *conf;
 
 	// the requested target output value from -1000 ... 1000, the actual drive current is
 	// based on solenoid output configurations.
 	int16_t target_req;
 	// the actual target value. This is smoothened with acc and dec.
 	int16_t target;
-	uv_moving_aver_st target_avg;
+	uv_pid_st target_pid;
 
 	// signed output current
 	int16_t current_ma;
@@ -82,6 +82,7 @@ typedef struct {
 
 /// @brief: Initializes the dual solenoid output module
 void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
+		uv_dual_solenoid_output_conf_st *conf,
 		uv_pwm_channel_t pwm_a, uv_pwm_channel_t pwm_b,
 		uv_adc_channels_e adc_common,
 		uint16_t dither_freq, int16_t dither_ampl,
@@ -130,7 +131,7 @@ void uv_dual_solenoid_output_set_conf(uv_dual_solenoid_output_st *this,
 
 /// @brief: Returns the configuration parameter structure
 static inline uv_dual_solenoid_output_conf_st *uv_dual_solenoid_output_get_conf(uv_dual_solenoid_output_st *this) {
-	return &this->conf;
+	return this->conf;
 }
 
 
