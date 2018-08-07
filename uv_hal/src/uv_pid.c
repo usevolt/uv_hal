@@ -65,7 +65,7 @@ void uv_pid_step(uv_pid_st *this, uint16_t step_ms, int32_t input) {
 		uint8_t def_step_ms = 20;
 
 		// d has to be summed beforehand to get the derivation
-		int32_t d = (int32_t) (this->input - input) * (this->d * def_step_ms / step_ms) / 0x100;
+		int32_t d = (int32_t) (this->input - input) * (this->d * def_step_ms / (int32_t) step_ms) / 0x100;
 
 		// input is updated after d has been calculated
 		this->input = input;
@@ -83,8 +83,8 @@ void uv_pid_step(uv_pid_st *this, uint16_t step_ms, int32_t input) {
 			this->sum += err;
 		}
 
-		int32_t p = (int32_t) err * (this->p * def_step_ms / step_ms) / 0x10000;
-		int32_t i = (int32_t) this->sum * (this->i * def_step_ms / step_ms) / 0x10000;
+		int32_t p = (int32_t) err * (this->p * def_step_ms / (int32_t) step_ms) / 0x10000;
+		int32_t i = (int32_t) this->sum * (this->i * def_step_ms / (int32_t) step_ms) / 0x10000;
 
 		// lastly sum everything up
 		this->output = p + i + d;

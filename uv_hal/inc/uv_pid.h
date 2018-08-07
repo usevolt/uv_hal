@@ -68,11 +68,6 @@ static inline int32_t uv_pid_get_output(uv_pid_st *this) {
 	return this->output;
 }
 
-/// @brief: Used to set the output of the PID to specific value.
-static inline void uv_pid_set_output(uv_pid_st *this, int32_t value) {
-	this->output = value;
-}
-
 /// @brief: Sets the PID controller target value
 static inline void uv_pid_set_target(uv_pid_st *this, int32_t value) {
 	this->target = value;

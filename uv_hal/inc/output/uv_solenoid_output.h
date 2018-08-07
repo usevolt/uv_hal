@@ -63,6 +63,10 @@ typedef struct {
 	uint16_t max_ma;
 } uv_solenoid_output_conf_st;
 
+/// @brief: Resets the output values to defaults
+void uv_solenoid_output_conf_init(uv_solenoid_output_conf_st *conf);
+
+
 
 typedef struct {
 	EXTENDS(uv_output_st);
@@ -70,7 +74,7 @@ typedef struct {
 	uv_solenoid_output_mode_st mode;
 
 	// solenoid configuration parameters
-	uv_solenoid_output_conf_st conf;
+	uv_solenoid_output_conf_st *conf;
 
 	/// @brief: Dither time cycle (1 / frequency)
 	uint16_t dither_ms;
@@ -104,7 +108,8 @@ typedef struct {
 /// @param moving_avg_count: Count for current sense moving average filter.
 /// @emcy_overload: CANopen EMCY message for overload situation
 // @emcy_fault: CANopen EMCY message for fault situation
-void uv_solenoid_output_init(uv_solenoid_output_st *this, uv_pwm_channel_t pwm_chn,
+void uv_solenoid_output_init(uv_solenoid_output_st *this,
+		uv_solenoid_output_conf_st *conf_ptr, uv_pwm_channel_t pwm_chn,
 		uint16_t dither_freq, int16_t dither_ampl, uv_adc_channels_e adc_chn,
 		uint16_t sense_ampl, uint16_t max_current, uint16_t fault_current,
 		uint32_t emcy_overload, uint32_t emcy_fault);
@@ -169,13 +174,13 @@ static inline uint16_t uv_solenoid_output_get_current(uv_solenoid_output_st *thi
 /// @brief: Copies the configuration parameters to the output
 static inline void uv_solenoid_output_set_conf(uv_solenoid_output_st *this,
 		uv_solenoid_output_conf_st *conf) {
-	this->conf = *conf;
+	this->conf = conf;
 }
 
 
 /// @brief: returns the configuration parameter structure
 static inline uv_solenoid_output_conf_st *uv_solenoid_output_get_conf(uv_solenoid_output_st *this) {
-	return &this->conf;
+	return this->conf;
 }
 
 

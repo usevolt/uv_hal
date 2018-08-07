@@ -22,22 +22,22 @@
 
 #if CONFIG_SOLENOID_OUTPUT
 
-/// @brief: Resets the output values to defaults
-static void uv_solenoid_output_conf_init(uv_solenoid_output_conf_st *conf);
 
 
-
-static void uv_solenoid_output_conf_init(uv_solenoid_output_conf_st *conf) {
+void uv_solenoid_output_conf_init(uv_solenoid_output_conf_st *conf) {
 	conf->min_ma = 0;
 	conf->max_ma = 4000;
 }
 
 
 
-void uv_solenoid_output_init(uv_solenoid_output_st *this, uv_pwm_channel_t pwm_chn,
+void uv_solenoid_output_init(uv_solenoid_output_st *this,
+		uv_solenoid_output_conf_st *conf_ptr, uv_pwm_channel_t pwm_chn,
 		uint16_t dither_freq, int16_t dither_ampl, uv_adc_channels_e adc_chn,
 		uint16_t sense_ampl, uint16_t max_current, uint16_t fault_current,
 		uint32_t emcy_overload, uint32_t emcy_fault) {
+
+	this->conf = conf_ptr;
 
 	uv_output_init(((uv_output_st*) this), adc_chn, 0, sense_ampl, max_current,
 			fault_current, 1, emcy_overload, emcy_fault);
@@ -56,8 +56,6 @@ void uv_solenoid_output_init(uv_solenoid_output_st *this, uv_pwm_channel_t pwm_c
 	this->pwm = 0;
 	this->pwm_chn = pwm_chn;
 	uv_pwm_set(this->pwm_chn, this->pwm);
-
-	uv_solenoid_output_conf_init(&this->conf);
 
 	uv_pid_init(&this->ma_pid, CONFIG_SOLENOID_MA_P, CONFIG_SOLENOID_MA_I, 0);
 
@@ -107,12 +105,12 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 			int16_t target_ma = 0;
 			// clamp the output current to min & max current limits
 			if (this->target) {
-				target_ma = uv_lerpi(this->target, this->conf.min_ma, this->conf.max_ma);
-				if (target_ma < this->conf.min_ma) {
-					target_ma = this->conf.min_ma;
+				target_ma = uv_lerpi(this->target, this->conf->min_ma, this->conf->max_ma);
+				if (target_ma < this->conf->min_ma) {
+					target_ma = this->conf->min_ma;
 				}
-				else if (target_ma > this->conf.max_ma) {
-					target_ma = this->conf.max_ma;
+				else if (target_ma > this->conf->max_ma) {
+					target_ma = this->conf->max_ma;
 				}
 				else {
 
