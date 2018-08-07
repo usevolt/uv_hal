@@ -27,12 +27,8 @@
 #if CONFIG_TARGET_LPC1549
 
 
-// mutex for preventing multiple threads from using same SPI at the same time
-static uv_mutex_st mutex;
 
 void _uv_spi_init(void) {
-	uv_mutex_init(&mutex);
-	uv_mutex_unlock(&mutex);
 
 #if CONFIG_SPI0
 	{
@@ -181,7 +177,6 @@ bool uv_spi_readwrite_sync(const spi_e spi, spi_slaves_e slaves,
 		const uint8_t byte_len, const uint16_t buffer_len) {
 	bool ret = true;
 
-	uv_mutex_lock(&mutex);
 	// note: Make sure to specifically deassert all nodes not used for transmission
 	SPI_DATA_SETUP_T setup;
 	setup.pTx = (uint16_t*) writebuffer;
@@ -198,7 +193,6 @@ bool uv_spi_readwrite_sync(const spi_e spi, spi_slaves_e slaves,
 		// SPI error
 		ret = false;
 	}
-	uv_mutex_unlock(&mutex);
 
 	return ret;
 }
@@ -208,7 +202,6 @@ bool uv_spi_write_sync(const spi_e spi, spi_slaves_e slaves,
 		const uint16_t *writebuffer, const uint8_t byte_len, const uint16_t buffer_len) {
 	bool ret = true;
 
-	uv_mutex_lock(&mutex);
 	// note: Make sure to specifically deassert all nodes not used for transmission
 	SPI_DATA_SETUP_T setup;
 	setup.pTx = (uint16_t*) writebuffer;
@@ -225,7 +218,6 @@ bool uv_spi_write_sync(const spi_e spi, spi_slaves_e slaves,
 		// SPI error
 		ret = false;
 	}
-	uv_mutex_unlock(&mutex);
 
 	return ret;
 

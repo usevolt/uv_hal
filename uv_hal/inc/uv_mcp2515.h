@@ -22,6 +22,7 @@
 #include <uv_hal_config.h>
 #include "uv_spi.h"
 #include "uv_can.h"
+#include "uv_rtos.h"
 
 #if CONFIG_MCP2515
 
@@ -55,6 +56,9 @@ typedef struct {
 
 	// Stores the CAN baudrate set for the MCP2515
 	uint32_t can_baudrate;
+
+	// mutex for accessing the SPI bus
+	uv_mutex_st mutex;
 
 } uv_mcp2515_st;
 

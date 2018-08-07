@@ -49,6 +49,9 @@ bool uv_mcp2515_init(uv_mcp2515_st *this, spi_e spi, spi_slaves_e ssel,
 	uv_ring_buffer_init(&this->rx, this->rx_buffer,
 			sizeof(this->rx_buffer), sizeof(this->rx_buffer[0]));
 
+	uv_mutex_init(&this->mutex);
+	uv_mutex_lock(&this->mutex);
+
 	uv_gpio_init_input(this->int_gpio, PULL_UP_ENABLED);
 	uv_gpio_init_int(this->int_gpio, INT_FALLING_EDGE);
 
@@ -80,12 +83,6 @@ bool uv_mcp2515_init(uv_mcp2515_st *this, spi_e spi, spi_slaves_e ssel,
 		write[3] = (1 << 7) | (((tseg1 - 1) & 0x7) << 3) | ((prop_seg - 1) & 0x7);
 		write[4] = (tseg2 - 1) & 0x7;
 		uv_spi_write_sync(this->spi, this->ssel, write, 8, 5);
-
-		// enable receive message interrupts
-		write[0] = CMD_WRITE;
-		write[1] = 0x2B;
-		write[2] = 0x3;
-		uv_spi_write_sync(this->spi, this->ssel, write, 8, 3);
 
 		// disable txrts pins
 		write[0] = CMD_WRITE;
@@ -119,6 +116,19 @@ bool uv_mcp2515_init(uv_mcp2515_st *this, spi_e spi, spi_slaves_e ssel,
 		memset(&write[2], 0, 8);
 		uv_spi_write_sync(this->spi, this->ssel, write, 8, 10);
 
+		// clear all interrupts
+		write[0] = CMD_WRITE;
+		write[1] = 0x2C;
+		write[2] = 0;
+		uv_spi_write_sync(this->spi, this->ssel, write, 8, 3);
+
+		// enable receive message interrupts
+		write[0] = CMD_WRITE;
+		write[1] = 0x2B;
+		write[2] = 0x3;
+		uv_spi_write_sync(this->spi, this->ssel, write, 8, 3);
+
+
 		// set up normal operation
 		write[0] = CMD_WRITE;
 		write[1] = 0x0F;
@@ -129,6 +139,8 @@ bool uv_mcp2515_init(uv_mcp2515_st *this, spi_e spi, spi_slaves_e ssel,
 
 	}
 
+	uv_mutex_unlock(&this->mutex);
+
 	return ret;
 }
 
@@ -136,44 +148,49 @@ bool uv_mcp2515_init(uv_mcp2515_st *this, spi_e spi, spi_slaves_e ssel,
 
 void uv_mcp2515_int(uv_mcp2515_st *this) {
 	// read through all interrupts and clear them
-	while (uv_gpio_get(this->int_gpio) == 0) {
-		uint16_t write[14] = { }, read[14] = { };
-		write[0] = CMD_READ_STATUS;
-		write[1] = 0;
-		uv_spi_readwrite_sync(this->spi, this->ssel, write, read, 8, 2);
-		if (read[2] & (0b11)) {
-			// 0 if rbuffer zero had the message, otherwise 1
-			uint8_t buffer = ((read[2] & (1 << 1)) >> 1);
 
-			// fetch the message
-			write[0] = CMD_READ_RX | (buffer << 2);
-			memset(&write[1], 0, 13 * sizeof(write[1]));
-			uv_spi_readwrite_sync(this->spi, this->ssel, write, read, 8, 14);
+	if (uv_mutex_lock_isr(&this->mutex)) {
+		while (uv_gpio_get(this->int_gpio) == 0) {
 
-			uv_can_msg_st msg;
-			msg.type = (read[2] & (1 << 4)) ? CAN_EXT : CAN_STD;
-			if (msg.type == CAN_EXT) {
-				// extended identifier
-				msg.id = (((uint32_t) read[1]) << 21) +
-						(((uint32_t) (read[2] >> 5)) << 18) +
-						(((uint32_t) (read[2] & 0b11)) << 16) +
-						(((uint32_t) (read[3])) << 8) +
-						read[4];
-			}
-			else {
-				// standard identifier
-				msg.id = (((uint32_t) read[1]) << 3) + (read[2] >> 5);
-			}
-			// DLC
-			msg.data_length = read[5] & 0b1111;
-			// copy data btes
-			memset(msg.data_8bit, 0, sizeof(msg.data_8bit));
-			for (uint8_t i = 0; i < msg.data_length; i++) {
-				msg.data_8bit[i] = read[6 + i];
-			}
+			uint16_t write[14] = { }, read[14] = { };
+			write[0] = CMD_READ_STATUS;
+			write[1] = 0;
+			uv_spi_readwrite_sync(this->spi, this->ssel, write, read, 8, 2);
+			if (read[1] & (0b11)) {
+				// 0 if rxbuffer zero had the message, otherwise 1
+				uint8_t buffer = ((read[2] & (1 << 1)) >> 1);
 
-			uv_ring_buffer_push(&this->rx, &msg);
+				// fetch the message
+				write[0] = CMD_READ_RX | (buffer << 2);
+				memset(&write[1], 0, 13 * sizeof(write[1]));
+				uv_spi_readwrite_sync(this->spi, this->ssel, write, read, 8, 14);
+
+				uv_can_msg_st msg;
+				msg.type = (read[2] & (1 << 4)) ? CAN_EXT : CAN_STD;
+				if (msg.type == CAN_EXT) {
+					// extended identifier
+					msg.id = (((uint32_t) read[1]) << 21) +
+							(((uint32_t) (read[2] >> 5)) << 18) +
+							(((uint32_t) (read[2] & 0b11)) << 16) +
+							(((uint32_t) (read[3])) << 8) +
+							read[4];
+				}
+				else {
+					// standard identifier
+					msg.id = (((uint32_t) read[1]) << 3) + (read[2] >> 5);
+				}
+				// DLC
+				msg.data_length = read[5] & 0b1111;
+				// copy data btes
+				memset(msg.data_8bit, 0, sizeof(msg.data_8bit));
+				for (uint8_t i = 0; i < msg.data_length; i++) {
+					msg.data_8bit[i] = read[6 + i];
+				}
+
+				uv_ring_buffer_push(&this->rx, &msg);
+			}
 		}
+		uv_mutex_unlock_isr(&this->mutex);
 	}
 }
 
@@ -181,6 +198,8 @@ void uv_mcp2515_int(uv_mcp2515_st *this) {
 
 uv_errors_e uv_mcp2515_send(uv_mcp2515_st *this, uv_can_msg_st *msg) {
 	uv_errors_e ret = ERR_NONE;
+
+	uv_mutex_lock(&this->mutex);
 
 	uint16_t write[13] = {}, read[3] = {};
 	// wait until mcp2515 is ready to load new message
@@ -230,19 +249,23 @@ uv_errors_e uv_mcp2515_send(uv_mcp2515_st *this, uv_can_msg_st *msg) {
 	write[0] = CMD_RTS | 1;
 	uv_spi_write_sync(this->spi, this->ssel, write, 8, 1);
 
+	uv_mutex_unlock(&this->mutex);
+
 	return ret;
 }
 
 
 
 uv_errors_e uv_mcp2515_receive(uv_mcp2515_st *this, uv_can_msg_st *dest) {
-	uv_errors_e ret = ERR_BUFFER_EMPTY;
+	uv_errors_e ret;
 
 	// since interrupts are edge sensitive, it _might_ be possible for an edge to miss
 	// an interrupt. To make sure that doesnt happen, check here int state.
 	uv_mcp2515_int(this);
 
+	uv_mutex_lock(&this->mutex);
 	ret = uv_ring_buffer_pop(&this->rx, dest);
+	uv_mutex_unlock(&this->mutex);
 
 	return ret;
 }

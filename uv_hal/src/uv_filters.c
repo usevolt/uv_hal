@@ -56,7 +56,7 @@ bool uv_hysteresis_step(uv_hysteresis_st *this, int32_t value) {
 	if ((this->result == this->invert) && (value > this->trigger_value + this->hysteresis)) {
 		this->result = !this->invert;
 	}
-	else if ((this->result != this->invert) && (value < this->trigger_value + this->hysteresis)) {
+	else if ((this->result != this->invert) && (value < this->trigger_value - this->hysteresis)) {
 		this->result = this->invert;
 	}
 	else {

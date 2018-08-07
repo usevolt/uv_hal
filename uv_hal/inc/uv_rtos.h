@@ -94,7 +94,8 @@ typedef SemaphoreHandle_t 	uv_mutex_st;
 
 /// @brief: Initializes a mutex. Must be called before uv_mutex_lock and uv_mutex_unlock
 static inline void uv_mutex_init(uv_mutex_st *mutex) {
-	*mutex = xSemaphoreCreateMutex();
+	*mutex = xSemaphoreCreateBinary();
+	xSemaphoreGive(*mutex);
 }
 
 /// @brief: Locks the mutex. No one else can lock the mutex before it is unlocked.
@@ -105,6 +106,14 @@ static inline void uv_mutex_lock(uv_mutex_st *mutex) {
 /// @brief: Unlocks the mutex after which others can lock it again.
 static inline void uv_mutex_unlock(uv_mutex_st *mutex) {
 	xSemaphoreGive(*mutex);
+}
+
+static inline bool uv_mutex_lock_isr(uv_mutex_st *mutex) {
+	return xSemaphoreTakeFromISR(*mutex, NULL);
+}
+
+static inline bool uv_mutex_unlock_isr(uv_mutex_st *mutex) {
+	return xSemaphoreGiveFromISR(*mutex, NULL);
 }
 
 
