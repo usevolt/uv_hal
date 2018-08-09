@@ -261,7 +261,7 @@ typedef struct {
 /// @brief: Initializes the ring buffer
 /// @param buffer_ptr: Pointer to the ring buffer structure
 /// @param buffer: Pointer to the memory location where the raw data is to be stored
-/// @param buffer_size: The size of the buffer in bytes
+/// @param buffer_size: The size of the buffer in elements
 /// @param element_size: The size of the individual element in bytes
 uv_errors_e uv_ring_buffer_init(uv_ring_buffer_st *buffer_ptr, void *buffer,
 		uint16_t buffer_size, uint8_t element_size);

@@ -36,6 +36,10 @@
 #error "CONFIG_MCP2515_RX_BUFFER_LEN should define the receive buffer length\
  in CAN messages."
 #endif
+#if !CONFIG_MCP2515_TX_BUFFER_LEN
+#error "CONFIG_MCP2515_TX_BUFFER_LEN should define the transmit buffer length\
+ in CAN messages."
+#endif
 #if !CONFIG_MCP2515_FOSC
 #error "CONFIG_MCP2515_FOSC should define the crystal oscillator frequency in Hz which is soldered to the pcb."
 #endif
@@ -53,6 +57,9 @@ typedef struct {
 	// receive buffer
 	uv_can_msg_st rx_buffer[CONFIG_MCP2515_RX_BUFFER_LEN];
 	uv_ring_buffer_st rx;
+	// transmit buffer
+	uv_can_msg_st tx_buffer[CONFIG_MCP2515_TX_BUFFER_LEN];
+	uv_ring_buffer_st tx;
 
 	// Stores the CAN baudrate set for the MCP2515
 	uint32_t can_baudrate;
@@ -71,7 +78,7 @@ bool uv_mcp2515_init(uv_mcp2515_st *this, spi_e spi, spi_slaves_e ssel,
 
 
 /// @brief: Interrupt handler. This should be called when the gpio interrupt happens
-void uv_mcp2515_int(uv_mcp2515_st *this);
+void uv_mcp2515_int(uv_mcp2515_st *this, bool from_isr);
 
 
 
@@ -82,7 +89,7 @@ uv_errors_e uv_mcp2515_send(uv_mcp2515_st *this, uv_can_msg_st *msg);
 
 
 
-/// @brief: Pops a received message from the receive buffer
+/// @brief: Pops a received message from the receive buffer. Also works as a step function.
 ///
 /// @return ERR_NONE if messages were to receive, error if buffer was empty.
 uv_errors_e uv_mcp2515_receive(uv_mcp2515_st *this, uv_can_msg_st *dest);

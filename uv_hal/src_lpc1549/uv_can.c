@@ -657,11 +657,7 @@ uv_errors_e uv_can_get_char(char *dest) {
 uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message) {
 	uv_disable_int();
 	uv_errors_e ret = ERR_NONE;
-#if (CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LPC11C14)
 	ret = uv_ring_buffer_push(&this->tx_buffer, message);
-#elif CONFIG_TARGET_LPC1785
-	ret = uv_ring_buffer_push(&this->tx_buffer[channel], message);
-#endif
 	uv_enable_int();
 	return ret;
 }
@@ -671,11 +667,7 @@ uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* me
 uv_errors_e uv_can_pop_message(uv_can_channels_e channel, uv_can_message_st *message) {
 	uv_errors_e ret = ERR_NONE;
 	uv_disable_int();
-#if (CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LPC11C14)
 	ret = uv_ring_buffer_pop(&this->rx_buffer, message);
-#elif CONFIG_TARGET_LPC1785
-	ret = uv_ring_buffer_pop(&this->rx_buffer[channel], message);
-#endif
 	uv_enable_int();
 	return ret;
 }
@@ -683,15 +675,8 @@ uv_errors_e uv_can_pop_message(uv_can_channels_e channel, uv_can_message_st *mes
 
 
 uv_errors_e uv_can_reset(uv_can_channels_e channel) {
-#if CONFIG_TARGET_LPC11C14
-	//clearing the C_CAN bit resets C_CAN hardware
-	LPC_SYSCON->PRESETCTRL &= ~(1 << 3);
-	//set bit to de-assert the reset
-	LPC_SYSCON->PRESETCTRL |= (1 << 3);
-#elif CONFIG_TARGET_LPC1549
 	Chip_SYSCTL_PeriphReset(RESET_CAN);
 
-#endif
 	return ERR_NONE;
 }
 

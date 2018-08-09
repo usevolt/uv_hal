@@ -37,6 +37,7 @@
 
 // for register map, refer to http://ww1.microchip.com/downloads/en/DeviceDoc/20001801H.pdf, page 63
 
+static void send_next(uv_mcp2515_st *this, uint16_t *status);
 
 
 bool uv_mcp2515_init(uv_mcp2515_st *this, spi_e spi, spi_slaves_e ssel,
@@ -47,7 +48,9 @@ bool uv_mcp2515_init(uv_mcp2515_st *this, spi_e spi, spi_slaves_e ssel,
 	this->int_gpio = int_gpio;
 	this->can_baudrate = can_baudrate;
 	uv_ring_buffer_init(&this->rx, this->rx_buffer,
-			sizeof(this->rx_buffer), sizeof(this->rx_buffer[0]));
+			CONFIG_MCP2515_RX_BUFFER_LEN, sizeof(this->rx_buffer[0]));
+	uv_ring_buffer_init(&this->tx, this->tx_buffer,
+			CONFIG_MCP2515_TX_BUFFER_LEN, sizeof(this->tx_buffer[0]));
 
 	uv_mutex_init(&this->mutex);
 	uv_mutex_lock(&this->mutex);
@@ -122,10 +125,11 @@ bool uv_mcp2515_init(uv_mcp2515_st *this, spi_e spi, spi_slaves_e ssel,
 		write[2] = 0;
 		uv_spi_write_sync(this->spi, this->ssel, write, 8, 3);
 
-		// enable receive message interrupts
+		// enable receive and transmit message interrupts
 		write[0] = CMD_WRITE;
 		write[1] = 0x2B;
-		write[2] = 0x3;
+//		write[2] = 0x3 | (1 << 2);
+		write[2] = (1 << 2);
 		uv_spi_write_sync(this->spi, this->ssel, write, 8, 3);
 
 
@@ -146,16 +150,27 @@ bool uv_mcp2515_init(uv_mcp2515_st *this, spi_e spi, spi_slaves_e ssel,
 
 
 
-void uv_mcp2515_int(uv_mcp2515_st *this) {
+void uv_mcp2515_int(uv_mcp2515_st *this, bool from_isr) {
 	// read through all interrupts and clear them
 
-	if (uv_mutex_lock_isr(&this->mutex)) {
+	bool locked;
+	if (from_isr) {
+		locked = uv_mutex_lock_isr(&this->mutex);
+	}
+	else {
+		uv_mutex_lock(&this->mutex);
+		locked = true;
+	}
+	if (locked) {
+
 		while (uv_gpio_get(this->int_gpio) == 0) {
+
 
 			uint16_t write[14] = { }, read[14] = { };
 			write[0] = CMD_READ_STATUS;
 			write[1] = 0;
 			uv_spi_readwrite_sync(this->spi, this->ssel, write, read, 8, 2);
+
 			if (read[1] & (0b11)) {
 				// 0 if rxbuffer zero had the message, otherwise 1
 				uint8_t buffer = ((read[2] & (1 << 1)) >> 1);
@@ -189,66 +204,89 @@ void uv_mcp2515_int(uv_mcp2515_st *this) {
 
 				uv_ring_buffer_push(&this->rx, &msg);
 			}
+			// check if txbuffer0 is not transmitting a message at the moment
+			if (!(read[1] & (1 << 2))) {
+				// clear txif flag bit
+				write[0] = CMD_BIT_MODIFY;
+				write[1] = 0x2C;
+				write[2] = (1 << 2);
+				write[3] = 0;
+				uv_spi_write_sync(this->spi, this->ssel, write, 8, 4);
+
+				// message transmitted, ready to send a new one
+				send_next(this, &read[1]);
+			}
 		}
-		uv_mutex_unlock_isr(&this->mutex);
+		(from_isr) ? uv_mutex_unlock_isr(&this->mutex) : uv_mutex_unlock(&this->mutex);
 	}
 }
 
+
+static void send_next(uv_mcp2515_st *this, uint16_t *status) {
+
+	uv_can_msg_st msg;
+	uv_errors_e e = uv_ring_buffer_peek(&this->tx, &msg);
+	if (e == ERR_NONE) {
+
+		uint16_t write[13] = {}, read[2] = {};
+		if (status == NULL) {
+			// see if mcp2515 is ready to load new message
+			write[0] = CMD_READ_STATUS;
+			uv_spi_readwrite_sync(this->spi, this->ssel, write, read, 8, 2);
+		}
+		else {
+			read[1] = *status;
+		}
+
+		// message object is ready to accept new data
+		if (!(read[1] & (1 << 2))) {
+
+			// remove the message from ring buffer
+			uv_ring_buffer_pop(&this->tx, &msg);
+
+			write[0] = CMD_LOAD_TX;
+			if (msg.type == CAN_STD) {
+				// standard frame
+				write[1] = (msg.id >> 3) & 0xFF;
+				write[2] = ((msg.id & 0x7) << 5);
+				write[3] = 0;
+				write[4] = 0;
+			}
+			else {
+				// extended frame
+				write[1] = (msg.id >> 21) & 0xFF;
+				write[2] = (((msg.id >> 18) & 0x7) << 5) |
+						(1 << 3) |
+						((msg.id >> 16) & 0x3);
+				write[3] = ((msg.id >> 8) & 0xFF);
+				write[4] = (msg.id & 0xFF);
+			}
+			if (msg.data_length > 8) {
+				msg.data_length = 8;
+			}
+			write[5] = msg.data_length;
+			for (uint8_t i = 0; i < msg.data_length; i++) {
+				write[6 + i] = msg.data_8bit[i];
+			}
+			uv_spi_write_sync(this->spi, this->ssel, write, 8, 6 + msg.data_length);
+
+
+			// request to send the first transmit buffer
+			write[0] = CMD_RTS | 1;
+			uv_spi_write_sync(this->spi, this->ssel, write, 8, 1);
+
+			write[0] = CMD_READ_STATUS;
+			uv_spi_readwrite_sync(this->spi, this->ssel, write, read, 8, 2);
+		}
+	}
+}
 
 
 uv_errors_e uv_mcp2515_send(uv_mcp2515_st *this, uv_can_msg_st *msg) {
 	uv_errors_e ret = ERR_NONE;
 
 	uv_mutex_lock(&this->mutex);
-
-	uint16_t write[13] = {}, read[3] = {};
-	// wait until mcp2515 is ready to load new message
-	while (true) {
-		write[0] = CMD_READ;
-		write[1] = 0x30;
-		uv_spi_readwrite_sync(this->spi, this->ssel, write, read, 8, 3);
-
-		// message object is ready to accept new data
-		if (!(read[2] & (1 << 3))) {
-			break;
-		}
-		else {
-			// message object not ready, wait 1 ms
-			uv_rtos_task_delay(1);
-		}
-	}
-
-	write[0] = CMD_LOAD_TX;
-	if (msg->type == CAN_STD) {
-		// standard frame
-		write[1] = (msg->id >> 3) & 0xFF;
-		write[2] = ((msg->id & 0x7) << 5);
-		write[3] = 0;
-		write[4] = 0;
-	}
-	else {
-		// extended frame
-		write[1] = (msg->id >> 21) & 0xFF;
-		write[2] = (((msg->id >> 18) & 0x7) << 5) |
-				(1 << 3) |
-				((msg->id >> 16) & 0x3);
-		write[3] = ((msg->id >> 8) & 0xFF);
-		write[4] = (msg->id & 0xFF);
-
-	}
-	if (msg->data_length > 8) {
-		msg->data_length = 8;
-	}
-	write[5] = msg->data_length;
-	for (uint8_t i = 0; i < msg->data_length; i++) {
-		write[6 + i] = msg->data_8bit[i];
-	}
-	uv_spi_write_sync(this->spi, this->ssel, write, 8, 6 + msg->data_length);
-
-	// request to send the first transmit buffer
-	write[0] = CMD_RTS | 1;
-	uv_spi_write_sync(this->spi, this->ssel, write, 8, 1);
-
+	ret = uv_ring_buffer_push(&this->tx, msg);
 	uv_mutex_unlock(&this->mutex);
 
 	return ret;
@@ -259,11 +297,16 @@ uv_errors_e uv_mcp2515_send(uv_mcp2515_st *this, uv_can_msg_st *msg) {
 uv_errors_e uv_mcp2515_receive(uv_mcp2515_st *this, uv_can_msg_st *dest) {
 	uv_errors_e ret;
 
+
 	// since interrupts are edge sensitive, it _might_ be possible for an edge to miss
 	// an interrupt. To make sure that doesnt happen, check here int state.
-	uv_mcp2515_int(this);
+	uv_mcp2515_int(this, false);
 
 	uv_mutex_lock(&this->mutex);
+
+	// try to send the next message
+	send_next(this, NULL);
+
 	ret = uv_ring_buffer_pop(&this->rx, dest);
 	uv_mutex_unlock(&this->mutex);
 
