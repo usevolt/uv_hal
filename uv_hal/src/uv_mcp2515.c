@@ -128,8 +128,7 @@ bool uv_mcp2515_init(uv_mcp2515_st *this, spi_e spi, spi_slaves_e ssel,
 		// enable receive and transmit message interrupts
 		write[0] = CMD_WRITE;
 		write[1] = 0x2B;
-//		write[2] = 0x3 | (1 << 2);
-		write[2] = (1 << 2);
+		write[2] = 0x3 | (1 << 2);
 		uv_spi_write_sync(this->spi, this->ssel, write, 8, 3);
 
 
