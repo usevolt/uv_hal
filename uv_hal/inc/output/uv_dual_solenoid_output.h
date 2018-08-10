@@ -56,7 +56,6 @@ typedef struct {
 } uv_dual_solenoid_output_conf_st;
 
 
-
 /// @brief: Dual solenoid output module. Works as a data structure for controlling dual
 /// direction proportional valves.
 typedef struct {
@@ -66,12 +65,17 @@ typedef struct {
 	// parameter configurations
 	uv_dual_solenoid_output_conf_st *conf;
 
-	// the requested target output value from -1000 ... 1000, the actual drive current is
+	// the requested target output value from -1000 to 1000, the actual drive current is
 	// based on solenoid output configurations.
 	int16_t target_req;
 	// the actual target value. This is smoothened with acc and dec.
 	int16_t target;
+	// Helper variable to hold more precise target value. With this
+	// the PID calculations are done with greater precision than the output actually is
+	int16_t target_mult;
 	uv_pid_st target_pid;
+	// used to slow down pid update cycle, to allow more smooth control
+	uv_delay_st target_delay;
 
 	// signed output current
 	int16_t current_ma;

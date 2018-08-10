@@ -36,9 +36,9 @@ typedef enum {
 	/// Output is off
 	DUAL_OUTPUT_OFF = 0,
 	// Output is in positive direction (direction A)
-	DUAL_OUTPUT_POS,
+	DUAL_OUTPUT_POS = 1,
 	// Output is in negative direction (direction B)
-	DUAL_OUTPUT_NEG
+	DUAL_OUTPUT_NEG = -1
 } uv_dual_output_dir_e;
 
 typedef struct {
@@ -78,6 +78,9 @@ void uv_dual_output_step(uv_dual_output_st *this, uint16_t step_ms);
 /// @brief: Sets the output's direction. If set to DUAL_OUTPUT_OFF, output switches itself to
 /// OUTPUT_STATE_OFF state.
 void uv_dual_output_set_dir(uv_dual_output_st *this, uv_dual_output_dir_e value);
+static inline void uv_dual_output_set(uv_dual_output_st *this, uv_dual_output_dir_e value) {
+	uv_dual_output_set_dir(this, value);
+}
 
 /// @brief: Returns the output direction
 static inline uv_dual_output_dir_e uv_dual_output_get_dir(uv_dual_output_st *this) {
