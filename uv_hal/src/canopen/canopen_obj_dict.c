@@ -25,42 +25,47 @@ extern unsigned int CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS_COUNT (void);
 
 
 
-#define RXPDO_COM(x)	,{	\
+#define RXPDO_COM(x)	{	\
 	.main_index = CONFIG_CANOPEN_RXPDO_COM_INDEX + x,\
 	.array_max_size = CANOPEN_RXPDO_COM_ARRAY_SIZE,\
 	.permissions = CANOPEN_RW, \
 	.type = CANOPEN_ARRAY32, \
 	.data_ptr = &CONFIG_NON_VOLATILE_START.canopen_data.rxpdo_coms[x] \
-	} \
+	}, \
 
-#define RXPDO_MAP(x)	,{ \
+#define RXPDO_MAP(x)	{ \
 	.main_index = CONFIG_CANOPEN_RXPDO_MAP_INDEX + x, \
 	.array_max_size = CONFIG_CANOPEN_PDO_MAPPING_COUNT, \
 	.permissions = CANOPEN_RW, \
 	.type = CANOPEN_ARRAY32, \
 	.data_ptr = &CONFIG_NON_VOLATILE_START.canopen_data.rxpdo_maps[x] \
-	} \
+	}, \
 
-#define TXPDO_COM(x)	,{ \
+#define TXPDO_COM(x)	{ \
 	.main_index = CONFIG_CANOPEN_TXPDO_COM_INDEX + x, \
 	.array_max_size = CANOPEN_TXPDO_COM_ARRAY_SIZE, \
 	.permissions = CANOPEN_RW, \
 	.type = CANOPEN_ARRAY32, \
 	.data_ptr = &CONFIG_NON_VOLATILE_START.canopen_data.txpdo_coms[x] \
-	} \
+	}, \
 
-#define TXPDO_MAP(x)	,{ \
+#define TXPDO_MAP(x)	{ \
 	.main_index = CONFIG_CANOPEN_TXPDO_MAP_INDEX + x, \
 	.array_max_size = CONFIG_CANOPEN_PDO_MAPPING_COUNT, \
 	.permissions = CANOPEN_RW, \
 	.type = CANOPEN_ARRAY32, \
 	.data_ptr = &CONFIG_NON_VOLATILE_START.canopen_data.txpdo_maps[x] \
-	} \
+	}, \
 
 
 
 
 const canopen_object_st com_params[] = {
+		REPEAT(CONFIG_CANOPEN_RXPDO_COUNT, RXPDO_COM)
+		REPEAT(CONFIG_CANOPEN_RXPDO_COUNT, RXPDO_MAP)
+
+		REPEAT(CONFIG_CANOPEN_TXPDO_COUNT, TXPDO_COM)
+		REPEAT(CONFIG_CANOPEN_TXPDO_COUNT, TXPDO_MAP)
 		{
 				.main_index = CONFIG_CANOPEN_DEVICE_TYPE_INDEX,
 				.sub_index = 0,
@@ -105,15 +110,6 @@ const canopen_object_st com_params[] = {
 				.type = CANOPEN_UNSIGNED16,
 				.data_ptr = &CONFIG_NON_VOLATILE_START.canopen_data.producer_heartbeat_time_ms
 		},
-#if CONFIG_INTERFACE_REVISION
-		{
-				.main_index = CONFIG_CANOPEN_INTERFACE_REVISION_INDEX,
-				.sub_index = 0,
-				.permissions = CANOPEN_RO,
-				.type = CANOPEN_UNSIGNED16,
-				.data_ptr = &_canopen.if_revision
-		},
-#endif
 #if CONFIG_CANOPEN_SDO_SEGMENTED
 		{
 				.main_index = CONFIG_CANOPEN_DEVNAME_INDEX,
@@ -131,11 +127,6 @@ const canopen_object_st com_params[] = {
 				.type = CANOPEN_ARRAY32,
 				.data_ptr = &_canopen.identity
 		}
-		REPEAT(CONFIG_CANOPEN_RXPDO_COUNT, RXPDO_COM)
-		REPEAT(CONFIG_CANOPEN_RXPDO_COUNT, RXPDO_MAP)
-
-		REPEAT(CONFIG_CANOPEN_TXPDO_COUNT, TXPDO_COM)
-		REPEAT(CONFIG_CANOPEN_TXPDO_COUNT, TXPDO_MAP)
 
 };
 

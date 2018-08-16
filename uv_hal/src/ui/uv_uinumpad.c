@@ -206,5 +206,41 @@ static uv_uiobject_ret_e numpad_step(void *me, uint16_t step_ms, const uv_boundi
 	return ret;
 }
 
+static uv_uinumpad_st *numpad_ptr;
+
+static uv_uiobject_ret_e exec_callb(uint16_t step_ms) {
+	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
+
+	if (uv_uinumpad_get_cancelled(numpad_ptr) ||
+			uv_uinumpad_get_submitted(numpad_ptr)) {
+		// close the uidialog
+		ret = UIOBJECT_RETURN_KILLED;
+	}
+
+	return ret;
+}
+
+
+int32_t uv_uinumpaddialog_exec(const char *title, int32_t def_value, const uv_uistyle_st *style) {
+	uv_uidialog_st d;
+	uv_uiobject_st *bfr;
+	uv_uinumpad_st numpad;
+	numpad_ptr = &numpad;
+	uv_uidialog_init(&d, &bfr, style);
+	uv_uidialog_set_stepcallback(&d, &exec_callb);
+
+	uv_uinumpad_init(&numpad, title, &uv_uistyles[0]);
+	uv_uidialog_add(&d, &numpad, 0, 0,
+			uv_uibb(&d)->width, uv_uibb(&d)->height);
+
+	uv_uidialog_exec(&d);
+
+	int32_t value = uv_uinumpad_get_value(&numpad);
+	if (value == -1) {
+		value = def_value;
+	}
+	return value;
+}
+
 
 #endif

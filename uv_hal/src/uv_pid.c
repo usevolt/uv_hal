@@ -26,7 +26,7 @@
 
 
 /// @brief: Initializes the PID structure
-void uv_pid_init(uv_pid_st *this, uint16_t p, uint16_t i, uint16_t d) {
+void uv_pid_init(uv_pid_st *this, uint32_t p, uint32_t i, uint32_t d) {
 	this->p = p;
 	this->i = i;
 	this->d = d;
@@ -40,7 +40,7 @@ void uv_pid_init(uv_pid_st *this, uint16_t p, uint16_t i, uint16_t d) {
 }
 
 /// @brief: PID step function
-void uv_pid_step(uv_pid_st *this, uint16_t step_ms, int16_t input) {
+void uv_pid_step(uv_pid_st *this, uint16_t step_ms, int32_t input) {
 
 	bool on = true;
 
@@ -60,8 +60,12 @@ void uv_pid_step(uv_pid_st *this, uint16_t step_ms, int16_t input) {
 	}
 
 	if (on) {
+		// the default step ms in milliseconds for which the P, I and D factors
+		// are scaled for.
+		uint8_t def_step_ms = 20;
+
 		// d has to be summed beforehand to get the derivation
-		int32_t d = (int32_t) (this->input - input) * this->d / 0xFF;
+		int32_t d = (int32_t) (this->input - input) * (this->d * def_step_ms / (int32_t) step_ms) / 0x100;
 
 		// input is updated after d has been calculated
 		this->input = input;
@@ -79,8 +83,8 @@ void uv_pid_step(uv_pid_st *this, uint16_t step_ms, int16_t input) {
 			this->sum += err;
 		}
 
-		int32_t p = (int32_t) err * this->p / 0xFFFF;
-		int32_t i = (int32_t) this->sum * this->i / 0xFFFF;
+		int32_t p = (int32_t) err * (this->p * def_step_ms / (int32_t) step_ms) / 0x10000;
+		int32_t i = (int32_t) this->sum * (this->i * def_step_ms / (int32_t) step_ms) / 0x10000;
 
 		// lastly sum everything up
 		this->output = p + i + d;

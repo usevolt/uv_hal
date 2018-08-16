@@ -74,12 +74,10 @@ void uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
 
 
 
-#if configUSE_IDLE_HOOK
 uv_errors_e uv_rtos_add_idle_task(void (*task_function)(void *user_ptr)) {
 	this->idle_task = task_function;
-	return uv_err(ERR_NONE);
+	return ERR_NONE;
 }
-#endif
 
 void uv_rtos_task_delay(unsigned int ms) {
 	portTickType xDelayTime;
@@ -144,6 +142,15 @@ void uv_init(void *device) {
 	_uv_wdt_init();
 #endif
 
+	// try to load non-volatile settings. If loading failed,
+	// reset all peripherals which are depending on the
+	// non-volatile settings.
+	if (_uv_memory_hal_load()) {
+#if CONFIG_CANOPEN
+		_uv_canopen_reset();
+#endif
+	}
+
 #if CONFIG_UART0
 	_uv_uart_init(UART0);
 #endif
@@ -161,14 +168,6 @@ void uv_init(void *device) {
 	_uv_can_init();
 #endif
 
-	// try to load non-volatile settings. If loading failed,
-	// reset all peripherals which are denpending on the
-	// non-volatile settings.
-	if (_uv_memory_hal_load()) {
-#if CONFIG_CANOPEN
-		_uv_canopen_reset();
-#endif
-	}
 
 #if CONFIG_CANOPEN
 	_uv_canopen_init();

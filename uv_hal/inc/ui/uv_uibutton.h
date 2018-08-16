@@ -62,10 +62,7 @@ void uv_uibutton_init(void *me, char *text, const uv_uistyle_st *style);
 
 
 /// @brief: Sets the text of the button
-static inline void uv_uibutton_set_text(void *me, char *text) {
-	this->text = text;
-	this->super.refresh = true;
-}
+void uv_uibutton_set_text(void *me, char *text);
 
 /// @brief: Returns the button text
 static inline char *uv_uibutton_get_text(void *me) {

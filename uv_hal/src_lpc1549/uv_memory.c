@@ -383,7 +383,11 @@ void uv_set_id(uint16_t id) {
 
 uint8_t uv_get_id() {
 #if !CONFIG_TARGET_LINUX
-	return *((uint8_t*)(NON_VOLATILE_MEMORY_START_ADDRESS + 8));
+	uint8_t id = *((uint8_t*)(NON_VOLATILE_MEMORY_START_ADDRESS + 8));
+	if (id > 0x7F) {
+		id = 0x7F;
+	}
+	return id;
 #else
 	return 0;
 #endif
@@ -441,4 +445,13 @@ uv_errors_e _uv_memory_hal_load(void) {
 	return uv_memory_load();
 }
 
+
+
+uint32_t uv_memory_get_can_baudrate(void) {
+	return CONFIG_NON_VOLATILE_START.can_baudrate;
+}
+
+void uv_memory_set_can_baudrate(uint32_t baudrate) {
+	CONFIG_NON_VOLATILE_START.can_baudrate = baudrate;
+}
 

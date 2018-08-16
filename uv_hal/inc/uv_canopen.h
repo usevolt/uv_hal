@@ -38,7 +38,7 @@
 /// ### IMPORTANT:
 ///
 /// * In order to function properly, this CANopen stack requires CANOPEN_OBJ_DICT()-macro to be called
-/// in the beginning of the object dictionary constant array, which defines the applications
+/// at the end of the object dictionary constant array, which defines the applications
 /// objects. Read through this header file for more info.
 ///
 /// ###DIFFERENCES TO A COMPLETE CANOPEN:
@@ -119,9 +119,6 @@
 #if !defined(CONFIG_CANOPEN_DEVNAME_INDEX)
 #define CONFIG_CANOPEN_DEVNAME_INDEX		0x1FFF
 #endif
-#if CONFIG_INTERFACE_REVISION
-#define CONFIG_CANOPEN_INTERFACE_REVISION_INDEX	0x2FF0
-#endif
 #if !defined(CONFIG_CANOPEN_PDO_MAPPING_COUNT)
 #define CONFIG_CANOPEN_PDO_MAPPING_COUNT	8
 #endif
@@ -174,6 +171,10 @@ should be enabled. Defaults to 0. Segmented parth takes roughly 1k4 bytes of fla
 #error "CONFIG_CANOPEN_SDO_TIMEOUT_MS should define the SDO protocol timeout in segmented and block transfers\
  in milliseconds."
 #endif
+#if !defined(CONFIG_CANOPEN_HEARTBEAT_CONSUMER)
+#error "CONFIG_CANOPEN_HEARTBEAT_CONSUMER should be defined as 1 or 0 depending if this device\
+ listens to any other node's heartbeats and consumes them."
+#endif
 #if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
 #if !CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT
 #error "CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT should define the number of Heartbeat producers\
@@ -201,6 +202,7 @@ CONFIG_CANOPEN_EMCY_MSG_ID_x symbol should define the message ID, starting from 
 typedef struct {
 	canopen_pdo_mapping_st mappings[CONFIG_CANOPEN_PDO_MAPPING_COUNT];
 } canopen_pdo_mapping_parameter_st;
+#define CANOPEN_PDO_MAPPING_PARAMETER_TYPE	CANOPEN_ARRAY32
 
 
 typedef struct {
@@ -208,6 +210,7 @@ typedef struct {
 	uint8_t node_id;
 	uint8_t _reserved;
 } canopen_heartbeat_consumer_st;
+#define CANOPEN_HEARTBEAT_CONSUMER_ST_TYPE	sizeof(canopen_heartbeat_consumer_st)
 
 typedef struct {
 	uint16_t producer_heartbeat_time_ms;
@@ -236,9 +239,11 @@ typedef struct {
 	uint32_t restore_req;
 	canopen_identity_object_st identity;
 	uv_delay_st heartbeat_time;
+	uint8_t current_node_id;
 #if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
 	// stores the times for each heartbeat producer since last heartbeat message
 	uint16_t consumer_heartbeat_times[CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT];
+	canopen_node_states_e consumer_heartbeat_states[CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT];
 #endif
 
 	int32_t txpdo_time[CONFIG_CANOPEN_TXPDO_COUNT];
@@ -302,9 +307,6 @@ typedef struct {
 	} sdo;
 	void (*can_callback)(void *user_ptr, uv_can_message_st* msg);
 
-#if CONFIG_INTERFACE_REVISION
-	uint16_t if_revision;
-#endif
 
 } _uv_canopen_st;
 
@@ -466,7 +468,7 @@ static inline uv_errors_e uv_canopen_sdo_block_write(uint8_t node_id,
 
 #endif
 
-/// @brief: Sets a CAN message callback. This can be used in order to manually receive messages
+/// @brief: Sets a CAN message callback. This can be used to manually receive messages
 void uv_canopen_set_can_callback(void (*callb)(void *user_ptr, uv_can_message_st *msg));
 
 /// @brief: Sets an SDO write callback. This can be used to get a notification of when an

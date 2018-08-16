@@ -16,7 +16,7 @@
 
 #define this (&_canopen.sdo.server)
 #define this_nonvol	(&CONFIG_NON_VOLATILE_START.canopen_data)
-#define NODEID			(CONFIG_NON_VOLATILE_START.id)
+#define NODEID			_canopen.current_node_id
 
 #define GET_CMD_BYTE(msg_ptr)			((msg_ptr)->data_8bit[0])
 #define GET_MINDEX(msg_ptr)				((msg_ptr)->data_8bit[1] + ((msg_ptr)->data_8bit[2] * 256))

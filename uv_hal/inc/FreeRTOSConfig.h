@@ -81,7 +81,7 @@
  * FreeRTOS API DOCUMENTATION AVAILABLE ON THE FreeRTOS.org WEB SITE.
  *----------------------------------------------------------*/
 #define configUSE_PREEMPTION		1
-#define configUSE_IDLE_HOOK			0
+#define configUSE_IDLE_HOOK			1
 #if CONFIG_TARGET_LPC1785 || CONFIG_TARGET_LPC1549
 #define configCPU_CLOCK_HZ			( ( unsigned long ) SystemCoreClock )
 #define configMAX_PRIORITIES		( 8 )

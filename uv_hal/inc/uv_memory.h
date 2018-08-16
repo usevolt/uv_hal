@@ -91,6 +91,8 @@ typedef struct {
 	const char *build_date;
 	/// @brief: Project unique ID. Usually the same as a CANopen node-id
 	uint16_t id;
+	// @brief: CAN baudrate. Defaults to 250000. UV bootloader uses this when booting.
+	uint32_t can_baudrate;
 #if CONFIG_CANOPEN
 	// non-volatile data for canopen
 	_canopen_non_volatile_st canopen_data;
@@ -161,6 +163,13 @@ uint16_t uv_memory_get_project_id(uv_data_start_t *start_ptr);
 
 /// @brief: Returns the project building date saved in the non-volatile memory
 const char *uv_memory_get_project_date(uv_data_start_t *start_ptr);
+
+/// @brief: Returns the CAN bus baudrate
+uint32_t uv_memory_get_can_baudrate(void);
+
+/// @brief: Sets the CAN baudrate. Note that the memory should usually be saved after this
+/// if the value should be non-volatile.
+void uv_memory_set_can_baudrate(uint32_t baudrate);
 
 
 extern const char uv_projname[];

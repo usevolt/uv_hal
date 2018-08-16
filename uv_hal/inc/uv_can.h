@@ -49,7 +49,9 @@
 #endif
 #if CONFIG_CAN0
 #if !defined(CONFIG_CAN0_BAUDRATE)
-#error "CONFIG_CAN0_BAUDRATE not defined. It should define the baudrate used for CAN0 module."
+#error "CONFIG_CAN0_BAUDRATE not defined. It should define the default baudrate used for CAN0 module.\
+ Note that if can_baudrate is set in uv_memory module via uv_memory_set_can_baudrate, that one will be used\
+ instead."
 #endif
 #if !defined(CONFIG_CAN0_RX_BUFFER_SIZE)
 #error "CONFIG_CAN0_RX_BUFFER_SIZE not defined. It should define the buffer size used for receiving messages."

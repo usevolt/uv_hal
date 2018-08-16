@@ -17,7 +17,7 @@
 
 #define this (&_canopen)
 #define this_nonvol	(&CONFIG_NON_VOLATILE_START.canopen_data)
-#define NODEID			(CONFIG_NON_VOLATILE_START.id)
+#define NODEID			this->current_node_id
 
 
 void _uv_canopen_nmt_init(void) {
@@ -41,7 +41,7 @@ void _uv_canopen_nmt_init(void) {
 }
 
 void _uv_canopen_nmt_reset(void) {
-	NODEID = CONFIG_CANOPEN_DEFAULT_NODE_ID;
+	CONFIG_NON_VOLATILE_START.id = CONFIG_CANOPEN_DEFAULT_NODE_ID;
 }
 
 void _uv_canopen_nmt_step(uint16_t step_ms) {
@@ -83,6 +83,15 @@ void _uv_canopen_nmt_set_state(canopen_node_states_e state) {
 	this->state = state;
 }
 
+void uv_canopen_command(uint8_t nodeid, canopen_nmt_commands_e cmd) {
+	uv_can_msg_st msg;
+	msg.type = CAN_STD;
+	msg.id = 0;
+	msg.data_length = 2;
+	msg.data_8bit[0] = cmd;
+	msg.data_8bit[1] = nodeid;
+	uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
+}
 
 
 #if CONFIG_CANOPEN_NMT_MASTER

@@ -26,14 +26,14 @@
 
 #if CONFIG_UI
 
-#define NUMPAD_VALUE_STR_LEN	8
+#define NUMPAD_VALUE_STR_LEN	16
 
 
 typedef struct {
 	EXTENDS(uv_uiobject_st);
 
 	char value_str[NUMPAD_VALUE_STR_LEN];
-	int16_t value;
+	int32_t value;
 	const char *title;
 	const uv_uistyle_st *style;
 	bool submitted;
@@ -61,7 +61,7 @@ void uv_uinumpad_init(void *me, const char *title, const uv_uistyle_st *style);
 /// @note: This uses lots of stack to store the uielements!
 ///
 /// @return: Value entered into the numpad
-int16_t uv_uinumpaddialog_exec(const char *title, const uv_uistyle_st *style);
+int32_t uv_uinumpaddialog_exec(const char *title, int32_t def_value, const uv_uistyle_st *style);
 
 #ifdef this
 #undef this
@@ -70,7 +70,7 @@ int16_t uv_uinumpaddialog_exec(const char *title, const uv_uistyle_st *style);
 
 /// @brief: Returns the current input value. If nothing has been inputted,
 /// returns -1.
-static inline int16_t uv_uinumpad_get_value(void *me) {
+static inline int32_t uv_uinumpad_get_value(void *me) {
 	return this->value;
 }
 

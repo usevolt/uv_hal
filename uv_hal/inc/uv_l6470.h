@@ -55,19 +55,22 @@ typedef struct {
 } uv_l6470_st;
 
 
-#define L6470_ACC_MAX				0x7FE
-#define L6470_ACC_DEFAULT			0x8A
-#define L6470_DEC_MAX				L6470_ACC_MAX
-#define L6470_DEC_DEFAULT			0x8A
-#define L6470_MAXSPEED_MAX			0x3FF
-#define L6470_MAXSPEED_DEFAULT		0x41
-#define L6470_MINSPEED_MAX			0x1FFF
-#define L6470_MINSPEED_DEFAULT		0x0
+#define L6470_ACC_MAX					0x7FE
+#define L6470_ACC_DEFAULT				0x8A
+#define L6470_DEC_MAX					L6470_ACC_MAX
+#define L6470_DEC_DEFAULT				0x8A
+#define L6470_MAXSPEED_MAX				0x3FF
+#define L6470_MAXSPEED_DEFAULT			0x41
+#define L6470_MINSPEED_MAX				0x1FFF
+#define L6470_MINSPEED_DEFAULT			0x0
 
-#define L6470_ACC_PWM_DEFAULT		0x29
-#define L6470_DEC_PWM_DEFAULT		0x29
-#define L6470_RUN_PWM_DEFAULT		0x29
-#define L6470_HOLD_PWM_DEFAULT		0x29
+#define L6470_ACC_PWM_DEFAULT_DC		0x29
+#define L6470_DEC_PWM_DEFAULT_DC		0x29
+#define L6470_RUN_PWM_DEFAULT_DC		0x29
+#define L6470_HOLD_PWM_DEFAULT_DC		0x29
+
+#define L6470_OVERCURRENT_DEFAULT_MA	3380
+#define L6470_OVERCURRENT_MAX_MA		6000
 
 typedef enum {
 	L6470_MICROSTEP_1 = 0,
@@ -109,6 +112,9 @@ void uv_l6470_set_speeds(uv_l6470_st *this, uint16_t acc, uint16_t dec,
 /// affects the phase current.
 void uv_l6470_set_pwm(uv_l6470_st *this, uint8_t acc_duty_cycle, uint8_t dec_duty_cycle,
 		uint8_t run_duty_cycle, uint8_t hold_cuty_cycle);
+
+/// @brief: Sets the overcurrent limit in milliamperes
+void uv_l6470_set_overcurrent(uv_l6470_st *this, uint16_t value_ma);
 
 
 /// @brief: L6470 finds the home with the aid of switch connected to L6470 pin 4 (SW).

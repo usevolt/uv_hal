@@ -95,30 +95,38 @@ void uv_output_enable(uv_output_st *this) {
 /// @brief: Step function should be called every step cycle.
 void uv_output_step(uv_output_st *this, uint16_t step_ms) {
 
-	// current sense feedback
-	if (this->adc_chn) {
-		int16_t adc = uv_adc_read(this->adc_chn);
-		if (adc < 0) {
-			adc = 0;
-		}
-		int32_t current = (int32_t) adc * this->sense_ampl / 1000;
-		this->current = uv_moving_aver_step(&this->moving_avg, current);
-	}
 	if (this->state == OUTPUT_STATE_ON) {
 
-		if (this->current > this->limit_fault) {
-			set_out(this, false);
-			uv_output_set_state(this, OUTPUT_STATE_FAULT);
+		// current sense feedback
+		if (this->adc_chn) {
+			int16_t adc = uv_adc_read(this->adc_chn);
+			if (adc < 0) {
+				adc = 0;
+			}
+			int32_t current = (int32_t) adc * this->sense_ampl / 1000;
+			uv_moving_aver_step(&this->moving_avg, current);
 		}
-		else if ((this->current > this->limit_max)) {
-			set_out(this, false);
-			uv_output_set_state(this, OUTPUT_STATE_OVERLOAD);
-		}
-		else {
-			set_out(this, true);
+
+		this->current = uv_moving_aver_get_val(&this->moving_avg);
+
+		// Disable fault detection for a short time during power on
+		if (uv_moving_aver_is_full(&this->moving_avg)) {
+			if (this->current > this->limit_fault) {
+				set_out(this, false);
+				uv_output_set_state(this, OUTPUT_STATE_FAULT);
+			}
+			else if ((this->current > this->limit_max)) {
+				set_out(this, false);
+				uv_output_set_state(this, OUTPUT_STATE_OVERLOAD);
+			}
+			else {
+				set_out(this, true);
+			}
 		}
 	}
 	else {
+		this->current = 0;
+		uv_moving_aver_reset(&this->moving_avg);
 		set_out(this, false);
 	}
 }

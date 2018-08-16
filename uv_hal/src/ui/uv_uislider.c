@@ -229,8 +229,6 @@ static void touch(void *me, uv_touch_st *touch) {
 	else if (touch->action == TOUCH_NONE && this->dragging) {
 		this->dragging = false;
 		this->drag_val = 0;
-		// prevent action from propagating to other elements
-		touch->action = TOUCH_NONE;
 	}
 
 }

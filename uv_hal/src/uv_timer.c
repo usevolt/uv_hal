@@ -94,7 +94,7 @@ void uv_timer_clear(uv_timers_e timer) {
 
 
 
-int32_t uv_timer_get_us(uv_timers_e timer) {
+uint32_t uv_timer_get_us(uv_timers_e timer) {
 	uint32_t count = (uint64_t) timers[timer]->COUNT_U * 1000000 /
 			Chip_Clock_GetSystemClockRate();
 	return count;

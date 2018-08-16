@@ -47,6 +47,7 @@ typedef struct {
 	/// by the application.
 	canopen_pdo_transmission_types_e transmission_type;
 } canopen_rxpdo_com_parameter_st;
+#define CANOPEN_RXPDO_COM_ARRAY_TYPE	CANOPEN_ARRAY32
 #define CANOPEN_RXPDO_COM_ARRAY_SIZE	2
 
 
@@ -67,6 +68,7 @@ typedef struct {
 	uint32_t event_timer;
 } canopen_txpdo_com_parameter_st;
 #define CANOPEN_TXPDO_COM_ARRAY_SIZE		5
+#define CANOPEN_TXPDO_COM_ARRAY_TYPE			CANOPEN_ARRAY32
 
 
 

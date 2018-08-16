@@ -164,6 +164,10 @@ static inline void uv_uiobject_set_draw_callb(void *me,
 	((uv_uiobject_st*) me)->vrtl_draw = vrtl_draw;
 }
 
+
+/// @brief: Calls the redraw callback function if one is assigned
+void _uv_uiobject_draw(void *me, const uv_bounding_box_st *pbb);
+
 /// @brief: Sets the virtual touch function pointer
 static inline void uv_uiobject_set_touch_callb(void *me,
 		void (*vrtl_touch)(void *, uv_touch_st *)) {

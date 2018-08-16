@@ -16,26 +16,25 @@
 */
 
 
-#ifndef UW_UI_H_
-#define UW_UI_H_
 
-#include <ui/uv_uibutton.h>
-#include "ui/uv_uitogglebutton.h"
-#include <ui/uv_uidisplay.h>
-#include <ui/uv_uilabel.h>
-#include <ui/uv_uislider.h>
-#include <ui/uv_uiwindow.h>
-#include "ui/uv_ui_styles.h"
-#include "ui/uv_uilist.h"
-#include "ui/uv_uikeyboard.h"
-#include "ui/uv_uitabwindow.h"
-#include "ui/uv_uiprogressbar.h"
-#include "ui/uv_uilayout.h"
-#include "ui/uv_uitoucharea.h"
-#include "ui/uv_uitreeview.h"
-#include "ui/uv_uitransition.h"
-#include "ui/uv_uidialog.h"
-#include "ui/uv_uinumpad.h"
-#include "ui/uv_uidigitedit.h"
+#include "uv_servo.h"
 
-#endif /* UW_UI_H_ */
+#if CONFIG_SERVO
+
+
+
+
+
+void uv_servo_set(uv_pwm_channel_t chn, uint32_t pos_mdeg) {
+	if (pos_mdeg > SERVO_MAX_MANGLE) {
+		pos_mdeg = SERVO_MAX_MANGLE;
+	}
+	int32_t t = uv_reli(pos_mdeg, SERVO_MIN_MANGLE, SERVO_MAX_MANGLE);
+	uv_pwm_set(chn, uv_lerpi(t, SERVO_POS_0_DC, SERVO_POS_180_DC));
+}
+
+
+
+
+
+#endif

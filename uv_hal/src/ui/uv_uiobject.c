@@ -26,6 +26,12 @@ void uv_bounding_box_init(uv_bounding_box_st *bb,
 	bb->height = height;
 }
 
+void _uv_uiobject_draw(void *me, const uv_bounding_box_st *pbb) {
+	if (this->vrtl_draw) {
+		this->vrtl_draw(me, pbb);
+	}
+	this->refresh = false;
+}
 
 
 void uv_uiobject_init(void *me) {
@@ -119,12 +125,14 @@ int16_t uv_ui_get_yglobal(const void *me) {
 #if CONFIG_FT81X
 
 void uv_ui_refresh(void *me) {
-	((uv_uiobject_st*) me)->refresh = true;
-	uv_uiwindow_st *parent = this->parent;
-	while (parent != NULL) {
-		((uv_uiobject_st*) parent)->refresh = true;
-		parent = ((uv_uiobject_st*) parent)->parent;
+	// refreshing sets only the furthest parent's refresh flag
+	// e.g. uidisplay is refreshed first. Each uiwindow is responsible
+	// for refreshing their children afterwards
+	uv_uiobject_st *t = me;
+	while (t->parent != NULL) {
+		t = (uv_uiobject_st*) t->parent;
 	}
+	t->refresh = true;
 }
 
 #endif

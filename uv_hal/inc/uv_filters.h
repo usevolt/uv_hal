@@ -45,6 +45,15 @@ static inline int32_t uv_moving_aver_get_val(uv_moving_aver_st *this) {
 	return (this->val / 0x100);
 }
 
+/// @brief: Sets the moving average filter count
+void uv_moving_aver_set_count(uv_moving_aver_st *this, int32_t value);
+
+/// @brief: Returns true when the moving average buffer is full, e.g. when
+/// the step function has been called enough times
+static inline bool uv_moving_aver_is_full(uv_moving_aver_st *this) {
+	return (this->count == this->cur_count);
+}
+
 
 typedef struct {
 	int32_t trigger_value;

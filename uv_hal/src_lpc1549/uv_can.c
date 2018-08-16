@@ -36,6 +36,9 @@
 #include "chip.h"
 #include "romapi_15xx.h"
 #include "rom_can_15xx.h"
+#if CONFIG_NON_VOLATILE_MEMORY
+#include CONFIG_MAIN_H
+#endif
 
 /*------------- CAN Controller (CAN) ----------------------------*/
 /** @addtogroup LPC15xx_CAN LPC15xx Controller Area Network(CAN)
@@ -358,7 +361,17 @@ uv_errors_e _uv_can_init() {
 
 	// baudrate prescaler
 	// BTR register: TSEG1 = 4, TSEG2 = 3, SJW = 0
-	LPC_CAN->BT = ((SystemCoreClock / (CONFIG_CAN0_BAUDRATE * 8) - 1) & 0x3F)
+	uint32_t baudrate;
+#if CONFIG_NON_VOLATILE_MEMORY
+	baudrate = CONFIG_NON_VOLATILE_START.can_baudrate;
+#else
+	baudrate = CONFIG_CAN0_BAUDRATE;
+#endif
+	if (!baudrate || (baudrate > 2000000)) {
+		baudrate = CONFIG_CAN0_BAUDRATE;
+		CONFIG_NON_VOLATILE_START.can_baudrate = baudrate;
+	}
+	LPC_CAN->BT = ((SystemCoreClock / (baudrate * 8) - 1) & 0x3F)
 				  | (3 << 8) | (2 << 12);
 	LPC_CAN->CLKDIV = 0;
 
@@ -644,11 +657,7 @@ uv_errors_e uv_can_get_char(char *dest) {
 uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message) {
 	uv_disable_int();
 	uv_errors_e ret = ERR_NONE;
-#if (CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LPC11C14)
 	ret = uv_ring_buffer_push(&this->tx_buffer, message);
-#elif CONFIG_TARGET_LPC1785
-	ret = uv_ring_buffer_push(&this->tx_buffer[channel], message);
-#endif
 	uv_enable_int();
 	return ret;
 }
@@ -658,11 +667,7 @@ uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* me
 uv_errors_e uv_can_pop_message(uv_can_channels_e channel, uv_can_message_st *message) {
 	uv_errors_e ret = ERR_NONE;
 	uv_disable_int();
-#if (CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LPC11C14)
 	ret = uv_ring_buffer_pop(&this->rx_buffer, message);
-#elif CONFIG_TARGET_LPC1785
-	ret = uv_ring_buffer_pop(&this->rx_buffer[channel], message);
-#endif
 	uv_enable_int();
 	return ret;
 }
@@ -670,15 +675,8 @@ uv_errors_e uv_can_pop_message(uv_can_channels_e channel, uv_can_message_st *mes
 
 
 uv_errors_e uv_can_reset(uv_can_channels_e channel) {
-#if CONFIG_TARGET_LPC11C14
-	//clearing the C_CAN bit resets C_CAN hardware
-	LPC_SYSCON->PRESETCTRL &= ~(1 << 3);
-	//set bit to de-assert the reset
-	LPC_SYSCON->PRESETCTRL |= (1 << 3);
-#elif CONFIG_TARGET_LPC1549
 	Chip_SYSCTL_PeriphReset(RESET_CAN);
 
-#endif
 	return ERR_NONE;
 }
 

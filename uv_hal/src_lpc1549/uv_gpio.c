@@ -34,7 +34,7 @@ static uv_gpios_e int_pins[8] = {};
 
 
 
-void uv_gpio_add_interrupt_callback(void (*callback_function)(uv_gpios_e)) {
+void uv_gpio_interrupt_init(void (*callback_function)(uv_gpios_e)) {
 	callback = callback_function;
 	Chip_PININT_Init(LPC_GPIO_PIN_INT);
 }

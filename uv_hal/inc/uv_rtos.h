@@ -99,7 +99,8 @@ typedef SemaphoreHandle_t 	uv_mutex_st;
 
 /// @brief: Initializes a mutex. Must be called before uv_mutex_lock and uv_mutex_unlock
 static inline void uv_mutex_init(uv_mutex_st *mutex) {
-	*mutex = xSemaphoreCreateMutex();
+	*mutex = xSemaphoreCreateBinary();
+	xSemaphoreGive(*mutex);
 }
 
 /// @brief: Locks the mutex. No one else can lock the mutex before it is unlocked.
@@ -110,6 +111,14 @@ static inline void uv_mutex_lock(uv_mutex_st *mutex) {
 /// @brief: Unlocks the mutex after which others can lock it again.
 static inline void uv_mutex_unlock(uv_mutex_st *mutex) {
 	xSemaphoreGive(*mutex);
+}
+
+static inline bool uv_mutex_lock_isr(uv_mutex_st *mutex) {
+	return xSemaphoreTakeFromISR(*mutex, NULL);
+}
+
+static inline bool uv_mutex_unlock_isr(uv_mutex_st *mutex) {
+	return xSemaphoreGiveFromISR(*mutex, NULL);
 }
 #else
 
@@ -125,7 +134,6 @@ static inline void uv_mutex_init(uv_mutex_st *mutex) {
 	pthread_mutex_init(mutex, NULL);
 }
 
-#include <stdio.h>
 
 /// @brief: Locks the mutex. No one else can lock the mutex before it is unlocked.
 static inline void uv_mutex_lock(uv_mutex_st *mutex) {
@@ -138,6 +146,8 @@ static inline void uv_mutex_unlock(uv_mutex_st *mutex) {
 }
 
 #endif
+
+
 
 
 /// @brief: Initializes the real time OS. Basicly sets up a HAL task which takes care
@@ -216,7 +226,6 @@ static inline void uv_rtos_task_yield(void) {
 
 
 
-
 /// @brief: Create a new task and add it to the list of tasks that are ready to run.
 ///
 /// @param task_function: The function which will be executed as a task
@@ -241,6 +250,16 @@ static inline void uv_rtos_task_delete(uv_rtos_task_ptr task) {
 }
 
 
+
+/// @brief: Returns the current tick timer count. Multiplying this value
+/// with tick delay gives real world time.
+static inline uint32_t uv_rtos_get_tick_count(void) {
+	return xTaskGetTickCount();
+}
+
+static inline uint32_t uv_rtos_get_tick_rate_hz(void) {
+	return configTICK_RATE_HZ;
+}
 
 
 
