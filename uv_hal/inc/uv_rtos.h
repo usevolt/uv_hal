@@ -34,9 +34,14 @@
 ///
 
 #include "uv_errors.h"
+#if !CONFIG_TARGET_LINUX
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
+#else
+#include "sched.h"
+#include "pthread.h"
+#endif
 
 #if !defined(CONFIG_RTOS_HEAP_SIZE)
 #error "CONFIG_RTOS_HEAP_SIZE not defined. It should define the number of bytes reserved to be used\
@@ -85,7 +90,7 @@
 
 
 
-
+#if !CONFIG_TARGET_LINUX
 typedef xTaskHandle 		uv_rtos_task_ptr;
 
 
@@ -106,7 +111,33 @@ static inline void uv_mutex_lock(uv_mutex_st *mutex) {
 static inline void uv_mutex_unlock(uv_mutex_st *mutex) {
 	xSemaphoreGive(*mutex);
 }
+#else
 
+#define configMINIMAL_STACK_SIZE		10
+#define tskIDLE_PRIORITY				1
+
+typedef void			uv_rtos_task_ptr;
+
+typedef pthread_mutex_t uv_mutex_st;
+
+/// @brief: Initializes a mutex. Must be called before uv_mutex_lock and uv_mutex_unlock
+static inline void uv_mutex_init(uv_mutex_st *mutex) {
+	pthread_mutex_init(mutex, NULL);
+}
+
+#include <stdio.h>
+
+/// @brief: Locks the mutex. No one else can lock the mutex before it is unlocked.
+static inline void uv_mutex_lock(uv_mutex_st *mutex) {
+	pthread_mutex_lock(mutex);
+}
+
+/// @brief: Unlocks the mutex after which others can lock it again.
+static inline void uv_mutex_unlock(uv_mutex_st *mutex) {
+	pthread_mutex_unlock(mutex);
+}
+
+#endif
 
 
 /// @brief: Initializes the real time OS. Basicly sets up a HAL task which takes care
@@ -134,7 +165,6 @@ static inline bool uv_rtos_initialized() {
 }
 
 
-#if configUSE_IDLE_HOOK
 /// @brief: e.g. FreeRTOS applicationIdleHook, this function can be used
 /// to add a idle task function. Idle function will be called every time
 /// the application is performing the idle task loop.
@@ -142,7 +172,6 @@ static inline bool uv_rtos_initialized() {
 /// @param task_function: The task function pointer. Takes user_ptr as a parameter.
 /// Refer to uv_utilities.h for more details.
 uv_errors_e uv_rtos_add_idle_task(void (*task_function)(void *user_ptr));
-#endif
 
 
 
@@ -172,7 +201,11 @@ void uv_rtos_task_delay(unsigned int ms);
 
 /// @brief: Forces a context switch
 static inline void uv_rtos_task_yield(void) {
+#if CONFIG_TARGET_LINUX
+	sched_yield();
+#else
 	taskYIELD();
+#endif
 }
 
 
@@ -201,10 +234,11 @@ void uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
 
 /// @brief: Remove a task from the RTOS kernels management. The task being
 /// deleted will be removed from all ready, blocked, suspended and event lists
+
+#if !CONFIG_TARGET_LINUX
 static inline void uv_rtos_task_delete(uv_rtos_task_ptr task) {
 	vTaskDelete(task);
 }
-
 
 
 
@@ -224,7 +258,20 @@ static inline void uv_rtos_end_scheduler(void) {
 	vTaskEndScheduler();
 }
 
+#else
 
+
+/// @brief: Starts the RTOS scheduler. After calling this, the
+/// RTOS kernel has control over which tasks are executed and when.
+/// In normal operation this function never returns.
+void uv_rtos_start_scheduler(void);
+
+/// @brief: Stops the RTOS scheduler. After calling this,
+/// the RTOS stops functioning.
+static inline void uv_rtos_end_scheduler(void) {
+}
+
+#endif
 
 
 

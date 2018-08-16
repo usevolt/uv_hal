@@ -117,7 +117,7 @@ static bool copen(void) {
 		strcpy(ifr.ifr_name, this->dev);
 
 		if (ioctl(this->soc, SIOCGIFINDEX, &ifr) < 0) {
-			printf("ioctl failed\n");
+			printf("ioctl failed, CAN bus not available.\n");
 			ret = false;
 		}
 		else {
@@ -162,14 +162,14 @@ static bool cclose(void) {
 #if CONFIG_TARGET_LINUX
 
 bool uv_can_set_baudrate(uv_can_channels_e channel, unsigned int baudrate) {
-	bool ret;
+	bool ret = true;
 	if (this->connection) {
 		cclose();
 	}
 	strcpy(this->dev, channel);
 	this->baudrate = baudrate;
 	// open the connection
-	ret = copen();
+	copen();
 
 	return ret;
 }
