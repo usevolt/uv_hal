@@ -30,6 +30,8 @@
 #include "uv_ft81x.h"
 #include "unistd.h"
 #include <string.h>
+#include <time.h>
+#include <stdio.h>
 #if CONFIG_WDT
 #include "uv_wdt.h"
 #endif
@@ -51,9 +53,7 @@ static bool initialized = false;
 static void *thread_func(void *thread_ptr) {
 	thread_st *thread = thread_ptr;
 
-	printf("thread!\n");
 	thread->function_ptr(thread->param);
-	printf("thread done\n");
 
 	return NULL;
 }
@@ -69,7 +69,7 @@ typedef struct {
 } this_st;
 bool rtos_init = false;
 
-static this_st _this = {
+static volatile this_st _this = {
 		.idle_task = NULL,
 		.tick_task = NULL
 };
@@ -79,7 +79,7 @@ static this_st _this = {
 uv_mutex_st halmutex;
 
 
-#define this (&_this)
+#define this ((this_st*) &_this)
 
 
 uv_errors_e uv_rtos_add_idle_task(void (*task_function)(void *user_ptr)) {
@@ -123,13 +123,11 @@ void uv_rtos_start_scheduler(void) {
 		pthread_create(&thread->thread, NULL, &thread_func, thread);
 	}
 
-	printf("all tasks created\n");
 	// if idle hook is set, call it
 	if (this->idle_task) {
 		this->idle_task(__uv_get_user_ptr());
 	}
 
-	printf("waiting for all tasks to shut down\n");
 	// wait until all threads have finished
 	for (unsigned int i = 0; i < uv_vector_size(&this->threads); i++) {
 		pthread_join(((thread_st*) uv_vector_at(&this->threads, i))->thread, NULL);
@@ -149,7 +147,10 @@ uv_errors_e uv_rtos_add_idle_task(void (*task_function)(void *user_ptr)) {
 #endif
 
 void uv_rtos_task_delay(unsigned int ms) {
-	usleep(ms * 1000);
+	struct timespec t;
+	t.tv_sec = ms / 1000;
+	t.tv_nsec = (ms * 1000000) % 1000000000;
+	nanosleep(&t, NULL);
 }
 
 
@@ -312,9 +313,8 @@ void hal_task(void *nullptr) {
 	rtos_init = true;
 
 	while (true) {
-		_uv_rtos_halmutex_lock();
 
-		printf("p");
+		_uv_rtos_halmutex_lock();
 
 #if CONFIG_CAN
 		_uv_can_hal_step(step_ms);

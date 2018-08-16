@@ -282,7 +282,7 @@ void _uv_can_hal_step(unsigned int step_ms) {
 			struct can_frame frame_rd;
 			int recvbytes = 0;
 
-			struct timeval timeout = {1, 0};
+			struct timeval timeout = {0, 1000};
 			fd_set readSet;
 			FD_ZERO(&readSet);
 			FD_SET(this->soc, &readSet);
@@ -316,8 +316,9 @@ void _uv_can_hal_step(unsigned int step_ms) {
 							printf("** CAN RX buffer full**\n");
 						}
 
-						ioctl(this->soc, SIOCGSTAMP, &this->lastrxtime);
 						go = true;
+
+						ioctl(this->soc, SIOCGSTAMP, &this->lastrxtime);
 					}
 					else if (recvbytes == -1) {
 						printf("*** CAN RX error: %u , %s***\n", errno, strerror(errno));
