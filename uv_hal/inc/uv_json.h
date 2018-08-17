@@ -60,6 +60,10 @@ typedef enum {
 	JSON_STRING
 } uv_json_types_e;
 
+static inline bool uv_json_is_objarray(uv_json_types_e type) {
+	return (type < JSON_UNSUPPORTED);
+}
+
 
 /// @brief: The JSON data structure
 /// contains status data from the JSON to be constructed
@@ -80,7 +84,7 @@ typedef struct {
 /// @param buffer_ptr: A pointer to a string buffer which contains the JSON to be parsed
 /// OR a string where the constructed json will be saved.
 /// @param buffer_length: The maximum length in bytes of the buffer.
-uv_errors_e uv_jsonreader_init(uv_json_st *json, char *buffer_ptr, unsigned int buffer_length);
+uv_errors_e uv_jsonreader_init(char *buffer_ptr, unsigned int buffer_length);
 
 
 /// @brief: Init's a JSON writer. This function should be called before
@@ -171,16 +175,6 @@ uv_errors_e uv_jsonwriter_array_add_bool(uv_json_st *json, bool value);
 bool uv_jsonreader_get_next_sibling(char *object, char **dest);
 
 
-/// @brief: Gives a pointer pointing to the start to the next child
-///
-/// @return: true if the next child could be found, false otherwise.
-///
-/// @param parent: A pointer to the parent object whose child will be looped trough.
-/// @param child_index: A index number of the child which is requested
-/// @param dest: A pointer to a char pointer where a reference to the found child
-/// will be stored. If sibling couldn't be found, this function doesn't modify dest at all.
-bool uv_jsonreader_get_child(char *parent, unsigned int child_index, char **dest);
-
 
 /// @brief: Finds and stores a child object with a key 'key' from 'object' parent to 'dest'.
 /// Child is searched recursively 'depth' many times. For unlimited depth, pass -1.
@@ -197,8 +191,8 @@ bool uv_jsonreader_get_child(char *parent, unsigned int child_index, char **dest
 /// @param dest: If the child is found, it's pointer is stored in here. Otherwise this will be
 /// left untouched. Passing NULL here allows to use this function to only check is a child exists
 /// without getting a pointer to it.
-bool uv_jsonreader_find_child(char *parent, char *child_name,
-		int depth, char **dest);
+char *uv_jsonreader_find_child(char *parent, char *child_name,
+		int depth);
 
 
 
@@ -232,7 +226,7 @@ int uv_jsonreader_array_get_int(char *object, unsigned int index);
 /// @brief: Passes the object's value as a null-terminated string to 'dest'
 /// If the string is longer than dest_length (including the termination '\0' char),
 /// returns false.
-bool uv_jsonreader_get_string(char *object, char **dest, unsigned int dest_length);
+bool uv_jsonreader_get_string(char *object, char *dest, unsigned int dest_length);
 
 /// @brief: Passes the array cell's value as a null-terminated string to 'dest'
 /// If the string is longer than dest_length, returns false.
@@ -249,6 +243,12 @@ bool uv_jsonreader_get_bool(char *object);
 ///
 /// @note: Do not overindex!
 bool uv_jsonreader_array_get_bool(char *object, unsigned int index);
+
+/// @brief: indexes arrays values
+char *uv_jsonreader_array_at(char *object, unsigned int index);
+
+/// @brief: Returns the array's child count
+unsigned int uv_jsonreader_array_get_size(char *array);
 
 #endif
 

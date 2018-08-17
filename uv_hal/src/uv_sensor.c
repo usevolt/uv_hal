@@ -8,6 +8,8 @@
 
 #include "uv_sensor.h"
 
+#if CONFIG_SENSOR
+
 
 void uv_sensor_init(uv_sensor_st *this, uv_adc_channels_e adc_chn, uint16_t avg_count,
 		int16_t (*get_data)(uv_adc_channels_e chn)) {
@@ -72,3 +74,5 @@ void uv_sensor_step(uv_sensor_st *this, uint16_t step_ms) {
 	}
 }
 
+
+#endif

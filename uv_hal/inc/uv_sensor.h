@@ -14,6 +14,10 @@
 #include "uv_canopen.h"
 
 
+#if CONFIG_ADC0 || CONFIG_ADC1
+
+#define CONFIG_SENSOR		1
+
 /// @file: Module for input sensor data.
 
 enum {
@@ -87,6 +91,6 @@ static inline uv_sensor_state_e uv_sensor_get_state(const uv_sensor_st *this) {
 	return this->state;
 }
 
-
+#endif
 
 #endif /* SENSOR_H_ */

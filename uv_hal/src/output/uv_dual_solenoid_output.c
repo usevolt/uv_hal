@@ -22,9 +22,11 @@
 #if CONFIG_DUAL_SOLENOID_OUTPUT
 
 
-#define PID_P_MAX			1000
+#define PID_P_MAX			20000
 #define TARGET_DELAY_MS		20
 #define PID_MULTIPLIER		0x10
+#define ACC_MIN				10
+#define DEC_MIN				40
 
 
 void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
@@ -74,32 +76,22 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 		if (this->conf->acc > 100) {
 			this->conf->acc = 100;
 		}
-		else if (this->conf->acc < 10) {
-			this->conf->acc = 10;
-		}
-		else {
-
-		}
 		if (this->conf->dec > 100) {
 			this->conf->dec = 100;
 		}
-		else if (this->conf->dec < 10) {
-			this->conf->dec = 10;
-		}
-		else {
+		uint16_t acc = this->conf->acc + ACC_MIN, dec = this->conf->dec + DEC_MIN;
 
-		}
 
 		// different moving average values for accelerating and decelerating
 		// maximum decelerating time is 1 sec
 		if ((abs(this->target_req) > abs(this->target)) &&
 				((int32_t) this->target_req * this->target >= 0)) {
 			// accelerating
-			uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * this->conf->acc * this->conf->acc / 10000);
+			uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * acc * acc / 10000);
 		}
 		else {
 			// decelerating
-			uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * this->conf->dec * this->conf->dec / 10000);
+			uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * dec * dec / 10000);
 		}
 
 		uv_pid_set_target(&this->target_pid, this->target_req * PID_MULTIPLIER);
@@ -119,6 +111,7 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 		// clamp output to target value when we're close enough
 		if (uv_pid_get_output(&this->target_pid) == 0) {
 			this->target = this->target_req;
+			this->target_mult = this->target_req * PID_MULTIPLIER;
 		}
 	}
 

@@ -74,7 +74,6 @@ typedef struct {
 	// the PID calculations are done with greater precision than the output actually is
 	int16_t target_mult;
 	uv_pid_st target_pid;
-	// used to slow down pid update cycle, to allow more smooth control
 	uv_delay_st target_delay;
 
 	// signed output current

@@ -117,7 +117,7 @@ static bool copen(void) {
 		strcpy(ifr.ifr_name, this->dev);
 
 		if (ioctl(this->soc, SIOCGIFINDEX, &ifr) < 0) {
-			printf("ioctl failed\n");
+			printf("ioctl failed, CAN bus not available.\n");
 			ret = false;
 		}
 		else {
@@ -162,14 +162,14 @@ static bool cclose(void) {
 #if CONFIG_TARGET_LINUX
 
 bool uv_can_set_baudrate(uv_can_channels_e channel, unsigned int baudrate) {
-	bool ret;
+	bool ret = true;
 	if (this->connection) {
 		cclose();
 	}
 	strcpy(this->dev, channel);
 	this->baudrate = baudrate;
 	// open the connection
-	ret = copen();
+	copen();
 
 	return ret;
 }
@@ -282,7 +282,7 @@ void _uv_can_hal_step(unsigned int step_ms) {
 			struct can_frame frame_rd;
 			int recvbytes = 0;
 
-			struct timeval timeout = {1, 0};
+			struct timeval timeout = {0, 1000};
 			fd_set readSet;
 			FD_ZERO(&readSet);
 			FD_SET(this->soc, &readSet);
@@ -316,8 +316,9 @@ void _uv_can_hal_step(unsigned int step_ms) {
 							printf("** CAN RX buffer full**\n");
 						}
 
-						ioctl(this->soc, SIOCGSTAMP, &this->lastrxtime);
 						go = true;
+
+						ioctl(this->soc, SIOCGSTAMP, &this->lastrxtime);
 					}
 					else if (recvbytes == -1) {
 						printf("*** CAN RX error: %u , %s***\n", errno, strerror(errno));
