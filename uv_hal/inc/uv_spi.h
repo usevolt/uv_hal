@@ -107,6 +107,13 @@
 #error "CONFIG_SPI0_CLOCK_PHASE should be defined as 0 if SPI captures data on first clock transition, or\
  as 1 if SPI should change the serial data on first clock transition."
 #endif
+#if !defined(CONFIG_SPI0_MISO_PULL_UP) && !defined(CONFIG_SPI0_MISO_PULL_DOWN)
+#error "CONFIG_SPI0_MISO_PULL_UP or CONFIG_SPI0_MISO_PULL_DOWN should be defined as 1 depending if the MISO \
+line should have a pull up resistor or pull down resistor enabled."
+#endif
+#if CONFIG_SPI0_MISO_PULL_UP && CONFIG_SPI0_MISO_PULL_DOWN
+#error "CONFIG_SPI0_MISO_PULL_UP and CONFIG_SPI0_MISO_PULL_DOWN cannot be noth enabled."
+#endif
 #endif
 #if CONFIG_SPI1
 #if !CONFIG_SPI1_BAUDRATE
@@ -185,6 +192,13 @@
 #if !defined(CONFIG_SPI1_CLOCK_PHASE)
 #error "CONFIG_SPI1_CLOCK_PHASE should be defined as 0 if SPI captures data on first clock transition, or\
  as 1 if SPI should change the serial data on first clock transition."
+#endif
+#if !defined(CONFIG_SPI1_MISO_PULL_UP) && !defined(CONFIG_SPI1_MISO_PULL_DOWN)
+#error "CONFIG_SPI1_MISO_PULL_UP or CONFIG_SPI1_MISO_PULL_DOWN should be defined as 1 depending if the MISO \
+line should have a pull up resistor or pull down resistor enabled."
+#endif
+#if CONFIG_SPI1_MISO_PULL_UP && CONFIG_SPI1_MISO_PULL_DOWN
+#error "CONFIG_SPI1_MISO_PULL_UP and CONFIG_SPI1_MISO_PULL_DOWN cannot be noth enabled."
 #endif
 #endif
 /// @brief: SPI modules
