@@ -18,7 +18,8 @@
 
 
 #include "uv_ltc6804.h"
-
+#include "uv_rtos.h"
+#include <string.h>
 
 
 
@@ -52,4 +53,36 @@ static uint16_t get_pec(uint8_t *data, uint16_t len) {
 }
 
 void uv_ltc6804_init(uv_ltc6804_st *this, spi_e spi, spi_slaves_e ssel) {
+	this->spi = spi;
+	this->ssel = ssel;
+
+	// wake up the device with a dummy byte
+	uint16_t write[9] = {}, read[sizeof(write) / sizeof(write[0])];
+	write[0] = 0;
+	uv_spi_write_sync(this->spi, this->ssel, write, 8, 1);
+	uv_rtos_task_delay(1);
+
+	// start adc conversion
+	write[0] = 0x03;
+	write[1] = 0x70;
+	write[2] = 0xAF;
+	write[3] = 0x42;
+	uv_spi_write_sync(this->spi, this->ssel, write, 8, 4);
+
+	uv_rtos_task_delay(10);
+
+	// read cell voltages
+	write[0] = 0x00;
+	write[1] = 0x04;
+	write[2] = 0x07;
+	write[3] = 0xc2;
+	memset(&write[4], 0, 5 * sizeof(write[0]));
+	uv_spi_readwrite_sync(this->spi, this->ssel, write, read, 8, 9);
+
+	printf("adc group 1:\n");
+	for (uint8_t i = 0; i < 5; i++) {
+		printf("   0x%x\n", read[4 + i]);
+	}
+
+
 }
