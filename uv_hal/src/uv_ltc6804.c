@@ -22,6 +22,7 @@
 #include <string.h>
 
 
+#if CONFIG_LTC6804
 
 static uint16_t crc_add_bits( uint16_t crc, uint16_t value, int bct )
 {
@@ -86,3 +87,4 @@ void uv_ltc6804_init(uv_ltc6804_st *this, spi_e spi, spi_slaves_e ssel) {
 
 
 }
+#endif
