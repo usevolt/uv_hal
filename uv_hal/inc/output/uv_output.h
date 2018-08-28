@@ -134,6 +134,11 @@ static inline void uv_output_disable(uv_output_st *this) {
 	this->state = OUTPUT_STATE_DISABLED;
 }
 
+/// @brief: Sets the output enablation according to **value**
+static inline void uv_output_set_enabled(uv_output_st *this, bool value) {
+	value ? uv_output_enable(this) : uv_output_disable(this);
+}
+
 /// @brief: Step function should be called every step cycle.
 void uv_output_step(uv_output_st *this, uint16_t step_ms);
 

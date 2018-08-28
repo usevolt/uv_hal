@@ -81,6 +81,8 @@ bool uv_mcp2515_init(uv_mcp2515_st *this, spi_e spi, spi_slaves_e ssel,
 void uv_mcp2515_int(uv_mcp2515_st *this, bool from_isr);
 
 
+uv_can_errors_e uv_mcp2515_get_error_state(uv_mcp2515_st *this);
+
 
 /// @brief: Sends a CAN message
 ///

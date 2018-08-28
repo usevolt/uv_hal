@@ -314,6 +314,34 @@ uv_errors_e uv_mcp2515_receive(uv_mcp2515_st *this, uv_can_msg_st *dest) {
 
 
 
+uv_can_errors_e uv_mcp2515_get_error_state(uv_mcp2515_st *this) {
+	uint16_t write[3] = {}, read[sizeof(write)] = {};
+	write[0] = CMD_READ;
+	write[1] = 0x2D;
+	uv_spi_readwrite_sync(this->spi, this->ssel, write, read, 8, 3);
+
+	printf("read: 0x%x\n", read[2]);
+
+	uv_can_errors_e ret;
+
+	if (read[2] & (1 << 5)) {
+		ret = CAN_ERROR_BUS_OFF;
+	}
+	else if (read[2] & (0b11 << 3)) {
+		ret = CAN_ERROR_PASSIVE;
+	}
+	else {
+		ret = CAN_ERROR_ACTIVE;
+	}
+	write[0] = CMD_READ;
+	write[1] = 0x0F;
+	uv_spi_readwrite_sync(this->spi, this->ssel, write, read, 8, 3);
+
+	printf("CAN status reg: 0x%x\n", read[2]);
+
+	return ret;
+}
+
 
 
 #endif
