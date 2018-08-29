@@ -142,6 +142,8 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 	int16_t ca = uv_solenoid_output_get_current(&this->solenoid[DUAL_OUTPUT_SOLENOID_A]);
 	int16_t cb = uv_solenoid_output_get_current(&this->solenoid[DUAL_OUTPUT_SOLENOID_B]);
 	this->current_ma = (ca) ? ca : -cb;
+	// only assembly invert should affect the direction here
+	this->current_ma *= (this->conf->assembly_invert) ? -1 : 1;
 
 }
 
