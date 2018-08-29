@@ -65,9 +65,11 @@ void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t step_ms) {
 
 
-	uv_dual_solenoid_output_solenoids_e sa = (this->conf->invert) ?
+	uv_dual_solenoid_output_solenoids_e sa =
+			((bool) this->conf->invert != (bool) this->conf->assembly_invert) ?
 			DUAL_OUTPUT_SOLENOID_B : DUAL_OUTPUT_SOLENOID_A;
-	uv_dual_solenoid_output_solenoids_e sb = (this->conf->invert) ?
+	uv_dual_solenoid_output_solenoids_e sb =
+			((bool) this->conf->invert != (bool) this->conf->assembly_invert) ?
 			DUAL_OUTPUT_SOLENOID_A : DUAL_OUTPUT_SOLENOID_B;
 
 	if (uv_delay(&this->target_delay, step_ms)) {

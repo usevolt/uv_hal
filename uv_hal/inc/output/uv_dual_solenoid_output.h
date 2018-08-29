@@ -53,7 +53,11 @@ typedef struct {
 	uint16_t dec;
 	/// @brief: Inverts the solenoid direction
 	uint16_t invert;
+	/// @brief: Another invertion meant for service configurations. **invert** should be
+	/// meant for customer settings, **assembly_invert** for service.
+	uint16_t assembly_invert;
 } uv_dual_solenoid_output_conf_st;
+
 
 
 /// @brief: Dual solenoid output module. Works as a data structure for controlling dual
