@@ -29,7 +29,7 @@
 // this code.
 //*****************************************************************************
 
-#include <NXP/crp.h>
+#include <crp.h>
 // Variable to store CRP value in. Will be placed automatically
 // by the linker when "Enable Code Read Protect" selected.
 // See crp.h header for more information
