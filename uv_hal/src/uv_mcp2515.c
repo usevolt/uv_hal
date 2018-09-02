@@ -40,9 +40,9 @@
 static void send_next(uv_mcp2515_st *this, uint16_t *status);
 
 
-bool uv_mcp2515_init(uv_mcp2515_st *this, spi_e spi, spi_slaves_e ssel,
+int32_t uv_mcp2515_init(uv_mcp2515_st *this, spi_e spi, spi_slaves_e ssel,
 		uv_gpios_e int_gpio, uint32_t can_baudrate) {
-	bool ret = false;
+	int32_t ret = 1;
 	this->spi = spi;
 	this->ssel = ssel;
 	this->int_gpio = int_gpio;
@@ -54,9 +54,6 @@ bool uv_mcp2515_init(uv_mcp2515_st *this, spi_e spi, spi_slaves_e ssel,
 
 	uv_mutex_init(&this->mutex);
 	uv_mutex_lock(&this->mutex);
-
-	uv_gpio_init_input(this->int_gpio, PULL_UP_ENABLED);
-	uv_gpio_init_int(this->int_gpio, INT_FALLING_EDGE);
 
 	// send reset command
 	uint16_t write[10] = {}, read[10] = {};
@@ -72,7 +69,7 @@ bool uv_mcp2515_init(uv_mcp2515_st *this, spi_e spi, spi_slaves_e ssel,
 	uv_spi_readwrite_sync(this->spi, this->ssel, write, read, 8, 3);
 	if (read[2] == 0x87) {
 		// mcp2515 found
-		ret = true;
+		ret = 0;
 		// configure can baudrate
 		uint8_t sjw = 0;
 		uint8_t prop_seg = 2;
@@ -138,8 +135,12 @@ bool uv_mcp2515_init(uv_mcp2515_st *this, spi_e spi, spi_slaves_e ssel,
 		write[3] = 0;
 		uv_spi_write_sync(this->spi, this->ssel, write, 8, 3);
 
-		// mcp2515 should now be up and running
 
+		// last things last, set gpio interrupt since MCP2515 is running
+		uv_gpio_init_input(this->int_gpio, PULL_UP_ENABLED);
+		uv_gpio_init_int(this->int_gpio, INT_FALLING_EDGE);
+
+		// mcp2515 should now be up and running
 	}
 
 	uv_mutex_unlock(&this->mutex);
@@ -294,7 +295,7 @@ uv_errors_e uv_mcp2515_send(uv_mcp2515_st *this, uv_can_msg_st *msg) {
 
 
 uv_errors_e uv_mcp2515_receive(uv_mcp2515_st *this, uv_can_msg_st *dest) {
-	uv_errors_e ret;
+	uv_errors_e ret = ERR_BUFFER_EMPTY;
 
 
 	// since interrupts are edge sensitive, it _might_ be possible for an edge to miss
@@ -307,6 +308,7 @@ uv_errors_e uv_mcp2515_receive(uv_mcp2515_st *this, uv_can_msg_st *dest) {
 	send_next(this, NULL);
 
 	ret = uv_ring_buffer_pop(&this->rx, dest);
+
 	uv_mutex_unlock(&this->mutex);
 
 	return ret;
