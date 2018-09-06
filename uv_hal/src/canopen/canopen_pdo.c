@@ -222,10 +222,16 @@ void _uv_canopen_pdo_step(uint16_t step_ms) {
 							canopen_pdo_mapping_st *mapping = &(*mapping_par).mappings[j];
 
 							bool br = false;
+							bool cont = false;
 							// when mapping with length of 0 is found or too many objects are mapped,
 							// stop the mapping
 							if (!mapping->length || byte_count + mapping->length > 8) {
 								br = true;
+							}
+							// if main index was set to zero, skip this mapping and continue
+							// on the second one.
+							else if (mapping->main_index == 0) {
+								cont = true;
 							}
 							// otherwise map some data to the message bytes
 							else if (!(obj = _uv_canopen_obj_dict_get(mapping->main_index, mapping->sub_index))) {
@@ -234,44 +240,48 @@ void _uv_canopen_pdo_step(uint16_t step_ms) {
 										mapping->sub_index, CANOPEN_SDO_ERROR_OBJECT_DOES_NOT_EXIST);
 								br = true;
 							}
-							// mapped object has to be readable
-							if (!(obj->permissions | CANOPEN_RO)) {
-								_uv_canopen_sdo_abort(CANOPEN_SDO_REQUEST_ID, mapping->main_index,
-										mapping->sub_index, CANOPEN_SDO_ERROR_ATTEMPT_TO_READ_A_WRITE_ONLY_OBJECT);
-								byte_count += mapping->length;
-								br = true;
-							}
-							// mapping length cannot be greater than mapped objects length
-							if (mapping->length > uv_canopen_get_object_data_size(obj)) {
-								_uv_canopen_sdo_abort(CANOPEN_SDO_REQUEST_ID, mapping->main_index,
-										mapping->sub_index, CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
-								br = true;
+							else {
+								// mapped object has to be readable
+								if (!(obj->permissions | CANOPEN_RO)) {
+									_uv_canopen_sdo_abort(CANOPEN_SDO_REQUEST_ID, mapping->main_index,
+											mapping->sub_index, CANOPEN_SDO_ERROR_ATTEMPT_TO_READ_A_WRITE_ONLY_OBJECT);
+									byte_count += mapping->length;
+									br = true;
+								}
+								// mapping length cannot be greater than mapped objects length
+								if (mapping->length > uv_canopen_get_object_data_size(obj)) {
+									_uv_canopen_sdo_abort(CANOPEN_SDO_REQUEST_ID, mapping->main_index,
+											mapping->sub_index, CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
+									br = true;
+								}
 							}
 
 							if (br) {
 								break;
 							}
 
-							// for array objects mapping is a little bit complicated
-							if (uv_canopen_is_array(obj)) {
-								if (!mapping->sub_index) {
-									memcpy(&msg.data_8bit[byte_count],
-											&obj->array_max_size, sizeof(obj->array_max_size));
+							if (!cont) {
+								// for array objects mapping is a little bit complicated
+								if (uv_canopen_is_array(obj)) {
+									if (!mapping->sub_index) {
+										memcpy(&msg.data_8bit[byte_count],
+												&obj->array_max_size, sizeof(obj->array_max_size));
+									}
+									else if (mapping->sub_index > obj->array_max_size) {
+										_uv_canopen_sdo_abort(CANOPEN_SDO_REQUEST_ID, mapping->main_index,
+												mapping->sub_index, CANOPEN_SDO_ERROR_OBJECT_DOES_NOT_EXIST);
+									}
+									else {
+										memcpy(&msg.data_8bit[byte_count],
+												&((uint8_t*) obj->data_ptr)[uv_canopen_get_object_data_size(obj) *
+															  (mapping->sub_index - 1)],
+												mapping->length);
+									}
 								}
-								else if (mapping->sub_index > obj->array_max_size) {
-									_uv_canopen_sdo_abort(CANOPEN_SDO_REQUEST_ID, mapping->main_index,
-											mapping->sub_index, CANOPEN_SDO_ERROR_OBJECT_DOES_NOT_EXIST);
-								}
+								// all other types are easy
 								else {
-									memcpy(&msg.data_8bit[byte_count],
-											&((uint8_t*) obj->data_ptr)[uv_canopen_get_object_data_size(obj) *
-														  (mapping->sub_index - 1)],
-											mapping->length);
+									memcpy(&msg.data_8bit[byte_count], obj->data_ptr, mapping->length);
 								}
-							}
-							// all other types are easy
-							else {
-								memcpy(&msg.data_8bit[byte_count], obj->data_ptr, mapping->length);
 							}
 							// increase byte mapping counter
 							byte_count += mapping->length;
