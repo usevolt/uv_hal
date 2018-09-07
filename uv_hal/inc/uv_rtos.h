@@ -108,6 +108,13 @@ static inline void uv_mutex_lock(uv_mutex_st *mutex) {
 	xSemaphoreTake(*mutex, portMAX_DELAY);
 }
 
+/// @brief: Tries to lock the mutex for *wait_ms* milliseconds
+///
+/// @return: True if the mutex could be locked, false otherwise
+static inline bool uv_mutex_lock_ms(uv_mutex_st *mutex, int32_t wait_ms) {
+	return xSemaphoreTake(*mutex, wait_ms / portTICK_PERIOD_MS);
+}
+
 /// @brief: Unlocks the mutex after which others can lock it again.
 static inline void uv_mutex_unlock(uv_mutex_st *mutex) {
 	xSemaphoreGive(*mutex);
@@ -117,9 +124,47 @@ static inline bool uv_mutex_lock_isr(uv_mutex_st *mutex) {
 	return xSemaphoreTakeFromISR(*mutex, NULL);
 }
 
-static inline bool uv_mutex_unlock_isr(uv_mutex_st *mutex) {
-	return xSemaphoreGiveFromISR(*mutex, NULL);
+void uv_mutex_unlock_isr(uv_mutex_st *mutex);
+
+typedef QueueHandle_t uv_queue_st;
+
+/// @brief: Creates a FreeRTOS thread-safe queue
+///
+/// @param queue_len: The length of the queue in element count
+/// @param element_size: the size of an individual element in bytes
+static inline void uv_queue_init(uv_queue_st *this,
+		int32_t queue_len, uint32_t element_size) {
+	*this = xQueueCreate(queue_len, element_size);
 }
+
+
+/// @brief: Returns the count of elements currently in the queue
+static inline int32_t uv_queue_get_len(uv_queue_st *this) {
+	return uxQueueMessagesWaiting(*this);
+}
+
+/// @brief: Peeks into a buffer without removing the element
+///
+/// @param dest: Destination address where to copy the element
+/// @param wait_ms: Wait time in milliseconds
+uv_errors_e uv_queue_peek(uv_queue_st *this, void *dest, int32_t wait_ms);
+
+
+/// @brief: Pushes into the queue. If the queue was full, waits for *wait_ms*
+/// milliseconds for it to get empty.
+uv_errors_e uv_queue_push(uv_queue_st *this, void *src, int32_t wait_ms);
+
+/// @brief: Pushes into a queue. To be used from ISR routines!
+uv_errors_e uv_queue_push_isr(uv_queue_st *this, void *src);
+
+
+/// @brief: Removes an element from the queue
+uv_errors_e uv_queue_pop(uv_queue_st *this, void *dest, int32_t wait_ms);
+
+/// @brief: Removes from a queue. To be used from ISR routines!
+uv_errors_e uv_queue_pop_isr(uv_queue_st *this, void *dest);
+
+
 #else
 
 #define configMINIMAL_STACK_SIZE		10
@@ -236,7 +281,7 @@ static inline void uv_rtos_task_yield(void) {
 /// @param task_priority: The priority of the task. Bigger value means higher priority.
 /// @param handle: A optional return handle for the created task. Will be set to NULL
 /// if task creation failed.
-void uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
+int32_t uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
 		unsigned int stack_depth, void *this_ptr,
 		unsigned int task_priority, uv_rtos_task_ptr* handle);
 

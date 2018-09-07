@@ -54,6 +54,7 @@ uint8_t uv_gpio_get_pin(uv_gpios_e gpio) {
 void uv_gpio_init_int(uv_gpios_e gpio, uv_gpio_interrupt_config_e confs) {
 	if (int_count < 8) {
 		NVIC_EnableIRQ(PIN_INT0_IRQn + int_count);
+		NVIC_SetPriority(PIN_INT0_IRQn + int_count, 1);
 
 		Chip_INMUX_PinIntSel(int_count, uv_gpio_get_port(gpio), uv_gpio_get_pin(gpio));
 
