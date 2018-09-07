@@ -139,6 +139,8 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 		}
 		// set the output value
 		this->pwm = output;
+		// set output state depending if the output is active
+		uv_output_set_state((uv_output_st *) this, (output) ? OUTPUT_STATE_ON : OUTPUT_STATE_OFF);
 	}
 
 	// set the output pwm
