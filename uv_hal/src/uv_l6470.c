@@ -251,7 +251,6 @@ void uv_l6470_goto(uv_l6470_st *this, int32_t pos) {
 	write[1] = (value >> 16) & 0xFF;
 	write[2] = (value >> 8) & 0xFF;
 	write[3] = value & 0xFF;
-	printf("going to 0x%x\n", (unsigned int) value);
 	readwrite(this, write, NULL, sizeof(write));
 	this->current_pos = pos;
 	// small delay so that L6470 has enough time to process the command
