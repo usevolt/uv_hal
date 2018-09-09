@@ -44,9 +44,7 @@ void uv_dual_output_step(uv_dual_output_st *this, uint16_t step_ms) {
 
 
 	this->current = uv_output_get_current((uv_output_st *) this);
-	if (this->dir == DUAL_OUTPUT_NEG) {
-		this->current *= -1;
-	}
+	this->current *= (((this->dir == DUAL_OUTPUT_NEG) != (this->invert)) ? -1 : 1);
 
 	uv_output_state_e state = uv_dual_output_get_state(this);
 	if (state == OUTPUT_STATE_ON) {
