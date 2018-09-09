@@ -52,6 +52,9 @@
  In this case the bootloader takes care of configuring the system oscillator (external crystal).\
  Otherwise this should be defined as 0."
 #endif
+#if !defined(CONFIG_HAL_TASK_PRIORITY)
+#define CONFIG_HAL_TASK_PRIORITY	0xFFFF
+#endif
 
 
 #define UV_RTOS_MIN_STACK_SIZE 			configMINIMAL_STACK_SIZE
