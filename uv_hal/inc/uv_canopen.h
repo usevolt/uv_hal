@@ -200,12 +200,6 @@ CONFIG_CANOPEN_EMCY_MSG_ID_x symbol should define the message ID, starting from 
 
 
 typedef struct {
-	canopen_pdo_mapping_st mappings[CONFIG_CANOPEN_PDO_MAPPING_COUNT];
-} canopen_pdo_mapping_parameter_st;
-#define CANOPEN_PDO_MAPPING_PARAMETER_TYPE	CANOPEN_ARRAY32
-
-
-typedef struct {
 	uint16_t cycle_time;
 	uint8_t node_id;
 	uint8_t _reserved;

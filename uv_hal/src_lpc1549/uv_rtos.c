@@ -50,6 +50,62 @@ static volatile this_st _this = {
 uv_mutex_st halmutex;
 
 
+uv_errors_e uv_queue_peek(uv_queue_st *this, void *dest, int32_t wait_ms) {
+	uv_errors_e ret = ERR_NONE;
+	if (xQueuePeek(*this, dest, wait_ms / portTICK_PERIOD_MS) == pdFALSE) {
+		ret = ERR_BUFFER_EMPTY;
+	}
+	return ret;
+}
+
+
+uv_errors_e uv_queue_push(uv_queue_st *this, void *src, int32_t wait_ms) {
+	uv_errors_e ret = ERR_NONE;
+	if (xQueueSend(*this, src, wait_ms / portTICK_PERIOD_MS) == pdFALSE) {
+		ret = ERR_BUFFER_OVERFLOW;
+	}
+	return ret;
+}
+
+
+uv_errors_e uv_queue_pop(uv_queue_st *this, void *dest, int32_t wait_ms) {
+	uv_errors_e ret = ERR_NONE;
+	if (xQueueReceive(*this, dest, wait_ms / portTICK_PERIOD_MS) == pdFALSE) {
+		ret = ERR_BUFFER_EMPTY;
+	}
+	return ret;
+}
+
+
+uv_errors_e uv_queue_pop_isr(uv_queue_st *this, void *dest) {
+	uv_errors_e ret = ERR_NONE;
+
+	if (!xQueueReceiveFromISR(*this, dest, NULL)) {
+		ret = ERR_BUFFER_EMPTY;
+	}
+
+	return ret;
+}
+
+
+uv_errors_e uv_queue_push_isr(uv_queue_st *this, void *src) {
+	uv_errors_e ret = ERR_NONE;
+	if (!xQueueSendFromISR(*this, src, NULL)) {
+		ret = ERR_BUFFER_OVERFLOW;
+	}
+	return ret;
+}
+
+
+void uv_mutex_unlock_isr(uv_mutex_st *mutex) {
+	BaseType_t woken;
+	xSemaphoreGiveFromISR(*mutex, &woken);
+	portEND_SWITCHING_ISR(woken);
+}
+
+
+
+
 #define this (&_this)
 
 
@@ -58,17 +114,17 @@ uv_mutex_st halmutex;
 void hal_task(void *);
 
 
-void uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
+int32_t uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
 		unsigned int stack_depth, void *this_ptr,
 		unsigned int task_priority, uv_rtos_task_ptr* handle) {
 	static unsigned int size = 0;
 	size += stack_depth;
 	if (size >= CONFIG_RTOS_HEAP_SIZE) {
 		while(true) {
-			__NOP();
+			printf("Out of memory\r");
 		}
 	}
-	xTaskCreate(task_function, (const char * const)task_name, stack_depth,
+	return xTaskCreate(task_function, (const char * const)task_name, stack_depth,
 			this_ptr, task_priority, handle);
 }
 
@@ -220,7 +276,7 @@ void uv_init(void *device) {
 #endif
 
 
-	uv_rtos_task_create(hal_task, "uv_hal", UV_RTOS_MIN_STACK_SIZE, NULL, 0xFFFF, NULL);
+	uv_rtos_task_create(hal_task, "uv_hal", UV_RTOS_MIN_STACK_SIZE, NULL, CONFIG_HAL_TASK_PRIORITY, NULL);
 }
 
 
