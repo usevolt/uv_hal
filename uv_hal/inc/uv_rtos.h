@@ -21,6 +21,7 @@
 
 #include "uv_hal_config.h"
 #include <stdbool.h>
+#include <stdint.h>
 
 
 /// @file: A wrapper for FreeRTOS real time operating system.
@@ -230,6 +231,8 @@ static inline bool uv_rtos_initialized() {
 /// @param task_function: The task function pointer. Takes user_ptr as a parameter.
 /// Refer to uv_utilities.h for more details.
 uv_errors_e uv_rtos_add_idle_task(void (*task_function)(void *user_ptr));
+
+bool uv_rtos_idle_task_set(void);
 
 
 

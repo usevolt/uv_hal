@@ -61,10 +61,19 @@
 #include <unistd.h>
 #include <errno.h>
 #include <time.h>
+#define _GNU_SOURCE     /* To get defns of NI_MAXSERV and NI_MAXHOST */
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <ifaddrs.h>
+#include <stdlib.h>
+#include <linux/if_link.h>
 
 #if CONFIG_CAN_LOG
 extern bool can_log;
 #endif
+
+#define DEV_COUNT_MAX			10
 
 typedef struct {
 	bool connection;
@@ -78,13 +87,19 @@ typedef struct {
 	uv_ring_buffer_st tx_buffer;
 	struct timeval lastrxtime;
 
+	// list of available CAN devices
+	char devs[DEV_COUNT_MAX][32];
+	// count of CAN devs
+	int32_t dev_count;
+
 } can_st;
 
 
 static can_st _can = {
 		.connection = false,
 		.baudrate = CONFIG_CAN0_BAUDRATE,
-		.dev = "can0"
+		.dev = "can0",
+		.dev_count = 0
 };
 #define this (&_can)
 
@@ -93,6 +108,19 @@ void _uv_can_hal_send(uv_can_channels_e chn);
 static bool cclose(void);
 static bool copen(void);
 
+char *uv_can_get_device_name(int32_t i) {
+	if (i < this->dev_count) {
+		return this->devs[i];
+	}
+	else {
+		return NULL;
+	}
+}
+
+/// @brief: Returns the count of found CAN interface devices
+int32_t uv_can_get_device_count(void) {
+	return this->dev_count;
+}
 
 
 /// @brief: Opens a connection to a SocketCAN device
@@ -170,6 +198,46 @@ bool uv_can_set_baudrate(uv_can_channels_e channel, unsigned int baudrate) {
 	this->baudrate = baudrate;
 	// open the connection
 	copen();
+
+	// find out the names of available CAN devices
+	struct ifaddrs *ifaddr, *ifa;
+	int family, n;
+
+	if (getifaddrs(&ifaddr) != -1) {
+		for (ifa = ifaddr, n = 0; ifa != NULL; ifa = ifa->ifa_next, n++) {
+			if (ifa->ifa_addr == NULL) {
+				continue;
+			}
+
+			family = ifa->ifa_addr->sa_family;
+
+			/* Display interface name and family (including symbolic
+			form of the latter for the common families) */
+
+			printf("%s %s (%d)\n",
+				ifa->ifa_name,
+				(family == AF_PACKET) ? "AF_PACKET" :
+				(family == AF_INET) ? "AF_INET" :
+				(family == AF_INET6) ? "AF_INET6" : "???",
+				family);
+
+			bool already = false;
+			for (uint8_t i = 0; i < this->dev_count; i++) {
+				if (strcmp(this->devs[i], ifa->ifa_name) == 0) {
+					already = true;
+					break;
+				}
+			}
+			if (!already && this->dev_count < DEV_COUNT_MAX) {
+				strcpy(this->devs[this->dev_count++], ifa->ifa_name);
+			}
+		}
+
+		freeifaddrs(ifaddr);
+	}
+	else {
+		printf("Couldn't get names of available CAN devices.\n");
+	}
 
 	return ret;
 }
@@ -282,7 +350,7 @@ void _uv_can_hal_step(unsigned int step_ms) {
 			struct can_frame frame_rd;
 			int recvbytes = 0;
 
-			struct timeval timeout = {0, 1000};
+			struct timeval timeout = {0, 500};
 			fd_set readSet;
 			FD_ZERO(&readSet);
 			FD_SET(this->soc, &readSet);

@@ -47,6 +47,9 @@ typedef uint8_t canopen_permissions_e;
 #define CANOPEN_NUMBER_MASK	0b00000111
 #define CANOPEN_TYPE_LEN(type)	((type) & (CANOPEN_NUMBER_MASK))
 #define CANOPEN_IS_ARRAY(type)	((type) & (CANOPEN_ARRAY_MASK))
+#define CANOPEN_IS_INTEGER(type) (!((type) & (CANOPEN_ARRAY_MASK | CANOPEN_STRING_MASK)))
+#define CANOPEN_IS_STRING(type) ((type) == CANOPEN_STRING)
+
 enum {
 	CANOPEN_UNSIGNED8 = 1,
 	CANOPEN_SIGNED8 = 1,

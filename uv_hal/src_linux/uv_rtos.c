@@ -92,13 +92,18 @@ uv_errors_e uv_rtos_add_idle_task(void (*task_function)(void *user_ptr)) {
 	return ERR_NONE;
 }
 
+bool uv_rtos_idle_task_set(void) {
+	return (this->idle_task == NULL) ? false : true;
+}
+
+
 
 /// @brief: Task function which takes care of calling several hal librarys module
 /// hal step functions
 void hal_task(void *);
 
 
-void uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
+int32_t uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
 		unsigned int stack_depth, void *this_ptr,
 		unsigned int task_priority, uv_rtos_task_ptr* handle) {
 
@@ -114,6 +119,8 @@ void uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
 	thread.function_ptr = task_function;
 	strcpy(thread.name, task_name);
 	uv_vector_push_back(&this->threads, &thread);
+
+	return 1;
 }
 
 
