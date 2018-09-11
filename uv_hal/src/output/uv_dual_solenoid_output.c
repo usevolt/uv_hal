@@ -65,9 +65,9 @@ void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t step_ms) {
 
 
-	uv_dual_solenoid_output_solenoids_e sa = (this->conf->invert) ?
+	uv_dual_solenoid_output_solenoids_e sa = (this->conf->assembly_invert) ?
 			DUAL_OUTPUT_SOLENOID_B : DUAL_OUTPUT_SOLENOID_A;
-	uv_dual_solenoid_output_solenoids_e sb = (this->conf->invert) ?
+	uv_dual_solenoid_output_solenoids_e sb = (this->conf->assembly_invert) ?
 			DUAL_OUTPUT_SOLENOID_A : DUAL_OUTPUT_SOLENOID_B;
 
 	if (uv_delay(&this->target_delay, step_ms)) {
@@ -140,6 +140,8 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 	int16_t ca = uv_solenoid_output_get_current(&this->solenoid[DUAL_OUTPUT_SOLENOID_A]);
 	int16_t cb = uv_solenoid_output_get_current(&this->solenoid[DUAL_OUTPUT_SOLENOID_B]);
 	this->current_ma = (ca) ? ca : -cb;
+	// only assembly invert should affect the direction here
+	this->current_ma *= (this->conf->assembly_invert) ? -1 : 1;
 
 }
 

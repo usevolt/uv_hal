@@ -381,6 +381,8 @@ uv_errors_e _uv_can_init() {
 	}
 
 	/* Enable the CAN Interrupt */
+	// Interrupt priority should not be 0 since FreeRTOS SYSCALL level is set to 1
+	NVIC_SetPriority(CAN_IRQn, 1);
 	NVIC_EnableIRQ(CAN_IRQn);
 
 	Chip_IOCON_PinMuxSet(LPC_IOCON, UV_GPIO_PORT(CONFIG_CAN0_TX_PIN),
@@ -570,7 +572,6 @@ uv_errors_e uv_can_send_sync(uv_can_channels_e channel, uv_can_message_st *msg) 
 				ret = ERR_CAN_BUS_OFF;
 				break;
 			}
-			uv_rtos_task_yield();
 		}
 
 		if (ret == ERR_NONE) {

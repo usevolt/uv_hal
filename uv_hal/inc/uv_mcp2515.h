@@ -54,46 +54,56 @@ typedef struct {
 	spi_slaves_e ssel;
 	// interrupt gpio
 	uv_gpios_e int_gpio;
-	// receive buffer
-	uv_can_msg_st rx_buffer[CONFIG_MCP2515_RX_BUFFER_LEN];
-	uv_ring_buffer_st rx;
-	// transmit buffer
-	uv_can_msg_st tx_buffer[CONFIG_MCP2515_TX_BUFFER_LEN];
-	uv_ring_buffer_st tx;
 
 	// Stores the CAN baudrate set for the MCP2515
 	uint32_t can_baudrate;
 
-	// mutex for accessing the SPI bus
-	uv_mutex_st mutex;
+	uv_mutex_st int_mutex;
+	uv_queue_st tx_queue;
+	uv_queue_st rx_queue;
 
 } uv_mcp2515_st;
 
 
 
-/// @brief: Initializes and resets the mcp2515 ic
-bool uv_mcp2515_init(uv_mcp2515_st *this, spi_e spi, spi_slaves_e ssel,
+/// @brief: Initializes and resets the mcp2515 ic. This function also
+/// creates FreeRTOS task for MCP2515, so it should be called **once and only once**
+/// per each mcp2515 module.
+///
+/// @return: 0 if initialized succesfully, otherwise returns 1.
+int32_t uv_mcp2515_init(uv_mcp2515_st *this, spi_e spi, spi_slaves_e ssel,
 		uv_gpios_e int_gpio, uint32_t can_baudrate);
 
 
 
 /// @brief: Interrupt handler. This should be called when the gpio interrupt happens
-void uv_mcp2515_int(uv_mcp2515_st *this, bool from_isr);
+void uv_mcp2515_int(uv_mcp2515_st *this);
 
+
+uv_can_errors_e uv_mcp2515_get_error_state(uv_mcp2515_st *this);
 
 
 /// @brief: Sends a CAN message
 ///
 /// @return ERR_NONE when sent succesfully, error otherwise describing the problem.
-uv_errors_e uv_mcp2515_send(uv_mcp2515_st *this, uv_can_msg_st *msg);
+static inline uv_errors_e uv_mcp2515_send(uv_mcp2515_st *this, uv_can_msg_st *msg) {
+	return uv_queue_push(&this->tx_queue, msg, 0);
+}
+
+
+/// @brief: Pops a message out from the tx queue
+static inline uv_errors_e uv_mcp2515_tx_pop(uv_mcp2515_st *this, uv_can_msg_st *msg) {
+	return uv_queue_pop(&this->tx_queue, msg, 0);
+}
 
 
 
 /// @brief: Pops a received message from the receive buffer. Also works as a step function.
 ///
 /// @return ERR_NONE if messages were to receive, error if buffer was empty.
-uv_errors_e uv_mcp2515_receive(uv_mcp2515_st *this, uv_can_msg_st *dest);
-
+static inline uv_errors_e uv_mcp2515_receive(uv_mcp2515_st *this, uv_can_msg_st *dest) {
+	return uv_queue_pop(&this->rx_queue, dest, 0);
+}
 
 
 

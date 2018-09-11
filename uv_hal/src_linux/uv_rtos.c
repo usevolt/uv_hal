@@ -79,6 +79,10 @@ static volatile this_st _this = {
 uv_mutex_st halmutex;
 
 
+
+
+
+
 #define this ((this_st*) &_this)
 
 
@@ -193,6 +197,8 @@ void vApplicationIdleHook(void)
 //		this->tick_task(__uv_get_user_ptr(), portTICK_PERIOD_MS);
 //	}
 //}
+
+
 
 
 
