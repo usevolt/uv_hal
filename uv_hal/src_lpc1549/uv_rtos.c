@@ -233,6 +233,10 @@ void uv_init(void *device) {
 	_uv_adc_init();
 #endif
 
+#if CONFIG_DAC
+	_uv_dac_init();
+#endif
+
 #if CONFIG_SPI
 	_uv_spi_init();
 #endif
