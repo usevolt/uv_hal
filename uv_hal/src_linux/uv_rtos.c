@@ -88,6 +88,11 @@ uv_errors_e uv_rtos_add_idle_task(void (*task_function)(void *user_ptr)) {
 	return ERR_NONE;
 }
 
+bool uv_rtos_idle_task_set(void) {
+	return (this->idle_task == NULL) ? false : true;
+}
+
+
 
 /// @brief: Task function which takes care of calling several hal librarys module
 /// hal step functions

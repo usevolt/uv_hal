@@ -315,6 +315,12 @@ void uv_can_deinit(void);
 
 struct timeval uv_can_get_rx_time(void);
 
+/// @brief: Returns the name of *i*'th CAN interface device found
+char *uv_can_get_device_name(int32_t i);
+
+/// @brief: Returns the count of found CAN interface devices
+int32_t uv_can_get_device_count(void);
+
 #endif
 
 

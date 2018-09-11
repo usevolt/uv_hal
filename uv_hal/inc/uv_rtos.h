@@ -183,6 +183,8 @@ static inline bool uv_rtos_initialized() {
 /// Refer to uv_utilities.h for more details.
 uv_errors_e uv_rtos_add_idle_task(void (*task_function)(void *user_ptr));
 
+bool uv_rtos_idle_task_set(void);
+
 
 
 extern uv_mutex_st halmutex;
