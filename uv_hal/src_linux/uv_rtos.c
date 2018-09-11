@@ -103,7 +103,7 @@ bool uv_rtos_idle_task_set(void) {
 void hal_task(void *);
 
 
-void uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
+int32_t uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
 		unsigned int stack_depth, void *this_ptr,
 		unsigned int task_priority, uv_rtos_task_ptr* handle) {
 
@@ -119,6 +119,8 @@ void uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
 	thread.function_ptr = task_function;
 	strcpy(thread.name, task_name);
 	uv_vector_push_back(&this->threads, &thread);
+
+	return 1;
 }
 
 

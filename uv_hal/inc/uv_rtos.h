@@ -21,6 +21,7 @@
 
 #include "uv_hal_config.h"
 #include <stdbool.h>
+#include <stdint.h>
 
 
 /// @file: A wrapper for FreeRTOS real time operating system.
