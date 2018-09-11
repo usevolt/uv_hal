@@ -77,6 +77,8 @@
 
 
 
+typedef uint32_t uv_bootloader_wait_t;
+
 
 /// @brief: Data type which should be used to mark the start of
 /// non-volatile data section. Define a variable of this type as the
@@ -93,6 +95,8 @@ typedef struct {
 	uint16_t id;
 	// @brief: CAN baudrate. Defaults to 250000. UV bootloader uses this when booting.
 	uint32_t can_baudrate;
+	/// @brief: UV bootloader wait time in processor loops
+	uv_bootloader_wait_t bootloader_wait_time;
 #if CONFIG_CANOPEN
 	// non-volatile data for canopen
 	_canopen_non_volatile_st canopen_data;
@@ -108,6 +112,12 @@ typedef struct {
 	uint32_t crc;
 } uv_data_end_t;
 
+
+/// @brief: Processor dependent macro for defining the bootloader_wait_time in milliseconds
+void uv_memory_set_bootloader_wait_time(uint32_t value_ms);
+
+/// @brief: Returns the bootloader wait time in milliseconds
+uint32_t uv_memory_get_bootloader_wait_time(void);
 
 /// @brief: Calls IAP commands to activate ISP mode.
 /// The program execution will be stopped instantly,
