@@ -34,6 +34,7 @@
 #if CONFIG_ADC || CONFIG_ADC0 || CONFIG_ADC1
 #include "uv_adc.h"
 #endif
+#include "uv_dac.h"
 
 typedef struct {
 	void (*idle_task)(void *user_ptr);
