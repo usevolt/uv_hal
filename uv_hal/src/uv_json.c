@@ -376,7 +376,8 @@ char *uv_jsonreader_find_child(char *parent, char *child_name,
 					while (*(--ptr) != '"');
 
 					// child found, check if child has the name requested
-					if (strncmp(ptr + 1, child_name, name_len) == 0) {
+					if (strncmp(ptr + 1, child_name, name_len) == 0 &&
+							*(ptr + 1 + name_len) == '"') {
 						ret = ptr;
 						br = true;
 					}

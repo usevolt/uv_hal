@@ -309,10 +309,6 @@ void uv_can_clear_rx_buffer(uv_can_channels_e channel);
 /// @note: Should be called prior to _uv_can_init function.
 bool uv_can_set_baudrate(uv_can_channels_e channel, unsigned int baudrate);
 
-
-/// @brief: Closes all available connections
-void uv_can_deinit(void);
-
 struct timeval uv_can_get_rx_time(void);
 
 /// @brief: Returns the name of *i*'th CAN interface device found
@@ -320,6 +316,12 @@ char *uv_can_get_device_name(int32_t i);
 
 /// @brief: Returns the count of found CAN interface devices
 int32_t uv_can_get_device_count(void);
+
+/// @brief: Returns true if the connection to the CAN dev is open
+bool uv_can_is_connected(void);
+
+/// @brief: Sets the CAN dev up and running
+void uv_can_set_up(void);
 
 #endif
 

@@ -30,6 +30,8 @@ enum {
 	CANOPEN_RW = 0b11
 };
 typedef uint8_t canopen_permissions_e;
+#define CANOPEN_IS_READABLE(permissions) ((permissions) & CANOPEN_RO)
+#define CANOPEN_IS_WRITABLE(permissions) ((permissions) & CANOPEN_WO)
 
 
 
