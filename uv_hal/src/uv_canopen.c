@@ -99,7 +99,7 @@ void _uv_canopen_step(unsigned int step_ms) {
 	// check for restore or store requests
 	if (this->restore_req == 0x64616F6C) {
 		this->restore_req = 0;
-		uv_memory_load();
+		uv_memory_clear();
 	}
 	if (this->store_req == 0x65766173) {
 		this->store_req = 0;

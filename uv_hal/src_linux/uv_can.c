@@ -208,8 +208,6 @@ void uv_can_set_up(void) {
 	}
 	pclose(fp);
 
-	printf("baudrate: %i %i\n", this->baudrate, current_baud);
-
 	if (this->baudrate != current_baud) {
 		if (this->connection) {
 			// close the socket if one is open
@@ -368,7 +366,7 @@ void _uv_can_hal_step(unsigned int step_ms) {
 			struct can_frame frame_rd;
 			int recvbytes = 0;
 
-			struct timeval timeout = {0, 500};
+			struct timeval timeout = {0, 0};
 			fd_set readSet;
 			FD_ZERO(&readSet);
 			FD_SET(this->soc, &readSet);
