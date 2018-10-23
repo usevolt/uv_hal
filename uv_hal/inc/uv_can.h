@@ -166,7 +166,7 @@ typedef enum {
 
 
 /// @brief: Describes all the available CAN channels on this hardware
-#if CONFIG_TARGET_LINUX
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 /// @brief: On Linux CAN channels are separated by the netdev name
 typedef char * uv_can_channels_e;
 #else
@@ -222,7 +222,7 @@ uv_errors_e _uv_can_init();
 /// To receive only a single dedicated message, this should be set to 0xFFFFFFFF or
 /// CAN_ID_MASK_DEFAULT
 /// @param type: The type of the message ID. Either 11-bit or 29-bit identifier is supported.
-#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LINUX
+#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		unsigned int id,
 		unsigned int mask,
@@ -302,7 +302,7 @@ uv_errors_e uv_can_reset(uv_can_channels_e channel);
 /// @brief: Clears the rx buffer
 void uv_can_clear_rx_buffer(uv_can_channels_e channel);
 
-#if CONFIG_TARGET_LINUX
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 /// @brief: Baudrate setting only possible on Linux systems. Otherwise baudrate is
 /// specified via CONFIG_CAN_BAUDRATE symbol.
 ///
