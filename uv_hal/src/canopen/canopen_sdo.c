@@ -170,7 +170,10 @@ void _canopen_copy_data(uv_can_message_st *dest, const canopen_object_st *src, u
 			dest->data_32bit[1] = src->array_max_size;
 		}
 		else {
-			dest->data_32bit[1] = ((uint8_t*) src->data_ptr)[(subindex - 1) * CANOPEN_TYPE_LEN(src->type)];
+			dest->data_32bit[1] = 0;
+			memcpy(&dest->data_32bit[1],
+					&((uint8_t*) src->data_ptr)[(subindex - 1) * CANOPEN_TYPE_LEN(src->type)],
+					CANOPEN_TYPE_LEN(src->type));
 		}
 	}
 	else {
