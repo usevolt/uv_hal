@@ -158,7 +158,7 @@ int print(char **out, const char *format, int count, va_list args )
 				width += *format - '0';
 			}
 			if( *format == 's' ) {
-				register char *s = (char *)va_arg( args, long long int );
+				register char *s = (char *)va_arg( args, long int );
 				pc += prints (out, s?s:"(null)", width, pad);
 				continue;
 			}
