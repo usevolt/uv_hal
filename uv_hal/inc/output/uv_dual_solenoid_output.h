@@ -59,6 +59,9 @@ typedef struct {
 } uv_dual_solenoid_output_conf_st;
 
 
+/// @brief: Resets the dual solenoid output configuration module to default settings
+void uv_dual_solenoid_output_conf_reset(uv_dual_solenoid_output_conf_st *this);
+
 
 /// @brief: Dual solenoid output module. Works as a data structure for controlling dual
 /// direction proportional valves.

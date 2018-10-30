@@ -24,9 +24,9 @@
 
 
 
-void uv_solenoid_output_conf_init(uv_solenoid_output_conf_st *conf) {
+void uv_solenoid_output_conf_reset(uv_solenoid_output_conf_st *conf) {
 	conf->min_ma = 0;
-	conf->max_ma = 4000;
+	conf->max_ma = 1200;
 }
 
 
