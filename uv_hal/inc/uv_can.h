@@ -321,7 +321,9 @@ int32_t uv_can_get_device_count(void);
 bool uv_can_is_connected(void);
 
 /// @brief: Sets the CAN dev up and running
-void uv_can_set_up(void);
+///
+/// @return: NULL if succesfull, or pointer to a string describing the error
+char *uv_can_set_up(void);
 
 /// @brief: CLoses the CAN channel when done
 void uv_can_close(void);

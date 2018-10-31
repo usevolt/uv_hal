@@ -44,6 +44,7 @@ typedef struct {
 	bool connection;
 	unsigned int baudrate;
 	char dev[32];
+	TPCANHandle handle;
 	uv_can_message_st rx_buffer_data[CONFIG_CAN0_RX_BUFFER_SIZE];
 	uv_ring_buffer_st rx_buffer;
 	uv_can_message_st tx_buffer_data[CONFIG_CAN0_TX_BUFFER_SIZE];
@@ -87,14 +88,54 @@ int32_t uv_can_get_device_count(void) {
 
 #if CONFIG_TARGET_WIN
 
-void uv_can_set_up(void) {
+char *uv_can_set_up(void) {
+	char *ret = NULL;
+
 	if (this->connection) {
 		uv_can_close();
 	}
 
 	/* open socket */
-	this->connection = true;
+	this->handle = PCAN_USBBUS1;
+	int32_t baudrate;
+	bool valid_baudrate = true;
+	switch(this->baudrate) {
+	case 100000:
+		baudrate = PCAN_BAUD_100K;
+		break;
+	case 125000:
+		baudrate = PCAN_BAUD_125K;
+		break;
+	case 250000:
+		baudrate = PCAN_BAUD_250K;
+		break;
+	case 500000:
+		baudrate = PCAN_BAUD_500K;
+		break;
+	case 1000000:
+		baudrate = PCAN_BAUD_1M;
+		break;
+	default:
+		baudrate = 0;
+		valid_baudrate = false;
+		break;
+	}
+	if (!valid_baudrate) {
+		ret = "Invalid baudrate. Baudrate has to be 100k, 125k, 250k, 500k or 1M.";
+	}
+	else {
+		TPCANStatus st = CAN_Initialize(this->handle, baudrate, 0, 0, 0);
 
+		if (st != PCAN_ERROR_OK) {
+			ret = "Error when connecting to PCAN hardware. Check that PCAN-USB is"
+					" connected and the driver installed.";
+		}
+		else {
+			this->connection = true;
+		}
+	}
+
+	return ret;
 }
 
 
