@@ -288,6 +288,7 @@ void uv_init(void *device) {
 
 
 void uv_deinit(void) {
+	uv_can_close();
 }
 
 
