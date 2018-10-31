@@ -191,7 +191,8 @@ void uv_can_close(void) {
 
 #if CONFIG_TARGET_LINUX
 
-void uv_can_set_up(void) {
+char *uv_can_set_up(void) {
+	char *ret = NULL;
 	char cmd[128];
 	int current_baud = 0;
 
@@ -237,6 +238,7 @@ void uv_can_set_up(void) {
 	/* open socket */
 	copen();
 
+	return ret;
 }
 
 
