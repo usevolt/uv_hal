@@ -20,7 +20,7 @@ extern const canopen_object_st CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS [];
 
 /// @brief: The length of object dictionary's application parameter array,
 /// given by the user application.
-extern unsigned int CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS_COUNT (void);
+extern uint32_t CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS_COUNT (void);
 
 
 

@@ -29,6 +29,17 @@
 #define DEC_MIN				40
 
 
+void uv_dual_solenoid_output_conf_reset(uv_dual_solenoid_output_conf_st *this) {
+	uv_solenoid_output_conf_reset(&this->solenoid_conf[0]);
+	uv_solenoid_output_conf_reset(&this->solenoid_conf[1]);
+	this->acc = 100;
+	this->dec = 100;
+	this->invert = false;
+	this->assembly_invert = false;
+}
+
+
+
 void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 		uv_dual_solenoid_output_conf_st *conf,
 		uv_pwm_channel_t pwm_a, uv_pwm_channel_t pwm_b,

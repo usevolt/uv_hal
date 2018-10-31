@@ -66,6 +66,7 @@ typedef struct {
 ///
 /// @param trigger_value: Value at where toggling the output is done
 /// @param Hysteresis: The hysteresis around trigger_value
+/// @param invert: If false, output is 0 when the value is smaller than trigger_value.
 void uv_hysteresis_init(uv_hysteresis_st *this, int32_t trigger_value, int32_t hysteresis, bool invert);
 
 bool uv_hysteresis_step(uv_hysteresis_st *this, int32_t value);

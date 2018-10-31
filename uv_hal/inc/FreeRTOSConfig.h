@@ -67,7 +67,6 @@
 #include "LPC11xx.h"
 #elif CONFIG_TARGET_LPC1549
 #include "chip.h"
-#elif CONFIG_TARGET_LINUX
 #endif
 #endif
 
@@ -88,7 +87,7 @@
 #elif CONFIG_TARGET_LPC11C14
 #define configCPU_CLOCK_HZ			( ( unsigned long ) SystemCoreClock )
 #define configMAX_PRIORITIES		( ( unsigned portBASE_TYPE ) 5 )
-#elif CONFIG_TARGET_LINUX
+#elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 #define configMAX_PRIORITIES		( ( unsigned portBASE_TYPE ) 10 )
 #endif
 #define configUSE_TICK_HOOK			0
@@ -97,7 +96,7 @@
 #define configMINIMAL_STACK_SIZE	( ( unsigned short ) 128 )
 #elif CONFIG_TARGET_LPC11C14
 #define configMINIMAL_STACK_SIZE	( ( unsigned short ) 64 )
-#elif CONFIG_TARGET_LINUX
+#elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 #define configMINIMAL_STACK_SIZE	( ( unsigned short ) 1024 )
 #endif
 #define configSUPPORT_DYNAMIC_ALLOCATION	1
@@ -194,7 +193,7 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 #else
 #if defined(CORE_M0)
 #else
-#if defined(CORE_LINUX)
+#if defined(CORE_LINUX) || defined(CORE_WIN)
 /* The lowest interrupt priority that can be used in a call to a "set priority"
 function. */
 #define configLIBRARY_LOWEST_INTERRUPT_PRIORITY			0x1f
