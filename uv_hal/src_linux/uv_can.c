@@ -184,6 +184,10 @@ static bool cclose(void) {
 	return ret;
 }
 
+void uv_can_close(void) {
+	cclose();
+}
+
 
 #if CONFIG_TARGET_LINUX
 
