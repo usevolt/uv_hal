@@ -19,6 +19,15 @@
 #ifndef __PCANBASICH__
 #define __PCANBASICH__
 
+
+#include <stdint.h>
+
+#define DWORD uint32_t
+#define WORD uint16_t
+#define BYTE uint8_t
+#define UINT64 uint64_t
+#define LPSTR char *
+
 ////////////////////////////////////////////////////////////
 // Value definitions
 ////////////////////////////////////////////////////////////

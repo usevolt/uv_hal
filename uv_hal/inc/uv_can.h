@@ -323,6 +323,9 @@ bool uv_can_is_connected(void);
 /// @brief: Sets the CAN dev up and running
 void uv_can_set_up(void);
 
+/// @brief: CLoses the CAN channel when done
+void uv_can_close(void);
+
 #endif
 
 

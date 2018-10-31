@@ -35,10 +35,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <PCANBasic.h>
 
-#if CONFIG_CAN_LOG
-extern bool can_log;
-#endif
 
 #define DEV_COUNT_MAX			30
 
@@ -69,8 +67,6 @@ static can_st _can = {
 #define this (&_can)
 
 
-static bool cclose(void);
-static bool copen(void);
 
 char *uv_can_get_device_name(int32_t i) {
 	if (i < this->dev_count) {
@@ -87,42 +83,22 @@ int32_t uv_can_get_device_count(void) {
 }
 
 
-/// @brief: Opens a socket to a SocketCAN device
-static bool copen(void) {
-	bool ret = true;
-
-	if (this->connection) {
-		cclose();
-	}
-
-	/* open socket */
-
-	return ret;
-}
-
-
-/// @brief: Closes the socket to the SocketCAN device
-static bool cclose(void) {
-	bool ret = true;
-
-	if (this->connection) {
-		printf("Socket closed.\n");
-	}
-
-	this->connection = false;
-	return ret;
-}
 
 
 #if CONFIG_TARGET_WIN
 
 void uv_can_set_up(void) {
 	if (this->connection) {
-		cclose();
+		uv_can_close();
 	}
 
 	/* open socket */
-	copen();
+	this->connection = true;
+
+}
+
+
+void uv_can_close(void) {
 
 }
 
