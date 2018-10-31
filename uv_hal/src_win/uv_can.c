@@ -35,10 +35,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <PCANBasic.h>
 
-#if CONFIG_CAN_LOG
-extern bool can_log;
-#endif
 
 #define DEV_COUNT_MAX			30
 
@@ -46,6 +44,7 @@ typedef struct {
 	bool connection;
 	unsigned int baudrate;
 	char dev[32];
+	TPCANHandle handle;
 	uv_can_message_st rx_buffer_data[CONFIG_CAN0_RX_BUFFER_SIZE];
 	uv_ring_buffer_st rx_buffer;
 	uv_can_message_st tx_buffer_data[CONFIG_CAN0_TX_BUFFER_SIZE];
@@ -69,8 +68,6 @@ static can_st _can = {
 #define this (&_can)
 
 
-static bool cclose(void);
-static bool copen(void);
 
 char *uv_can_get_device_name(int32_t i) {
 	if (i < this->dev_count) {
@@ -87,43 +84,66 @@ int32_t uv_can_get_device_count(void) {
 }
 
 
-/// @brief: Opens a socket to a SocketCAN device
-static bool copen(void) {
-	bool ret = true;
-
-	if (this->connection) {
-		cclose();
-	}
-
-	/* open socket */
-
-	return ret;
-}
-
-
-/// @brief: Closes the socket to the SocketCAN device
-static bool cclose(void) {
-	bool ret = true;
-
-	if (this->connection) {
-		printf("Socket closed.\n");
-	}
-
-	this->connection = false;
-	return ret;
-}
 
 
 #if CONFIG_TARGET_WIN
 
-void uv_can_set_up(void) {
+char *uv_can_set_up(void) {
+	char *ret = NULL;
+
 	if (this->connection) {
-		cclose();
+		uv_can_close();
 	}
 
 	/* open socket */
-	copen();
+	this->handle = PCAN_USBBUS1;
+	int32_t baudrate;
+	bool valid_baudrate = true;
+	switch(this->baudrate) {
+	case 100000:
+		baudrate = PCAN_BAUD_100K;
+		break;
+	case 125000:
+		baudrate = PCAN_BAUD_125K;
+		break;
+	case 250000:
+		baudrate = PCAN_BAUD_250K;
+		break;
+	case 500000:
+		baudrate = PCAN_BAUD_500K;
+		break;
+	case 1000000:
+		baudrate = PCAN_BAUD_1M;
+		break;
+	default:
+		baudrate = 0;
+		valid_baudrate = false;
+		break;
+	}
+	if (!valid_baudrate) {
+		ret = "Invalid baudrate. Baudrate has to be 100k, 125k, 250k, 500k or 1M.";
+	}
+	else {
+		TPCANStatus st = CAN_Initialize(this->handle, baudrate, 0, 0, 0);
 
+		if (st != PCAN_ERROR_OK) {
+			ret = "Error when connecting to PCAN hardware. Check that PCAN-USB is"
+					" connected and the driver installed.";
+		}
+		else {
+			this->connection = true;
+		}
+	}
+
+	return ret;
+}
+
+
+void uv_can_close(void) {
+	if (this->connection) {
+		CAN_Uninitialize(this->handle);
+		this->connection = false;
+	}
 }
 
 
@@ -193,6 +213,13 @@ uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* me
 		uv_can_set_up();
 	}
 
+	TPCANMsg msg;
+	msg.ID = message->id;
+	msg.LEN = message->data_length;
+	msg.MSGTYPE = (message->type == CAN_STD) ? PCAN_MESSAGE_STANDARD : PCAN_MESSAGE_EXTENDED;
+	memcpy(msg.DATA, message->data_8bit, message->data_length);
+	CAN_Write(this->handle, &msg);
+
 	return ret;
 }
 
@@ -216,7 +243,37 @@ void _uv_can_hal_step(unsigned int step_ms) {
 	if (this->connection) {
 		bool go = true;
 		while (go) {
-			int recvbytes = 0;
+			if (this->connection) {
+				TPCANMsg msg;
+				TPCANStatus st = CAN_Read(this->handle, &msg, NULL);
+				while (st != PCAN_ERROR_QRCVEMPTY) {
+					uv_can_msg_st m;
+					bool known_msg = true;
+					if (msg.MSGTYPE == PCAN_MESSAGE_STANDARD) {
+						m.type = CAN_STD;
+					}
+					else if (msg.MSGTYPE == PCAN_MESSAGE_EXTENDED) {
+						m.type = CAN_EXT;
+					}
+					else if (msg.MSGTYPE == PCAN_MESSAGE_ERRFRAME) {
+						m.type = CAN_ERR;
+					}
+					else {
+						known_msg = false;
+					}
+
+					if (known_msg) {
+						m.id = msg.ID;
+						m.data_length = msg.LEN;
+						memcpy(m.data_8bit, msg.DATA, msg.LEN);
+
+						uv_ring_buffer_push(&this->rx_buffer, &m);
+					}
+
+					st = CAN_Read(this->handle, &msg, NULL);
+				}
+
+			}
 
 			go = false;
 
