@@ -140,7 +140,10 @@ char *uv_can_set_up(void) {
 
 
 void uv_can_close(void) {
-
+	if (this->connection) {
+		CAN_Uninitialize(this->handle);
+		this->connection = false;
+	}
 }
 
 
@@ -210,6 +213,13 @@ uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* me
 		uv_can_set_up();
 	}
 
+	TPCANMsg msg;
+	msg.ID = message->id;
+	msg.LEN = message->data_length;
+	msg.MSGTYPE = (message->type == CAN_STD) ? PCAN_MESSAGE_STANDARD : PCAN_MESSAGE_EXTENDED;
+	memcpy(msg.DATA, message->data_8bit, message->data_length);
+	CAN_Write(this->handle, &msg);
+
 	return ret;
 }
 
@@ -233,7 +243,37 @@ void _uv_can_hal_step(unsigned int step_ms) {
 	if (this->connection) {
 		bool go = true;
 		while (go) {
-			int recvbytes = 0;
+			if (this->connection) {
+				TPCANMsg msg;
+				TPCANStatus st = CAN_Read(this->handle, &msg, NULL);
+				while (st != PCAN_ERROR_QRCVEMPTY) {
+					uv_can_msg_st m;
+					bool known_msg = true;
+					if (msg.MSGTYPE == PCAN_MESSAGE_STANDARD) {
+						m.type = CAN_STD;
+					}
+					else if (msg.MSGTYPE == PCAN_MESSAGE_EXTENDED) {
+						m.type = CAN_EXT;
+					}
+					else if (msg.MSGTYPE == PCAN_MESSAGE_ERRFRAME) {
+						m.type = CAN_ERR;
+					}
+					else {
+						known_msg = false;
+					}
+
+					if (known_msg) {
+						m.id = msg.ID;
+						m.data_length = msg.LEN;
+						memcpy(m.data_8bit, msg.DATA, msg.LEN);
+
+						uv_ring_buffer_push(&this->rx_buffer, &m);
+					}
+
+					st = CAN_Read(this->handle, &msg, NULL);
+				}
+
+			}
 
 			go = false;
 
