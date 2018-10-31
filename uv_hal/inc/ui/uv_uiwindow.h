@@ -54,9 +54,9 @@ struct _uv_uiwindow_st {
 	/// @brief: Set to false if window should have a background. That is,
 	/// if the window has any objects whose visibility will be toggled
 	bool transparent;
-	/// @brief: The GUI style attached to this window.
-	/// Refer to uv_uiwindow_styles_st in uv_ui_styles.h for more info.
-	const uv_uistyle_st *style;
+
+	color_t bg_c;
+	color_t handle_c;
 	/// @brief: Application step callback. This will be called every step cycle
 	/// after updating the UI. This should be used in the application to actually
 	/// do anything with the UI.

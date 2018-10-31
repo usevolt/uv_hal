@@ -20,17 +20,19 @@ static void touch(void *me, uv_touch_st *touch);
 
 
 static inline void draw(void *me, const uv_bounding_box_st *pbb) {
-	color_t bgc = (this->state) ? this->super.style->active_bg_c : this->super.style->inactive_bg_c;
-	color_t fontc = (this->super.state) ? this->super.style->active_font_c : this->super.style->inactive_font_c;
-	color_t lightc = (this->state) ? this->super.style->shadow_c : this->super.style->highlight_c;
-	color_t shadowc = (this->state) ? this->super.style->highlight_c : this->super.style->shadow_c;
+	color_t fontc = ((uv_uibutton_st *) this)->text_c;
+	color_t bgc = (this->state) ? uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 20) : ((uv_uibutton_st*) this)->main_c;
+	color_t shadowc = (this->state) ? uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 30) :
+			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, -30);
+	color_t lightc = (this->state) ? uv_uic_brighten(((uv_uibutton_st*) this)->main_c, -30) :
+			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 30);
 	int16_t x = uv_ui_get_xglobal(this);
 	int16_t y = uv_ui_get_yglobal(this);
 	int16_t w = uv_uibb(this)->width;
 	int16_t h = uv_uibb(this)->height;
 
 	uv_ft81x_draw_shadowrrect(x, y, w, h, CONFIG_UI_RADIUS, bgc, lightc, shadowc);
-	uv_ft81x_draw_string(this->super.text, this->super.style->font->index, x + w / 2,
+	uv_ft81x_draw_string(this->super.text, ((uv_uibutton_st*) this)->font->index, x + w / 2,
 			y + h / 2, ALIGN_CENTER, fontc);
 }
 

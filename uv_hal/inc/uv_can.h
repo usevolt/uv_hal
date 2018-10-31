@@ -195,7 +195,7 @@ typedef enum {
 /// @brief: A enum describing popular CAN masks used when configuring receive messages.
 enum {
 	/// @brief: Mask where every bit is relevant
-	CAN_ID_MASK_DEFAULT = 0xFFFFFFFF
+	CAN_ID_MASK_DEFAULT = 0xFFFFFFFF,
 };
 
 

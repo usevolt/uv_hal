@@ -44,7 +44,9 @@ typedef struct {
 	uibutton_state_e state;
 	uv_delay_st delay;
 	char *text;
-	const uv_uistyle_st *style;
+	color_t main_c;
+	color_t text_c;
+	const uv_font_st *font;
 
 } uv_uibutton_st;
 

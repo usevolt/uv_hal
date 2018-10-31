@@ -38,8 +38,8 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	uv_ft81x_set_mask(uv_ui_get_xglobal(this), uv_ui_get_yglobal(this),
 			uv_uibb(this)->width, uv_uibb(this)->height);
 
-	uv_ft81x_clear(((uv_uiwindow_st*) this)->style->display_c);
-	uv_ft81x_draw_point(LCD_W(0.5f), -400, ((uv_uiwindow_st*) this)->style->active_bg_c, 1000);
+	uv_ft81x_clear(this->display_c);
+	uv_ft81x_draw_point(LCD_W(0.5f), -400, uv_uic_brighten(this->display_c, 20), 1000);
 #endif
 }
 
@@ -51,6 +51,7 @@ void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *
 	uv_uibb(me)->y = 0;
 	uv_uibb(me)->width = LCD_W_PX;
 	uv_uibb(me)->height = LCD_H_PX;
+	this->display_c = style->display_c;
 	uv_ui_refresh_parent(this);
 	uv_uiobject_set_draw_callb(this, &draw);
 	// ave to set touch callback to null as uiwindow tries to set it to itself

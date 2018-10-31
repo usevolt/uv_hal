@@ -49,6 +49,8 @@ typedef struct {
 	int16_t press_y;
 	/// @brief: Stores the current state of the press event
 	int16_t press_state;
+
+	color_t display_c;
 #endif
 } uv_uidisplay_st;
 
