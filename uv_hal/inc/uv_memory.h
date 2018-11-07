@@ -27,6 +27,9 @@
 #if CONFIG_CANOPEN
 #include "uv_canopen.h"
 #endif
+#if CONFIG_W25Q128
+#include "uv_w25q128.h"
+#endif
 
 
 #if !defined(CONFIG_NON_VOLATILE_MEMORY)
@@ -254,6 +257,8 @@ uint16_t uv_memory_calc_crc(void *data, int32_t len);
 
 /// @brief: Loads hal specific non-volatile data
 uv_errors_e _uv_memory_hal_load(void);
+
+
 
 
 

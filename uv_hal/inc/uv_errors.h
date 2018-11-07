@@ -131,6 +131,12 @@ typedef enum {
 	ERR_ABORTED							= 44,
 	/// @brief: Parameter to function was null pointer
 	ERR_NULL_PTR						= 45,
+	/// @brief: Not found
+	ERR_NOT_FOUND						= 46,
+	/// @brief: Parameter was not unique
+	ERR_NOT_UNIQUE 						= 47,
+	/// @brief: Count exceeded
+	ERR_COUNT_EXCEEDED					= 48,
 	ERR_COUNT
 } _uv_errors_e;
 typedef unsigned int uv_errors_e;

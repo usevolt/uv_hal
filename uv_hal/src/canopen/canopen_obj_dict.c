@@ -10,6 +10,9 @@
 #include "uv_canopen.h"
 #include <string.h>
 #include CONFIG_MAIN_H
+#if CONFIG_W25Q128
+#include "uv_w25q128.h"
+#endif
 
 #if CONFIG_CANOPEN
 
@@ -118,6 +121,45 @@ const canopen_object_st com_params[] = {
 				.permissions = CANOPEN_RO,
 				.type = CANOPEN_STRING,
 				.data_ptr = (void*) uv_projname
+		},
+#endif
+#if CONFIG_W25Q128
+		{
+				.main_index = CONFIG_CANOPEN_FD_INDEX,
+				.sub_index = CONFIG_CANOPEN_FD_DATA_SUBINDEX,
+				.type = CANOPEN_STRING,
+				.string_len = CONFIG_EXMEM_BUFFER_SIZE,
+				.permissions = CANOPEN_RW,
+				.data_ptr = exmem_data_buffer
+		},
+		{
+				.main_index = CONFIG_CANOPEN_FD_INDEX,
+				.sub_index = CONFIG_CANOPEN_FD_FILENAME_SUBINDEX,
+				.type = CANOPEN_STRING,
+				.string_len = EXMEM_FILENAME_LEN,
+				.permissions = CANOPEN_RW,
+				.data_ptr = exmem_filename_buffer
+		},
+		{
+				.main_index = CONFIG_CANOPEN_FD_INDEX,
+				.sub_index = CONFIG_CANOPEN_FD_FILESIZE_SUBINDEX,
+				.type = CANOPEN_UNSIGNED32,
+				.permissions = CANOPEN_RW,
+				.data_ptr = &exmem_file_size
+		},
+		{
+				.main_index = CONFIG_CANOPEN_FD_INDEX,
+				.sub_index = CONFIG_CANOPEN_FD_WRITEREQ_SUBINDEX,
+				.type = CANOPEN_UNSIGNED32,
+				.permissions = CANOPEN_RW,
+				.data_ptr = &exmem_write_req
+		},
+		{
+				.main_index = CONFIG_CANOPEN_FD_INDEX,
+				.sub_index = CONFIG_CANOPEN_FD_CLEARREQ_SUBINDEX,
+				.type = CANOPEN_UNSIGNED8,
+				.permissions = CANOPEN_RW,
+				.data_ptr = &exmem_clear_req
 		},
 #endif
 		{

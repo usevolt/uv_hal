@@ -60,6 +60,9 @@
 #define CMD_READ_BLOCK_LOCK				0x3D
 
 
+/// @brief: RAM buffer with the size of erase sector for w25q128.
+/// As this is very big, it is stored in RAM1_16 on LPC1549.
+__attribute__((section(".data.$Ram1_16*"))) static volatile uint8_t w25q128_buffer[W25Q128_SECTOR_SIZE];
 
 static bool is_busy(uv_w25q128_st *this) {
 	uint16_t read[2] = {};
@@ -73,6 +76,7 @@ static bool is_busy(uv_w25q128_st *this) {
 void uv_w25q128_init(uv_w25q128_st *this, spi_e spi, spi_slaves_e ssel) {
 	this->spi = spi;
 	this->ssel = ssel;
+	this->data_location = 0;
 
 	uint16_t read[6] = {};
 	uint16_t write[6] = {};
@@ -82,17 +86,137 @@ void uv_w25q128_init(uv_w25q128_st *this, spi_e spi, spi_slaves_e ssel) {
 }
 
 
-void uv_w25q128_read_sync(uv_w25q128_st *this,
+bool uv_w25q128_read_sync(uv_w25q128_st *this,
 		int32_t address, void *dest, uint32_t byte_count) {
+	bool ret = true;
 
 
+	return ret;
 }
 
 
-void uv_w25q128_write_sync(uv_w25q128_st *this,
+bool uv_w25q128_write_sync(uv_w25q128_st *this,
 		int32_t address, void *src, uint32_t byte_count) {
+	bool ret = true;
 
+
+	return ret;
 }
+
+
+
+
+uint8_t exmem_data_buffer[CONFIG_EXMEM_BUFFER_SIZE];
+char exmem_filename_buffer[EXMEM_FILENAME_LEN];
+uint32_t exmem_file_size = 0;
+uint32_t exmem_write_req = 0;
+uint8_t exmem_clear_req = 0;
+
+/// @brief: Returns a file descriptor from the filename. If the file didn't exists,
+/// fd points to the last file found on the system
+///
+/// @return: True if the file was found, false otherwise
+///
+/// @param lastfd: Optional file descriptor which stores the previous fd of *fd*.
+/// If *fd* was the first fd in the linked list, *lastfd* will be equal to *fd*.
+static bool get_fd(const char *filename, uv_fd_st *dest, uv_fd_st *lastfd) {
+	bool ret = false;
+
+	memset(dest, 0, sizeof(uv_fd_st));
+
+	return ret;
+}
+
+/// @brief: Writes to the memory part of the file indicated by *fd* which
+/// can be found in the CANOpen object dictionary parameters
+///
+/// @return: True if the file was completely written, false if there should still be
+/// some data to be written
+static bool write_file(uv_fd_st *fd) {
+	bool ret = false;
+
+	return ret;
+}
+
+
+/// @brief: Returns the filename address from the file descriptor
+#define FILENAME_ADDR(fd)		(fd.this_addr + sizeof(fd))
+/// @brief: Returns the data address from the file descriptor
+#define DATA_ADDR(fd)			(fd.this_addr + sizeof(fd) + EXMEM_FILENAME_LEN)
+/// @brief: Returns the amount of storage size needed to store the whole file
+/// alongside it's filename and file descriptor
+#define FILE_SIZE(fd)			(sizeof(fd) + EXMEM_FILENAME_LEN + fd.file_size)
+/// @brief: Returns the amount of free data space until the next file descriptor
+#define FREE_SPACE_TO_NEXT(fd)	((int32_t) (fd.next_addr - fd.this_addr - \
+		sizeof(fd) - EXMEM_FILENAME_LEN - fd.file_size))
+
+void uv_w25q128_step(uv_w25q128_st *this, uint16_t step_ms) {
+	uv_fd_st fd;
+	if (exmem_write_req) {
+		uv_fd_st lastfd;
+		bool new_fd = false;
+		if (get_fd(exmem_filename_buffer, &fd, &lastfd)) {
+			uint32_t free_space = FREE_SPACE_TO_NEXT(fd);
+			// file already exists, override it if there's enough space
+			// if there was not enough space, remove the file and
+			// find a new place
+			if ((free_space < 0) || (free_space >= FILE_SIZE(fd))) {
+				// enough space found, save the file here
+				write_file(&fd);
+			}
+			else {
+				// not enough space, forget this file descriptor and link the list again
+				lastfd.next_addr = fd.next_addr;
+				uv_w25q128_write_sync(this, lastfd.this_addr, &lastfd, sizeof(lastfd));
+				// request us to create a new fd
+				new_fd = true;
+			}
+		}
+		else {
+			new_fd = true;
+		}
+
+		if (new_fd) {
+			// new file descriptor was requested, lets create it
+			// loop trough the file descriptors and find a place where there's enough space
+			uv_w25q128_read_sync(this, 0, &fd, sizeof(fd));
+			lastfd = fd;
+			while (fd.next_addr != 0) {
+				uint32_t free_space = FREE_SPACE_TO_NEXT(fd);
+				if ((free_space < 0) || (free_space > FILE_SIZE(fd))) {
+					break;
+				}
+				lastfd = fd;
+				uv_w25q128_read_sync(this, 0, &fd, sizeof(fd));
+			}
+			// fd should now point to the previous file where we save the data
+			uv_fd_st new;
+			new.file_size = exmem_file_size;
+			new.next_addr = 0;
+			new.this_addr = fd.this_addr + FILE_SIZE(fd);
+			uv_w25q128_write_sync(this, new.this_addr, &new, sizeof(new));
+
+			// write the data here
+			write_file(&new);
+		}
+
+		// update the data location by the written byte count
+		this->data_location += exmem_write_req;
+		exmem_write_req = 0;
+	}
+	else if (exmem_clear_req) {
+		uv_fd_st fd;
+		memset(&fd, 0, sizeof(fd));
+		// clears the first file descriptor. Thus, the linked list of the fd's is cleared.
+		uv_w25q128_write_sync(this, 0, &fd, sizeof(fd));
+		exmem_clear_req = 0;
+		this->data_location = 0;
+	}
+	else {
+
+	}
+}
+
 
 
 

@@ -30,14 +30,21 @@
 #if !CONFIG_SPI
 #error "SPI module is needed for W25Q128 module. Define CONFIG_SPI as 1."
 #endif
+#if !CONFIG_EXMEM_BUFFER_SIZE
+#error "CONFIG_EXMEM_BUFFER_SIZE should define the size of memory buffer used for reading \
+the data from external flash memory."
+#endif
+
+#define EXMEM_FILENAME_LEN		64
 
 typedef struct {
 	spi_e spi;
 	spi_slaves_e ssel;
+	/// @brief: Tells the current location for writing the data over CAN-bus
+	uint32_t data_location;
 } uv_w25q128_st;
 
 #define W25Q128_SECTOR_SIZE			4096
-
 
 /// @brief: Initializes the w25q128 memory module
 void uv_w25q128_init(uv_w25q128_st *this, spi_e spi, spi_slaves_e ssel);
@@ -46,21 +53,65 @@ void uv_w25q128_init(uv_w25q128_st *this, spi_e spi, spi_slaves_e ssel);
 /// @brief: Reads **byte_count** bytes sychronously. The function returns when the
 /// read successes.
 ///
+/// @return: True if read succesfully, false otherwise
+///
 /// @param address: The memory start address for the read command
 /// @param dest: Pointer to the data buffer where the read data is copied
 /// @param byte_count: Number of bytes to read. **dest** should be **byte_count** long.
-void uv_w25q128_read_sync(uv_w25q128_st *this,
+bool uv_w25q128_read_sync(uv_w25q128_st *this,
 		int32_t address, void *dest, uint32_t byte_count);
 
 
 /// @brief: Writes **byte_count** bytes sychronously to the memory module. The function
 /// return when the write successes.
 ///
+/// @return: True if wrote successfull, false otherwise
+///
 /// @param address: The memory start address for the write command
 /// @param src: Pointer to the data buffer where the data is read
 /// @param byte_count: Number of bytes to write. **src** should be **byte_count** long.
-void uv_w25q128_write_sync(uv_w25q128_st *this,
+bool uv_w25q128_write_sync(uv_w25q128_st *this,
 		int32_t address, void *src, uint32_t byte_count);
+
+
+
+/// @brief: Flash memory step function. This takes care of the CANOpen communication
+void uv_w25q128_step(uv_w25q128_st *this, uint16_t step_ms);
+
+
+/* External memory CAN interface */
+
+
+/// @brief: External memory file descriptor data structure.
+typedef struct {
+	// Address of this file descriptor
+	uint32_t this_addr;
+	// size of the file in bytes, excluding the filename
+	uint32_t file_size;
+	// Since files are stored as a linked list, this holds the location of the next file
+	uint32_t next_addr;
+} uv_fd_st;
+
+
+/// @brief: Buffer holding the data
+extern uint8_t exmem_data_buffer[CONFIG_EXMEM_BUFFER_SIZE];
+
+/// @brief: Buffer holding the file name
+extern char exmem_filename_buffer[EXMEM_FILENAME_LEN];
+
+/// @brief: Contains the file size in bytes. File is determined with *exmem_filename_buffer*
+extern uint32_t exmem_file_size;
+
+/// @brief: Write request. This should be written with
+/// the byte count of data to be written. The data should be stored in
+/// *exmem_data_buffer* and filename and size should be written to *exmem_filename_buffer* and
+/// *exmem_file_size* prior to setting this.
+extern uint32_t exmem_write_req;
+
+
+/// @brief: Memory clear request.
+/// Setting this to nonzero value removes all files from the external memory
+extern uint8_t exmem_clear_req;
 
 #endif
 
