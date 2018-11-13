@@ -34,6 +34,7 @@
 #if CONFIG_ADC || CONFIG_ADC0 || CONFIG_ADC1
 #include "uv_adc.h"
 #endif
+#include "uv_dac.h"
 
 typedef struct {
 	void (*idle_task)(void *user_ptr);
@@ -231,6 +232,10 @@ void uv_init(void *device) {
 
 #if CONFIG_ADC || CONFIG_ADC0 || CONFIG_ADC1
 	_uv_adc_init();
+#endif
+
+#if CONFIG_DAC
+	_uv_dac_init();
 #endif
 
 #if CONFIG_SPI

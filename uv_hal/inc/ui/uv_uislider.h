@@ -50,7 +50,11 @@ typedef struct {
 	char *title;
 	/// @brief: Value changed-callback
 	void (*callb)(void *me, int16_t value);
-	const uv_uistyle_st *style;
+
+	color_t text_c;
+	const uv_font_st *font;
+	color_t handle_c;
+	color_t bg_c;
 } uv_uislider_st;
 
 #ifdef this

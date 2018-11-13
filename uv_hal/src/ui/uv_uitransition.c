@@ -128,6 +128,38 @@ void uv_uitransition_pause(void *me) {
 
 
 
+static int16_t scalar_calc(uv_uitransition_easing_e easing, int16_t current_time_ms,
+		int16_t duration_ms, int16_t start_val, int16_t end_val) {
+	int16_t ret = 0;
+	if (easing == UITRANSITION_EASING_LINEAR) {
+		int16_t rel = uv_reli(current_time_ms, 0, duration_ms);
+		ret = uv_lerpi(rel, start_val, end_val);
+	}
+	else if (easing == UITRANSITION_EASING_IN_QUAD) {
+		int16_t rel = uv_reli(current_time_ms, 0, duration_ms);
+		ret = uv_lerpi(rel * rel / 1000, start_val, end_val);
+	}
+	else if (easing == UITRANSITION_EASING_OUT_QUAD) {
+		int16_t rel = uv_reli(current_time_ms, 0, duration_ms);
+		ret = uv_lerpi(- rel * (rel - 2000) / 1000, start_val, end_val);
+	}
+	else if (easing == UITRANSITION_EASING_INOUT_QUAD) {
+		int16_t rel = uv_reli(current_time_ms, 0, duration_ms / 2);
+		if (rel < 1000) {
+			ret = uv_lerpi(rel * rel / 1000, start_val, end_val + (start_val - end_val) / 2);
+		}
+		else {
+			rel -= 1000;
+			ret = uv_lerpi(- (rel * (rel - 2000) / 1000 - 1010), start_val,
+					(end_val + (start_val - end_val) / 2));
+		}
+	}
+	else {
+
+	}
+	return ret;
+}
+
 
 #undef this
 #define this	((uv_uiscalartransition_st *) me)
@@ -144,37 +176,10 @@ void uv_uiscalartransition_init(void *me, uv_uitransition_easing_e easing,
 
 
 void uv_uiscalartransition_calc(void *me) {
-	if (((uv_uitransition_st*) this)->easing == UITRANSITION_EASING_LINEAR) {
-		int16_t rel = uv_reli(((uv_uitransition_st*) this)->current_time_ms,
-				0, ((uv_uitransition_st*) this)->duration_ms);
-		*this->cur_val = uv_lerpi(rel, this->start_val, this->end_val);
-	}
-	else if (((uv_uitransition_st*) this)->easing == UITRANSITION_EASING_IN_QUAD) {
-		int16_t rel = uv_reli(((uv_uitransition_st*) this)->current_time_ms,
-				0, ((uv_uitransition_st*) this)->duration_ms);
-		*this->cur_val = uv_lerpi(rel * rel / 1000, this->start_val, this->end_val);
-	}
-	else if (((uv_uitransition_st*) this)->easing == UITRANSITION_EASING_OUT_QUAD) {
-		int16_t rel = uv_reli(((uv_uitransition_st*) this)->current_time_ms,
-				0, ((uv_uitransition_st*) this)->duration_ms);
-		*this->cur_val = uv_lerpi(- rel * (rel - 2000) / 1000, this->start_val, this->end_val);
-	}
-	else if (((uv_uitransition_st*) this)->easing == UITRANSITION_EASING_INOUT_QUAD) {
-		int16_t rel = uv_reli(((uv_uitransition_st*) this)->current_time_ms,
-				0, ((uv_uitransition_st*) this)->duration_ms / 2);
-		if (rel < 1000) {
-			*this->cur_val = uv_lerpi(rel * rel / 1000, this->start_val,
-					this->end_val + (this->start_val - this->end_val) / 2);
-		}
-		else {
-			rel -= 1000;
-			*this->cur_val = uv_lerpi(- (rel * (rel - 2000) / 1000 - 1010), this->start_val,
-					(this->end_val + (this->start_val - this->end_val) / 2));
-		}
-	}
-	else {
-
-	}
+	*this->cur_val = scalar_calc(((uv_uitransition_st*) this)->easing,
+			((uv_uitransition_st*) this)->current_time_ms,
+			((uv_uitransition_st*) this)->duration_ms,
+			this->start_val, this->end_val);
 }
 
 
@@ -190,12 +195,33 @@ void uv_uicolortransition_init(void *me, uv_uitransition_easing_e easing,
 	this->start_c = start_c;
 	this->end_c = end_c;
 	this->cur_c = c_ptr;
-	*this->cur_c = start_c;
+	*c_ptr = start_c;
 }
 
 
 void uv_uicolortransition_calc(void *me) {
+	uint32_t result = 0;
+	for (uint8_t i = 0; i < 4; i++) {
+		int16_t val, start_val, end_val;
+		start_val = (this->start_c >> (i * 8)) & 0xFF;
+		end_val = (this->end_c >> (i * 8)) & 0xFF;
 
+		val = scalar_calc(((uv_uitransition_st*) this)->easing,
+				((uv_uitransition_st*) this)->current_time_ms,
+				((uv_uitransition_st*) this)->duration_ms,
+				start_val, end_val);
+		if (val < 0) {
+			val = 0;
+		}
+		else if (val > 0xFF) {
+			val = 0xFF;
+		}
+		else {
+
+		}
+		result += (val << (i * 8));
+	}
+	*this->cur_c = result;
 }
 
 

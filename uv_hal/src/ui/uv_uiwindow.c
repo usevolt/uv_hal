@@ -56,39 +56,19 @@ static void draw_scrollbar(void *me, bool horizontal, const uv_bounding_box_st *
 		handle_y = bar_y + ((bar_h - handle_h) * pos_scale);
 	}
 
-#if CONFIG_LCD
-	// draw scroll bar background
-	uv_lcd_draw_mrect(bar_x, bar_y, bar_w, bar_h,
-			this->style->inactive_bg_c, pbb);
-
-	// draw handle
-	uv_lcd_draw_mrect(handle_x, handle_y,handle_w, handle_h,
-			this->style->active_fg_c, pbb);
-
-#elif CONFIG_FT81X
 	// draw background
 	uv_ft81x_draw_rrect(bar_x, bar_y, bar_w, bar_h,
-			CONFIG_UI_WINDOW_SCROLLBAR_WIDTH / 2, this->style->inactive_fg_c);
+			CONFIG_UI_WINDOW_SCROLLBAR_WIDTH / 2, this->bg_c);
 
 	// draw handle
 	uv_ft81x_draw_rrect(handle_x, handle_y, handle_w, handle_h,
-			CONFIG_UI_WINDOW_SCROLLBAR_WIDTH / 2, this->style->active_fg_c);
-#endif
+			CONFIG_UI_WINDOW_SCROLLBAR_WIDTH / 2, this->handle_c);
 }
 
 
 /// @brief: Redraws this window
 void _uv_uiwindow_redraw(void *me, const uv_bounding_box_st *pbb) {
 
-#if CONFIG_LCD
-	if ((this->content_bb.height > uv_uibb(this)->height) ||
-			(this->content_bb.width > uv_uibb(this)->width) ||
-			!this->transparent) {
-
-		uv_lcd_draw_mrect(uv_ui_get_xglobal(this), uv_ui_get_yglobal(this), uv_uibb(this)->width,
-				uv_uibb(this)->height, this->style->window_c, pbb);
-	}
-#elif CONFIG_FT81X
 	uv_bounding_box_st bb = *uv_uibb(this);
 	bb.x = uv_ui_get_xglobal(this);
 	bb.y = uv_ui_get_yglobal(this);
@@ -109,9 +89,9 @@ void _uv_uiwindow_redraw(void *me, const uv_bounding_box_st *pbb) {
 
 	uv_ft81x_set_mask(bb.x, bb.y, bb.width, bb.height);
 	if (!this->transparent) {
-		uv_ft81x_clear(this->style->window_c);
+		uv_ft81x_clear(this->bg_c);
 	}
-#endif
+
 	if (this->content_bb.height > uv_uibb(this)->height) {
 		draw_scrollbar(this, false, pbb);
 	}
@@ -128,7 +108,8 @@ void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array, const uv_ui
 	this->content_bb_ydef = 0;
 	this->objects = object_array;
 	this->objects_count = 0;
-	this->style = style;
+	this->bg_c = style->window_c;
+	this->handle_c = style->active_fg_c;
 	this->dragging = false;
 #if CONFIG_LCD
 	// on LCD module transparent is by default false since

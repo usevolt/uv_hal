@@ -62,6 +62,8 @@ char *uv_get_hardware_name() {
 	return "CONFIG_TARGET_LPC1549";
 #elif CONFIG_TARGET_LINUX
 	return "CONFIG_TARGET_LINUX";
+#elif CONFIG_TARGET_WIN
+	return "CONFIG_TARGET_WIN";
 #else
 	#error "Error: Hardware name not specified in uv_utilities.c"
 #endif

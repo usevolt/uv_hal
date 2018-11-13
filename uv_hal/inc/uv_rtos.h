@@ -21,6 +21,7 @@
 
 #include "uv_hal_config.h"
 #include <stdbool.h>
+#include <stdint.h>
 
 
 /// @file: A wrapper for FreeRTOS real time operating system.
@@ -34,7 +35,7 @@
 ///
 
 #include "uv_errors.h"
-#if !CONFIG_TARGET_LINUX
+#if !CONFIG_TARGET_LINUX && !CONFIG_TARGET_WIN
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
@@ -70,7 +71,7 @@
 /// interrupt routines, use uv_disable_int_ISR instead!
 #if (CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LPC1785)
 #define uv_disable_int()		__disable_irq()
-#elif CONFIG_TARGET_LINUX
+#elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 #define uv_disable_int()
 #endif
 /// @brief: Disabled all interrupts. This is meant to be called from
@@ -80,7 +81,7 @@
 /// interrupt routines, use uv_enable_int_ISR instead!
 #if (CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LPC1785)
 #define uv_enable_int()			__enable_irq()
-#elif CONFIG_TARGET_LINUX
+#elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 #define uv_enable_int()
 #endif
 /// @brief: Enabled all interrupts. This is meant to be called from
@@ -93,7 +94,7 @@
 
 
 
-#if !CONFIG_TARGET_LINUX
+#if !CONFIG_TARGET_LINUX && !CONFIG_TARGET_WIN
 typedef xTaskHandle 		uv_rtos_task_ptr;
 
 
@@ -206,7 +207,7 @@ static inline void uv_mutex_unlock(uv_mutex_st *mutex) {
 void uv_init(void *device);
 
 
-#if CONFIG_TARGET_LINUX
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 /// @brief: Deinitializes all modules and closes open sockets.
 void uv_deinit(void);
 #endif
@@ -230,6 +231,8 @@ static inline bool uv_rtos_initialized() {
 /// @param task_function: The task function pointer. Takes user_ptr as a parameter.
 /// Refer to uv_utilities.h for more details.
 uv_errors_e uv_rtos_add_idle_task(void (*task_function)(void *user_ptr));
+
+bool uv_rtos_idle_task_set(void);
 
 
 
@@ -259,7 +262,7 @@ void uv_rtos_task_delay(unsigned int ms);
 
 /// @brief: Forces a context switch
 static inline void uv_rtos_task_yield(void) {
-#if CONFIG_TARGET_LINUX
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 	sched_yield();
 #else
 	taskYIELD();
@@ -267,7 +270,7 @@ static inline void uv_rtos_task_yield(void) {
 }
 
 
-#if CONFIG_TARGET_LINUX
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 #define __NOP()
 #endif
 
@@ -292,7 +295,7 @@ int32_t uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_na
 /// @brief: Remove a task from the RTOS kernels management. The task being
 /// deleted will be removed from all ready, blocked, suspended and event lists
 
-#if !CONFIG_TARGET_LINUX
+#if !CONFIG_TARGET_LINUX && !CONFIG_TARGET_WIN
 static inline void uv_rtos_task_delete(uv_rtos_task_ptr task) {
 	vTaskDelete(task);
 }

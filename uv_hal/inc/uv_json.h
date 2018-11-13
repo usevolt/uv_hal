@@ -232,7 +232,7 @@ bool uv_jsonreader_get_string(char *object, char *dest, unsigned int dest_length
 /// If the string is longer than dest_length, returns false.
 ///
 /// @note: Do not overindex!
-bool uv_jsonreader_array_get_string(char *object, unsigned int index, char **dest, unsigned int dest_length);
+bool uv_jsonreader_array_get_string(char *object, unsigned int index, char *dest, unsigned int dest_length);
 
 
 /// @brief: Returns the object's value as a bool

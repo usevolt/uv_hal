@@ -30,6 +30,8 @@ enum {
 	CANOPEN_RW = 0b11
 };
 typedef uint8_t canopen_permissions_e;
+#define CANOPEN_IS_READABLE(permissions) ((permissions) & CANOPEN_RO)
+#define CANOPEN_IS_WRITABLE(permissions) ((permissions) & CANOPEN_WO)
 
 
 
@@ -51,6 +53,9 @@ typedef uint8_t canopen_permissions_e;
 #define CANOPEN_SIZEOF(type)	CANOPEN_TYPE_LEN(type)
 
 #define CANOPEN_IS_ARRAY(type)	((type) & (CANOPEN_ARRAY_MASK))
+#define CANOPEN_IS_INTEGER(type) (!((type) & (CANOPEN_ARRAY_MASK | CANOPEN_STRING_MASK)))
+#define CANOPEN_IS_STRING(type) ((type) == CANOPEN_STRING)
+
 enum {
 	CANOPEN_UNSIGNED8 = 1,
 	CANOPEN_SIGNED8 = 1,

@@ -61,10 +61,19 @@
 #include <unistd.h>
 #include <errno.h>
 #include <time.h>
+#define _GNU_SOURCE     /* To get defns of NI_MAXSERV and NI_MAXHOST */
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <ifaddrs.h>
+#include <stdlib.h>
+#include <linux/if_link.h>
 
 #if CONFIG_CAN_LOG
 extern bool can_log;
 #endif
+
+#define DEV_COUNT_MAX			30
 
 typedef struct {
 	bool connection;
@@ -78,13 +87,20 @@ typedef struct {
 	uv_ring_buffer_st tx_buffer;
 	struct timeval lastrxtime;
 
+	// list of available CAN devices
+	char devs[DEV_COUNT_MAX][32];
+	// count of CAN devs
+	int32_t dev_count;
+
 } can_st;
 
 
 static can_st _can = {
 		.connection = false,
 		.baudrate = CONFIG_CAN0_BAUDRATE,
-		.dev = "can0"
+		.dev = "can0",
+		.dev_count = 0,
+		.soc = -1
 };
 #define this (&_can)
 
@@ -93,18 +109,30 @@ void _uv_can_hal_send(uv_can_channels_e chn);
 static bool cclose(void);
 static bool copen(void);
 
+char *uv_can_get_device_name(int32_t i) {
+	if (i < this->dev_count) {
+		return this->devs[i];
+	}
+	else {
+		return NULL;
+	}
+}
+
+/// @brief: Returns the count of found CAN interface devices
+int32_t uv_can_get_device_count(void) {
+	return this->dev_count;
+}
 
 
-/// @brief: Opens a connection to a SocketCAN device
+/// @brief: Opens a socket to a SocketCAN device
 static bool copen(void) {
 	bool ret = true;
+	struct ifreq ifr;
+	struct sockaddr_can addr;
 
 	if (this->connection) {
 		cclose();
 	}
-
-	struct ifreq ifr;
-	struct sockaddr_can addr;
 
 	/* open socket */
 	this->soc = socket(PF_CAN, SOCK_RAW, CAN_RAW);
@@ -123,9 +151,6 @@ static bool copen(void) {
 		else {
 			addr.can_ifindex = ifr.ifr_ifindex;
 
-			// no need to set the socket to non-blocking, at least for now...
-			// fcntl(this->soc, F_SETFL, O_NONBLOCK);
-
 			if (bind(this->soc, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
 				printf("Binding to the CAN socket failed\n");
 				ret = false;
@@ -134,7 +159,9 @@ static bool copen(void) {
 				can_err_mask_t err_mask = ( CAN_ERR_MASK );
 				setsockopt(this->soc, SOL_CAN_RAW, CAN_RAW_ERR_FILTER,
 						&err_mask, sizeof(err_mask));
-				printf("CAN connection opened to device %s\n", this->dev);
+
+
+				printf("CAN socket opened to device %s, fd: %i\n", this->dev, this->soc);
 				this->connection = true;
 			}
 		}
@@ -144,45 +171,104 @@ static bool copen(void) {
 }
 
 
-/// @brief: Closes the connection to the SocketCAN device
+/// @brief: Closes the socket to the SocketCAN device
 static bool cclose(void) {
 	bool ret = true;
 
 	if (this->connection) {
 		close(this->soc);
-		this->connection = false;
-		printf("Connection closed.\n");
+		printf("Socket closed.\n");
 	}
 
 	this->connection = false;
 	return ret;
 }
 
+void uv_can_close(void) {
+	cclose();
+}
+
 
 #if CONFIG_TARGET_LINUX
 
-bool uv_can_set_baudrate(uv_can_channels_e channel, unsigned int baudrate) {
-	bool ret = true;
-	if (this->connection) {
-		cclose();
+char *uv_can_set_up(void) {
+	char *ret = NULL;
+	char cmd[128];
+	int current_baud = 0;
+
+	// get the net dev baudrate. If dev was not available, baudrate will be 0.
+	sprintf(cmd, "ip -det link show %s | grep bitrate | awk '{print $2}'", this->dev);
+	FILE *fp = popen(cmd, "r");
+	if (fgets(cmd, sizeof(cmd), fp)) {
+		current_baud = strtol(cmd, NULL, 0);
 	}
-	strcpy(this->dev, channel);
-	this->baudrate = baudrate;
-	// open the connection
+	pclose(fp);
+	// If the net dev is not UP, force it to be set up by setting baudrate to incorrect value.
+	sprintf(cmd, "ip link show %s | grep state | awk '{print $9}'", this->dev);
+	fp = popen(cmd, "r");
+	if (fgets(cmd, sizeof(cmd), fp)) {
+		if (!strstr(cmd, "UP")) {
+			current_baud = -1;
+		}
+	}
+	pclose(fp);
+
+	if (this->baudrate != current_baud) {
+		if (this->connection) {
+			// close the socket if one is open
+			cclose();
+		}
+		// since baudrate is not what we want, we need to set network dev down
+		sprintf(cmd, "sudo ip link set dev %s down", this->dev);
+		printf("%s\n", cmd);
+		if (system(cmd));
+
+		// set the net dev up and configure all parameters
+		sprintf(cmd, "sudo ip link set %s type can bitrate %u", this->dev, this->baudrate);
+		printf("%s\n", cmd);
+		if (system(cmd));
+		sprintf(cmd, "sudo ip link set %s txqueuelen 1000", this->dev);
+		printf("%s\n", cmd);
+		if (system(cmd));
+		sprintf(cmd, "sudo ip link set dev %s up", this->dev);
+		printf("%s\n", cmd);
+		if (system(cmd));
+	}
+
+	/* open socket */
 	copen();
 
 	return ret;
 }
 
-void uv_can_deinit(void) {
-	if (this->connection) {
-		cclose();
+
+bool uv_can_set_baudrate(uv_can_channels_e channel, unsigned int baudrate) {
+	bool ret = true;
+	this->baudrate = baudrate;
+	strcpy(this->dev, channel);
+
+	// find out the names of network interfaces
+	this->dev_count = 0;
+	struct if_nameindex *ind, *indd = 0;
+	ind = indd = if_nameindex();
+	while(ind != NULL && ind->if_name != NULL) {
+		strcpy(this->devs[this->dev_count++], ind->if_name);
+		ind++;
 	}
+	if_freenameindex(indd);
+
+
+
+	return ret;
 }
 
 
 struct timeval uv_can_get_rx_time(void) {
 	return this->lastrxtime;
+}
+
+bool uv_can_is_connected(void) {
+	return this->connection;
 }
 
 
@@ -232,6 +318,11 @@ uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* me
 		memcpy(frame.data, message->data_8bit, message->data_length);
 
 		retval = write(this->soc, &frame, sizeof(struct can_frame));
+		if (retval != sizeof(struct can_frame) && errno == ENETDOWN) {
+			// try to set the net dev up
+			uv_can_set_up();
+			retval = write(this->soc, &frame, sizeof(struct can_frame));
+		}
 		if (retval != sizeof(struct can_frame)) {
 			printf("Sending a message with ID of 0x%x resulted in a CAN error: %u , %s***\n",
 					message->id, errno, strerror(errno));
@@ -249,11 +340,10 @@ uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* me
 			ret = ERR_HARDWARE_NOT_SUPPORTED;
 		}
 		else {
-//			printf("message sent 0x%x 0x%x 0x%x 0%x 0x%x 0x%x 0x%x 0x%x 0x%x\n",
-//					message->id, message->data_8bit[0], message->data_8bit[1],
-//					message->data_8bit[2], message->data_8bit[3], message->data_8bit[4],
-//					message->data_8bit[5], message->data_8bit[6], message->data_8bit[7]);
 		}
+	}
+	else {
+		uv_can_set_up();
 	}
 
 	return ret;
@@ -282,7 +372,7 @@ void _uv_can_hal_step(unsigned int step_ms) {
 			struct can_frame frame_rd;
 			int recvbytes = 0;
 
-			struct timeval timeout = {0, 1000};
+			struct timeval timeout = {0, 0};
 			fd_set readSet;
 			FD_ZERO(&readSet);
 			FD_SET(this->soc, &readSet);
@@ -324,7 +414,7 @@ void _uv_can_hal_step(unsigned int step_ms) {
 						printf("*** CAN RX error: %u , %s***\n", errno, strerror(errno));
 						if (errno == ENETDOWN) {
 							printf("The network is down. Initialize the network with command:\n\n"
-									"sudo ip link set CHANNEL type can bitrate BAUDRATE\n\n"
+									"sudo ip link set CHANNEL type can bitrate BAUDRATE txqueuelen 1000\n\n"
 									"And open the network with command:\n\n"
 									"sudo ip link set dev CHANNEL up\n\n"
 									"After that you can communicate with the device.\n");

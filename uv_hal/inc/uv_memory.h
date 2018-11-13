@@ -27,6 +27,9 @@
 #if CONFIG_CANOPEN
 #include "uv_canopen.h"
 #endif
+#if CONFIG_W25Q128
+#include "uv_w25q128.h"
+#endif
 
 
 #if !defined(CONFIG_NON_VOLATILE_MEMORY)
@@ -69,13 +72,15 @@
 /// @brief: Defines the RAM size in bytes on this controller
 #define RAM_SIZE_BYTES	0x8000
 #define RAM_BASE_ADDRESS 0x2000000
-#elif CONFIG_TARGET_LINUX
+#elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 #else
 #warning "Controller not defined"
 #endif
 
 
 
+
+typedef uint32_t uv_bootloader_wait_t;
 
 
 /// @brief: Data type which should be used to mark the start of
@@ -93,6 +98,8 @@ typedef struct {
 	uint16_t id;
 	// @brief: CAN baudrate. Defaults to 250000. UV bootloader uses this when booting.
 	uint32_t can_baudrate;
+	/// @brief: UV bootloader wait time in processor loops
+	uv_bootloader_wait_t bootloader_wait_time;
 #if CONFIG_CANOPEN
 	// non-volatile data for canopen
 	_canopen_non_volatile_st canopen_data;
@@ -108,6 +115,12 @@ typedef struct {
 	uint32_t crc;
 } uv_data_end_t;
 
+
+/// @brief: Processor dependent macro for defining the bootloader_wait_time in milliseconds
+void uv_memory_set_bootloader_wait_time(uint32_t value_ms);
+
+/// @brief: Returns the bootloader wait time in milliseconds
+uint32_t uv_memory_get_bootloader_wait_time(void);
 
 /// @brief: Calls IAP commands to activate ISP mode.
 /// The program execution will be stopped instantly,
@@ -244,6 +257,8 @@ uint16_t uv_memory_calc_crc(void *data, int32_t len);
 
 /// @brief: Loads hal specific non-volatile data
 uv_errors_e _uv_memory_hal_load(void);
+
+
 
 
 

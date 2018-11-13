@@ -22,7 +22,10 @@ void uv_uiprogressbar_init(void *me, int16_t min_value,
 	uv_uiobject_init(this);
 	this->min_val = min_value;
 	this->max_val = max_value;
-	this->style = style;
+	this->font = style->font;
+	this->text_c = style->text_color;
+	this->main_c = style->active_fg_c;
+	this->bg_c = style->window_c;
 	this->horizontal = true;
 	this->value = this->min_val;
 	this->limit = this->min_val;
@@ -47,7 +50,7 @@ void uv_uiprogressbar_set_limit(void *me, uiprogressbar_limit_e type,
 		int16_t limit, color_t color) {
 	this->limit_type = type;
 	this->limit = limit;
-	this->limit_color = color;
+	this->limit_c = color;
 	uv_ui_refresh(this);
 }
 
@@ -55,15 +58,15 @@ void uv_uiprogressbar_set_limit(void *me, uiprogressbar_limit_e type,
 static void draw(void *me, const uv_bounding_box_st *pbb) {
 	color_t c = ((this->limit_type == UI_PROGRESSBAR_LIMIT_UNDER && this->value < this->limit) ||
 			(this->limit_type == UI_PROGRESSBAR_LIMIT_OVER && this->value > this->limit)) ?
-			this->limit_color :
-			this->style->active_fg_c;
+			this->limit_c :
+			this->main_c;
 	int16_t x = this->horizontal ?
 			uv_ui_get_xglobal(this) :
 			uv_ui_get_xglobal(this) + uv_uibb(this)->width / 2 - CONFIG_UI_PROGRESSBAR_HEIGHT / 2;
 	int16_t y = this->horizontal ?
 			uv_ui_get_yglobal(this) + uv_uibb(this)->height / 2 - CONFIG_UI_PROGRESSBAR_HEIGHT / 2 :
 			uv_ui_get_yglobal(this) + uv_uibb(this)->height -
-			(this->title ? (uv_ui_text_height_px(this->title, this->style->font, 1.0f) + 3) : 0) -
+			(this->title ? (uv_ui_text_height_px(this->title, this->font, 1.0f) + 3) : 0) -
 			CONFIG_UI_PROGRESSBAR_WIDTH;
 	int16_t rel = uv_reli(this->value, this->min_val, this->max_val);
 	if (rel < 0) { rel = 0; }
@@ -125,17 +128,17 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 		barh = CONFIG_UI_RADIUS + 4;
 	}
 
-	uv_ft81x_draw_rrect(x, y, w - 4, h - 4, CONFIG_UI_RADIUS, this->style->shadow_c);
-	uv_ft81x_draw_rrect(x + 4, y + 4, w - 4, h - 4, CONFIG_UI_RADIUS, this->style->highlight_c);
-	uv_ft81x_draw_rrect(x + 2, y + 2, w - 4, h - 4, CONFIG_UI_RADIUS, this->style->display_c);
+	uv_ft81x_draw_rrect(x, y, w - 4, h - 4, CONFIG_UI_RADIUS, uv_uic_brighten(this->bg_c, -30));
+	uv_ft81x_draw_rrect(x + 4, y + 4, w - 4, h - 4, CONFIG_UI_RADIUS, uv_uic_brighten(this->bg_c, 30));
+	uv_ft81x_draw_rrect(x + 2, y + 2, w - 4, h - 4, CONFIG_UI_RADIUS, this->bg_c);
 
 	// draw handle
 	uv_ft81x_draw_rrect(x + 2, y + 2, barw - 4, barh - 4, CONFIG_UI_RADIUS, c);
 
 	if (this->title) {
-		uv_ft81x_draw_string(this->title, this->style->font->index,
+		uv_ft81x_draw_string(this->title, this->font->index,
 				x + w / 2, y + h, ALIGN_TOP_CENTER,
-				this->style->inactive_font_c);
+				this->text_c);
 	}
 
 #endif

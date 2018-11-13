@@ -454,7 +454,9 @@ static void init_values(void) {
 
 
 
-void uv_ft81x_init(void) {
+bool uv_ft81x_init(void) {
+	bool ret = false;
+
 	this->dl_index = 0;
 	this->dl_index_max = 0;
 	this->backlight = 50;
@@ -538,10 +540,24 @@ void uv_ft81x_init(void) {
 					FONT_METRICS_FONT_HEIGHT_OFFSET);
 			DEBUG("Font %u height: %u\n", i, ft81x_fonts[i].char_height);
 		}
+
+		// lastly wait until the screen is not pressed.
+		// If the screen is pressed more than 1 second, start screen
+		// calibration
+		uv_delay_st d;
+		uv_delay_init(&d, 100);
+		while (uv_ft81x_get_touch(NULL, NULL)) {
+			uv_delay(&d, 20);
+			uv_rtos_task_delay(20);
+		}
+		if (uv_delay_has_ended(&d)) {
+			ret = true;
+		}
 	}
 	else {
 		printf("Couldn't read FT81X device ID.\n");
 	}
+	return ret;
 }
 
 
@@ -982,7 +998,7 @@ void uv_ft81x_draw_line(const int16_t start_x, const int16_t start_y,
 
 
 
-void uv_ft81x_touchscreen_calibrate(uint32_t *transform_matrix) {
+void uv_ft81x_touchscreen_calibrate(ft81x_transfmat_st *transform_matrix) {
 	DEBUG("Starting the screen calibration\n");
 
 	uv_ft81x_dlswap();
@@ -1023,24 +1039,24 @@ void uv_ft81x_touchscreen_calibrate(uint32_t *transform_matrix) {
 	uv_ft81x_dlswap();
 
 	if (transform_matrix) {
-		*(transform_matrix++) = read32(REG_TOUCH_TRANSFORM_A);
-		*(transform_matrix++) = read32(REG_TOUCH_TRANSFORM_B);
-		*(transform_matrix++) = read32(REG_TOUCH_TRANSFORM_C);
-		*(transform_matrix++) = read32(REG_TOUCH_TRANSFORM_D);
-		*(transform_matrix++) = read32(REG_TOUCH_TRANSFORM_E);
-		*(transform_matrix) = read32(REG_TOUCH_TRANSFORM_F);
+		transform_matrix->mat[0] = read32(REG_TOUCH_TRANSFORM_A);
+		transform_matrix->mat[1] = read32(REG_TOUCH_TRANSFORM_B);
+		transform_matrix->mat[2] = read32(REG_TOUCH_TRANSFORM_C);
+		transform_matrix->mat[3] = read32(REG_TOUCH_TRANSFORM_D);
+		transform_matrix->mat[4] = read32(REG_TOUCH_TRANSFORM_E);
+		transform_matrix->mat[5] = read32(REG_TOUCH_TRANSFORM_F);
 	}
 }
 
 
 
-void uv_ft81x_touchscreen_set_transform_matrix(uint32_t *transform_matrix) {
-	write32(REG_TOUCH_TRANSFORM_A, *(transform_matrix++));
-	write32(REG_TOUCH_TRANSFORM_B, *(transform_matrix++));
-	write32(REG_TOUCH_TRANSFORM_C, *(transform_matrix++));
-	write32(REG_TOUCH_TRANSFORM_D, *(transform_matrix++));
-	write32(REG_TOUCH_TRANSFORM_E, *(transform_matrix++));
-	write32(REG_TOUCH_TRANSFORM_F, *(transform_matrix));
+void uv_ft81x_touchscreen_set_transform_matrix(ft81x_transfmat_st *transform_matrix) {
+	write32(REG_TOUCH_TRANSFORM_A, transform_matrix->mat[0]);
+	write32(REG_TOUCH_TRANSFORM_B, transform_matrix->mat[1]);
+	write32(REG_TOUCH_TRANSFORM_C, transform_matrix->mat[2]);
+	write32(REG_TOUCH_TRANSFORM_D, transform_matrix->mat[3]);
+	write32(REG_TOUCH_TRANSFORM_E, transform_matrix->mat[4]);
+	write32(REG_TOUCH_TRANSFORM_F, transform_matrix->mat[5]);
 }
 
 
@@ -1169,6 +1185,24 @@ void uv_ft81x_set_mask(int16_t x, int16_t y, uint16_t width, uint16_t height) {
 
 
 
+color_t uv_uic_brighten(color_t c, int8_t value) {
+	color_t ret = (c & 0xFF000000);
+	for (uint8_t i = 0; i < 3; i++) {
+		color_t col = (c >> (i * 8)) & 0xFF;
+		col += value;
+		if (col < 0) {
+			col = 0;
+		}
+		else if (col > 0xFF) {
+			col = 0xFF;
+		}
+		else {
+
+		}
+		ret += (col << (i * 8));
+	}
+	return ret;
+}
 
 
 

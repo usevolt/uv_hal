@@ -217,13 +217,6 @@ void uv_init(void *device) {
 	uv_set_application_ptr(device);
 	uv_mutex_init(&halmutex);
 
-#if CONFIG_TARGET_LPC1549
-	Chip_SYSCTL_PeriphReset(RESET_MUX);
-	Chip_SYSCTL_PeriphReset(RESET_IOCON);
-	Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_IOCON);
-	Chip_SWM_Init();
-	Chip_GPIO_Init(LPC_GPIO);
-#endif
 
 #if CONFIG_WDT
 	_uv_wdt_init();
@@ -288,23 +281,6 @@ void uv_init(void *device) {
 #endif
 
 
-#if CONFIG_TARGET_LPC11C14
-	// delay of half a second on start up.
-	// Makes entering ISP mode possible on startup before freeRTOS scheduler is started
-	_delay_ms(500);
-	char c;
-
-	uv_errors_e e;
-	while (true) {
-		if ((e = uv_uart_get_char(UART0, &c))) {
-			break;
-		}
-		if (c == '?') {
-			uv_enter_ISP_mode();
-		}
-	}
-#endif
-
 
 	uv_rtos_task_create(hal_task, "uv_hal", UV_RTOS_MIN_STACK_SIZE, NULL, 0xFFFF, NULL);
 }
@@ -312,6 +288,7 @@ void uv_init(void *device) {
 
 
 void uv_deinit(void) {
+	uv_can_close();
 }
 
 

@@ -166,7 +166,7 @@ typedef enum {
 
 
 /// @brief: Describes all the available CAN channels on this hardware
-#if CONFIG_TARGET_LINUX
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 /// @brief: On Linux CAN channels are separated by the netdev name
 typedef char * uv_can_channels_e;
 #else
@@ -195,7 +195,7 @@ typedef enum {
 /// @brief: A enum describing popular CAN masks used when configuring receive messages.
 enum {
 	/// @brief: Mask where every bit is relevant
-	CAN_ID_MASK_DEFAULT = 0xFFFFFFFF
+	CAN_ID_MASK_DEFAULT = 0xFFFFFFFF,
 };
 
 
@@ -222,7 +222,7 @@ uv_errors_e _uv_can_init();
 /// To receive only a single dedicated message, this should be set to 0xFFFFFFFF or
 /// CAN_ID_MASK_DEFAULT
 /// @param type: The type of the message ID. Either 11-bit or 29-bit identifier is supported.
-#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LINUX
+#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		unsigned int id,
 		unsigned int mask,
@@ -302,18 +302,31 @@ uv_errors_e uv_can_reset(uv_can_channels_e channel);
 /// @brief: Clears the rx buffer
 void uv_can_clear_rx_buffer(uv_can_channels_e channel);
 
-#if CONFIG_TARGET_LINUX
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 /// @brief: Baudrate setting only possible on Linux systems. Otherwise baudrate is
 /// specified via CONFIG_CAN_BAUDRATE symbol.
 ///
 /// @note: Should be called prior to _uv_can_init function.
 bool uv_can_set_baudrate(uv_can_channels_e channel, unsigned int baudrate);
 
-
-/// @brief: Closes all available connections
-void uv_can_deinit(void);
-
 struct timeval uv_can_get_rx_time(void);
+
+/// @brief: Returns the name of *i*'th CAN interface device found
+char *uv_can_get_device_name(int32_t i);
+
+/// @brief: Returns the count of found CAN interface devices
+int32_t uv_can_get_device_count(void);
+
+/// @brief: Returns true if the connection to the CAN dev is open
+bool uv_can_is_connected(void);
+
+/// @brief: Sets the CAN dev up and running
+///
+/// @return: NULL if succesfull, or pointer to a string describing the error
+char *uv_can_set_up(void);
+
+/// @brief: CLoses the CAN channel when done
+void uv_can_close(void);
 
 #endif
 

@@ -183,6 +183,10 @@ typedef uint32_t color_t;
 // UI libraries compatible with different color spaces than ARGB8888.
 #define C(x)		(x)
 
+/// @brief: Returns a color which is brightened by removing *value* amount of 8-bit color
+/// from all R, G and B color channels
+color_t uv_uic_brighten(color_t c, int8_t value);
+
 
 /// @brief: Struct for individual object's bounding box.
 typedef struct {
@@ -221,7 +225,10 @@ typedef struct {
 
 /// @brief: Initializes the FT81X LCD driver module. Will be called from
 /// the HAL task
-void uv_ft81x_init(void);
+///
+/// @return: True if touchscreen calibration was requested,
+/// otherwise false.
+bool uv_ft81x_init(void);
 
 
 /// @brief: Swaps the display list buffers and makes all latest UI modifications visible
@@ -282,17 +289,23 @@ void uv_ft81x_draw_line(const int16_t start_x, const int16_t start_y,
 		const uint16_t width, const color_t color);
 
 
+/// @brief: Structure for the touchscreen transform matrix
+typedef struct {
+	uint32_t mat[6];
+} ft81x_transfmat_st;
+
+
 /// @brief: Trigger the touch screen calibration sequence
 ///
 /// @param transform_matrix: If given, function will write the transform matrix information
 /// to the address pointed by this parameter. Note that 6 words (6*4 bytes) should be
 /// reserved for the transform matrix.
-void uv_ft81x_touchscreen_calibrate(uint32_t *transform_matrix);
+void uv_ft81x_touchscreen_calibrate(ft81x_transfmat_st *transform_matrix);
 
 
 /// @brief: Sets the transform matrix data. This should be called by the user application
 /// if such transform matrix data already exists in the non-volatile memory
-void uv_ft81x_touchscreen_set_transform_matrix(uint32_t *transform_matrix);
+void uv_ft81x_touchscreen_set_transform_matrix(ft81x_transfmat_st *transform_matrix);
 
 
 /// @brief: Gets the touch from the FT81X touchpanel

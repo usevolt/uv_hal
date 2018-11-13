@@ -288,6 +288,9 @@ char *next(char *position) {
 }
 
 
+static char *get_value_ptr(char *ptr);
+
+
 bool uv_jsonreader_get_next_sibling(char *object, char **dest) {
 	bool ret = false;
 	unsigned int count = 0;
@@ -352,12 +355,16 @@ char *uv_jsonreader_find_child(char *parent, char *child_name,
 	char *ret = NULL;
 	unsigned int count = 0, name_len = strlen(child_name);
 	char *ptr;
+
 	// check if this object is of type object or array
 	if (!uv_json_is_objarray(uv_jsonreader_get_type(parent))) {
 
 		ret = false;
 	}
 	else {
+		// jump to the start of this object
+		parent = get_value_ptr(parent);
+
 		for (ptr = parent; *ptr != '\0'; ptr = next(ptr)) {
 			bool br = false;
 
@@ -376,7 +383,8 @@ char *uv_jsonreader_find_child(char *parent, char *child_name,
 					while (*(--ptr) != '"');
 
 					// child found, check if child has the name requested
-					if (strncmp(ptr + 1, child_name, name_len) == 0) {
+					if (strncmp(ptr + 1, child_name, name_len) == 0 &&
+							*(ptr + 1 + name_len) == '"') {
 						ret = ptr;
 						br = true;
 					}
@@ -468,38 +476,33 @@ unsigned int uv_jsonreader_array_get_size(char *array) {
 
 	// jump to the start of array
 	array = jump_to(array, "[");
-	array++;
 
-	// specially check first child
-	if (*array != ']') {
-		ret++;
-	}
-
-	for (char *ptr = array; *ptr != '\0'; ptr = next(ptr)) {
+	for (char *ptr = next(array); *ptr != '\0'; ptr = next(ptr)) {
 
 		// check for children
 		if ((*ptr == ',') && (*(ptr + 1) != ']')) {
 			ret++;
 		}
-
-
-		// jump over objects and arrays
-		if ((*ptr == '{') || (*ptr == '[')) {
-			ptr = objarray_to_end(ptr);
-		}
-		// jump over strings
-		else if (*ptr == '"') {
-			while ((*ptr != '\0') && (*ptr != '"')) {
-				ptr++;
-			}
-		}
 		else {
+			// jump over objects and arrays
+			if ((*ptr == '{') || (*ptr == '[')) {
+				ptr = objarray_to_end(ptr);
+			}
+//			// jump over strings
+//			else if (*ptr == '"') {
+//				ptr++;
+//				while ((*ptr != '\0') && (*ptr != '"')) {
+//					ptr++;
+//				}
+//			}
+			else {
 
-		}
+			}
 
-		// check for array to end
-		if ((*ptr == ']') || (*ptr == '\0')) {
-			break;
+			// check for array to end
+			if ((*ptr == ']') || (*ptr == '\0')) {
+				break;
+			}
 		}
 	}
 
@@ -528,7 +531,14 @@ static char *array_index(char *array, unsigned int index) {
 
 
 int uv_jsonreader_get_int(char *object) {
-	return strtol(get_value_ptr(object), NULL, 0);
+	int ret = 0;
+	if (object == NULL) {
+		printf("ERROR: cannot get int value from null ptr\n");
+	}
+	else {
+		ret = strtol(get_value_ptr(object), NULL, 0);
+	}
+	return ret;
 }
 
 
@@ -562,24 +572,24 @@ bool uv_jsonreader_get_string(char *object, char *dest, unsigned int dest_length
 
 
 bool uv_jsonreader_array_get_string(char *object, unsigned int index,
-		char **dest, unsigned int dest_length) {
+		char *dest, unsigned int dest_length) {
 	bool ret = false;
 
 	object = array_index(object, index) + 1;
 	uint16_t i;
 	for (i = 0; i < dest_length; i++) {
 		if (object[i] != '"') {
-			(*dest)[i] = object[i];
+			dest[i] = object[i];
 		}
 		else {
-			(*dest)[i] = '\0';
+			dest[i] = '\0';
 			ret = true;
 			break;
 		}
 	}
 	if (!ret) {
 		// ending here means that the value didn't fit into 'dest'
-		(*dest)[dest_length - 1] = '\0';
+		dest[dest_length - 1] = '\0';
 	}
 	return ret;
 }

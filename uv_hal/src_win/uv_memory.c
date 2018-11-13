@@ -42,8 +42,8 @@ void uv_get_device_serial(unsigned int dest[4]) {
 uv_errors_e uv_memory_save(void) {
 	uv_errors_e ret = ERR_NONE;
 
-	int32_t length = ((unsigned long) &CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
-			(unsigned long) &CONFIG_NON_VOLATILE_START;
+	int64_t length = ((unsigned long long) &CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
+			(unsigned long long) &CONFIG_NON_VOLATILE_START;
 
 	bool match = true;
 	// todo: check if old data doesnt match with new data
@@ -51,7 +51,7 @@ uv_errors_e uv_memory_save(void) {
 		ret = ERR_NONE;
 	}
 	else {
-		printf("Flashing %u bytes\n", length);
+		printf("Flashing %u bytes\n", (unsigned int) length);
 	}
 	return ret;
 }
@@ -132,4 +132,5 @@ uv_errors_e _uv_memory_hal_load(void) {
 
 	return uv_memory_load();
 }
+
 

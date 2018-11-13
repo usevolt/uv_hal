@@ -455,3 +455,13 @@ void uv_memory_set_can_baudrate(uint32_t baudrate) {
 	CONFIG_NON_VOLATILE_START.can_baudrate = baudrate;
 }
 
+
+void uv_memory_set_bootloader_wait_time(uint32_t value_ms) {
+	CONFIG_NON_VOLATILE_START.bootloader_wait_time = value_ms * (0x3B000 / 1000);
+}
+
+uint32_t uv_memory_get_bootloader_wait_time(void) {
+	return (CONFIG_NON_VOLATILE_START.bootloader_wait_time / (0x3B000 / 1000));
+}
+
+

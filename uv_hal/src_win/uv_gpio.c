@@ -16,28 +16,24 @@
 */
 
 
+#include "uv_gpio.h"
 
 
-#include "uv_reset.h"
-#include <stdlib.h>
-
-#if CONFIG_TARGET_LPC11C14
-#include "LPC11xx.h"
-#elif CONFIG_TARGET_LPC1785
-#include "LPC177x_8x.h"
-#elif CONFIG_TARGET_LPC1549
-#include "chip.h"
-#endif
-#include "uv_wdt.h"
+#include <stdio.h>
+#include "uv_utilities.h"
 
 
-void uv_system_reset() {
-#if !CONFIG_TARGET_LINUX && !CONFIG_TARGET_WIN
-	NVIC_SystemReset();
-#else
-	exit(0);
-#endif
+
+// callback function
+static void (*callback)(uv_gpios_e) = 0;
+
+
+
+
+
+
+void uv_gpio_add_interrupt_callback(void (*callback_function)(uv_gpios_e)) {
+
+	callback = callback_function;
 }
-
-
 

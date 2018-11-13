@@ -64,7 +64,7 @@ typedef struct {
 } uv_solenoid_output_conf_st;
 
 /// @brief: Resets the output values to defaults
-void uv_solenoid_output_conf_init(uv_solenoid_output_conf_st *conf);
+void uv_solenoid_output_conf_reset(uv_solenoid_output_conf_st *conf);
 
 
 
@@ -98,7 +98,7 @@ typedef struct {
 /// @brief: Initializes the solenoid output
 ///
 /// @param dither_freq: The frequency of super imposed dither in Hz
-/// @param dither_ampl: The amplitude of super imposed dither
+/// @param dither_ampl: The amplitude of super imposed dither in milliamperes
 /// @param adc_chn: Current sense feedback analog channel
 /// @param sense_ampl: Amplification for current sense feedback. ADC value
 /// from current sense feedback is multiplied with this in order to get milliamps.

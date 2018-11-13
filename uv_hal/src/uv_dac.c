@@ -17,27 +17,30 @@
 
 
 
+#include "uv_dac.h"
 
-#include "uv_reset.h"
-#include <stdlib.h>
-
-#if CONFIG_TARGET_LPC11C14
-#include "LPC11xx.h"
-#elif CONFIG_TARGET_LPC1785
-#include "LPC177x_8x.h"
-#elif CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC1549
 #include "chip.h"
+#include "dac_15xx.h"
 #endif
-#include "uv_wdt.h"
 
+#if CONFIG_DAC
 
-void uv_system_reset() {
-#if !CONFIG_TARGET_LINUX && !CONFIG_TARGET_WIN
-	NVIC_SystemReset();
-#else
-	exit(0);
-#endif
+#if CONFIG_TARGET_LPC1549
+
+void _uv_dac_init(void) {
+	Chip_DAC_Init(LPC_DAC);
 }
 
 
+void uv_dac_set(uint32_t value) {
+	if (value > DAC_MAX_VALUE) {
+		value = DAC_MAX_VALUE;
+	}
+	Chip_DAC_UpdateValue(LPC_DAC, value);
+}
 
+
+#endif
+
+#endif

@@ -21,8 +21,10 @@ static void touch(void *me, uv_touch_st *touch);
 void uv_uibutton_init(void *me, char *text, const uv_uistyle_st *style) {
 	uv_uiobject_init(me);
 	this->state = UIBUTTON_UP;
-	this->style = style;
+	this->main_c = style->inactive_bg_c;
+	this->text_c = style->inactive_font_c;
 	this->text = text;
+	this->font = style->font;
 	uv_delay_init(&this->delay, CONFIG_UI_BUTTON_LONGPRESS_DELAY_MS);
 
 	uv_uiobject_set_draw_callb(this, &draw);
@@ -37,10 +39,10 @@ static inline void draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t y = uv_ui_get_yglobal(this);
 	int16_t w = uv_uibb(this)->width;
 	int16_t h = uv_uibb(this)->height;
-	color_t bgc = (this->state) ? this->style->active_bg_c : this->style->inactive_bg_c;
-	color_t shadowc = (this->state) ? this->style->highlight_c : this->style->shadow_c;
-	color_t lightc = (this->state) ? this->style->shadow_c : this->style->highlight_c;
-	color_t fontc = (this->state) ? this->style->active_font_c : this->style->inactive_font_c;
+	color_t bgc = (this->state) ? uv_uic_brighten(this->main_c, 20) : this->main_c;
+	color_t shadowc = (this->state) ? uv_uic_brighten(this->main_c, 30) : uv_uic_brighten(this->main_c, -30);
+	color_t lightc = (this->state) ? uv_uic_brighten(this->main_c, -30) : uv_uic_brighten(this->main_c, 30);
+	color_t fontc = this->text_c;
 
 
 #if CONFIG_LCD
@@ -56,7 +58,7 @@ static inline void draw(void *me, const uv_bounding_box_st *pbb) {
 #elif CONFIG_FT81X
 	uv_ft81x_draw_shadowrrect(x, y, w, h, CONFIG_UI_RADIUS,
 			 bgc, lightc, shadowc);
-	uv_ft81x_draw_string(this->text, this->style->font->index, x + w / 2,
+	uv_ft81x_draw_string(this->text, this->font->index, x + w / 2,
 			y + h / 2, ALIGN_CENTER, fontc);
 #endif
 }
