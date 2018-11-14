@@ -477,6 +477,11 @@ unsigned int uv_jsonreader_array_get_size(char *array) {
 	// jump to the start of array
 	array = jump_to(array, "[");
 
+	// if the array was not empty, add 1
+	if (*(array + 1) != ']') {
+		ret++;
+	}
+
 	for (char *ptr = next(array); *ptr != '\0'; ptr = next(ptr)) {
 
 		// check for children
@@ -569,6 +574,30 @@ bool uv_jsonreader_get_string(char *object, char *dest, unsigned int dest_length
 	}
 	return ret;
 }
+
+
+char *uv_jsonreader_get_string_ptr(char *object) {
+	char *ret = NULL;
+	object = get_value_ptr(object);
+	if (*object == '"') {
+		ret = ++object;
+	}
+	return ret;
+}
+
+
+uint32_t uv_jsonreader_get_string_len(char *object) {
+	uint32_t ret = 0;
+	object = get_value_ptr(object);
+	if (*object == '"') {
+		object++;
+		while (*(object++) != '"') {
+			ret++;
+		}
+	}
+	return ret;
+}
+
 
 
 bool uv_jsonreader_array_get_string(char *object, unsigned int index,

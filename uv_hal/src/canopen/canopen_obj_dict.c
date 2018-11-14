@@ -62,7 +62,6 @@ extern uint32_t CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS_COUNT (void);
 
 
 
-
 const canopen_object_st com_params[] = {
 		REPEAT(CONFIG_CANOPEN_RXPDO_COUNT, RXPDO_COM)
 		REPEAT(CONFIG_CANOPEN_RXPDO_COUNT, RXPDO_MAP)
@@ -97,6 +96,33 @@ const canopen_object_st com_params[] = {
 				.type = CANOPEN_UNSIGNED32,
 				.data_ptr = &_canopen.restore_req
 		},
+#if CONFIG_UV_BOOTLOADER
+		{
+				.main_index = CONFIG_CANOPEN_PROGRAM_DATA_INDEX,
+				.array_max_size = 1,
+				.permissions = CANOPEN_RW,
+				.type = CANOPEN_ARRAY8,
+				// note: This can be set to null, since canopen stack
+				// checks if this object is written and in that case resets
+				// to the bootloader.
+				// This functionality is implemented in _uv_canopen_sdo_server_rx
+				.data_ptr = NULL
+		},
+		{
+				.main_index = CONFIG_CANOPEN_PROGRAM_CONTROL_INDEX,
+				.array_max_size = 1,
+				.permissions = CANOPEN_RW,
+				.type = CANOPEN_ARRAY8,
+				.data_ptr = &_canopen.prog_control
+		},
+		{
+				.main_index = CONFIG_CANOPEN_PROGRAM_IDENTIF_INDEX,
+				.array_max_size = 1,
+				.permissions = CANOPEN_RO,
+				.type = CANOPEN_ARRAY32,
+				.data_ptr = (void*) &uv_prog_version
+		},
+#endif
 #if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
 		{
 				.main_index = CONFIG_CANOPEN_CONSUMER_HEARTBEAT_INDEX,

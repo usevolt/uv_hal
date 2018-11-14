@@ -119,6 +119,18 @@
 #if !defined(CONFIG_CANOPEN_DEVNAME_INDEX)
 #define CONFIG_CANOPEN_DEVNAME_INDEX		0x1FFF
 #endif
+#if !defined(CONFIG_CANOPEN_PROGRAM_DATA_INDEX)
+#define CONFIG_CANOPEN_PROGRAM_DATA_INDEX	0x1F50
+#endif
+#if !defined(CONFIG_CANOPEN_PROGRAM_CONTROL_INDEX)
+#define CONFIG_CANOPEN_PROGRAM_CONTROL_INDEX	0x1F51
+#endif
+#if !defined(CONFIG_CANOPEN_PROGRAM_IDENTIF_INDEX)
+#define CONFIG_CANOPEN_PROGRAM_IDENTIF_INDEX	0x1F56
+#endif
+#if !defined(CONFIG_CANOPEN_PROGRAM_FLASH_STATUS_INDEX)
+#define CONFIG_CANOPEN_PROGRAM_FLASH_STATUS_INDEX	0x1F57
+#endif
 #if !defined(CONFIG_CANOPEN_FD_DATA_INDEX)
 #define CONFIG_CANOPEN_FD_INDEX				0x1FFD
 #define CONFIG_CANOPEN_FD_DATA_SUBINDEX		0
@@ -242,6 +254,9 @@ typedef struct {
 	canopen_identity_object_st identity;
 	uv_delay_st heartbeat_time;
 	uint8_t current_node_id;
+#if CONFIG_UV_BOOTLOADER
+	uint8_t prog_control;
+#endif
 #if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
 	// stores the times for each heartbeat producer since last heartbeat message
 	uint16_t consumer_heartbeat_times[CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT];

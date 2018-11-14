@@ -64,6 +64,10 @@ void _uv_canopen_init(void) {
 	_uv_canopen_sdo_init();
 	_uv_canopen_pdo_init();
 	_uv_canopen_emcy_init();
+#if CONFIG_UV_BOOTLOADER
+	// program started
+	this->prog_control = 1;
+#endif
 }
 
 void _uv_canopen_reset(void) {
@@ -105,6 +109,16 @@ void _uv_canopen_step(unsigned int step_ms) {
 		this->store_req = 0;
 		uv_memory_save();
 	}
+#if CONFIG_UV_BOOTLOADER
+	// program control
+	// Note: CiA 302 defines requests to this object to be rejected
+	// in all other states than PREOPERATIONAL. However, to extend the compatibility,
+	// this definition is discarded and the object works just as any other object.
+	if (this->prog_control == 2) {
+		// reset program
+		uv_system_reset();
+	}
+#endif
 }
 
 

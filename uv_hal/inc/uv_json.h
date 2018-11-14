@@ -228,6 +228,13 @@ int uv_jsonreader_array_get_int(char *object, unsigned int index);
 /// returns false.
 bool uv_jsonreader_get_string(char *object, char *dest, unsigned int dest_length);
 
+/// @brief: Returns a pointer to the string value of **object**.
+/// Note: The string is **not** null-terminated!
+char *uv_jsonreader_get_string_ptr(char *object);
+
+/// @brief: Returns the length of the string parameter
+unsigned int uv_jsonreader_get_string_len(char *object);
+
 /// @brief: Passes the array cell's value as a null-terminated string to 'dest'
 /// If the string is longer than dest_length, returns false.
 ///

@@ -46,6 +46,12 @@
 extern CONFIG_APP_ST;
 
 
+/// @brief: Program version should be defined in compile time
+#if !defined(__UV_PROGRAM_VERSION)
+#define __UV_PROGRAM_VERSION	0
+#endif
+
+
 #include "uv_can.h"
 #include "uv_errors.h"
 #if CONFIG_TARGET_LPC11C14
