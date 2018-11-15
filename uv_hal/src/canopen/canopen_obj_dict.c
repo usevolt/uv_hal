@@ -8,6 +8,7 @@
 
 #include "canopen/canopen_obj_dict.h"
 #include "uv_canopen.h"
+#include "uv_terminal.h"
 #include <string.h>
 #include CONFIG_MAIN_H
 #if CONFIG_W25Q128
@@ -121,6 +122,15 @@ const canopen_object_st com_params[] = {
 				.permissions = CANOPEN_RO,
 				.type = CANOPEN_ARRAY32,
 				.data_ptr = (void*) &uv_prog_version
+		},
+#endif
+#if CONFIG_TERMINAL
+		{
+				.main_index = CONFIG_CANOPEN_TERMINAL_INDEX,
+				.sub_index = 0,
+				.permissions = CANOPEN_RW,
+				.type = CANOPEN_UNSIGNED8,
+				.data_ptr = (void*) &uv_terminal_enabled
 		},
 #endif
 #if CONFIG_CANOPEN_HEARTBEAT_CONSUMER

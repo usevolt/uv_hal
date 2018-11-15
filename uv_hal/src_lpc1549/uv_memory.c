@@ -80,6 +80,7 @@ typedef void (*IAP)(unsigned int [],unsigned int[]);
 
 const char uv_projname[] = STRINGIFY(__UV_PROJECT_NAME);
 const char uv_datetime[] = __DATE__ " " __TIME__;
+const uint32_t uv_prog_version = __UV_PROGRAM_VERSION;
 
 #endif
 
