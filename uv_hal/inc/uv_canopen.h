@@ -279,8 +279,8 @@ typedef struct {
 			void *data_ptr;
 			uv_delay_st delay;
 #if (CONFIG_CANOPEN_SDO_SEGMENTED || CONFIG_CANOPEN_SDO_BLOCK_TRANSFER)
-			uint16_t data_index;
-			uint16_t data_count;
+			uint32_t data_index;
+			uint32_t data_count;
 			union {
 				uint8_t toggle;
 				/// @brief: Last correctly received sequence number for block transfer.
