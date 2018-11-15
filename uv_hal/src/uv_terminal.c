@@ -42,6 +42,7 @@
 
 
 
+uint8_t uv_terminal_enabled = 0;
 
 typedef struct {
 	const uv_command_st *commands_ptr;

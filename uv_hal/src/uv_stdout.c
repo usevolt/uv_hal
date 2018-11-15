@@ -105,8 +105,10 @@ int outbyte(int c) {
 
 void uv_stdout_send(char* str, unsigned int count) {
 	int i;
-	for (i = 0; i < count; i++) {
-		outbyte(str[i]);
+	if (uv_terminal_enabled) {
+		for (i = 0; i < count; i++) {
+			outbyte(str[i]);
+		}
 	}
 }
 

@@ -137,6 +137,7 @@ typedef enum {
 
 extern void uv_enter_ISP_mode();
 
+extern uint8_t uv_terminal_enabled;
 
 /// @brief: Sets the pointer to an array containing all application commands.
 /// This function should be called before any other terminal functions
