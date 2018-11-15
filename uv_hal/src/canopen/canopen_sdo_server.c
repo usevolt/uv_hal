@@ -86,13 +86,14 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 	// uv bootloader. Bootloader is responsible for answering the message.
 	if (GET_MINDEX(msg) == CONFIG_CANOPEN_PROGRAM_DATA_INDEX &&
 			GET_SINDEX(msg) == 1) {
-		if (sdo_type == INITIATE_DOMAIN_DOWNLOAD ||
-			sdo_type == INITIATE_BLOCK_DOWNLOAD) {
-			// copy received message to bootloader shared mem address
-			memcpy(UV_BOOTLOADER_DATA_ADDR, msg, sizeof(msg));
-			// reset the device
-			uv_system_reset();
-		}
+		// Note: SDO type is not checked here, because the application might not
+		// support Block transfers but uv bootloader does.
+
+		// copy received message to bootloader shared mem address
+		volatile int32_t s = sizeof(uv_can_msg_st);
+		memcpy(UV_BOOTLOADER_DATA_ADDR, msg, s);
+		// reset the device
+		uv_bootloader_start();
 	}
 
 #endif
