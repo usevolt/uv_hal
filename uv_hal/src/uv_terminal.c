@@ -178,8 +178,12 @@ uv_errors_e uv_terminal_step() {
 				e = uv_can_get_char(&data);
 			}
 	#endif
-			if (e) {
+			if (e != ERR_NONE) {
 				break;
+			}
+			else {
+				// character received, terminal is enabled
+				uv_terminal_enabled = true;
 			}
 
 			// check for buffer overflows
