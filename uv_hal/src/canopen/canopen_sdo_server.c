@@ -90,8 +90,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 		// support Block transfers but uv bootloader does.
 
 		// copy received message to bootloader shared mem address
-		volatile int32_t s = sizeof(uv_can_msg_st);
-		memcpy(UV_BOOTLOADER_DATA_ADDR, msg, s);
+		memcpy(UV_BOOTLOADER_DATA_ADDR, msg, sizeof(uv_can_msg_st));
 		// reset the device
 		uv_bootloader_start();
 	}

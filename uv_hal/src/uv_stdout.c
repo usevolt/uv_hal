@@ -78,7 +78,7 @@ static void send_can_msg(void) {
 
 
 int outbyte(int c) {
-	if (uv_rtos_initialized()) {
+	if (uv_rtos_initialized() && uv_terminal_enabled) {
 #if CONFIG_TERMINAL_UART
 
 		uv_uart_send_char(UART0, c);
@@ -105,10 +105,8 @@ int outbyte(int c) {
 
 void uv_stdout_send(char* str, unsigned int count) {
 	int i;
-	if (uv_terminal_enabled) {
-		for (i = 0; i < count; i++) {
-			outbyte(str[i]);
-		}
+	for (i = 0; i < count; i++) {
+		outbyte(str[i]);
 	}
 }
 
