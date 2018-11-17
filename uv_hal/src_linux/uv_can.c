@@ -236,7 +236,9 @@ char *uv_can_set_up(void) {
 	}
 
 	/* open socket */
-	copen();
+	if (!copen()) {
+		ret = "Couldn't open the connection to the CAN network.";
+	}
 
 	return ret;
 }
