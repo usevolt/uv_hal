@@ -123,7 +123,7 @@ void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array, const uv_ui
 	this->app_step_callb = NULL;
 	uv_uiobject_set_draw_callb(this, &_uv_uiwindow_redraw);
 	uv_uiobject_set_touch_callb(this, &uv_uiwindow_touch_callb);
-	((uv_uiobject_st*) this)->step_callb = &uv_uiwindow_step;
+	uv_uiobject_set_step_callb(this, &uv_uiwindow_step);
 }
 
 

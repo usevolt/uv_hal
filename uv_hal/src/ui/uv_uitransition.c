@@ -19,7 +19,7 @@ void uv_uiscalartransition_calc(void *me);
 
 #define this	((uv_uitransition_st *)me)
 
-void uv_uitransition_init(void *me, uv_uitransition_easing_e easing,
+void _uv_uitransition_init(void *me, uv_uitransition_easing_e easing,
 		uint16_t duration_ms, void (*calc_callb)(void *me)) {
 	this->easing = easing;
 	this->duration_ms = duration_ms;
@@ -32,7 +32,7 @@ void uv_uitransition_init(void *me, uv_uitransition_easing_e easing,
 }
 
 
-void uv_uitransition_step(void *me, void *parent, uint16_t step_ms) {
+void _uv_uitransition_step(void *me, void *parent, uint16_t step_ms) {
 	if (this->state == UITRANSITION_PLAY) {
 		// call virtual function to calculate changes in the variables
 		this->calc_callb(this);
@@ -72,12 +72,12 @@ void uv_uitransition_step(void *me, void *parent, uint16_t step_ms) {
 		// only call next transition if this one is finished
 		// to prevent infinite step-function recursion
 		if (this->series) {
-			uv_uitransition_step(this->series, parent, step_ms);
+			_uv_uitransition_step(this->series, parent, step_ms);
 		}
 	}
 	// always call parallel transition
 	if (this->parallel) {
-		uv_uitransition_step(this->parallel, parent, step_ms);
+		_uv_uitransition_step(this->parallel, parent, step_ms);
 	}
 }
 
@@ -167,7 +167,7 @@ static int16_t scalar_calc(uv_uitransition_easing_e easing, int16_t current_time
 
 void uv_uiscalartransition_init(void *me, uv_uitransition_easing_e easing,
 		uint16_t duration_ms, int16_t start_val, int16_t end_val, int16_t *val_ptr) {
-	uv_uitransition_init(this, easing, duration_ms,
+	_uv_uitransition_init(this, easing, duration_ms,
 			&uv_uiscalartransition_calc);
 	this->start_val = start_val;
 	this->end_val = end_val;
@@ -190,7 +190,7 @@ void uv_uiscalartransition_calc(void *me) {
 
 void uv_uicolortransition_init(void *me, uv_uitransition_easing_e easing,
 		uint16_t duration_ms, color_t start_c, color_t end_c, color_t *c_ptr) {
-	uv_uitransition_init(this, easing, duration_ms,
+	_uv_uitransition_init(this, easing, duration_ms,
 			&uv_uicolortransition_calc);
 	this->start_c = start_c;
 	this->end_c = end_c;
