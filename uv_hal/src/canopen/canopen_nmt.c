@@ -48,7 +48,9 @@ void _uv_canopen_nmt_step(uint16_t step_ms) {
 	if (step_ms);
 }
 
+
 void _uv_canopen_nmt_rx(const uv_can_message_st *msg) {
+#if CONFIG_CANOPEN_NMT_SLAVE
 	if (msg->id == CANOPEN_NMT_ID) {
 		if (msg->data_length >= 2) {
 			if (msg->data_8bit[1] == NODEID || msg->data_8bit[1] == 0) {
@@ -72,6 +74,7 @@ void _uv_canopen_nmt_rx(const uv_can_message_st *msg) {
 			}
 		}
 	}
+#endif
 }
 
 

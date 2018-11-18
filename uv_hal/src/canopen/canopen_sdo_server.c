@@ -10,6 +10,9 @@
 #include "uv_canopen.h"
 #include CONFIG_MAIN_H
 #include <string.h>
+#if CONFIG_UV_BOOTLOADER
+#include "uv_reset.h"
+#endif
 
 #if CONFIG_CANOPEN
 
@@ -76,6 +79,23 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 	memset(reply_msg.data_8bit, 0, 8);
 	SET_MINDEX(&reply_msg, GET_MINDEX(msg));
 	SET_SINDEX(&reply_msg, GET_SINDEX(msg));
+
+#if CONFIG_UV_BOOTLOADER
+	// Bootloader special check: If object 0x1F50, u.e. program data is written,
+	// set the message reception flag and reset the device in order to enter
+	// uv bootloader. Bootloader is responsible for answering the message.
+	if (GET_MINDEX(msg) == CONFIG_CANOPEN_PROGRAM_DATA_INDEX &&
+			GET_SINDEX(msg) == 1) {
+		// Note: SDO type is not checked here, because the application might not
+		// support Block transfers but uv bootloader does.
+
+		// copy received message to bootloader shared mem address
+		memcpy(UV_BOOTLOADER_DATA_ADDR, msg, sizeof(uv_can_msg_st));
+		// reset the device
+		uv_bootloader_start();
+	}
+
+#endif
 
 	// receiving an abort message returns the node to default state
 	if (sdo_type == ABORT_DOMAIN_TRANSFER) {

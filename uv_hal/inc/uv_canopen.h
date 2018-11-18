@@ -117,15 +117,32 @@
 #define CONFIG_CANOPEN_IDENTITY_INDEX		0x1018
 #endif
 #if !defined(CONFIG_CANOPEN_DEVNAME_INDEX)
-#define CONFIG_CANOPEN_DEVNAME_INDEX		0x1FFF
+#define CONFIG_CANOPEN_DEVNAME_INDEX		0x5FFF
+#endif
+#if !defined(CONFIG_CANOPEN_PROGRAM_DATA_INDEX)
+#define CONFIG_CANOPEN_PROGRAM_DATA_INDEX	0x1F50
+#endif
+#if !defined(CONFIG_CANOPEN_PROGRAM_CONTROL_INDEX)
+#define CONFIG_CANOPEN_PROGRAM_CONTROL_INDEX	0x1F51
+#endif
+#if !defined(CONFIG_CANOPEN_PROGRAM_IDENTIF_INDEX)
+#define CONFIG_CANOPEN_PROGRAM_IDENTIF_INDEX	0x1F56
+#endif
+#if !defined(CONFIG_CANOPEN_PROGRAM_FLASH_STATUS_INDEX)
+#define CONFIG_CANOPEN_PROGRAM_FLASH_STATUS_INDEX	0x1F57
 #endif
 #if !defined(CONFIG_CANOPEN_FD_DATA_INDEX)
-#define CONFIG_CANOPEN_FD_INDEX				0x1FFD
+#define CONFIG_CANOPEN_FD_INDEX				0x5FFD
 #define CONFIG_CANOPEN_FD_DATA_SUBINDEX		0
 #define CONFIG_CANOPEN_FD_FILENAME_SUBINDEX	1
 #define CONFIG_CANOPEN_FD_FILESIZE_SUBINDEX	2
 #define CONFIG_CANOPEN_FD_WRITEREQ_SUBINDEX	3
 #define CONFIG_CANOPEN_FD_CLEARREQ_SUBINDEX	4
+#endif
+#if CONFIG_TERMINAL
+#if !defined(CONFIG_CANOPEN_TERMINAL_INDEX)
+#define CONFIG_CANOPEN_TERMINAL_INDEX		0x5FFE
+#endif
 #endif
 #if !defined(CONFIG_CANOPEN_PDO_MAPPING_COUNT)
 #define CONFIG_CANOPEN_PDO_MAPPING_COUNT	8
@@ -242,6 +259,9 @@ typedef struct {
 	canopen_identity_object_st identity;
 	uv_delay_st heartbeat_time;
 	uint8_t current_node_id;
+#if CONFIG_UV_BOOTLOADER
+	uint8_t prog_control;
+#endif
 #if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
 	// stores the times for each heartbeat producer since last heartbeat message
 	uint16_t consumer_heartbeat_times[CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT];
@@ -264,8 +284,8 @@ typedef struct {
 			void *data_ptr;
 			uv_delay_st delay;
 #if (CONFIG_CANOPEN_SDO_SEGMENTED || CONFIG_CANOPEN_SDO_BLOCK_TRANSFER)
-			uint16_t data_index;
-			uint16_t data_count;
+			uint32_t data_index;
+			uint32_t data_count;
 			union {
 				uint8_t toggle;
 				/// @brief: Last correctly received sequence number for block transfer.

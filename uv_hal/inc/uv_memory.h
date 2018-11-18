@@ -70,15 +70,22 @@
 #define RAM_BASE_ADDRESS 0x10000000
 #elif CONFIG_TARGET_LPC1549
 /// @brief: Defines the RAM size in bytes on this controller
-#define RAM_SIZE_BYTES	0x8000
+#define RAM_SIZE_BYTES	0x9000
 #define RAM_BASE_ADDRESS 0x2000000
 #elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
+#define RAM_SIZE_BYTES	1
+#define RAM_BASE_ADDRESS 1
 #else
 #warning "Controller not defined"
 #endif
 
 
-
+/// @brief: Contains the RAM address of the data structure which is used
+/// to pass a received can message. This is used with CANopen compatible bootloader.
+/// When the boot process starts, this address is loaded with that CAN message and
+/// bootloader is triggered.
+#define UV_BOOTLOADER_DATA_ADDR			((void*) (RAM_BASE_ADDRESS + RAM_SIZE_BYTES - sizeof(uv_can_msg_st)))
+#define UV_BOOTLOADER_DATA_LEN			(sizeof(uv_can_msg_st))
 
 typedef uint32_t uv_bootloader_wait_t;
 
@@ -187,7 +194,7 @@ void uv_memory_set_can_baudrate(uint32_t baudrate);
 
 extern const char uv_projname[];
 extern const char uv_datetime[];
-
+extern const uint32_t uv_prog_version;
 
 
 /// @brief: Writes data to flash non-volatile application memory section. Depends on SystemCoreClock to
