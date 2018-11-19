@@ -118,8 +118,9 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 		// start of segmented download
 		else if ((this->state == CANOPEN_SDO_STATE_SEGMENTED_DOWNLOAD) &&
 				(sdo_type == INITIATE_DOMAIN_DOWNLOAD_REPLY)) {
-			int16_t n = 7 - (this->data_count - this->data_index);
-			uint8_t c = (n < 0) ? 0 : 1;
+			volatile int32_t n = 7 - (this->data_count - this->data_index);
+			printf("%i, %i %i\n", n, this->data_count, this->data_index);
+			volatile uint8_t c = (n < 0) ? 0 : 1;
 			if (n < 0) {
 				n = 0;
 			}
@@ -148,7 +149,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 				}
 				// send more data
 				else {
-					int16_t n = 7 - (this->data_count - this->data_index);
+					int32_t n = 7 - (this->data_count - this->data_index);
 					uint8_t c = (n < 0) ? 0 : 1;
 					if (n < 0) {
 						n = 0;
@@ -230,6 +231,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 		else if (this->state == CANOPEN_SDO_STATE_BLOCK_DOWNLOAD) {
 			// initiate block download
 			if (sdo_type == INITIATE_BLOCK_DOWNLOAD_REPLY) {
+				uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 				this->crc_enabled = ((GET_CMD_BYTE(msg) & (1 << 2)) >> 2);
 				this->server_blksize = msg->data_8bit[4];
 				if ((this->server_blksize == 0) || (this->server_blksize >= 128)) {
@@ -246,10 +248,10 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 						}
 						memset(reply_msg.data_8bit, 0, 8);
 						this->seq++;
-						SET_CMD_BYTE(&reply_msg, this->seq | (((i + 1) == this->server_blksize) << 7));
 						memcpy(&reply_msg.data_8bit[1], this->data_ptr + this->data_index, data_len);
-						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 						this->data_index += data_len;
+						SET_CMD_BYTE(&reply_msg, this->seq | ((this->data_index >= this->data_count) << 7));
+						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 
 						if (data_len != 7) {
 							// data transfer finished
@@ -260,6 +262,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 			}
 			// download block segment reply
 			else if (sdo_type == DOWNLOAD_BLOCK_SEGMENT_REPLY) {
+				uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 				if (msg->data_8bit[1] == this->seq) {
 					// transfer finished correctly
 					if (this->data_index >= this->data_count) {
@@ -282,10 +285,10 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 							}
 							memset(reply_msg.data_8bit, 0, 8);
 							this->seq++;
-							SET_CMD_BYTE(&reply_msg, this->seq | (((i + 1) == this->server_blksize) << 7));
 							memcpy(&reply_msg.data_8bit[1], this->data_ptr + this->data_index, data_len);
-							uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 							this->data_index += data_len;
+							SET_CMD_BYTE(&reply_msg, this->seq | ((this->data_index >= this->data_count) << 7));
+							uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 
 							if (data_len != 7) {
 								// data transfer finished
