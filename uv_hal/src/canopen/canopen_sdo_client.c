@@ -118,9 +118,8 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 		// start of segmented download
 		else if ((this->state == CANOPEN_SDO_STATE_SEGMENTED_DOWNLOAD) &&
 				(sdo_type == INITIATE_DOMAIN_DOWNLOAD_REPLY)) {
-			volatile int32_t n = 7 - (this->data_count - this->data_index);
-			printf("%i, %i %i\n", n, this->data_count, this->data_index);
-			volatile uint8_t c = (n < 0) ? 0 : 1;
+			int32_t n = 7 - (this->data_count - this->data_index);
+			uint8_t c = (n < 0) ? 0 : 1;
 			if (n < 0) {
 				n = 0;
 			}
