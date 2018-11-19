@@ -158,6 +158,17 @@ int8_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 	return this->output;
 }
 
+void uv_halsensor_set_calbration(uv_halsensor_st *this, bool value) {
+	if (this->state == HALSENSOR_STATE_CALIBRATION && !value) {
+		this->state = HALSENSOR_STATE_ON;
+	}
+	else if (value) {
+		this->state = HALSENSOR_STATE_CALIBRATION;
+	}
+	else {
+
+	}
+}
 
 
 

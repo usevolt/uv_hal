@@ -34,7 +34,7 @@ void _uv_canopen_nmt_init(void) {
 	uv_can_message_st msg;
 	msg.type = CAN_STD;
 	msg.id = CANOPEN_HEARTBEAT_ID + NODEID;
-	msg.data_8bit[0] = 128;
+	msg.data_8bit[0] = CANOPEN_PREOPERATIONAL;
 	msg.data_length = 1;
 	uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
 #endif
