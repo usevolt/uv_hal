@@ -61,9 +61,6 @@ struct _uv_uitransition_st {
 #endif
 #define this ((uv_uitransition_st*) me)
 
-/// @brief: Initializes the basic transition object
-void uv_uitransition_init(void *me, uv_uitransition_easing_e easing,
-		uint16_t duration_ms, void (*calc_callb)(void *me));
 
 
 /// @brief: Starts the uitransition
@@ -105,11 +102,6 @@ static inline void uv_uitransition_set_speed(void *me, uint16_t speed_ppt) {
 	this->speed_ppt = speed_ppt;
 }
 
-/// @bief: Step function is called automatically from the uiobject where
-/// the transition is attached.
-///
-/// @param parent: The parent object to which this uitransition is attached
-void uv_uitransition_step(void *me, void *parent, uint16_t step_ms);
 
 
 /// @bief: Transition animating a signed 16 bit integer value.
@@ -143,6 +135,23 @@ typedef struct {
 void uv_uicolortransition_init(void *me, uv_uitransition_easing_e easing,
 		uint16_t duration_ms, color_t start_c, color_t end_c, color_t *c_ptr);
 
+
+
+
+
+
+
+/// @brief: Initializes the basic transition object.
+/// This function shouldn't be called by the user application
+void _uv_uitransition_init(void *me, uv_uitransition_easing_e easing,
+		uint16_t duration_ms, void (*calc_callb)(void *me));
+
+
+/// @bief: Step function is called automatically from the uiobject where
+/// the transition is attached. This function shouldn't be called by the user application.
+///
+/// @param parent: The parent object to which this uitransition is attached
+void _uv_uitransition_step(void *me, void *parent, uint16_t step_ms);
 
 
 #undef this
