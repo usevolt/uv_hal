@@ -517,6 +517,9 @@ uv_errors_e uv_canopen_sdo_write16(uint8_t node_id, uint16_t mindex,
 uv_errors_e uv_canopen_sdo_write32(uint8_t node_id, uint16_t mindex,
 		uint8_t sindex, uint32_t data);
 
+uv_errors_e uv_canopen_sdo_restore_params(uint8_t node_id);
+
+uv_errors_e uv_canopen_sdo_store_params(uint8_t node_id);
 
 #endif
 

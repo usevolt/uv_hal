@@ -142,16 +142,16 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 	uv_uiwindow_touch_callb(this, &t);
 
 	uv_uiobject_ret_e ret = uv_uiwindow_step(me, step_ms, uv_uibb(this));
-	if (ret != UIOBJECT_RETURN_ALIVE) {
+	if (ret & UIOBJECT_RETURN_REFRESH) {
 
-#if CONFIG_LCD
-		// if lcd is configured to use double buffering,
-		// swap buffers since all UI components should now be updated
-		uv_lcd_double_buffer_swap();
-#elif CONFIG_FT81X
 		// all UI components should now be updated, swap display list buffers
 		uv_ft81x_dlswap();
-#endif
+	}
+	else if (ret & UIOBJECT_RETURN_KILLED) {
+		uv_ui_refresh(this);
+	}
+	else {
+
 	}
 
 	return ret;
