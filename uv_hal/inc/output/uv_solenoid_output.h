@@ -147,9 +147,7 @@ static inline void uv_solenoid_output_set_state(uv_solenoid_output_st *this,
 
 /// @brief: Disables the output. Output can be enabled only by calling
 /// *uv_solenoid_output_enable*.
-static inline void uv_solenoid_output_disable(uv_solenoid_output_st *this) {
-	uv_output_disable((uv_output_st *) this);
-}
+void uv_solenoid_output_disable(uv_solenoid_output_st *this);
 
 
 /// @brief: Enabled the output once it's disabled with *uv_solenoid_output_disable*.

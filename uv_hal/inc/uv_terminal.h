@@ -154,6 +154,11 @@ void uv_terminal_init(const uv_command_st* commands, unsigned int count);
 uv_errors_e uv_terminal_step();
 
 
+
+void uv_terminal_enable(void);
+
+void uv_terminal_disable(void);
+
 /// @brief: Returns the number of commands found in command array pointer registered with
 /// a hal_terminal_init_commands function call.
 /// @pre: hal_terminal_init_commands should have been called to register a command array pointer.

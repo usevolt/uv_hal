@@ -55,6 +55,17 @@ typedef struct {
 this_st _terminal;
 #define this (&_terminal)
 
+
+
+void uv_terminal_enable(void) {
+	uv_terminal_enabled = 1;
+}
+
+void uv_terminal_disable(void) {
+	uv_terminal_enabled = 0;
+}
+
+
 void uv_terminal_help_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 void uv_terminal_dev_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 #if CONFIG_TERMINAL_INSTRUCTIONS

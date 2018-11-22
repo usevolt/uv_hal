@@ -154,6 +154,10 @@ void uv_solenoid_output_set(uv_solenoid_output_st *this, uint16_t value) {
 }
 
 
+void uv_solenoid_output_disable(uv_solenoid_output_st *this) {
+	uv_output_disable((uv_output_st *) this);
+	uv_pwm_set(this->pwm_chn, 0);
+}
 
 
 

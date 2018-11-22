@@ -359,7 +359,15 @@ void *__uv_get_user_ptr() {
 void NMI_Handler(void) {
 	printf("NMI\r");
 }
+
+#if defined(CONFIG_HARDFAULT_CALLBACK)
+extern void CONFIG_HARDFAULT_CALLBACK (void);
+#endif
+
 void HardFault_Handler(void) {
+#if defined(CONFIG_HARDFAULT_CALLBACK)
+	CONFIG_HARDFAULT_CALLBACK ();
+#endif
 	printf("HardFault\r");
 }
 void MemManage_Handler(void) {
