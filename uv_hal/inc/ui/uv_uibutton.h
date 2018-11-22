@@ -86,6 +86,12 @@ static inline bool uv_uibutton_long_pressed(void *me) {
 	return this->state == UIBUTTON_LONGPRESSED;
 }
 
+/// @brief: Sets the main color of the uibutton. The button should be refreshed after
+/// calling this.
+static inline void uv_uibutton_set_main_color(void *me, color_t c) {
+	this->main_c = c;
+}
+
 
 /// @brief: Step function should be called every step cycle
 uv_uiobject_ret_e uv_uibutton_step(void *me, uint16_t step_ms,

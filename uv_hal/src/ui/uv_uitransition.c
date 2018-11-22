@@ -19,6 +19,15 @@ void uv_uiscalartransition_calc(void *me);
 
 #define this	((uv_uitransition_st *)me)
 
+
+static void set_state(void *me, uv_uitransition_state_e state) {
+	uv_uitransition_state_e last_state = this->state;
+	this->state = state;
+	if (this->state_change_callback) {
+		this->state_change_callback(this, last_state);
+	}
+}
+
 void _uv_uitransition_init(void *me, uv_uitransition_easing_e easing,
 		uint16_t duration_ms, void (*calc_callb)(void *me)) {
 	this->easing = easing;
@@ -29,6 +38,7 @@ void _uv_uitransition_init(void *me, uv_uitransition_easing_e easing,
 	this->parallel = NULL;
 	this->series = NULL;
 	this->state = UITRANSITION_INIT;
+	this->state_change_callback = NULL;
 }
 
 
@@ -41,7 +51,7 @@ void _uv_uitransition_step(void *me, void *parent, uint16_t step_ms) {
 		this->current_time_ms += step_ms * this->speed_ppt / 1000;
 		if (this->current_time_ms >= this->duration_ms) {
 			this->current_time_ms = this->duration_ms;
-			this->state = UITRANSITION_FINISH;
+			set_state(this, UITRANSITION_FINISH);
 			if (this->series) {
 				uv_uitransition_play(this->series);
 			}
@@ -53,7 +63,7 @@ void _uv_uitransition_step(void *me, void *parent, uint16_t step_ms) {
 		this->current_time_ms -= step_ms * this->speed_ppt / 1000;
 		if (this->current_time_ms < 0) {
 			this->current_time_ms = 0;
-			this->state = UITRANSITION_INIT;
+			set_state(this, UITRANSITION_INIT);
 
 			if (this->series) {
 				uv_uitransition_reverseplay(this->series);
@@ -89,12 +99,14 @@ void uv_uitransition_play(void *me) {
 	if (this->state == UITRANSITION_FINISH) {
 		this->current_time_ms = 0;
 	}
+
 	if (this->current_time_ms < this->duration_ms) {
 		this->state = UITRANSITION_PLAY;
 	}
 	else {
 		this->state = UITRANSITION_FINISH;
 	}
+
 	if (this->parallel) {
 		uv_uitransition_play(this->parallel);
 	}
@@ -104,12 +116,14 @@ void uv_uitransition_reverseplay(void *me) {
 	if (this->state == UITRANSITION_INIT) {
 		this->current_time_ms = this->duration_ms;
 	}
+
 	if (this->current_time_ms > 0) {
 		this->state = UITRANSITION_REVERSEPLAY;
 	}
 	else {
 		this->state = UITRANSITION_INIT;
 	}
+
 	if (this->parallel) {
 		uv_uitransition_reverseplay(this->parallel);
 	}

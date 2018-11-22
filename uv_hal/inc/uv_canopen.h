@@ -490,7 +490,8 @@ static inline uv_errors_e uv_canopen_sdo_block_write(uint8_t node_id,
 
 #endif
 
-/// @brief: Sets a CAN message callback. This can be used to manually receive messages
+/// @brief: Sets a CAN message callback. This can be used to manually receive messages.
+/// Note that the callback will be called from the HAL task.
 void uv_canopen_set_can_callback(void (*callb)(void *user_ptr, uv_can_message_st *msg));
 
 /// @brief: Sets an SDO write callback. This can be used to get a notification of when an
