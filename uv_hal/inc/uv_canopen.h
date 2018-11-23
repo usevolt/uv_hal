@@ -89,6 +89,11 @@
 #if !CONFIG_CANOPEN_DEFAULT_NODE_ID
 #error "CONFIG_CANOPEN_DEFAULT_NODE_ID should define the default node ID assigned to this device"
 #endif
+#if !defined(CONFIG_CANOPEN_AUTO_PREOPERATIONAL)
+#error "CONFIG_CANOPEN_AUTO_PREOPERATIONAL should be defined 1 or 0 depending if the canopen stack\
+ is allowed to move itself to preoperational state at boot up. If it's defined as 0, the application\
+ is responsible for moving the preoperational state after initialization."
+#endif
 #if !defined(CONFIG_CANOPEN_CONSUMER_HEARTBEAT_INDEX)
 #define CONFIG_CANOPEN_CONSUMER_HEARTBEAT_INDEX	0x1016
 #endif
