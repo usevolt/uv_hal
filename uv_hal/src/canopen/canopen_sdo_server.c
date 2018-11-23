@@ -63,7 +63,7 @@ void _uv_canopen_sdo_server_step(uint16_t step_ms) {
 	if (this->state >= CANOPEN_SDO_STATE_SEGMENTED_UPLOAD) {
 		if (uv_delay(&this->delay, step_ms)) {
 			sdo_server_abort(this->mindex, this->sindex,
-					CANOPEN_SDO_ERROR_GENERAL);
+					CANOPEN_SDO_ERROR_SDO_PROTOCOL_TIMED_OUT);
 			this->state = CANOPEN_SDO_STATE_READY;
 		}
 	}

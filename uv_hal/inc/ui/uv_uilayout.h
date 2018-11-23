@@ -51,7 +51,7 @@ static inline void uv_uigridlayout_set_padding(uv_uigridlayout_st *this,
 /// @brief: Returns the bounding box describing the position and dimensions
 /// of the next entry in the grid.
 ///
-/// @note: Grid entries go from left to right from up to down -order.
+/// @note: Grid entries go from left to right and from up to down -order.
 uv_bounding_box_st uv_uigridlayout_next(uv_uigridlayout_st *this);
 
 #endif
