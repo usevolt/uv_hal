@@ -1188,7 +1188,7 @@ void uv_ft81x_set_mask(int16_t x, int16_t y, uint16_t width, uint16_t height) {
 color_t uv_uic_brighten(color_t c, int8_t value) {
 	color_t ret = (c & 0xFF000000);
 	for (uint8_t i = 0; i < 3; i++) {
-		color_t col = (c >> (i * 8)) & 0xFF;
+		int32_t col = (c >> (i * 8)) & 0xFF;
 		col += value;
 		if (col < 0) {
 			col = 0;

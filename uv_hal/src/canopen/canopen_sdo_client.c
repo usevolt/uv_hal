@@ -252,7 +252,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 						SET_CMD_BYTE(&reply_msg, this->seq | ((this->data_index >= this->data_count) << 7));
 						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 
-						if (data_len != 7) {
+						if ((data_len != 7) || (this->data_index >= this->data_count)) {
 							// data transfer finished
 							break;
 						}
@@ -289,11 +289,13 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 							SET_CMD_BYTE(&reply_msg, this->seq | ((this->data_index >= this->data_count) << 7));
 							uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 
-							if (data_len != 7) {
+							if ((data_len != 7) ||
+									(this->data_index >= this->data_count)) {
 								// data transfer finished
 								break;
 							}
 						}
+						uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 					}
 				}
 				else {

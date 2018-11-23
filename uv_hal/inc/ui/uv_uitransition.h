@@ -43,16 +43,19 @@ typedef enum {
 /// @brief: Main uitransition pure virtual structure.
 struct _uv_uitransition_st {
 
-	uv_uitransition_state_e state;
 	uv_uitransition_st *parallel;
 	uv_uitransition_st *series;
-	uv_uitransition_easing_e easing;
 	int16_t duration_ms;
 	int16_t current_time_ms;
+	uv_uitransition_state_e state;
+	uv_uitransition_easing_e easing;
 	uint16_t speed_ppt;
 	/// @brief: Virtual function which should implement
 	/// the calculations every step cycle
 	void (*calc_callb)(void *me);
+	/// @brief: Callback which will be called when the transition state changes.
+	/// This can be used to create different kind of looping transitions
+	void (*state_change_callback)(void *me, uv_uitransition_state_e last_state);
 };
 
 
@@ -87,6 +90,13 @@ static inline void uv_uitransition_add_series(void *me,
 }
 
 
+/// @brief: Adds a state-changed callback to the transition
+static inline void uv_uitransition_set_state_change_callback(void *me,
+		void (*callb)(void *, uv_uitransition_state_e)) {
+	this->state_change_callback = callb;
+}
+
+
 /// @brief: Returns true if the transition is finished
 static inline bool uv_uitransition_is_finished(void *me) {
 	return (this->state == UITRANSITION_FINISH);
@@ -95,6 +105,11 @@ static inline bool uv_uitransition_is_finished(void *me) {
 /// @brief: Returns the current state of the transition
 static inline uv_uitransition_state_e uv_uitransition_get_state(const void *me) {
 	return this->state;
+}
+
+/// @brief: Sets the easing for the transition
+static inline void uv_uitransition_set_easing(void *me, uv_uitransition_easing_e easing) {
+	this->easing = easing;
 }
 
 /// @brief: Sets the animation speed as a ppt value. Defaults to 1000.

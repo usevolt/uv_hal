@@ -170,6 +170,18 @@ uv_errors_e uv_canopen_sdo_write32(uint8_t node_id, uint16_t mindex, uint8_t sin
 	return uv_canopen_sdo_write(node_id, mindex, sindex, sizeof(uint32_t), &data);
 }
 
+uv_errors_e uv_canopen_sdo_restore_params(uint8_t node_id) {
+	uint32_t d = 0x64616F6C;
+	return uv_canopen_sdo_write(node_id, CONFIG_CANOPEN_RESTORE_PARAMS_INDEX, 1,
+			CANOPEN_SIZEOF(CANOPEN_UNSIGNED32), &d);
+}
+
+uv_errors_e uv_canopen_sdo_store_params(uint8_t node_id) {
+	uint32_t d = 0x65766173;
+	return uv_canopen_sdo_write(node_id, CONFIG_CANOPEN_STORE_PARAMS_INDEX, 1,
+			CANOPEN_SIZEOF(CANOPEN_UNSIGNED32), &d);
+}
+
 
 
 #endif

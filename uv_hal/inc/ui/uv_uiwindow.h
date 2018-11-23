@@ -144,6 +144,7 @@ void uv_uiwindow_set_transparent(void *me, bool value);
 void _uv_uiwindow_redraw(void *me, const uv_bounding_box_st *pbb);
 
 
+
 #undef this
 
 #endif
