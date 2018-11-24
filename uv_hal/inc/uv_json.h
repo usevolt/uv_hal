@@ -207,7 +207,7 @@ char *uv_jsonreader_find_child(char *parent, char *child_name,
 /// @param dest: A pointer to string where the name will be stored.
 /// @param dest_length: The max size of dest. If the name didn't fit dest,
 /// false is returned. However, 'dest_length' bytes will be stored to dest anyway.
-bool uv_jsonreader_get_obj_name(char *object, char **dest, unsigned int dest_length);
+bool uv_jsonreader_get_obj_name(char *object, char *dest, unsigned int dest_length);
 
 
 /// @brief: Returns the type of this JSON object
