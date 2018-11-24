@@ -137,24 +137,19 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 				}
 				// expedited transfer
 				else {
-					// expedited transfer can be started to all other than string type objects
-					if (!uv_canopen_is_string(obj)) {
-						SET_CMD_BYTE(&reply_msg,
-								INITIATE_DOMAIN_DOWNLOAD_REPLY);
-						if (_canopen_write_data(obj, msg, GET_SINDEX(msg))) {
-							memcpy(&reply_msg.data_32bit[1], &msg->data_32bit[1], 4);
-							uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
-							if (this->callb) {
-								this->callb(this->mindex, this->sindex);
-							}
-						}
-						else {
-							// tried to write to array index 0, abort transfer
-							sdo_server_abort(GET_MINDEX(msg), GET_SINDEX(msg),
-									CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
+					// expedited transfer can be started to all kinds of objects,
+					// also on strings, but only if the string len is less than 4 bytes
+					SET_CMD_BYTE(&reply_msg,
+							INITIATE_DOMAIN_DOWNLOAD_REPLY);
+					if (_canopen_write_data(obj, msg, GET_SINDEX(msg))) {
+						memcpy(&reply_msg.data_32bit[1], &msg->data_32bit[1], 4);
+						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+						if (this->callb) {
+							this->callb(this->mindex, this->sindex);
 						}
 					}
 					else {
+						// tried to write to array index 0, abort transfer
 						sdo_server_abort(GET_MINDEX(msg), GET_SINDEX(msg),
 								CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
 					}
@@ -176,6 +171,9 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 					// data bytes contain the total byte count
 					reply_msg.data_32bit[1] = obj->string_len;
 					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+#else
+					sdo_server_abort(GET_MINDEX(msg), GET_SINDEX(msg),
+							CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
 #endif
 				}
 
