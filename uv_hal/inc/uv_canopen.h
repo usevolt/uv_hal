@@ -94,6 +94,24 @@
  is allowed to move itself to preoperational state at boot up. If it's defined as 0, the application\
  is responsible for moving the preoperational state after initialization."
 #endif
+#if CONFIG_CANOPEN_PDO_EXTINIT
+#if !defined(CONFIG_CANOPEN_TXPDO_COM_INIT)
+#error "CONFIG_CANOPEN_TXPDO_COM_INIT should define the name of the TXPDO communication array \
+initialization structure."
+#endif
+#if !defined(CONFIG_CANOPEN_TXPDO_MAP_INIT)
+#error "CONFIG_CANOPEN_TXPDO_MAP_INIT should define the name of the TXPDO mapping array \
+initialization structure."
+#endif
+#if !defined(CONFIG_CANOPEN_RXPDO_COM_INIT)
+#error "CONFIG_CANOPEN_RXPDO_COM_INIT should define the name of the RXPDO communication array \
+initialization structure."
+#endif
+#if !defined(CONFIG_CANOPEN_RXPDO_MAP_INIT)
+#error "CONFIG_CANOPEN_RXPDO_MAP_INIT should define the name of the RXPDO mapping array \
+initialization structure."
+#endif
+#endif
 #if !defined(CONFIG_CANOPEN_CONSUMER_HEARTBEAT_INDEX)
 #define CONFIG_CANOPEN_CONSUMER_HEARTBEAT_INDEX	0x1016
 #endif
@@ -248,7 +266,12 @@ typedef struct {
 	canopen_txpdo_com_parameter_st txpdo_coms[CONFIG_CANOPEN_TXPDO_COUNT];
 	canopen_pdo_mapping_parameter_st txpdo_maps[CONFIG_CANOPEN_TXPDO_COUNT];
 
-} _canopen_non_volatile_st;
+
+	// crc indicating if the initial values have been changed.
+	// with this it shouldnt be necessary to clear application non-volatie data
+	// if canopen settings are changed while developing
+	uint16_t crc;
+} uv_canopen_non_volatile_st;
 
 
 

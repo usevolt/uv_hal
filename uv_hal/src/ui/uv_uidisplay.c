@@ -58,6 +58,7 @@ void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *
 	uv_uiobject_set_touch_callb(this, NULL);
 
 #if CONFIG_UI_TOUCHSCREEN
+	uv_delay_init(&this->press_delay, UIDISPLAY_PRESS_DELAY_MS);
 	uv_moving_aver_init(&this->avr_x, UI_TOUCH_AVERAGE_COUNT);
 	uv_moving_aver_init(&this->avr_y, UI_TOUCH_AVERAGE_COUNT);
 	this->press_state = RELEASED;
@@ -73,13 +74,12 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 	// get touch data from the LCD
 #if CONFIG_UI_TOUCHSCREEN
 	bool touch;
-#if CONFIG_LCD
-	touch = uv_lcd_touch_get(&t.x, &t.y);
-#elif CONFIG_FT81X
 	touch = uv_ft81x_get_touch(&t.x, &t.y);
-#endif
 
-	if (touch) {
+	uv_delay(&this->press_delay, step_ms);
+
+	if (touch &&
+			uv_delay_has_ended(&this->press_delay)) {
 		t.x = uv_moving_aver_step(&this->avr_x, t.x);
 		t.y = uv_moving_aver_step(&this->avr_y, t.y);
 		if (this->press_state == RELEASED) {
@@ -126,6 +126,7 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 			else {
 				t.action = TOUCH_RELEASED;
 			}
+			uv_delay_init(&this->press_delay, UIDISPLAY_PRESS_DELAY_MS);
 			uv_moving_aver_reset(&this->avr_x);
 			uv_moving_aver_reset(&this->avr_y);
 			this->press_state = RELEASED;

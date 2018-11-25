@@ -92,6 +92,11 @@ static inline void uv_uibutton_set_main_color(void *me, color_t c) {
 	this->main_c = c;
 }
 
+/// @brief: Returns the button main color
+static inline color_t uv_uibutton_get_main_color(void *me) {
+	return this->main_c;
+}
+
 
 /// @brief: Step function should be called every step cycle
 uv_uiobject_ret_e uv_uibutton_step(void *me, uint16_t step_ms,

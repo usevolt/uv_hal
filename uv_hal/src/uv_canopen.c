@@ -42,10 +42,23 @@ _uv_canopen_st _canopen;
 #define this_nonvol	(&CONFIG_NON_VOLATILE_START.canopen_data)
 #define NODEID			this->current_node_id
 
+#if defined(CONFIG_CANOPEN_INITIALIZER)
+extern const uv_canopen_non_volatile_st CONFIG_CANOPEN_INITIALIZER;
+#endif
 
 
 
 void _uv_canopen_init(void) {
+#if defined(CONFIG_CANOPEN_INITIALIZER)
+	// calculate the initializer crc and compare it to ours
+	uint16_t crc = uv_memory_calc_crc((void*) &CONFIG_CANOPEN_INITIALIZER,
+			sizeof(CONFIG_CANOPEN_INITIALIZER));
+	if (crc != this_nonvol->crc) {
+		_uv_canopen_reset();
+		this_nonvol->crc = crc;
+	}
+
+#endif
 	this->current_node_id = (CONFIG_NON_VOLATILE_START.id);
 	// Greater Node ID than 0x7F is invalid, revert to default
 	if (this->current_node_id > 0x7F) {
@@ -71,6 +84,9 @@ void _uv_canopen_init(void) {
 }
 
 void _uv_canopen_reset(void) {
+#if defined(CONFIG_CANOPEN_INITIALIZER)
+	memcpy(this_nonvol, &CONFIG_CANOPEN_INITIALIZER, sizeof(CONFIG_CANOPEN_INITIALIZER));
+#endif
 	_uv_canopen_nmt_reset();
 	_uv_canopen_heartbeat_reset();
 	_uv_canopen_sdo_reset();

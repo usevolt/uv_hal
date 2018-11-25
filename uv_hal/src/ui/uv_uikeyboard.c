@@ -246,7 +246,7 @@ bool uv_uikeyboard_show(const char *title, char *buffer,
 
 	uv_touch_st t;
 	uint16_t input_len = 0;
-	shift = false;
+	shift = true;
 	bool pressed = uv_ft81x_get_touch(&t.x, &t.y);
 	refresh = true;
 	buffer[0] = '\0';
@@ -279,7 +279,13 @@ bool uv_uikeyboard_show(const char *title, char *buffer,
 				return input_len ? true : false;
 			}
 			else if (c == BACKSPACE) {
-				if (input_len) input_len--;
+				if (input_len) {
+					input_len--;
+				}
+				else {
+					// first character defaults to uppercase
+					shift = true;
+				}
 				buffer[input_len] = '\0';
 				update_input(buffer, style);
 			}
@@ -288,6 +294,9 @@ bool uv_uikeyboard_show(const char *title, char *buffer,
 				if (input_len < buf_len - 1) {
 					buffer[input_len++] = c;
 					buffer[input_len] = '\0';
+					if (input_len == 1) {
+						shift = false;
+					}
 					update_input(buffer, style);
 				}
 			}

@@ -55,7 +55,6 @@ void _uv_canopen_sdo_server_init(void) {
 }
 
 void _uv_canopen_sdo_server_reset(void) {
-	_uv_canopen_sdo_server_init();
 }
 
 void _uv_canopen_sdo_server_step(uint16_t step_ms) {

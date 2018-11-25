@@ -109,7 +109,7 @@ typedef struct {
 	uv_bootloader_wait_t bootloader_wait_time;
 #if CONFIG_CANOPEN
 	// non-volatile data for canopen
-	_canopen_non_volatile_st canopen_data;
+	uv_canopen_non_volatile_st canopen_data;
 #endif
 } uv_data_start_t;
 

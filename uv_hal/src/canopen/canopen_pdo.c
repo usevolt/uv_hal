@@ -19,6 +19,9 @@
 
 #define NODEID								this->current_node_id
 
+#if !defined(CONFIG_CANOPEN_INITIALIZER)
+// PDO's are defined with preprocessor macros in uv_hal_config. The original, but limited,
+// uv_hal way
 
 #define RXPDO(x)							CAT(RXPDO, INC(x))
 #define TXPDO(x)							CAT(TXPDO, INC(x))
@@ -82,7 +85,6 @@
 		}\
 },
 
-
 static const canopen_txpdo_com_parameter_st txpdo_com_defs[] = {
 		REPEAT(CONFIG_CANOPEN_TXPDO_COUNT, TXPDO_COM_DEF)
 };
@@ -95,15 +97,9 @@ static const canopen_rxpdo_com_parameter_st rxpdo_com_defs[] = {
 static const canopen_pdo_mapping_parameter_st rxpdo_map_defs[] = {
 		REPEAT(CONFIG_CANOPEN_RXPDO_COUNT, RXPDO_MAPPINGS_DEF)
 };
+#endif
 
 
-
-
-/// @brief: Configures the HW CAN message object to receive this RXPDO
-#define RXPDO_CONFIG_MESSAGE_OBJ(x) \
-		uv_can_config_rx_message(this->can_channel, \
-			this->obj_dict.com_params.rxpdo_coms[x].cob_id, \
-			CAN_ID_MASK_DEFAULT, CAN_11_BIT_ID)
 
 
 /// @brief: Returns true if this PDO message was enabled (bit 31 was not set)
@@ -128,13 +124,8 @@ void _uv_canopen_pdo_init() {
 	}
 	for (int i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
 		if ((obj = _uv_canopen_obj_dict_get(CONFIG_CANOPEN_RXPDO_COM_INDEX + i, 0))) {
-#if CONFIG_TARGET_LPC1785
-			uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
-					((canopen_rxpdo_com_parameter_st*) obj->data_ptr)->cob_id, CAN_STD);
-#else
 			uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
 					((canopen_rxpdo_com_parameter_st*) obj->data_ptr)->cob_id, CAN_ID_MASK_DEFAULT, CAN_STD);
-#endif
 		}
 		else {
 			// something went wrong, PDO communication parameter couldn't be found
@@ -145,15 +136,18 @@ void _uv_canopen_pdo_init() {
 
 
 
+
 void _uv_canopen_pdo_reset() {
+#if !defined(CONFIG_CANOPEN_INITIALIZER)
 	for (int i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
-		thisnv->txpdo_coms[i] = txpdo_com_defs[i];
-		thisnv->txpdo_maps[i] = txpdo_map_defs[i];
+		thisnv->txpdo_coms[i] = CONFIG_CANOPEN_TXPDO_COM_INIT[i];
+		thisnv->txpdo_maps[i] = CONFIG_CANOPEN_TXPDO_MAP_INIT[i];
 	}
 	for (int i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
-		thisnv->rxpdo_coms[i] = rxpdo_com_defs[i];
-		thisnv->rxpdo_maps[i] = rxpdo_map_defs[i];
+		thisnv->rxpdo_coms[i] = CONFIG_CANOPEN_RXPDO_COM_INIT[i];
+		thisnv->rxpdo_maps[i] = CONFIG_CANOPEN_RXPDO_MAP_INIT[i];
 	}
+#endif
 }
 
 

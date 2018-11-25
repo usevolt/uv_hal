@@ -38,10 +38,16 @@ void _uv_canopen_heartbeat_init(void) {
 
 
 void _uv_canopen_heartbeat_reset(void) {
+	//todo: heartbeat consumer should be implmented in case of CONFIG_CANOPEN_INITIALIZER is defined
 #if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
 	REPEAT(CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT, PRODUCER_RESET);
 #endif
+
+#if !defined(CONFIG_CANOPEN_INITIALIZER)
+
 	this_nonvol->producer_heartbeat_time_ms = CONFIG_CANOPEN_PRODUCER_HEARTBEAT_TIME_MS;
+
+#endif
 }
 
 void _uv_canopen_heartbeat_step(uint16_t step_ms) {

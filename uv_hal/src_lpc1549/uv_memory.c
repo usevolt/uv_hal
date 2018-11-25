@@ -438,10 +438,7 @@ const char *uv_memory_get_project_date(uv_data_start_t *start_ptr) {
 
 
 uv_errors_e _uv_memory_hal_load(void) {
-#if !CONFIG_TARGET_LINUX
 	memcpy(&CONFIG_NON_VOLATILE_START, (void*) NON_VOLATILE_MEMORY_START_ADDRESS, sizeof(uv_data_start_t));
-#endif
-
 
 	return uv_memory_load();
 }
