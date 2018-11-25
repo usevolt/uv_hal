@@ -140,12 +140,12 @@ void _uv_canopen_pdo_init() {
 void _uv_canopen_pdo_reset() {
 #if !defined(CONFIG_CANOPEN_INITIALIZER)
 	for (int i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
-		thisnv->txpdo_coms[i] = CONFIG_CANOPEN_TXPDO_COM_INIT[i];
-		thisnv->txpdo_maps[i] = CONFIG_CANOPEN_TXPDO_MAP_INIT[i];
+		thisnv->txpdo_coms[i] = txpdo_com_defs[i];
+		thisnv->txpdo_maps[i] = txpdo_map_defs[i];
 	}
 	for (int i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
-		thisnv->rxpdo_coms[i] = CONFIG_CANOPEN_RXPDO_COM_INIT[i];
-		thisnv->rxpdo_maps[i] = CONFIG_CANOPEN_RXPDO_MAP_INIT[i];
+		thisnv->rxpdo_coms[i] = rxpdo_com_defs[i];
+		thisnv->rxpdo_maps[i] = rxpdo_map_defs[i];
 	}
 #endif
 }
