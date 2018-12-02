@@ -23,10 +23,29 @@
 #if CONFIG_SOLENOID_OUTPUT
 
 
+static uint16_t current_func(void *this_ptr, uint16_t adc) {
+	int32_t current = (int32_t) adc * ((uv_output_st*) this_ptr)->sense_ampl / 1000;
+	uv_solenoid_output_st *this = this_ptr;
+
+	// apply pwm duty cycle compensation
+	// vnd5050 current feedback is filtered with a strong low-pass filter.
+	// It cannot follow PWM signal strongly, and thus the actual current would be get
+	// if the adc would be sampled when the PWM output was active (high). As this kind
+	// of synchronization is not available, we measure the average current and
+	// compensate the PWM output **off** time out from the value
+	uint16_t pwmdc = uv_moving_aver_get_val(&this->pwmaver);
+	if (pwmdc) {
+		current = (int32_t) current * PWM_MAX_VALUE / pwmdc;
+	}
+
+	return current;
+}
+
+
 
 void uv_solenoid_output_conf_reset(uv_solenoid_output_conf_st *conf) {
-	conf->min_ma = 0;
-	conf->max_ma = 1200;
+	conf->min_ma = CONFIG_SOLENOID_MIN_CURRENT_DEF;
+	conf->max_ma = CONFIG_SOLENOID_MAX_CURRENT_DEF;
 }
 
 
@@ -40,7 +59,10 @@ void uv_solenoid_output_init(uv_solenoid_output_st *this,
 	this->conf = conf_ptr;
 
 	uv_output_init(((uv_output_st*) this), adc_chn, 0, sense_ampl, max_current,
-			fault_current, 1, emcy_overload, emcy_fault);
+			fault_current, SOLENOID_OUTPUT_MAAVG_COUNT, emcy_overload, emcy_fault);
+	uv_output_set_current_func(((uv_output_st*) this), &current_func);
+
+	uv_moving_aver_init(&this->pwmaver, SOLENOID_OUTPUT_PWMAVG_COUNT);
 
 	this->mode = SOLENOID_OUTPUT_MODE_CURRENT;
 
@@ -119,8 +141,12 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 			uv_pid_set_target(&this->ma_pid, target_ma);
 
 			// milliamp PID controller
-			uv_pid_step(&this->ma_pid, step_ms,
-					uv_solenoid_output_get_current(this));
+			// we calculate current by ourselves because uv_output_st adds averaging
+			// which we dont need here. Average value should only be shown to the end user
+			// to make an assumption that the current measurement is precise
+			uint16_t current = ((uv_output_st*) this)->current_func(this,
+					uv_adc_read(((uv_output_st*) this)->adc_chn));
+			uv_pid_step(&this->ma_pid, step_ms, current);
 
 			output = uv_pwm_get(this->pwm_chn) +
 				uv_pid_get_output(&this->ma_pid) +
@@ -145,6 +171,8 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 
 	// set the output pwm
 	uv_pwm_set(this->pwm_chn, this->pwm);
+	// update pwm avg value
+	uv_moving_aver_step(&this->pwmaver, this->pwm);
 }
 
 

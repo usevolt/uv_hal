@@ -23,7 +23,7 @@
 #define CONFIG_MIN_DEF				(ADC_MAX_VALUE * 50 / 1000)
 #define CONFIG_MAX_DEF				(ADC_MAX_VALUE * 950 / 1000)
 #define CONFIG_MIDDLE_DEF			(ADC_MAX_VALUE / 2)
-#define CONFIG_MIDDLE_TOLERANCE_DEF	(ADC_MAX_VALUE / 10)
+#define CONFIG_MIDDLE_TOLERANCE_DEF	(ADC_MAX_VALUE / 40)
 
 void uv_halsensor_config_reset(uv_halsensor_config_st *this) {
 	this->max = CONFIG_MAX_DEF;
@@ -46,6 +46,9 @@ void uv_halsensor_init(uv_halsensor_st *this, uv_halsensor_config_st *config,
 int8_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 	uint16_t adc = uv_adc_read(this->adc_chn);
 	adc = uv_moving_aver_step(&this->moving_aver, adc);
+
+	// voltage output is always calculated
+	this->out_mv = adc * 3300 / ADC_MAX_VALUE;
 
 	if (this->state == HALSENSOR_STATE_ON) {
 		// check if there's a fault in the input
@@ -163,6 +166,13 @@ void uv_halsensor_set_calbration(uv_halsensor_st *this, bool value) {
 		this->state = HALSENSOR_STATE_ON;
 	}
 	else if (value) {
+		if (this->state != HALSENSOR_STATE_CALIBRATION) {
+			// reset the values to defaults
+			int32_t adc = uv_adc_read(this->adc_chn);
+			this->config->min = adc;
+			this->config->max = adc;
+			this->config->middle = adc;
+		}
 		this->state = HALSENSOR_STATE_CALIBRATION;
 	}
 	else {

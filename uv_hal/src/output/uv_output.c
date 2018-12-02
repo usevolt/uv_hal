@@ -25,6 +25,14 @@
 #if CONFIG_OUTPUT
 
 
+// default current calculation function
+static uint16_t current_func(void *this_ptr, uint16_t adc) {
+	int32_t current = (int32_t) adc * ((uv_output_st*) this_ptr)->sense_ampl / 1000;
+
+	return current;
+}
+
+
 /// @brief: Sets the output GPIO if one is assigned. When extending
 /// different output modules from this, set gate_io to 0.
 static inline void set_out(uv_output_st *this, uint16_t value) {
@@ -37,6 +45,7 @@ static inline void set_out(uv_output_st *this, uint16_t value) {
 void uv_output_init(uv_output_st *this,  uv_adc_channels_e adc_chn, uv_gpios_e gate_io,
 		uint16_t sense_ampl, uint16_t max_val, uint16_t fault_val,
 		uint16_t moving_avg_count, uint32_t emcy_overload, uint32_t emcy_fault) {
+	this->current_func = &current_func;
 	this->adc_chn = adc_chn;
 	this->gate_io = gate_io;
 	if (this->gate_io) {
@@ -103,7 +112,7 @@ void uv_output_step(uv_output_st *this, uint16_t step_ms) {
 			if (adc < 0) {
 				adc = 0;
 			}
-			int32_t current = (int32_t) adc * this->sense_ampl / 1000;
+			int32_t current = this->current_func(this, adc);
 			uv_moving_aver_step(&this->moving_avg, current);
 		}
 

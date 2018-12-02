@@ -32,8 +32,8 @@
 void uv_dual_solenoid_output_conf_reset(uv_dual_solenoid_output_conf_st *this) {
 	uv_solenoid_output_conf_reset(&this->solenoid_conf[0]);
 	uv_solenoid_output_conf_reset(&this->solenoid_conf[1]);
-	this->acc = 100;
-	this->dec = 100;
+	this->acc = CONFIG_DUAL_SOLENOID_ACC_DEF;
+	this->dec = CONFIG_DUAL_SOLENOID_DEC_DEF;
 	this->invert = false;
 	this->assembly_invert = false;
 }
@@ -91,6 +91,16 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 			this->conf->dec = 100;
 		}
 		uint16_t acc = this->conf->acc + ACC_MIN, dec = this->conf->dec + DEC_MIN;
+
+		if (this->target_req > DUAL_SOLENOID_VALUE_MAX) {
+			this->target_req = DUAL_SOLENOID_VALUE_MAX;
+		}
+		else if (this->target_req < DUAL_SOLENOID_VALUE_MIN) {
+			this->target_req = DUAL_SOLENOID_VALUE_MIN;
+		}
+		else {
+
+		}
 
 
 		// different moving average values for accelerating and decelerating

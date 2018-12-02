@@ -69,12 +69,17 @@ typedef struct {
 	/// @brief: Fault limit in mA
 	uint16_t limit_fault;
 	uv_moving_aver_st moving_avg;
-	/// @brief: Holds the moving average output value
+	/// @brief: Holds the moving average output value in milliamps
 	uint16_t current;
 	/// @brief: output module state
 	uv_output_state_e state;
 	/// @brief: gpio pin for the gate driving
 	uv_gpios_e gate_io;
+
+	/// brief: Current calculation function pointer. This function should calculate the current
+	/// in milliamps from the adc reading
+	uint16_t (*current_func)(void *this_ptr, uint16_t adc);
+
 	/// @brief: EMCY messages to be triggered in overcurrent / undercurrent situations
 	uint32_t emcy_overload;
 	uint32_t emcy_fault;
@@ -91,6 +96,12 @@ void uv_output_init(uv_output_st *this,  uv_adc_channels_e adc_chn, uv_gpios_e g
 		uint16_t sense_ampl, uint16_t max_val, uint16_t fault_val,
 		uint16_t moving_avg_count, uint32_t emcy_overload, uint32_t emcy_fault);
 
+
+/// @brief: Sets the current calculation function
+static inline void uv_output_set_current_func(uv_output_st *this,
+		uint16_t (*current_func)(void *this_ptr, uint16_t adc)) {
+	this->current_func = current_func;
+}
 
 /// @brief: Sets the current sense amplification value. Defaults to 50
 static inline void uv_output_set_ampl(uv_output_st *this, const uint16_t value) {
