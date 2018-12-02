@@ -20,11 +20,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#if CONFIG_TARGET_LPC11C14
-#include "LPC11xx.h"
-#elif CONFIG_TARGET_LPC1785
-#include "LPC177x_8x.h"
-#endif
 #include "uv_uart.h"
 #include "uv_utilities.h"
 #include "uv_wdt.h"
@@ -32,35 +27,15 @@
 #ifdef CONFIG_RTOS
 #include "uv_rtos.h"
 #endif
-#if CONFIG_TARGET_LPC11C14
-
-#define FLASH_SECTOR_SIZE					4096
-#define FLASH_START_ADDRESS 				0x00000000
-#define NON_VOLATILE_MEMORY_START_ADDRESS	0x00007000
-
-#elif CONFIG_TARGET_LPC1785
-
-#define FLASH_FIRST_SECTOR_SIZE				0x1000
-#define FLASH_SECOND_SECTOR_SIZE			0x8000
-#define FLASH_SECOND_SECTOR_SIZE_BEGIN		0x00010000
-#define FLASH_START_ADDRESS 				0x00000000
-#define NON_VOLATILE_MEMORY_START_ADDRESS	0x00001000
-
-#elif CONFIG_TARGET_LPC1549
 
 #define FLASH_SECTOR_SIZE					0x1000
 #define FLASH_START_ADDRESS 				0x00000000
 #define NON_VOLATILE_MEMORY_START_ADDRESS	0x3F000
 
-#endif
 
 
 // IAP function location, refer to user manual page 269
-#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1785
-#define IAP_LOCATION 0x1fff1ff1
-#elif CONFIG_TARGET_LPC1549
 #define IAP_LOCATION 0x03000205UL
-#endif
 
 #define PREPARE_SECTOR      50
 #define COPY_RAM_TO_FLASH   51
@@ -81,7 +56,9 @@ typedef void (*IAP)(unsigned int [],unsigned int[]);
 const char uv_projname[] = STRINGIFY(__UV_PROJECT_NAME);
 const char uv_datetime[] = __DATE__ " " __TIME__;
 const uint32_t uv_prog_version = __UV_PROGRAM_VERSION;
-static void (*save_callback)(void) = NULL;
+#if defined(CONFIG_SAVE_CALLBACK)
+extern void CONFIG_SAVE_CALLBACK (void);
+#endif
 
 #endif
 
@@ -140,9 +117,9 @@ void uv_get_device_serial(unsigned int dest[4]) {
 uv_errors_e uv_memory_save(void) {
 	uv_errors_e ret = ERR_NONE;
 
-	if (save_callback != NULL) {
-		save_callback();
-	}
+#if defined(CONFIG_SAVE_CALLBACK)
+		CONFIG_SAVE_CALLBACK ();
+#endif
 
 	uint16_t crc = uv_memory_calc_crc(&CONFIG_NON_VOLATILE_START,
 			(uint32_t) &CONFIG_NON_VOLATILE_END - (uint32_t) &CONFIG_NON_VOLATILE_START);
@@ -214,10 +191,6 @@ uv_errors_e uv_memory_save(void) {
 	return ret;
 }
 
-
-void uv_memory_add_save_callback(void (*save_callb)(void)) {
-	save_callback = save_callb;
-}
 
 
 uv_errors_e uv_memory_load(void) {

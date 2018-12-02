@@ -209,9 +209,6 @@ extern const uint32_t uv_prog_version;
 ///
 uv_errors_e uv_memory_save(void);
 
-/// @brief: Adds a callback which will be called if memory will be saved.
-/// This can be used to do various things before the memory is flashed
-void uv_memory_add_save_callback(void (*save_callb)(void));
 
 /// @brief: Copies data from non-volatile flash memory to another memory location,
 /// usually to RAM.
