@@ -81,6 +81,7 @@ typedef void (*IAP)(unsigned int [],unsigned int[]);
 const char uv_projname[] = STRINGIFY(__UV_PROJECT_NAME);
 const char uv_datetime[] = __DATE__ " " __TIME__;
 const uint32_t uv_prog_version = __UV_PROGRAM_VERSION;
+static void (*save_callback)(void) = NULL;
 
 #endif
 
@@ -138,6 +139,11 @@ void uv_get_device_serial(unsigned int dest[4]) {
 
 uv_errors_e uv_memory_save(void) {
 	uv_errors_e ret = ERR_NONE;
+
+	if (save_callback != NULL) {
+		save_callback();
+	}
+
 	uint16_t crc = uv_memory_calc_crc(&CONFIG_NON_VOLATILE_START,
 			(uint32_t) &CONFIG_NON_VOLATILE_END - (uint32_t) &CONFIG_NON_VOLATILE_START);
 
@@ -206,6 +212,11 @@ uv_errors_e uv_memory_save(void) {
 		}
 	}
 	return ret;
+}
+
+
+void uv_memory_add_save_callback(void (*save_callb)(void)) {
+	save_callback = save_callb;
 }
 
 
