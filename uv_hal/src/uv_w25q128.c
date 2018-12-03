@@ -18,11 +18,13 @@
 
 
 #include "uv_w25q128.h"
+#include <uv_rtos.h>
 
 
 #if CONFIG_W25Q128
 
 
+#define CMD_WRITE_ENABLE				0x06
 #define CMD_READ_STATUS_REGISTER_1		0x05
 #define CMD_WRITE_STATUS_REGISTER_1		0x01
 #define CMD_READ_STATUS_REGISTER_2		0x35
@@ -59,10 +61,12 @@
 #define CMD_INDIVIDUAL_BLOCK_UNLOCK		0x39
 #define CMD_READ_BLOCK_LOCK				0x3D
 
+// The length of READ command in bytes
+#define READ_CMD_LEN					4
+#define WRITE_CMD_LEN					4
 
-/// @brief: RAM buffer with the size of erase sector for w25q128.
-/// As this is very big, it is stored in RAM1_16 on LPC1549.
-__attribute__((section(".data.$Ram1_16*"))) static volatile uint8_t w25q128_buffer[W25Q128_SECTOR_SIZE];
+// RAM buffer size of W25Q128 Page but in 16-bit
+static uint16_t buffer[W25Q128_PAGE_SIZE];
 
 static bool is_busy(uv_w25q128_st *this) {
 	uint16_t read[2] = {};
@@ -73,7 +77,8 @@ static bool is_busy(uv_w25q128_st *this) {
 }
 
 
-void uv_w25q128_init(uv_w25q128_st *this, spi_e spi, spi_slaves_e ssel) {
+uv_errors_e uv_w25q128_init(uv_w25q128_st *this, spi_e spi, spi_slaves_e ssel) {
+	uv_errors_e ret = ERR_NONE;
 	this->spi = spi;
 	this->ssel = ssel;
 	this->data_location = 0;
@@ -82,27 +87,147 @@ void uv_w25q128_init(uv_w25q128_st *this, spi_e spi, spi_slaves_e ssel) {
 	uint16_t write[6] = {};
 	write[0] = CMD_MANUFACTURER_DEVICE_ID;
 	uv_spi_readwrite_sync(this->spi, this->ssel, write, read, 8, 6);
+	if ((read[4] != 0xef) ||
+			(read[5] != 0x17)) {
+		// cannot connect to the device
+		ret = ERR_NOT_RESPONDING;
+	}
 	printf("w25q128 manufacturer id 0x%x, device id: 0x%x\n", read[4], read[5]);
+
+	return ret;
 }
 
 
-bool uv_w25q128_read_sync(uv_w25q128_st *this,
-		int32_t address, void *dest, uint32_t byte_count) {
+uint8_t *uv_w25q128_read(uv_w25q128_st *this,
+		int32_t address, int32_t byte_count, uint8_t *dest) {
+	uint8_t *ret = dest;
+	while (is_busy(this)) {
+		uv_rtos_task_yield();
+	}
+
+	uint32_t read_count = 0;
+	while (true) {
+		bool br = false;
+		uint16_t len = uv_mini((sizeof(buffer) / sizeof(buffer[0])) - READ_CMD_LEN, byte_count);
+		buffer[0] = CMD_READ_DATA;
+		buffer[1] = ((address >> 16) & 0xFF);
+		buffer[2] = ((address >> 8) & 0xFF);
+		buffer[3] = (address & 0xFF);
+
+		if (uv_spi_readwrite_sync(this->spi, this->ssel, buffer, buffer, 8, len + READ_CMD_LEN)) {
+			for (int32_t i = 0; i < len; i++) {
+				dest[read_count + i] = buffer[READ_CMD_LEN + i];
+			}
+			byte_count -= len;
+			read_count += len;
+			address += len;
+		}
+		else {
+			br = true;
+			ret = NULL;
+		}
+
+		if (byte_count <= 0) {
+			br = true;
+		}
+		if (br) {
+			break;
+		}
+	}
+
+	return ret;
+}
+
+
+bool uv_w25q128_write(uv_w25q128_st *this,
+		uint32_t address, void *src, int32_t byte_count) {
 	bool ret = true;
+
+	uint32_t write_count = 0;
+	while (true) {
+		while (is_busy(this)) {
+			uv_rtos_task_yield();
+		}
+
+		buffer[0] = CMD_WRITE_ENABLE;
+		uv_spi_write_sync(this->spi, this->ssel, (uint16_t*) buffer, 8, 1);
+
+
+		bool br = false;
+		uint32_t offset = (address % W25Q128_PAGE_SIZE);
+		uint32_t len = (byte_count % W25Q128_PAGE_SIZE);
+		if (len + offset > W25Q128_PAGE_SIZE) {
+			len -= ((len + offset) % W25Q128_PAGE_SIZE);
+		}
+		//writable len is now fit to w25q128 page borders
+
+		buffer[0] = CMD_PAGE_PROGRAM;
+		buffer[1] = ((address >> 16) & 0xFF);
+		buffer[2] = ((address >> 8) & 0xFF);
+		buffer[3] = (address & 0xFF);
+		// fill buffer with the data. memcpy is not valid here, since SPI data should be 16-bits long
+		for (int32_t i = 0; i < len; i++) {
+			buffer[i + 4] = ((uint8_t*) src)[write_count + i];
+		}
+		if (!uv_spi_write_sync(this->spi, this->ssel,
+				(uint16_t*) buffer, 8, WRITE_CMD_LEN + len)) {
+			// problem writing the data, return false
+			ret = false;
+			br = true;
+		}
+
+		byte_count -= len;
+		address += len;
+		write_count += len;
+		if (byte_count <= 0) {
+			br = true;
+		}
+		if (br) {
+			break;
+		}
+	}
 
 
 	return ret;
 }
 
 
-bool uv_w25q128_write_sync(uv_w25q128_st *this,
-		int32_t address, void *src, uint32_t byte_count) {
+bool uv_w25q128_clear(uv_w25q128_st *this) {
 	bool ret = true;
 
+	while (is_busy(this)) {
+		uv_rtos_task_yield();
+	}
+	buffer[0] = CMD_WRITE_ENABLE;
+	uv_spi_write_sync(this->spi, this->ssel, (uint16_t*) buffer, 8, 1);
+
+	buffer[0] = CMD_CHIP_ERASE;
+	uv_spi_write_sync(this->spi, this->ssel, buffer, 8, 1);
 
 	return ret;
 }
 
+
+bool uv_w25q128_clear_sector_at(uv_w25q128_st *this, uint32_t address) {
+	bool ret = true;
+	while (is_busy(this)) {
+		uv_rtos_task_yield();
+	}
+
+
+	uint32_t sector = address / W25Q128_SECTOR_SIZE;
+	buffer[0] = CMD_WRITE_ENABLE;
+	uv_spi_write_sync(this->spi, this->ssel, (uint16_t*) buffer, 8, 1);
+
+	buffer[0] = CMD_SECTOR_ERASE_4KB;
+	buffer[1] = ((sector >> 16) & 0xFF);
+	buffer[2] = ((sector >> 8) & 0xFF);
+	buffer[3] = (sector & 0xFF);
+	uv_spi_write_sync(this->spi, this->ssel, buffer, 8, 4);
+
+
+	return ret;
+}
 
 
 
@@ -167,7 +292,7 @@ void uv_w25q128_step(uv_w25q128_st *this, uint16_t step_ms) {
 			else {
 				// not enough space, forget this file descriptor and link the list again
 				lastfd.next_addr = fd.next_addr;
-				uv_w25q128_write_sync(this, lastfd.this_addr, &lastfd, sizeof(lastfd));
+				uv_w25q128_write(this, lastfd.this_addr, &lastfd, sizeof(lastfd));
 				// request us to create a new fd
 				new_fd = true;
 			}
@@ -179,7 +304,7 @@ void uv_w25q128_step(uv_w25q128_st *this, uint16_t step_ms) {
 		if (new_fd) {
 			// new file descriptor was requested, lets create it
 			// loop trough the file descriptors and find a place where there's enough space
-			uv_w25q128_read_sync(this, 0, &fd, sizeof(fd));
+			uv_w25q128_read(this, 0, sizeof(fd), (uint8_t*) &fd);
 			lastfd = fd;
 			while (fd.next_addr != 0) {
 				uint32_t free_space = FREE_SPACE_TO_NEXT(fd);
@@ -187,14 +312,14 @@ void uv_w25q128_step(uv_w25q128_st *this, uint16_t step_ms) {
 					break;
 				}
 				lastfd = fd;
-				uv_w25q128_read_sync(this, 0, &fd, sizeof(fd));
+				uv_w25q128_read(this, 0, sizeof(fd), (uint8_t*) &fd);
 			}
 			// fd should now point to the previous file where we save the data
 			uv_fd_st new;
 			new.file_size = exmem_file_size;
 			new.next_addr = 0;
 			new.this_addr = fd.this_addr + FILE_SIZE(fd);
-			uv_w25q128_write_sync(this, new.this_addr, &new, sizeof(new));
+			uv_w25q128_write(this, new.this_addr, &new, sizeof(new));
 
 			// write the data here
 			write_file(&new);
@@ -208,7 +333,7 @@ void uv_w25q128_step(uv_w25q128_st *this, uint16_t step_ms) {
 		uv_fd_st fd;
 		memset(&fd, 0, sizeof(fd));
 		// clears the first file descriptor. Thus, the linked list of the fd's is cleared.
-		uv_w25q128_write_sync(this, 0, &fd, sizeof(fd));
+		uv_w25q128_write(this, 0, &fd, sizeof(fd));
 		exmem_clear_req = 0;
 		this->data_location = 0;
 	}

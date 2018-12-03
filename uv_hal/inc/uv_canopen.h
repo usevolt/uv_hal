@@ -206,8 +206,10 @@ should be enabled. Defaults to 0. Segmented parth takes roughly 1k4 bytes of fla
 #error "CONFIG_CANOPEN_TXPDO_COUNT not defined. It should define the maximum number of transmit\
  PDO's in this hardware."
 #endif
+#if !defined(CONFIG_CANOPEN_INITIALIZER)
 #if !defined(CONFIG_CANOPEN_PRODUCER_HEARTBEAT_TIME_MS)
 #error "CONFIG_CANOPEN_PRODUCER_HEARTBEAT_TIME_MS should define the producer heartbeat time in ms"
+#endif
 #endif
 #if !defined(CONFIG_CANOPEN_CHANNEL)
 #error "CONFIG_CANOPEN_CHANNEL should define the uv_can channel to be used for CANopen communication"
@@ -243,6 +245,7 @@ CONFIG_CANOPEN_EMCY_MSG_ID_x symbol should define the message ID, starting from 
 #error "CONFIG_CANOPEN_SDO_BLOCK_SIZE should define the size of SDO block transfers in bytes."
 #endif
 #endif
+
 
 
 

@@ -45,34 +45,45 @@ typedef struct {
 } uv_w25q128_st;
 
 #define W25Q128_SECTOR_SIZE			4096
+#define W25Q128_PAGE_SIZE			256
 
 /// @brief: Initializes the w25q128 memory module
-void uv_w25q128_init(uv_w25q128_st *this, spi_e spi, spi_slaves_e ssel);
+uv_errors_e uv_w25q128_init(uv_w25q128_st *this, spi_e spi, spi_slaves_e ssel);
 
 
 /// @brief: Reads **byte_count** bytes sychronously. The function returns when the
-/// read successes.
+/// read successes. The maximum number of bytes that can be read equals to w25q128 sector size
 ///
-/// @return: True if read succesfully, false otherwise
+/// @return: Pointer to the read memory location, or NULL if the reading failed
 ///
 /// @param address: The memory start address for the read command
-/// @param dest: Pointer to the data buffer where the read data is copied
 /// @param byte_count: Number of bytes to read. **dest** should be **byte_count** long.
-bool uv_w25q128_read_sync(uv_w25q128_st *this,
-		int32_t address, void *dest, uint32_t byte_count);
+/// @dest: Data destination address. This should be *byte_count* + 4 bytes long
+uint8_t *uv_w25q128_read(uv_w25q128_st *this,
+		int32_t address, int32_t byte_count, uint8_t *dest);
 
 
 /// @brief: Writes **byte_count** bytes sychronously to the memory module. The function
 /// return when the write successes.
 ///
-/// @return: True if wrote successfull, false otherwise
+/// @note: This function assumes that the memory are is untouched. That is, the memory
+/// should be cleared before writing.
+///
+/// @return: True if wrote successful, false otherwise
 ///
 /// @param address: The memory start address for the write command
 /// @param src: Pointer to the data buffer where the data is read
 /// @param byte_count: Number of bytes to write. **src** should be **byte_count** long.
-bool uv_w25q128_write_sync(uv_w25q128_st *this,
-		int32_t address, void *src, uint32_t byte_count);
+bool uv_w25q128_write(uv_w25q128_st *this,
+		uint32_t address, void *src, int32_t byte_count);
 
+
+/// @brief: Clears the whole memory of w25q128
+bool uv_w25q128_clear(uv_w25q128_st *this);
+
+
+/// @brief: Clears the sector where *address* belongs to
+bool uv_w25q128_clear_sector_at(uv_w25q128_st *this, uint32_t address);
 
 
 /// @brief: Flash memory step function. This takes care of the CANOpen communication
