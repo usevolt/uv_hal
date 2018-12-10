@@ -173,7 +173,7 @@ const canopen_object_st com_params[] = {
 				.sub_index = 0,
 				.type = CONFIG_CANOPEN_EXMEM_BLOCKSIZE_TYPE,
 				.permissions = CANOPEN_WO,
-				.data_ptr = &exmem_buffersize
+				.data_ptr = (void*) &exmem_blocksize
 		},
 		{
 				.main_index = CONFIG_CANOPEN_EXMEM_OFFSET_INDEX,
