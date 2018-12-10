@@ -52,7 +52,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 		x = uv_ui_get_xglobal(this);
 		y = uv_ui_get_yglobal(this) + uv_uibb(this)->height / 2 - CONFIG_UI_SLIDER_WIDTH / 2 -
-				((this->title) ? uv_ft81x_get_font_height(this->font->index) / 2 : 0);
+				((this->title) ? uv_ft81x_get_font_height(this->font) / 2 : 0);
 		w = uv_uibb(this)->width;
 		h = CONFIG_UI_SLIDER_WIDTH;
 		// handle relative position
@@ -88,7 +88,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 		if (this->show_value) {
 			char str[10];
 			itoa(this->cur_val, str, 10);
-			uv_ft81x_draw_string(str, this->font->index,
+			uv_ft81x_draw_string(str, this->font,
 					x + hx + CONFIG_UI_SLIDER_WIDTH / 2, y + (h / 2),
 					ALIGN_CENTER, this->text_c);
 		}
@@ -147,7 +147,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 		if (this->show_value) {
 			char str[10];
 			itoa(this->cur_val, str, 10);
-			uv_ft81x_draw_string(str, this->font->index,
+			uv_ft81x_draw_string(str, this->font,
 					x + (w / 2), y + hy + CONFIG_UI_SLIDER_WIDTH / 2,
 					ALIGN_CENTER, this->text_c);
 		}
@@ -158,7 +158,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	_uv_ui_draw_mtext(x + w / 2, y + h + 5, this->style->font, ALIGN_TOP_CENTER,
 			this->style->text_color, C(0xFFFFFFFF), this->title, 1.0f, pbb);
 #elif CONFIG_FT81X
-	uv_ft81x_draw_string(this->title, this->font->index, x + w / 2, y + h + 5,
+	uv_ft81x_draw_string(this->title, this->font, x + w / 2, y + h + 5,
 			ALIGN_TOP_CENTER, this->text_c);
 #endif
 

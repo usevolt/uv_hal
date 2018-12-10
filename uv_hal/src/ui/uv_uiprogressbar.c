@@ -136,7 +136,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	uv_ft81x_draw_rrect(x + 2, y + 2, barw - 4, barh - 4, CONFIG_UI_RADIUS, c);
 
 	if (this->title) {
-		uv_ft81x_draw_string(this->title, this->font->index,
+		uv_ft81x_draw_string(this->title, this->font,
 				x + w / 2, y + h, ALIGN_TOP_CENTER,
 				this->text_c);
 	}

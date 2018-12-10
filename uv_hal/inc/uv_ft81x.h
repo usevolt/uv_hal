@@ -20,6 +20,8 @@
 
 #include "uv_utilities.h"
 #include "uv_spi.h"
+#include "uv_w25q128.h"
+#include "ui/uv_uimedia.h"
 
 #if CONFIG_FT81X
 
@@ -109,39 +111,21 @@
 #define FT81X_PCLK_POL_FALLING	1
 
 
-typedef enum {
-	FONT_1 = 16,
-	FONT_2,
-	FONT_3,
-	FONT_4,
-	FONT_5,
-	FONT_6,
-	FONT_7,
-	FONT_8,
-	FONT_9,
-	FONT_10,
-	FONT_11,
-	FONT_12,
-	FONT_13,
-	FONT_14,
-	FONT_15,
-	FONT_16,
-	// note: The biggest fonts are not set to any bitmap handles,
-	// use anti-alised font handles instead
-	FONT_17 = FONT_1,
-	FONT_18 = FONT_2,
-	FONT_19 = FONT_3
-} ft81x_fonts_e;
+
 
 /// @brief: Wrapper for font data for UI library
 typedef struct {
 	uint16_t char_height;
+	// defines the font index. Index 26-34 are anti-aliased fonts which are supported by this library
 	uint8_t index;
+	// handle defines the bitmap handle to be used for this font
+	uint8_t handle;
 } ft81x_font_st;
-/// @brief: Fonts 17-19 are shortcuts to fonts 1-3, thats
-/// why they are not included in calculating the font count.
-#define FONT_COUNT						(FONT_16 - FONT_1 + 1)
-extern ft81x_font_st ft81x_fonts[FONT_COUNT];
+
+
+/// @brief: FT81x library supports only anti-aliased fonts with index 26 - 34
+#define FT81X_MAX_FONT_COUNT				9
+extern ft81x_font_st ft81x_fonts[FT81X_MAX_FONT_COUNT];
 
 
 typedef enum {
@@ -158,12 +142,15 @@ typedef enum {
 /// @brief: Width of the LCD in pixels
 #define LCD_W_PX		CONFIG_FT81X_HSIZE
 
+
 /// @brief: Height of the LCD in pixels
 #define LCD_H_PX		CONFIG_FT81X_VSIZE
+
 
 /// @brief: Converts from relative 0.0f - 1.0f width to actual pixel width
 #define LCD_W(rel_w)	(LCD_W_PX * (rel_w))
 #define LCD_WPPT(w_ppt) (LCD_W_PX * w_ppt / 1000)
+
 
 /// @brief: Converts from relative 0.0f - 1.0f height to actual pixel height
 #define LCD_H(rel_h)	(LCD_H_PX * (rel_h))
@@ -202,12 +189,13 @@ typedef struct {
 
 
 /// @brief: Bitmap formats for custom fonts
-typedef enum {
+enum {
 	BITMAP_FORMAT_L1 = 0,
 	BITMAP_FORMAT_L4 = 2,
-	BITMAP_FORMAT_L8 = 3
-} _bitmap_format_e;
-typedef _bitmap_format_e bitmap_format_e;
+	BITMAP_FORMAT_L8 = 3,
+	BITMAP_FORMAT_RGB565 = 7
+};
+typedef uint8_t bitmap_format_e;
 
 
 
@@ -220,6 +208,21 @@ typedef struct {
 	uint32_t font_height;
 	void *data_ptr;
 } uv_fontmetric_st;
+
+
+/// @brief: The maximum size of a single graphic bitmap
+#define FT81X_GRAPHIC_RAM_MAX_SIZE		(0x100000)
+#define FT81X_PREPROCESSOR_SIZE			4096
+
+
+#define FT81X_CMD_LOADIMAGE_HEADER_LEN			3
+/// @brief: Defines the maximum size of an jpg or png image which can be loaded
+#define FT81X_IMAGE_MAX_LEN						(FT81X_PREPROCESSOR_SIZE - FT81X_CMD_LOADIMAGE_HEADER_LEN - 4)
+
+
+/// @brief: Extern declaration of the memory buffer for loading bitmaps.
+/// This buffer can be used for other purposes.
+extern volatile uint8_t ft81x_buffer[FT81X_PREPROCESSOR_SIZE];
 
 
 
@@ -252,6 +255,38 @@ void uv_ft81x_clear(color_t c);
 
 /// @brief: Returns the maximum display list RAM usage
 uint32_t uv_ft81x_get_ramdl_usage(void);
+
+
+
+
+/// @brief: Loads and decompresses a jpg image to the media RAM of FT81x from external memory module.
+///The maximum size of the loadable file is 4 kB (4096 bytes), as the FT81x co-processor FIFO is 4 kB long.
+///
+/// @return: The number of bytes that the jpg image took from the memory. Since
+/// the image is decompressed, the returned value is larger than the downloaded value.
+/// In case of error, 0 is returned.
+///
+/// @param dest_addr: The destination address where the data is loaded in FT81X memory
+/// @param exmem: The external non-volatile memory module to be used for data download
+/// @param filename: The filename of the image. The file should be found from *exmem*.
+uint32_t uv_ft81x_loadjpgexmem(uv_uimedia_st *bitmap,
+		uint32_t dest_addr, uv_w25q128_st *exmem, char *filename);
+
+
+
+/// @brief: Extended function to draw bitmaps
+void uv_ft81x_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
+		int16_t w, int16_t h, uint32_t wrap, color_t c);
+
+
+/// @brief: Draws the bitmap in (*x*, *y*) location aligning it by *align*
+/// stored in memory at address *addr*
+///
+/// @param align: Specifies which part of the image is located on (*x*, *y*) coordinates
+/// @param c: Blend color. If the bitmap should be drawn withouth any blend color, give C(0xFFFFFFFF)
+static inline void uv_ft81x_draw_bitmap(uv_uimedia_st *bitmap, int16_t x, int16_t y) {
+	uv_ft81x_draw_bitmap_ext(bitmap, x, y, bitmap->width, bitmap->height, 0, C(0xFFFFFFFF));
+}
 
 
 /// @brief: Draws a filled circle to the screen
@@ -328,16 +363,19 @@ void uv_ft81x_draw_char(const char c, const uint16_t font, int16_t x, int16_t y,
 
 
 /// @brief: uses the FT81X co-processor to draw a text string to the display.
-void uv_ft81x_draw_string(char *str, const ft81x_fonts_e font,
+void uv_ft81x_draw_string(char *str, ft81x_font_st *font,
 		int16_t x, int16_t y, ft81x_align_e align, color_t color);
 
 
 /// @brief: Returns the font height in pixels
-uint8_t uv_ft81x_get_font_height(const ft81x_fonts_e font);
+static inline uint8_t uv_ft81x_get_font_height(ft81x_font_st *font) {
+	return font->char_height;
+}
 
 
 /// @brief: Sets the drawing mask which masks all drawing functions to the masked area
 void uv_ft81x_set_mask(int16_t x, int16_t y, uint16_t width, uint16_t height);
+
 
 #endif
 

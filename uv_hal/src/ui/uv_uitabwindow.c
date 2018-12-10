@@ -64,7 +64,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 					CONFIG_UI_RADIUS, ((uv_uiwindow_st*) this)->bg_c,
 					uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, 30),
 					uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, -30));
-			uv_ft81x_draw_string((char*) this->tab_names[i], this->font->index,
+			uv_ft81x_draw_string((char*) this->tab_names[i], this->font,
 					x + x, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, ALIGN_CENTER_LEFT,
 					this->text_c);
 #endif
@@ -105,7 +105,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 			uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, 30),
 			uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, -30));
 	uv_ft81x_draw_string((char*) this->tab_names[this->active_tab],
-			this->font->index, active_tab_x + 5,
+			this->font, active_tab_x + 5,
 			y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, ALIGN_CENTER_LEFT,
 			this->text_c);
 

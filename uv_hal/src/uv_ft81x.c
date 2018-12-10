@@ -20,6 +20,8 @@
 #include "uv_ft81x.h"
 #include "uv_gpio.h"
 #include "uv_rtos.h"
+#include "uv_w25q128.h"
+#include "ui/uv_uifont.h"
 #include <string.h>
 
 
@@ -244,14 +246,17 @@ typedef enum {
 #define STENCIL_OP_DECR					4
 #define STENCIL_OP_INVERT				5
 
+#define OPT_RGB565						0
+#define OPT_MONO						1
+#define OPT_NODL						2
 
 #define ALPHA_FUNC(func,ref) 								((0x9 << 24) | ((func) << 8) | (ref))
 #define BEGIN(prim)											((0x1F << 24) | (prim))
 #define BITMAP_HANDLE(handle) 								((0x5 << 24) | (handle))
-#define BITMAP_LAYOUT(format, linestride, height)			((0x7 << 24) | ((fomat) << 19) | ((linestride) << 9) | (height))
 #define BITMAP_LAYOUT_H(linestride, height) 				((0x28 << 24) | ((linestride) << 2) | (height))
-#define BITMAP_SIZE(filter, wrapx, wrapy, width, height)	((0x8 << 24) | ((filter) << 20) | ((wrapx) << 19) | ((wrapy) << 18) | ((width) << 9) | (height))
-#define BITMAP_SIZE_H(qidth, height)						((0x29 << 24) | ((width) << 2) | (height))
+#define BITMAP_LAYOUT(format, linestride, height)			((0x7 << 24) | ((format) << 19) | ((linestride & 1023) << 9) | (height & 511))
+#define BITMAP_SIZE(filter, wrapx, wrapy, width, height)	((0x8 << 24) | ((filter) << 20) | ((wrapx) << 19) | ((wrapy) << 18) | ((width & 511) << 9) | (height & 511))
+#define BITMAP_SIZE_H(width, height)						((0x29 << 24) | ((width) << 2) | (height))
 #define BITMAP_SOURCE(addr)									((0x1 << 24) | (addr))
 #define BITMAP_TRANSFORM_A(a)								((0x15 << 24) | (a))
 #define BITMAP_TRANSFORM_B(b)								((0x16 << 24) | (b))
@@ -387,7 +392,7 @@ static void set_font(const uint8_t font);
 static void set_cell(const uint8_t cell);
 static void cmd_wait(void);
 static void cmd_romfont(uint8_t bitmap_handle, uint8_t font_number);
-void draw_line(char *str, const ft81x_fonts_e font,
+static void draw_line(char *str, ft81x_font_st *font,
 		int16_t x, int16_t y, ft81x_align_e align, color_t color, uint16_t len);
 bool visible(const int16_t x, const int16_t y, const int16_t w, const int16_t height);
 
@@ -432,13 +437,27 @@ typedef struct {
 		int16_t width;
 		int16_t height;
 	} mask;
+
 } uv_ft81x_st;
 
-ft81x_font_st ft81x_fonts[FONT_COUNT];
+ft81x_font_st ft81x_fonts[FT81X_MAX_FONT_COUNT];
+
+/// @brief: Buffer for loading the images. Resides in RAM3
+__attribute__((section (".data.$RAM3"))) volatile uint8_t ft81x_buffer[FT81X_PREPROCESSOR_SIZE];
 
 uv_ft81x_st ft81x;
 #define this (&ft81x)
 
+/// @brief: Defines the bitmap handle start for graphics
+#define GRAPHIC_HANDLE			0
+/// @brief: Defines the number of handles used for graphics
+#define GRAPHIC_HANDLE_COUNT	FONT_HANDLE
+/// @brief: defines the bitmap handle for the first font. All handles bigger than this
+/// are reserved for fonts
+#define FONT_HANDLE				(30 - FT81X_MAX_FONT_COUNT)
+#define FONT_HANDLE_DISABLED	UIBITMAP_DISABLED
+/// @brief: Scratch handle for ft81x pre-processor
+#define SCRATCH_HANDLE			31
 
 
 static void init_values(void) {
@@ -516,28 +535,22 @@ bool uv_ft81x_init(void) {
 		write8(REG_GPIO_DIR, 0x80  | read8(REG_GPIO_DIR));
 		write8(REG_GPIO, 0x80 | read8(REG_GPIO));
 
-		// initialize ROM fonts 32-34
-		cmd_romfont(FONT_17, 32);
-		cmd_romfont(FONT_18, 33);
-		cmd_romfont(FONT_19, 34);
-
 		uv_ft81x_dlswap();
 
-		// download font height data for 3 biggest fonts, mapped to
-		// FONT_1, FONT_2, FONT_3
-		for (uint8_t i = 0; i < 3; i++) {
-			ft81x_fonts[i].index = i + FONT_1;
-			ft81x_fonts[i].char_height = read32(FONT_METRICS_BASE_ADDR +
-					(16 + i) * FONT_METRICS_FONT_LEN +
-					FONT_METRICS_FONT_HEIGHT_OFFSET);
-			DEBUG("Font %u height: %u\n", i, ft81x_fonts[i].char_height);
-		}
+
+
 		// download font height data for normal fonts
-		for (int i = 3; i < FONT_COUNT; i++) {
-			ft81x_fonts[i].index = i + FONT_1;
+		// Note: This modifies the bitmap handles to contain handles only to anti-aliased
+		// fonts. This was made when implementing the bitmap drawing, but
+		// was later noticed to be useless.
+		for (int32_t i = 0; i < FT81X_MAX_FONT_COUNT; i++) {
+			// we support only anti-aliased fonts starting from font index 26
+			ft81x_fonts[i].index = 26 + i;
 			ft81x_fonts[i].char_height = read32(FONT_METRICS_BASE_ADDR +
-					i * FONT_METRICS_FONT_LEN +
+					(10 + i) * FONT_METRICS_FONT_LEN +
 					FONT_METRICS_FONT_HEIGHT_OFFSET);
+			ft81x_fonts[i].handle = FONT_HANDLE + i;
+			cmd_romfont(ft81x_fonts[i].handle, ft81x_fonts[i].index);
 			DEBUG("Font %u height: %u\n", i, ft81x_fonts[i].char_height);
 		}
 
@@ -761,6 +774,7 @@ static void cmd_wait(void) {
 	DEBUG("Waiting for the co-processor to finish... ");
 	uint16_t cmdread = read16(REG_CMD_READ);
 	uint16_t cmdwrite = read16(REG_CMD_WRITE);
+
 	while (cmdread != cmdwrite) {
 		cmdread = read16(REG_CMD_READ);
 		cmdwrite = read16(REG_CMD_WRITE);
@@ -795,7 +809,7 @@ static void cmd_romfont(uint8_t bitmap_handle, uint8_t font_number) {
 }
 
 
-void draw_line(char *str, const ft81x_fonts_e font,
+static void draw_line(char *str, ft81x_font_st *font,
 		int16_t x, int16_t y, ft81x_align_e align, color_t color, uint16_t len) {
 	set_color(color);
 
@@ -808,7 +822,7 @@ void draw_line(char *str, const ft81x_fonts_e font,
 	*((uint32_t*) &buf[0]) = CMD_TEXT;
 	buf[2] = x;
 	buf[3] = y;
-	buf[4] = font;
+	buf[4] = font->handle;
 	buf[5] = align;
 	writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char*) buf, DRAW_LINE_BUF_LEN * 2);
 	this->cmdwriteaddr = (this->cmdwriteaddr + DRAW_LINE_BUF_LEN * 2) % RAMCMD_SIZE;
@@ -929,6 +943,155 @@ uint32_t uv_ft81x_get_ramdl_usage(void) {
 
 
 
+
+
+uint32_t uv_ft81x_loadjpgexmem(uv_uimedia_st *bitmap,
+		uint32_t dest_addr, uv_w25q128_st *exmem, char *filename) {
+	uint8_t cmd_header_len_bytes = 12;
+	uint32_t size = uv_exmem_read(exmem, filename,
+			(void*) &ft81x_buffer[cmd_header_len_bytes], FT81X_IMAGE_MAX_LEN);
+
+	bitmap->addr = dest_addr;
+	bitmap->type = UV_UIMEDIA_IMAGE;
+	bitmap->filename = filename;
+
+	if (size) {
+		// set the RAMDL offset where co-processor writes the DL entries
+		write16(REG_CMD_DL, this->dl_index);
+
+		printf("Loading a %i kB bitmap to ft81x memory\n", size);
+
+		// create bitmap structure, based on communication manual data
+		*((uint32_t*) &ft81x_buffer[0]) = CMD_LOADIMAGE;
+		*((uint32_t*) &ft81x_buffer[4]) = bitmap->addr;
+		*((uint32_t*) &ft81x_buffer[8]) = OPT_NODL;
+		uint32_t len = (size + cmd_header_len_bytes) + ((size + cmd_header_len_bytes) % 4);
+		writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char*) ft81x_buffer, len);
+
+		// increase cmdwriteaddr by the length of this command
+		this->cmdwriteaddr = (this->cmdwriteaddr + len) % RAMCMD_SIZE;
+
+		write16(REG_CMD_WRITE, this->cmdwriteaddr);
+
+		// wait for the co-processor to finish
+		// and update current dl_index
+		cmd_wait();
+		this->dl_index = read16(REG_CMD_DL);
+
+
+
+		// lastly check the size of the image and return that
+		cmd_header_len_bytes = 16;
+		memset((void*) ft81x_buffer, 0, cmd_header_len_bytes);
+		*((uint32_t*) &ft81x_buffer[0]) = CMD_GETPROPS;
+		writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char*) ft81x_buffer, cmd_header_len_bytes);
+		// increase cmdwriteaddr by the length of this command
+		this->cmdwriteaddr = (this->cmdwriteaddr + len) % RAMCMD_SIZE;
+		// execute the command
+		write16(REG_CMD_WRITE, this->cmdwriteaddr);
+
+		// wait for the co-processor to finish
+		// and update current dl_index
+		cmd_wait();
+		this->dl_index = read16(REG_CMD_DL);
+
+		// read bitmap width and height
+		bitmap->width = *((uint32_t*) &ft81x_buffer[8]);
+		bitmap->height = *((uint32_t*) &ft81x_buffer[12]);
+
+		// if any dimensions are null, something has happened and image loading failed
+		if (!bitmap->width || !bitmap->height) {
+			size = 0;
+		}
+		else {
+			// calculate the size of the image
+			// each pixel takes 2 bytes, since the image is in RGB565 format
+			bitmap->size = bitmap->width * bitmap->height * 2;
+		}
+
+	}
+
+	return size;
+}
+
+
+
+void uv_ft81x_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
+		int16_t w, int16_t h, uint32_t wrap, color_t c) {
+
+	if (visible(x, y, bitmap->width, bitmap->height)) {
+
+		// set the blend color
+		set_color(c);
+
+//		// set the RAMDL offset where co-processor writes the DL entries
+//		write16(REG_CMD_DL, this->dl_index);
+//
+//		// create bitmap structure, based on communication manual data
+//		*((uint32_t*) &buf[0]) = CMD_MEMSET;
+//		*((uint32_t*) &buf[4]) = bitmap->addr;
+//		*((uint32_t*) &buf[8]) = 0x50;
+//		*((uint32_t*) &buf[12]) = bitmap->width * bitmap->height;
+//		writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char*) buf, 16);
+//
+//		// increase cmdwriteaddr by the length of this command
+//		this->cmdwriteaddr = (this->cmdwriteaddr + 16) % RAMCMD_SIZE;
+//
+//		write16(REG_CMD_WRITE, this->cmdwriteaddr);
+//
+//		// wait for the co-processor to finish
+//		// and update current dl_index
+//		cmd_wait();
+//		this->dl_index = read16(REG_CMD_DL);
+
+
+
+		// set the RAMDL offset where co-processor writes the DL entries
+		write16(REG_CMD_DL, this->dl_index);
+
+		// create bitmap structure, based on communication manual data
+		*((uint32_t*) &ft81x_buffer[0]) = CMD_SETFONT;
+		*((uint32_t*) &ft81x_buffer[4]) = 0;
+		*((uint32_t*) &ft81x_buffer[8]) = bitmap->addr;
+		writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char*) ft81x_buffer, 12);
+
+		// increase cmdwriteaddr by the length of this command
+		this->cmdwriteaddr = (this->cmdwriteaddr + 12) % RAMCMD_SIZE;
+
+		write16(REG_CMD_WRITE, this->cmdwriteaddr);
+
+		// wait for the co-processor to finish
+		// and update current dl_index
+		cmd_wait();
+		this->dl_index = read16(REG_CMD_DL);
+
+
+
+
+
+
+		uint32_t linestride = bitmap->width * 2;
+		writedl(BITMAP_HANDLE(0));
+		writedl(BITMAP_SOURCE(bitmap->addr));
+		writedl(BITMAP_LAYOUT(BITMAP_FORMAT_RGB565, linestride, bitmap->height));
+		if ((linestride >= 1024) ||
+				(bitmap->height >= 512)) {
+			writedl(BITMAP_LAYOUT_H(linestride / 1024, bitmap->height / 512));
+		}
+		writedl(BITMAP_SIZE(BITMAP_SIZE_FILTER_NEAREST, wrap,
+				wrap, w, h));
+		if ((w >= 512) || (h >= 512)) {
+			writedl(BITMAP_SIZE_H(w / 512, h / 512));
+		}
+		writedl(BEGIN(BEGIN_BITMAPS));
+		writedl(VERTEX2II(x, y, 0, 0));
+
+	}
+}
+
+
+
+
 void uv_ft81x_draw_point(int16_t x, int16_t y, color_t color, uint16_t diameter) {
 	if (visible(x - diameter / 2, y - diameter / 2, diameter, diameter)) {
 		set_color(color);
@@ -1004,7 +1167,7 @@ void uv_ft81x_touchscreen_calibrate(ft81x_transfmat_st *transform_matrix) {
 	uv_ft81x_dlswap();
 	uv_ft81x_set_mask(0, 0, LCD_W_PX, LCD_H_PX);
 	uv_ft81x_clear(C(0xFF002040));
-	uv_ft81x_draw_string("Calibrate the touchscreen\nby touching the flashing points", FONT_13,
+	uv_ft81x_draw_string("Calibrate the touchscreen\nby touching the flashing points", &font28,
 			LCD_W(0.5f), LCD_H(0.1f), FT81X_ALIGN_CENTER_TOP, C(0xFFFFFFFF));
 	write16(REG_CMD_DL, this->dl_index);
 
@@ -1100,7 +1263,7 @@ void uv_ft81x_draw_char(const char c, const uint16_t font,
 
 
 
-void uv_ft81x_draw_string(char *str, const ft81x_fonts_e font,
+void uv_ft81x_draw_string(char *str, ft81x_font_st *font,
 		int16_t x, int16_t y, ft81x_align_e align, color_t color) {
 	char *str_ptr = str;
 	int16_t len = 0;
@@ -1140,10 +1303,6 @@ void uv_ft81x_draw_string(char *str, const ft81x_fonts_e font,
 
 }
 
-
-uint8_t uv_ft81x_get_font_height(const ft81x_fonts_e font) {
-	return ft81x_fonts[font - FONT_1].char_height;
-}
 
 
 

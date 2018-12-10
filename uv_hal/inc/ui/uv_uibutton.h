@@ -46,7 +46,7 @@ typedef struct {
 	char *text;
 	color_t main_c;
 	color_t text_c;
-	const uv_font_st *font;
+	uv_font_st *font;
 
 } uv_uibutton_st;
 

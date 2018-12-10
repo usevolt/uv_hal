@@ -36,7 +36,7 @@ struct _uv_uitreeobject_st {
 	void (*show_callb)(uv_uitreeobject_st *me_ptr);
 
 	color_t text_c;
-	const uv_font_st *font;
+	uv_font_st *font;
 };
 
 

@@ -58,7 +58,7 @@ static inline void draw(void *me, const uv_bounding_box_st *pbb) {
 #elif CONFIG_FT81X
 	uv_ft81x_draw_shadowrrect(x, y, w, h, CONFIG_UI_RADIUS,
 			 bgc, lightc, shadowc);
-	uv_ft81x_draw_string(this->text, this->font->index, x + w / 2,
+	uv_ft81x_draw_string(this->text, this->font, x + w / 2,
 			y + h / 2, ALIGN_CENTER, fontc);
 #endif
 }

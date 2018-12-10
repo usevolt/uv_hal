@@ -70,7 +70,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 #elif CONFIG_FT81X
 			uv_ft81x_draw_shadowrrect(x, y, uv_uibb(this)->width, entry_height, CONFIG_UI_RADIUS,
 					this->style->inactive_bg_c, this->style->highlight_c, this->style->shadow_c);
-			uv_ft81x_draw_string(*((char**) uv_vector_at(&this->entries, i)), this->style->font->index,
+			uv_ft81x_draw_string(*((char**) uv_vector_at(&this->entries, i)), this->style->font,
 					x + uv_uibb(this)->width / 2, y + entry_height / 2, ALIGN_CENTER,
 					this->style->inactive_font_c);
 #endif
@@ -93,7 +93,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 		uv_ft81x_draw_shadowrrect(x, sely, uv_uibb(this)->width, entry_height, CONFIG_UI_RADIUS,
 				this->style->active_bg_c, this->style->highlight_c, this->style->shadow_c);
 		uv_ft81x_draw_string(*((char**) uv_vector_at(&this->entries, this->selected_index)),
-				this->style->font->index, x + uv_uibb(this)->width / 2, sely + entry_height / 2,
+				this->style->font, x + uv_uibb(this)->width / 2, sely + entry_height / 2,
 				ALIGN_CENTER, this->style->active_font_c);
 #endif
 	}

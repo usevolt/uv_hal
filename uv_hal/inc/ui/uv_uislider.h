@@ -52,7 +52,7 @@ typedef struct {
 	void (*callb)(void *me, int16_t value);
 
 	color_t text_c;
-	const uv_font_st *font;
+	uv_font_st *font;
 	color_t handle_c;
 	color_t bg_c;
 } uv_uislider_st;

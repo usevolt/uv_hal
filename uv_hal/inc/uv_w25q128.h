@@ -45,7 +45,9 @@ typedef struct {
 } uv_w25q128_st;
 
 #define W25Q128_SECTOR_SIZE			4096
+#define W25Q128_SECTOR_COUNT		(W25Q128_PAGE_COUNT / 16)
 #define W25Q128_PAGE_SIZE			256
+#define W25Q128_PAGE_COUNT			65536
 
 /// @brief: Initializes the w25q128 memory module
 uv_errors_e uv_w25q128_init(uv_w25q128_st *this, spi_e spi, spi_slaves_e ssel);
@@ -59,8 +61,8 @@ uv_errors_e uv_w25q128_init(uv_w25q128_st *this, spi_e spi, spi_slaves_e ssel);
 /// @param address: The memory start address for the read command
 /// @param byte_count: Number of bytes to read. **dest** should be **byte_count** long.
 /// @dest: Data destination address. This should be *byte_count* + 4 bytes long
-uint8_t *uv_w25q128_read(uv_w25q128_st *this,
-		int32_t address, int32_t byte_count, uint8_t *dest);
+void *uv_w25q128_read(uv_w25q128_st *this,
+		int32_t address, int32_t byte_count, void *dest);
 
 
 /// @brief: Writes **byte_count** bytes sychronously to the memory module. The function
@@ -93,36 +95,56 @@ void uv_w25q128_step(uv_w25q128_st *this, uint16_t step_ms);
 /* External memory CAN interface */
 
 
+/// @brief: Null file address, which represents that there is no file
+#define EXMEM_NULL_ADDR		0xFFFFFFFF
+
 /// @brief: External memory file descriptor data structure.
+/// The filename is stored right after the fd, before the actual file
 typedef struct {
 	// Address of this file descriptor
-	uint32_t this_addr;
+	uint32_t data_addr;
 	// size of the file in bytes, excluding the filename
 	uint32_t file_size;
-	// Since files are stored as a linked list, this holds the location of the next file
-	uint32_t next_addr;
+	char filename[EXMEM_FILENAME_LEN];
 } uv_fd_st;
 
 
-/// @brief: Buffer holding the data
+/// @brief: Buffer holding the data to be written when *exmem_write_req* is set to true.
 extern uint8_t exmem_data_buffer[CONFIG_EXMEM_BUFFER_SIZE];
 
 /// @brief: Buffer holding the file name
 extern char exmem_filename_buffer[EXMEM_FILENAME_LEN];
 
-/// @brief: Contains the file size in bytes. File is determined with *exmem_filename_buffer*
+/// @brief: Contains the total file size. This should be written prior to settings *exmem_write_req*
 extern uint32_t exmem_file_size;
 
+/// @brief: Contains the offset of data from start of the file, where the new data is written with *exmem_write_req*
+extern uint32_t exmem_data_offset;
+
 /// @brief: Write request. This should be written with
-/// the byte count of data to be written. The data should be stored in
-/// *exmem_data_buffer* and filename and size should be written to *exmem_filename_buffer* and
+/// the count fo data to be written. The data should be stored in
+/// *exmem_data_buffer* and filename and downloadable size should be written to *exmem_filename_buffer* and
 /// *exmem_file_size* prior to setting this.
-extern uint32_t exmem_write_req;
+///
+/// @example: When downloading bigger files than which fit to data buffer, first time
+/// 0 should be written to this, and the next calls should download new data to data buffer and
+/// write this with bigger values, until the whole file has been transferred.
+extern int32_t exmem_write_req;
 
 
 /// @brief: Memory clear request.
 /// Setting this to nonzero value removes all files from the external memory
 extern uint8_t exmem_clear_req;
+
+
+/// @brief: Reads a file from external memory.
+///
+/// @return The number of bytes read from the memory. On success, it should match the file size
+///
+/// @param filename: The path and the name to the file which will be read
+/// @param dest: The destination memory address where the file is read
+/// @param max_len: The maximum length of the destination buffer. Maximum of this count is read.
+uint32_t uv_exmem_read(uv_w25q128_st *this, char *filename, void *dest, uint32_t max_len);
 
 #endif
 

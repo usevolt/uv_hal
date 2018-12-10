@@ -39,7 +39,7 @@ typedef struct {
 	color_t inactive_font_c;
 	color_t window_c;
 	color_t display_c;
-	const uv_font_st *font;
+	uv_font_st *font;
 	color_t text_color;
 	color_t shadow_c;
 	color_t highlight_c;
