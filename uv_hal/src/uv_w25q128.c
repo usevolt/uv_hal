@@ -232,6 +232,7 @@ bool uv_w25q128_clear_sector_at(uv_w25q128_st *this, uint32_t address) {
 
 
 uint8_t exmem_data_buffer[CONFIG_EXMEM_BUFFER_SIZE];
+const uint32_t exmem_blocksize = CONFIG_EXMEM_BUFFER_SIZE;
 char exmem_filename_buffer[EXMEM_FILENAME_LEN];
 uint32_t exmem_data_offset = 0;
 uint32_t exmem_file_size = 0;

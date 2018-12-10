@@ -12,6 +12,7 @@
 #include <uv_hal_config.h>
 #include <uv_utilities.h>
 
+#if CONFIG_UI
 
 #include "uv_ft81x.h"
 
@@ -35,4 +36,9 @@ typedef ft81x_font_st uv_font_st;
 #define font83	ft81x_fonts[7]
 #define font108	ft81x_fonts[8]
 
+
+#endif
+
 #endif /* UV_HAL_INC_UI_UV_UIFONT_H_ */
+
+

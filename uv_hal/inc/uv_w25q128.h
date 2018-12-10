@@ -112,6 +112,9 @@ typedef struct {
 /// @brief: Buffer holding the data to be written when *exmem_write_req* is set to true.
 extern uint8_t exmem_data_buffer[CONFIG_EXMEM_BUFFER_SIZE];
 
+/// @brief: Same as CONFIG_EXMEM_BUFFER_SIZE
+extern const uint32_t exmem_blocksize;
+
 /// @brief: Buffer holding the file name
 extern char exmem_filename_buffer[EXMEM_FILENAME_LEN];
 
