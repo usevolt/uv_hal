@@ -172,7 +172,7 @@ const canopen_object_st com_params[] = {
 				.main_index = CONFIG_CANOPEN_EXMEM_BLOCKSIZE_INDEX,
 				.sub_index = 0,
 				.type = CONFIG_CANOPEN_EXMEM_BLOCKSIZE_TYPE,
-				.permissions = CANOPEN_WO,
+				.permissions = CANOPEN_RO,
 				.data_ptr = (void*) &exmem_blocksize
 		},
 		{
@@ -201,14 +201,14 @@ const canopen_object_st com_params[] = {
 				.main_index = CONFIG_CANOPEN_EXMEM_WRITEREQ_INDEX,
 				.sub_index = 0,
 				.type = CONFIG_CANOPEN_EXMEM_WRITEREQ_TYPE,
-				.permissions = CANOPEN_WO,
+				.permissions = CANOPEN_RW,
 				.data_ptr = &exmem_write_req
 		},
 		{
 				.main_index = CONFIG_CANOPEN_EXMEM_CLEARREQ_INDEX,
 				.sub_index = 0,
 				.type = CONFIG_CANOPEN_EXMEM_CLEARREQ_TYPE,
-				.permissions = CANOPEN_WO,
+				.permissions = CANOPEN_RW,
 				.data_ptr = &exmem_clear_req
 		},
 #endif
