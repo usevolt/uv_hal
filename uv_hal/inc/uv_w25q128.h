@@ -159,7 +159,14 @@ extern uint8_t exmem_clear_req;
 /// @param offset: The offset byte count from the start of the file where the bytes are read.
 /// This can be used if the file was bigger than the memory buffer available, by using multiple calls
 /// to this function and incrementing the offset by the amount of *max_len*.
-uint32_t uv_exmem_read(uv_w25q128_st *this, char *filename, void *dest, uint32_t max_len, uint32_t offset);
+uint32_t uv_exmem_read(uv_w25q128_st *this, char *filename,
+		void *dest, uint32_t max_len, uint32_t offset);
+
+
+/// @brief: Reads a file from a previously fetched file descriptor *fd*. Otherwise functions
+/// just like *uv_exmem_read*.
+uint32_t uv_exmem_read_fd(uv_w25q128_st *this, uv_fd_st *fd,
+		void *dest, uint32_t max_len, uint32_t offset);
 
 
 /// @brief: Tries to find a file specified with *filename* from the external memory and if found,

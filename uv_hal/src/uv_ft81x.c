@@ -175,7 +175,9 @@ typedef enum {
 	REG_TOUCH_DIRECT_Z1Z2 		= 0x302190,
 	REG_DATESTAMP 				= 0x302564,
 	REG_CMDB_SPACE 				= 0x302574,
-	REG_CMDB_WRITE 				= 0x302578
+	REG_CMDB_WRITE 				= 0x302578,
+	REG_MEDIAFIFO_READ			= 0x309014,
+	REG_MEDIAFIFO_WRITE			= 0x309018
 } ft81x_reg_e;
 
 
@@ -249,6 +251,7 @@ typedef enum {
 #define OPT_RGB565						0
 #define OPT_MONO						1
 #define OPT_NODL						2
+#define OPT_MEDIAFIFO					16
 
 #define ALPHA_FUNC(func,ref) 								((0x9 << 24) | ((func) << 8) | (ref))
 #define BEGIN(prim)											((0x1F << 24) | (prim))
@@ -795,6 +798,7 @@ static bool cmd_wait(void) {
 	while (cmdread != cmdwrite) {
 		if (cmdread == 0xFFF) {
 			// fault. Recover from it and return error code
+			printf("co-processor fault!!\n");
 			write8(REG_CPURESET, 1);
 			write16(REG_CMD_READ, this->cmdwriteaddr);
 			write16(REG_CMD_WRITE, this->cmdwriteaddr);
@@ -977,39 +981,84 @@ uint32_t uv_ft81x_loadjpgexmem(uv_uimedia_st *bitmap,
 	uint8_t cmd_header_len_bytes = 12;
 	uint32_t buffer[LOAD_BUFFER_LEN / 4 + cmd_header_len_bytes / 4];
 	uint32_t offset = 0;
-	uint32_t size = uv_exmem_read(exmem, filename,
-			(void*) &buffer[cmd_header_len_bytes / 4], LOAD_BUFFER_LEN, offset);
+	uv_fd_st fd;
+	uint32_t size = 0;
+	bool found = uv_exmem_find(exmem, filename, &fd);
 
 	bitmap->addr = dest_addr;
 	bitmap->type = UV_UIMEDIA_IMAGE;
 	bitmap->filename = filename;
 
-	if (size) {
+	// CONFIG_FT81X_MEDIA_MAXSIZE specifies the maximum media size available
+	if (found && fd.file_size <= CONFIG_FT81X_MEDIA_MAXSIZE) {
 		// set the RAMDL offset where co-processor writes the DL entries
 		write16(REG_CMD_DL, this->dl_index);
+
+//		// setup a mediafifo
+//		buffer[0] = CMD_MEDIAFIFO;
+//		buffer[1] = FT81X_MEDIAFIFO_ADDR;
+//		buffer[2] = CONFIG_FT81X_MEDIA_MAXSIZE;
+//		writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char*) buffer, NULL, 12);
+//		this->cmdwriteaddr = (this->cmdwriteaddr + 12) % RAMCMD_SIZE;
+//		// start the co-processor
+//		write16(REG_CMD_WRITE, this->cmdwriteaddr);
+//		// wait for the co-processor to finish
+//		cmd_wait();
+//		write32(REG_MEDIAFIFO_WRITE, FT81X_MEDIAFIFO_ADDR);
+//		write32(REG_MEDIAFIFO_READ, FT81X_MEDIAFIFO_ADDR);
+//
+//		printf("read: 0x%x, write: 0x%x\n", read32(REG_MEDIAFIFO_READ), read32(REG_MEDIAFIFO_WRITE));
+//
+//		// download the bitmap to mediafifo
+//		size = uv_exmem_read_fd(exmem, &fd,
+//				(void*) buffer, LOAD_BUFFER_LEN, offset);
+//
+//		do {
+//			writestr(FT81X_MEDIAFIFO_ADDR + offset, (const char *) buffer, NULL, size);
+//			offset += size;
+//			size = uv_exmem_read_fd(exmem, &fd,
+//					buffer, LOAD_BUFFER_LEN, offset);
+//		}
+//		while (size != 0);
+//		// last, align memory to 4 bytes border
+//		if (offset % 4) {
+//			memset(buffer, 0, offset % 4);
+//			writestr(FT81X_MEDIAFIFO_ADDR + offset,
+//					(const char *) buffer, NULL, offset % 4);
+//			offset += offset % 4;
+//		}
+//		// update mediafifo write register
+//		write32(REG_MEDIAFIFO_WRITE, FT81X_MEDIAFIFO_ADDR + offset);
+//
+//		// create bitmap structure, based on communication manual data
+//		buffer[0] = CMD_LOADIMAGE;
+//		buffer[1] = bitmap->addr;
+//		buffer[2] = OPT_NODL | OPT_MEDIAFIFO;
+//		uint32_t len = cmd_header_len_bytes;
+//		writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char*) buffer, NULL, len);
+//		this->cmdwriteaddr = (this->cmdwriteaddr + len) % RAMCMD_SIZE;
+
+
+		printf("downloading %u bytes\n", fd.file_size);
 
 		// create bitmap structure, based on communication manual data
 		buffer[0] = CMD_LOADIMAGE;
 		buffer[1] = bitmap->addr;
 		buffer[2] = OPT_NODL;
-		uint32_t len = size + cmd_header_len_bytes;
-		writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char*) buffer, NULL, len);
-		this->cmdwriteaddr = (this->cmdwriteaddr + len) % RAMCMD_SIZE;
-		if (size == LOAD_BUFFER_LEN) {
-			// in case the size matched the max buffer size when read from exmem,
-			// it indicates that more data is to be loaded
-			offset += LOAD_BUFFER_LEN;
-			do {
-				size = uv_exmem_read(exmem, filename,
-						buffer, LOAD_BUFFER_LEN, offset);
-				if (size) {
-					writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char *) buffer, NULL, size);
-					this->cmdwriteaddr = (this->cmdwriteaddr + size) % RAMCMD_SIZE;
-				}
-				offset += size;
-			}
-			while (size != 0);
+		size = uv_exmem_read_fd(exmem, &fd, &buffer[3], LOAD_BUFFER_LEN, offset);
+		uint16_t len = size + cmd_header_len_bytes;
+
+		// in case the size matched the max buffer size when read from exmem,
+		// it indicates that more data is to be loaded
+		do {
+			writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char *) buffer, NULL, len);
+			offset += size;
+			this->cmdwriteaddr = (this->cmdwriteaddr + len) % RAMCMD_SIZE;
+			len = size = uv_exmem_read_fd(exmem, &fd,
+					buffer, LOAD_BUFFER_LEN, offset);
 		}
+		while (size != 0);
+
 		// last, align memory to 4 bytes border
 		if (this->cmdwriteaddr % 4) {
 			memset(buffer, 0, this->cmdwriteaddr % 4);
@@ -1023,7 +1072,12 @@ uint32_t uv_ft81x_loadjpgexmem(uv_uimedia_st *bitmap,
 		// wait for the co-processor to finish
 		// and update current dl_index
 		bool nofaults = cmd_wait();
-		this->dl_index = read16(REG_CMD_DL);
+
+//		for (int32_t i = 0; i < 5; i++) {
+//			printf("waiting for mediafifo to finish... 0x%x 0x%x\n",
+//					read32(REG_MEDIAFIFO_READ), read32(REG_MEDIAFIFO_WRITE));
+//			uv_rtos_task_delay(100);
+//		}
 
 		if (nofaults) {
 			// lastly check the size of the image and return that

@@ -314,7 +314,8 @@ void uv_w25q128_step(uv_w25q128_st *this, uint16_t step_ms) {
 }
 
 
-uint32_t uv_exmem_read(uv_w25q128_st *this, char *filename, void *dest, uint32_t max_len, uint32_t offset) {
+uint32_t uv_exmem_read(uv_w25q128_st *this, char *filename,
+		void *dest, uint32_t max_len, uint32_t offset) {
 	// try to find the file
 	uint32_t ret = 0;
 	uv_fd_st fd;
@@ -329,6 +330,23 @@ uint32_t uv_exmem_read(uv_w25q128_st *this, char *filename, void *dest, uint32_t
 		}
 		ret = len;
 	}
+	return ret;
+}
+
+
+uint32_t uv_exmem_read_fd(uv_w25q128_st *this, uv_fd_st *fd,
+		void *dest, uint32_t max_len, uint32_t offset) {
+	uint32_t ret = 0;
+	// copy the data to destination
+	int32_t len = uv_mini(fd->file_size - offset, max_len);
+	if (len > 0) {
+		uv_w25q128_read(this, fd->data_addr + offset, len, dest);
+	}
+	else {
+		len = 0;
+	}
+	ret = len;
+
 	return ret;
 }
 
