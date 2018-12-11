@@ -76,7 +76,7 @@ typedef enum {
 	MEMMAP_RAM_REG_BEGIN 		= 0x302000,
 	MEMMAP_RAM_REG_END 			= 0x302FFF,
 	MEMMAP_RAM_CMD_BEGIN 		= 0x308000,
-	MEMMAP_RAM_CMD_END 			= 0x308FFF
+	MEMMAP_RAM_CMD_END 			= 0x309000
 } ft81x_memmap_e;
 
 #define RAMDL_SIZE		0x2000
@@ -377,7 +377,7 @@ static inline void writedl(uint32_t data);
 static uint8_t read8(const ft81x_reg_e address);
 static uint16_t read16(const ft81x_reg_e address);
 static uint32_t read32(const ft81x_reg_e address);
-static void writestr(const ft81x_reg_e address, const char *src, const uint16_t len);
+static void writestr(const ft81x_reg_e address, const char *src, char *dest, const uint16_t len);
 static void write8(const ft81x_reg_e address, uint8_t value);
 static void write16(const ft81x_reg_e address, uint16_t value);
 static void write32(const ft81x_reg_e address, uint32_t value);
@@ -390,7 +390,7 @@ static void set_point_size(uint16_t diameter);
 static void set_line_diameter(const uint16_t diameter);
 static void set_font(const uint8_t font);
 static void set_cell(const uint8_t cell);
-static void cmd_wait(void);
+static bool cmd_wait(void);
 static void cmd_romfont(uint8_t bitmap_handle, uint8_t font_number);
 static void draw_line(char *str, ft81x_font_st *font,
 		int16_t x, int16_t y, ft81x_align_e align, color_t color, uint16_t len);
@@ -441,9 +441,6 @@ typedef struct {
 } uv_ft81x_st;
 
 ft81x_font_st ft81x_fonts[FT81X_MAX_FONT_COUNT];
-
-/// @brief: Buffer for loading the images. Resides in RAM3
-__attribute__((section (".data.$RAM3"))) volatile uint8_t ft81x_buffer[FT81X_PREPROCESSOR_SIZE];
 
 uv_ft81x_st ft81x;
 #define this (&ft81x)
@@ -615,10 +612,48 @@ static uint32_t read32(const ft81x_reg_e address) {
 
 	uv_spi_readwrite_sync(CONFIG_FT81X_SPI_CHANNEL, CONFIG_FT81X_SSEL, wb, rb, 8, READ32_LEN);
 
-	uint32_t ret = (rb[7] << 24) + (rb[6] << 16) + (rb[5] << 8) + rb[4];
+	uint32_t ret = ((uint32_t) rb[7] << 24) + ((uint32_t) rb[6] << 16) + ((uint32_t) rb[5] << 8) + rb[4];
 	return ret;
 }
 
+
+#define ADDR_OFFSET		3
+#define WRITESTR_BUFFER_LEN	64
+static void writestr(const ft81x_reg_e address,
+		const char *src, char *dest, const uint16_t len) {
+	uint32_t addr = (unsigned int) address;
+	uint32_t written = 0;
+	// wrap the writing to multiple blocks, to save RAM memory from stack
+	while (written < len) {
+		// exception: If co-processor buffer is written, check that we dont overflow it
+		if (addr >= MEMMAP_RAM_CMD_END) {
+			addr -= MEMMAP_RAM_CMD_END - MEMMAP_RAM_CMD_BEGIN;
+		}
+		uint32_t l = uv_mini(WRITESTR_BUFFER_LEN, len);
+		uint16_t wb[l + ADDR_OFFSET];
+		wb[0] = FT81X_PREFIX_WRITE | ((addr >> 16) & 0x3F);
+		wb[1] = (addr >> 8) & 0xFF;
+		wb[2] = (addr) & 0xFF;
+		for (uint16_t i = 0; i < l; i++) {
+			wb[i + ADDR_OFFSET] = src[written + i];
+		}
+		if (dest == NULL) {
+			uv_spi_write_sync(CONFIG_FT81X_SPI_CHANNEL,
+					CONFIG_FT81X_SSEL, wb, 8, l + ADDR_OFFSET);
+		}
+		else {
+			uv_spi_readwrite_sync(CONFIG_FT81X_SPI_CHANNEL,
+					CONFIG_FT81X_SSEL, wb, wb, 8, l + ADDR_OFFSET);
+			for (uint16_t i = 0; i < l; i++) {
+				dest[written + i] = wb[i + ADDR_OFFSET];
+			}
+		}
+
+		addr += l;
+		written += l;
+	}
+
+}
 
 
 static inline void writedl(uint32_t data) {
@@ -627,24 +662,6 @@ static inline void writedl(uint32_t data) {
 	write32(MEMMAP_RAM_DL_BEGIN + this->dl_index, data);
 	this->dl_index += 4;
 }
-
-
-
-#define ADDR_OFFSET		3
-static void writestr(const ft81x_reg_e address,
-		const char *src, const uint16_t len) {
-	uint16_t wb[len + ADDR_OFFSET];
-	wb[0] = FT81X_PREFIX_WRITE | ((address >> 16) & 0x3F);
-	wb[1] = (address >> 8) & 0xFF;
-	wb[2] = (address) & 0xFF;
-	for (uint16_t i = 0; i < len; i++) {
-		wb[i + ADDR_OFFSET] = src[i];
-	}
-	uv_spi_write_sync(CONFIG_FT81X_SPI_CHANNEL,
-			CONFIG_FT81X_SSEL, wb, 8, len + ADDR_OFFSET);
-
-}
-
 
 
 static void write8(const ft81x_reg_e address, uint8_t value) {
@@ -768,19 +785,29 @@ static void set_cell(const uint8_t cell) {
 }
 
 /// @brief: Waits until co-processor has processed all transactions
-static void cmd_wait(void) {
+static bool cmd_wait(void) {
+	bool ret = true;
 	// co-processor might modify the begin type, thus set it to undefined
 	this->begin_type = 0xFF;
-	DEBUG("Waiting for the co-processor to finish... ");
 	uint16_t cmdread = read16(REG_CMD_READ);
 	uint16_t cmdwrite = read16(REG_CMD_WRITE);
 
 	while (cmdread != cmdwrite) {
+		if (cmdread == 0xFFF) {
+			// fault. Recover from it and return error code
+			write8(REG_CPURESET, 1);
+			write16(REG_CMD_READ, this->cmdwriteaddr);
+			write16(REG_CMD_WRITE, this->cmdwriteaddr);
+			write8(REG_CPURESET, 0);
+			ret = false;
+			break;
+		}
+//		printf("0x%x 0x%x\n", cmdread, cmdwrite);
 		cmdread = read16(REG_CMD_READ);
 		cmdwrite = read16(REG_CMD_WRITE);
 		uv_rtos_task_yield();
 	}
-	DEBUG("OK!\n");
+	return ret;
 }
 
 static void cmd_romfont(uint8_t bitmap_handle, uint8_t font_number) {
@@ -795,7 +822,7 @@ static void cmd_romfont(uint8_t bitmap_handle, uint8_t font_number) {
 	cmd[1] = bitmap_handle;
 	cmd[2] = font_number;
 	writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr,
-			(const char*) cmd, sizeof(cmd));
+			(const char*) cmd, NULL, sizeof(cmd));
 
 	// increase cmdwriteaddr by the length of this command
 	this->cmdwriteaddr = (this->cmdwriteaddr + sizeof(cmd)) % RAMCMD_SIZE;
@@ -824,12 +851,12 @@ static void draw_line(char *str, ft81x_font_st *font,
 	buf[3] = y;
 	buf[4] = font->handle;
 	buf[5] = align;
-	writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char*) buf, DRAW_LINE_BUF_LEN * 2);
+	writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char*) buf, NULL, DRAW_LINE_BUF_LEN * 2);
 	this->cmdwriteaddr = (this->cmdwriteaddr + DRAW_LINE_BUF_LEN * 2) % RAMCMD_SIZE;
 
 	DEBUG("Writing '%s'\n", str);
 	// write the whole string and termination character
-	writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, str, len);
+	writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, str, NULL, len);
 	this->cmdwriteaddr = (this->cmdwriteaddr + len) % RAMCMD_SIZE;
 
 	// write null termination marks until cmdwriteaddr is in world boundary
@@ -944,12 +971,14 @@ uint32_t uv_ft81x_get_ramdl_usage(void) {
 
 
 
-
+#define LOAD_BUFFER_LEN		60
 uint32_t uv_ft81x_loadjpgexmem(uv_uimedia_st *bitmap,
 		uint32_t dest_addr, uv_w25q128_st *exmem, char *filename) {
 	uint8_t cmd_header_len_bytes = 12;
+	uint32_t buffer[LOAD_BUFFER_LEN / 4 + cmd_header_len_bytes / 4];
+	uint32_t offset = 0;
 	uint32_t size = uv_exmem_read(exmem, filename,
-			(void*) &ft81x_buffer[cmd_header_len_bytes], FT81X_IMAGE_MAX_LEN);
+			(void*) &buffer[cmd_header_len_bytes / 4], LOAD_BUFFER_LEN, offset);
 
 	bitmap->addr = dest_addr;
 	bitmap->type = UV_UIMEDIA_IMAGE;
@@ -959,56 +988,79 @@ uint32_t uv_ft81x_loadjpgexmem(uv_uimedia_st *bitmap,
 		// set the RAMDL offset where co-processor writes the DL entries
 		write16(REG_CMD_DL, this->dl_index);
 
-		printf("Loading a %i kB bitmap to ft81x memory\n", size);
-
 		// create bitmap structure, based on communication manual data
-		*((uint32_t*) &ft81x_buffer[0]) = CMD_LOADIMAGE;
-		*((uint32_t*) &ft81x_buffer[4]) = bitmap->addr;
-		*((uint32_t*) &ft81x_buffer[8]) = OPT_NODL;
-		uint32_t len = (size + cmd_header_len_bytes) + ((size + cmd_header_len_bytes) % 4);
-		writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char*) ft81x_buffer, len);
-
-		// increase cmdwriteaddr by the length of this command
+		buffer[0] = CMD_LOADIMAGE;
+		buffer[1] = bitmap->addr;
+		buffer[2] = OPT_NODL;
+		uint32_t len = size + cmd_header_len_bytes;
+		writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char*) buffer, NULL, len);
 		this->cmdwriteaddr = (this->cmdwriteaddr + len) % RAMCMD_SIZE;
+		if (size == LOAD_BUFFER_LEN) {
+			// in case the size matched the max buffer size when read from exmem,
+			// it indicates that more data is to be loaded
+			offset += LOAD_BUFFER_LEN;
+			do {
+				size = uv_exmem_read(exmem, filename,
+						buffer, LOAD_BUFFER_LEN, offset);
+				if (size) {
+					writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char *) buffer, NULL, size);
+					this->cmdwriteaddr = (this->cmdwriteaddr + size) % RAMCMD_SIZE;
+				}
+				offset += size;
+			}
+			while (size != 0);
+		}
+		// last, align memory to 4 bytes border
+		if (this->cmdwriteaddr % 4) {
+			memset(buffer, 0, this->cmdwriteaddr % 4);
+			writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr,
+					(const char *) buffer, NULL, this->cmdwriteaddr % 4);
+			this->cmdwriteaddr = (this->cmdwriteaddr + (this->cmdwriteaddr % 4)) % RAMCMD_SIZE;
+		}
 
+		// start the co-processor
 		write16(REG_CMD_WRITE, this->cmdwriteaddr);
-
 		// wait for the co-processor to finish
 		// and update current dl_index
-		cmd_wait();
+		bool nofaults = cmd_wait();
 		this->dl_index = read16(REG_CMD_DL);
 
+		if (nofaults) {
+			// lastly check the size of the image and return that
+			cmd_header_len_bytes = 16;
+			memset((void*) buffer, 0, cmd_header_len_bytes);
+			buffer[0] = CMD_GETPROPS;
+			writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char*) buffer,
+					NULL, cmd_header_len_bytes);
+			uint32_t x = this->cmdwriteaddr;
+			// increase cmdwriteaddr by the length of this command
+			this->cmdwriteaddr = (this->cmdwriteaddr + cmd_header_len_bytes) % RAMCMD_SIZE;
 
+			// execute the command
+			write16(REG_CMD_WRITE, this->cmdwriteaddr);
+			// wait for the co-processor to finish
+			cmd_wait();
+			// now read the result from the previous cmdwriteaddr
+			bitmap->width = read32(MEMMAP_RAM_CMD_BEGIN + ((x + 8) % RAMCMD_SIZE));
+			bitmap->height = read32(MEMMAP_RAM_CMD_BEGIN + ((x + 12) % RAMCMD_SIZE));
 
-		// lastly check the size of the image and return that
-		cmd_header_len_bytes = 16;
-		memset((void*) ft81x_buffer, 0, cmd_header_len_bytes);
-		*((uint32_t*) &ft81x_buffer[0]) = CMD_GETPROPS;
-		writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char*) ft81x_buffer, cmd_header_len_bytes);
-		// increase cmdwriteaddr by the length of this command
-		this->cmdwriteaddr = (this->cmdwriteaddr + len) % RAMCMD_SIZE;
-		// execute the command
-		write16(REG_CMD_WRITE, this->cmdwriteaddr);
-
-		// wait for the co-processor to finish
-		// and update current dl_index
-		cmd_wait();
-		this->dl_index = read16(REG_CMD_DL);
-
-		// read bitmap width and height
-		bitmap->width = *((uint32_t*) &ft81x_buffer[8]);
-		bitmap->height = *((uint32_t*) &ft81x_buffer[12]);
-
-		// if any dimensions are null, something has happened and image loading failed
-		if (!bitmap->width || !bitmap->height) {
-			size = 0;
+			// if any dimensions are null, something has happened and image loading failed
+			if (!bitmap->width || !bitmap->height) {
+				size = 0;
+			}
+			else {
+				// calculate the size of the image
+				// each pixel takes 2 bytes, since the image is in RGB565 format
+				bitmap->size = bitmap->width * bitmap->height * 2;
+				size = bitmap->size;
+			}
 		}
 		else {
-			// calculate the size of the image
-			// each pixel takes 2 bytes, since the image is in RGB565 format
-			bitmap->size = bitmap->width * bitmap->height * 2;
+			size = 0;
 		}
-
+	}
+	else {
+		size = 0;
 	}
 
 	return size;
@@ -1021,42 +1073,24 @@ void uv_ft81x_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 
 	if (visible(x, y, bitmap->width, bitmap->height)) {
 
+		const uint8_t cmd_header_len_bytes = 12;
+		uint32_t buffer[cmd_header_len_bytes / 4];
+
 		// set the blend color
 		set_color(c);
-
-//		// set the RAMDL offset where co-processor writes the DL entries
-//		write16(REG_CMD_DL, this->dl_index);
-//
-//		// create bitmap structure, based on communication manual data
-//		*((uint32_t*) &buf[0]) = CMD_MEMSET;
-//		*((uint32_t*) &buf[4]) = bitmap->addr;
-//		*((uint32_t*) &buf[8]) = 0x50;
-//		*((uint32_t*) &buf[12]) = bitmap->width * bitmap->height;
-//		writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char*) buf, 16);
-//
-//		// increase cmdwriteaddr by the length of this command
-//		this->cmdwriteaddr = (this->cmdwriteaddr + 16) % RAMCMD_SIZE;
-//
-//		write16(REG_CMD_WRITE, this->cmdwriteaddr);
-//
-//		// wait for the co-processor to finish
-//		// and update current dl_index
-//		cmd_wait();
-//		this->dl_index = read16(REG_CMD_DL);
-
-
 
 		// set the RAMDL offset where co-processor writes the DL entries
 		write16(REG_CMD_DL, this->dl_index);
 
 		// create bitmap structure, based on communication manual data
-		*((uint32_t*) &ft81x_buffer[0]) = CMD_SETFONT;
-		*((uint32_t*) &ft81x_buffer[4]) = 0;
-		*((uint32_t*) &ft81x_buffer[8]) = bitmap->addr;
-		writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char*) ft81x_buffer, 12);
+		buffer[0] = CMD_SETFONT;
+		buffer[1] = 0;
+		buffer[2] = bitmap->addr;
+		writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr,
+				(const char*) buffer, NULL, cmd_header_len_bytes);
 
 		// increase cmdwriteaddr by the length of this command
-		this->cmdwriteaddr = (this->cmdwriteaddr + 12) % RAMCMD_SIZE;
+		this->cmdwriteaddr = (this->cmdwriteaddr + cmd_header_len_bytes) % RAMCMD_SIZE;
 
 		write16(REG_CMD_WRITE, this->cmdwriteaddr);
 
@@ -1064,11 +1098,6 @@ void uv_ft81x_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 		// and update current dl_index
 		cmd_wait();
 		this->dl_index = read16(REG_CMD_DL);
-
-
-
-
-
 
 		uint32_t linestride = bitmap->width * 2;
 		writedl(BITMAP_HANDLE(0));

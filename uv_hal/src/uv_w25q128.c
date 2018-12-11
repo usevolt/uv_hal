@@ -213,9 +213,8 @@ bool uv_w25q128_clear_sector_at(uv_w25q128_st *this, uint32_t address) {
 	while (is_busy(this)) {
 		uv_rtos_task_yield();
 	}
+	uint32_t sector = address - (address % W25Q128_SECTOR_SIZE);
 
-
-	uint32_t sector = address / W25Q128_SECTOR_SIZE;
 	buffer[0] = CMD_WRITE_ENABLE;
 	uv_spi_write_sync(this->spi, this->ssel, (uint16_t*) buffer, 8, 1);
 
@@ -254,32 +253,40 @@ uint8_t exmem_clear_req = 0;
 void uv_w25q128_step(uv_w25q128_st *this, uint16_t step_ms) {
 	uv_fd_st fd;
 	if (exmem_write_req) {
-		// write requests that exceed the sector size are not allowed
-		if ((exmem_write_req + exmem_data_offset + sizeof(fd)) > W25Q128_SECTOR_SIZE) {
-			exmem_write_req = W25Q128_SECTOR_SIZE - exmem_data_offset - sizeof(fd);
-		}
 		strncpy(fd.filename, exmem_filename_buffer, sizeof(exmem_filename_buffer));
 		fd.filename[sizeof(exmem_filename_buffer) - 1] = '\0';
 		fd.file_size = exmem_file_size;
 		uv_fd_st file;
-		uint32_t addr = 0;
-		uv_w25q128_read(this, addr, sizeof(file), &file);
-		while (file.data_addr != EXMEM_EMPTY_ADDR &&
-				(addr < W25Q128_SECTOR_COUNT * W25Q128_SECTOR_SIZE)) {
-			if (strcmp(file.filename, fd.filename) == 0) {
+		while (uv_exmem_find(this, fd.filename, &file)) {
+			uint32_t size = file.file_size + W25Q128_SECTOR_SIZE - 1;
+			size -= size % W25Q128_SECTOR_SIZE;
+			// data size is checked only if offset is 0, i.e. this is the first write to a file.
+			// This means that an existing file is being updated
+			if ((exmem_data_offset == 0) &&
+					(exmem_file_size > size)) {
+				// the file is too big to fit here. Mark this location to be deleted
+				// and continue searching for a new place for the file.
+				// Since the same filename shouldn't be in the memory,
+				// the search continues to the end of files
+				file.data_addr = EXMEM_DELETED_ADDR;
+				uv_w25q128_write(this,
+						file.data_addr - sizeof(file),
+						&file, sizeof(file));
+			}
+			else {
 				break;
 			}
-			addr += W25Q128_SECTOR_SIZE;
-			uv_w25q128_read(this, addr, sizeof(file), &file);
 		}
-		// file descriptor address should now defined
-		fd.data_addr = addr + sizeof(fd);
+		// *file* should now be pointing to free memory, or existing file which has more space
+		fd.data_addr = file.data_addr;
 		// start by clearing the old file if the offset was zero,
 		// i.e. the first write was requested
 		if (exmem_data_offset == 0) {
-			uv_w25q128_clear_sector_at(this, addr);
+			for (uint32_t i = 0; i < ((fd.file_size / W25Q128_SECTOR_SIZE) + 1); i++) {
+				uv_w25q128_clear_sector_at(this, fd.data_addr + i * W25Q128_SECTOR_SIZE);
+			}
 			// write the file descriptor to the start of sector
-			uv_w25q128_write(this, addr, &fd, sizeof(fd));
+			uv_w25q128_write(this, fd.data_addr - sizeof(fd), &fd, sizeof(fd));
 		}
 		// write the data to file
 		uv_w25q128_write(this, fd.data_addr + exmem_data_offset, exmem_data_buffer, exmem_write_req);
@@ -292,8 +299,11 @@ void uv_w25q128_step(uv_w25q128_st *this, uint16_t step_ms) {
 		uv_w25q128_read(this, addr, sizeof(fd), &fd);
 		while (fd.data_addr != EXMEM_EMPTY_ADDR &&
 				(addr < W25Q128_SECTOR_COUNT * W25Q128_SECTOR_SIZE)) {
-			uv_w25q128_clear_sector_at(this, addr);
-			addr += W25Q128_SECTOR_SIZE;
+			for (uint32_t i = 0; i < fd.file_size / W25Q128_SECTOR_SIZE; i++) {
+				uv_w25q128_clear_sector_at(this, addr + i * W25Q128_SECTOR_SIZE);
+			}
+			addr += (fd.file_size + W25Q128_SECTOR_SIZE - 1);
+			addr -= addr % W25Q128_SECTOR_SIZE;
 			uv_w25q128_read(this, addr, sizeof(fd), &fd);
 		}
 		exmem_clear_req = 0;
@@ -304,24 +314,67 @@ void uv_w25q128_step(uv_w25q128_st *this, uint16_t step_ms) {
 }
 
 
-uint32_t uv_exmem_read(uv_w25q128_st *this, char *filename, void *dest, uint32_t max_len) {
+uint32_t uv_exmem_read(uv_w25q128_st *this, char *filename, void *dest, uint32_t max_len, uint32_t offset) {
 	// try to find the file
 	uint32_t ret = 0;
 	uv_fd_st fd;
-	uint32_t addr = 0;
-	uv_w25q128_read(this, addr, sizeof(fd), &fd);
-	while (fd.data_addr != EXMEM_EMPTY_ADDR &&
-			(addr < W25Q128_SECTOR_COUNT * W25Q128_SECTOR_SIZE)) {
-		if (strcmp(filename, fd.filename) == 0) {
-			// match found, copy the data to destination
-			uv_w25q128_read(this, fd.data_addr, uv_mini(fd.file_size, max_len), dest);
-			break;
+	if (uv_exmem_find(this, filename, &fd)) {
+		// match found, copy the data to destination
+		int32_t len = uv_mini(fd.file_size - offset, max_len);
+		if (len > 0) {
+			uv_w25q128_read(this, fd.data_addr + offset, len, dest);
 		}
-
-		addr += W25Q128_SECTOR_SIZE;
-		uv_w25q128_read(this, addr, sizeof(fd), &fd);
+		else {
+			len = 0;
+		}
+		ret = len;
 	}
+	return ret;
+}
 
+
+bool uv_exmem_find(uv_w25q128_st *this, char *filename, uv_fd_st *dest) {
+	bool ret = false;
+	uint32_t addr = 0;
+	uv_w25q128_read(this, addr, sizeof(*dest), dest);
+	while (dest->data_addr != EXMEM_EMPTY_ADDR &&
+			(addr < W25Q128_SECTOR_COUNT * W25Q128_SECTOR_SIZE)) {
+		if (dest->data_addr != EXMEM_DELETED_ADDR) {
+			if (strcmp(filename, dest->filename) == 0) {
+				ret = true;
+				break;
+			}
+		}
+		// jump to the end of this file, aligned with the memory sector size
+		addr += (dest->file_size + W25Q128_SECTOR_SIZE - 1);
+		addr -= addr % W25Q128_SECTOR_SIZE;
+		uv_w25q128_read(this, addr, sizeof(*dest), dest);
+	}
+	if (!ret) {
+		// file not found, copy place for a new file to *dest*
+		dest->data_addr = addr + sizeof(*dest);
+	}
+	return ret;
+}
+
+bool uv_exmem_index(uv_w25q128_st *this, uint32_t index, uv_fd_st *dest) {
+	bool ret = false;
+	uint32_t addr = 0;
+	uv_w25q128_read(this, addr, sizeof(*dest), dest);
+	while (dest->data_addr != EXMEM_EMPTY_ADDR &&
+			(addr < W25Q128_SECTOR_COUNT * W25Q128_SECTOR_SIZE)) {
+		if (dest->data_addr != EXMEM_DELETED_ADDR) {
+			if (index == 0) {
+				ret = true;
+				break;
+			}
+			index--;
+		}
+		// jump to the end of this file, aligned with the memory sector size
+		addr += (dest->file_size + W25Q128_SECTOR_SIZE - 1);
+		addr -= addr % W25Q128_SECTOR_SIZE;
+		uv_w25q128_read(this, addr, sizeof(*dest), dest);
+	}
 	return ret;
 }
 

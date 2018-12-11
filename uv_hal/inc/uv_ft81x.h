@@ -106,6 +106,11 @@
 #error "CONFIG_FT81X_SCREEN_COLOR should define the default screen color which is set\
  after swapping the DL buffer"
 #endif
+#if !defined(CONFIG_FT81X_MEDIA_MAXSIZE)
+#error "CONFIG_FT81X_MEDIA_MAXSIZE should define the maximum size of a media file in bytes. Note that this\
+ amount of memory is used for downloading the media files to the Media RAM, and effectively reduces the\
+ available media RAM by the same amount."
+#endif
 
 #define FT81X_PCLK_POL_RISING	0
 #define FT81X_PCLK_POL_FALLING	1
@@ -213,11 +218,9 @@ typedef struct {
 /// @brief: The maximum size of a single graphic bitmap
 #define FT81X_GRAPHIC_RAM_MAX_SIZE		(0x100000)
 #define FT81X_PREPROCESSOR_SIZE			4096
-
-
+/// @brief: The address of the MEDIAFIFO used for downloading the media files
+#define FT81X_MEDIAFIFO_ADDR			(FT81X_GRAPHICS_RAM_MAX_SIZE - CONFIG_FT81X_MEDIA_MAXSIZE)
 #define FT81X_CMD_LOADIMAGE_HEADER_LEN			3
-/// @brief: Defines the maximum size of an jpg or png image which can be loaded
-#define FT81X_IMAGE_MAX_LEN						(FT81X_PREPROCESSOR_SIZE - FT81X_CMD_LOADIMAGE_HEADER_LEN - 4)
 
 
 /// @brief: Extern declaration of the memory buffer for loading bitmaps.

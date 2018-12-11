@@ -95,8 +95,15 @@ void uv_w25q128_step(uv_w25q128_st *this, uint16_t step_ms);
 /* External memory CAN interface */
 
 
-/// @brief: Null file address, which represents that there is no file
+/// @brief: Null file address, which represents that there is no file.
+///
+/// @note: This should be the cleared memory's default value
 #define EXMEM_NULL_ADDR		0xFFFFFFFF
+/// @brief: Deleted file address. This address represents that a file was here
+/// but it has been deleted. This, however, might not be the last file in the memory
+///
+/// @note: This should be totally written memory's value, i.e. The value when all bits are written to.
+#define EXMEM_DELETED_ADDR	0
 
 /// @brief: External memory file descriptor data structure.
 /// The filename is stored right after the fd, before the actual file
@@ -142,12 +149,36 @@ extern uint8_t exmem_clear_req;
 
 /// @brief: Reads a file from external memory.
 ///
-/// @return The number of bytes read from the memory. On success, it should match the file size
+/// @return The number of bytes read from the memory. On success, it should match the file size,
+/// or in case of when loading a big file, the file data is still to be downloaded
+/// until this returns a value smaller than *max_len*
 ///
 /// @param filename: The path and the name to the file which will be read
 /// @param dest: The destination memory address where the file is read
 /// @param max_len: The maximum length of the destination buffer. Maximum of this count is read.
-uint32_t uv_exmem_read(uv_w25q128_st *this, char *filename, void *dest, uint32_t max_len);
+/// @param offset: The offset byte count from the start of the file where the bytes are read.
+/// This can be used if the file was bigger than the memory buffer available, by using multiple calls
+/// to this function and incrementing the offset by the amount of *max_len*.
+uint32_t uv_exmem_read(uv_w25q128_st *this, char *filename, void *dest, uint32_t max_len, uint32_t offset);
+
+
+/// @brief: Tries to find a file specified with *filename* from the external memory and if found,
+/// copies the file desciprtor to *dest*.
+///
+/// @return: True if the file was found, false otherwise
+///
+/// @param dest: The destination pointer to where the file descriptor is copied if found. If
+/// the file couldn't be found, the destination is written with a next empty address where
+/// a new file could be written.
+bool uv_exmem_find(uv_w25q128_st *this, char *filename, uv_fd_st *dest);
+
+
+/// @brief: Copies the file descriptor to *dest* from the file which was found at index *index*.
+/// Can be used to step trough all the files in the system by calling multiples times and increasing
+/// the *index* always by one.
+///
+/// @return: True of the *index*'th file was found, false otherwise.
+bool uv_exmem_index(uv_w25q128_st *this, uint32_t index, uv_fd_st *dest);
 
 #endif
 
