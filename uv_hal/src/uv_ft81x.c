@@ -267,7 +267,7 @@ typedef enum {
 #define BITMAP_TRANSFORM_D(d)								((0x18 << 24) | (d))
 #define BITMAP_TRANSFORM_E(e)								((0x19 << 24) | (e))
 #define BITMAP_TRANSFORM_F(f)								((0x1A << 24) | (f))
-#define BLEND_FUNC(src, dst)								((0xB << 24) | ((src) << 3) | (dst))
+#define BLEND_FUNC(src, dst)								((0xB << 24) | ((src) << 3) | (dst))
 #define CALL(dest)											((0x1D << 24) | (dest))
 #define CELL(cell)											((0x6 << 24) | (cell))
 #define CLEAR(color, stencil, tag)							((0x26 << 24) | ((color) << 2) | ((stencil) << 1) | (tag))
@@ -763,10 +763,10 @@ static void set_line_diameter(const uint16_t diameter) {
 	if (this->line_width != diameter) {
 		DEBUG("set line diameter\n");
 		if (diameter == 0) {
-			writedl(LINE_WIDTH(8));
+			writedl(LINE_WIDTH(16));
 		}
 		else {
-			writedl(LINE_WIDTH(diameter * 8));
+			writedl(LINE_WIDTH(diameter * 16));
 		}
 		this->line_width = diameter;
 	}
@@ -1088,10 +1088,11 @@ uint32_t uv_ft81x_loadbitmapexmem(uv_uimedia_st *bitmap,
 				bitmap->size += 4 - (bitmap->size % 4);
 			}
 			bitmap->width = read32(MEMMAP_RAM_CMD_BEGIN + ((x + 8) % RAMCMD_SIZE));
+			printf("%s: %u\n", bitmap->filename, bitmap->width);
 			bitmap->height = read32(MEMMAP_RAM_CMD_BEGIN + ((x + 12) % RAMCMD_SIZE));
 			// for paletted images calculate the palette size
 			if (bitmap->format >= BITMAP_FORMAT_PALETTED565) {
-				bitmap->palette_size = bitmap->size - (bitmap->width * bitmap->height);
+				bitmap->palette_size = (ptr - bitmap->addr) - (bitmap->width * bitmap->height);
 			}
 			else {
 				bitmap->palette_size = 0;

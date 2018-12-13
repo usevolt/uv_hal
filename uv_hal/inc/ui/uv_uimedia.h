@@ -81,6 +81,12 @@ static inline uint32_t uv_uimedia_get_address(uv_uimedia_st *this) {
 }
 
 
+/// @brief: Returns the end address of the image. A new media file can be
+/// loaded right to this address
+static inline uint32_t uv_uimedia_get_end_addr(uv_uimedia_st *this) {
+	return this->addr + this->size;
+}
+
 /// @brief: Returns the width of the bitmap in pixels
 static inline uint16_t uv_uimedia_get_bitmapwidth(uv_uimedia_st *this) {
 	return this->width;

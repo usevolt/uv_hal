@@ -89,7 +89,12 @@ void _uv_uiwindow_redraw(void *me, const uv_bounding_box_st *pbb) {
 
 	uv_ft81x_set_mask(bb.x, bb.y, bb.width, bb.height);
 	if (!this->transparent) {
-		uv_ft81x_clear(this->bg_c);
+		if (((color_st*) &this->bg_c)->a == 0xFF) {
+			uv_ft81x_clear(this->bg_c);
+		}
+		else {
+			uv_ft81x_draw_rrect(bb.x, bb.y, bb.width, bb.height, 0, this->bg_c);
+		}
 	}
 
 	if (this->content_bb.height > uv_uibb(this)->height) {

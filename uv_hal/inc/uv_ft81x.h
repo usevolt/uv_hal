@@ -179,6 +179,10 @@ typedef uint32_t color_t;
 /// from all R, G and B color channels
 color_t uv_uic_brighten(color_t c, int8_t value);
 
+/// @brief: Copies the alpha channel from *dest* color to *src* color
+static inline void uv_uic_copy_alpha(color_t *dest, color_t *src) {
+	((color_st*) dest)->a = ((color_st *)src)->a;
+}
 
 /// @brief: Struct for individual object's bounding box.
 typedef struct {
@@ -272,6 +276,15 @@ uint32_t uv_ft81x_get_ramdl_usage(void);
 /// In case of error, 0 is returned.
 ///
 /// @note: Supported images which can be downloaded are baseline jpgs and 8-bit depth pngs with alpha channel.
+/// To export usable images out from GIMP, disable all checkboxes in the export-dialog for the specific
+/// file format. Baseline JPGs can be exported by unchecking the "Progressive" checkbox.
+/// Gimp exports PNGs in PNG32-mode, which has to be converted to PNG8 with RGBA4444 color format.
+/// The best tool for this is *pngquant*, which is used like this:
+/// ´´´´pngquant 256 -f -o output.png input.png´´´´
+/// Where 256 is the number of colors used. It can be smaller to reduce the file size, but it should be
+/// in power of 2, i.e. 256, 128, 64, 32, 16, 8, 4, or 2.
+/// After these steps, the media should be loaded to the mcu with:
+/// ´´´´uvcan --nodeid 0xD --loadmedia path/to/image.png´´´´
 ///
 /// @param dest_addr: The destination address where the data is loaded in FT81X memory
 /// @param exmem: The external non-volatile memory module to be used for data download

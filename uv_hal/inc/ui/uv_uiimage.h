@@ -67,11 +67,14 @@ void uv_uiimage_init(void *me, uv_uimedia_st *media,
 
 /// @brief: Sets the blend color for the image. If set to C(0xFFFFFFFF), bitmap is drawn
 /// without any blend color
-static inline void uv_uiimage_set_blend_color(void *me, color_t c) {
+static inline void uv_uiimage_set_blendc(void *me, color_t c) {
 	this->blend_c = c;
 }
 
-
+/// @brief: returns the blend color
+static inline color_t uv_uiimage_get_blendc(void *me) {
+	return this->blend_c;
+}
 
 
 
