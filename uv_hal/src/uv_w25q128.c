@@ -268,23 +268,35 @@ void uv_w25q128_step(uv_w25q128_st *this, uint16_t step_ms) {
 				// and continue searching for a new place for the file.
 				// Since the same filename shouldn't be in the memory,
 				// the search continues to the end of files
+				uint32_t addr = file.data_addr;
 				file.data_addr = EXMEM_DELETED_ADDR;
 				uv_w25q128_write(this,
-						file.data_addr - sizeof(file),
+						addr - sizeof(file),
 						&file, sizeof(file));
 			}
 			else {
+				if (exmem_data_offset == 0) {
+					// start by clearing the old file if the offset was zero,
+					// i.e. the first write was requested
+					for (uint32_t i = 0; i < (((file.file_size + sizeof(file)) / W25Q128_SECTOR_SIZE) + 1); i++) {
+						uv_w25q128_clear_sector_at(this, file.data_addr + i * W25Q128_SECTOR_SIZE);
+					}
+					// next disable sectors that are not used anymore
+					uv_fd_st ffile = file;
+					for (uint32_t i = ((fd.file_size + sizeof(fd)) / W25Q128_SECTOR_SIZE) + 1;
+							i < (((file.file_size + sizeof(file)) / W25Q128_SECTOR_SIZE) + 1); i++) {
+						ffile.file_size = W25Q128_SECTOR_SIZE - sizeof(file);
+						ffile.data_addr = EXMEM_DELETED_ADDR;
+						uv_w25q128_write(this, file.data_addr - sizeof(file) + i * W25Q128_SECTOR_SIZE,
+								&ffile, sizeof(ffile));
+					}
+				}
 				break;
 			}
 		}
 		// *file* should now be pointing to free memory, or existing file which has more space
 		fd.data_addr = file.data_addr;
-		// start by clearing the old file if the offset was zero,
-		// i.e. the first write was requested
 		if (exmem_data_offset == 0) {
-			for (uint32_t i = 0; i < ((fd.file_size / W25Q128_SECTOR_SIZE) + 1); i++) {
-				uv_w25q128_clear_sector_at(this, fd.data_addr + i * W25Q128_SECTOR_SIZE);
-			}
 			// write the file descriptor to the start of sector
 			uv_w25q128_write(this, fd.data_addr - sizeof(fd), &fd, sizeof(fd));
 		}
@@ -299,7 +311,7 @@ void uv_w25q128_step(uv_w25q128_st *this, uint16_t step_ms) {
 		uv_w25q128_read(this, addr, sizeof(fd), &fd);
 		while (fd.data_addr != EXMEM_EMPTY_ADDR &&
 				(addr < W25Q128_SECTOR_COUNT * W25Q128_SECTOR_SIZE)) {
-			for (uint32_t i = 0; i < fd.file_size / W25Q128_SECTOR_SIZE; i++) {
+			for (uint32_t i = 0; i < (fd.file_size / W25Q128_SECTOR_SIZE + 1); i++) {
 				uv_w25q128_clear_sector_at(this, addr + i * W25Q128_SECTOR_SIZE);
 			}
 			addr += (fd.file_size + W25Q128_SECTOR_SIZE - 1);

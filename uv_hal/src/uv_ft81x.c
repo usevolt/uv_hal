@@ -806,7 +806,6 @@ static bool cmd_wait(void) {
 			ret = false;
 			break;
 		}
-//		printf("0x%x 0x%x\n", cmdread, cmdwrite);
 		cmdread = read16(REG_CMD_READ);
 		cmdwrite = read16(REG_CMD_WRITE);
 		uv_rtos_task_yield();
@@ -976,7 +975,7 @@ uint32_t uv_ft81x_get_ramdl_usage(void) {
 
 
 #define LOAD_BUFFER_LEN		60
-uint32_t uv_ft81x_loadjpgexmem(uv_uimedia_st *bitmap,
+uint32_t uv_ft81x_loadbitmapexmem(uv_uimedia_st *bitmap,
 		uint32_t dest_addr, uv_w25q128_st *exmem, char *filename) {
 	uint8_t cmd_header_len_bytes = 12;
 	uint32_t buffer[LOAD_BUFFER_LEN / 4 + cmd_header_len_bytes / 4];
@@ -994,78 +993,48 @@ uint32_t uv_ft81x_loadjpgexmem(uv_uimedia_st *bitmap,
 		// set the RAMDL offset where co-processor writes the DL entries
 		write16(REG_CMD_DL, this->dl_index);
 
-//		// setup a mediafifo
-//		buffer[0] = CMD_MEDIAFIFO;
-//		buffer[1] = FT81X_MEDIAFIFO_ADDR;
-//		buffer[2] = CONFIG_FT81X_MEDIA_MAXSIZE;
-//		writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char*) buffer, NULL, 12);
-//		this->cmdwriteaddr = (this->cmdwriteaddr + 12) % RAMCMD_SIZE;
-//		// start the co-processor
-//		write16(REG_CMD_WRITE, this->cmdwriteaddr);
-//		// wait for the co-processor to finish
-//		cmd_wait();
-//		write32(REG_MEDIAFIFO_WRITE, FT81X_MEDIAFIFO_ADDR);
-//		write32(REG_MEDIAFIFO_READ, FT81X_MEDIAFIFO_ADDR);
-//
-//		printf("read: 0x%x, write: 0x%x\n", read32(REG_MEDIAFIFO_READ), read32(REG_MEDIAFIFO_WRITE));
-//
-//		// download the bitmap to mediafifo
-//		size = uv_exmem_read_fd(exmem, &fd,
-//				(void*) buffer, LOAD_BUFFER_LEN, offset);
-//
-//		do {
-//			writestr(FT81X_MEDIAFIFO_ADDR + offset, (const char *) buffer, NULL, size);
-//			offset += size;
-//			size = uv_exmem_read_fd(exmem, &fd,
-//					buffer, LOAD_BUFFER_LEN, offset);
-//		}
-//		while (size != 0);
-//		// last, align memory to 4 bytes border
-//		if (offset % 4) {
-//			memset(buffer, 0, offset % 4);
-//			writestr(FT81X_MEDIAFIFO_ADDR + offset,
-//					(const char *) buffer, NULL, offset % 4);
-//			offset += offset % 4;
-//		}
-//		// update mediafifo write register
-//		write32(REG_MEDIAFIFO_WRITE, FT81X_MEDIAFIFO_ADDR + offset);
-//
-//		// create bitmap structure, based on communication manual data
-//		buffer[0] = CMD_LOADIMAGE;
-//		buffer[1] = bitmap->addr;
-//		buffer[2] = OPT_NODL | OPT_MEDIAFIFO;
-//		uint32_t len = cmd_header_len_bytes;
-//		writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char*) buffer, NULL, len);
-//		this->cmdwriteaddr = (this->cmdwriteaddr + len) % RAMCMD_SIZE;
+		// setup a mediafifo
+		buffer[0] = CMD_MEDIAFIFO;
+		buffer[1] = FT81X_MEDIAFIFO_ADDR;
+		buffer[2] = CONFIG_FT81X_MEDIA_MAXSIZE;
+		writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char*) buffer, NULL, 12);
+		this->cmdwriteaddr = (this->cmdwriteaddr + 12) % RAMCMD_SIZE;
+		// start the co-processor
+		write16(REG_CMD_WRITE, this->cmdwriteaddr);
+		// wait for the co-processor to finish
+		cmd_wait();
+		write32(REG_MEDIAFIFO_WRITE, 0);
+		write32(REG_MEDIAFIFO_READ, 0);
 
+		// download the bitmap to mediafifo
+		size = uv_exmem_read_fd(exmem, &fd,
+				(void*) buffer, LOAD_BUFFER_LEN, offset);
 
-		printf("downloading %u bytes\n", fd.file_size);
+		do {
+			writestr(FT81X_MEDIAFIFO_ADDR + offset, (const char *) buffer, NULL, size);
+			offset += size;
+			size = uv_exmem_read_fd(exmem, &fd,
+					buffer, LOAD_BUFFER_LEN, offset);
+		}
+		while (size != 0);
+		// last, align memory to 4 bytes border
+		if (offset % 4) {
+			uint8_t stuff = 4 - (offset % 4);
+			memset(buffer, 0, stuff);
+			writestr(FT81X_MEDIAFIFO_ADDR + offset,
+					(const char *) buffer, NULL, stuff);
+			offset += stuff;
+		}
+		// update mediafifo write register
+		write32(REG_MEDIAFIFO_WRITE, offset);
 
 		// create bitmap structure, based on communication manual data
 		buffer[0] = CMD_LOADIMAGE;
 		buffer[1] = bitmap->addr;
-		buffer[2] = OPT_NODL;
-		size = uv_exmem_read_fd(exmem, &fd, &buffer[3], LOAD_BUFFER_LEN, offset);
-		uint16_t len = size + cmd_header_len_bytes;
-
-		// in case the size matched the max buffer size when read from exmem,
-		// it indicates that more data is to be loaded
-		do {
-			writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char *) buffer, NULL, len);
-			offset += size;
-			this->cmdwriteaddr = (this->cmdwriteaddr + len) % RAMCMD_SIZE;
-			len = size = uv_exmem_read_fd(exmem, &fd,
-					buffer, LOAD_BUFFER_LEN, offset);
-		}
-		while (size != 0);
-
-		// last, align memory to 4 bytes border
-		if (this->cmdwriteaddr % 4) {
-			memset(buffer, 0, this->cmdwriteaddr % 4);
-			writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr,
-					(const char *) buffer, NULL, this->cmdwriteaddr % 4);
-			this->cmdwriteaddr = (this->cmdwriteaddr + (this->cmdwriteaddr % 4)) % RAMCMD_SIZE;
-		}
+		buffer[2] = OPT_NODL | OPT_MEDIAFIFO;
+		uint32_t len = cmd_header_len_bytes;
+		writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char*) buffer, NULL, len);
+		this->cmdwriteaddr = (this->cmdwriteaddr + len) % RAMCMD_SIZE;
 
 		// start the co-processor
 		write16(REG_CMD_WRITE, this->cmdwriteaddr);
@@ -1073,13 +1042,30 @@ uint32_t uv_ft81x_loadjpgexmem(uv_uimedia_st *bitmap,
 		// and update current dl_index
 		bool nofaults = cmd_wait();
 
-//		for (int32_t i = 0; i < 5; i++) {
-//			printf("waiting for mediafifo to finish... 0x%x 0x%x\n",
-//					read32(REG_MEDIAFIFO_READ), read32(REG_MEDIAFIFO_WRITE));
-//			uv_rtos_task_delay(100);
-//		}
+		// wait until mediafifo is empty
+		while (true) {
+			uint16_t read = read16(REG_MEDIAFIFO_READ);
+			uint16_t write = read16(REG_MEDIAFIFO_WRITE);
+			nofaults = cmd_wait();
+			if (read == write || !nofaults) {
+				break;
+			}
+			uv_rtos_task_yield();
+		}
 
 		if (nofaults) {
+			// specify the bitmap format
+			if (strstr(bitmap->filename, ".jp" ) != NULL ||
+					strstr(bitmap->filename, ".JP") != NULL) {
+				// color jpgs are in RGB565
+				bitmap->format = BITMAP_FORMAT_RGB565;
+			}
+			else {
+				// PALETTED444 is used for all others, meaning png8 images with transparency.
+				// PNG8 without transparency shouldn't be used.
+				bitmap->format = BITMAP_FORMAT_PALETTED4444;
+			}
+
 			// lastly check the size of the image and return that
 			cmd_header_len_bytes = 16;
 			memset((void*) buffer, 0, cmd_header_len_bytes);
@@ -1095,17 +1081,27 @@ uint32_t uv_ft81x_loadjpgexmem(uv_uimedia_st *bitmap,
 			// wait for the co-processor to finish
 			cmd_wait();
 			// now read the result from the previous cmdwriteaddr
+			uint32_t ptr = read32(MEMMAP_RAM_CMD_BEGIN + ((x + 4) % RAMCMD_SIZE));
+			bitmap->size = ptr - bitmap->addr;
+			// size should be 4-byte aligned
+			if (bitmap->size % 4) {
+				bitmap->size += 4 - (bitmap->size % 4);
+			}
 			bitmap->width = read32(MEMMAP_RAM_CMD_BEGIN + ((x + 8) % RAMCMD_SIZE));
 			bitmap->height = read32(MEMMAP_RAM_CMD_BEGIN + ((x + 12) % RAMCMD_SIZE));
+			// for paletted images calculate the palette size
+			if (bitmap->format >= BITMAP_FORMAT_PALETTED565) {
+				bitmap->palette_size = bitmap->size - (bitmap->width * bitmap->height);
+			}
+			else {
+				bitmap->palette_size = 0;
+			}
 
 			// if any dimensions are null, something has happened and image loading failed
 			if (!bitmap->width || !bitmap->height) {
 				size = 0;
 			}
 			else {
-				// calculate the size of the image
-				// each pixel takes 2 bytes, since the image is in RGB565 format
-				bitmap->size = bitmap->width * bitmap->height * 2;
 				size = bitmap->size;
 			}
 		}
@@ -1117,46 +1113,41 @@ uint32_t uv_ft81x_loadjpgexmem(uv_uimedia_st *bitmap,
 		size = 0;
 	}
 
+	if (size == 0) {
+		// error occurred, specify the settings for bitmap
+		// data which wont cause anything unexpected
+		bitmap->width = 40;
+		bitmap->height = 40;
+		bitmap->size = bitmap->width * bitmap->height * 2;
+		if (bitmap->size % 4) {
+			bitmap->size += 4 - (bitmap->size % 4);
+		}
+		bitmap->format = BITMAP_FORMAT_RGB565;
+		bitmap->palette_size = 0;
+	}
+
 	return size;
 }
-
-
 
 void uv_ft81x_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 		int16_t w, int16_t h, uint32_t wrap, color_t c) {
 
 	if (visible(x, y, bitmap->width, bitmap->height)) {
-
-		const uint8_t cmd_header_len_bytes = 12;
-		uint32_t buffer[cmd_header_len_bytes / 4];
-
 		// set the blend color
 		set_color(c);
 
-		// set the RAMDL offset where co-processor writes the DL entries
-		write16(REG_CMD_DL, this->dl_index);
-
-		// create bitmap structure, based on communication manual data
-		buffer[0] = CMD_SETFONT;
-		buffer[1] = 0;
-		buffer[2] = bitmap->addr;
-		writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr,
-				(const char*) buffer, NULL, cmd_header_len_bytes);
-
-		// increase cmdwriteaddr by the length of this command
-		this->cmdwriteaddr = (this->cmdwriteaddr + cmd_header_len_bytes) % RAMCMD_SIZE;
-
-		write16(REG_CMD_WRITE, this->cmdwriteaddr);
-
-		// wait for the co-processor to finish
-		// and update current dl_index
-		cmd_wait();
-		this->dl_index = read16(REG_CMD_DL);
-
-		uint32_t linestride = bitmap->width * 2;
-		writedl(BITMAP_HANDLE(0));
-		writedl(BITMAP_SOURCE(bitmap->addr));
-		writedl(BITMAP_LAYOUT(BITMAP_FORMAT_RGB565, linestride, bitmap->height));
+		// ARGB4 and RGB565 images take 2 bytes per pixel, paletted images take 1 byte per pixel
+		uint32_t linestride = (bitmap->format >= BITMAP_FORMAT_PALETTED565) ?
+				bitmap->width : bitmap->width * 2;
+		uint32_t source = bitmap->addr;
+		if (bitmap->format == BITMAP_FORMAT_PALETTED4444 ||
+				bitmap->format == BITMAP_FORMAT_PALETTED565 ||
+				bitmap->format == BITMAP_FORMAT_PALETTED8) {
+			writedl(PALETTE_SOURCE(bitmap->addr));
+			source = bitmap->addr + bitmap->palette_size;
+		}
+		writedl(BITMAP_SOURCE(source));
+		writedl(BITMAP_LAYOUT(bitmap->format, linestride, bitmap->height));
 		if ((linestride >= 1024) ||
 				(bitmap->height >= 512)) {
 			writedl(BITMAP_LAYOUT_H(linestride / 1024, bitmap->height / 512));
@@ -1167,8 +1158,10 @@ void uv_ft81x_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 			writedl(BITMAP_SIZE_H(w / 512, h / 512));
 		}
 		writedl(BEGIN(BEGIN_BITMAPS));
-		writedl(VERTEX2II(x, y, 0, 0));
-
+		vertex2f_st v;
+		v.sx = x;
+		v.sy = y;
+		writedl(VERTEX2F(v.ux, v.uy));
 	}
 }
 

@@ -38,5 +38,6 @@
 #include "ui/uv_uidialog.h"
 #include "ui/uv_uinumpad.h"
 #include "ui/uv_uidigitedit.h"
+#include "ui/uv_uiimage.h"
 
 #endif /* UW_UI_H_ */

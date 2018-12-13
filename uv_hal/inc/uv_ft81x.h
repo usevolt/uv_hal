@@ -198,7 +198,11 @@ enum {
 	BITMAP_FORMAT_L1 = 0,
 	BITMAP_FORMAT_L4 = 2,
 	BITMAP_FORMAT_L8 = 3,
-	BITMAP_FORMAT_RGB565 = 7
+	BITMAP_FORMAT_ARGB4 = 6,
+	BITMAP_FORMAT_RGB565 = 7,
+	BITMAP_FORMAT_PALETTED565 = 14,
+	BITMAP_FORMAT_PALETTED4444 = 15,
+	BITMAP_FORMAT_PALETTED8 = 16
 };
 typedef uint8_t bitmap_format_e;
 
@@ -220,7 +224,6 @@ typedef struct {
 #define FT81X_PREPROCESSOR_SIZE			4096
 /// @brief: The address of the MEDIAFIFO used for downloading the media files
 #define FT81X_MEDIAFIFO_ADDR			(FT81X_GRAPHIC_RAM_MAX_SIZE - CONFIG_FT81X_MEDIA_MAXSIZE)
-#define FT81X_CMD_LOADIMAGE_HEADER_LEN			3
 
 
 /// @brief: Extern declaration of the memory buffer for loading bitmaps.
@@ -263,18 +266,24 @@ uint32_t uv_ft81x_get_ramdl_usage(void);
 
 
 /// @brief: Loads and decompresses a jpg image to the media RAM of FT81x from external memory module.
-///The maximum size of the loadable file is 4 kB (4096 bytes), as the FT81x co-processor FIFO is 4 kB long.
 ///
 /// @return: The number of bytes that the jpg image took from the memory. Since
 /// the image is decompressed, the returned value is larger than the downloaded value.
 /// In case of error, 0 is returned.
 ///
+/// @note: Supported images which can be downloaded are baseline jpgs and 8-bit depth pngs with alpha channel.
+///
 /// @param dest_addr: The destination address where the data is loaded in FT81X memory
 /// @param exmem: The external non-volatile memory module to be used for data download
 /// @param filename: The filename of the image. The file should be found from *exmem*.
-uint32_t uv_ft81x_loadjpgexmem(uv_uimedia_st *bitmap,
+uint32_t uv_ft81x_loadbitmapexmem(uv_uimedia_st *bitmap,
 		uint32_t dest_addr, uv_w25q128_st *exmem, char *filename);
 
+/// @brief: Redefinition of *uv_ft81x_loadjpgexmem* for ui-library namespace
+static inline uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
+		uint32_t dest_addr, uv_w25q128_st *exmem, char *filename) {
+	return uv_ft81x_loadbitmapexmem(bitmap, dest_addr, exmem, filename);
+}
 
 
 /// @brief: Extended function to draw bitmaps

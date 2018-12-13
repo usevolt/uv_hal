@@ -12,7 +12,6 @@
 #if CONFIG_UI
 
 
-static inline void draw(void *me, const uv_bounding_box_st *pbb);
 static void touch(void *me, uv_touch_st *touch);
 
 
@@ -27,14 +26,14 @@ void uv_uibutton_init(void *me, char *text, const uv_uistyle_st *style) {
 	this->font = style->font;
 	uv_delay_init(&this->delay, CONFIG_UI_BUTTON_LONGPRESS_DELAY_MS);
 
-	uv_uiobject_set_draw_callb(this, &draw);
+	uv_uiobject_set_draw_callb(this, &uv_uibutton_draw);
 	uv_uiobject_set_touch_callb(this, &touch);
 	((uv_uiobject_st*) this)->step_callb = &uv_uibutton_step;
 }
 
 
 
-static inline void draw(void *me, const uv_bounding_box_st *pbb) {
+void uv_uibutton_draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t x = uv_ui_get_xglobal(this);
 	int16_t y = uv_ui_get_yglobal(this);
 	int16_t w = uv_uibb(this)->width;

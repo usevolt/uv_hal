@@ -20,10 +20,9 @@ static uv_uiobject_ret_e uv_uiimage_step(void *me, uint16_t step_ms,
 #define this ((uv_uiimage_st*)me)
 
 void uv_uiimage_init(void *me, uv_uimedia_st *media,
-		uiimage_scale_e scale, uiimage_wrap_e wrap, alignment_e align) {
+		uiimage_wrap_e wrap, alignment_e align) {
 	uv_uiobject_init(me);
 	this->media = media;
-	this->scale = scale;
 	this->wrap = wrap;
 	this->align = align;
 	this->blend_c = C(0xFFFFFFFF);
@@ -40,27 +39,24 @@ static inline void draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t w = uv_uibb(this)->width;
 	int16_t h = uv_uibb(this)->height;
 
-	if (this->scale == UIIMAGE_SCALE) {
-	}
-	else {
-		w = this->media->width;
-		h = this->media->height;
-	}
+	int16_t mw = this->media->width;
+	int16_t mh = this->media->height;
+
 	if (this->align == ALIGN_CENTER ||
 			this->align == ALIGN_TOP_CENTER) {
-		x -= w / 2;
+		x += w / 2 - mw / 2;
 	}
 	if (this->align == ALIGN_CENTER_RIGHT ||
 			this->align == ALIGN_TOP_RIGHT) {
-		x -= w;
+		x += w - mw;
 	}
 	if (this->align == ALIGN_CENTER ||
 			this->align == ALIGN_CENTER_LEFT ||
 			this->align == ALIGN_CENTER_RIGHT) {
-		y -= h / 2;
+		y += h / 2 - mh / 2;
 	}
 
-	uv_ft81x_draw_bitmap_ext(this->media, x, y, w, h, this->wrap, this->blend_c);
+	uv_ft81x_draw_bitmap_ext(this->media, x, y, mw, mh, this->wrap, this->blend_c);
 }
 
 static uv_uiobject_ret_e uv_uiimage_step(void *me, uint16_t step_ms,

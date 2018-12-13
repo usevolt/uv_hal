@@ -103,6 +103,11 @@ uv_uiobject_ret_e uv_uibutton_step(void *me, uint16_t step_ms,
 		const uv_bounding_box_st *pbb);
 
 
+/// @brief: Draw function. Normally this is called internally but it can also be
+/// called when using draw callbacks
+void uv_uibutton_draw(void *me, const uv_bounding_box_st *pbb);
+
+
 
 #undef this
 

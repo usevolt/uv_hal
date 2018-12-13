@@ -32,6 +32,7 @@ enum {
 typedef uint8_t uv_uimedia_types_e;
 
 
+
 /// @brief: An uimedia structure. Defines the basic
 /// properties for a downloaded media files, such as graphics and audio
 typedef struct {
@@ -48,6 +49,14 @@ typedef struct {
 			uint16_t width;
 			/// @brief: The height of the image in pixels
 			uint16_t height;
+			/// @brief: The image format of the image. Baseline jpgs are in BITMAP_FORMAT_RGB565,
+			/// and png8 images with transparency are in BITMAP_FORMAT_PALETTED4444 format.
+			/// Note that if png8 images are used without transparency, the format should
+			/// explicitly set to BITMAP_FORMAT_PALETTED565 by the user after loading the image.
+			uint8_t format;
+			// for PALETTED images, the palette size specifies the palette size in bytes.
+			// Palette resides in the *addr* address, and the image starts right after it
+			uint16_t palette_size;
 		};
 
 	};

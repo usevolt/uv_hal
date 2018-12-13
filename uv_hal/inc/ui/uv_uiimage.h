@@ -17,15 +17,6 @@
 
 
 
-/// @brief: Defines the scaling possibilities for the images
-enum {
-	// The bitmap graphic is scaled to fit the dimensions of uv_uiimage structure
-	UIIMAGE_SCALE = 0,
-	// The bitmap graphic is shown in true size, regardless of the size of uv_uiimage.
-	// Align and wrap attributes affect in this mode
-	UIIMAGE_TRUE_SIZE
-};
-typedef uint8_t uiimage_scale_e;
 
 
 /// @brief: Defines the wrapping possibilities for the images. Only affects the drawn output
@@ -48,8 +39,6 @@ typedef struct {
 	// i.e. uv_uiimage structure doesnt take care of loading the media.
 	uv_uimedia_st *media;
 
-	// defines the scaling properties for the image.
-	uiimage_scale_e scale;
 	// defines the wrapping properties for the image. Only affects if scale is UIIMAGE_TRUE_SIZE.
 	uiimage_wrap_e wrap;
 	// The alignment of the bitmap. Only affects if scale is UIIMAGE_TRUE_SIZE and bitmap
@@ -72,7 +61,7 @@ typedef struct {
 ///
 /// @param media: Pointer to the media structure which defines the image shown here
 void uv_uiimage_init(void *me, uv_uimedia_st *media,
-		uiimage_scale_e scale, uiimage_wrap_e wrap, alignment_e align);
+		uiimage_wrap_e wrap, alignment_e align);
 
 
 
