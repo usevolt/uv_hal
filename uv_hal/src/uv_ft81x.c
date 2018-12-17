@@ -1088,7 +1088,6 @@ uint32_t uv_ft81x_loadbitmapexmem(uv_uimedia_st *bitmap,
 				bitmap->size += 4 - (bitmap->size % 4);
 			}
 			bitmap->width = read32(MEMMAP_RAM_CMD_BEGIN + ((x + 8) % RAMCMD_SIZE));
-			printf("%s: %u\n", bitmap->filename, bitmap->width);
 			bitmap->height = read32(MEMMAP_RAM_CMD_BEGIN + ((x + 12) % RAMCMD_SIZE));
 			// for paletted images calculate the palette size
 			if (bitmap->format >= BITMAP_FORMAT_PALETTED565) {
