@@ -195,13 +195,14 @@ static uint32_t get_msgif_id(const bool ext) {
 }
 
 static void set_msgif_id(const uint32_t id, const bool ext) {
+	// clear the ARB2 register, since otherwise some settings might come from the
+	// last message transmitted
+	LPC_CAN->IF1_ARB2 = 0;
 	if (ext) {
 		LPC_CAN->IF1_ARB1 = id & 0xFFFF;
-		LPC_CAN->IF1_ARB2 &= ~(0x1FFF);
 		LPC_CAN->IF1_ARB2 |= ((id >> 16) & 0x1FFF);
 	}
 	else {
-		LPC_CAN->IF1_ARB2 &= ~(0x1FFF);
 		LPC_CAN->IF1_ARB2 |= ((id & 0x7FF) << 2);
 	}
 }

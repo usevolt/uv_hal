@@ -231,6 +231,10 @@ should be enabled. Defaults to 0. Segmented parth takes roughly 1k4 bytes of fla
 #error "CONFIG_CANOPEN_HEARTBEAT_CONSUMER should be defined as 1 or 0 depending if this device\
  listens to any other node's heartbeats and consumes them."
 #endif
+#if !defined(CONFIG_CANOPEN_HEARTBEAT_PRODUCER)
+#error "CONFIG_CANOPEN_HEARTBEAT_PRODUCER should be define as 1 or 0 depending if the device\
+ sends the heartbeat messages. Usually this should be 1, as this is how it is defined by CiA 301."
+#endif
 #if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
 #if !CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT
 #error "CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT should define the number of Heartbeat producers\
