@@ -77,11 +77,11 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t butw = uv_uibb(this)->width / 3;
 	int16_t buth = uv_uibb(this)->height / 5;
 
-	uv_ft81x_draw_string((char*) this->title, this->style->font->index,
+	uv_ft81x_draw_string((char*) this->title, this->style->font,
 			globx + uv_uibb(this)->width / 2, globy, ALIGN_TOP_CENTER, this->style->text_color);
 
 	if (strlen(this->value_str)) {
-		uv_ft81x_draw_string(this->value_str, this->style->font->index,
+		uv_ft81x_draw_string(this->value_str, this->style->font,
 				globx + uv_uibb(this)->width / 2, globy + buth / 2,
 				ALIGN_TOP_CENTER, this->style->text_color);
 	}
@@ -93,17 +93,17 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 					(this->pressed_index == ((y - 1) * 3 + x)) ? this->style->active_bg_c : this->style->inactive_bg_c,
 					this->style->highlight_c, this->style->shadow_c);
 			if (y == 4 && x == 0) {
-				uv_ft81x_draw_string("Back", this->style->font->index,
+				uv_ft81x_draw_string("Back", this->style->font,
 						globx + x * butw + butw / 2, globy + y * buth + buth / 2,
 						ALIGN_CENTER, this->style->text_color);
 			}
 			else if (y == 4 && x == 2) {
-				uv_ft81x_draw_string("OK", this->style->font->index,
+				uv_ft81x_draw_string("OK", this->style->font,
 						globx + x * butw + butw / 2, globy + y * buth + buth / 2,
 						ALIGN_CENTER, this->style->text_color);
 			}
 			else {
-				uv_ft81x_draw_string((char*) labels[index], this->style->font->index,
+				uv_ft81x_draw_string((char*) labels[index], this->style->font,
 						globx + x * butw + butw / 2, globy + y * buth + buth / 2,
 						ALIGN_CENTER, this->style->text_color);
 				index++;

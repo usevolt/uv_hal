@@ -71,7 +71,7 @@ static void uv_uitreeobject_draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t y = uv_ui_get_yglobal(this);
 	int16_t w = uv_uibb(this)->width;
 	if (!((uv_uiobject_st*) this)->enabled) {
-		uv_ft81x_draw_string("-", this->font->index,
+		uv_ft81x_draw_string("-", this->font,
 				x + XOFFSET, y + CONFIG_UI_TREEVIEW_ITEM_HEIGHT / 2, ALIGN_CENTER_LEFT,
 				this->text_c);
 	}
@@ -85,7 +85,7 @@ static void uv_uitreeobject_draw(void *me, const uv_bounding_box_st *pbb) {
 				((uv_uiwindow_st*) me)->style->active_bg_c,
 				((uv_uiwindow_st*) me)->style->window_c, "\x1f", 1.0f, pbb);
 #elif CONFIG_FT81X
-		uv_ft81x_draw_string("+", this->font->index,
+		uv_ft81x_draw_string("+", this->font,
 				x + XOFFSET, y + CONFIG_UI_TREEVIEW_ITEM_HEIGHT / 2,
 				ALIGN_CENTER_LEFT, this->text_c);
 #endif
@@ -98,9 +98,9 @@ static void uv_uitreeobject_draw(void *me, const uv_bounding_box_st *pbb) {
 			((uv_uiwindow_st*) me)->style->text_color, C(0xFFFFFFFF),
 			this->name, 1.0f, pbb);
 #elif CONFIG_FT81X
-	uv_ft81x_draw_string((char*) this->name, this->font->index,
+	uv_ft81x_draw_string((char*) this->name, this->font,
 			x + XOFFSET * 2 +
-			uv_ft81x_get_font_height(this->font->index),
+			uv_ft81x_get_font_height(this->font),
 			y + CONFIG_UI_TREEVIEW_ITEM_HEIGHT / 2,
 			ALIGN_CENTER_LEFT, this->text_c);
 #endif

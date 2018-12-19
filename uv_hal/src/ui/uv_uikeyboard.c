@@ -56,7 +56,7 @@ static void draw(const char *title, char *buffer, const uv_uistyle_st *style) {
 	// background
 	uv_ft81x_clear(style->window_c);
 
-	uv_ft81x_draw_string((char*) title, style->font->index,
+	uv_ft81x_draw_string((char*) title, style->font,
 			LCD_W(0.5), 0, ALIGN_TOP_CENTER, style->text_color);
 
 	// draw current text
@@ -73,7 +73,7 @@ static void draw(const char *title, char *buffer, const uv_uistyle_st *style) {
 		str[1] = '\0';
 		uv_ft81x_draw_shadowrrect(x, y, BUTTON_W, BUTTON_H, CONFIG_UI_RADIUS,
 				style->inactive_bg_c, style->highlight_c, style->shadow_c);
-		uv_ft81x_draw_string(str, style->font->index, x + BUTTON_W / 2, y + BUTTON_H / 2,
+		uv_ft81x_draw_string(str, style->font, x + BUTTON_W / 2, y + BUTTON_H / 2,
 				ALIGN_CENTER, style->text_color);
 		x += BUTTON_W;
 
@@ -83,14 +83,14 @@ static void draw(const char *title, char *buffer, const uv_uistyle_st *style) {
 		if (line == 0 && line_counter >= line_lengths[line]) {
 			uv_ft81x_draw_shadowrrect(x, y, BUTTON_W * 2, BUTTON_H, CONFIG_UI_RADIUS,
 					style->inactive_bg_c, style->highlight_c, style->shadow_c);
-			uv_ft81x_draw_string("Backspace", style->font->index, x + BUTTON_W, y + BUTTON_H / 2,
+			uv_ft81x_draw_string("Backspace", style->font, x + BUTTON_W, y + BUTTON_H / 2,
 					ALIGN_CENTER, style->text_color);
 		}
 		// draw enter
 		else if (line == 1 && line_counter >= line_lengths[line]) {
 			uv_ft81x_draw_shadowrrect(x, y, BUTTON_W * 1.5, BUTTON_H * 2 + 1, CONFIG_UI_RADIUS,
 					style->inactive_bg_c, style->highlight_c, style->shadow_c);
-			uv_ft81x_draw_string("Enter", style->font->index, x + BUTTON_W * 0.75, y + BUTTON_H,
+			uv_ft81x_draw_string("Enter", style->font, x + BUTTON_W * 0.75, y + BUTTON_H,
 					ALIGN_CENTER, style->text_color);
 		}
 		// draw shift
@@ -98,7 +98,7 @@ static void draw(const char *title, char *buffer, const uv_uistyle_st *style) {
 		uv_ft81x_draw_shadowrrect(x, y, BUTTON_W * 2, BUTTON_H, CONFIG_UI_RADIUS,
 				shift ? style->active_bg_c : style->inactive_bg_c,
 						style->highlight_c, style->shadow_c);
-		uv_ft81x_draw_string("Shift", style->font->index, x + BUTTON_W, y + BUTTON_H / 2,
+		uv_ft81x_draw_string("Shift", style->font, x + BUTTON_W, y + BUTTON_H / 2,
 				ALIGN_CENTER, style->text_color);
 		}
 		else {
@@ -115,7 +115,7 @@ static void draw(const char *title, char *buffer, const uv_uistyle_st *style) {
 	// draw space bar
 	uv_ft81x_draw_shadowrrect(LCD_W(0.1), y, LCD_W(0.8), BUTTON_H, CONFIG_UI_RADIUS,
 			style->inactive_bg_c, style->highlight_c, style->shadow_c);
-	uv_ft81x_draw_string("Space", style->font->index, LCD_W(0.5), y + BUTTON_H / 2,
+	uv_ft81x_draw_string("Space", style->font, LCD_W(0.5), y + BUTTON_H / 2,
 			ALIGN_CENTER, style->text_color);
 
 	// update the ft81x display
@@ -147,7 +147,7 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 				str[1] = '\0';
 				uv_ft81x_draw_shadowrrect(x, y, BUTTON_W, BUTTON_H, CONFIG_UI_RADIUS,
 						style->active_bg_c, style->highlight_c, style->shadow_c);
-				uv_ft81x_draw_string(str, style->font->index, x + BUTTON_W / 2, y + BUTTON_H / 2,
+				uv_ft81x_draw_string(str, style->font, x + BUTTON_W / 2, y + BUTTON_H / 2,
 						ALIGN_CENTER, style->text_color);
 				return '\0';
 			}
@@ -163,7 +163,7 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 					if (touch->action == TOUCH_PRESSED) {
 						uv_ft81x_draw_shadowrrect(x + BUTTON_W, y, BUTTON_W * 2, BUTTON_H,
 								CONFIG_UI_RADIUS, style->active_bg_c, style->highlight_c, style->shadow_c);
-						uv_ft81x_draw_string("Backspace", style->font->index,
+						uv_ft81x_draw_string("Backspace", style->font,
 								x + BUTTON_W * 2, y + BUTTON_H / 2, ALIGN_CENTER,
 								style->text_color);
 					}
@@ -180,7 +180,7 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 						uv_ft81x_draw_shadowrrect(x + BUTTON_W, y, BUTTON_W * 1.5,
 								BUTTON_H * 2, CONFIG_UI_RADIUS, style->active_bg_c,
 								style->highlight_c, style->shadow_c);
-						uv_ft81x_draw_string("Enter", style->font->index,
+						uv_ft81x_draw_string("Enter", style->font,
 								x + BUTTON_W * 1.75, y + BUTTON_H, ALIGN_CENTER, style->text_color);
 					}
 					else if (touch->action == TOUCH_RELEASED) {
@@ -195,7 +195,7 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 					if (touch->action == TOUCH_PRESSED) {
 						uv_ft81x_draw_shadowrrect(x + BUTTON_W, y, BUTTON_W * 2, BUTTON_H, CONFIG_UI_RADIUS,
 								style->active_bg_c, style->highlight_c, style->shadow_c);
-						uv_ft81x_draw_string("Shift", style->font->index,
+						uv_ft81x_draw_string("Shift", style->font,
 								x + BUTTON_W * 2, y + BUTTON_H / 2, ALIGN_CENTER, style->text_color);
 					}
 					else if (touch->action == TOUCH_RELEASED) {
@@ -220,7 +220,7 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 		if (touch->action == TOUCH_PRESSED) {
 			uv_ft81x_draw_shadowrrect(LCD_W(0.1), y, LCD_W(0.8), BUTTON_H, CONFIG_UI_RADIUS,
 					style->active_bg_c, style->highlight_c, style->shadow_c);
-			uv_ft81x_draw_string("Space", style->font->index, LCD_W(0.5), y + BUTTON_H / 2,
+			uv_ft81x_draw_string("Space", style->font, LCD_W(0.5), y + BUTTON_H / 2,
 					ALIGN_CENTER, style->text_color);
 		}
 		else if (touch->action == TOUCH_RELEASED) {
@@ -234,7 +234,7 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 
 static void update_input(char *input, const uv_uistyle_st *style) {
 	// clear all previous texts
-	uv_ft81x_draw_string(input, style->font->index, LCD_WPPT(500), style->font->char_height,
+	uv_ft81x_draw_string(input, style->font, LCD_WPPT(500), style->font->char_height,
 			ALIGN_TOP_CENTER, style->text_color);
 
 }

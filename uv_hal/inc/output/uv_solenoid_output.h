@@ -29,6 +29,8 @@
 
 #if CONFIG_SOLENOID_OUTPUT
 
+#define SOLENOID_OUTPUT_PWMAVG_COUNT	10
+#define SOLENOID_OUTPUT_MAAVG_COUNT		100
 
 #if !CONFIG_PID
 #error "uv_solenoid_output requires uv_pid_st to be enabled with CONFIG_PID defined as 1."
@@ -44,7 +46,12 @@
 #if !defined(CONFIG_SOLENOID_MA_I)
 #error "CONFIG_SOLENOID_MA_I should define the I factor for load resistance measurement."
 #endif
-
+#if !defined(CONFIG_SOLENOID_MAX_CURRENT_DEF)
+#error "CONFIG_SOLENOID_MAX_CURRENT_DEF should define the default maximum current value for solenoid output in mA."
+#endif
+#if !defined(CONFIG_SOLENOID_MIN_CURRENT_DEF)
+#error "CONFIG_SOLENOID_MIN_CURRENT_DEF should define the default minimum current value for solenoid output in mA."
+#endif
 
 typedef enum {
 	/// @brief: Output is current controlled with a current sensing feedback
@@ -89,6 +96,9 @@ typedef struct {
 	uint16_t target;
 	/// @brief: Stores the current PWM duty cycle
 	uint16_t pwm;
+	/// @brief: Stores the average PWM duty cycle value, used for compensation in
+	/// calculating the current
+	uv_moving_aver_st pwmaver;
 	/// @brief: PWM channel configured for this output
 	uv_pwm_channel_t pwm_chn;
 

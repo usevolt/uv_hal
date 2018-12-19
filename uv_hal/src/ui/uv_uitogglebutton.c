@@ -32,7 +32,7 @@ static inline void draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t h = uv_uibb(this)->height;
 
 	uv_ft81x_draw_shadowrrect(x, y, w, h, CONFIG_UI_RADIUS, bgc, lightc, shadowc);
-	uv_ft81x_draw_string(this->super.text, ((uv_uibutton_st*) this)->font->index, x + w / 2,
+	uv_ft81x_draw_string(this->super.text, ((uv_uibutton_st*) this)->font, x + w / 2,
 			y + h / 2, ALIGN_CENTER, fontc);
 }
 

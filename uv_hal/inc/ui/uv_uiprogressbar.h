@@ -59,7 +59,7 @@ typedef struct {
 	color_t main_c;
 	color_t bg_c;
 	color_t text_c;
-	const uv_font_st *font;
+	uv_font_st *font;
 
 	/// @brief: Optional title text
 	char *title;

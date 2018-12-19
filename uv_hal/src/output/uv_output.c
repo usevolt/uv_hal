@@ -25,6 +25,14 @@
 #if CONFIG_OUTPUT
 
 
+// default current calculation function
+static uint16_t current_func(void *this_ptr, uint16_t adc) {
+	int32_t current = (int32_t) adc * ((uv_output_st*) this_ptr)->sense_ampl / 1000;
+
+	return current;
+}
+
+
 /// @brief: Sets the output GPIO if one is assigned. When extending
 /// different output modules from this, set gate_io to 0.
 static inline void set_out(uv_output_st *this, uint16_t value) {
@@ -35,8 +43,9 @@ static inline void set_out(uv_output_st *this, uint16_t value) {
 
 
 void uv_output_init(uv_output_st *this,  uv_adc_channels_e adc_chn, uv_gpios_e gate_io,
-		uint16_t sense_ampl, uint16_t max_val, uint16_t fault_val,
+		uint16_t sense_ampl, uint16_t max_val_ma, uint16_t fault_val_ma,
 		uint16_t moving_avg_count, uint32_t emcy_overload, uint32_t emcy_fault) {
+	this->current_func = &current_func;
 	this->adc_chn = adc_chn;
 	this->gate_io = gate_io;
 	if (this->gate_io) {
@@ -44,8 +53,9 @@ void uv_output_init(uv_output_st *this,  uv_adc_channels_e adc_chn, uv_gpios_e g
 	}
 	set_out(this, 0);
 	this->sense_ampl = sense_ampl;
-	this->limit_max = max_val;
-	this->limit_fault = fault_val;
+	this->limit_max_ma = max_val_ma;
+	// convert fault_val_ma from ma to adc reading
+	this->limit_fault = fault_val_ma * 1000 / sense_ampl;
 	uv_moving_aver_init(&this->moving_avg, moving_avg_count);
 	this->emcy_overload = emcy_overload;
 	this->emcy_fault = emcy_fault;
@@ -97,13 +107,14 @@ void uv_output_step(uv_output_st *this, uint16_t step_ms) {
 
 	if (this->state == OUTPUT_STATE_ON) {
 
+		int16_t adc = 0;
 		// current sense feedback
 		if (this->adc_chn) {
-			int16_t adc = uv_adc_read(this->adc_chn);
+			adc = uv_adc_read(this->adc_chn);
 			if (adc < 0) {
 				adc = 0;
 			}
-			int32_t current = (int32_t) adc * this->sense_ampl / 1000;
+			int32_t current = this->current_func(this, adc);
 			uv_moving_aver_step(&this->moving_avg, current);
 		}
 
@@ -111,11 +122,11 @@ void uv_output_step(uv_output_st *this, uint16_t step_ms) {
 
 		// Disable fault detection for a short time during power on
 		if (uv_moving_aver_is_full(&this->moving_avg)) {
-			if (this->current > this->limit_fault) {
+			if (adc > this->limit_fault) {
 				set_out(this, false);
 				uv_output_set_state(this, OUTPUT_STATE_FAULT);
 			}
-			else if ((this->current > this->limit_max)) {
+			else if ((this->current > this->limit_max_ma)) {
 				set_out(this, false);
 				uv_output_set_state(this, OUTPUT_STATE_OVERLOAD);
 			}

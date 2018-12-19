@@ -30,19 +30,21 @@
 #if CONFIG_HALSENSOR
 
 
-#define HALSENSOR_AVG_COUNT		4
+#define HALSENSOR_AVG_COUNT		1
 
 
 /// @brief: HAL sensor states
 enum {
 	// sensor is operational
-	HALSENSOR_STATE_ON,
+	HALSENSOR_STATE_ON = 0,
 	// sensor is in a fault state
 	HALSENSOR_STATE_FAULT,
 	// sensor is in calibration
-	HALSENSOR_STATE_CALIBRATION
+	HALSENSOR_STATE_CALIBRATION,
+	HALSENSOR_STATE_COUNT
 };
 typedef uint8_t halsensor_state_e;
+
 
 
 typedef struct {
@@ -57,18 +59,26 @@ typedef struct {
 void uv_halsensor_config_reset(uv_halsensor_config_st *this);
 
 
+#define HALSENSOR_OUTPUT_MAX	INT8_MAX
+#define HALSENSOR_OUTPUT_MIN	(INT8_MIN + 1)
+
 /// @brief: The main hal sensor module
 typedef struct {
-	halsensor_state_e state;
-
 	// adc channel for reading the sensor value
 	uv_adc_channels_e adc_chn;
 	// moving average filter for the input adc
 	uv_moving_aver_st moving_aver;
 
-	// output value, between range INT8_MIN + 1 ... INT8_MAX.
+	halsensor_state_e state;
+
+	// output value, between range INTX_MIN + 1 ... INTX_MAX, where X is 8, 16 or 32.
 	// if fault is detected, output is driven to 0.
-	int8_t output;
+	int8_t output8;
+	int16_t output16;
+	int32_t output32;
+
+	// output raw value in millivolts
+	uint16_t out_mv;
 
 	// emcy which will be sent if the sensor goes into fault mode
 	uint32_t fault_emcy;
@@ -86,20 +96,37 @@ void uv_halsensor_init(uv_halsensor_st *this, uv_halsensor_config_st *config,
 
 /// @brief: Step function should be called every step cycle
 ///
-/// @return: output value. Can be also fetched with *uv_halsensor_get_output*
-int8_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms);
+/// @return: output value. Can be also fetched with *uv_halsensor_get_output32*
+int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms);
 
 
 /// @brief: Puts the hal sensor into calibration state or out from it
 void uv_halsensor_set_calbration(uv_halsensor_st *this, bool value);
 
 
-
-/// @brief: Returns the output from the HAL sensor module
-static inline int8_t uv_halsensor_get_output(uv_halsensor_st *this) {
-	return this->output;
+static inline halsensor_state_e uv_halsensor_get_state(uv_halsensor_st *this) {
+	return this->state;
 }
 
+/// @brief: Returns the output from the HAL sensor module in 8-bit integer
+static inline int8_t uv_halsensor_get_output8(uv_halsensor_st *this) {
+	return this->output8;
+}
+
+/// @brief: Returns the output from the HAL sensor module in 16-bit integer
+static inline int16_t uv_halsensor_get_output16(uv_halsensor_st *this) {
+	return this->output16;
+}
+
+/// @brief: Returns the output from the HAL sensor module in 32-bit integer
+static inline int32_t uv_halsensor_get_output32(uv_halsensor_st *this) {
+	return this->output32;
+}
+
+/// @brief: Returns the output absolute voltage in millivolts
+static inline uint16_t uv_halsensor_get_out_mv(uv_halsensor_st *this) {
+	return this->out_mv;
+}
 
 
 

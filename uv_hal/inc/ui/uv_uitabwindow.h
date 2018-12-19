@@ -39,7 +39,7 @@ typedef struct {
 	bool tab_changed;
 
 	color_t text_c;
-	const uv_font_st *font;
+	uv_font_st *font;
 } uv_uitabwindow_st;
 
 #ifndef this

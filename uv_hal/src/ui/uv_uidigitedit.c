@@ -32,7 +32,7 @@ static void touch(void *me, uv_touch_st *touch);
 #define this ((uv_uidigitedit_st *) me)
 
 
-void uv_uidigitedit_init(void *me, const uv_font_st *font,
+void uv_uidigitedit_init(void *me, uv_font_st *font,
 		color_t color, uint32_t value, const uv_uistyle_st *style) {
 	uv_uilabel_init(this, font, ALIGN_CENTER, color, "");
 	this->style = style;
@@ -63,7 +63,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 	uint16_t height = uv_ui_text_height_px(((uv_uilabel_st*) this)->str,
 			((uv_uilabel_st*) this)->font, 1) +
-					uv_ft81x_get_font_height(((uv_uilabel_st*) this)->font->index);
+					uv_ft81x_get_font_height(((uv_uilabel_st*) this)->font);
 	if (height > uv_uibb(this)->height) {
 		height = uv_uibb(this)->height;
 	}

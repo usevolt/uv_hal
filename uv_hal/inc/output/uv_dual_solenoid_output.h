@@ -31,6 +31,12 @@
 #if !CONFIG_SOLENOID_OUTPUT
 #error "CONFIG_SOLENOID_OUTPUT has to be enabled in order to use uv_dual_solenoid_output module."
 #endif
+#if !defined(CONFIG_DUAL_SOLENOID_ACC_DEF)
+#error "CONFIG_DUAL_SOLENOID_ACC_DEF should define the default value for acceleration factor, 0 ... 100"
+#endif
+#if !defined(CONFIG_DUAL_SOLENOID_ACC_DEF)
+#error "CONFIG_DUAL_SOLENOID_ACC_DEF should define the default value for acceleration factor, 0 ... 100"
+#endif
 
 
 typedef enum {
@@ -42,6 +48,8 @@ typedef enum {
 
 #define DUAL_SOLENOID_ACC_MAX	100
 #define DUAL_SOLENOID_DEC_MAX	100
+#define DUAL_SOLENOID_VALUE_MAX	1000
+#define DUAL_SOLENOID_VALUE_MIN	-1000
 
 /// @brief: Configuration structure for the dual solenoid module
 typedef struct {

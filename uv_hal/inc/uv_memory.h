@@ -209,6 +209,7 @@ extern const uint32_t uv_prog_version;
 ///
 uv_errors_e uv_memory_save(void);
 
+
 /// @brief: Copies data from non-volatile flash memory to another memory location,
 /// usually to RAM.
 /// @return: Returns true if checksum was correct and thus valid data exists in

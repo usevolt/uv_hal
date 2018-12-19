@@ -161,39 +161,53 @@ const canopen_object_st com_params[] = {
 #endif
 #if CONFIG_W25Q128
 		{
-				.main_index = CONFIG_CANOPEN_FD_INDEX,
-				.sub_index = CONFIG_CANOPEN_FD_DATA_SUBINDEX,
-				.type = CANOPEN_STRING,
+				.main_index = CONFIG_CANOPEN_EXMEM_DATA_INDEX,
+				.sub_index = 0,
+				.type = CONFIG_CANOPEN_EXMEM_DATA_TYPE,
 				.string_len = CONFIG_EXMEM_BUFFER_SIZE,
 				.permissions = CANOPEN_RW,
-				.data_ptr = exmem_data_buffer
+				.data_ptr = &exmem_data_buffer
 		},
 		{
-				.main_index = CONFIG_CANOPEN_FD_INDEX,
-				.sub_index = CONFIG_CANOPEN_FD_FILENAME_SUBINDEX,
-				.type = CANOPEN_STRING,
+				.main_index = CONFIG_CANOPEN_EXMEM_BLOCKSIZE_INDEX,
+				.sub_index = 0,
+				.type = CONFIG_CANOPEN_EXMEM_BLOCKSIZE_TYPE,
+				.permissions = CANOPEN_RO,
+				.data_ptr = (void*) &exmem_blocksize
+		},
+		{
+				.main_index = CONFIG_CANOPEN_EXMEM_OFFSET_INDEX,
+				.sub_index = 0,
+				.type = CONFIG_CANOPEN_EXMEM_OFFSET_TYPE,
+				.permissions = CANOPEN_RW,
+				.data_ptr = &exmem_data_offset
+		},
+		{
+				.main_index = CONFIG_CANOPEN_EXMEM_FILENAME_INDEX,
+				.sub_index = 0,
+				.type = CONFIG_CANOPEN_EXMEM_FILENAME_TYPE,
 				.string_len = EXMEM_FILENAME_LEN,
 				.permissions = CANOPEN_RW,
 				.data_ptr = exmem_filename_buffer
 		},
 		{
-				.main_index = CONFIG_CANOPEN_FD_INDEX,
-				.sub_index = CONFIG_CANOPEN_FD_FILESIZE_SUBINDEX,
-				.type = CANOPEN_UNSIGNED32,
+				.main_index = CONFIG_CANOPEN_EXMEM_FILESIZE_INDEX,
+				.sub_index = 0,
+				.type = CONFIG_CANOPEN_EXMEM_FILESIZE_TYPE,
 				.permissions = CANOPEN_RW,
 				.data_ptr = &exmem_file_size
 		},
 		{
-				.main_index = CONFIG_CANOPEN_FD_INDEX,
-				.sub_index = CONFIG_CANOPEN_FD_WRITEREQ_SUBINDEX,
-				.type = CANOPEN_UNSIGNED32,
+				.main_index = CONFIG_CANOPEN_EXMEM_WRITEREQ_INDEX,
+				.sub_index = 0,
+				.type = CONFIG_CANOPEN_EXMEM_WRITEREQ_TYPE,
 				.permissions = CANOPEN_RW,
 				.data_ptr = &exmem_write_req
 		},
 		{
-				.main_index = CONFIG_CANOPEN_FD_INDEX,
-				.sub_index = CONFIG_CANOPEN_FD_CLEARREQ_SUBINDEX,
-				.type = CANOPEN_UNSIGNED8,
+				.main_index = CONFIG_CANOPEN_EXMEM_CLEARREQ_INDEX,
+				.sub_index = 0,
+				.type = CONFIG_CANOPEN_EXMEM_CLEARREQ_TYPE,
 				.permissions = CANOPEN_RW,
 				.data_ptr = &exmem_clear_req
 		},

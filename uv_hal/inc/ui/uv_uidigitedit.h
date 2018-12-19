@@ -41,7 +41,7 @@ typedef struct {
 #define this ((uv_uidigitedit_st*)me)
 
 
-void uv_uidigitedit_init(void *me, const uv_font_st *font,
+void uv_uidigitedit_init(void *me, uv_font_st *font,
 		color_t color, uint32_t value, const uv_uistyle_st *style);
 
 

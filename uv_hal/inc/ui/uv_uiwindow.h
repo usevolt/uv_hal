@@ -139,9 +139,19 @@ void uv_uiwindow_clear(void *me);
 /// windows are set transparent to save performance.
 void uv_uiwindow_set_transparent(void *me, bool value);
 
+/// @brief: Returns the background color of this window
+static inline color_t uv_uiwindow_get_bgc(void *me) {
+	return this->bg_c;
+}
+
+/// @brief: Sets the background color for the window
+static inline void uv_uiwindow_set_bgc(void *me, color_t c) {
+	this->bg_c = c;
+}
 
 /// @brief: Redraw function for internal use
 void _uv_uiwindow_redraw(void *me, const uv_bounding_box_st *pbb);
+
 
 
 

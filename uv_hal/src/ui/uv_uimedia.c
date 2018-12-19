@@ -16,28 +16,9 @@
 */
 
 
-#ifndef UW_UI_H_
-#define UW_UI_H_
+#ifndef HAL_UV_HAL_SRC_UI_UV_UIMEDIA_C_
+#define HAL_UV_HAL_SRC_UI_UV_UIMEDIA_C_
 
-#include "ui/uv_uimedia.h"
-#include "ui/uv_uibutton.h"
-#include "ui/uv_uitogglebutton.h"
-#include "ui/uv_uidisplay.h"
-#include "ui/uv_uilabel.h"
-#include "ui/uv_uislider.h"
-#include "ui/uv_uiwindow.h"
-#include "ui/uv_ui_styles.h"
-#include "ui/uv_uilist.h"
-#include "ui/uv_uikeyboard.h"
-#include "ui/uv_uitabwindow.h"
-#include "ui/uv_uiprogressbar.h"
-#include "ui/uv_uilayout.h"
-#include "ui/uv_uitoucharea.h"
-#include "ui/uv_uitreeview.h"
-#include "ui/uv_uitransition.h"
-#include "ui/uv_uidialog.h"
-#include "ui/uv_uinumpad.h"
-#include "ui/uv_uidigitedit.h"
-#include "ui/uv_uiimage.h"
 
-#endif /* UW_UI_H_ */
+
+#endif /* HAL_UV_HAL_SRC_UI_UV_UIMEDIA_C_ */

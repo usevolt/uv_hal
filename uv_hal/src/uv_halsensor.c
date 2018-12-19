@@ -23,7 +23,7 @@
 #define CONFIG_MIN_DEF				(ADC_MAX_VALUE * 50 / 1000)
 #define CONFIG_MAX_DEF				(ADC_MAX_VALUE * 950 / 1000)
 #define CONFIG_MIDDLE_DEF			(ADC_MAX_VALUE / 2)
-#define CONFIG_MIDDLE_TOLERANCE_DEF	(ADC_MAX_VALUE / 10)
+#define CONFIG_MIDDLE_TOLERANCE_DEF	(ADC_MAX_VALUE / 40)
 
 void uv_halsensor_config_reset(uv_halsensor_config_st *this) {
 	this->max = CONFIG_MAX_DEF;
@@ -43,9 +43,12 @@ void uv_halsensor_init(uv_halsensor_st *this, uv_halsensor_config_st *config,
 }
 
 
-int8_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
+int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 	uint16_t adc = uv_adc_read(this->adc_chn);
 	adc = uv_moving_aver_step(&this->moving_aver, adc);
+
+	// voltage output is always calculated
+	this->out_mv = adc * 3300 / ADC_MAX_VALUE;
 
 	if (this->state == HALSENSOR_STATE_ON) {
 		// check if there's a fault in the input
@@ -56,7 +59,7 @@ int8_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 				uv_canopen_emcy_send(CANOPEN_EMCY_DEVICE_SPECIFIC, this->fault_emcy);
 			}
 			this->state = HALSENSOR_STATE_FAULT;
-			this->output = 0;
+			this->output16 = 0;
 		}
 		// calculate the output value
 		else {
@@ -78,20 +81,20 @@ int8_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 					adc = adc * adc / scale;
 					// linearily interpolate output value
 					int32_t rel = uv_reli(adc, 0, scale);
-					int32_t result = uv_lerpi(rel, 0, INT8_MAX);
+					int32_t result = uv_lerpi(rel, 0, INT16_MAX);
 					if (result < 0) {
 						result = 0;
 					}
-					else if (result > INT8_MAX) {
-						result = INT8_MAX;
+					else if (result > INT16_MAX) {
+						result = INT16_MAX;
 					}
 					else {
 
 					}
-					this->output = result;
+					this->output16 = result;
 				}
 				else {
-					this->output = 0;
+					this->output16 = 0;
 				}
 			}
 			// negative side
@@ -106,31 +109,31 @@ int8_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 					adc = adc * adc / scale;
 					// linearily interpolate output value
 					int32_t rel = uv_reli(adc, 0, scale);
-					int32_t result = uv_lerpi(rel, 0, INT8_MAX);
+					int32_t result = uv_lerpi(rel, 0, INT16_MAX);
 					if (result < 0) {
 						result = 0;
 					}
-					else if (result > INT8_MAX) {
+					else if (result > INT16_MAX) {
 						result = 0;
 					}
 					else {
 
 					}
 					// result should be negative on this side
-					this->output = -result;
+					this->output16 = -result;
 				}
 				else {
-					this->output = 0;
+					this->output16 = 0;
 				}
 			}
 			// in middle output is 0
 			else {
-				this->output = 0;
+				this->output16 = 0;
 			}
 		}
 	}
 	else if (this->state == HALSENSOR_STATE_FAULT) {
-		this->output = 0;
+		this->output16 = 0;
 		// move back to ON state if read value is in middle
 		if ((adc > this->config->middle - this->config->middle_tolerance / 2) &&
 				(adc < this->config->middle + this->config->middle_tolerance / 2)) {
@@ -149,13 +152,17 @@ int8_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 		}
 		this->config->middle = adc;
 
-		this->output = 0;
+		this->output16 = 0;
 	}
 	else {
-		this->output = 0;
+		this->output16 = 0;
 	}
 
-	return this->output;
+	// lastly update output16 and output8
+	this->output32 = this->output16 * 0x10000;
+	this->output8 = this->output16 / 0x100;
+
+	return this->output32;
 }
 
 void uv_halsensor_set_calbration(uv_halsensor_st *this, bool value) {
@@ -163,6 +170,13 @@ void uv_halsensor_set_calbration(uv_halsensor_st *this, bool value) {
 		this->state = HALSENSOR_STATE_ON;
 	}
 	else if (value) {
+		if (this->state != HALSENSOR_STATE_CALIBRATION) {
+			// reset the values to defaults
+			int32_t adc = uv_adc_read(this->adc_chn);
+			this->config->min = adc;
+			this->config->max = adc;
+			this->config->middle = adc;
+		}
 		this->state = HALSENSOR_STATE_CALIBRATION;
 	}
 	else {

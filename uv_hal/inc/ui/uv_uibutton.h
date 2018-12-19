@@ -46,7 +46,7 @@ typedef struct {
 	char *text;
 	color_t main_c;
 	color_t text_c;
-	const uv_font_st *font;
+	uv_font_st *font;
 
 } uv_uibutton_st;
 
@@ -101,6 +101,11 @@ static inline color_t uv_uibutton_get_main_color(void *me) {
 /// @brief: Step function should be called every step cycle
 uv_uiobject_ret_e uv_uibutton_step(void *me, uint16_t step_ms,
 		const uv_bounding_box_st *pbb);
+
+
+/// @brief: Draw function. Normally this is called internally but it can also be
+/// called when using draw callbacks
+void uv_uibutton_draw(void *me, const uv_bounding_box_st *pbb);
 
 
 

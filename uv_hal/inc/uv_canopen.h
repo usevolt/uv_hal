@@ -139,9 +139,6 @@ initialization structure."
 #if !defined(CONFIG_CANOPEN_IDENTITY_INDEX)
 #define CONFIG_CANOPEN_IDENTITY_INDEX		0x1018
 #endif
-#if !defined(CONFIG_CANOPEN_DEVNAME_INDEX)
-#define CONFIG_CANOPEN_DEVNAME_INDEX		0x5FFF
-#endif
 #if !defined(CONFIG_CANOPEN_PROGRAM_DATA_INDEX)
 #define CONFIG_CANOPEN_PROGRAM_DATA_INDEX	0x1F50
 #endif
@@ -154,14 +151,23 @@ initialization structure."
 #if !defined(CONFIG_CANOPEN_PROGRAM_FLASH_STATUS_INDEX)
 #define CONFIG_CANOPEN_PROGRAM_FLASH_STATUS_INDEX	0x1F57
 #endif
-#if !defined(CONFIG_CANOPEN_FD_DATA_INDEX)
-#define CONFIG_CANOPEN_FD_INDEX				0x5FFD
-#define CONFIG_CANOPEN_FD_DATA_SUBINDEX		0
-#define CONFIG_CANOPEN_FD_FILENAME_SUBINDEX	1
-#define CONFIG_CANOPEN_FD_FILESIZE_SUBINDEX	2
-#define CONFIG_CANOPEN_FD_WRITEREQ_SUBINDEX	3
-#define CONFIG_CANOPEN_FD_CLEARREQ_SUBINDEX	4
+#if !defined(CONFIG_CANOPEN_DEVNAME_INDEX)
+#define CONFIG_CANOPEN_DEVNAME_INDEX		0x5FFF
 #endif
+#define CONFIG_CANOPEN_EXMEM_DATA_INDEX			0x5FFE
+#define CONFIG_CANOPEN_EXMEM_DATA_TYPE			CANOPEN_STRING
+#define CONFIG_CANOPEN_EXMEM_BLOCKSIZE_INDEX	0x5FFD
+#define CONFIG_CANOPEN_EXMEM_BLOCKSIZE_TYPE		CANOPEN_UNSIGNED32
+#define CONFIG_CANOPEN_EXMEM_OFFSET_INDEX		0x5FFC
+#define CONFIG_CANOPEN_EXMEM_OFFSET_TYPE		CANOPEN_UNSIGNED32
+#define CONFIG_CANOPEN_EXMEM_FILENAME_INDEX		0x5FFB
+#define CONFIG_CANOPEN_EXMEM_FILENAME_TYPE		CANOPEN_STRING
+#define CONFIG_CANOPEN_EXMEM_FILESIZE_INDEX		0x5FFA
+#define CONFIG_CANOPEN_EXMEM_FILESIZE_TYPE		CANOPEN_UNSIGNED32
+#define CONFIG_CANOPEN_EXMEM_WRITEREQ_INDEX		0x5FF9
+#define CONFIG_CANOPEN_EXMEM_WRITEREQ_TYPE		CANOPEN_UNSIGNED32
+#define CONFIG_CANOPEN_EXMEM_CLEARREQ_INDEX		0x5FF8
+#define CONFIG_CANOPEN_EXMEM_CLEARREQ_TYPE		CANOPEN_UNSIGNED8
 #if CONFIG_TERMINAL
 #if !defined(CONFIG_CANOPEN_TERMINAL_INDEX)
 #define CONFIG_CANOPEN_TERMINAL_INDEX		0x5FFE
@@ -206,8 +212,10 @@ should be enabled. Defaults to 0. Segmented parth takes roughly 1k4 bytes of fla
 #error "CONFIG_CANOPEN_TXPDO_COUNT not defined. It should define the maximum number of transmit\
  PDO's in this hardware."
 #endif
+#if !defined(CONFIG_CANOPEN_INITIALIZER)
 #if !defined(CONFIG_CANOPEN_PRODUCER_HEARTBEAT_TIME_MS)
 #error "CONFIG_CANOPEN_PRODUCER_HEARTBEAT_TIME_MS should define the producer heartbeat time in ms"
+#endif
 #endif
 #if !defined(CONFIG_CANOPEN_CHANNEL)
 #error "CONFIG_CANOPEN_CHANNEL should define the uv_can channel to be used for CANopen communication"
@@ -222,6 +230,10 @@ should be enabled. Defaults to 0. Segmented parth takes roughly 1k4 bytes of fla
 #if !defined(CONFIG_CANOPEN_HEARTBEAT_CONSUMER)
 #error "CONFIG_CANOPEN_HEARTBEAT_CONSUMER should be defined as 1 or 0 depending if this device\
  listens to any other node's heartbeats and consumes them."
+#endif
+#if !defined(CONFIG_CANOPEN_HEARTBEAT_PRODUCER)
+#error "CONFIG_CANOPEN_HEARTBEAT_PRODUCER should be define as 1 or 0 depending if the device\
+ sends the heartbeat messages. Usually this should be 1, as this is how it is defined by CiA 301."
 #endif
 #if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
 #if !CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT
@@ -243,6 +255,7 @@ CONFIG_CANOPEN_EMCY_MSG_ID_x symbol should define the message ID, starting from 
 #error "CONFIG_CANOPEN_SDO_BLOCK_SIZE should define the size of SDO block transfers in bytes."
 #endif
 #endif
+
 
 
 
