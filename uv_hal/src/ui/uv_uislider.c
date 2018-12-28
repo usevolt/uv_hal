@@ -251,16 +251,20 @@ void uv_uislider_set_value(void *me, int16_t value) {
 
 /// @brief: Sets the minimum value
 void uv_uislider_set_min_value(void *me, int16_t min_value) {
-	this->min_val = min_value;
-	uv_uislider_set_value(this, this->cur_val);
-	uv_ui_refresh(this);
+	if (this->min_val != min_value) {
+		this->min_val = min_value;
+		uv_uislider_set_value(this, this->cur_val);
+		uv_ui_refresh(this);
+	}
 }
 
 /// @brief: sets the maximum value
 void uv_uislider_set_max_value(void *me, int16_t max_value) {
-	this->max_val = max_value;
-	uv_uislider_set_value(this, this->cur_val);
-	uv_ui_refresh(this);
+	if (this->max_val != max_value) {
+		this->max_val = max_value;
+		uv_uislider_set_value(this, this->cur_val);
+		uv_ui_refresh(this);
+	}
 }
 
 

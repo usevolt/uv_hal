@@ -562,6 +562,17 @@ uv_errors_e uv_canopen_sdo_restore_params(uint8_t node_id);
 
 uv_errors_e uv_canopen_sdo_store_params(uint8_t node_id);
 
+
+/// @brief: Returns the current nodeid of this device
+static inline uint8_t uv_canopen_get_our_nodeid(void) {
+	return _canopen.current_node_id;
+}
+
+/// @brief: Sets the nodeid of this device. The change comes valid
+/// after saving non-volatile settings and resetting the device.
+void uv_canopen_set_our_nodeid(uint8_t nodeid);
+
+
 #endif
 
 #endif /* UW_CANOPEN_H_ */

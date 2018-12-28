@@ -19,19 +19,6 @@
 
 #if CONFIG_UI
 
-/* Alignments */
-typedef enum {
-	ALIGN_TOP_LEFT 			= FT81X_ALIGN_LEFT_TOP,
-	ALIGN_CENTER_LEFT 		= FT81X_ALIGN_LEFT_CENTER,
-	ALIGN_TOP_CENTER 		= FT81X_ALIGN_CENTER_TOP,
-	ALIGN_CENTER 			= FT81X_ALIGN_CENTER,
-	ALIGN_TOP_RIGHT 		= FT81X_ALIGN_RIGHT_TOP,
-	ALIGN_CENTER_RIGHT 		= FT81X_ALIGN_RIGHT_CENTER,
-} alignment_e;
-
-
-
-
 
 
 /// @brief: Structure for showing text label on the screen.

@@ -199,5 +199,10 @@ uv_errors_e uv_canopen_sdo_store_params(uint8_t node_id) {
 }
 
 
+void uv_canopen_set_our_nodeid(uint8_t nodeid) {
+	CONFIG_NON_VOLATILE_START.id = nodeid;
+}
+
+
 
 #endif

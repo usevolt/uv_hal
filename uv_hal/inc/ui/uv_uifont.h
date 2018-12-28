@@ -37,6 +37,44 @@ typedef ft81x_font_st uv_font_st;
 #define font108	ft81x_fonts[8]
 
 
+
+
+/// @brief: Vertical alignments
+typedef enum {
+	VALIGN_TOP = FT81X_VALIGN_TOP,
+	VALIGN_CENTER = FT81X_VALIGN_CENTER,
+} valignment_e;
+
+/// @brief: Horizontal alignments
+typedef enum {
+	HALIGN_LEFT = FT81X_HALIGN_LEFT,
+	HALIGN_CENTER = FT81X_HALIGN_CENTER,
+	HALIGN_RIGHT = FT81X_HALIGN_RIGHT
+} halignment_e;
+
+
+/* Alignments */
+typedef enum {
+	ALIGN_TOP_LEFT 			= FT81X_ALIGN_LEFT_TOP,
+	ALIGN_CENTER_LEFT 		= FT81X_ALIGN_LEFT_CENTER,
+	ALIGN_TOP_CENTER 		= FT81X_ALIGN_CENTER_TOP,
+	ALIGN_CENTER 			= FT81X_ALIGN_CENTER,
+	ALIGN_TOP_RIGHT 		= FT81X_ALIGN_RIGHT_TOP,
+	ALIGN_CENTER_RIGHT 		= FT81X_ALIGN_RIGHT_CENTER,
+} alignment_e;
+
+
+/// @brief: Returns the vertical alignment from the alignment *align*
+static inline valignment_e uv_ui_get_valignment(alignment_e align) {
+	return align & FT81X_VALIGN_MASK;
+}
+
+/// @brief: Returns the horizontal alignment from the alignment *align*
+static inline halignment_e uv_ui_get_halignment(alignment_e align) {
+	return align & FT81X_HALIGN_MASK;
+}
+
+
 #endif
 
 #endif /* UV_HAL_INC_UI_UV_UIFONT_H_ */
