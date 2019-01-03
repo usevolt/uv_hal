@@ -798,7 +798,7 @@ static bool cmd_wait(void) {
 	while (cmdread != cmdwrite) {
 		if (cmdread == 0xFFF) {
 			// fault. Recover from it and return error code
-			printf("co-processor fault!!\n");
+			// printf("co-processor fault!!\n");
 			write8(REG_CPURESET, 1);
 			write16(REG_CMD_READ, this->cmdwriteaddr);
 			write16(REG_CMD_WRITE, this->cmdwriteaddr);
@@ -1337,6 +1337,19 @@ void uv_ft81x_draw_char(const char c, const uint16_t font,
 
 }
 
+
+int16_t uv_ft81x_get_string_height(char *str, ft81x_font_st *font) {
+	int16_t ret = 0;
+	uint16_t line_count = 1;
+	while (*str != '\0') {
+		if (*str++ == '\n') {
+			line_count++;
+		}
+	}
+	ret = uv_ft81x_get_font_height(font) * line_count;
+
+	return ret;
+}
 
 
 void uv_ft81x_draw_string(char *str, ft81x_font_st *font,

@@ -413,6 +413,9 @@ static inline uint8_t uv_ft81x_get_font_height(ft81x_font_st *font) {
 	return font->char_height;
 }
 
+/// @brief: Returns the height of string. Takes account the font height and the line count
+int16_t uv_ft81x_get_string_height(char *str, ft81x_font_st *font);
+
 
 /// @brief: Sets the drawing mask which masks all drawing functions to the masked area
 void uv_ft81x_set_mask(int16_t x, int16_t y, uint16_t width, uint16_t height);
