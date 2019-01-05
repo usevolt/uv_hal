@@ -22,6 +22,7 @@
 #include "uv_rtos.h"
 #include "uv_w25q128.h"
 #include "ui/uv_uifont.h"
+#include "uv_terminal.h"
 #include <string.h>
 
 
@@ -982,11 +983,45 @@ uint32_t uv_ft81x_loadbitmapexmem(uv_uimedia_st *bitmap,
 	uint32_t offset = 0;
 	uv_fd_st fd;
 	uint32_t size = 0;
+
 	bool found = uv_exmem_find(exmem, filename, &fd);
 
 	bitmap->addr = dest_addr;
 	bitmap->type = UV_UIMEDIA_IMAGE;
 	bitmap->filename = filename;
+
+	// specify the bitmap format
+	if (strstr(bitmap->filename, ".jp" ) != NULL ||
+			strstr(bitmap->filename, ".JP") != NULL) {
+		// color jpgs are in RGB565
+		bitmap->format = BITMAP_FORMAT_RGB565;
+	}
+	else {
+		// PNG image, check the color type from png format
+		// This hard-coded thingie is PNG format dependent
+		uv_exmem_read_fd(exmem, &fd, (void*) buffer, 26, 0);
+		uint8_t bitdepth = ((uint8_t*) buffer)[24];
+		uint8_t ctype = ((uint8_t*) buffer)[25];
+
+		if (bitdepth != 8) {
+			uv_terminal_enable();
+			printf("Error parsing PNG bitmap %s: Bit depth has to be 8, but was %u\n",
+					bitmap->filename, bitdepth);
+		}
+		if (ctype & 0x1) {
+			// paletted image
+			bitmap->format = BITMAP_FORMAT_PALETTED4444;
+		}
+		else if (ctype > 4) {
+			// true color with alpha
+			bitmap->format = BITMAP_FORMAT_ARGB4;
+		}
+		else {
+			// true color without alpha
+			bitmap->format = BITMAP_FORMAT_RGB565;
+		}
+	}
+
 
 	// CONFIG_FT81X_MEDIA_MAXSIZE specifies the maximum media size available
 	if (found && fd.file_size <= CONFIG_FT81X_MEDIA_MAXSIZE) {
@@ -1017,6 +1052,7 @@ uint32_t uv_ft81x_loadbitmapexmem(uv_uimedia_st *bitmap,
 					buffer, LOAD_BUFFER_LEN, offset);
 		}
 		while (size != 0);
+
 		// last, align memory to 4 bytes border
 		if (offset % 4) {
 			uint8_t stuff = 4 - (offset % 4);
@@ -1054,17 +1090,6 @@ uint32_t uv_ft81x_loadbitmapexmem(uv_uimedia_st *bitmap,
 		}
 
 		if (nofaults) {
-			// specify the bitmap format
-			if (strstr(bitmap->filename, ".jp" ) != NULL ||
-					strstr(bitmap->filename, ".JP") != NULL) {
-				// color jpgs are in RGB565
-				bitmap->format = BITMAP_FORMAT_RGB565;
-			}
-			else {
-				// PALETTED444 is used for all others, meaning png8 images with transparency.
-				// PNG8 without transparency shouldn't be used.
-				bitmap->format = BITMAP_FORMAT_PALETTED4444;
-			}
 
 			// lastly check the size of the image and return that
 			cmd_header_len_bytes = 16;

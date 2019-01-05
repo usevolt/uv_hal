@@ -298,9 +298,14 @@ uint32_t uv_ft81x_get_ramdl_usage(void);
 /// The best tool for this is *pngquant*, which is used like this:
 /// ´´´´pngquant 256 -f -o output.png input.png´´´´
 /// Where 256 is the number of colors used. It can be smaller to reduce the file size, but it should be
-/// in power of 2, i.e. 256, 128, 64, 32, 16, 8, 4, or 2.
+/// in power of 2, i.e. 256, 128, 64 or 32. As only 8 bit depth pngs are supported, 16, 8, 4 or 2 should
+/// not be used.
 /// After these steps, the media should be loaded to the mcu with:
 /// ´´´´uvcan --nodeid 0xD --loadmedia path/to/image.png´´´´
+///
+/// @note: Currently known bugs: FT81X cannot parse small Paletted PNG files (so called PNG-8 files).
+/// The file size for successful parsing is somewhere 373 and 155 bytes. To be sure, dont parse
+/// Paletted PNG files which are smaller than 373 bytes.
 ///
 /// @param dest_addr: The destination address where the data is loaded in FT81X memory
 /// @param exmem: The external non-volatile memory module to be used for data download
