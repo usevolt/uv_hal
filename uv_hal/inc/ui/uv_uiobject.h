@@ -225,8 +225,19 @@ static inline uv_bounding_box_st *uv_uibb(const void *me) {
 }
 
 
+/// @brief: Sets the transition to *me* uiobject
 static inline void uv_ui_add_transition(void *me, void *transition) {
 	this->transition = transition;
+}
+
+/// @brief: Sets the transition to *me* uiobject
+static inline void uv_uiobject_set_transition(void *me, void *transition) {
+	uv_ui_add_transition(me, transition);
+}
+
+/// @brief: Returns the transition attached to this uiobject
+static inline void *uv_uiobject_get_transition(void *me) {
+	return this->transition;
 }
 
 

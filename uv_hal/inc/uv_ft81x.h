@@ -133,14 +133,30 @@ typedef struct {
 extern ft81x_font_st ft81x_fonts[FT81X_MAX_FONT_COUNT];
 
 
+
 typedef enum {
-	FT81X_ALIGN_LEFT_TOP = 0,
-	FT81X_ALIGN_LEFT_CENTER = 0x400,
-	FT81X_ALIGN_RIGHT_TOP = 0x800,
-	FT81X_ALIGN_RIGHT_CENTER = 0x800 | 0x400,
-	FT81X_ALIGN_CENTER = 0x600,
-	FT81X_ALIGN_CENTER_TOP = 0x200
+	FT81X_VALIGN_TOP = 0,
+	FT81X_VALIGN_CENTER = 0x400
+} ft81x_valign_e;
+#define FT81X_VALIGN_MASK 		0x400
+
+typedef enum {
+	FT81X_HALIGN_LEFT = 0,
+	FT81X_HALIGN_CENTER = 0x200,
+	FT81X_HALIGN_RIGHT = 0x800
+} ft81x_halign_e;
+#define FT81X_HALIGN_MASK 		(0x200 | 0x800)
+
+
+typedef enum {
+	FT81X_ALIGN_LEFT_TOP = FT81X_HALIGN_LEFT | FT81X_VALIGN_TOP,
+	FT81X_ALIGN_LEFT_CENTER = FT81X_HALIGN_LEFT | FT81X_VALIGN_CENTER,
+	FT81X_ALIGN_RIGHT_TOP = FT81X_HALIGN_RIGHT | FT81X_VALIGN_TOP,
+	FT81X_ALIGN_RIGHT_CENTER = FT81X_HALIGN_RIGHT | FT81X_VALIGN_CENTER,
+	FT81X_ALIGN_CENTER = FT81X_HALIGN_CENTER | FT81X_VALIGN_CENTER,
+	FT81X_ALIGN_CENTER_TOP = FT81X_HALIGN_CENTER | FT81X_VALIGN_TOP
 } ft81x_align_e;
+
 
 
 
@@ -282,9 +298,14 @@ uint32_t uv_ft81x_get_ramdl_usage(void);
 /// The best tool for this is *pngquant*, which is used like this:
 /// ´´´´pngquant 256 -f -o output.png input.png´´´´
 /// Where 256 is the number of colors used. It can be smaller to reduce the file size, but it should be
-/// in power of 2, i.e. 256, 128, 64, 32, 16, 8, 4, or 2.
+/// in power of 2, i.e. 256, 128, 64 or 32. As only 8 bit depth pngs are supported, 16, 8, 4 or 2 should
+/// not be used.
 /// After these steps, the media should be loaded to the mcu with:
 /// ´´´´uvcan --nodeid 0xD --loadmedia path/to/image.png´´´´
+///
+/// @note: Currently known bugs: FT81X cannot parse small Paletted PNG files (so called PNG-8 files).
+/// The file size for successful parsing is somewhere 373 and 155 bytes. To be sure, dont parse
+/// Paletted PNG files which are smaller than 373 bytes.
 ///
 /// @param dest_addr: The destination address where the data is loaded in FT81X memory
 /// @param exmem: The external non-volatile memory module to be used for data download
@@ -396,6 +417,9 @@ void uv_ft81x_draw_string(char *str, ft81x_font_st *font,
 static inline uint8_t uv_ft81x_get_font_height(ft81x_font_st *font) {
 	return font->char_height;
 }
+
+/// @brief: Returns the height of string. Takes account the font height and the line count
+int16_t uv_ft81x_get_string_height(char *str, ft81x_font_st *font);
 
 
 /// @brief: Sets the drawing mask which masks all drawing functions to the masked area

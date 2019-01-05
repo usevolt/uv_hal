@@ -28,8 +28,12 @@ typedef struct {
 	uv_vector_st entries;
 	/// @brief: Index of the currently selected index
 	int16_t selected_index;
+	bool clicked;
+	uint8_t clicked_index;
 	/// @brief: UI style
 	const uv_uistyle_st *style;
+
+	alignment_e align;
 } uv_uilist_st;
 
 
@@ -46,6 +50,18 @@ typedef struct {
 /// @param style: The UI style attached to this list
 void uv_uilist_init(void *me, char **buffer, uint16_t buffer_len, const uv_uistyle_st *style);
 
+
+/// @brief: Sets the vertical alignment of the list.
+/// Uilist fills horizontally the space available.
+/// Defaults to ALIGN_CENTER.
+static inline void uv_uilist_set_align(void *me, alignment_e align) {
+	this->align = align;
+}
+
+/// @brief: Returns true for one step cycle if the list was clicked
+static inline bool uv_uilist_clicked(void *me) {
+	return this->clicked;
+}
 
 /// @brief: Step function is called every frame. It is also used to distinguish
 /// different objects from each others in uv_uiwindow_st.

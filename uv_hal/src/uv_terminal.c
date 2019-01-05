@@ -175,8 +175,8 @@ uv_errors_e uv_terminal_step() {
 		// cycle trough all received characters
 		while (true) {
 
-			char data = '\0';
 			uv_errors_e e = ERR_NONE;
+			char data = '\0';
 
 #if CONFIG_TERMINAL_UART
 			// redirect printf to the source where message was received
@@ -201,6 +201,7 @@ uv_errors_e uv_terminal_step() {
 			if (this->buffer_index >= CONFIG_TERMINAL_BUFFER_SIZE) {
 				this->buffer_index = 0;
 				ret = ERR_BUFFER_OVERFLOW;
+				break;
 			}
 			else {
 				// echo back received characters
