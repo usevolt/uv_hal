@@ -325,7 +325,7 @@ void uv_ft81x_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 		int16_t w, int16_t h, uint32_t wrap, color_t c);
 
 
-/// @brief: Draws the bitmap in (*x*, *y*) location aligning it by *align*
+/// @brief: Draws the bitmap in (*x*, *y*) location (left-top corner)
 /// stored in memory at address *addr*
 ///
 /// @param align: Specifies which part of the image is located on (*x*, *y*) coordinates

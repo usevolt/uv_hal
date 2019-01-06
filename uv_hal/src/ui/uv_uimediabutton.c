@@ -16,8 +16,6 @@
 #define this ((uv_uimediabutton_st*)me)
 
 
-static void touch(void *me, uv_touch_st *touch);
-
 
 static inline void draw(void *me, const uv_bounding_box_st *pbb) {
 	color_t fontc = ((uv_uibutton_st *) this)->text_c;
@@ -45,8 +43,9 @@ static inline void draw(void *me, const uv_bounding_box_st *pbb) {
 	}
 	else {
 		int16_t contenth = uv_uimedia_get_bitmapheight(this->media) +
-				uv_ft81x_get_font_height(((uv_uibutton_st*) this)->font);
-		uv_ft81x_draw_bitmap(this->media, x + w / 2, y + h / 2 - contenth / 2);
+				uv_ft81x_get_string_height(((uv_uibutton_st*) this)->text, ((uv_uibutton_st*)this)->font);
+		uv_ft81x_draw_bitmap(this->media, x + w / 2 - uv_uimedia_get_bitmapwidth(this->media) / 2,
+				y + h / 2 - contenth / 2);
 		uv_ft81x_draw_string(this->super.text, ((uv_uibutton_st*) this)->font, x + w / 2,
 				y + h / 2 + contenth / 2 -
 				uv_ft81x_get_string_height(((uv_uibutton_st*) this)->text, ((uv_uibutton_st*) this)->font),
@@ -59,20 +58,11 @@ void uv_uimediabutton_init(void *me, char *text,
 		uv_uimedia_st *media, const uv_uistyle_st *style) {
 	uv_uibutton_init(me, text, style);
 	this->media = media;
+	this->align = UIMEDIABUTTON_ALIGN_HORIZONTAL;
 	((uv_uiobject_st*) this)->step_callb = &uv_uibutton_step;
 	uv_uiobject_set_draw_callb(this, &draw);
-	uv_uiobject_set_touch_callb(this, &touch);
 }
 
-
-
-static void touch(void *me, uv_touch_st *touch) {
-	if (touch->action == TOUCH_CLICKED) {
-		uv_ui_refresh(this);
-		touch->action = TOUCH_NONE;
-	}
-
-}
 
 
 

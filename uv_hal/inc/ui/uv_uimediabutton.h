@@ -66,6 +66,17 @@ static inline char *uv_uimediabutton_get_text(void *me) {
 }
 
 
+/// @brief: Sets the button alignment
+static inline void uv_uimediabutton_set_align(void *me, uimediabutton_alignment_e value) {
+	this->align = value;
+}
+
+/// @brief: Gets the alignment
+static inline uimediabutton_alignment_e uv_uimediabutton_get_align(void *me) {
+	return this->align;
+}
+
+
 
 #undef this
 
