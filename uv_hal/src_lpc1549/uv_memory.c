@@ -148,7 +148,6 @@ uv_errors_e uv_memory_save(void) {
 			CONFIG_NON_VOLATILE_START.build_date = uv_datetime;
 			CONFIG_NON_VOLATILE_END.hal_crc = hal_crc;
 			CONFIG_NON_VOLATILE_END.crc = crc;
-			printf("halcrc: 0x%x\n", hal_crc);
 
 			uv_iap_status_e status = uv_erase_and_write_to_flash((uint32_t) &CONFIG_NON_VOLATILE_START,
 					length, NON_VOLATILE_MEMORY_START_ADDRESS);
