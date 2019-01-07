@@ -85,17 +85,17 @@ const canopen_object_st com_params[] = {
 		},
 		{
 				.main_index = CONFIG_CANOPEN_STORE_PARAMS_INDEX,
-				.sub_index = 1,
+				.array_max_size = sizeof(_canopen.store_req) / sizeof(_canopen.store_req[0]),
 				.permissions = CANOPEN_RW,
-				.type = CANOPEN_UNSIGNED32,
-				.data_ptr = &_canopen.store_req
+				.type = CANOPEN_ARRAY32,
+				.data_ptr = _canopen.store_req
 		},
 		{
 				.main_index = CONFIG_CANOPEN_RESTORE_PARAMS_INDEX,
-				.sub_index = 1,
+				.array_max_size = sizeof(_canopen.restore_req) / sizeof(_canopen.restore_req[0]),
 				.permissions = CANOPEN_RW,
-				.type = CANOPEN_UNSIGNED32,
-				.data_ptr = &_canopen.restore_req
+				.type = CANOPEN_ARRAY32,
+				.data_ptr = _canopen.restore_req
 		},
 #if CONFIG_UV_BOOTLOADER
 		{

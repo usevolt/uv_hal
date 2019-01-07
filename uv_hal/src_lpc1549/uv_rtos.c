@@ -36,6 +36,8 @@
 #endif
 #include "uv_dac.h"
 
+
+
 typedef struct {
 	void (*idle_task)(void *user_ptr);
 	void (*tick_task)(void *user_ptr, unsigned int step_ms);
@@ -202,7 +204,8 @@ void uv_init(void *device) {
 	// try to load non-volatile settings. If loading failed,
 	// reset all peripherals which are depending on the
 	// non-volatile settings.
-	if (_uv_memory_hal_load()) {
+	uv_errors_e e = uv_memory_load(MEMORY_COM_PARAMS);
+	if (e) {
 #if CONFIG_CANOPEN
 		_uv_canopen_reset();
 #endif
@@ -263,23 +266,6 @@ void uv_init(void *device) {
 #endif
 
 
-#if CONFIG_TARGET_LPC11C14
-	// delay of half a second on start up.
-	// Makes entering ISP mode possible on startup before freeRTOS scheduler is started
-	_delay_ms(500);
-	char c;
-
-	uv_errors_e e;
-	while (true) {
-		if ((e = uv_uart_get_char(UART0, &c))) {
-			break;
-		}
-		if (c == '?') {
-			uv_enter_ISP_mode();
-		}
-	}
-#endif
-
 
 	uv_rtos_task_create(hal_task, "uv_hal", UV_RTOS_MIN_STACK_SIZE, NULL, CONFIG_HAL_TASK_PRIORITY, NULL);
 }
@@ -287,9 +273,6 @@ void uv_init(void *device) {
 
 
 void uv_deinit(void) {
-#if CONFIG_TARGET_LINUX
-	uv_can_deinit();
-#endif
 }
 
 

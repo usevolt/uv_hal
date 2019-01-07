@@ -294,7 +294,7 @@ void CAN_IRQHandler(void) {
 
 #if CONFIG_TERMINAL_CAN
 						// terminal characters are sent to their specific buffer
-						if (msg.id == UV_TERMINAL_CAN_RX_ID + uv_get_id() &&
+						if (msg.id == UV_TERMINAL_CAN_RX_ID + uv_canopen_get_our_nodeid() &&
 								msg.type == CAN_STD &&
 								msg.data_8bit[0] == 0x22 &&
 								msg.data_8bit[1] == (UV_TERMINAL_CAN_INDEX & 0xFF) &&

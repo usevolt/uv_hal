@@ -70,8 +70,10 @@ void _uv_canopen_init(void) {
 	this->identity.product_code = 0;
 	this->identity.revision_number = 0;
 	memset(this->identity.serial_number, 0, sizeof(this->identity.serial_number));
-	this->restore_req = 0;
-	this->store_req = 0;
+	this->restore_req[0] = 0x1;
+	this->restore_req[1] = 0x1;
+	this->restore_req[2] = 0x1;
+	this->store_req[0] = 0x1;
 	_uv_canopen_nmt_init();
 	_uv_canopen_heartbeat_init();
 	_uv_canopen_sdo_init();
@@ -117,12 +119,23 @@ void _uv_canopen_step(unsigned int step_ms) {
 	}
 
 	// check for restore or store requests
-	if (this->restore_req == 0x64616F6C) {
-		this->restore_req = 0;
-		uv_memory_clear();
+	if (this->restore_req[0] == 0x64616F6C) {
+		this->restore_req[0] = 0x1;
+		uv_memory_clear(MEMORY_ALL_PARAMS);
 	}
-	if (this->store_req == 0x65766173) {
-		this->store_req = 0;
+	else if (this->restore_req[1] == 0x64616F6C) {
+		this->restore_req[1] = 0x1;
+		uv_memory_clear(MEMORY_COM_PARAMS);
+	}
+	else if (this->restore_req[2] == 0x64616F6C) {
+		this->restore_req[2] = 0x1;
+		uv_memory_clear(MEMORY_APP_PARAMS);
+	}
+	else {
+
+	}
+	if (this->store_req[0] == 0x65766173) {
+		this->store_req[0] = 0x1;
 		uv_memory_save();
 	}
 #if CONFIG_UV_BOOTLOADER
@@ -186,15 +199,39 @@ uv_errors_e uv_canopen_sdo_write32(uint8_t node_id, uint16_t mindex, uint8_t sin
 	return uv_canopen_sdo_write(node_id, mindex, sindex, sizeof(uint32_t), &data);
 }
 
-uv_errors_e uv_canopen_sdo_restore_params(uint8_t node_id) {
+uv_errors_e uv_canopen_sdo_restore_params(uint8_t node_id, memory_scope_e_ param_scope) {
 	uint32_t d = 0x64616F6C;
-	return uv_canopen_sdo_write(node_id, CONFIG_CANOPEN_RESTORE_PARAMS_INDEX, 1,
+	uint8_t subindex;
+	switch(param_scope) {
+	case MEMORY_COM_PARAMS:
+		subindex = 2;
+		break;
+	case MEMORY_APP_PARAMS:
+		subindex = 3;
+		break;
+	default:
+		subindex = 1;
+		break;
+	}
+	return uv_canopen_sdo_write(node_id, CONFIG_CANOPEN_RESTORE_PARAMS_INDEX, subindex,
 			CANOPEN_SIZEOF(CANOPEN_UNSIGNED32), &d);
 }
 
-uv_errors_e uv_canopen_sdo_store_params(uint8_t node_id) {
+uv_errors_e uv_canopen_sdo_store_params(uint8_t node_id, memory_scope_e_ param_scope) {
 	uint32_t d = 0x65766173;
-	return uv_canopen_sdo_write(node_id, CONFIG_CANOPEN_STORE_PARAMS_INDEX, 1,
+	uint8_t subindex;
+	switch(param_scope) {
+	case MEMORY_COM_PARAMS:
+		subindex = 2;
+		break;
+	case MEMORY_APP_PARAMS:
+		subindex = 3;
+		break;
+	default:
+		subindex = 1;
+		break;
+	}
+	return uv_canopen_sdo_write(node_id, CONFIG_CANOPEN_STORE_PARAMS_INDEX, subindex,
 			CANOPEN_SIZEOF(CANOPEN_UNSIGNED32), &d);
 }
 

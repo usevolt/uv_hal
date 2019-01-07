@@ -33,17 +33,8 @@
 /// which executes the received command from the user.
 ///
 /// Some commands common for all CANopen based controllers are already defined in hal_terminal.c
-/// These include entering ISP-mode and resetting the mcu.
 /// The common commands cannot be disabled, but creating a application level command with the same
 /// command name causes terminal to overwrite the common command.
-///
-/// If CONFIG_TERMINAL_DEDICATED_CALLBACKS is enabled, every command takes their own callback function.
-/// This also changes how the arguments are passed to the callbacks. If CONFIG_TERMINAL_DEDICATED_CALLBACKS
-/// is 1, the callbacks should be variadic functions which take va_list as a parameter.
-/// The given arguments are parsed as integers by default, or as strings if enclosed with " " characters,
-/// and pointers to them are given as va_arg arguments to the callback.
-/// If CONFIG_TERMINAL_DEDICATED_CALLBACKS is 0, the arguments entered from the command line are not parsed
-/// and the arguments are passed to the global callback function as strings.
 ///
 /// NOTE: Note that in order to use UART or CAN as a terminal source, they have to be initialized
 /// correctly. It doesn't matter if this module is initialized before them, but without initializing
@@ -124,6 +115,7 @@ typedef struct {
 typedef enum {
 	CMD_HELP,
 	CMD_DEV,
+	CMD_NODEID,
 #if CONFIG_TERMINAL_INSTRUCTIONS
 	CMD_MAN,
 #endif
@@ -134,8 +126,6 @@ typedef enum {
 	CMD_RESET
 } uv_common_commands_e;
 
-
-extern void uv_enter_ISP_mode();
 
 extern uint8_t uv_terminal_enabled;
 

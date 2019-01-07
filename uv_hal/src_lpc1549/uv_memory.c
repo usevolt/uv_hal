@@ -65,28 +65,9 @@ extern void CONFIG_SAVE_CALLBACK (void);
 
 
 
-void uv_enter_ISP_mode(void) {
-#if !CONFIG_TARGET_LINUX
-
-	unsigned int command_param[5];
-	unsigned int status_result[4];
-	IAP iap_entry = (IAP) IAP_LOCATION;
-
-	//disable interrupts
-	__disable_irq();
-
-	//set IAP command to invoke ISP
-	command_param[0] = REINVOKE_ISP;
-	//call IAP
-	iap_entry( command_param, status_result );
-
-#endif
-}
-
 
 
 void uv_get_device_serial(unsigned int dest[4]) {
-#if !CONFIG_TARGET_LINUX
 
 	unsigned int command_param[5];
 	IAP iap_entry = (IAP) IAP_LOCATION;
@@ -108,8 +89,6 @@ void uv_get_device_serial(unsigned int dest[4]) {
 	dest[2] = swap;
 
 	__enable_irq();
-
-#endif
 }
 
 #if CONFIG_NON_VOLATILE_MEMORY
@@ -121,46 +100,34 @@ uv_errors_e uv_memory_save(void) {
 		CONFIG_SAVE_CALLBACK ();
 #endif
 
-	uint16_t crc = uv_memory_calc_crc(&CONFIG_NON_VOLATILE_START,
-			(uint32_t) &CONFIG_NON_VOLATILE_END - (uint32_t) &CONFIG_NON_VOLATILE_START);
+	uint16_t crc = uv_memory_calc_crc(&CONFIG_NON_VOLATILE_START + sizeof(uv_data_start_t),
+			(uint32_t) &CONFIG_NON_VOLATILE_END - (uint32_t) &CONFIG_NON_VOLATILE_START - sizeof(uv_data_start_t));
+	uint16_t hal_crc = uv_memory_calc_crc(&CONFIG_NON_VOLATILE_START, sizeof(uv_data_start_t));
 
 
-	int length = (((unsigned int) &CONFIG_NON_VOLATILE_END) + sizeof(uv_data_end_t)) -
+	int32_t length = (((unsigned int) &CONFIG_NON_VOLATILE_END) + sizeof(uv_data_end_t)) -
 			((unsigned int) &CONFIG_NON_VOLATILE_START);
 
 	bool match = true;
-	unsigned int i;
-	for (i = 0; i < length; i++) {
+	for (uint32_t i = 0; i < length; i++) {
 		if (((uint8_t*) &CONFIG_NON_VOLATILE_START)[i] !=
 				((uint8_t*) NON_VOLATILE_MEMORY_START_ADDRESS)[i]) {
 			match = false;
 			break;
 		}
 	}
-	if (crc != CONFIG_NON_VOLATILE_END.crc) {
-		match = false;
-	}
 
 	if (match) {
 		ret = ERR_NONE;
 	}
 	else {
-		printf("Flashing %u bytes\n", length);
+		printf("Flashing %u bytes\n", (int) length);
 		if (length < 0) {
 			ret = ERR_END_ADDR_LESS_THAN_START_ADDR;
 		}
-	#if CONFIG_TARGET_LPC1785
-		else if (length > IAP_BYTES_32768) {
-			ret = ERR_NOT_ENOUGH_MEMORY;
-		}
-	#endif
 		//calculate the right length
 		else if (length > IAP_BYTES_4096) {
-	#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549
 			ret = ERR_NOT_ENOUGH_MEMORY;
-	#elif CONFIG_TARGET_LPC1785
-			length = IAP_BYTES_32768;
-	#endif
 		}
 		else if (length > IAP_BYTES_1024) {
 			length = IAP_BYTES_4096;
@@ -179,9 +146,11 @@ uv_errors_e uv_memory_save(void) {
 			// add the right value to data checksum
 			CONFIG_NON_VOLATILE_START.project_name = uv_projname;
 			CONFIG_NON_VOLATILE_START.build_date = uv_datetime;
+			CONFIG_NON_VOLATILE_END.hal_crc = hal_crc;
 			CONFIG_NON_VOLATILE_END.crc = crc;
+			printf("halcrc: 0x%x\n", hal_crc);
 
-			uv_iap_status_e status = uv_erase_and_write_to_flash((unsigned int) &CONFIG_NON_VOLATILE_START,
+			uv_iap_status_e status = uv_erase_and_write_to_flash((uint32_t) &CONFIG_NON_VOLATILE_START,
 					length, NON_VOLATILE_MEMORY_START_ADDRESS);
 			if (status != IAP_CMD_SUCCESS) {
 				ret = ERR_INTERNAL| HAL_MODULE_MEMORY;
@@ -193,27 +162,54 @@ uv_errors_e uv_memory_save(void) {
 
 
 
-uv_errors_e uv_memory_load(void) {
+uv_errors_e uv_memory_load(memory_scope_e scope) {
 	uv_errors_e ret = ERR_NONE;
 
-	uint8_t* d = (uint8_t*) &CONFIG_NON_VOLATILE_START + sizeof(uv_data_start_t);
-	uint8_t* source = (uint8_t*) NON_VOLATILE_MEMORY_START_ADDRESS + sizeof(uv_data_start_t);
-	int length = ((unsigned int) &CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
-			(unsigned int) d;
+	uint8_t* d;
+	uint8_t* source;
+	int32_t length;
 
-	// copy values from flash to destination
-	// this requires that sizeof(char) == 1 byte.
-	for (int i = 0; i < length; i++) {
-		*d = *source;
-		d++;
-		source++;
+	if (scope & MEMORY_COM_PARAMS) {
+		d = (uint8_t*) &CONFIG_NON_VOLATILE_START;
+		source = (uint8_t*) NON_VOLATILE_MEMORY_START_ADDRESS;
+	}
+	else {
+		d = (uint8_t*) &CONFIG_NON_VOLATILE_START + sizeof(uv_data_start_t);
+		source = (uint8_t*) NON_VOLATILE_MEMORY_START_ADDRESS + sizeof(uv_data_start_t);
 	}
 
+	if (scope & MEMORY_APP_PARAMS) {
+		length = ((uint32_t) &CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
+				(uint32_t) d;
+	}
+	else {
+		length = sizeof(uv_data_start_t);
+	}
+
+	// copy values from flash to destination
+	memcpy(d, source, length);
+
+	// make sure to copy the end structure, since it contains the crc checksums
+	memcpy(& CONFIG_NON_VOLATILE_END, (uint8_t *) NON_VOLATILE_MEMORY_START_ADDRESS +
+			((uint32_t) & CONFIG_NON_VOLATILE_END - (uint32_t) & CONFIG_NON_VOLATILE_START),
+			sizeof(uv_data_end_t));
+
 	//check crc
-	if (CONFIG_NON_VOLATILE_END.crc !=
-			uv_memory_calc_crc(&CONFIG_NON_VOLATILE_START,
-					(uint32_t) &CONFIG_NON_VOLATILE_END - (uint32_t) &CONFIG_NON_VOLATILE_START)) {
-		ret = ERR_END_CHECKSUM_NOT_MATCH;
+	if (scope & MEMORY_APP_PARAMS) {
+		if (CONFIG_NON_VOLATILE_END.crc !=
+				uv_memory_calc_crc(&CONFIG_NON_VOLATILE_START + sizeof(uv_data_start_t),
+						(uint32_t) &CONFIG_NON_VOLATILE_END -
+						(uint32_t) &CONFIG_NON_VOLATILE_START - sizeof(uv_data_start_t))) {
+			ret = ERR_END_CHECKSUM_NOT_MATCH;
+		}
+	}
+	if (scope & MEMORY_COM_PARAMS) {
+		// calculate the HAL checksum and compare it to the loaded value
+		uint16_t crc = uv_memory_calc_crc(& CONFIG_NON_VOLATILE_START, sizeof(uv_data_start_t));
+		if (crc != CONFIG_NON_VOLATILE_END.hal_crc) {
+			ret = ERR_START_CHECKSUM_NOT_MATCH;
+		}
+
 	}
 	return ret;
 }
@@ -246,23 +242,8 @@ uv_iap_status_e uv_erase_and_write_to_flash(unsigned int ram_address,
 
 	int startSection, endSection;
 
-#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549
 	startSection = (flash_address - FLASH_START_ADDRESS) / FLASH_SECTOR_SIZE;
 	endSection = (flash_address + num_bytes - FLASH_START_ADDRESS - 1) / FLASH_SECTOR_SIZE;
-#elif CONFIG_TARGET_LPC1785
-	if (flash_address >= FLASH_SECOND_SECTOR_SIZE_BEGIN) {
-		// from sector 16 onward the section size is 32 kB
-		startSection = (flash_address - FLASH_START_ADDRESS) /
-				FLASH_SECOND_SECTOR_SIZE + 14;
-		endSection = (flash_address + num_bytes - FLASH_START_ADDRESS - 1) /
-				FLASH_SECOND_SECTOR_SIZE + 14;
-	}
-	else {
-		// first 16 sectors the sector size is 4 kB
-		startSection = (flash_address - FLASH_START_ADDRESS) / FLASH_FIRST_SECTOR_SIZE;
-		endSection = (flash_address + num_bytes - FLASH_START_ADDRESS - 1) / FLASH_FIRST_SECTOR_SIZE;
-	}
-#endif
 
 	if (ret == IAP_CMD_SUCCESS) {
 
@@ -322,13 +303,18 @@ uv_iap_status_e uv_erase_and_write_to_flash(unsigned int ram_address,
 
 
 
-uv_errors_e uv_memory_clear(void) {
+uv_errors_e uv_memory_clear(memory_scope_e scope) {
 	uv_errors_e ret = ERR_NONE;
 
-	CONFIG_NON_VOLATILE_END.crc = !CONFIG_NON_VOLATILE_END.crc;
+	if (scope & MEMORY_APP_PARAMS) {
+		CONFIG_NON_VOLATILE_END.crc = !CONFIG_NON_VOLATILE_END.crc;
+	}
+	if (scope & MEMORY_COM_PARAMS) {
+		CONFIG_NON_VOLATILE_END.hal_crc = !CONFIG_NON_VOLATILE_END.hal_crc;
+	}
 
-	int length = ((unsigned int) &CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
-			(unsigned int) &CONFIG_NON_VOLATILE_START;
+	int32_t length = ((uint32_t) &CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
+			(uint32_t) &CONFIG_NON_VOLATILE_START;
 	if (length < 0) {
 		ret = ERR_END_ADDR_LESS_THAN_START_ADDR;
 	}
@@ -350,7 +336,7 @@ uv_errors_e uv_memory_clear(void) {
 	}
 
 	if (ret == ERR_NONE) {
-		uv_iap_status_e status = uv_erase_and_write_to_flash((unsigned int) &CONFIG_NON_VOLATILE_START,
+		uv_iap_status_e status = uv_erase_and_write_to_flash((uint32_t) &CONFIG_NON_VOLATILE_START,
 				length, NON_VOLATILE_MEMORY_START_ADDRESS);
 		if (status != IAP_CMD_SUCCESS) {
 			ret = ERR_INTERNAL;
@@ -362,21 +348,6 @@ uv_errors_e uv_memory_clear(void) {
 
 #endif
 
-void uv_set_id(uint16_t id) {
-	CONFIG_NON_VOLATILE_START.id = id;
-}
-
-uint8_t uv_get_id() {
-#if !CONFIG_TARGET_LINUX
-	uint8_t id = *((uint8_t*)(NON_VOLATILE_MEMORY_START_ADDRESS + 8));
-	if (id > 0x7F) {
-		id = 0x7F;
-	}
-	return id;
-#else
-	return 0;
-#endif
-}
 
 
 uint16_t uv_memory_calc_crc(void *data, int32_t len) {
@@ -421,11 +392,6 @@ const char *uv_memory_get_project_date(uv_data_start_t *start_ptr) {
 }
 
 
-uv_errors_e _uv_memory_hal_load(void) {
-	memcpy(&CONFIG_NON_VOLATILE_START, (void*) NON_VOLATILE_MEMORY_START_ADDRESS, sizeof(uv_data_start_t));
-
-	return uv_memory_load();
-}
 
 
 
