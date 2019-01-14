@@ -58,7 +58,7 @@ uv_errors_e uv_memory_save(void) {
 }
 
 
-uv_errors_e uv_memory_load(void) {
+uv_errors_e uv_memory_load(memory_scope_e scope) {
 	// on linux memory cannot be saved for now
 	uv_errors_e ret = ERR_HARDWARE_NOT_SUPPORTED;
 
@@ -72,7 +72,7 @@ uv_errors_e uv_memory_load(void) {
 
 
 
-uv_errors_e uv_memory_clear(void) {
+uv_errors_e uv_memory_clear(memory_scope_e scope) {
 	uv_errors_e ret = ERR_NONE;
 
 	return ret;
@@ -129,8 +129,4 @@ const char *uv_memory_get_project_date(uv_data_start_t *start_ptr) {
 }
 
 
-uv_errors_e _uv_memory_hal_load(void) {
-
-	return uv_memory_load();
-}
 
