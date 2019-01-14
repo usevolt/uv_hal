@@ -208,8 +208,8 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 		printf("len: %u %u %u\n", len, sizeof(uv_data_start_t), sizeof(uv_data_end_t));
 		if (CONFIG_NON_VOLATILE_END.crc != crc) {
 			printf("app 0x%x 0x%x\n", CONFIG_NON_VOLATILE_END.crc, crc);
-			for (uint8_t i = 0; i < len; i++) {
-				uint8_t *d = ((uint32_t) & CONFIG_NON_VOLATILE_START + sizeof(uv_data_start_t));
+			for (uint16_t i = 0; i < len; i++) {
+				uint16_t *d = ((uint32_t) & CONFIG_NON_VOLATILE_START + sizeof(uv_data_start_t));
 				printf("%02x", d[i]);
 			}
 			printf("\n");
