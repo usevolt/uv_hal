@@ -115,6 +115,9 @@ uv_errors_e uv_memory_save(void) {
 			match = false;
 			break;
 		}
+	}if (crc != CONFIG_NON_VOLATILE_END.crc ||
+			hal_crc != CONFIG_NON_VOLATILE_END.hal_crc) {
+		match = false;
 	}
 
 	if (match) {
@@ -148,7 +151,9 @@ uv_errors_e uv_memory_save(void) {
 			CONFIG_NON_VOLATILE_START.build_date = uv_datetime;
 			CONFIG_NON_VOLATILE_END.hal_crc = hal_crc;
 			CONFIG_NON_VOLATILE_END.crc = crc;
-			printf("halcrc: 0x%x\n", hal_crc);
+
+			printf("app 0x%x\n", CONFIG_NON_VOLATILE_END.crc);
+
 
 			uv_iap_status_e status = uv_erase_and_write_to_flash((uint32_t) &CONFIG_NON_VOLATILE_START,
 					length, NON_VOLATILE_MEMORY_START_ADDRESS);
@@ -170,16 +175,16 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 	int32_t length;
 
 	if (scope & MEMORY_COM_PARAMS) {
-		d = (uint8_t*) &CONFIG_NON_VOLATILE_START;
+		d = (uint8_t*) & CONFIG_NON_VOLATILE_START;
 		source = (uint8_t*) NON_VOLATILE_MEMORY_START_ADDRESS;
 	}
 	else {
-		d = (uint8_t*) &CONFIG_NON_VOLATILE_START + sizeof(uv_data_start_t);
+		d = (uint8_t*) & CONFIG_NON_VOLATILE_START + sizeof(uv_data_start_t);
 		source = (uint8_t*) NON_VOLATILE_MEMORY_START_ADDRESS + sizeof(uv_data_start_t);
 	}
 
 	if (scope & MEMORY_APP_PARAMS) {
-		length = ((uint32_t) &CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
+		length = ((uint32_t) & CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
 				(uint32_t) d;
 	}
 	else {
@@ -196,10 +201,18 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 
 	//check crc
 	if (scope & MEMORY_APP_PARAMS) {
-		if (CONFIG_NON_VOLATILE_END.crc !=
-				uv_memory_calc_crc(&CONFIG_NON_VOLATILE_START + sizeof(uv_data_start_t),
-						(uint32_t) &CONFIG_NON_VOLATILE_END -
-						(uint32_t) &CONFIG_NON_VOLATILE_START - sizeof(uv_data_start_t))) {
+		uint32_t len = (uint32_t) & CONFIG_NON_VOLATILE_END -
+				(uint32_t) & CONFIG_NON_VOLATILE_START - sizeof(uv_data_start_t);
+		uint16_t crc = uv_memory_calc_crc(& CONFIG_NON_VOLATILE_START + sizeof(uv_data_start_t), len);
+
+		printf("len: %u %u %u\n", len, sizeof(uv_data_start_t), sizeof(uv_data_end_t));
+		if (CONFIG_NON_VOLATILE_END.crc != crc) {
+			printf("app 0x%x 0x%x\n", CONFIG_NON_VOLATILE_END.crc, crc);
+			for (uint8_t i = 0; i < len; i++) {
+				uint8_t *d = ((uint32_t) & CONFIG_NON_VOLATILE_START + sizeof(uv_data_start_t));
+				printf("%02x", d[i]);
+			}
+			printf("\n");
 			ret = ERR_END_CHECKSUM_NOT_MATCH;
 		}
 	}
@@ -207,6 +220,7 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 		// calculate the HAL checksum and compare it to the loaded value
 		uint16_t crc = uv_memory_calc_crc(& CONFIG_NON_VOLATILE_START, sizeof(uv_data_start_t));
 		if (crc != CONFIG_NON_VOLATILE_END.hal_crc) {
+			printf("com\n");
 			ret = ERR_START_CHECKSUM_NOT_MATCH;
 		}
 
