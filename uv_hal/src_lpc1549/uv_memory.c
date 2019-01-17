@@ -100,8 +100,10 @@ uv_errors_e uv_memory_save(void) {
 		CONFIG_SAVE_CALLBACK ();
 #endif
 
-	uint16_t crc = uv_memory_calc_crc(&CONFIG_NON_VOLATILE_START + sizeof(uv_data_start_t),
-			(uint32_t) &CONFIG_NON_VOLATILE_END - (uint32_t) &CONFIG_NON_VOLATILE_START - sizeof(uv_data_start_t));
+	uint32_t len = (uint32_t) &CONFIG_NON_VOLATILE_END -
+			(uint32_t) &CONFIG_NON_VOLATILE_START - sizeof(uv_data_start_t);
+	uint16_t crc = uv_memory_calc_crc(((uint8_t*) &CONFIG_NON_VOLATILE_START) +
+			sizeof(uv_data_start_t), len);
 	uint16_t hal_crc = uv_memory_calc_crc(&CONFIG_NON_VOLATILE_START, sizeof(uv_data_start_t));
 
 
@@ -115,6 +117,9 @@ uv_errors_e uv_memory_save(void) {
 			match = false;
 			break;
 		}
+	}if (crc != CONFIG_NON_VOLATILE_END.crc ||
+			hal_crc != CONFIG_NON_VOLATILE_END.hal_crc) {
+		match = false;
 	}
 
 	if (match) {
@@ -169,16 +174,16 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 	int32_t length;
 
 	if (scope & MEMORY_COM_PARAMS) {
-		d = (uint8_t*) &CONFIG_NON_VOLATILE_START;
+		d = (uint8_t*) & CONFIG_NON_VOLATILE_START;
 		source = (uint8_t*) NON_VOLATILE_MEMORY_START_ADDRESS;
 	}
 	else {
-		d = (uint8_t*) &CONFIG_NON_VOLATILE_START + sizeof(uv_data_start_t);
-		source = (uint8_t*) NON_VOLATILE_MEMORY_START_ADDRESS + sizeof(uv_data_start_t);
+		d = ((uint8_t*) & CONFIG_NON_VOLATILE_START) + sizeof(uv_data_start_t);
+		source = ((uint8_t*) NON_VOLATILE_MEMORY_START_ADDRESS) + sizeof(uv_data_start_t);
 	}
 
 	if (scope & MEMORY_APP_PARAMS) {
-		length = ((uint32_t) &CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
+		length = ((uint32_t) & CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
 				(uint32_t) d;
 	}
 	else {
@@ -195,10 +200,12 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 
 	//check crc
 	if (scope & MEMORY_APP_PARAMS) {
-		if (CONFIG_NON_VOLATILE_END.crc !=
-				uv_memory_calc_crc(&CONFIG_NON_VOLATILE_START + sizeof(uv_data_start_t),
-						(uint32_t) &CONFIG_NON_VOLATILE_END -
-						(uint32_t) &CONFIG_NON_VOLATILE_START - sizeof(uv_data_start_t))) {
+		uint32_t len = (uint32_t) & CONFIG_NON_VOLATILE_END -
+				(uint32_t) & CONFIG_NON_VOLATILE_START - sizeof(uv_data_start_t);
+		uint16_t crc = uv_memory_calc_crc(((uint8_t*) & CONFIG_NON_VOLATILE_START) +
+				sizeof(uv_data_start_t), len);
+
+		if (CONFIG_NON_VOLATILE_END.crc != crc) {
 			ret = ERR_END_CHECKSUM_NOT_MATCH;
 		}
 	}
@@ -208,7 +215,6 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 		if (crc != CONFIG_NON_VOLATILE_END.hal_crc) {
 			ret = ERR_START_CHECKSUM_NOT_MATCH;
 		}
-
 	}
 	return ret;
 }

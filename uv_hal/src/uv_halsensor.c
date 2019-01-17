@@ -20,16 +20,11 @@
 
 #if CONFIG_HALSENSOR
 
-#define CONFIG_MIN_DEF				(ADC_MAX_VALUE * 50 / 1000)
-#define CONFIG_MAX_DEF				(ADC_MAX_VALUE * 950 / 1000)
-#define CONFIG_MIDDLE_DEF			(ADC_MAX_VALUE / 2)
-#define CONFIG_MIDDLE_TOLERANCE_DEF	(ADC_MAX_VALUE / 40)
-
 void uv_halsensor_config_reset(uv_halsensor_config_st *this) {
-	this->max = CONFIG_MAX_DEF;
-	this->min = CONFIG_MIN_DEF;
-	this->middle = CONFIG_MIDDLE_DEF;
-	this->middle_tolerance = CONFIG_MIDDLE_TOLERANCE_DEF;
+	this->max = CONFIG_HALSENSOR_MAX_DEF;
+	this->min = CONFIG_HALSENSOR_MIN_DEF;
+	this->middle = CONFIG_HALSENSOR_MIDDLE_DEF;
+	this->middle_tolerance = CONFIG_HALSENSOR_MIDDLE_TOLERANCE_DEF;
 }
 
 
