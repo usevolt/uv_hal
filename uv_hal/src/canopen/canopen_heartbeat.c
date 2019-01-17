@@ -38,7 +38,7 @@ void _uv_canopen_heartbeat_init(void) {
 
 
 void _uv_canopen_heartbeat_reset(void) {
-	//todo: heartbeat consumer should be implmented in case of CONFIG_CANOPEN_INITIALIZER is defined
+	//todo: heartbeat consumer should be implemented in case of CONFIG_CANOPEN_INITIALIZER is defined
 #if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
 	REPEAT(CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT, PRODUCER_RESET);
 #endif
