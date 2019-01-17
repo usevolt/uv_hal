@@ -23,7 +23,7 @@
 void _uv_canopen_nmt_init(void) {
 #if CONFIG_UV_BOOTLOADER
 	// uv bootloader has already sent the CANOPEN_BOOT_UP_MESSAGE
-#else
+#elif CONFIG_CANOPEN_HEARTBEAT_PRODUCER
 	uv_can_message_st msg;
 	msg.type = CAN_STD;
 	msg.id = CANOPEN_HEARTBEAT_ID + NODEID;
