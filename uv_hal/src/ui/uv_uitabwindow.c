@@ -37,7 +37,7 @@ void uv_uitabwindow_init(void *me, int16_t tab_count,
 static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 	// super draw function
-	_uv_uiwindow_redraw(this, pbb);
+	uv_uiwindow_draw(this, pbb);
 
 	int16_t thisx = uv_ui_get_xglobal(this);
 	int16_t x = thisx;
