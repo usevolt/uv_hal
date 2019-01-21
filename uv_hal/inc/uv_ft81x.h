@@ -97,6 +97,8 @@
 #endif
 #if !CONFIG_FT81X_BACKLIGHT_PWM_FREQ_HZ
 #error "CONFIG_FT81X_BACKLIGHT_PWM_FREQ_HZ should define the backlight PWM frequency"
+#elif (CONFIG_FT81X_BACKLIGHT_PWM_FREQ_HZ > 10000)
+#error "CONFIG_FT81X_BACKLIGHT_PWM_FREQ_HZ maximum value is 10000."
 #endif
 #if !defined(CONFIG_FT81X_BACKLIGHT_INVERT)
 #error "CONFIG_FT81X_BACKLIGHT_INVERT should be defined either 1 or 0 depending if backlight PWM duty cycle\
