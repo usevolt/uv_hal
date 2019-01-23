@@ -23,7 +23,7 @@
 
 typedef struct {
 	EXTENDS(uv_uiobject_st);
-
+	bool transparent;
 	uv_touch_st touch;
 } uv_uitoucharea_st;
 
@@ -34,6 +34,13 @@ uv_uiobject_ret_e uv_uitoucharea_step(void *me, uint16_t step_ms,
 		const uv_bounding_box_st *pbb);
 
 
+
+#if defined(this)
+#undef this
+#endif
+#define this ((uv_uitoucharea_st*)me)
+
+
 /// @brief: Sets the drawing callback function. This
 /// will be called every time the toucharea is refreshed.
 /// Can be used to draw something on the uitoucharea.
@@ -42,11 +49,16 @@ static inline void uv_uitoucharea_set_draw_callb(void *me,
 	uv_uiobject_set_draw_callb(me, vrtl_draw);
 }
 
-#if defined(this)
-#undef this
-#endif
-#define this ((uv_uitoucharea_st*)me)
+/// @brief: Sets if the toucharea is "transparent", e.g.
+/// lets the touch events pass through the toucharea to other uiobjects
+/// without stopping them. Defaults to false.
+static inline void uv_uitoucharea_set_transparent(void *me, bool value) {
+	this->transparent = value;
+}
 
+static inline bool uv_uitoucharea_get_transparent(void *me) {
+	return this->transparent;
+}
 
 /// @brief: Returns true if the touch area is pressed. If *x* and *y* are not NULL,
 /// the touch local coordinates are stored to them.

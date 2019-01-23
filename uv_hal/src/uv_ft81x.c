@@ -80,7 +80,7 @@ typedef enum {
 	MEMMAP_RAM_CMD_END 			= 0x309000
 } ft81x_memmap_e;
 
-#define RAMDL_SIZE		0x2000
+#define RAMDL_SIZE		FT81X_RAMDL_SIZE
 #define RAMCMD_SIZE		0x1000
 
 typedef enum {
@@ -1365,7 +1365,7 @@ void uv_ft81x_draw_char(const char c, const uint16_t font,
 
 int16_t uv_ft81x_get_string_height(char *str, ft81x_font_st *font) {
 	int16_t ret = 0;
-	uint16_t line_count = 1;
+	uint16_t line_count = (*str == '\0') ? 0 : 1;
 	while (*str != '\0') {
 		if (*str++ == '\n') {
 			line_count++;

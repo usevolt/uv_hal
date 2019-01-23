@@ -281,15 +281,15 @@ uint8_t uv_ft81x_get_backlight(void);
 void uv_ft81x_clear(color_t c);
 
 
+#define FT81X_RAMDL_SIZE		0x2000
+
 /// @brief: Returns the maximum display list RAM usage
 uint32_t uv_ft81x_get_ramdl_usage(void);
 
 
-
-
 /// @brief: Loads and decompresses a jpg image to the media RAM of FT81x from external memory module.
 ///
-/// @return: The number of bytes that the jpg image took from the memory. Since
+/// @return: The number of bytes that the image took from the memory. Since
 /// the image is decompressed, the returned value is larger than the downloaded value.
 /// In case of error, 0 is returned.
 ///
