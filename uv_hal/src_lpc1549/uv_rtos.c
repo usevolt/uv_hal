@@ -23,6 +23,7 @@
 #include "uv_memory.h"
 #include "uv_lcd.h"
 #include "uv_spi.h"
+#include "uv_i2c.h"
 #include "uv_pwm.h"
 #include "uv_eeprom.h"
 #include "uv_emc.h"
@@ -243,6 +244,10 @@ void uv_init(void *device) {
 
 #if CONFIG_SPI
 	_uv_spi_init();
+#endif
+
+#if CONFIG_I2C
+	_uv_i2c_init();
 #endif
 
 #if CONFIG_EMC

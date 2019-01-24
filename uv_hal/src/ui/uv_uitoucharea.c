@@ -87,7 +87,15 @@ bool uv_uitoucharea_clicked(void *me, int16_t *x, int16_t *y) {
 		*y = this->touch.y;
 	}
 	return this->touch.action == TOUCH_CLICKED;
+}
 
+
+bool uv_uitoucharea_is_dragging(void *me, int16_t *x, int16_t *y) {
+	if (x && y && this->touch.action == TOUCH_DRAG) {
+		*x = this->touch.x;
+		*y = this->touch.y;
+	}
+	return this->touch.action == TOUCH_DRAG;
 }
 
 
