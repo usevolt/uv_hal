@@ -17,63 +17,40 @@
 
 
 #include "uv_wdt.h"
+#include "chip.h"
+#include "wwdt_15xx.h"
 
-#if CONFIG_TARGET_LPC11C14
-#include "LPC11xx.h"
-#elif CONFIG_TARGET_LPC1785
-#include "LPC177x_8x.h"
-#endif
 
 #if CONFIG_WDT
 
 
 void _uv_wdt_init(void) {
 	SystemCoreClockUpdate();
-#if CONFIG_TARGET_LPC11C14
-	//enable clock to wdt
-	LPC_SYSCON->SYSAHBCLKCTRL |= (1 << 15);
-	//select IRC oscillator as the clock source
-	LPC_SYSCON->WDTCLKSEL = 0x1;
-	//divide clock source by 1, i.e. enable wdt clock source
-	LPC_SYSCON->WDTCLKDIV = 4;
 
-	//update changes to wdt clock settings by first writing a zero and then 1
-	LPC_SYSCON->WDTCLKUEN = 0;
-	LPC_SYSCON->WDTCLKUEN = 1;
-	//set the reloading value
-	///wdt has inner divide-by-4 prescaler
-	uint32_t sck = CONFIG_WDT_CYCLE_S * (SystemCoreClock / 16);
-#elif CONFIG_TARGET_LPC1785
-	uint32_t sck = CONFIG_WDT_CYCLE_S * (500000 / 4);
-#endif
-	//clamp cycle time to 24-bit value
-	if (sck > 0xFFFFFF) {
-		sck = 0xFFFFFF;
-	}
-	LPC_WDT->TC = sck;
-	//enable the wdt
-	LPC_WDT->MOD = 3;
 	__disable_irq();
-	LPC_WDT->FEED = 0xAA;
-	LPC_WDT->FEED = 0x55;
+
+	/* Enable the WDT oscillator */
+	Chip_SYSCTL_PowerUp(SYSCTL_POWERDOWN_WDTOSC_PD);
+
+	/* The WDT divides the input frequency into it by 4 */
+	int32_t wdtFreq = Chip_Clock_GetWDTOSCRate() / 4;
+
+	/* Initialize WWDT (also enables WWDT clock) */
+	Chip_WWDT_Init(LPC_WWDT);
+
+	Chip_WWDT_SetTimeOut(LPC_WWDT, wdtFreq * CONFIG_WDT_CYCLE_S);
+	Chip_WWDT_SetOption(LPC_WWDT, WWDT_WDMOD_WDRESET);
+
+	Chip_WWDT_Start(LPC_WWDT);
+
 	__enable_irq();
 }
 
 void uv_wdt_update(void) {
 	__disable_irq();
-	LPC_WDT->FEED = 0xAA;
-	LPC_WDT->FEED = 0x55;
+	Chip_WWDT_Feed(LPC_WWDT);
 	__enable_irq();
 }
 
-
-void uv_wdt_reset(void) {
-	__disable_irq();
-	LPC_WDT->MOD = 3;
-	LPC_WDT->FEED = 0xAA;
-	//any otHer write to wdt registers after FEED 0xAA will cause a wdt reset
-	LPC_WDT->MOD = 3;
-	__enable_irq();
-}
 
 #endif

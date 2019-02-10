@@ -304,7 +304,7 @@ void uv_data_reset() {
 
 void hal_task(void *nullptr) {
 
-	uint16_t step_ms = 2;
+	uint16_t step_ms = CONFIG_HAL_STEP_MS;
 	rtos_init = true;
 
 	while (true) {
@@ -324,7 +324,23 @@ void hal_task(void *nullptr) {
 
 		_uv_rtos_halmutex_unlock();
 
+		uv_can_msg_st m;
+		m.type = CAN_STD;
+		m.id = 0x4;
+		m.data_length = 2;
+		m.data_16bit[0] = 1;
+		uv_can_send(CAN0, &m);
+		_uv_can_hal_step(step_ms);
+
 		uv_rtos_task_delay(step_ms);
+
+		m.type = CAN_STD;
+		m.id = 0x5;
+		m.data_length = 2;
+		m.data_16bit[0] = 2;
+		uv_can_send(CAN0, &m);
+		_uv_can_hal_step(step_ms);
+
 	}
 }
 
