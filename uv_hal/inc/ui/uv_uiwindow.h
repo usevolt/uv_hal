@@ -123,6 +123,9 @@ void uv_uiwindow_add(void *me, void *object,
 /// @brief: Removes **object** from the window.
 void uv_uiwindow_remove(void *me, void *object);
 
+/// @brief: Adds a user application step callback function to this window.
+/// The step function is called on every update step and should be used for
+/// updating the display according to user input.
 static inline void uv_uiwindow_set_stepcallback(void *me,
 		uv_uiobject_ret_e (*step)(const uint16_t step_ms)) {
 	this->app_step_callb = step;
@@ -132,7 +135,9 @@ static inline void uv_uiwindow_set_stepcallback(void *me,
 void uv_uiwindow_set_content_bb_default_pos(void *me,
 		const int16_t x, const int16_t y);
 
-/// @brief: Clears the object buffer memory clearing the whole window
+/// @brief: Clears of all objects added to the window, the application step callback
+/// and also sets the draw callback to default value. This makes it more simple to
+/// create different UI windows with the same objects.
 void uv_uiwindow_clear(void *me);
 
 /// @brief: If the window is not transparent, it's background will be drawn. By default
@@ -149,8 +154,8 @@ static inline void uv_uiwindow_set_bgc(void *me, color_t c) {
 	this->bg_c = c;
 }
 
-/// @brief: Redraw function for internal use
-void _uv_uiwindow_redraw(void *me, const uv_bounding_box_st *pbb);
+/// @brief: UIwindow drawing
+void uv_uiwindow_draw(void *me, const uv_bounding_box_st *pbb);
 
 
 

@@ -67,7 +67,7 @@ static void draw_scrollbar(void *me, bool horizontal, const uv_bounding_box_st *
 
 
 /// @brief: Redraws this window
-void _uv_uiwindow_redraw(void *me, const uv_bounding_box_st *pbb) {
+void uv_uiwindow_draw(void *me, const uv_bounding_box_st *pbb) {
 
 	uv_bounding_box_st bb = *uv_uibb(this);
 	bb.x = uv_ui_get_xglobal(this);
@@ -126,7 +126,7 @@ void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array, const uv_ui
 	this->transparent = true;
 #endif
 	this->app_step_callb = NULL;
-	uv_uiobject_set_draw_callb(this, &_uv_uiwindow_redraw);
+	uv_uiobject_set_draw_callb(this, &uv_uiwindow_draw);
 	uv_uiobject_set_touch_callb(this, &uv_uiwindow_touch_callb);
 	uv_uiobject_set_step_callb(this, &uv_uiwindow_step);
 }
@@ -374,6 +374,8 @@ void uv_uiwindow_clear(void *me) {
 		uv_ui_refresh(me);
 	}
 	this->objects_count = 0;
+	uv_uiwindow_set_stepcallback(me, NULL);
+	uv_uiobject_set_draw_callb(me, &uv_uiwindow_draw);
 }
 
 void uv_uiwindow_set_transparent(void *me, bool value) {

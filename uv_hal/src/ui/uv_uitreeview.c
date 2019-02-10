@@ -77,7 +77,7 @@ static void uv_uitreeobject_draw(void *me, const uv_bounding_box_st *pbb) {
 	}
 	else {
 		// super draw function
-		_uv_uiwindow_redraw(this, pbb);
+		uv_uiwindow_draw(this, pbb);
 
 #if CONFIG_LCD
 		_uv_ui_draw_mtext(x + XOFFSET, y + CONFIG_UI_TREEVIEW_ITEM_HEIGHT / 2,

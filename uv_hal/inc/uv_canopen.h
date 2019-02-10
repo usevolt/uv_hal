@@ -132,9 +132,13 @@ initialization structure."
 #endif
 #if !defined(CONFIG_CANOPEN_STORE_PARAMS_INDEX)
 #define CONFIG_CANOPEN_STORE_PARAMS_INDEX	0x1010
+#define CONFIG_CANOPEN_STORE_ALL_PARAMS_SUBINDEX	1
 #endif
 #if !defined(CONFIG_CANOPEN_RESTORE_PARAMS_INDEX)
 #define CONFIG_CANOPEN_RESTORE_PARAMS_INDEX	0x1011
+#define CONFIG_CANOPEN_RESTORE_ALL_PARAMS_SUBINDEX	1
+#define CONFIG_CANOPEN_RESTORE_COMM_PARAMS_SUBINDEX	2
+#define CONFIG_CANOPEN_RESTORE_APP_PARAMS_SUBINDEX	3
 #endif
 #if !defined(CONFIG_CANOPEN_IDENTITY_INDEX)
 #define CONFIG_CANOPEN_IDENTITY_INDEX		0x1018
@@ -295,8 +299,8 @@ typedef struct {
 typedef struct {
 	canopen_node_states_e state;
 	uint32_t device_type;
-	uint32_t store_req;
-	uint32_t restore_req;
+	uint32_t store_req[1];
+	uint32_t restore_req[3];
 	canopen_identity_object_st identity;
 	uv_delay_st heartbeat_time;
 	uint8_t current_node_id;
@@ -558,9 +562,15 @@ uv_errors_e uv_canopen_sdo_write16(uint8_t node_id, uint16_t mindex,
 uv_errors_e uv_canopen_sdo_write32(uint8_t node_id, uint16_t mindex,
 		uint8_t sindex, uint32_t data);
 
-uv_errors_e uv_canopen_sdo_restore_params(uint8_t node_id);
 
-uv_errors_e uv_canopen_sdo_store_params(uint8_t node_id);
+
+typedef uint8_t memory_scope_e_;
+
+/// @brief: Sends a restore params request to node *node_id*.
+uv_errors_e uv_canopen_sdo_restore_params(uint8_t node_id, memory_scope_e_ param_scope);
+
+/// @brief: Sends a store params request to node *node_id*.
+uv_errors_e uv_canopen_sdo_store_params(uint8_t node_id, memory_scope_e_ param_scope);
 
 
 /// @brief: Returns the current nodeid of this device

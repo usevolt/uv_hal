@@ -59,10 +59,11 @@ typedef struct {
 	uint16_t acc;
 	/// @brief: Control value deceleration factor, from 0 ... 100
 	uint16_t dec;
-	/// @brief: Inverts the solenoid direction
+	/// @brief: Inverts the solenoid direction. Note that this actually doesn't do
+	/// anything here in dual_solenoid_output. Rather, it can be used in user application.
 	uint16_t invert;
 	/// @brief: Another invertion meant for service configurations. **invert** should be
-	/// meant for customer settings, **assembly_invert** for service.
+	/// meant for user application settings, **assembly_invert** for service.
 	uint16_t assembly_invert;
 } uv_dual_solenoid_output_conf_st;
 

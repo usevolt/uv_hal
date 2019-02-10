@@ -117,9 +117,11 @@ typedef struct {
 /// non-volatile data section. Define a variable of this type as the
 /// last variable in the data section.
 typedef struct {
+	// crc sum for checking the HAL-library specific non-volatile data.
+	uint16_t hal_crc;
 	/// @brief: Checksum to identify if data between start and end
 	/// was uninitialized or changed from what was found in non-volatile memory.
-	uint32_t crc;
+	uint16_t crc;
 } uv_data_end_t;
 
 
@@ -128,11 +130,6 @@ void uv_memory_set_bootloader_wait_time(uint32_t value_ms);
 
 /// @brief: Returns the bootloader wait time in milliseconds
 uint32_t uv_memory_get_bootloader_wait_time(void);
-
-/// @brief: Calls IAP commands to activate ISP mode.
-/// The program execution will be stopped instantly,
-/// this function should never return.
-void uv_enter_ISP_mode(void);
 
 
 
@@ -197,9 +194,20 @@ extern const char uv_datetime[];
 extern const uint32_t uv_prog_version;
 
 
+/// @brief: Defines the scope of possible load / erase operations
+typedef enum {
+	// The operation affect only communication specific parameters (i.e. HAL params)
+	MEMORY_COM_PARAMS = 0x1,
+	// The operation affects only applications parameters
+	MEMORY_APP_PARAMS = 0x2,
+	// The operation affects all non-volatile parameters
+	MEMORY_ALL_PARAMS = MEMORY_COM_PARAMS | MEMORY_APP_PARAMS
+} memory_scope_e;
+
+
 /// @brief: Writes data to flash non-volatile application memory section. Depends on SystemCoreClock to
 /// determine the clock frequency of application.
-/// If saving data occurred any error, info is logged into stdout (see uv_stdout.h)
+/// If while saving data occurred any error, info is logged into stdout (see uv_stdout.h)
 ///
 /// @note: Only one memory location can be saved per application!
 ///
@@ -219,11 +227,16 @@ uv_errors_e uv_memory_save(void);
 /// copied to the destination address. Because of this, if this function returns false,
 /// the user application should reinitialize the data structure.
 ///
-uv_errors_e uv_memory_load(void);
+uv_errors_e uv_memory_load(memory_scope_e scope);
 
 
 /// @brief: Clears the previously save non-volatile data.
-uv_errors_e uv_memory_clear(void);
+///
+/// @note: Despite the value of *scope*, this always saves the non-volatile settings.
+/// *Scope* just clears the CRC-filed in either app or communication settings, resulting
+/// in possible hazardous situation where modified application settings are saved when
+/// clearing communication settings, or vice versa.
+uv_errors_e uv_memory_clear(memory_scope_e scope);
 
 
 
@@ -248,23 +261,11 @@ uv_iap_status_e uv_erase_and_write_to_flash(unsigned int ram_address,
 
 
 
-/// @brief: Sets the id to the start_st structure.
-/// @pre: uv_load or uv_save function should be called
-void uv_set_id(uint16_t id);
-
-
-/// @brief: Returns the ID to the start_st structure.
-/// @pre: uv_load or uv_save function should be called
-uint8_t uv_get_id();
-
 
 
 /// @brief: Calculates and returns a cyclic redundancy check value from the given data
 uint16_t uv_memory_calc_crc(void *data, int32_t len);
 
-
-/// @brief: Loads hal specific non-volatile data
-uv_errors_e _uv_memory_hal_load(void);
 
 
 

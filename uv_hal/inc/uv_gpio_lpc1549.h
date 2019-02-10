@@ -132,6 +132,7 @@ typedef uint32_t uv_gpios_e;
 #define GPIO_18_config(value)	LPC_IOCON->PIO[0][17] = __TABLE1(value)
 #define GPIO_18_pin				17
 #define GPIO_18_port 			0
+#define GPIO_19_port 			0
 #define GPIO_19_config(value)	LPC_IOCON->PIO[0][18] = __TABLE1(value)
 #define GPIO_19_pin				18
 #define GPIO_20_port 			0

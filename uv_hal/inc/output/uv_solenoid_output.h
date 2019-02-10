@@ -108,7 +108,7 @@ typedef struct {
 /// @brief: Initializes the solenoid output
 ///
 /// @param dither_freq: The frequency of super imposed dither in Hz
-/// @param dither_ampl: The amplitude of super imposed dither in milliamperes
+/// @param dither_ampl: The amplitude of super imposed dither in pwm duty cycle, i.e. promilles.
 /// @param adc_chn: Current sense feedback analog channel
 /// @param sense_ampl: Amplification for current sense feedback. ADC value
 /// from current sense feedback is multiplied with this in order to get milliamps.

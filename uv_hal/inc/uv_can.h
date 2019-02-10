@@ -284,7 +284,7 @@ uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel);
 
 
 /// @brief: Adds a receive callback function which will be called when a message
-/// is received.
+/// is received, from the interrupt isr.
 ///
 /// @note: This doesn't receive all messages! CAN interface uses masks to determine
 /// which messages will come trough and what will not. To receive a message,
@@ -292,9 +292,10 @@ uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel);
 ///
 /// @param callback_function: A function pointer to the callback function. The
 /// function takes 2 arguments: A user pointer (refer to uv_utilities.h) and
-/// a pointer to the CAN message which was received.
+/// a pointer to the CAN message which was received. It should return false if
+/// the specific CAN message should be ignored and not send to rx buffer, or true otherwise.
 uv_errors_e uv_can_add_rx_callback(uv_can_channels_e channel,
-		void (*callback_function)(void *user_ptr));
+		bool (*callback_function)(void *user_ptr, uv_can_msg_st *msg));
 
 
 uv_errors_e uv_can_reset(uv_can_channels_e channel);

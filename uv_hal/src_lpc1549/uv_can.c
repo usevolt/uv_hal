@@ -102,8 +102,6 @@ typedef struct
 extern bool can_log;
 #endif
 
-#include "uv_uart.h"
-
 // all controllers which implement the C_CAN hardware
 #if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549
 #define C_CAN		1
@@ -156,7 +154,7 @@ typedef struct {
 	uv_ring_buffer_st char_buffer;
 	char char_buffer_data[CONFIG_TERMINAL_BUFFER_SIZE];
 #endif
-	void (*rx_callback[CAN_COUNT])(void *user_ptr);
+	bool (*rx_callback[CAN_COUNT])(void *user_ptr, uv_can_msg_st *msg);
 
 } can_st;
 
@@ -264,6 +262,14 @@ static void msg_obj_disable(uint8_t msg_obj) {
 }
 
 
+uv_errors_e uv_can_add_rx_callback(uv_can_channels_e channel,
+		bool (*callback_function)(void *user_ptr, uv_can_msg_st *msg)) {
+	this->rx_callback[channel] = callback_function;
+
+	return ERR_NONE;
+}
+
+
 
 void CAN_IRQHandler(void) {
 	volatile uint32_t p = LPC_CAN->INT;
@@ -292,26 +298,32 @@ void CAN_IRQHandler(void) {
 						msg.data_16bit[2] = LPC_CAN->IF1_DB1;
 						msg.data_16bit[3] = LPC_CAN->IF1_DB2;
 
-#if CONFIG_TERMINAL_CAN
-						// terminal characters are sent to their specific buffer
-						if (msg.id == UV_TERMINAL_CAN_RX_ID + uv_get_id() &&
-								msg.type == CAN_STD &&
-								msg.data_8bit[0] == 0x22 &&
-								msg.data_8bit[1] == (UV_TERMINAL_CAN_INDEX & 0xFF) &&
-								msg.data_8bit[2] == UV_TERMINAL_CAN_INDEX >> 8 &&
-								msg.data_8bit[3] == UV_TERMINAL_CAN_SUBINDEX &&
-								msg.data_length > 4) {
-							uint8_t i;
-							for (i = 0; i < msg.data_length - 4; i++) {
-								uv_ring_buffer_push(&this->char_buffer, (char*) &msg.data_8bit[4 + i]);
-							}
+						if (this->rx_callback[0] != NULL &&
+								!this->rx_callback[0](__uv_get_user_ptr(), &msg)) {
+
 						}
 						else {
-#endif
-							uv_ring_buffer_push(&this->rx_buffer, &msg);
 #if CONFIG_TERMINAL_CAN
-						}
+							// terminal characters are sent to their specific buffer
+							if (msg.id == UV_TERMINAL_CAN_RX_ID + uv_canopen_get_our_nodeid() &&
+									msg.type == CAN_STD &&
+									msg.data_8bit[0] == 0x22 &&
+									msg.data_8bit[1] == (UV_TERMINAL_CAN_INDEX & 0xFF) &&
+									msg.data_8bit[2] == UV_TERMINAL_CAN_INDEX >> 8 &&
+									msg.data_8bit[3] == UV_TERMINAL_CAN_SUBINDEX &&
+									msg.data_length > 4) {
+								uint8_t i;
+								for (i = 0; i < msg.data_length - 4; i++) {
+									uv_ring_buffer_push(&this->char_buffer, (char*) &msg.data_8bit[4 + i]);
+								}
+							}
+							else {
 #endif
+								uv_ring_buffer_push(&this->rx_buffer, &msg);
+#if CONFIG_TERMINAL_CAN
+							}
+#endif
+						}
 					}
 					int_pend &= ~(1 << msg_obj);
 

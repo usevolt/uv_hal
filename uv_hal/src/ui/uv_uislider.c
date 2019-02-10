@@ -59,26 +59,6 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 		int16_t hpx = uv_reli(this->cur_val, this->min_val, this->max_val);
 		int16_t hx = uv_lerpi(hpx, 0, uv_uibb(this)->width - CONFIG_UI_SLIDER_WIDTH - 1);
 
-#if CONFIG_LCD
-		// draw slider handle
-		uv_lcd_draw_mrect(x, y, w, h, this->style->inactive_bg_c,
-				pbb);
-		uv_lcd_draw_mframe(x, y, w, h, 1, this->style->inactive_frame_c,
-				pbb);
-		// hx indicates the handle position
-		uv_lcd_draw_mrect(x + hx + 1, y + 1, CONFIG_UI_SLIDER_WIDTH - 1, h - 2,
-				this->style->active_fg_c, pbb);
-		if (this->show_value) {
-			char str[10];
-			itoa(this->cur_val, str, 10);
-			_uv_ui_draw_mtext(x + w/2, y + h/2, this->style->font, ALIGN_CENTER,
-					this->style->inactive_font_c, C(0xFFFFFFFF), str, 1.0f, pbb);
-		}
-		_uv_ui_draw_mtext(x + 1, y + h / 2, this->style->font, ALIGN_CENTER_LEFT,
-				this->style->text_color, C(0xFFFFFFFF), "\x11", 1.0f, pbb);
-		_uv_ui_draw_mtext(x + w - 1, y + h / 2, this->style->font, ALIGN_CENTER_RIGHT,
-				this->style->text_color, C(0xFFFFFFFF), "\x10", 1.0f, pbb);
-#elif CONFIG_FT81X
 		uv_ft81x_draw_shadowrrect(x, y + h / 2 - 5, w, 10, CONFIG_UI_RADIUS,
 				this->bg_c, uv_uic_brighten(this->bg_c, 30), uv_uic_brighten(this->bg_c, -30));
 		// handle
@@ -92,7 +72,6 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 					x + hx + CONFIG_UI_SLIDER_WIDTH / 2, y + (h / 2),
 					ALIGN_CENTER, this->text_c);
 		}
-#endif
 	}
 	else {
 		if (uv_uibb(this)->width > CONFIG_UI_SLIDER_WIDTH) {
@@ -103,33 +82,14 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 		y = uv_ui_get_yglobal(this);
 		w = CONFIG_UI_SLIDER_WIDTH;
 		h = uv_uibb(this)->height - (this->title ?
-				(uv_ui_text_height_px(this->title, this->font, 1.0f) + 5) : 0);
+				(uv_ft81x_get_string_height(this->title, this->font) + 5) : 0);
 		// draw slider handle
 		// handle relative position
 		int16_t hpy = uv_reli(this->cur_val, this->min_val, this->max_val);
 		int16_t hy = uv_lerpi(hpy, uv_uibb(this)->height -
 				CONFIG_UI_SLIDER_WIDTH - 1 - (this->title ?
-						(uv_ui_text_height_px(this->title, this->font, 1.0f) + 5) : 0), 0);
+						(uv_ft81x_get_string_height(this->title, this->font) + 5) : 0), 0);
 
-#if CONFIG_LCD
-		uv_lcd_draw_mrect(x, y, w, h, this->style->inactive_bg_c,
-				pbb);
-		uv_lcd_draw_mframe(x, y, w, h, 1, this->style->inactive_frame_c,
-				pbb);
-		// hy indicates the handle position
-		uv_lcd_draw_mrect(x + 1, y + hy + 1, w - 2, CONFIG_UI_SLIDER_WIDTH - 1,
-				this->style->active_fg_c, pbb);
-		if (this->show_value) {
-			char str[10];
-			itoa(this->cur_val, str, 10);
-			_uv_ui_draw_mtext(x + w/2, y + h/2, this->style->font, ALIGN_CENTER,
-					this->style->inactive_font_c, C(0xFFFFFFFF), str, 1.0f, pbb);
-		}
-		_uv_ui_draw_mtext(x + w / 2, y + 1, this->style->font, ALIGN_TOP_CENTER,
-				this->style->text_color, C(0xFFFFFFFF), "\x1E", 1.0f, pbb);
-		_uv_ui_draw_mtext(x + w / 2, y + h - 1, this->style->font, ALIGN_BOTTOM_CENTER,
-				this->style->text_color, C(0xFFFFFFFF), "\x1F", 1.0f, pbb);
-#elif CONFIG_FT81X
 		uv_ft81x_draw_rrect(x + w / 2 - 7, y, 10, h - 5,
 				CONFIG_UI_RADIUS, uv_uic_brighten(this->bg_c, -30));
 		uv_ft81x_draw_rrect(x + 4 + w / 2 - 7, y + 4, 10, h - 5,
@@ -151,16 +111,10 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 					x + (w / 2), y + hy + CONFIG_UI_SLIDER_WIDTH / 2,
 					ALIGN_CENTER, this->text_c);
 		}
-#endif
 	}
 
-#if CONFIG_LCD
-	_uv_ui_draw_mtext(x + w / 2, y + h + 5, this->style->font, ALIGN_TOP_CENTER,
-			this->style->text_color, C(0xFFFFFFFF), this->title, 1.0f, pbb);
-#elif CONFIG_FT81X
 	uv_ft81x_draw_string(this->title, this->font, x + w / 2, y + h + 5,
 			ALIGN_TOP_CENTER, this->text_c);
-#endif
 
 
 }

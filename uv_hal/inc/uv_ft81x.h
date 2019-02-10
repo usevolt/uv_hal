@@ -97,6 +97,8 @@
 #endif
 #if !CONFIG_FT81X_BACKLIGHT_PWM_FREQ_HZ
 #error "CONFIG_FT81X_BACKLIGHT_PWM_FREQ_HZ should define the backlight PWM frequency"
+#elif (CONFIG_FT81X_BACKLIGHT_PWM_FREQ_HZ > 10000)
+#error "CONFIG_FT81X_BACKLIGHT_PWM_FREQ_HZ maximum value is 10000."
 #endif
 #if !defined(CONFIG_FT81X_BACKLIGHT_INVERT)
 #error "CONFIG_FT81X_BACKLIGHT_INVERT should be defined either 1 or 0 depending if backlight PWM duty cycle\
@@ -279,15 +281,15 @@ uint8_t uv_ft81x_get_backlight(void);
 void uv_ft81x_clear(color_t c);
 
 
+#define FT81X_RAMDL_SIZE		0x2000
+
 /// @brief: Returns the maximum display list RAM usage
 uint32_t uv_ft81x_get_ramdl_usage(void);
 
 
-
-
 /// @brief: Loads and decompresses a jpg image to the media RAM of FT81x from external memory module.
 ///
-/// @return: The number of bytes that the jpg image took from the memory. Since
+/// @return: The number of bytes that the image took from the memory. Since
 /// the image is decompressed, the returned value is larger than the downloaded value.
 /// In case of error, 0 is returned.
 ///
@@ -298,9 +300,14 @@ uint32_t uv_ft81x_get_ramdl_usage(void);
 /// The best tool for this is *pngquant*, which is used like this:
 /// ´´´´pngquant 256 -f -o output.png input.png´´´´
 /// Where 256 is the number of colors used. It can be smaller to reduce the file size, but it should be
-/// in power of 2, i.e. 256, 128, 64, 32, 16, 8, 4, or 2.
+/// in power of 2, i.e. 256, 128, 64 or 32. As only 8 bit depth pngs are supported, 16, 8, 4 or 2 should
+/// not be used.
 /// After these steps, the media should be loaded to the mcu with:
 /// ´´´´uvcan --nodeid 0xD --loadmedia path/to/image.png´´´´
+///
+/// @note: Currently known bugs: FT81X cannot parse small Paletted PNG files (so called PNG-8 files).
+/// The file size for successful parsing is somewhere 373 and 155 bytes. To be sure, dont parse
+/// Paletted PNG files which are smaller than 373 bytes.
 ///
 /// @param dest_addr: The destination address where the data is loaded in FT81X memory
 /// @param exmem: The external non-volatile memory module to be used for data download
@@ -320,7 +327,7 @@ void uv_ft81x_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 		int16_t w, int16_t h, uint32_t wrap, color_t c);
 
 
-/// @brief: Draws the bitmap in (*x*, *y*) location aligning it by *align*
+/// @brief: Draws the bitmap in (*x*, *y*) location (left-top corner)
 /// stored in memory at address *addr*
 ///
 /// @param align: Specifies which part of the image is located on (*x*, *y*) coordinates
@@ -412,6 +419,9 @@ void uv_ft81x_draw_string(char *str, ft81x_font_st *font,
 static inline uint8_t uv_ft81x_get_font_height(ft81x_font_st *font) {
 	return font->char_height;
 }
+
+/// @brief: Returns the height of string. Takes account the font height and the line count
+int16_t uv_ft81x_get_string_height(char *str, ft81x_font_st *font);
 
 
 /// @brief: Sets the drawing mask which masks all drawing functions to the masked area

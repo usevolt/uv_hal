@@ -68,6 +68,7 @@ void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *
 
 
 uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
+	uv_uiobject_ret_e ret;
 	uv_touch_st t = {};
 	t.action = TOUCH_NONE;
 
@@ -142,17 +143,17 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 	// propagate touches to all objects in reverse order
 	uv_uiwindow_touch_callb(this, &t);
 
-	uv_uiobject_ret_e ret = uv_uiwindow_step(me, step_ms, uv_uibb(this));
-	if (ret & UIOBJECT_RETURN_REFRESH) {
-
-		// all UI components should now be updated, swap display list buffers
-		uv_ft81x_dlswap();
-	}
-	else if (ret & UIOBJECT_RETURN_KILLED) {
+	ret = uv_uiwindow_step(me, step_ms, uv_uibb(this));
+	if (ret & UIOBJECT_RETURN_KILLED) {
+		// if UIOBJECT_RETURN_KILLED was returned, the children of objects might
+		// have changed and some might not have been called. This can create glitches
+		// on the display, thus call step function once more
 		uv_ui_refresh(this);
 	}
-	else {
 
+	if (ret == UIOBJECT_RETURN_REFRESH) {
+		// all UI components should now be updated, swap display list buffers
+		uv_ft81x_dlswap();
 	}
 
 	return ret;

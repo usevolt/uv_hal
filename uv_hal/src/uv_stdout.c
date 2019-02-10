@@ -21,6 +21,7 @@
 #include "uv_rtos.h"
 #if CONFIG_TERMINAL_CAN
 #include "uv_can.h"
+#include "uv_canopen.h"
 #include "uv_terminal.h"
 #include "uv_memory.h"
 #include "uv_utilities.h"
@@ -43,10 +44,10 @@ static int8_t can_delay = 0;
 #if CONFIG_TERMINAL_CAN
 static void send_can_msg(void) {
 	uv_can_message_st msg = {
-			.id = UV_TERMINAL_CAN_ID + uv_get_id(),
 			.data_length = 4 + uv_vector_size(&can_vec),
 			.type = CAN_STD
 	};
+	msg.id = UV_TERMINAL_CAN_ID + uv_canopen_get_our_nodeid();
 	uint8_t i;
 	msg.data_8bit[0] = 0x42;
 	msg.data_8bit[1] = UV_TERMINAL_CAN_INDEX & 0xFF;
