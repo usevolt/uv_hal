@@ -54,9 +54,12 @@
  Otherwise this should be defined as 0."
 #endif
 #if !defined(CONFIG_HAL_TASK_PRIORITY)
-#define CONFIG_HAL_TASK_PRIORITY	0xFFFF
+#define CONFIG_HAL_TASK_PRIORITY	0xFFFD
 #endif
 
+#if !defined(CONFIG_HAL_STEP_MS)
+#define CONFIG_HAL_STEP_MS			2
+#endif
 
 
 

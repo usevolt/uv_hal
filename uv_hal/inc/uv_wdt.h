@@ -41,9 +41,6 @@ void _uv_wdt_init(void);
 void uv_wdt_update(void);
 
 
-/// @brief: Clears wdt counter register and forces a hard reset
-void uv_wdt_reset(void);
-
 
 #endif
 
