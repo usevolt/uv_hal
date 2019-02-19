@@ -266,11 +266,14 @@ bool uv_ft81x_init(void);
 /// on the LCD display.
 void uv_ft81x_dlswap(void);
 
+#define FT81X_BACKLIGHT_MAX	100
+
 
 /// @brief: Sets the backlight brightness
 ///
 /// @param percent: The percen tof the backlight. 0 = minimum, 100 = maximum
 void uv_ft81x_set_backlight(uint8_t percent);
+
 
 
 /// brief: Returns the current backlight brightness

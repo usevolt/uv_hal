@@ -66,7 +66,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t y = this->horizontal ?
 			uv_ui_get_yglobal(this) + uv_uibb(this)->height / 2 - CONFIG_UI_PROGRESSBAR_HEIGHT / 2 :
 			uv_ui_get_yglobal(this) + uv_uibb(this)->height -
-			(this->title ? (uv_ui_text_height_px(this->title, this->font, 1.0f) + 3) : 0) -
+			(this->title ? (uv_ft81x_get_string_height(this->title, this->font) + 3) : 0) -
 			CONFIG_UI_PROGRESSBAR_WIDTH;
 	int16_t rel = uv_reli(this->value, this->min_val, this->max_val);
 	if (rel < 0) { rel = 0; }
