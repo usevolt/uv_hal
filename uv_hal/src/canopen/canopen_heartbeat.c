@@ -54,7 +54,6 @@ void _uv_canopen_heartbeat_step(uint16_t step_ms) {
 
 	if (uv_delay(&this->heartbeat_time, step_ms)) {
 		uv_delay_init(&this->heartbeat_time, this_nonvol->producer_heartbeat_time_ms);
-
 #if CONFIG_CANOPEN_HEARTBEAT_PRODUCER
 		uv_can_message_st msg;
 		msg.type = CAN_STD;

@@ -55,6 +55,10 @@ typedef enum {
 
 
 
+//typedef enum {
+//	I2C_READ =
+//} i2c_readwrite_e;
+
 
 /// @brief: Initializes the I2C module
 /// This should be called before any other function
@@ -73,7 +77,7 @@ uv_errors_e uv_i2cm_stop(i2c_e i2c);
 /// @brief: Sends data to i2c device.
 ///
 /// @param data_length: The number of bytes being written
-/// @param data: A pointer to the data array which will be written
+/// @param data: A pointer to the data array which will be written or read into.
 uv_errors_e uv_i2cm_readwrite(i2c_e i2c, uint16_t data_length, uint8_t *data);
 
 

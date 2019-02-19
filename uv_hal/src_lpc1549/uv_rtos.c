@@ -313,7 +313,6 @@ void hal_task(void *nullptr) {
 		_uv_rtos_halmutex_unlock();
 
 		uv_rtos_task_delay(step_ms);
-
 	}
 }
 
