@@ -46,6 +46,7 @@ typedef enum {
 } uv_dual_solenoid_output_solenoids_e;
 
 
+
 #define DUAL_SOLENOID_ACC_MAX	100
 #define DUAL_SOLENOID_DEC_MAX	100
 #define DUAL_SOLENOID_VALUE_MAX	1000
@@ -158,6 +159,14 @@ static inline uv_dual_solenoid_output_conf_st *uv_dual_solenoid_output_get_conf(
 static inline uv_output_state_e uv_dual_solenoid_output_get_state(uv_dual_solenoid_output_st *this,
 		uv_dual_solenoid_output_solenoids_e solenoid) {
 	return uv_solenoid_output_get_state(&this->solenoid[solenoid]);
+}
+
+
+/// @brief: Sets the mode for both outputs. The mode can be either current oŕ pwm.
+static inline void uv_dual_solenoid_output_set_mode(uv_dual_solenoid_output_st *this,
+		uv_solenoid_output_mode_st value) {
+	uv_solenoid_output_set_mode(&this->solenoid[0], value);
+	uv_solenoid_output_set_mode(&this->solenoid[0], value);
 }
 
 
