@@ -41,10 +41,10 @@ typedef enum {
 
 
 /// @brief: Main uitransition pure virtual structure.
-struct _uv_uitransition_st {
+typedef struct {
 
-	uv_uitransition_st *parallel;
-	uv_uitransition_st *series;
+	void *parallel;
+	void *series;
 	int16_t duration_ms;
 	int16_t current_time_ms;
 	uv_uitransition_state_e state;
@@ -56,13 +56,13 @@ struct _uv_uitransition_st {
 	/// @brief: Callback which will be called when the transition state changes.
 	/// This can be used to create different kind of looping transitions
 	void (*state_change_callback)(void *me, uv_uitransition_state_e last_state);
-};
+} _uv_uitransition_st;
 
 
 #if defined(this)
 #undef this
 #endif
-#define this ((uv_uitransition_st*) me)
+#define this ((_uv_uitransition_st*) me)
 
 
 
@@ -122,7 +122,7 @@ static inline void uv_uitransition_set_speed(void *me, uint16_t speed_ppt) {
 /// @bief: Transition animating a signed 16 bit integer value.
 /// Since 16-bit integers are used in most places in UI library.
 typedef struct {
-	EXTENDS(uv_uitransition_st);
+	EXTENDS(_uv_uitransition_st);
 
 	int16_t start_val;
 	int16_t end_val;
@@ -138,7 +138,7 @@ void uv_uiscalartransition_init(void *me, uv_uitransition_easing_e easing,
 
 /// @brief: Transition animating a color value
 typedef struct {
-	EXTENDS(uv_uitransition_st);
+	EXTENDS(_uv_uitransition_st);
 
 	color_t start_c;
 	color_t end_c;

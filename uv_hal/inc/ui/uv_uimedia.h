@@ -37,7 +37,7 @@ typedef uint8_t uv_uimedia_types_e;
 /// properties for a downloaded media files, such as graphics and audio
 typedef struct {
 	/// @brief: The size of the bitmap in bytes
-	uint16_t size;
+	uint32_t size;
 	uv_uimedia_types_e type;
 	// Name of the file name which should be loaded to the graphics RAM memory.
 	// This is used only if the media file should be loaded from external memory

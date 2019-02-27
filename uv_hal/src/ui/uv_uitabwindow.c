@@ -37,7 +37,7 @@ void uv_uitabwindow_init(void *me, int16_t tab_count,
 static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 	// super draw function
-	_uv_uiwindow_redraw(this, pbb);
+	uv_uiwindow_draw(this, pbb);
 
 	int16_t thisx = uv_ui_get_xglobal(this);
 	int16_t x = thisx;
@@ -48,7 +48,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 
 	for (int16_t i = 0; i < this->tab_count; i++) {
-		tab_w = uv_ui_text_width_px((char *)this->tab_names[i], this->font, 1.0f) + 10;
+		tab_w = uv_ft81x_get_string_height((char *)this->tab_names[i], this->font) + 10;
 		if (tab_w < CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH) tab_w = CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH;
 		if (this->active_tab != i) {
 #if CONFIG_LCD
@@ -139,7 +139,7 @@ static void touch(void *me, uv_touch_st *touch) {
 		if (touch->y <= CONFIG_UI_TABWINDOW_HEADER_HEIGHT) {
 			int16_t total_w = 0;
 			for (int16_t i = 0; i < this->tab_count; i++) {
-				int16_t tab_w = uv_ui_text_width_px((char *) this->tab_names[i], this->font, 1.0f) + 10;
+				int16_t tab_w = uv_ft81x_get_string_height((char *) this->tab_names[i], this->font) + 10;
 				if (tab_w < CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH) {
 					tab_w = CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH;
 				}

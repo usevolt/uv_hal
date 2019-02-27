@@ -26,7 +26,7 @@
 #define TARGET_DELAY_MS		20
 #define PID_MULTIPLIER		0x10
 #define ACC_MIN				10
-#define DEC_MIN				40
+#define DEC_MIN				60
 
 
 void uv_dual_solenoid_output_conf_reset(uv_dual_solenoid_output_conf_st *this) {

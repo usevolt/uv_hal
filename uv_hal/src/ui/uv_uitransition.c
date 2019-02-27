@@ -17,7 +17,7 @@ void uv_uiscalartransition_calc(void *me);
 
 
 
-#define this	((uv_uitransition_st *)me)
+#define this	((_uv_uitransition_st *)me)
 
 
 static void set_state(void *me, uv_uitransition_state_e state) {
@@ -190,9 +190,9 @@ void uv_uiscalartransition_init(void *me, uv_uitransition_easing_e easing,
 
 
 void uv_uiscalartransition_calc(void *me) {
-	*this->cur_val = scalar_calc(((uv_uitransition_st*) this)->easing,
-			((uv_uitransition_st*) this)->current_time_ms,
-			((uv_uitransition_st*) this)->duration_ms,
+	*this->cur_val = scalar_calc(((_uv_uitransition_st*) this)->easing,
+			((_uv_uitransition_st*) this)->current_time_ms,
+			((_uv_uitransition_st*) this)->duration_ms,
 			this->start_val, this->end_val);
 }
 
@@ -220,9 +220,9 @@ void uv_uicolortransition_calc(void *me) {
 		start_val = (this->start_c >> (i * 8)) & 0xFF;
 		end_val = (this->end_c >> (i * 8)) & 0xFF;
 
-		val = scalar_calc(((uv_uitransition_st*) this)->easing,
-				((uv_uitransition_st*) this)->current_time_ms,
-				((uv_uitransition_st*) this)->duration_ms,
+		val = scalar_calc(((_uv_uitransition_st*) this)->easing,
+				((_uv_uitransition_st*) this)->current_time_ms,
+				((_uv_uitransition_st*) this)->duration_ms,
 				start_val, end_val);
 		if (val < 0) {
 			val = 0;

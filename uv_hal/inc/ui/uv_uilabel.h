@@ -133,15 +133,6 @@ static inline int uv_uidigit_get_value(void *me) {
 
 
 
-/// @brief: Returns the strings length in pixels.
-/// Takes new lines in account when calculating the length.
-int16_t uv_ui_text_width_px(char *str, const uv_font_st *font, float scale);
-
-
-/// @brief: Returns the string height in pixels
-int16_t uv_ui_text_height_px(char *str, const uv_font_st *font, float scale);
-
-
 #undef this
 
 #endif
