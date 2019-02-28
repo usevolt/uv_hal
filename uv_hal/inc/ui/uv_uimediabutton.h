@@ -60,6 +60,8 @@ static inline void uv_uimediabutton_set_text(void *me, char *text) {
 	uv_uibutton_set_text(me, text);
 }
 
+void uv_uimediabutton_set_media(void *me, uv_uimedia_st *media);
+
 /// @brief: Returns the button text
 static inline char *uv_uimediabutton_get_text(void *me) {
 	return uv_uibutton_get_text(me);

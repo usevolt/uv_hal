@@ -21,6 +21,7 @@ void uv_uitoucharea_init(void *me) {
 	((uv_uiobject_st*) this)->step_callb = &uv_uitoucharea_step;
 	uv_uiobject_set_touch_callb(this, &touch);
 	this->touch.action = TOUCH_NONE;
+	this->transparent = false;
 }
 
 uv_uiobject_ret_e uv_uitoucharea_step(void *me, uint16_t step_ms,
@@ -43,7 +44,9 @@ static void touch(void *me, uv_touch_st* touch) {
 	}
 	else {
 		this->touch = *touch;
-		if (touch->action != TOUCH_NONE && touch->action != TOUCH_DRAG) {
+		if (!this->transparent &&
+				touch->action != TOUCH_NONE &&
+				touch->action != TOUCH_DRAG) {
 
 			// prevent touch action from propagating to other elements
 			touch->action = TOUCH_NONE;
@@ -84,7 +87,15 @@ bool uv_uitoucharea_clicked(void *me, int16_t *x, int16_t *y) {
 		*y = this->touch.y;
 	}
 	return this->touch.action == TOUCH_CLICKED;
+}
 
+
+bool uv_uitoucharea_is_dragging(void *me, int16_t *x, int16_t *y) {
+	if (x && y && this->touch.action == TOUCH_DRAG) {
+		*x = this->touch.x;
+		*y = this->touch.y;
+	}
+	return this->touch.action == TOUCH_DRAG;
 }
 
 

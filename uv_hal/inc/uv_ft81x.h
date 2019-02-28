@@ -97,6 +97,8 @@
 #endif
 #if !CONFIG_FT81X_BACKLIGHT_PWM_FREQ_HZ
 #error "CONFIG_FT81X_BACKLIGHT_PWM_FREQ_HZ should define the backlight PWM frequency"
+#elif (CONFIG_FT81X_BACKLIGHT_PWM_FREQ_HZ > 10000)
+#error "CONFIG_FT81X_BACKLIGHT_PWM_FREQ_HZ maximum value is 10000."
 #endif
 #if !defined(CONFIG_FT81X_BACKLIGHT_INVERT)
 #error "CONFIG_FT81X_BACKLIGHT_INVERT should be defined either 1 or 0 depending if backlight PWM duty cycle\
@@ -264,11 +266,14 @@ bool uv_ft81x_init(void);
 /// on the LCD display.
 void uv_ft81x_dlswap(void);
 
+#define FT81X_BACKLIGHT_MAX	100
+
 
 /// @brief: Sets the backlight brightness
 ///
 /// @param percent: The percen tof the backlight. 0 = minimum, 100 = maximum
 void uv_ft81x_set_backlight(uint8_t percent);
+
 
 
 /// brief: Returns the current backlight brightness
@@ -279,15 +284,15 @@ uint8_t uv_ft81x_get_backlight(void);
 void uv_ft81x_clear(color_t c);
 
 
+#define FT81X_RAMDL_SIZE		0x2000
+
 /// @brief: Returns the maximum display list RAM usage
 uint32_t uv_ft81x_get_ramdl_usage(void);
 
 
-
-
 /// @brief: Loads and decompresses a jpg image to the media RAM of FT81x from external memory module.
 ///
-/// @return: The number of bytes that the jpg image took from the memory. Since
+/// @return: The number of bytes that the image took from the memory. Since
 /// the image is decompressed, the returned value is larger than the downloaded value.
 /// In case of error, 0 is returned.
 ///

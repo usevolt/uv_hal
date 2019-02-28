@@ -46,6 +46,7 @@ typedef enum {
 } uv_dual_solenoid_output_solenoids_e;
 
 
+
 #define DUAL_SOLENOID_ACC_MAX	100
 #define DUAL_SOLENOID_DEC_MAX	100
 #define DUAL_SOLENOID_VALUE_MAX	1000
@@ -59,10 +60,11 @@ typedef struct {
 	uint16_t acc;
 	/// @brief: Control value deceleration factor, from 0 ... 100
 	uint16_t dec;
-	/// @brief: Inverts the solenoid direction
+	/// @brief: Inverts the solenoid direction. Note that this actually doesn't do
+	/// anything here in dual_solenoid_output. Rather, it can be used in user application.
 	uint16_t invert;
 	/// @brief: Another invertion meant for service configurations. **invert** should be
-	/// meant for customer settings, **assembly_invert** for service.
+	/// meant for user application settings, **assembly_invert** for service.
 	uint16_t assembly_invert;
 } uv_dual_solenoid_output_conf_st;
 
@@ -157,6 +159,14 @@ static inline uv_dual_solenoid_output_conf_st *uv_dual_solenoid_output_get_conf(
 static inline uv_output_state_e uv_dual_solenoid_output_get_state(uv_dual_solenoid_output_st *this,
 		uv_dual_solenoid_output_solenoids_e solenoid) {
 	return uv_solenoid_output_get_state(&this->solenoid[solenoid]);
+}
+
+
+/// @brief: Sets the mode for both outputs. The mode can be either current oŕ pwm.
+static inline void uv_dual_solenoid_output_set_mode(uv_dual_solenoid_output_st *this,
+		uv_solenoid_output_mode_st value) {
+	uv_solenoid_output_set_mode(&this->solenoid[0], value);
+	uv_solenoid_output_set_mode(&this->solenoid[0], value);
 }
 
 

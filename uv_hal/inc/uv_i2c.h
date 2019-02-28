@@ -30,6 +30,8 @@
 #endif
 #if !defined(CONFIG_I2C_BAUDRATE)
 #error "CONFIG_I2C_BAUDRATE should be defined as the desired baudrate for the I2C module."
+#elif (CONFIG_I2C_BAUDRATE > 100000)
+#error "CONFIG_I2C_BAUDRATE maximum value is 100000. uv_hal library doesn't support higher baudrates."
 #endif
 #if !defined(CONFIG_I2C_RETRY_COUNT)
 #error "CONFIG_I2C_RETRY_COUNT should define the maximum number of retrys if the data sending fails."
@@ -37,9 +39,11 @@
 
 typedef enum {
 #if CONFIG_TARGET_LPC11C14
-	I2C_1 = 0,
+	I2C0 = 0,
 #elif CONFIG_TARGET_LPC1785
-	I2C_1 = 0,
+	I2C0 = 0,
+#elif CONFIG_TARGET_LPC1549
+	I2C0 = 0,
 #endif
 	i2C_COUNT
 } i2c_e;
@@ -51,36 +55,33 @@ typedef enum {
 
 
 
+//typedef enum {
+//	I2C_READ =
+//} i2c_readwrite_e;
+
 
 /// @brief: Initializes the I2C module
 /// This should be called before any other function
-uv_errors_e _uv_i2c_init(i2c_e i2c);
+uv_errors_e _uv_i2c_init(void);
 
+
+
+/// @brief: Sends the I2C start condition to the bus
+uv_errors_e uv_i2cm_start(i2c_e i2c);
+
+
+/// @brief: Sends the I2C stop condition to the bus
+uv_errors_e uv_i2cm_stop(i2c_e i2c);
 
 
 /// @brief: Sends data to i2c device.
 ///
-/// @param id: The ID of the destination slave device
 /// @param data_length: The number of bytes being written
-/// @param data: A pointer to the data array which will be written
-uv_errors_e uv_i2c_write(i2c_e i2c, uint8_t id, uint16_t data_length, uint8_t *data);
+/// @param data: A pointer to the data array which will be written or read into.
+uv_errors_e uv_i2cm_readwrite(i2c_e i2c, uint16_t data_length, uint8_t *data);
 
 
-/// @brief: Read bytes from a I2C device
-///
-/// @param i2c: The I2C module which the data is read
-/// @param id: The ID of the slave device
-/// @param data_length: Indicates how many bytes are to be read
-/// @param dest: The data destination pointer. *data_length* bytes should be available
-uv_errors_e uv_i2c_read(i2c_e i2c, uint16_t id, uint16_t data_length, uint8_t *dest);
 
-
-/// @brief: Step function which should be called every step cycle
-uv_errors_e uv_i2c_step(i2c_e i2c, uint16_t step_ms);
-
-
-/// @brief: Returns ERR_NONE if the I2C module is ready for next transmission
-uv_errors_e uv_i2c_busy(i2c_e i2c);
 
 
 #endif

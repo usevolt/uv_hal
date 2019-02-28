@@ -23,6 +23,7 @@
 #include "uv_memory.h"
 #include "uv_lcd.h"
 #include "uv_spi.h"
+#include "uv_i2c.h"
 #include "uv_pwm.h"
 #include "uv_eeprom.h"
 #include "uv_emc.h"
@@ -245,6 +246,10 @@ void uv_init(void *device) {
 	_uv_spi_init();
 #endif
 
+#if CONFIG_I2C
+	_uv_i2c_init();
+#endif
+
 #if CONFIG_EMC
 	_uv_emc_init();
 #endif
@@ -287,7 +292,7 @@ void uv_data_reset() {
 
 void hal_task(void *nullptr) {
 
-	uint16_t step_ms = 2;
+	uint16_t step_ms = CONFIG_HAL_STEP_MS;
 	rtos_init = true;
 
 	while (true) {

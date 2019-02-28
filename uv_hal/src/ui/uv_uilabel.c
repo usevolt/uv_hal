@@ -81,23 +81,6 @@ void uv_uilabel_set_color(void *me, color_t c) {
 
 
 
-int16_t uv_ui_text_height_px(char *str, const uv_font_st *font, float scale) {
-	int16_t line_count = 1;
-	char *c = str;
-	if (!str || *c == '\0') {
-		return 0;
-	}
-	while (*c != '\0') {
-		if (*c == '\n' || *c == '\r') {
-			if (*(c+1) != '\n' && *(c+1) != '\r') {
-				line_count++;
-			}
-		}
-		c++;
-	}
-	return line_count * font->char_height * scale;
-}
-
 
 #undef this
 #define this ((uv_uidigit_st*)me)

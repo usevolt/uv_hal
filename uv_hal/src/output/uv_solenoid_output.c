@@ -154,7 +154,13 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 		}
 		// solenoid is PWM driven
 		else {
-			output = this->target + this->dither_ampl / 2;
+			if (this->target) {
+				int32_t rel = uv_reli(this->target, this->conf->min_ma, uv_mini(this->conf->max_ma, 1000));
+				output = uv_lerpi(rel, this->conf->min_ma, uv_mini(this->conf->max_ma, 1000));
+			}
+			else {
+				output = 0;
+			}
 		}
 
 		if (output < 0) {
