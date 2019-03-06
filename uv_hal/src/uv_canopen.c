@@ -42,10 +42,23 @@ _uv_canopen_st _canopen;
 #define this_nonvol	(&CONFIG_NON_VOLATILE_START.canopen_data)
 #define NODEID			this->current_node_id
 
+#if defined(CONFIG_CANOPEN_INITIALIZER)
+extern const uv_canopen_non_volatile_st CONFIG_CANOPEN_INITIALIZER;
+#endif
 
 
 
 void _uv_canopen_init(void) {
+#if defined(CONFIG_CANOPEN_INITIALIZER)
+	// calculate the initializer crc and compare it to ours
+	uint16_t crc = uv_memory_calc_crc((void*) &CONFIG_CANOPEN_INITIALIZER,
+			sizeof(CONFIG_CANOPEN_INITIALIZER));
+	if (crc != this_nonvol->crc) {
+		_uv_canopen_reset();
+		this_nonvol->crc = crc;
+	}
+
+#endif
 	this->current_node_id = (CONFIG_NON_VOLATILE_START.id);
 	// Greater Node ID than 0x7F is invalid, revert to default
 	if (this->current_node_id > 0x7F) {
@@ -57,16 +70,25 @@ void _uv_canopen_init(void) {
 	this->identity.product_code = 0;
 	this->identity.revision_number = 0;
 	memset(this->identity.serial_number, 0, sizeof(this->identity.serial_number));
-	this->restore_req = 0;
-	this->store_req = 0;
+	this->restore_req[0] = 0x1;
+	this->restore_req[1] = 0x1;
+	this->restore_req[2] = 0x1;
+	this->store_req[0] = 0x1;
 	_uv_canopen_nmt_init();
 	_uv_canopen_heartbeat_init();
 	_uv_canopen_sdo_init();
 	_uv_canopen_pdo_init();
 	_uv_canopen_emcy_init();
+#if CONFIG_UV_BOOTLOADER
+	// program started
+	this->prog_control = 1;
+#endif
 }
 
 void _uv_canopen_reset(void) {
+#if defined(CONFIG_CANOPEN_INITIALIZER)
+	memcpy(this_nonvol, &CONFIG_CANOPEN_INITIALIZER, sizeof(CONFIG_CANOPEN_INITIALIZER));
+#endif
 	_uv_canopen_nmt_reset();
 	_uv_canopen_heartbeat_reset();
 	_uv_canopen_sdo_reset();
@@ -97,14 +119,35 @@ void _uv_canopen_step(unsigned int step_ms) {
 	}
 
 	// check for restore or store requests
-	if (this->restore_req == 0x64616F6C) {
-		this->restore_req = 0;
-		uv_memory_load();
+	if (this->restore_req[0] == 0x64616F6C) {
+		this->restore_req[0] = 0x1;
+		uv_memory_clear(MEMORY_ALL_PARAMS);
 	}
-	if (this->store_req == 0x65766173) {
-		this->store_req = 0;
+	else if (this->restore_req[1] == 0x64616F6C) {
+		this->restore_req[1] = 0x1;
+		uv_memory_clear(MEMORY_COM_PARAMS);
+	}
+	else if (this->restore_req[2] == 0x64616F6C) {
+		this->restore_req[2] = 0x1;
+		uv_memory_clear(MEMORY_APP_PARAMS);
+	}
+	else {
+
+	}
+	if (this->store_req[0] == 0x65766173) {
+		this->store_req[0] = 0x1;
 		uv_memory_save();
 	}
+#if CONFIG_UV_BOOTLOADER
+	// program control
+	// Note: CiA 302 defines requests to this object to be rejected
+	// in all other states than PREOPERATIONAL. However, to extend the compatibility,
+	// this definition is discarded and the object works just as any other object.
+	if (this->prog_control == 2) {
+		// reset program
+		uv_system_reset();
+	}
+#endif
 }
 
 
@@ -154,6 +197,47 @@ uv_errors_e uv_canopen_sdo_write16(uint8_t node_id, uint16_t mindex, uint8_t sin
 
 uv_errors_e uv_canopen_sdo_write32(uint8_t node_id, uint16_t mindex, uint8_t sindex, uint32_t data) {
 	return uv_canopen_sdo_write(node_id, mindex, sindex, sizeof(uint32_t), &data);
+}
+
+uv_errors_e uv_canopen_sdo_restore_params(uint8_t node_id, memory_scope_e_ param_scope) {
+	uint32_t d = 0x64616F6C;
+	uint8_t subindex;
+	switch(param_scope) {
+	case MEMORY_COM_PARAMS:
+		subindex = 2;
+		break;
+	case MEMORY_APP_PARAMS:
+		subindex = 3;
+		break;
+	default:
+		subindex = 1;
+		break;
+	}
+	return uv_canopen_sdo_write(node_id, CONFIG_CANOPEN_RESTORE_PARAMS_INDEX, subindex,
+			CANOPEN_SIZEOF(CANOPEN_UNSIGNED32), &d);
+}
+
+uv_errors_e uv_canopen_sdo_store_params(uint8_t node_id, memory_scope_e_ param_scope) {
+	uint32_t d = 0x65766173;
+	uint8_t subindex;
+	switch(param_scope) {
+	case MEMORY_COM_PARAMS:
+		subindex = 2;
+		break;
+	case MEMORY_APP_PARAMS:
+		subindex = 3;
+		break;
+	default:
+		subindex = 1;
+		break;
+	}
+	return uv_canopen_sdo_write(node_id, CONFIG_CANOPEN_STORE_PARAMS_INDEX, subindex,
+			CANOPEN_SIZEOF(CANOPEN_UNSIGNED32), &d);
+}
+
+
+void uv_canopen_set_our_nodeid(uint8_t nodeid) {
+	CONFIG_NON_VOLATILE_START.id = nodeid;
 }
 
 

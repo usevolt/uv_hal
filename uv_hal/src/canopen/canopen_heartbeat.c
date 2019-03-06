@@ -38,19 +38,23 @@ void _uv_canopen_heartbeat_init(void) {
 
 
 void _uv_canopen_heartbeat_reset(void) {
+	//todo: heartbeat consumer should be implemented in case of CONFIG_CANOPEN_INITIALIZER is defined
 #if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
 	REPEAT(CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT, PRODUCER_RESET);
 #endif
+
+#if !defined(CONFIG_CANOPEN_INITIALIZER)
+
 	this_nonvol->producer_heartbeat_time_ms = CONFIG_CANOPEN_PRODUCER_HEARTBEAT_TIME_MS;
+
+#endif
 }
 
 void _uv_canopen_heartbeat_step(uint16_t step_ms) {
 
 	if (uv_delay(&this->heartbeat_time, step_ms)) {
 		uv_delay_init(&this->heartbeat_time, this_nonvol->producer_heartbeat_time_ms);
-
-#if CONFIG_CANOPEN_NMT_SLAVE
-		// only NMT slaves send heartbeat messages
+#if CONFIG_CANOPEN_HEARTBEAT_PRODUCER
 		uv_can_message_st msg;
 		msg.type = CAN_STD;
 		msg.id = CANOPEN_HEARTBEAT_ID + NODEID;

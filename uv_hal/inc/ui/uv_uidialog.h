@@ -29,7 +29,7 @@
 
 /// @file: UIDialog represents a non-permanent pop-up screen which is shown
 /// on top of everything else for a some time period.
-/// It has it's own event loop and it handles the same functions as a uidisplay, only
+/// It has it's own event loop and it handles the same functions as an uidisplay, only
 /// for a smaller subsystem.
 
 

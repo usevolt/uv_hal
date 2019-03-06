@@ -29,6 +29,8 @@
 
 #if CONFIG_SOLENOID_OUTPUT
 
+#define SOLENOID_OUTPUT_PWMAVG_COUNT	10
+#define SOLENOID_OUTPUT_MAAVG_COUNT		100
 
 #if !CONFIG_PID
 #error "uv_solenoid_output requires uv_pid_st to be enabled with CONFIG_PID defined as 1."
@@ -44,12 +46,18 @@
 #if !defined(CONFIG_SOLENOID_MA_I)
 #error "CONFIG_SOLENOID_MA_I should define the I factor for load resistance measurement."
 #endif
-
+#if !defined(CONFIG_SOLENOID_MAX_CURRENT_DEF)
+#error "CONFIG_SOLENOID_MAX_CURRENT_DEF should define the default maximum current value for solenoid output in mA."
+#endif
+#if !defined(CONFIG_SOLENOID_MIN_CURRENT_DEF)
+#error "CONFIG_SOLENOID_MIN_CURRENT_DEF should define the default minimum current value for solenoid output in mA."
+#endif
 
 typedef enum {
 	/// @brief: Output is current controlled with a current sensing feedback
 	SOLENOID_OUTPUT_MODE_CURRENT,
-	/// @brief: Output is raw PWM output, controlled with duty cycle
+	/// @brief: Output is raw PWM output, controlled with duty cycle. Note that with this
+	/// mode the conf settings are straightly converted to PWM duty cycle values from 0 ... 1000.
 	SOLENOID_OUTPUT_MODE_PWM
 } uv_solenoid_output_mode_st;
 
@@ -57,14 +65,16 @@ typedef enum {
 /// @brief: Data structure for solenoid output configuration data.
 /// This can be stored in non-volatile memory.
 typedef struct {
-	// minimum current in positive direction in milliamps. Used only in SOLENOID_OUTPUT_MODE_CURRENT.
+	// minimum current in positive direction in milliamps in current mode,
+	// min pwm value in pwm mode
 	uint16_t min_ma;
-	// maximum current in positive direction in milliamps Used only in SOLENOID_OUTPUT_MODE_CURRENT.
+	// maximum current in positive direction in milliamps in current mode,
+	// max pwm value in pwm mode
 	uint16_t max_ma;
 } uv_solenoid_output_conf_st;
 
 /// @brief: Resets the output values to defaults
-void uv_solenoid_output_conf_init(uv_solenoid_output_conf_st *conf);
+void uv_solenoid_output_conf_reset(uv_solenoid_output_conf_st *conf);
 
 
 
@@ -89,6 +99,9 @@ typedef struct {
 	uint16_t target;
 	/// @brief: Stores the current PWM duty cycle
 	uint16_t pwm;
+	/// @brief: Stores the average PWM duty cycle value, used for compensation in
+	/// calculating the current
+	uv_moving_aver_st pwmaver;
 	/// @brief: PWM channel configured for this output
 	uv_pwm_channel_t pwm_chn;
 
@@ -98,7 +111,7 @@ typedef struct {
 /// @brief: Initializes the solenoid output
 ///
 /// @param dither_freq: The frequency of super imposed dither in Hz
-/// @param dither_ampl: The amplitude of super imposed dither
+/// @param dither_ampl: The amplitude of super imposed dither in pwm duty cycle, i.e. promilles.
 /// @param adc_chn: Current sense feedback analog channel
 /// @param sense_ampl: Amplification for current sense feedback. ADC value
 /// from current sense feedback is multiplied with this in order to get milliamps.
@@ -147,9 +160,7 @@ static inline void uv_solenoid_output_set_state(uv_solenoid_output_st *this,
 
 /// @brief: Disables the output. Output can be enabled only by calling
 /// *uv_solenoid_output_enable*.
-static inline void uv_solenoid_output_disable(uv_solenoid_output_st *this) {
-	uv_output_disable((uv_output_st *) this);
-}
+void uv_solenoid_output_disable(uv_solenoid_output_st *this);
 
 
 /// @brief: Enabled the output once it's disabled with *uv_solenoid_output_disable*.

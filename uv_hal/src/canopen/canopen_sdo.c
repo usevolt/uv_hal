@@ -170,7 +170,10 @@ void _canopen_copy_data(uv_can_message_st *dest, const canopen_object_st *src, u
 			dest->data_32bit[1] = src->array_max_size;
 		}
 		else {
-			dest->data_32bit[1] = ((uint8_t*) src->data_ptr)[(subindex - 1) * CANOPEN_TYPE_LEN(src->type)];
+			dest->data_32bit[1] = 0;
+			memcpy(&dest->data_32bit[1],
+					&((uint8_t*) src->data_ptr)[(subindex - 1) * CANOPEN_TYPE_LEN(src->type)],
+					CANOPEN_TYPE_LEN(src->type));
 		}
 	}
 	else {
@@ -193,7 +196,19 @@ bool _canopen_write_data(const canopen_object_st *dest, const uv_can_msg_st *src
 		}
 	}
 	else {
-		memcpy(dest->data_ptr, &src->data_32bit[1], CANOPEN_TYPE_LEN(dest->type));
+		int8_t len;
+		if (src->data_8bit[0] & 1) {
+			len = 4 - ((src->data_8bit[0] >> 2) & 0b11);
+		}
+		else {
+			if (CANOPEN_IS_STRING(dest->type)) {
+				len = uv_mini(4, dest->string_len);
+			}
+			else {
+				len = CANOPEN_TYPE_LEN(dest->type);
+			}
+		}
+		memcpy(dest->data_ptr, &src->data_32bit[1], len);
 	}
 
 	uv_enable_int();

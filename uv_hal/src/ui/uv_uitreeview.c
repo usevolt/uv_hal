@@ -28,6 +28,8 @@ void uv_uitreeobject_init(void *me, uv_uiobject_st **object_array,
 		const char *name, void (*show_callb)(uv_uitreeobject_st *me_ptr), const uv_uistyle_st* style) {
 	uv_uiwindow_init(this, object_array, style);
 	uv_uiwindow_set_content_bb_default_pos(this, 0, CONFIG_UI_TREEVIEW_ITEM_HEIGHT);
+	this->text_c = style->text_color;
+	this->font = style->font;
 	this->name = name;
 	this->show_callb = show_callb;
 	((uv_uiobject_st*) this)->step_callb = &_uv_uitreeobject_step;
@@ -69,20 +71,13 @@ static void uv_uitreeobject_draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t y = uv_ui_get_yglobal(this);
 	int16_t w = uv_uibb(this)->width;
 	if (!((uv_uiobject_st*) this)->enabled) {
-#if CONFIG_LCD
-		_uv_ui_draw_mtext(x + XOFFSET, y + CONFIG_UI_TREEVIEW_ITEM_HEIGHT / 2,
-				&CONFIG_UI_TREEVIEW_ARROW_FONT, ALIGN_CENTER_LEFT,
-				((uv_uiwindow_st*) me)->style->active_bg_c,
-				((uv_uiwindow_st*) me)->style->window_c, "\x10", 1.0f, pbb);
-#elif CONFIG_FT81X
-		uv_ft81x_draw_string("-", ((uv_uiwindow_st*) this)->style->font->index,
+		uv_ft81x_draw_string("-", this->font,
 				x + XOFFSET, y + CONFIG_UI_TREEVIEW_ITEM_HEIGHT / 2, ALIGN_CENTER_LEFT,
-				((uv_uiwindow_st*) this)->style->active_bg_c);
-#endif
+				this->text_c);
 	}
 	else {
 		// super draw function
-		_uv_uiwindow_redraw(this, pbb);
+		uv_uiwindow_draw(this, pbb);
 
 #if CONFIG_LCD
 		_uv_ui_draw_mtext(x + XOFFSET, y + CONFIG_UI_TREEVIEW_ITEM_HEIGHT / 2,
@@ -90,9 +85,9 @@ static void uv_uitreeobject_draw(void *me, const uv_bounding_box_st *pbb) {
 				((uv_uiwindow_st*) me)->style->active_bg_c,
 				((uv_uiwindow_st*) me)->style->window_c, "\x1f", 1.0f, pbb);
 #elif CONFIG_FT81X
-		uv_ft81x_draw_string("+", ((uv_uiwindow_st*) this)->style->font->index,
+		uv_ft81x_draw_string("+", this->font,
 				x + XOFFSET, y + CONFIG_UI_TREEVIEW_ITEM_HEIGHT / 2,
-				ALIGN_CENTER_LEFT, ((uv_uiwindow_st*) this)->style->active_bg_c);
+				ALIGN_CENTER_LEFT, this->text_c);
 #endif
 	}
 
@@ -103,11 +98,11 @@ static void uv_uitreeobject_draw(void *me, const uv_bounding_box_st *pbb) {
 			((uv_uiwindow_st*) me)->style->text_color, C(0xFFFFFFFF),
 			this->name, 1.0f, pbb);
 #elif CONFIG_FT81X
-	uv_ft81x_draw_string((char*) this->name, ((uv_uiwindow_st*) this)->style->font->index,
+	uv_ft81x_draw_string((char*) this->name, this->font,
 			x + XOFFSET * 2 +
-			uv_ft81x_get_font_height(((uv_uiwindow_st*) this)->style->font->index),
+			uv_ft81x_get_font_height(this->font),
 			y + CONFIG_UI_TREEVIEW_ITEM_HEIGHT / 2,
-			ALIGN_CENTER_LEFT, ((uv_uiwindow_st*) this)->style->text_color);
+			ALIGN_CENTER_LEFT, this->text_c);
 #endif
 
 	if (((uv_uiobject_st*) this)->enabled) {
@@ -121,7 +116,7 @@ static void uv_uitreeobject_draw(void *me, const uv_bounding_box_st *pbb) {
 			((uv_uiwindow_st*) me)->style->inactive_frame_c, pbb);
 #elif CONFIG_FT81X
 	uv_ft81x_draw_line(x, y - 1, x + w, y - 1, 1,
-			((uv_uiwindow_st*) this)->style->inactive_frame_c);
+			uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, 30));
 #endif
 }
 

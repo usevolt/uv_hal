@@ -47,7 +47,6 @@ typedef struct {
 } thread_st;
 
 
-static bool initialized = false;
 
 // wrapper function for pthreads
 static void *thread_func(void *thread_ptr) {
@@ -68,6 +67,8 @@ typedef struct {
 
 } this_st;
 bool rtos_init = false;
+static bool initialized = false;
+static bool scheduler_running = false;
 
 static volatile this_st _this = {
 		.idle_task = NULL,
@@ -79,6 +80,10 @@ static volatile this_st _this = {
 uv_mutex_st halmutex;
 
 
+
+
+
+
 #define this ((this_st*) &_this)
 
 
@@ -88,13 +93,18 @@ uv_errors_e uv_rtos_add_idle_task(void (*task_function)(void *user_ptr)) {
 	return ERR_NONE;
 }
 
+bool uv_rtos_idle_task_set(void) {
+	return (this->idle_task == NULL) ? false : true;
+}
+
+
 
 /// @brief: Task function which takes care of calling several hal librarys module
 /// hal step functions
 void hal_task(void *);
 
 
-void uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
+int32_t uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
 		unsigned int stack_depth, void *this_ptr,
 		unsigned int task_priority, uv_rtos_task_ptr* handle) {
 
@@ -110,6 +120,12 @@ void uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
 	thread.function_ptr = task_function;
 	strcpy(thread.name, task_name);
 	uv_vector_push_back(&this->threads, &thread);
+	if (scheduler_running) {
+		thread_st *t = uv_vector_at(&this->threads, uv_vector_size(&this->threads) - 1);
+		pthread_create(&t->thread, NULL, &thread_func, t);
+	}
+
+	return 1;
 }
 
 
@@ -117,11 +133,13 @@ void uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
 
 void uv_rtos_start_scheduler(void) {
 
+
 	// start all threads
 	for (unsigned int i = 0; i < uv_vector_size(&this->threads); i++) {
 		thread_st *thread = uv_vector_at(&this->threads, i);
 		pthread_create(&thread->thread, NULL, &thread_func, thread);
 	}
+	scheduler_running = true;
 
 	// if idle hook is set, call it
 	if (this->idle_task) {
@@ -229,7 +247,7 @@ void uv_init(void *device) {
 	// try to load non-volatile settings. If loading failed,
 	// reset all peripherals which are denpending on the
 	// non-volatile settings.
-	if (_uv_memory_hal_load()) {
+	if (uv_memory_load(MEMORY_COM_PARAMS)) {
 #if CONFIG_CANOPEN
 		_uv_canopen_reset();
 #endif
@@ -292,9 +310,6 @@ void uv_init(void *device) {
 
 
 void uv_deinit(void) {
-#if CONFIG_TARGET_LINUX
-	uv_can_deinit();
-#endif
 }
 
 
@@ -309,7 +324,7 @@ void uv_data_reset() {
 
 void hal_task(void *nullptr) {
 
-	uint16_t step_ms = 2;
+	uint16_t step_ms = CONFIG_HAL_STEP_MS;
 	rtos_init = true;
 
 	while (true) {

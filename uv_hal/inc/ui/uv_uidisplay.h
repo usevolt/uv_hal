@@ -38,6 +38,8 @@ used on a touchscreen display."
 
 #if CONFIG_UI
 
+#define UIDISPLAY_PRESS_DELAY_MS	100
+
 /// @brief: Main display class. This represents a whole display.
 typedef struct {
 	EXTENDS(uv_uiwindow_st);
@@ -49,6 +51,11 @@ typedef struct {
 	int16_t press_y;
 	/// @brief: Stores the current state of the press event
 	int16_t press_state;
+
+	// small delay so that two presses cannot happen directly after one another
+	uv_delay_st press_delay;
+
+	color_t display_c;
 #endif
 } uv_uidisplay_st;
 

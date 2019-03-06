@@ -70,12 +70,15 @@ enum {
 	/// @brief: Default value. Step functions should return this if
 	/// the object is still valid and no refreshing needed
 	UIOBJECT_RETURN_ALIVE = 0,
-	/// @rief: If object refreshed itself, it should return this
+	/// @rief: If object refreshed itself, it should return this. This is usually for
+	/// UI library's internal usage.
 	UIOBJECT_RETURN_REFRESH = (1 << 0),
 	/// @brief: To be used with uiwindow's application step callbacks.
 	/// If this is returned, the whole step fuction call is propagated to the
 	/// parent object and step function is terminated. This can be used when switching
-	/// window structures which are using unions to save memory.
+	/// window structures which are using unions to save memory. When this is returned,
+	/// the whole display is redrawn only next step cycle, making sure that all
+	/// objects get redrawn.
 	UIOBJECT_RETURN_KILLED = (1 << 1)
 };
 typedef uint8_t uv_uiobject_ret_e;
@@ -222,8 +225,19 @@ static inline uv_bounding_box_st *uv_uibb(const void *me) {
 }
 
 
+/// @brief: Sets the transition to *me* uiobject
 static inline void uv_ui_add_transition(void *me, void *transition) {
 	this->transition = transition;
+}
+
+/// @brief: Sets the transition to *me* uiobject
+static inline void uv_uiobject_set_transition(void *me, void *transition) {
+	uv_ui_add_transition(me, transition);
+}
+
+/// @brief: Returns the transition attached to this uiobject
+static inline void *uv_uiobject_get_transition(void *me) {
+	return this->transition;
 }
 
 

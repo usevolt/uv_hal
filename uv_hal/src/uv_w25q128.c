@@ -18,11 +18,13 @@
 
 
 #include "uv_w25q128.h"
+#include <uv_rtos.h>
 
 
 #if CONFIG_W25Q128
 
 
+#define CMD_WRITE_ENABLE				0x06
 #define CMD_READ_STATUS_REGISTER_1		0x05
 #define CMD_WRITE_STATUS_REGISTER_1		0x01
 #define CMD_READ_STATUS_REGISTER_2		0x35
@@ -59,7 +61,12 @@
 #define CMD_INDIVIDUAL_BLOCK_UNLOCK		0x39
 #define CMD_READ_BLOCK_LOCK				0x3D
 
+// The length of READ command in bytes
+#define READ_CMD_LEN					4
+#define WRITE_CMD_LEN					4
 
+// RAM buffer size of W25Q128 Page but in 16-bit
+static uint16_t buffer[W25Q128_PAGE_SIZE];
 
 static bool is_busy(uv_w25q128_st *this) {
 	uint16_t read[2] = {};
@@ -70,28 +77,335 @@ static bool is_busy(uv_w25q128_st *this) {
 }
 
 
-void uv_w25q128_init(uv_w25q128_st *this, spi_e spi, spi_slaves_e ssel) {
+uv_errors_e uv_w25q128_init(uv_w25q128_st *this, spi_e spi, spi_slaves_e ssel) {
+	uv_errors_e ret = ERR_NONE;
 	this->spi = spi;
 	this->ssel = ssel;
+	this->data_location = 0;
 
 	uint16_t read[6] = {};
 	uint16_t write[6] = {};
 	write[0] = CMD_MANUFACTURER_DEVICE_ID;
 	uv_spi_readwrite_sync(this->spi, this->ssel, write, read, 8, 6);
+	if ((read[4] != 0xef) ||
+			(read[5] != 0x17)) {
+		// cannot connect to the device
+		ret = ERR_NOT_RESPONDING;
+	}
 	printf("w25q128 manufacturer id 0x%x, device id: 0x%x\n", read[4], read[5]);
+
+	return ret;
 }
 
 
-void uv_w25q128_read_sync(uv_w25q128_st *this,
-		int32_t address, void *dest, uint32_t byte_count) {
+void *uv_w25q128_read(uv_w25q128_st *this,
+		int32_t address, int32_t byte_count, void *dest) {
+	void *ret = dest;
+	while (is_busy(this)) {
+		uv_rtos_task_yield();
+	}
 
+	uint32_t read_count = 0;
+	while (true) {
+		bool br = false;
+		uint16_t len = uv_mini((sizeof(buffer) / sizeof(buffer[0])) - READ_CMD_LEN, byte_count);
+		buffer[0] = CMD_READ_DATA;
+		buffer[1] = ((address >> 16) & 0xFF);
+		buffer[2] = ((address >> 8) & 0xFF);
+		buffer[3] = (address & 0xFF);
 
+		if (uv_spi_readwrite_sync(this->spi, this->ssel, buffer, buffer, 8, len + READ_CMD_LEN)) {
+			for (int32_t i = 0; i < len; i++) {
+				((uint8_t*) dest)[read_count + i] = buffer[READ_CMD_LEN + i];
+			}
+			byte_count -= len;
+			read_count += len;
+			address += len;
+		}
+		else {
+			br = true;
+			ret = NULL;
+		}
+
+		if (byte_count <= 0) {
+			br = true;
+		}
+		if (br) {
+			break;
+		}
+	}
+
+	return ret;
 }
 
 
-void uv_w25q128_write_sync(uv_w25q128_st *this,
-		int32_t address, void *src, uint32_t byte_count) {
+bool uv_w25q128_write(uv_w25q128_st *this,
+		uint32_t address, void *src, int32_t byte_count) {
+	bool ret = true;
 
+	uint32_t write_count = 0;
+	while (true) {
+		while (is_busy(this)) {
+			uv_rtos_task_yield();
+		}
+
+		buffer[0] = CMD_WRITE_ENABLE;
+		uv_spi_write_sync(this->spi, this->ssel, (uint16_t*) buffer, 8, 1);
+
+
+		bool br = false;
+		uint32_t offset = (address % W25Q128_PAGE_SIZE);
+		uint32_t len = (byte_count % W25Q128_PAGE_SIZE);
+		if (len + offset > W25Q128_PAGE_SIZE) {
+			len -= ((len + offset) % W25Q128_PAGE_SIZE);
+		}
+		//writable len is now fit to w25q128 page borders
+
+		buffer[0] = CMD_PAGE_PROGRAM;
+		buffer[1] = ((address >> 16) & 0xFF);
+		buffer[2] = ((address >> 8) & 0xFF);
+		buffer[3] = (address & 0xFF);
+		// fill buffer with the data. memcpy is not valid here, since SPI data should be 16-bits long
+		for (int32_t i = 0; i < len; i++) {
+			buffer[i + 4] = ((uint8_t*) src)[write_count + i];
+		}
+		if (!uv_spi_write_sync(this->spi, this->ssel,
+				(uint16_t*) buffer, 8, WRITE_CMD_LEN + len)) {
+			// problem writing the data, return false
+			ret = false;
+			br = true;
+		}
+
+		byte_count -= len;
+		address += len;
+		write_count += len;
+		if (byte_count <= 0) {
+			br = true;
+		}
+		if (br) {
+			break;
+		}
+	}
+
+
+	return ret;
+}
+
+
+bool uv_w25q128_clear(uv_w25q128_st *this) {
+	bool ret = true;
+
+	while (is_busy(this)) {
+		uv_rtos_task_yield();
+	}
+	buffer[0] = CMD_WRITE_ENABLE;
+	uv_spi_write_sync(this->spi, this->ssel, (uint16_t*) buffer, 8, 1);
+
+	buffer[0] = CMD_CHIP_ERASE;
+	uv_spi_write_sync(this->spi, this->ssel, buffer, 8, 1);
+
+	return ret;
+}
+
+
+bool uv_w25q128_clear_sector_at(uv_w25q128_st *this, uint32_t address) {
+	bool ret = true;
+	while (is_busy(this)) {
+		uv_rtos_task_yield();
+	}
+	uint32_t sector = address - (address % W25Q128_SECTOR_SIZE);
+
+	buffer[0] = CMD_WRITE_ENABLE;
+	uv_spi_write_sync(this->spi, this->ssel, (uint16_t*) buffer, 8, 1);
+
+	buffer[0] = CMD_SECTOR_ERASE_4KB;
+	buffer[1] = ((sector >> 16) & 0xFF);
+	buffer[2] = ((sector >> 8) & 0xFF);
+	buffer[3] = (sector & 0xFF);
+	uv_spi_write_sync(this->spi, this->ssel, buffer, 8, 4);
+
+
+	return ret;
+}
+
+
+
+uint8_t exmem_data_buffer[CONFIG_EXMEM_BUFFER_SIZE];
+const uint32_t exmem_blocksize = CONFIG_EXMEM_BUFFER_SIZE;
+char exmem_filename_buffer[EXMEM_FILENAME_LEN];
+uint32_t exmem_data_offset = 0;
+uint32_t exmem_file_size = 0;
+int32_t exmem_write_req = 0;
+uint8_t exmem_clear_req = 0;
+
+
+
+/// @brief: Returns the filename address from the file descriptor
+#define FILENAME_ADDR(fd)		(fd.this_addr + sizeof(fd))
+/// @brief: Returns the data address from the file descriptor
+#define DATA_ADDR(fd)			(fd.this_addr + sizeof(fd) + EXMEM_FILENAME_LEN)
+/// @brief: Returns the amount of storage size needed to store the whole file
+/// alongside it's filename and file descriptor
+#define FILE_SIZE(fd)			(sizeof(fd) + EXMEM_FILENAME_LEN + fd.file_size)
+
+#define EXMEM_EMPTY_ADDR		(0xFFFFFFFF)
+
+void uv_w25q128_step(uv_w25q128_st *this, uint16_t step_ms) {
+	uv_fd_st fd;
+	if (exmem_write_req) {
+		strncpy(fd.filename, exmem_filename_buffer, sizeof(exmem_filename_buffer));
+		fd.filename[sizeof(exmem_filename_buffer) - 1] = '\0';
+		fd.file_size = exmem_file_size;
+		uv_fd_st file;
+		while (uv_exmem_find(this, fd.filename, &file)) {
+			uint32_t size = file.file_size + W25Q128_SECTOR_SIZE - 1;
+			size -= size % W25Q128_SECTOR_SIZE;
+			// data size is checked only if offset is 0, i.e. this is the first write to a file.
+			// This means that an existing file is being updated
+			if ((exmem_data_offset == 0) &&
+					(exmem_file_size > size)) {
+				// the file is too big to fit here. Mark this location to be deleted
+				// and continue searching for a new place for the file.
+				// Since the same filename shouldn't be in the memory,
+				// the search continues to the end of files
+				uint32_t addr = file.data_addr;
+				file.data_addr = EXMEM_DELETED_ADDR;
+				uv_w25q128_write(this,
+						addr - sizeof(file),
+						&file, sizeof(file));
+			}
+			else {
+				if (exmem_data_offset == 0) {
+					// start by clearing the old file if the offset was zero,
+					// i.e. the first write was requested
+					for (uint32_t i = 0; i < (((file.file_size + sizeof(file)) / W25Q128_SECTOR_SIZE) + 1); i++) {
+						uv_w25q128_clear_sector_at(this, file.data_addr + i * W25Q128_SECTOR_SIZE);
+					}
+					// next disable sectors that are not used anymore
+					uv_fd_st ffile = file;
+					for (uint32_t i = ((fd.file_size + sizeof(fd)) / W25Q128_SECTOR_SIZE) + 1;
+							i < (((file.file_size + sizeof(file)) / W25Q128_SECTOR_SIZE) + 1); i++) {
+						ffile.file_size = W25Q128_SECTOR_SIZE - sizeof(file);
+						ffile.data_addr = EXMEM_DELETED_ADDR;
+						uv_w25q128_write(this, file.data_addr - sizeof(file) + i * W25Q128_SECTOR_SIZE,
+								&ffile, sizeof(ffile));
+					}
+				}
+				break;
+			}
+		}
+		// *file* should now be pointing to free memory, or existing file which has more space
+		fd.data_addr = file.data_addr;
+		if (exmem_data_offset == 0) {
+			// write the file descriptor to the start of sector
+			uv_w25q128_write(this, fd.data_addr - sizeof(fd), &fd, sizeof(fd));
+		}
+		// write the data to file
+		uv_w25q128_write(this, fd.data_addr + exmem_data_offset, exmem_data_buffer, exmem_write_req);
+
+		exmem_write_req = 0;
+	}
+	else if (exmem_clear_req) {
+		// clear all data from the memory
+		uint32_t addr = 0;
+		uv_w25q128_read(this, addr, sizeof(fd), &fd);
+		while (fd.data_addr != EXMEM_EMPTY_ADDR &&
+				(addr < W25Q128_SECTOR_COUNT * W25Q128_SECTOR_SIZE)) {
+			for (uint32_t i = 0; i < (fd.file_size / W25Q128_SECTOR_SIZE + 1); i++) {
+				uv_w25q128_clear_sector_at(this, addr + i * W25Q128_SECTOR_SIZE);
+			}
+			addr += (fd.file_size + W25Q128_SECTOR_SIZE - 1);
+			addr -= addr % W25Q128_SECTOR_SIZE;
+			uv_w25q128_read(this, addr, sizeof(fd), &fd);
+		}
+		exmem_clear_req = 0;
+	}
+	else {
+
+	}
+}
+
+
+uint32_t uv_exmem_read(uv_w25q128_st *this, char *filename,
+		void *dest, uint32_t max_len, uint32_t offset) {
+	// try to find the file
+	uint32_t ret = 0;
+	uv_fd_st fd;
+	if (uv_exmem_find(this, filename, &fd)) {
+		// match found, copy the data to destination
+		int32_t len = uv_mini(fd.file_size - offset, max_len);
+		if (len > 0) {
+			uv_w25q128_read(this, fd.data_addr + offset, len, dest);
+		}
+		else {
+			len = 0;
+		}
+		ret = len;
+	}
+	return ret;
+}
+
+
+uint32_t uv_exmem_read_fd(uv_w25q128_st *this, uv_fd_st *fd,
+		void *dest, uint32_t max_len, uint32_t offset) {
+	uint32_t ret = 0;
+	// copy the data to destination
+	int32_t len = uv_mini(fd->file_size - offset, max_len);
+	if (len > 0) {
+		uv_w25q128_read(this, fd->data_addr + offset, len, dest);
+	}
+	else {
+		len = 0;
+	}
+	ret = len;
+
+	return ret;
+}
+
+
+bool uv_exmem_find(uv_w25q128_st *this, char *filename, uv_fd_st *dest) {
+	bool ret = false;
+	uint32_t addr = 0;
+	uv_w25q128_read(this, addr, sizeof(*dest), dest);
+	while (dest->data_addr != EXMEM_EMPTY_ADDR &&
+			(addr < W25Q128_SECTOR_COUNT * W25Q128_SECTOR_SIZE)) {
+		if (dest->data_addr != EXMEM_DELETED_ADDR) {
+			if (strcmp(filename, dest->filename) == 0) {
+				ret = true;
+				break;
+			}
+		}
+		// jump to the end of this file, aligned with the memory sector size
+		addr += (dest->file_size + W25Q128_SECTOR_SIZE - 1);
+		addr -= addr % W25Q128_SECTOR_SIZE;
+		uv_w25q128_read(this, addr, sizeof(*dest), dest);
+	}
+	if (!ret) {
+		// file not found, copy place for a new file to *dest*
+		dest->data_addr = addr + sizeof(*dest);
+	}
+	return ret;
+}
+
+bool uv_exmem_index(uv_w25q128_st *this, uint32_t index, uv_fd_st *dest) {
+	bool ret = false;
+	uint32_t addr = 0;
+	uv_w25q128_read(this, addr, sizeof(*dest), dest);
+	while (dest->data_addr != EXMEM_EMPTY_ADDR &&
+			(addr < W25Q128_SECTOR_COUNT * W25Q128_SECTOR_SIZE)) {
+		if (dest->data_addr != EXMEM_DELETED_ADDR) {
+			if (index == 0) {
+				ret = true;
+				break;
+			}
+			index--;
+		}
+		// jump to the end of this file, aligned with the memory sector size
+		addr += (dest->file_size + W25Q128_SECTOR_SIZE - 1);
+		addr -= addr % W25Q128_SECTOR_SIZE;
+		uv_w25q128_read(this, addr, sizeof(*dest), dest);
+	}
+	return ret;
 }
 
 

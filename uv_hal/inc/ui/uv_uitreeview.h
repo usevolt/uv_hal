@@ -34,6 +34,9 @@ struct _uv_uitreeobject_st {
 	const char *name;
 	/// @brief: Function callback for showing this object's window
 	void (*show_callb)(uv_uitreeobject_st *me_ptr);
+
+	color_t text_c;
+	uv_font_st *font;
 };
 
 

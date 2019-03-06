@@ -207,7 +207,7 @@ char *uv_jsonreader_find_child(char *parent, char *child_name,
 /// @param dest: A pointer to string where the name will be stored.
 /// @param dest_length: The max size of dest. If the name didn't fit dest,
 /// false is returned. However, 'dest_length' bytes will be stored to dest anyway.
-bool uv_jsonreader_get_obj_name(char *object, char **dest, unsigned int dest_length);
+bool uv_jsonreader_get_obj_name(char *object, char *dest, unsigned int dest_length);
 
 
 /// @brief: Returns the type of this JSON object
@@ -228,11 +228,18 @@ int uv_jsonreader_array_get_int(char *object, unsigned int index);
 /// returns false.
 bool uv_jsonreader_get_string(char *object, char *dest, unsigned int dest_length);
 
+/// @brief: Returns a pointer to the string value of **object**.
+/// Note: The string is **not** null-terminated!
+char *uv_jsonreader_get_string_ptr(char *object);
+
+/// @brief: Returns the length of the string parameter
+unsigned int uv_jsonreader_get_string_len(char *object);
+
 /// @brief: Passes the array cell's value as a null-terminated string to 'dest'
 /// If the string is longer than dest_length, returns false.
 ///
 /// @note: Do not overindex!
-bool uv_jsonreader_array_get_string(char *object, unsigned int index, char **dest, unsigned int dest_length);
+bool uv_jsonreader_array_get_string(char *object, unsigned int index, char *dest, unsigned int dest_length);
 
 
 /// @brief: Returns the object's value as a bool

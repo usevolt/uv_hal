@@ -41,29 +41,29 @@ typedef enum {
 
 
 /// @brief: Main uitransition pure virtual structure.
-struct _uv_uitransition_st {
+typedef struct {
 
-	uv_uitransition_state_e state;
-	uv_uitransition_st *parallel;
-	uv_uitransition_st *series;
-	uv_uitransition_easing_e easing;
+	void *parallel;
+	void *series;
 	int16_t duration_ms;
 	int16_t current_time_ms;
+	uv_uitransition_state_e state;
+	uv_uitransition_easing_e easing;
 	uint16_t speed_ppt;
 	/// @brief: Virtual function which should implement
 	/// the calculations every step cycle
 	void (*calc_callb)(void *me);
-};
+	/// @brief: Callback which will be called when the transition state changes.
+	/// This can be used to create different kind of looping transitions
+	void (*state_change_callback)(void *me, uv_uitransition_state_e last_state);
+} _uv_uitransition_st;
 
 
 #if defined(this)
 #undef this
 #endif
-#define this ((uv_uitransition_st*) me)
+#define this ((_uv_uitransition_st*) me)
 
-/// @brief: Initializes the basic transition object
-void uv_uitransition_init(void *me, uv_uitransition_easing_e easing,
-		uint16_t duration_ms, void (*calc_callb)(void *me));
 
 
 /// @brief: Starts the uitransition
@@ -90,6 +90,13 @@ static inline void uv_uitransition_add_series(void *me,
 }
 
 
+/// @brief: Adds a state-changed callback to the transition
+static inline void uv_uitransition_set_state_change_callback(void *me,
+		void (*callb)(void *, uv_uitransition_state_e)) {
+	this->state_change_callback = callb;
+}
+
+
 /// @brief: Returns true if the transition is finished
 static inline bool uv_uitransition_is_finished(void *me) {
 	return (this->state == UITRANSITION_FINISH);
@@ -100,22 +107,22 @@ static inline uv_uitransition_state_e uv_uitransition_get_state(const void *me) 
 	return this->state;
 }
 
+/// @brief: Sets the easing for the transition
+static inline void uv_uitransition_set_easing(void *me, uv_uitransition_easing_e easing) {
+	this->easing = easing;
+}
+
 /// @brief: Sets the animation speed as a ppt value. Defaults to 1000.
 static inline void uv_uitransition_set_speed(void *me, uint16_t speed_ppt) {
 	this->speed_ppt = speed_ppt;
 }
 
-/// @bief: Step function is called automatically from the uiobject where
-/// the transition is attached.
-///
-/// @param parent: The parent object to which this uitransition is attached
-void uv_uitransition_step(void *me, void *parent, uint16_t step_ms);
 
 
 /// @bief: Transition animating a signed 16 bit integer value.
 /// Since 16-bit integers are used in most places in UI library.
 typedef struct {
-	EXTENDS(uv_uitransition_st);
+	EXTENDS(_uv_uitransition_st);
 
 	int16_t start_val;
 	int16_t end_val;
@@ -131,7 +138,7 @@ void uv_uiscalartransition_init(void *me, uv_uitransition_easing_e easing,
 
 /// @brief: Transition animating a color value
 typedef struct {
-	EXTENDS(uv_uitransition_st);
+	EXTENDS(_uv_uitransition_st);
 
 	color_t start_c;
 	color_t end_c;
@@ -143,6 +150,23 @@ typedef struct {
 void uv_uicolortransition_init(void *me, uv_uitransition_easing_e easing,
 		uint16_t duration_ms, color_t start_c, color_t end_c, color_t *c_ptr);
 
+
+
+
+
+
+
+/// @brief: Initializes the basic transition object.
+/// This function shouldn't be called by the user application
+void _uv_uitransition_init(void *me, uv_uitransition_easing_e easing,
+		uint16_t duration_ms, void (*calc_callb)(void *me));
+
+
+/// @bief: Step function is called automatically from the uiobject where
+/// the transition is attached. This function shouldn't be called by the user application.
+///
+/// @param parent: The parent object to which this uitransition is attached
+void _uv_uitransition_step(void *me, void *parent, uint16_t step_ms);
 
 
 #undef this

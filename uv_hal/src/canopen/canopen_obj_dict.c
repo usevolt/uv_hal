@@ -8,8 +8,12 @@
 
 #include "canopen/canopen_obj_dict.h"
 #include "uv_canopen.h"
+#include "uv_terminal.h"
 #include <string.h>
 #include CONFIG_MAIN_H
+#if CONFIG_W25Q128
+#include "uv_w25q128.h"
+#endif
 
 #if CONFIG_CANOPEN
 
@@ -20,7 +24,7 @@ extern const canopen_object_st CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS [];
 
 /// @brief: The length of object dictionary's application parameter array,
 /// given by the user application.
-extern unsigned int CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS_COUNT (void);
+extern uint32_t CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS_COUNT (void);
 
 
 
@@ -59,7 +63,6 @@ extern unsigned int CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS_COUNT (void);
 
 
 
-
 const canopen_object_st com_params[] = {
 		REPEAT(CONFIG_CANOPEN_RXPDO_COUNT, RXPDO_COM)
 		REPEAT(CONFIG_CANOPEN_RXPDO_COUNT, RXPDO_MAP)
@@ -82,18 +85,54 @@ const canopen_object_st com_params[] = {
 		},
 		{
 				.main_index = CONFIG_CANOPEN_STORE_PARAMS_INDEX,
-				.sub_index = 1,
+				.array_max_size = sizeof(_canopen.store_req) / sizeof(_canopen.store_req[0]),
 				.permissions = CANOPEN_RW,
-				.type = CANOPEN_UNSIGNED32,
-				.data_ptr = &_canopen.store_req
+				.type = CANOPEN_ARRAY32,
+				.data_ptr = _canopen.store_req
 		},
 		{
 				.main_index = CONFIG_CANOPEN_RESTORE_PARAMS_INDEX,
-				.sub_index = 1,
+				.array_max_size = sizeof(_canopen.restore_req) / sizeof(_canopen.restore_req[0]),
 				.permissions = CANOPEN_RW,
-				.type = CANOPEN_UNSIGNED32,
-				.data_ptr = &_canopen.restore_req
+				.type = CANOPEN_ARRAY32,
+				.data_ptr = _canopen.restore_req
 		},
+#if CONFIG_UV_BOOTLOADER
+		{
+				.main_index = CONFIG_CANOPEN_PROGRAM_DATA_INDEX,
+				.array_max_size = 1,
+				.permissions = CANOPEN_RW,
+				.type = CANOPEN_ARRAY8,
+				// note: This can be set to null, since canopen stack
+				// checks if this object is written and in that case resets
+				// to the bootloader.
+				// This functionality is implemented in _uv_canopen_sdo_server_rx
+				.data_ptr = NULL
+		},
+		{
+				.main_index = CONFIG_CANOPEN_PROGRAM_CONTROL_INDEX,
+				.array_max_size = 1,
+				.permissions = CANOPEN_RW,
+				.type = CANOPEN_ARRAY8,
+				.data_ptr = &_canopen.prog_control
+		},
+		{
+				.main_index = CONFIG_CANOPEN_PROGRAM_IDENTIF_INDEX,
+				.array_max_size = 1,
+				.permissions = CANOPEN_RO,
+				.type = CANOPEN_ARRAY32,
+				.data_ptr = (void*) &uv_prog_version
+		},
+#endif
+#if CONFIG_TERMINAL
+		{
+				.main_index = CONFIG_CANOPEN_TERMINAL_INDEX,
+				.sub_index = 0,
+				.permissions = CANOPEN_RW,
+				.type = CANOPEN_UNSIGNED8,
+				.data_ptr = (void*) &uv_terminal_enabled
+		},
+#endif
 #if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
 		{
 				.main_index = CONFIG_CANOPEN_CONSUMER_HEARTBEAT_INDEX,
@@ -118,6 +157,59 @@ const canopen_object_st com_params[] = {
 				.permissions = CANOPEN_RO,
 				.type = CANOPEN_STRING,
 				.data_ptr = (void*) uv_projname
+		},
+#endif
+#if CONFIG_W25Q128
+		{
+				.main_index = CONFIG_CANOPEN_EXMEM_DATA_INDEX,
+				.sub_index = 0,
+				.type = CONFIG_CANOPEN_EXMEM_DATA_TYPE,
+				.string_len = CONFIG_EXMEM_BUFFER_SIZE,
+				.permissions = CANOPEN_RW,
+				.data_ptr = &exmem_data_buffer
+		},
+		{
+				.main_index = CONFIG_CANOPEN_EXMEM_BLOCKSIZE_INDEX,
+				.sub_index = 0,
+				.type = CONFIG_CANOPEN_EXMEM_BLOCKSIZE_TYPE,
+				.permissions = CANOPEN_RO,
+				.data_ptr = (void*) &exmem_blocksize
+		},
+		{
+				.main_index = CONFIG_CANOPEN_EXMEM_OFFSET_INDEX,
+				.sub_index = 0,
+				.type = CONFIG_CANOPEN_EXMEM_OFFSET_TYPE,
+				.permissions = CANOPEN_RW,
+				.data_ptr = &exmem_data_offset
+		},
+		{
+				.main_index = CONFIG_CANOPEN_EXMEM_FILENAME_INDEX,
+				.sub_index = 0,
+				.type = CONFIG_CANOPEN_EXMEM_FILENAME_TYPE,
+				.string_len = EXMEM_FILENAME_LEN,
+				.permissions = CANOPEN_RW,
+				.data_ptr = exmem_filename_buffer
+		},
+		{
+				.main_index = CONFIG_CANOPEN_EXMEM_FILESIZE_INDEX,
+				.sub_index = 0,
+				.type = CONFIG_CANOPEN_EXMEM_FILESIZE_TYPE,
+				.permissions = CANOPEN_RW,
+				.data_ptr = &exmem_file_size
+		},
+		{
+				.main_index = CONFIG_CANOPEN_EXMEM_WRITEREQ_INDEX,
+				.sub_index = 0,
+				.type = CONFIG_CANOPEN_EXMEM_WRITEREQ_TYPE,
+				.permissions = CANOPEN_RW,
+				.data_ptr = &exmem_write_req
+		},
+		{
+				.main_index = CONFIG_CANOPEN_EXMEM_CLEARREQ_INDEX,
+				.sub_index = 0,
+				.type = CONFIG_CANOPEN_EXMEM_CLEARREQ_TYPE,
+				.permissions = CANOPEN_RW,
+				.data_ptr = &exmem_clear_req
 		},
 #endif
 		{

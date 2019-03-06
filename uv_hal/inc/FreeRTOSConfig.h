@@ -67,7 +67,6 @@
 #include "LPC11xx.h"
 #elif CONFIG_TARGET_LPC1549
 #include "chip.h"
-#elif CONFIG_TARGET_LINUX
 #endif
 #endif
 
@@ -88,7 +87,7 @@
 #elif CONFIG_TARGET_LPC11C14
 #define configCPU_CLOCK_HZ			( ( unsigned long ) SystemCoreClock )
 #define configMAX_PRIORITIES		( ( unsigned portBASE_TYPE ) 5 )
-#elif CONFIG_TARGET_LINUX
+#elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 #define configMAX_PRIORITIES		( ( unsigned portBASE_TYPE ) 10 )
 #endif
 #define configUSE_TICK_HOOK			0
@@ -97,7 +96,7 @@
 #define configMINIMAL_STACK_SIZE	( ( unsigned short ) 128 )
 #elif CONFIG_TARGET_LPC11C14
 #define configMINIMAL_STACK_SIZE	( ( unsigned short ) 64 )
-#elif CONFIG_TARGET_LINUX
+#elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 #define configMINIMAL_STACK_SIZE	( ( unsigned short ) 1024 )
 #endif
 #define configSUPPORT_DYNAMIC_ALLOCATION	1
@@ -114,14 +113,15 @@
 
 #define configUSE_COUNTING_SEMAPHORES 	1
 #define configUSE_ALTERNATIVE_API 		0
-#define configCHECK_FOR_STACK_OVERFLOW	1
+#define configCHECK_FOR_STACK_OVERFLOW	0
 #define configUSE_RECURSIVE_MUTEXES		1
 #define configQUEUE_REGISTRY_SIZE		10
 #define configGENERATE_RUN_TIME_STATS	0
 
+#define configSUPPORT_STATIC_ALLOCATION	0
 
 /* Software timer definitions. */
-#define configUSE_TIMERS				1
+#define configUSE_TIMERS				0
 #define configTIMER_TASK_PRIORITY		( 2 )
 #define configTIMER_QUEUE_LENGTH		2
 #define configTIMER_TASK_STACK_DEPTH	( 80 )
@@ -138,6 +138,9 @@ to exclude the API function. */
 #define INCLUDE_vTaskDelay					1
 #define INCLUDE_uxTaskGetStackHighWaterMark	1
 
+#define configUSE_PORT_OPTIMISED_TASK_SELECTION	1
+#define configGENERATE_RUN_TIME_STATS			0
+
 #if CONFIG_TARGET_LPC11C14
 #define configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY	1
 #endif
@@ -150,21 +153,23 @@ to exclude the API function. */
 #endif
 
 #if defined(CORE_M3)
+
 /* The lowest interrupt priority that can be used in a call to a "set priority"
 function. */
-#define configLIBRARY_LOWEST_INTERRUPT_PRIORITY			0x1f
+#define configLIBRARY_LOWEST_INTERRUPT_PRIORITY            0xf
 
 /* The highest interrupt priority that can be used by any interrupt service
 routine that makes calls to interrupt safe FreeRTOS API functions.  DO NOT CALL
 INTERRUPT SAFE FREERTOS API FUNCTIONS FROM ANY INTERRUPT THAT HAS A HIGHER
 PRIORITY THAN THIS! (higher priorities are lower numeric values. */
-#define configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY	5
+#define configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY   1
 
 /* Interrupt priorities used by the kernel port layer itself.  These are generic
 to all Cortex-M ports, and do not rely on any particular library functions. */
-#define configKERNEL_INTERRUPT_PRIORITY 		( configLIBRARY_LOWEST_INTERRUPT_PRIORITY << (8 - configPRIO_BITS) )
-#define configMAX_SYSCALL_INTERRUPT_PRIORITY 	( configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY << (8 - configPRIO_BITS) )
-
+#define configKERNEL_INTERRUPT_PRIORITY        ( configLIBRARY_LOWEST_INTERRUPT_PRIORITY << (8 - configPRIO_BITS) )
+/* !!!! configMAX_SYSCALL_INTERRUPT_PRIORITY must not be set to zero !!!!
+See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
+#define configMAX_SYSCALL_INTERRUPT_PRIORITY   ( configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY << (8 - configPRIO_BITS) )
 #else
 
 #if defined(CORE_M4)
@@ -176,7 +181,7 @@ function. */
 routine that makes calls to interrupt safe FreeRTOS API functions.  DO NOT CALL
 INTERRUPT SAFE FREERTOS API FUNCTIONS FROM ANY INTERRUPT THAT HAS A HIGHER
 PRIORITY THAN THIS! (higher priorities are lower numeric values. */
-#define configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY	5
+#define configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY	0
 
 /* Interrupt priorities used by the kernel port layer itself.  These are generic
 to all Cortex-M ports, and do not rely on any particular library functions. */
@@ -188,7 +193,7 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 #else
 #if defined(CORE_M0)
 #else
-#if defined(CORE_LINUX)
+#if defined(CORE_LINUX) || defined(CORE_WIN)
 /* The lowest interrupt priority that can be used in a call to a "set priority"
 function. */
 #define configLIBRARY_LOWEST_INTERRUPT_PRIORITY			0x1f

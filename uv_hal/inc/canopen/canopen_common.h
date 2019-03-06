@@ -30,6 +30,8 @@ enum {
 	CANOPEN_RW = 0b11
 };
 typedef uint8_t canopen_permissions_e;
+#define CANOPEN_IS_READABLE(permissions) ((permissions) & CANOPEN_RO)
+#define CANOPEN_IS_WRITABLE(permissions) ((permissions) & CANOPEN_WO)
 
 
 
@@ -45,8 +47,15 @@ typedef uint8_t canopen_permissions_e;
 #define CANOPEN_ARRAY_MASK 	0b11000000
 #define CANOPEN_STRING_MASK 0b00110000
 #define CANOPEN_NUMBER_MASK	0b00000111
+/// @brief: returns the length of this type variable in bytes
 #define CANOPEN_TYPE_LEN(type)	((type) & (CANOPEN_NUMBER_MASK))
+/// @brief: Additional way of returning the type length in bytes
+#define CANOPEN_SIZEOF(type)	CANOPEN_TYPE_LEN(type)
+
 #define CANOPEN_IS_ARRAY(type)	((type) & (CANOPEN_ARRAY_MASK))
+#define CANOPEN_IS_INTEGER(type) (!((type) & (CANOPEN_ARRAY_MASK | CANOPEN_STRING_MASK)))
+#define CANOPEN_IS_STRING(type) ((type) == CANOPEN_STRING)
+
 enum {
 	CANOPEN_UNSIGNED8 = 1,
 	CANOPEN_SIGNED8 = 1,
@@ -60,6 +69,22 @@ enum {
 	CANOPEN_ARRAY32 = (1 << 6) + 4
 };
 typedef uint8_t canopen_object_type_e;
+
+
+/// @brief: Declarations of stdint variable types for each CANOPEN parameter type
+#define CANOPEN_UNSIGNED8_TYPE		uint8_t
+#define CANOPEN_SIGNED8_TYPE		int8_t
+#define CANOPEN_UNSIGNED16_TYPE		uint16_t
+#define CANOPEN_SIGNED16_TYPE		int16_t
+#define CANOPEN_UNSIGNED32_TYPE		uint32_t
+#define CANOPEN_SIGNED32_TYPE		int32_t
+#define CANOPEN_STRING_TYPE			char
+#define CANOPEN_ARRAY8_TYPE			uint8_t
+#define CANOPEN_ARRAY16_TYPE		uint16_t
+#define CANOPEN_ARRAY32_TYPE		uint32_t
+
+/// @brief: Macro for getting the parameter type
+#define CANOPEN_TYPEOF(type)		CAT(type, _TYPE)
 
 
 

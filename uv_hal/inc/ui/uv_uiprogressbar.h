@@ -53,12 +53,16 @@ typedef struct {
 	uiprogressbar_limit_e limit_type;
 	/// @brief: When the value is below or over this, active bar color is changed to *low_color*
 	int16_t limit;
+
 	/// @brief: Optional second color which is shown when the value is below *limit*
-	color_t limit_color;
+	color_t limit_c;
+	color_t main_c;
+	color_t bg_c;
+	color_t text_c;
+	uv_font_st *font;
+
 	/// @brief: Optional title text
 	char *title;
-
-	const uv_uistyle_st *style;
 } uv_uiprogressbar_st;
 
 #ifdef this

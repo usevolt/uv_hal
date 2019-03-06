@@ -89,6 +89,29 @@
 #if !CONFIG_CANOPEN_DEFAULT_NODE_ID
 #error "CONFIG_CANOPEN_DEFAULT_NODE_ID should define the default node ID assigned to this device"
 #endif
+#if !defined(CONFIG_CANOPEN_AUTO_PREOPERATIONAL)
+#error "CONFIG_CANOPEN_AUTO_PREOPERATIONAL should be defined 1 or 0 depending if the canopen stack\
+ is allowed to move itself to preoperational state at boot up. If it's defined as 0, the application\
+ is responsible for moving the preoperational state after initialization."
+#endif
+#if CONFIG_CANOPEN_PDO_EXTINIT
+#if !defined(CONFIG_CANOPEN_TXPDO_COM_INIT)
+#error "CONFIG_CANOPEN_TXPDO_COM_INIT should define the name of the TXPDO communication array \
+initialization structure."
+#endif
+#if !defined(CONFIG_CANOPEN_TXPDO_MAP_INIT)
+#error "CONFIG_CANOPEN_TXPDO_MAP_INIT should define the name of the TXPDO mapping array \
+initialization structure."
+#endif
+#if !defined(CONFIG_CANOPEN_RXPDO_COM_INIT)
+#error "CONFIG_CANOPEN_RXPDO_COM_INIT should define the name of the RXPDO communication array \
+initialization structure."
+#endif
+#if !defined(CONFIG_CANOPEN_RXPDO_MAP_INIT)
+#error "CONFIG_CANOPEN_RXPDO_MAP_INIT should define the name of the RXPDO mapping array \
+initialization structure."
+#endif
+#endif
 #if !defined(CONFIG_CANOPEN_CONSUMER_HEARTBEAT_INDEX)
 #define CONFIG_CANOPEN_CONSUMER_HEARTBEAT_INDEX	0x1016
 #endif
@@ -109,15 +132,50 @@
 #endif
 #if !defined(CONFIG_CANOPEN_STORE_PARAMS_INDEX)
 #define CONFIG_CANOPEN_STORE_PARAMS_INDEX	0x1010
+#define CONFIG_CANOPEN_STORE_ALL_PARAMS_SUBINDEX	1
 #endif
 #if !defined(CONFIG_CANOPEN_RESTORE_PARAMS_INDEX)
 #define CONFIG_CANOPEN_RESTORE_PARAMS_INDEX	0x1011
+#define CONFIG_CANOPEN_RESTORE_ALL_PARAMS_SUBINDEX	1
+#define CONFIG_CANOPEN_RESTORE_COMM_PARAMS_SUBINDEX	2
+#define CONFIG_CANOPEN_RESTORE_APP_PARAMS_SUBINDEX	3
 #endif
 #if !defined(CONFIG_CANOPEN_IDENTITY_INDEX)
 #define CONFIG_CANOPEN_IDENTITY_INDEX		0x1018
 #endif
+#if !defined(CONFIG_CANOPEN_PROGRAM_DATA_INDEX)
+#define CONFIG_CANOPEN_PROGRAM_DATA_INDEX	0x1F50
+#endif
+#if !defined(CONFIG_CANOPEN_PROGRAM_CONTROL_INDEX)
+#define CONFIG_CANOPEN_PROGRAM_CONTROL_INDEX	0x1F51
+#endif
+#if !defined(CONFIG_CANOPEN_PROGRAM_IDENTIF_INDEX)
+#define CONFIG_CANOPEN_PROGRAM_IDENTIF_INDEX	0x1F56
+#endif
+#if !defined(CONFIG_CANOPEN_PROGRAM_FLASH_STATUS_INDEX)
+#define CONFIG_CANOPEN_PROGRAM_FLASH_STATUS_INDEX	0x1F57
+#endif
 #if !defined(CONFIG_CANOPEN_DEVNAME_INDEX)
-#define CONFIG_CANOPEN_DEVNAME_INDEX		0x1FFF
+#define CONFIG_CANOPEN_DEVNAME_INDEX		0x5FFF
+#endif
+#define CONFIG_CANOPEN_EXMEM_DATA_INDEX			0x5FFE
+#define CONFIG_CANOPEN_EXMEM_DATA_TYPE			CANOPEN_STRING
+#define CONFIG_CANOPEN_EXMEM_BLOCKSIZE_INDEX	0x5FFD
+#define CONFIG_CANOPEN_EXMEM_BLOCKSIZE_TYPE		CANOPEN_UNSIGNED32
+#define CONFIG_CANOPEN_EXMEM_OFFSET_INDEX		0x5FFC
+#define CONFIG_CANOPEN_EXMEM_OFFSET_TYPE		CANOPEN_UNSIGNED32
+#define CONFIG_CANOPEN_EXMEM_FILENAME_INDEX		0x5FFB
+#define CONFIG_CANOPEN_EXMEM_FILENAME_TYPE		CANOPEN_STRING
+#define CONFIG_CANOPEN_EXMEM_FILESIZE_INDEX		0x5FFA
+#define CONFIG_CANOPEN_EXMEM_FILESIZE_TYPE		CANOPEN_UNSIGNED32
+#define CONFIG_CANOPEN_EXMEM_WRITEREQ_INDEX		0x5FF9
+#define CONFIG_CANOPEN_EXMEM_WRITEREQ_TYPE		CANOPEN_UNSIGNED32
+#define CONFIG_CANOPEN_EXMEM_CLEARREQ_INDEX		0x5FF8
+#define CONFIG_CANOPEN_EXMEM_CLEARREQ_TYPE		CANOPEN_UNSIGNED8
+#if CONFIG_TERMINAL
+#if !defined(CONFIG_CANOPEN_TERMINAL_INDEX)
+#define CONFIG_CANOPEN_TERMINAL_INDEX		0x5FFE
+#endif
 #endif
 #if !defined(CONFIG_CANOPEN_PDO_MAPPING_COUNT)
 #define CONFIG_CANOPEN_PDO_MAPPING_COUNT	8
@@ -158,8 +216,10 @@ should be enabled. Defaults to 0. Segmented parth takes roughly 1k4 bytes of fla
 #error "CONFIG_CANOPEN_TXPDO_COUNT not defined. It should define the maximum number of transmit\
  PDO's in this hardware."
 #endif
+#if !defined(CONFIG_CANOPEN_INITIALIZER)
 #if !defined(CONFIG_CANOPEN_PRODUCER_HEARTBEAT_TIME_MS)
 #error "CONFIG_CANOPEN_PRODUCER_HEARTBEAT_TIME_MS should define the producer heartbeat time in ms"
+#endif
 #endif
 #if !defined(CONFIG_CANOPEN_CHANNEL)
 #error "CONFIG_CANOPEN_CHANNEL should define the uv_can channel to be used for CANopen communication"
@@ -174,6 +234,10 @@ should be enabled. Defaults to 0. Segmented parth takes roughly 1k4 bytes of fla
 #if !defined(CONFIG_CANOPEN_HEARTBEAT_CONSUMER)
 #error "CONFIG_CANOPEN_HEARTBEAT_CONSUMER should be defined as 1 or 0 depending if this device\
  listens to any other node's heartbeats and consumes them."
+#endif
+#if !defined(CONFIG_CANOPEN_HEARTBEAT_PRODUCER)
+#error "CONFIG_CANOPEN_HEARTBEAT_PRODUCER should be define as 1 or 0 depending if the device\
+ sends the heartbeat messages. Usually this should be 1, as this is how it is defined by CiA 301."
 #endif
 #if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
 #if !CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT
@@ -199,11 +263,6 @@ CONFIG_CANOPEN_EMCY_MSG_ID_x symbol should define the message ID, starting from 
 
 
 
-typedef struct {
-	canopen_pdo_mapping_st mappings[CONFIG_CANOPEN_PDO_MAPPING_COUNT];
-} canopen_pdo_mapping_parameter_st;
-#define CANOPEN_PDO_MAPPING_PARAMETER_TYPE	CANOPEN_ARRAY32
-
 
 typedef struct {
 	uint16_t cycle_time;
@@ -224,7 +283,12 @@ typedef struct {
 	canopen_txpdo_com_parameter_st txpdo_coms[CONFIG_CANOPEN_TXPDO_COUNT];
 	canopen_pdo_mapping_parameter_st txpdo_maps[CONFIG_CANOPEN_TXPDO_COUNT];
 
-} _canopen_non_volatile_st;
+
+	// crc indicating if the initial values have been changed.
+	// with this it shouldnt be necessary to clear application non-volatie data
+	// if canopen settings are changed while developing
+	uint16_t crc;
+} uv_canopen_non_volatile_st;
 
 
 
@@ -235,11 +299,14 @@ typedef struct {
 typedef struct {
 	canopen_node_states_e state;
 	uint32_t device_type;
-	uint32_t store_req;
-	uint32_t restore_req;
+	uint32_t store_req[1];
+	uint32_t restore_req[3];
 	canopen_identity_object_st identity;
 	uv_delay_st heartbeat_time;
 	uint8_t current_node_id;
+#if CONFIG_UV_BOOTLOADER
+	uint8_t prog_control;
+#endif
 #if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
 	// stores the times for each heartbeat producer since last heartbeat message
 	uint16_t consumer_heartbeat_times[CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT];
@@ -262,8 +329,8 @@ typedef struct {
 			void *data_ptr;
 			uv_delay_st delay;
 #if (CONFIG_CANOPEN_SDO_SEGMENTED || CONFIG_CANOPEN_SDO_BLOCK_TRANSFER)
-			uint16_t data_index;
-			uint16_t data_count;
+			uint32_t data_index;
+			uint32_t data_count;
 			union {
 				uint8_t toggle;
 				/// @brief: Last correctly received sequence number for block transfer.
@@ -468,7 +535,8 @@ static inline uv_errors_e uv_canopen_sdo_block_write(uint8_t node_id,
 
 #endif
 
-/// @brief: Sets a CAN message callback. This can be used to manually receive messages
+/// @brief: Sets a CAN message callback. This can be used to manually receive messages.
+/// Note that the callback will be called from the HAL task.
 void uv_canopen_set_can_callback(void (*callb)(void *user_ptr, uv_can_message_st *msg));
 
 /// @brief: Sets an SDO write callback. This can be used to get a notification of when an
@@ -493,6 +561,26 @@ uv_errors_e uv_canopen_sdo_write16(uint8_t node_id, uint16_t mindex,
 
 uv_errors_e uv_canopen_sdo_write32(uint8_t node_id, uint16_t mindex,
 		uint8_t sindex, uint32_t data);
+
+
+
+typedef uint8_t memory_scope_e_;
+
+/// @brief: Sends a restore params request to node *node_id*.
+uv_errors_e uv_canopen_sdo_restore_params(uint8_t node_id, memory_scope_e_ param_scope);
+
+/// @brief: Sends a store params request to node *node_id*.
+uv_errors_e uv_canopen_sdo_store_params(uint8_t node_id, memory_scope_e_ param_scope);
+
+
+/// @brief: Returns the current nodeid of this device
+static inline uint8_t uv_canopen_get_our_nodeid(void) {
+	return _canopen.current_node_id;
+}
+
+/// @brief: Sets the nodeid of this device. The change comes valid
+/// after saving non-volatile settings and resetting the device.
+void uv_canopen_set_our_nodeid(uint8_t nodeid);
 
 
 #endif

@@ -31,6 +31,12 @@
 #if !CONFIG_SOLENOID_OUTPUT
 #error "CONFIG_SOLENOID_OUTPUT has to be enabled in order to use uv_dual_solenoid_output module."
 #endif
+#if !defined(CONFIG_DUAL_SOLENOID_ACC_DEF)
+#error "CONFIG_DUAL_SOLENOID_ACC_DEF should define the default value for acceleration factor, 0 ... 100"
+#endif
+#if !defined(CONFIG_DUAL_SOLENOID_ACC_DEF)
+#error "CONFIG_DUAL_SOLENOID_ACC_DEF should define the default value for acceleration factor, 0 ... 100"
+#endif
 
 
 typedef enum {
@@ -40,8 +46,11 @@ typedef enum {
 } uv_dual_solenoid_output_solenoids_e;
 
 
+
 #define DUAL_SOLENOID_ACC_MAX	100
 #define DUAL_SOLENOID_DEC_MAX	100
+#define DUAL_SOLENOID_VALUE_MAX	1000
+#define DUAL_SOLENOID_VALUE_MIN	-1000
 
 /// @brief: Configuration structure for the dual solenoid module
 typedef struct {
@@ -51,13 +60,17 @@ typedef struct {
 	uint16_t acc;
 	/// @brief: Control value deceleration factor, from 0 ... 100
 	uint16_t dec;
-	/// @brief: Inverts the solenoid direction
+	/// @brief: Inverts the solenoid direction. Note that this actually doesn't do
+	/// anything here in dual_solenoid_output. Rather, it can be used in user application.
 	uint16_t invert;
 	/// @brief: Another invertion meant for service configurations. **invert** should be
-	/// meant for customer settings, **assembly_invert** for service.
+	/// meant for user application settings, **assembly_invert** for service.
 	uint16_t assembly_invert;
 } uv_dual_solenoid_output_conf_st;
 
+
+/// @brief: Resets the dual solenoid output configuration module to default settings
+void uv_dual_solenoid_output_conf_reset(uv_dual_solenoid_output_conf_st *this);
 
 
 /// @brief: Dual solenoid output module. Works as a data structure for controlling dual
@@ -146,6 +159,14 @@ static inline uv_dual_solenoid_output_conf_st *uv_dual_solenoid_output_get_conf(
 static inline uv_output_state_e uv_dual_solenoid_output_get_state(uv_dual_solenoid_output_st *this,
 		uv_dual_solenoid_output_solenoids_e solenoid) {
 	return uv_solenoid_output_get_state(&this->solenoid[solenoid]);
+}
+
+
+/// @brief: Sets the mode for both outputs. The mode can be either current oŕ pwm.
+static inline void uv_dual_solenoid_output_set_mode(uv_dual_solenoid_output_st *this,
+		uv_solenoid_output_mode_st value) {
+	uv_solenoid_output_set_mode(&this->solenoid[0], value);
+	uv_solenoid_output_set_mode(&this->solenoid[0], value);
 }
 
 

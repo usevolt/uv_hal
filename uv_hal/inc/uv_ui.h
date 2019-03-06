@@ -19,12 +19,13 @@
 #ifndef UW_UI_H_
 #define UW_UI_H_
 
-#include <ui/uv_uibutton.h>
+#include "ui/uv_uimedia.h"
+#include "ui/uv_uibutton.h"
 #include "ui/uv_uitogglebutton.h"
-#include <ui/uv_uidisplay.h>
-#include <ui/uv_uilabel.h>
-#include <ui/uv_uislider.h>
-#include <ui/uv_uiwindow.h>
+#include "ui/uv_uidisplay.h"
+#include "ui/uv_uilabel.h"
+#include "ui/uv_uislider.h"
+#include "ui/uv_uiwindow.h"
 #include "ui/uv_ui_styles.h"
 #include "ui/uv_uilist.h"
 #include "ui/uv_uikeyboard.h"
@@ -37,5 +38,20 @@
 #include "ui/uv_uidialog.h"
 #include "ui/uv_uinumpad.h"
 #include "ui/uv_uidigitedit.h"
+#include "ui/uv_uiimage.h"
+#include "ui/uv_uimediabutton.h"
+#include <stdarg.h>
+
+
+/// @brief: Variadic language function. Returns a pointer to a string
+/// in language iven with *lang_index*. The following arguments
+/// should be strings in different languages. The number of strings should
+/// match the number of languages set with *uv_ui_set_lang_count*.
+///
+/// @example: // This returns "English"
+///			uv_uitr(0, "English", "Finnish", "Swedish");
+char *uv_uitr(uint8_t lang_index, ...);
+
+
 
 #endif /* UW_UI_H_ */

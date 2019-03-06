@@ -38,8 +38,8 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	uv_ft81x_set_mask(uv_ui_get_xglobal(this), uv_ui_get_yglobal(this),
 			uv_uibb(this)->width, uv_uibb(this)->height);
 
-	uv_ft81x_clear(((uv_uiwindow_st*) this)->style->display_c);
-	uv_ft81x_draw_point(LCD_W(0.5f), -400, ((uv_uiwindow_st*) this)->style->active_bg_c, 1000);
+	uv_ft81x_clear(this->display_c);
+	uv_ft81x_draw_point(LCD_W(0.5f), -400, uv_uic_brighten(this->display_c, 20), 1000);
 #endif
 }
 
@@ -51,12 +51,14 @@ void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *
 	uv_uibb(me)->y = 0;
 	uv_uibb(me)->width = LCD_W_PX;
 	uv_uibb(me)->height = LCD_H_PX;
+	this->display_c = style->display_c;
 	uv_ui_refresh_parent(this);
 	uv_uiobject_set_draw_callb(this, &draw);
 	// ave to set touch callback to null as uiwindow tries to set it to itself
 	uv_uiobject_set_touch_callb(this, NULL);
 
 #if CONFIG_UI_TOUCHSCREEN
+	uv_delay_init(&this->press_delay, UIDISPLAY_PRESS_DELAY_MS);
 	uv_moving_aver_init(&this->avr_x, UI_TOUCH_AVERAGE_COUNT);
 	uv_moving_aver_init(&this->avr_y, UI_TOUCH_AVERAGE_COUNT);
 	this->press_state = RELEASED;
@@ -66,19 +68,19 @@ void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *
 
 
 uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
+	uv_uiobject_ret_e ret;
 	uv_touch_st t = {};
 	t.action = TOUCH_NONE;
 
 	// get touch data from the LCD
 #if CONFIG_UI_TOUCHSCREEN
 	bool touch;
-#if CONFIG_LCD
-	touch = uv_lcd_touch_get(&t.x, &t.y);
-#elif CONFIG_FT81X
 	touch = uv_ft81x_get_touch(&t.x, &t.y);
-#endif
 
-	if (touch) {
+	uv_delay(&this->press_delay, step_ms);
+
+	if (touch &&
+			uv_delay_has_ended(&this->press_delay)) {
 		t.x = uv_moving_aver_step(&this->avr_x, t.x);
 		t.y = uv_moving_aver_step(&this->avr_y, t.y);
 		if (this->press_state == RELEASED) {
@@ -125,6 +127,7 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 			else {
 				t.action = TOUCH_RELEASED;
 			}
+			uv_delay_init(&this->press_delay, UIDISPLAY_PRESS_DELAY_MS);
 			uv_moving_aver_reset(&this->avr_x);
 			uv_moving_aver_reset(&this->avr_y);
 			this->press_state = RELEASED;
@@ -140,17 +143,17 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 	// propagate touches to all objects in reverse order
 	uv_uiwindow_touch_callb(this, &t);
 
-	uv_uiobject_ret_e ret = uv_uiwindow_step(me, step_ms, uv_uibb(this));
-	if (ret != UIOBJECT_RETURN_ALIVE) {
+	ret = uv_uiwindow_step(me, step_ms, uv_uibb(this));
+	if (ret & UIOBJECT_RETURN_KILLED) {
+		// if UIOBJECT_RETURN_KILLED was returned, the children of objects might
+		// have changed and some might not have been called. This can create glitches
+		// on the display, thus call step function once more
+		uv_ui_refresh(this);
+	}
 
-#if CONFIG_LCD
-		// if lcd is configured to use double buffering,
-		// swap buffers since all UI components should now be updated
-		uv_lcd_double_buffer_swap();
-#elif CONFIG_FT81X
+	if (ret == UIOBJECT_RETURN_REFRESH) {
 		// all UI components should now be updated, swap display list buffers
 		uv_ft81x_dlswap();
-#endif
 	}
 
 	return ret;

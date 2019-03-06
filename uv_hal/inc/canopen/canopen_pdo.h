@@ -72,6 +72,7 @@ typedef struct {
 
 
 
+
 /// @brief: A nice way for defining a CANopen PDO mapping parameter
 /// PDO mapping parameter object should be an array of these
 typedef struct {
@@ -83,6 +84,13 @@ typedef struct {
 	/// @note: This length is in bits!
 	uint8_t length;
 } canopen_pdo_mapping_st;
+
+
+
+typedef struct {
+	canopen_pdo_mapping_st mappings[CONFIG_CANOPEN_PDO_MAPPING_COUNT];
+} canopen_pdo_mapping_parameter_st;
+#define CANOPEN_PDO_MAPPING_PARAMETER_TYPE	CANOPEN_ARRAY32
 
 
 
@@ -108,6 +116,10 @@ void _uv_canopen_pdo_rx(const uv_can_message_st *msg);
 /// and transmitted immediately
 void uv_canopen_pdo_mapping_update(uint16_t main_index, uint8_t subindex);
 
+
+/// @brief: Returns a pointer to the PDO mapping parameter by searching the
+/// RXPDO's by their cob-id's
+canopen_pdo_mapping_parameter_st *uv_canopen_rxpdo_get_mapping(uint16_t msg_id);
 
 
 #endif

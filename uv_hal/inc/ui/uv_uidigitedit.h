@@ -31,6 +31,7 @@ typedef struct {
 	EXTENDS(uv_uilabel_st);
 
 	char str[16];
+	char *numpaddialog_title;
 	uint32_t value;
 	bool changed;
 	const uv_uistyle_st *style;
@@ -41,7 +42,7 @@ typedef struct {
 #define this ((uv_uidigitedit_st*)me)
 
 
-void uv_uidigitedit_init(void *me, const uv_font_st *font,
+void uv_uidigitedit_init(void *me, uv_font_st *font,
 		color_t color, uint32_t value, const uv_uistyle_st *style);
 
 
@@ -56,6 +57,11 @@ void uv_uidigitedit_set_value(void *me, uint32_t value);
 /// @brief: Sets the color of the label text
 static inline void uv_uidigitedit_set_color(void *me, color_t c) {
 	uv_uilabel_set_color(me, c);
+}
+
+/// @brief: Sets the string for the numpad dialog which opens when the uidigitedit is clicked
+static inline void uv_uidigitedit_set_numpad_title(void *me, char *value) {
+	this->numpaddialog_title = value;
 }
 
 /// @brief: Returns true on the step cycle when the value was changed

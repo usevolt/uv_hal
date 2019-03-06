@@ -21,23 +21,21 @@
 
 
 void _uv_canopen_nmt_init(void) {
-
-	this->state = CANOPEN_PREOPERATIONAL;
-#if CONFIG_TARGET_LPC1785
-	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, CANOPEN_NMT_ID, CAN_STD);
-#else
-	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, CANOPEN_NMT_ID, CAN_ID_MASK_DEFAULT, CAN_STD);
-#endif
-#if CONFIG_CANOPEN_NMT_SLAVE
-	// uv bootloader sends the NMT boot up message,
-	// we should sent here NMT preoperational message
+#if CONFIG_UV_BOOTLOADER
+	// uv bootloader has already sent the CANOPEN_BOOT_UP_MESSAGE
+#elif CONFIG_CANOPEN_HEARTBEAT_PRODUCER
 	uv_can_message_st msg;
 	msg.type = CAN_STD;
 	msg.id = CANOPEN_HEARTBEAT_ID + NODEID;
-	msg.data_8bit[0] = 128;
+	msg.data_8bit[0] = CANOPEN_BOOT_UP;
 	msg.data_length = 1;
 	uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
 #endif
+	this->state = CANOPEN_BOOT_UP;
+#if CONFIG_CANOPEN_AUTO_PREOPERATIONAL
+	uv_canopen_set_state(CANOPEN_PREOPERATIONAL);
+#endif
+	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, CANOPEN_NMT_ID, CAN_ID_MASK_DEFAULT, CAN_STD);
 }
 
 void _uv_canopen_nmt_reset(void) {
@@ -48,7 +46,9 @@ void _uv_canopen_nmt_step(uint16_t step_ms) {
 	if (step_ms);
 }
 
+
 void _uv_canopen_nmt_rx(const uv_can_message_st *msg) {
+#if CONFIG_CANOPEN_NMT_SLAVE
 	if (msg->id == CANOPEN_NMT_ID) {
 		if (msg->data_length >= 2) {
 			if (msg->data_8bit[1] == NODEID || msg->data_8bit[1] == 0) {
@@ -72,6 +72,7 @@ void _uv_canopen_nmt_rx(const uv_can_message_st *msg) {
 			}
 		}
 	}
+#endif
 }
 
 
@@ -80,6 +81,17 @@ canopen_node_states_e _uv_canopen_nmt_get_state(void) {
 }
 
 void _uv_canopen_nmt_set_state(canopen_node_states_e state) {
+	if (this->state == CANOPEN_BOOT_UP &&
+			state == CANOPEN_PREOPERATIONAL) {
+		// when changing from boot up to preoperational, instantly send
+		// the message indicating that
+		uv_can_message_st msg;
+		msg.type = CAN_STD;
+		msg.id = CANOPEN_HEARTBEAT_ID + NODEID;
+		msg.data_8bit[0] = CANOPEN_PREOPERATIONAL;
+		msg.data_length = 1;
+		uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
+	}
 	this->state = state;
 }
 

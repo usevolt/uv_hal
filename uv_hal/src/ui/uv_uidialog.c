@@ -30,9 +30,11 @@ void uv_uidialog_init(void *me, uv_uiobject_st **object_array, const uv_uistyle_
 
 	uv_uidisplay_init(this, object_array, style);
 	// uidialog uses uiwindow's draw function
-	uv_uiobject_set_draw_callb(this, &_uv_uiwindow_redraw);
+	uv_uiobject_set_draw_callb(this, &uv_uiwindow_draw);
 	// dialog defaults to non-transparent.
 	uv_uidialog_set_transparent(this, false);
+	// dialog uses same draw callback as windows
+	uv_uiobject_set_draw_callb(this, &uv_uiwindow_draw);
 }
 
 

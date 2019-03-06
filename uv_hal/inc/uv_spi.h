@@ -33,6 +33,9 @@
 #if !CONFIG_SPI0_BAUDRATE
 #error "CONFIG_SPI0_BAUDRATE should define the baudrate used for SPI0"
 #endif
+#if (CONFIG_SPI1_BAUDRATE > 17000000)
+#error "CONFIG_SPI1_BAUDRATE Cannot be greater than 17000000"
+#endif
 #if !defined(CONFIG_SPI0_MOSI_IO)
 #error "CONFIG_SPI0_MOSI_IO should define the I/O pin used for SPI0 MOSI"
 #endif
@@ -119,6 +122,9 @@ line should have a pull up resistor or pull down resistor enabled."
 #if !CONFIG_SPI1_BAUDRATE
 #error "CONFIG_SPI1_BAUDRATE should define the baudrate used for SPI1"
 #endif
+#if (CONFIG_SPI1_BAUDRATE > 17000000)
+#error "CONFIG_SPI1_BAUDRATE Cannot be greater than 17000000"
+#endif
 #if !defined(CONFIG_SPI1_MOSI_IO)
 #error "CONFIG_SPI1_MOSI_IO should define the I/O pin used for SPI1 MOSI"
 #endif
@@ -191,7 +197,7 @@ line should have a pull up resistor or pull down resistor enabled."
 #endif
 #if !defined(CONFIG_SPI1_CLOCK_PHASE)
 #error "CONFIG_SPI1_CLOCK_PHASE should be defined as 0 if SPI captures data on first clock transition, or\
- as 1 if SPI should change the serial data on first clock transition."
+ 1 if SPI should change the serial data on first clock transition."
 #endif
 #if !defined(CONFIG_SPI1_MISO_PULL_UP) && !defined(CONFIG_SPI1_MISO_PULL_DOWN)
 #error "CONFIG_SPI1_MISO_PULL_UP or CONFIG_SPI1_MISO_PULL_DOWN should be defined as 1 depending if the MISO \

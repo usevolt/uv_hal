@@ -27,6 +27,9 @@
 #if CONFIG_CANOPEN
 #include "uv_canopen.h"
 #endif
+#if CONFIG_W25Q128
+#include "uv_w25q128.h"
+#endif
 
 
 #if !defined(CONFIG_NON_VOLATILE_MEMORY)
@@ -67,15 +70,24 @@
 #define RAM_BASE_ADDRESS 0x10000000
 #elif CONFIG_TARGET_LPC1549
 /// @brief: Defines the RAM size in bytes on this controller
-#define RAM_SIZE_BYTES	0x8000
+#define RAM_SIZE_BYTES	0x9000
 #define RAM_BASE_ADDRESS 0x2000000
-#elif CONFIG_TARGET_LINUX
+#elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
+#define RAM_SIZE_BYTES	1
+#define RAM_BASE_ADDRESS 1
 #else
 #warning "Controller not defined"
 #endif
 
 
+/// @brief: Contains the RAM address of the data structure which is used
+/// to pass a received can message. This is used with CANopen compatible bootloader.
+/// When the boot process starts, this address is loaded with that CAN message and
+/// bootloader is triggered.
+#define UV_BOOTLOADER_DATA_ADDR			((void*) (RAM_BASE_ADDRESS + RAM_SIZE_BYTES - sizeof(uv_can_msg_st)))
+#define UV_BOOTLOADER_DATA_LEN			(sizeof(uv_can_msg_st))
 
+typedef uint32_t uv_bootloader_wait_t;
 
 
 /// @brief: Data type which should be used to mark the start of
@@ -93,9 +105,11 @@ typedef struct {
 	uint16_t id;
 	// @brief: CAN baudrate. Defaults to 250000. UV bootloader uses this when booting.
 	uint32_t can_baudrate;
+	/// @brief: UV bootloader wait time in processor loops
+	uv_bootloader_wait_t bootloader_wait_time;
 #if CONFIG_CANOPEN
 	// non-volatile data for canopen
-	_canopen_non_volatile_st canopen_data;
+	uv_canopen_non_volatile_st canopen_data;
 #endif
 } uv_data_start_t;
 
@@ -103,16 +117,19 @@ typedef struct {
 /// non-volatile data section. Define a variable of this type as the
 /// last variable in the data section.
 typedef struct {
+	// crc sum for checking the HAL-library specific non-volatile data.
+	uint16_t hal_crc;
 	/// @brief: Checksum to identify if data between start and end
 	/// was uninitialized or changed from what was found in non-volatile memory.
-	uint32_t crc;
+	uint16_t crc;
 } uv_data_end_t;
 
 
-/// @brief: Calls IAP commands to activate ISP mode.
-/// The program execution will be stopped instantly,
-/// this function should never return.
-void uv_enter_ISP_mode(void);
+/// @brief: Processor dependent macro for defining the bootloader_wait_time in milliseconds
+void uv_memory_set_bootloader_wait_time(uint32_t value_ms);
+
+/// @brief: Returns the bootloader wait time in milliseconds
+uint32_t uv_memory_get_bootloader_wait_time(void);
 
 
 
@@ -174,12 +191,23 @@ void uv_memory_set_can_baudrate(uint32_t baudrate);
 
 extern const char uv_projname[];
 extern const char uv_datetime[];
+extern const uint32_t uv_prog_version;
 
+
+/// @brief: Defines the scope of possible load / erase operations
+typedef enum {
+	// The operation affect only communication specific parameters (i.e. HAL params)
+	MEMORY_COM_PARAMS = 0x1,
+	// The operation affects only applications parameters
+	MEMORY_APP_PARAMS = 0x2,
+	// The operation affects all non-volatile parameters
+	MEMORY_ALL_PARAMS = MEMORY_COM_PARAMS | MEMORY_APP_PARAMS
+} memory_scope_e;
 
 
 /// @brief: Writes data to flash non-volatile application memory section. Depends on SystemCoreClock to
 /// determine the clock frequency of application.
-/// If saving data occurred any error, info is logged into stdout (see uv_stdout.h)
+/// If while saving data occurred any error, info is logged into stdout (see uv_stdout.h)
 ///
 /// @note: Only one memory location can be saved per application!
 ///
@@ -188,6 +216,7 @@ extern const char uv_datetime[];
 /// has, or there was not enough RAM.
 ///
 uv_errors_e uv_memory_save(void);
+
 
 /// @brief: Copies data from non-volatile flash memory to another memory location,
 /// usually to RAM.
@@ -198,11 +227,16 @@ uv_errors_e uv_memory_save(void);
 /// copied to the destination address. Because of this, if this function returns false,
 /// the user application should reinitialize the data structure.
 ///
-uv_errors_e uv_memory_load(void);
+uv_errors_e uv_memory_load(memory_scope_e scope);
 
 
 /// @brief: Clears the previously save non-volatile data.
-uv_errors_e uv_memory_clear(void);
+///
+/// @note: Despite the value of *scope*, this always saves the non-volatile settings.
+/// *Scope* just clears the CRC-filed in either app or communication settings, resulting
+/// in possible hazardous situation where modified application settings are saved when
+/// clearing communication settings, or vice versa.
+uv_errors_e uv_memory_clear(memory_scope_e scope);
 
 
 
@@ -227,23 +261,13 @@ uv_iap_status_e uv_erase_and_write_to_flash(unsigned int ram_address,
 
 
 
-/// @brief: Sets the id to the start_st structure.
-/// @pre: uv_load or uv_save function should be called
-void uv_set_id(uint16_t id);
-
-
-/// @brief: Returns the ID to the start_st structure.
-/// @pre: uv_load or uv_save function should be called
-uint8_t uv_get_id();
-
 
 
 /// @brief: Calculates and returns a cyclic redundancy check value from the given data
 uint16_t uv_memory_calc_crc(void *data, int32_t len);
 
 
-/// @brief: Loads hal specific non-volatile data
-uv_errors_e _uv_memory_hal_load(void);
+
 
 
 

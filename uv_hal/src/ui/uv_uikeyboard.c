@@ -53,24 +53,16 @@ static void update_input(char *input, const uv_uistyle_st *style);
 
 
 static void draw(const char *title, char *buffer, const uv_uistyle_st *style) {
-#if CONFIG_LCD
-	// fill whole screen
-	uv_lcd_draw_rect(0, 0, LCD_W_PX, LCD_H_PX, style->window_c);
+	// background
+	uv_ft81x_clear(style->window_c);
 
-	// draw title text
-	_uv_ui_draw_text(LCD_W(0.5), 0, style->font, ALIGN_TOP_CENTER,
-			style->text_color, C(0xFFFFFFFF), (char*) title, 1.0f);
-
-#elif CONFIG_FT81X
-	uv_ft81x_draw_string((char*) title, style->font->index,
+	uv_ft81x_draw_string((char*) title, style->font,
 			LCD_W(0.5), 0, ALIGN_TOP_CENTER, style->text_color);
-#endif
 
 	// draw current text
 	update_input(buffer, style);
 
 	// draw buttons
-	// half of the display is used to display the keyboard
 	uint8_t line = 0;
 	uint8_t line_counter = 0;
 	int16_t x = 0;
@@ -79,68 +71,38 @@ static void draw(const char *title, char *buffer, const uv_uistyle_st *style) {
 	for (int16_t i = 0; i < strlen(letters); i++) {
 		str[0] = shift ? shift_letters[i] : letters[i];
 		str[1] = '\0';
-#if CONFIG_LCD
-		uv_lcd_draw_rect(x, y, BUTTON_W, BUTTON_H, style->inactive_bg_c);
-		uv_lcd_draw_frame(x, y, BUTTON_W + 1, BUTTON_H + 1, 1, style->inactive_frame_c);
-		_uv_ui_draw_text(x + BUTTON_W / 2, y + BUTTON_H / 2, style->font, ALIGN_CENTER,
-				style->text_color, style->inactive_bg_c, str, 1.0f);
-#elif CONFIG_FT81X
 		uv_ft81x_draw_shadowrrect(x, y, BUTTON_W, BUTTON_H, CONFIG_UI_RADIUS,
 				style->inactive_bg_c, style->highlight_c, style->shadow_c);
-		uv_ft81x_draw_string(str, style->font->index, x + BUTTON_W / 2, y + BUTTON_H / 2,
+		uv_ft81x_draw_string(str, style->font, x + BUTTON_W / 2, y + BUTTON_H / 2,
 				ALIGN_CENTER, style->text_color);
-#endif
 		x += BUTTON_W;
 
 		line_counter++;
 
 		// draw backspace
 		if (line == 0 && line_counter >= line_lengths[line]) {
-#if CONFIG_LCD
-			uv_lcd_draw_rect(x, y, BUTTON_W * 2, BUTTON_H, style->inactive_bg_c);
-			uv_lcd_draw_frame(x, y, BUTTON_W * 2, BUTTON_H + 1, 1, style->inactive_frame_c);
-			_uv_ui_draw_text(x + BUTTON_W, y + BUTTON_H / 2, style->font, ALIGN_CENTER,
-					style->text_color, style->inactive_bg_c, "Backspace", 1.0f);
-#elif CONFIG_FT81X
 			uv_ft81x_draw_shadowrrect(x, y, BUTTON_W * 2, BUTTON_H, CONFIG_UI_RADIUS,
 					style->inactive_bg_c, style->highlight_c, style->shadow_c);
-			uv_ft81x_draw_string("Backspace", style->font->index, x + BUTTON_W, y + BUTTON_H / 2,
+			uv_ft81x_draw_string("Backspace", style->font, x + BUTTON_W, y + BUTTON_H / 2,
 					ALIGN_CENTER, style->text_color);
-#endif
 		}
+		// draw enter
 		else if (line == 1 && line_counter >= line_lengths[line]) {
-			// draw enter
-#if CONFIG_LCD
-			uv_lcd_draw_rect(x, y, BUTTON_W * 1.5, BUTTON_H * 2 + 1, style->inactive_bg_c);
-			uv_lcd_draw_frame(x, y, BUTTON_W * 1.5, BUTTON_H * 2 + 1, 1, style->inactive_frame_c);
-			uv_lcd_draw_rect(x - BUTTON_W / 2 + 2, y + BUTTON_H + 1, BUTTON_W / 2, BUTTON_H - 1,
-					style->inactive_bg_c);
-			_uv_ui_draw_text(x + BUTTON_W * 0.75, y + BUTTON_H, style->font, ALIGN_CENTER,
-					style->text_color, style->inactive_bg_c, "Enter", 1.0f);
-#elif CONFIG_FT81X
 			uv_ft81x_draw_shadowrrect(x, y, BUTTON_W * 1.5, BUTTON_H * 2 + 1, CONFIG_UI_RADIUS,
 					style->inactive_bg_c, style->highlight_c, style->shadow_c);
-			uv_ft81x_draw_string("Enter", style->font->index, x + BUTTON_W * 0.75, y + BUTTON_H,
+			uv_ft81x_draw_string("Enter", style->font, x + BUTTON_W * 0.75, y + BUTTON_H,
 					ALIGN_CENTER, style->text_color);
-#endif
 		}
 		// draw shift
 		else if (line == 3 && line_counter >= line_lengths[line]) {
-#if CONFIG_LCD
-			uv_lcd_draw_rect(x, y, BUTTON_W * 2, BUTTON_H,
-					shift ? style->active_bg_c : style->inactive_bg_c);
-			uv_lcd_draw_frame(x, y, BUTTON_W * 2, BUTTON_H + 1, 1,
-					shift ? style->active_frame_c : style->inactive_frame_c);
-			_uv_ui_draw_text(x + BUTTON_W, y + BUTTON_H / 2, style->font, ALIGN_CENTER,
-					style->text_color, shift ? style->active_bg_c : style->inactive_bg_c,
-							"Shift", 1.0f);
-#elif CONFIG_FT81X
 		uv_ft81x_draw_shadowrrect(x, y, BUTTON_W * 2, BUTTON_H, CONFIG_UI_RADIUS,
 				shift ? style->active_bg_c : style->inactive_bg_c,
 						style->highlight_c, style->shadow_c);
-		uv_ft81x_draw_string("Shift", style->font->index, x + BUTTON_W, y + BUTTON_H / 2,
+		uv_ft81x_draw_string("Shift", style->font, x + BUTTON_W, y + BUTTON_H / 2,
 				ALIGN_CENTER, style->text_color);
-#endif
+		}
+		else {
+
 		}
 
 		if (line_counter >= line_lengths[line]) {
@@ -151,23 +113,13 @@ static void draw(const char *title, char *buffer, const uv_uistyle_st *style) {
 		}
 	}
 	// draw space bar
-#if CONFIG_LCD
-	uv_lcd_draw_rect(LCD_W(0.1), y, LCD_W(0.8), BUTTON_H, style->inactive_bg_c);
-	uv_lcd_draw_frame(LCD_W(0.1), y, LCD_W(0.8), BUTTON_H, 1, style->inactive_frame_c);
-	_uv_ui_draw_text(LCD_W(0.5), y + BUTTON_H / 2, style->font, ALIGN_CENTER,
-			style->text_color, style->inactive_bg_c, "Space", 1.0f);
-#elif CONFIG_FT81X
 	uv_ft81x_draw_shadowrrect(LCD_W(0.1), y, LCD_W(0.8), BUTTON_H, CONFIG_UI_RADIUS,
 			style->inactive_bg_c, style->highlight_c, style->shadow_c);
-	uv_ft81x_draw_string("Space", style->font->index, LCD_W(0.5), y + BUTTON_H / 2,
+	uv_ft81x_draw_string("Space", style->font, LCD_W(0.5), y + BUTTON_H / 2,
 			ALIGN_CENTER, style->text_color);
-#endif
 
-#if CONFIG_LCD
-	uv_lcd_double_buffer_swap();
-#endif
-
-
+	// update the ft81x display
+	uv_ft81x_dlswap();
 }
 
 
@@ -193,18 +145,10 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 				char str[2];
 				str[0] = shift ? shift_letters[i] : letters[i];
 				str[1] = '\0';
-#if CONFIG_LCD
-				uv_lcd_draw_rect(x, y, BUTTON_W, BUTTON_H, style->active_bg_c);
-				uv_lcd_draw_frame(x, y, BUTTON_W + 1, BUTTON_H + 1, 1, style->active_frame_c);
-				_uv_ui_draw_text(x + BUTTON_W / 2, y + BUTTON_H / 2, style->font, ALIGN_CENTER,
-						style->text_color, C(0xFFFFFFFF), str, 1.0f);
-				uv_lcd_double_buffer_swap();
-#elif CONFIG_FT81X
 				uv_ft81x_draw_shadowrrect(x, y, BUTTON_W, BUTTON_H, CONFIG_UI_RADIUS,
 						style->active_bg_c, style->highlight_c, style->shadow_c);
-				uv_ft81x_draw_string(str, style->font->index, x + BUTTON_W / 2, y + BUTTON_H / 2,
+				uv_ft81x_draw_string(str, style->font, x + BUTTON_W / 2, y + BUTTON_H / 2,
 						ALIGN_CENTER, style->text_color);
-#endif
 				return '\0';
 			}
 			else if (touch->action == TOUCH_RELEASED) {
@@ -217,19 +161,11 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 				if (touch->x >= x &&
 						touch->y >= y && touch->y <= y + BUTTON_H) {
 					if (touch->action == TOUCH_PRESSED) {
-#if CONFIG_LCD
-						uv_lcd_draw_rect(x + BUTTON_W, y, BUTTON_W * 2, BUTTON_H, style->active_bg_c);
-						uv_lcd_draw_frame(x + BUTTON_W, y, BUTTON_W * 2 + 1, BUTTON_H + 1, 1, style->active_frame_c);
-						_uv_ui_draw_text(x + BUTTON_W * 2, y + BUTTON_H / 2, style->font, ALIGN_CENTER,
-								style->text_color, C(0xFFFFFFFF), "Backspace", 1.0f);
-						uv_lcd_double_buffer_swap();
-#elif CONFIG_FT81X
 						uv_ft81x_draw_shadowrrect(x + BUTTON_W, y, BUTTON_W * 2, BUTTON_H,
 								CONFIG_UI_RADIUS, style->active_bg_c, style->highlight_c, style->shadow_c);
-						uv_ft81x_draw_string("Backspace", style->font->index,
+						uv_ft81x_draw_string("Backspace", style->font,
 								x + BUTTON_W * 2, y + BUTTON_H / 2, ALIGN_CENTER,
 								style->text_color);
-#endif
 					}
 					else if (touch->action == TOUCH_RELEASED) {
 						refresh = true;
@@ -241,21 +177,11 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 				if (touch->x >= x + BUTTON_W &&
 						touch->y >= y && touch->y <= y + BUTTON_H * 2) {
 					if (touch->action == TOUCH_PRESSED) {
-#if CONFIG_LCD
-						uv_lcd_draw_rect(x + BUTTON_W, y, BUTTON_W * 1.5, BUTTON_H * 2, style->active_bg_c);
-						uv_lcd_draw_frame(x + BUTTON_W, y, BUTTON_W * 1.5 + 1, BUTTON_H * 2 + 1, 1, style->active_frame_c);
-						uv_lcd_draw_rect(x + BUTTON_W - BUTTON_W / 2 + 2, y + BUTTON_H + 1, BUTTON_W / 2, BUTTON_H - 1,
-								style->active_bg_c);
-						_uv_ui_draw_text(x + BUTTON_W * 1.75, y + BUTTON_H, style->font, ALIGN_CENTER,
-								style->text_color, C(0xFFFFFFFF), "Enter", 1.0f);
-						uv_lcd_double_buffer_swap();
-#elif CONFIG_FT81X
 						uv_ft81x_draw_shadowrrect(x + BUTTON_W, y, BUTTON_W * 1.5,
 								BUTTON_H * 2, CONFIG_UI_RADIUS, style->active_bg_c,
 								style->highlight_c, style->shadow_c);
-						uv_ft81x_draw_string("Enter", style->font->index,
+						uv_ft81x_draw_string("Enter", style->font,
 								x + BUTTON_W * 1.75, y + BUTTON_H, ALIGN_CENTER, style->text_color);
-#endif
 					}
 					else if (touch->action == TOUCH_RELEASED) {
 						refresh = true;
@@ -267,18 +193,10 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 				if (touch->x >= x &&
 						touch->y >= y && touch->y <= y + BUTTON_H) {
 					if (touch->action == TOUCH_PRESSED) {
-#if CONFIG_LCD
-						uv_lcd_draw_rect(x + BUTTON_W, y, BUTTON_W * 2, BUTTON_H, style->active_bg_c);
-						uv_lcd_draw_frame(x + BUTTON_W, y, BUTTON_W * 2 + 1, BUTTON_H + 1, 1, style->active_frame_c);
-						_uv_ui_draw_text(x + BUTTON_W * 2, y + BUTTON_H / 2, style->font, ALIGN_CENTER,
-								style->text_color, C(0xFFFFFFFF), "Shift", 1.0f);
-						uv_lcd_double_buffer_swap();
-#elif CONFIG_FT81X
 						uv_ft81x_draw_shadowrrect(x + BUTTON_W, y, BUTTON_W * 2, BUTTON_H, CONFIG_UI_RADIUS,
 								style->active_bg_c, style->highlight_c, style->shadow_c);
-						uv_ft81x_draw_string("Shift", style->font->index,
+						uv_ft81x_draw_string("Shift", style->font,
 								x + BUTTON_W * 2, y + BUTTON_H / 2, ALIGN_CENTER, style->text_color);
-#endif
 					}
 					else if (touch->action == TOUCH_RELEASED) {
 						refresh = true;
@@ -300,18 +218,10 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 	if (touch->x >= LCD_W(0.1f) && touch->x <= LCD_W(0.9f) &&
 			touch->y >= y) {
 		if (touch->action == TOUCH_PRESSED) {
-#if CONFIG_LCD
-			uv_lcd_draw_rect(LCD_W(0.1), y, LCD_W(0.8), BUTTON_H, style->active_bg_c);
-			uv_lcd_draw_frame(LCD_W(0.1), y, LCD_W(0.8), BUTTON_H, 1, style->active_frame_c);
-			_uv_ui_draw_text(LCD_W(0.5), y + BUTTON_H / 2, style->font, ALIGN_CENTER,
-					style->text_color, C(0xFFFFFFFF), "Space", 1.0f);
-			uv_lcd_double_buffer_swap();
-#elif CONFIG_FT81X
 			uv_ft81x_draw_shadowrrect(LCD_W(0.1), y, LCD_W(0.8), BUTTON_H, CONFIG_UI_RADIUS,
 					style->active_bg_c, style->highlight_c, style->shadow_c);
-			uv_ft81x_draw_string("Space", style->font->index, LCD_W(0.5), y + BUTTON_H / 2,
+			uv_ft81x_draw_string("Space", style->font, LCD_W(0.5), y + BUTTON_H / 2,
 					ALIGN_CENTER, style->text_color);
-#endif
 		}
 		else if (touch->action == TOUCH_RELEASED) {
 			refresh = true;
@@ -324,29 +234,8 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 
 static void update_input(char *input, const uv_uistyle_st *style) {
 	// clear all previous texts
-#if CONFIG_LCD
-	uv_lcd_draw_rect(0, style->font->char_height,
-			LCD_W(1), LCD_H(1 - KEYBOARD_HEIGHT) - 2 - style->font->char_height, style->window_c);
-
-	// if the text is too long to fit to the screen,
-	// replace the last space with a new line
-	if (uv_ui_text_width_px(input, style->font, 1.0f) > LCD_W(1)) {
-		for (int16_t i = strlen(input) - 1; i > 0 && input[i] != '\n'; i--) {
-			if (input[i] == ' ') {
-				input[i] = '\n';
-				break;
-			}
-		}
-	}
-#endif
-
-#if CONFIG_LCD
-	_uv_ui_draw_text(0, style->font->char_height, style->font,
-			ALIGN_TOP_LEFT, style->text_color, style->window_c, input, 1.0f);
-#elif CONFIG_FT81X
-	uv_ft81x_draw_string(input, style->font->index, LCD_WPPT(500), style->font->char_height,
+	uv_ft81x_draw_string(input, style->font, LCD_WPPT(500), style->font->char_height,
 			ALIGN_TOP_CENTER, style->text_color);
-#endif
 
 }
 
@@ -357,22 +246,14 @@ bool uv_uikeyboard_show(const char *title, char *buffer,
 
 	uv_touch_st t;
 	uint16_t input_len = 0;
-	shift = false;
-#if CONFIG_LCD
-	bool pressed = uv_lcd_touch_get(&t.x, &t.y);
-#elif CONFIG_FT81X
+	shift = true;
 	bool pressed = uv_ft81x_get_touch(&t.x, &t.y);
-#endif
 	refresh = true;
 	buffer[0] = '\0';
 
 	while (true) {
 
-#if CONFIG_LCD
-		bool state = uv_lcd_touch_get(&t.x, &t.y);
-#elif CONFIG_FT81X
 		bool state = uv_ft81x_get_touch(&t.x, &t.y);
-#endif
 		// either pressed or released
 		if (state && !pressed) {
 			t.action = TOUCH_PRESSED;
@@ -398,7 +279,13 @@ bool uv_uikeyboard_show(const char *title, char *buffer,
 				return input_len ? true : false;
 			}
 			else if (c == BACKSPACE) {
-				if (input_len) input_len--;
+				if (input_len) {
+					input_len--;
+				}
+				else {
+					// first character defaults to uppercase
+					shift = true;
+				}
 				buffer[input_len] = '\0';
 				update_input(buffer, style);
 			}
@@ -407,6 +294,9 @@ bool uv_uikeyboard_show(const char *title, char *buffer,
 				if (input_len < buf_len - 1) {
 					buffer[input_len++] = c;
 					buffer[input_len] = '\0';
+					if (input_len == 1) {
+						shift = false;
+					}
 					update_input(buffer, style);
 				}
 			}

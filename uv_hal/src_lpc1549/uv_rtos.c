@@ -23,6 +23,7 @@
 #include "uv_memory.h"
 #include "uv_lcd.h"
 #include "uv_spi.h"
+#include "uv_i2c.h"
 #include "uv_pwm.h"
 #include "uv_eeprom.h"
 #include "uv_emc.h"
@@ -34,6 +35,9 @@
 #if CONFIG_ADC || CONFIG_ADC0 || CONFIG_ADC1
 #include "uv_adc.h"
 #endif
+#include "uv_dac.h"
+
+
 
 typedef struct {
 	void (*idle_task)(void *user_ptr);
@@ -50,6 +54,62 @@ static volatile this_st _this = {
 uv_mutex_st halmutex;
 
 
+uv_errors_e uv_queue_peek(uv_queue_st *this, void *dest, int32_t wait_ms) {
+	uv_errors_e ret = ERR_NONE;
+	if (xQueuePeek(*this, dest, wait_ms / portTICK_PERIOD_MS) == pdFALSE) {
+		ret = ERR_BUFFER_EMPTY;
+	}
+	return ret;
+}
+
+
+uv_errors_e uv_queue_push(uv_queue_st *this, void *src, int32_t wait_ms) {
+	uv_errors_e ret = ERR_NONE;
+	if (xQueueSend(*this, src, wait_ms / portTICK_PERIOD_MS) == pdFALSE) {
+		ret = ERR_BUFFER_OVERFLOW;
+	}
+	return ret;
+}
+
+
+uv_errors_e uv_queue_pop(uv_queue_st *this, void *dest, int32_t wait_ms) {
+	uv_errors_e ret = ERR_NONE;
+	if (xQueueReceive(*this, dest, wait_ms / portTICK_PERIOD_MS) == pdFALSE) {
+		ret = ERR_BUFFER_EMPTY;
+	}
+	return ret;
+}
+
+
+uv_errors_e uv_queue_pop_isr(uv_queue_st *this, void *dest) {
+	uv_errors_e ret = ERR_NONE;
+
+	if (!xQueueReceiveFromISR(*this, dest, NULL)) {
+		ret = ERR_BUFFER_EMPTY;
+	}
+
+	return ret;
+}
+
+
+uv_errors_e uv_queue_push_isr(uv_queue_st *this, void *src) {
+	uv_errors_e ret = ERR_NONE;
+	if (!xQueueSendFromISR(*this, src, NULL)) {
+		ret = ERR_BUFFER_OVERFLOW;
+	}
+	return ret;
+}
+
+
+void uv_mutex_unlock_isr(uv_mutex_st *mutex) {
+	BaseType_t woken;
+	xSemaphoreGiveFromISR(*mutex, &woken);
+	portEND_SWITCHING_ISR(woken);
+}
+
+
+
+
 #define this (&_this)
 
 
@@ -58,17 +118,17 @@ uv_mutex_st halmutex;
 void hal_task(void *);
 
 
-void uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
+int32_t uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
 		unsigned int stack_depth, void *this_ptr,
 		unsigned int task_priority, uv_rtos_task_ptr* handle) {
 	static unsigned int size = 0;
 	size += stack_depth;
 	if (size >= CONFIG_RTOS_HEAP_SIZE) {
 		while(true) {
-			__NOP();
+			printf("Out of memory\r");
 		}
 	}
-	xTaskCreate(task_function, (const char * const)task_name, stack_depth,
+	return xTaskCreate(task_function, (const char * const)task_name, stack_depth,
 			this_ptr, task_priority, handle);
 }
 
@@ -130,13 +190,15 @@ void uv_init(void *device) {
 	uv_set_application_ptr(device);
 	uv_mutex_init(&halmutex);
 
-#if CONFIG_TARGET_LPC1549
 	Chip_SYSCTL_PeriphReset(RESET_MUX);
 	Chip_SYSCTL_PeriphReset(RESET_IOCON);
 	Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_IOCON);
 	Chip_SWM_Init();
 	Chip_GPIO_Init(LPC_GPIO);
-#endif
+
+	// configure brown-out detection to reset the device
+	LPC_SYSCON->BODCTRL = (2 << 0) | (1 << 4);
+
 
 #if CONFIG_WDT
 	_uv_wdt_init();
@@ -145,7 +207,8 @@ void uv_init(void *device) {
 	// try to load non-volatile settings. If loading failed,
 	// reset all peripherals which are depending on the
 	// non-volatile settings.
-	if (_uv_memory_hal_load()) {
+	uv_errors_e e = uv_memory_load(MEMORY_COM_PARAMS);
+	if (e) {
 #if CONFIG_CANOPEN
 		_uv_canopen_reset();
 #endif
@@ -177,8 +240,16 @@ void uv_init(void *device) {
 	_uv_adc_init();
 #endif
 
+#if CONFIG_DAC
+	_uv_dac_init();
+#endif
+
 #if CONFIG_SPI
 	_uv_spi_init();
+#endif
+
+#if CONFIG_I2C
+	_uv_i2c_init();
 #endif
 
 #if CONFIG_EMC
@@ -202,33 +273,13 @@ void uv_init(void *device) {
 #endif
 
 
-#if CONFIG_TARGET_LPC11C14
-	// delay of half a second on start up.
-	// Makes entering ISP mode possible on startup before freeRTOS scheduler is started
-	_delay_ms(500);
-	char c;
 
-	uv_errors_e e;
-	while (true) {
-		if ((e = uv_uart_get_char(UART0, &c))) {
-			break;
-		}
-		if (c == '?') {
-			uv_enter_ISP_mode();
-		}
-	}
-#endif
-
-
-	uv_rtos_task_create(hal_task, "uv_hal", UV_RTOS_MIN_STACK_SIZE, NULL, 0xFFFF, NULL);
+	uv_rtos_task_create(hal_task, "uv_hal", UV_RTOS_MIN_STACK_SIZE, NULL, CONFIG_HAL_TASK_PRIORITY, NULL);
 }
 
 
 
 void uv_deinit(void) {
-#if CONFIG_TARGET_LINUX
-	uv_can_deinit();
-#endif
 }
 
 
@@ -243,7 +294,7 @@ void uv_data_reset() {
 
 void hal_task(void *nullptr) {
 
-	uint16_t step_ms = 2;
+	uint16_t step_ms = CONFIG_HAL_STEP_MS;
 	rtos_init = true;
 
 	while (true) {

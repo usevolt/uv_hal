@@ -10,6 +10,9 @@
 #include "uv_canopen.h"
 #include CONFIG_MAIN_H
 #include <string.h>
+#if CONFIG_UV_BOOTLOADER
+#include "uv_reset.h"
+#endif
 
 #if CONFIG_CANOPEN
 
@@ -52,7 +55,6 @@ void _uv_canopen_sdo_server_init(void) {
 }
 
 void _uv_canopen_sdo_server_reset(void) {
-	_uv_canopen_sdo_server_init();
 }
 
 void _uv_canopen_sdo_server_step(uint16_t step_ms) {
@@ -60,7 +62,7 @@ void _uv_canopen_sdo_server_step(uint16_t step_ms) {
 	if (this->state >= CANOPEN_SDO_STATE_SEGMENTED_UPLOAD) {
 		if (uv_delay(&this->delay, step_ms)) {
 			sdo_server_abort(this->mindex, this->sindex,
-					CANOPEN_SDO_ERROR_GENERAL);
+					CANOPEN_SDO_ERROR_SDO_PROTOCOL_TIMED_OUT);
 			this->state = CANOPEN_SDO_STATE_READY;
 		}
 	}
@@ -76,6 +78,23 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 	memset(reply_msg.data_8bit, 0, 8);
 	SET_MINDEX(&reply_msg, GET_MINDEX(msg));
 	SET_SINDEX(&reply_msg, GET_SINDEX(msg));
+
+#if CONFIG_UV_BOOTLOADER
+	// Bootloader special check: If object 0x1F50, u.e. program data is written,
+	// set the message reception flag and reset the device in order to enter
+	// uv bootloader. Bootloader is responsible for answering the message.
+	if (GET_MINDEX(msg) == CONFIG_CANOPEN_PROGRAM_DATA_INDEX &&
+			GET_SINDEX(msg) == 1) {
+		// Note: SDO type is not checked here, because the application might not
+		// support Block transfers but uv bootloader does.
+
+		// copy received message to bootloader shared mem address
+		memcpy(UV_BOOTLOADER_DATA_ADDR, msg, sizeof(uv_can_msg_st));
+		// reset the device
+		uv_bootloader_start();
+	}
+
+#endif
 
 	// receiving an abort message returns the node to default state
 	if (sdo_type == ABORT_DOMAIN_TRANSFER) {
@@ -117,24 +136,19 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 				}
 				// expedited transfer
 				else {
-					// expedited transfer can be started to all other than string type objects
-					if (!uv_canopen_is_string(obj)) {
-						SET_CMD_BYTE(&reply_msg,
-								INITIATE_DOMAIN_DOWNLOAD_REPLY);
-						if (_canopen_write_data(obj, msg, GET_SINDEX(msg))) {
-							memcpy(&reply_msg.data_32bit[1], &msg->data_32bit[1], 4);
-							uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
-							if (this->callb) {
-								this->callb(this->mindex, this->sindex);
-							}
-						}
-						else {
-							// tried to write to array index 0, abort transfer
-							sdo_server_abort(GET_MINDEX(msg), GET_SINDEX(msg),
-									CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
+					// expedited transfer can be started to all kinds of objects,
+					// also on strings, but only if the string len is less than 4 bytes
+					SET_CMD_BYTE(&reply_msg,
+							INITIATE_DOMAIN_DOWNLOAD_REPLY);
+					if (_canopen_write_data(obj, msg, GET_SINDEX(msg))) {
+						memcpy(&reply_msg.data_32bit[1], &msg->data_32bit[1], 4);
+						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+						if (this->callb) {
+							this->callb(this->mindex, this->sindex);
 						}
 					}
 					else {
+						// tried to write to array index 0, abort transfer
 						sdo_server_abort(GET_MINDEX(msg), GET_SINDEX(msg),
 								CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
 					}
@@ -156,6 +170,9 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 					// data bytes contain the total byte count
 					reply_msg.data_32bit[1] = obj->string_len;
 					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+#else
+					sdo_server_abort(GET_MINDEX(msg), GET_SINDEX(msg),
+							CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
 #endif
 				}
 

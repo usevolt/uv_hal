@@ -37,6 +37,9 @@ typedef struct {
 	uint16_t active_tab;
 	/// @brief: True for 1 step cycle when the tab was changed
 	bool tab_changed;
+
+	color_t text_c;
+	uv_font_st *font;
 } uv_uitabwindow_st;
 
 #ifndef this

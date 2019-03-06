@@ -19,6 +19,9 @@
 
 #define NODEID								this->current_node_id
 
+#if !defined(CONFIG_CANOPEN_INITIALIZER)
+// PDO's are defined with preprocessor macros in uv_hal_config. The original, but limited,
+// uv_hal way
 
 #define RXPDO(x)							CAT(RXPDO, INC(x))
 #define TXPDO(x)							CAT(TXPDO, INC(x))
@@ -82,7 +85,6 @@
 		}\
 },
 
-
 static const canopen_txpdo_com_parameter_st txpdo_com_defs[] = {
 		REPEAT(CONFIG_CANOPEN_TXPDO_COUNT, TXPDO_COM_DEF)
 };
@@ -95,24 +97,9 @@ static const canopen_rxpdo_com_parameter_st rxpdo_com_defs[] = {
 static const canopen_pdo_mapping_parameter_st rxpdo_map_defs[] = {
 		REPEAT(CONFIG_CANOPEN_RXPDO_COUNT, RXPDO_MAPPINGS_DEF)
 };
-
-
-
-
-/// @brief: Configures the HW CAN message object to receive this RXPDO
-#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LINUX
-#define RXPDO_CONFIG_MESSAGE_OBJ(x) \
-		uv_can_config_rx_message(this->can_channel, \
-			this->obj_dict.com_params.rxpdo_coms[x].cob_id, \
-			CAN_ID_MASK_DEFAULT, CAN_11_BIT_ID);
-#elif CONFIG_TARGET_LPC1785
-#define RXPDO_CONFIG_MESSAGE_OBJ(x) \
-		uv_can_config_rx_message(this->can_channel, \
-			this->obj_dict.com_params.rxpdo_coms[x].cob_id\
-			, CAN_11_BIT_ID);
-#else
-#error "Not implemented"
 #endif
+
+
 
 
 /// @brief: Returns true if this PDO message was enabled (bit 31 was not set)
@@ -137,13 +124,8 @@ void _uv_canopen_pdo_init() {
 	}
 	for (int i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
 		if ((obj = _uv_canopen_obj_dict_get(CONFIG_CANOPEN_RXPDO_COM_INDEX + i, 0))) {
-#if CONFIG_TARGET_LPC1785
-			uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
-					((canopen_rxpdo_com_parameter_st*) obj->data_ptr)->cob_id, CAN_STD);
-#else
 			uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
 					((canopen_rxpdo_com_parameter_st*) obj->data_ptr)->cob_id, CAN_ID_MASK_DEFAULT, CAN_STD);
-#endif
 		}
 		else {
 			// something went wrong, PDO communication parameter couldn't be found
@@ -154,7 +136,9 @@ void _uv_canopen_pdo_init() {
 
 
 
+
 void _uv_canopen_pdo_reset() {
+#if !defined(CONFIG_CANOPEN_INITIALIZER)
 	for (int i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
 		thisnv->txpdo_coms[i] = txpdo_com_defs[i];
 		thisnv->txpdo_maps[i] = txpdo_map_defs[i];
@@ -163,6 +147,7 @@ void _uv_canopen_pdo_reset() {
 		thisnv->rxpdo_coms[i] = rxpdo_com_defs[i];
 		thisnv->rxpdo_maps[i] = rxpdo_map_defs[i];
 	}
+#endif
 }
 
 
@@ -222,10 +207,16 @@ void _uv_canopen_pdo_step(uint16_t step_ms) {
 							canopen_pdo_mapping_st *mapping = &(*mapping_par).mappings[j];
 
 							bool br = false;
+							bool cont = false;
 							// when mapping with length of 0 is found or too many objects are mapped,
 							// stop the mapping
 							if (!mapping->length || byte_count + mapping->length > 8) {
 								br = true;
+							}
+							// if main index was set to zero, skip this mapping and continue
+							// on the second one.
+							else if (mapping->main_index == 0) {
+								cont = true;
 							}
 							// otherwise map some data to the message bytes
 							else if (!(obj = _uv_canopen_obj_dict_get(mapping->main_index, mapping->sub_index))) {
@@ -234,44 +225,48 @@ void _uv_canopen_pdo_step(uint16_t step_ms) {
 										mapping->sub_index, CANOPEN_SDO_ERROR_OBJECT_DOES_NOT_EXIST);
 								br = true;
 							}
-							// mapped object has to be readable
-							if (!(obj->permissions | CANOPEN_RO)) {
-								_uv_canopen_sdo_abort(CANOPEN_SDO_REQUEST_ID, mapping->main_index,
-										mapping->sub_index, CANOPEN_SDO_ERROR_ATTEMPT_TO_READ_A_WRITE_ONLY_OBJECT);
-								byte_count += mapping->length;
-								br = true;
-							}
-							// mapping length cannot be greater than mapped objects length
-							if (mapping->length > uv_canopen_get_object_data_size(obj)) {
-								_uv_canopen_sdo_abort(CANOPEN_SDO_REQUEST_ID, mapping->main_index,
-										mapping->sub_index, CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
-								br = true;
+							else {
+								// mapped object has to be readable
+								if (!(obj->permissions | CANOPEN_RO)) {
+									_uv_canopen_sdo_abort(CANOPEN_SDO_REQUEST_ID, mapping->main_index,
+											mapping->sub_index, CANOPEN_SDO_ERROR_ATTEMPT_TO_READ_A_WRITE_ONLY_OBJECT);
+									byte_count += mapping->length;
+									br = true;
+								}
+								// mapping length cannot be greater than mapped objects length
+								if (mapping->length > uv_canopen_get_object_data_size(obj)) {
+									_uv_canopen_sdo_abort(CANOPEN_SDO_REQUEST_ID, mapping->main_index,
+											mapping->sub_index, CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
+									br = true;
+								}
 							}
 
 							if (br) {
 								break;
 							}
 
-							// for array objects mapping is a little bit complicated
-							if (uv_canopen_is_array(obj)) {
-								if (!mapping->sub_index) {
-									memcpy(&msg.data_8bit[byte_count],
-											&obj->array_max_size, sizeof(obj->array_max_size));
+							if (!cont) {
+								// for array objects mapping is a little bit complicated
+								if (uv_canopen_is_array(obj)) {
+									if (!mapping->sub_index) {
+										memcpy(&msg.data_8bit[byte_count],
+												&obj->array_max_size, sizeof(obj->array_max_size));
+									}
+									else if (mapping->sub_index > obj->array_max_size) {
+										_uv_canopen_sdo_abort(CANOPEN_SDO_REQUEST_ID, mapping->main_index,
+												mapping->sub_index, CANOPEN_SDO_ERROR_OBJECT_DOES_NOT_EXIST);
+									}
+									else {
+										memcpy(&msg.data_8bit[byte_count],
+												&((uint8_t*) obj->data_ptr)[uv_canopen_get_object_data_size(obj) *
+															  (mapping->sub_index - 1)],
+												mapping->length);
+									}
 								}
-								else if (mapping->sub_index > obj->array_max_size) {
-									_uv_canopen_sdo_abort(CANOPEN_SDO_REQUEST_ID, mapping->main_index,
-											mapping->sub_index, CANOPEN_SDO_ERROR_OBJECT_DOES_NOT_EXIST);
-								}
+								// all other types are easy
 								else {
-									memcpy(&msg.data_8bit[byte_count],
-											&((uint8_t*) obj->data_ptr)[uv_canopen_get_object_data_size(obj) *
-														  (mapping->sub_index - 1)],
-											mapping->length);
+									memcpy(&msg.data_8bit[byte_count], obj->data_ptr, mapping->length);
 								}
-							}
-							// all other types are easy
-							else {
-								memcpy(&msg.data_8bit[byte_count], obj->data_ptr, mapping->length);
 							}
 							// increase byte mapping counter
 							byte_count += mapping->length;
@@ -447,6 +442,19 @@ void uv_canopen_pdo_mapping_update(uint16_t main_index, uint8_t subindex) {
 		}
 	}
 
+}
+
+
+
+canopen_pdo_mapping_parameter_st *uv_canopen_rxpdo_get_mapping(uint16_t msg_id) {
+	canopen_pdo_mapping_parameter_st *ret = NULL;
+	for (uint16_t i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
+		if (thisnv->rxpdo_coms[i].cob_id == msg_id) {
+			ret = &thisnv->rxpdo_maps[i];
+			break;
+		}
+	}
+	return ret;
 }
 
 

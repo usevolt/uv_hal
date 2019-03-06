@@ -62,6 +62,8 @@ char *uv_get_hardware_name() {
 	return "CONFIG_TARGET_LPC1549";
 #elif CONFIG_TARGET_LINUX
 	return "CONFIG_TARGET_LINUX";
+#elif CONFIG_TARGET_WIN
+	return "CONFIG_TARGET_WIN";
 #else
 	#error "Error: Hardware name not specified in uv_utilities.c"
 #endif
@@ -357,7 +359,15 @@ void *__uv_get_user_ptr() {
 void NMI_Handler(void) {
 	printf("NMI\r");
 }
+
+#if defined(CONFIG_HARDFAULT_CALLBACK)
+extern void CONFIG_HARDFAULT_CALLBACK (void);
+#endif
+
 void HardFault_Handler(void) {
+#if defined(CONFIG_HARDFAULT_CALLBACK)
+	CONFIG_HARDFAULT_CALLBACK ();
+#endif
 	printf("HardFault\r");
 }
 void MemManage_Handler(void) {

@@ -32,7 +32,7 @@ static void touch(void *me, uv_touch_st *touch);
 #define this ((uv_uidigitedit_st *) me)
 
 
-void uv_uidigitedit_init(void *me, const uv_font_st *font,
+void uv_uidigitedit_init(void *me, uv_font_st *font,
 		color_t color, uint32_t value, const uv_uistyle_st *style) {
 	uv_uilabel_init(this, font, ALIGN_CENTER, color, "");
 	this->style = style;
@@ -42,6 +42,7 @@ void uv_uidigitedit_init(void *me, const uv_font_st *font,
 	uv_uiobject_set_touch_callb(this, &touch);
 	this->value = !value;
 	this->changed = false;
+	this->numpaddialog_title = "";
 	uv_uidigitedit_set_value(this, value);
 
 }
@@ -61,17 +62,17 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	uint16_t x = uv_ui_get_xglobal(this),
 			y = uv_ui_get_yglobal(this);
 
-	uint16_t height = uv_ui_text_height_px(((uv_uilabel_st*) this)->str,
-			((uv_uilabel_st*) this)->font, 1) +
-					uv_ft81x_get_font_height(((uv_uilabel_st*) this)->font->index);
+	uint16_t height = uv_ft81x_get_string_height(((uv_uilabel_st*) this)->str,
+			((uv_uilabel_st*) this)->font) +
+					uv_ft81x_get_font_height(((uv_uilabel_st*) this)->font);
 	if (height > uv_uibb(this)->height) {
 		height = uv_uibb(this)->height;
 	}
 	else {
 		y += (uv_uibb(this)->height - height) / 2;
 	}
-	uv_ft81x_draw_shadowrrect(x, y, uv_uibb(this)->width, height, CONFIG_UI_RADIUS, C(0xFFFFFFFF),
-			C(0xFFDDDDDD), C(0xFFBBBBBB));
+	uv_ft81x_draw_shadowrrect(x, y, uv_uibb(this)->width, height,
+			CONFIG_UI_RADIUS, C(0xFFFFFFFF), C(0xFFDDDDDD), C(0xFFBBBBBB));
 
 	_uv_uilabel_draw(this, pbb);
 }
@@ -93,7 +94,8 @@ static uv_uiobject_ret_e uv_uidigitedit_step(void *me, uint16_t step_ms,
 static void touch(void *me, uv_touch_st *touch) {
 	if (touch->action == TOUCH_CLICKED) {
 		touch->action = TOUCH_NONE;
-		uint32_t value = uv_uinumpaddialog_exec("Enter value", this->value, this->style);
+		uint32_t value = uv_uinumpaddialog_exec(
+				this->numpaddialog_title, this->value, this->style);
 		uv_uidigitedit_set_value(this, value);
 		uv_ui_refresh(this);
 	}

@@ -42,6 +42,7 @@
 
 
 
+uint8_t uv_terminal_enabled = 0;
 
 typedef struct {
 	const uv_command_st *commands_ptr;
@@ -54,8 +55,20 @@ typedef struct {
 this_st _terminal;
 #define this (&_terminal)
 
+
+
+void uv_terminal_enable(void) {
+	uv_terminal_enabled = 1;
+}
+
+void uv_terminal_disable(void) {
+	uv_terminal_enabled = 0;
+}
+
+
 void uv_terminal_help_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 void uv_terminal_dev_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
+void uv_terminal_nodeid_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 #if CONFIG_TERMINAL_INSTRUCTIONS
 void uv_terminal_man_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 #endif
@@ -81,6 +94,14 @@ const uv_command_st common_cmds[] = {
 				.instructions = "Logs the device name and build date" ,
 #endif
 				.callback = uv_terminal_dev_callb
+		},
+		{
+				.id = CMD_NODEID,
+				.str = "nodeid",
+#if CONFIG_TERMINAL_INSTRUCTIONS
+				.instructions = "Returns or sets the device's CANopen Node ID.",
+#endif
+				.callback = &uv_terminal_nodeid_callb
 		},
 #if CONFIG_TERMINAL_INSTRUCTIONS
 		{
@@ -163,8 +184,8 @@ uv_errors_e uv_terminal_step() {
 		// cycle trough all received characters
 		while (true) {
 
-			char data = '\0';
 			uv_errors_e e = ERR_NONE;
+			char data = '\0';
 
 #if CONFIG_TERMINAL_UART
 			// redirect printf to the source where message was received
@@ -177,14 +198,19 @@ uv_errors_e uv_terminal_step() {
 				e = uv_can_get_char(&data);
 			}
 	#endif
-			if (e) {
+			if (e != ERR_NONE) {
 				break;
+			}
+			else {
+				// character received, terminal is enabled
+				uv_terminal_enabled = true;
 			}
 
 			// check for buffer overflows
 			if (this->buffer_index >= CONFIG_TERMINAL_BUFFER_SIZE) {
 				this->buffer_index = 0;
 				ret = ERR_BUFFER_OVERFLOW;
+				break;
 			}
 			else {
 				// echo back received characters
@@ -304,6 +330,23 @@ void uv_terminal_dev_callb(void *me, unsigned int cmd, unsigned int args, argume
 	printf("%s, if revision %u, Build on %s\n", uv_projname, CONFIG_INTERFACE_REVISION, uv_datetime);
 }
 
+void uv_terminal_nodeid_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv) {
+	if (args && argv[0].type == ARG_INTEGER) {
+		if (argv[0].number == 0 ||
+				argv[0].number > 0x7F) {
+			printf("Invalid node id given: 0x%x\n", (unsigned int) argv[0].number);
+		}
+		else {
+			uv_canopen_set_our_nodeid(argv[0].number);
+			printf("Node ID set to 0x%x. Save and reset required.\n", (unsigned int) argv[0].number);
+		}
+	}
+	else {
+		printf("Node ID: 0x%x\n", uv_canopen_get_our_nodeid());
+	}
+}
+
+
 #if CONFIG_TERMINAL_INSTRUCTIONS
 void uv_terminal_man_callb(void *me, unsigned int cmd, unsigned int args, argument_st *argv) {
 	int i;
@@ -340,7 +383,7 @@ void uv_terminal_save_callb(void *me, unsigned int cmd, unsigned int args, argum
 	}
 }
 void uv_terminal_revert_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv) {
-	if (!uv_memory_clear()) {
+	if (!uv_memory_clear(MEMORY_ALL_PARAMS)) {
 		printf("reverted\n");
 	}
 }

@@ -23,6 +23,8 @@ void uv_uitabwindow_init(void *me, int16_t tab_count,
 		const char **tab_names) {
 	uv_uiwindow_init(this, obj_array, style);
 	uv_uiwindow_set_content_bb_default_pos(this, 0, CONFIG_UI_TABWINDOW_HEADER_HEIGHT);
+	this->font = style->font;
+	this->text_c = style->text_color;
 	this->active_tab = 0;
 	this->tab_count = tab_count;
 	this->tab_names = tab_names;
@@ -35,7 +37,7 @@ void uv_uitabwindow_init(void *me, int16_t tab_count,
 static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 	// super draw function
-	_uv_uiwindow_redraw(this, pbb);
+	uv_uiwindow_draw(this, pbb);
 
 	int16_t thisx = uv_ui_get_xglobal(this);
 	int16_t x = thisx;
@@ -46,7 +48,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 
 	for (int16_t i = 0; i < this->tab_count; i++) {
-		tab_w = uv_ui_text_width_px((char *)this->tab_names[i], this->super.style->font, 1.0f) + 10;
+		tab_w = uv_ft81x_get_string_height((char *)this->tab_names[i], this->font) + 10;
 		if (tab_w < CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH) tab_w = CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH;
 		if (this->active_tab != i) {
 #if CONFIG_LCD
@@ -59,13 +61,12 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 					(char*) this->tab_names[i], 1.0f, pbb);
 #elif CONFIG_FT81X
 			uv_ft81x_draw_shadowrrect(x, y, tab_w, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
-					CONFIG_UI_RADIUS, ((uv_uiwindow_st*) this)->style->inactive_bg_c,
-					((uv_uiwindow_st*) this)->style->highlight_c,
-					((uv_uiwindow_st*) this)->style->shadow_c);
-			uv_ft81x_draw_string((char*) this->tab_names[i],
-					((uv_uiwindow_st*) this)->style->font->index,
+					CONFIG_UI_RADIUS, ((uv_uiwindow_st*) this)->bg_c,
+					uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, 30),
+					uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, -30));
+			uv_ft81x_draw_string((char*) this->tab_names[i], this->font,
 					x + x, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, ALIGN_CENTER_LEFT,
-					((uv_uiwindow_st*) this)->style->inactive_font_c);
+					this->text_c);
 #endif
 		}
 		else {
@@ -97,16 +98,16 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	uv_ft81x_draw_line(thisx, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT - 1,
 			thisx + uv_uibb(this)->width,
 			y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT- 1, 1,
-			((uv_uiwindow_st*) this)->style->inactive_frame_c);
+			uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, 30));
 	// draw active tab
 	uv_ft81x_draw_shadowrrect(active_tab_x, y, active_tab_w, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
-			CONFIG_UI_RADIUS, ((uv_uiwindow_st*) this)->style->active_bg_c,
-			((uv_uiwindow_st*) this)->style->highlight_c,
-			((uv_uiwindow_st*) this)->style->shadow_c);
+			CONFIG_UI_RADIUS, uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, 20),
+			uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, 30),
+			uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, -30));
 	uv_ft81x_draw_string((char*) this->tab_names[this->active_tab],
-			((uv_uiwindow_st*) this)->style->font->index, active_tab_x + 5,
+			this->font, active_tab_x + 5,
 			y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, ALIGN_CENTER_LEFT,
-			((uv_uiwindow_st*) this)->style->active_font_c);
+			this->text_c);
 
 #endif
 
@@ -138,7 +139,7 @@ static void touch(void *me, uv_touch_st *touch) {
 		if (touch->y <= CONFIG_UI_TABWINDOW_HEADER_HEIGHT) {
 			int16_t total_w = 0;
 			for (int16_t i = 0; i < this->tab_count; i++) {
-				int16_t tab_w = uv_ui_text_width_px((char *) this->tab_names[i], this->super.style->font, 1.0f) + 10;
+				int16_t tab_w = uv_ft81x_get_string_height((char *) this->tab_names[i], this->font) + 10;
 				if (tab_w < CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH) {
 					tab_w = CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH;
 				}

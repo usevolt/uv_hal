@@ -44,7 +44,9 @@ typedef struct {
 	uibutton_state_e state;
 	uv_delay_st delay;
 	char *text;
-	const uv_uistyle_st *style;
+	color_t main_c;
+	color_t text_c;
+	uv_font_st *font;
 
 } uv_uibutton_st;
 
@@ -84,10 +86,26 @@ static inline bool uv_uibutton_long_pressed(void *me) {
 	return this->state == UIBUTTON_LONGPRESSED;
 }
 
+/// @brief: Sets the main color of the uibutton. The button should be refreshed after
+/// calling this.
+static inline void uv_uibutton_set_main_color(void *me, color_t c) {
+	this->main_c = c;
+}
+
+/// @brief: Returns the button main color
+static inline color_t uv_uibutton_get_main_color(void *me) {
+	return this->main_c;
+}
+
 
 /// @brief: Step function should be called every step cycle
 uv_uiobject_ret_e uv_uibutton_step(void *me, uint16_t step_ms,
 		const uv_bounding_box_st *pbb);
+
+
+/// @brief: Draw function. Normally this is called internally but it can also be
+/// called when using draw callbacks
+void uv_uibutton_draw(void *me, const uv_bounding_box_st *pbb);
 
 
 

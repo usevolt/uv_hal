@@ -33,17 +33,8 @@
 /// which executes the received command from the user.
 ///
 /// Some commands common for all CANopen based controllers are already defined in hal_terminal.c
-/// These include entering ISP-mode and resetting the mcu.
 /// The common commands cannot be disabled, but creating a application level command with the same
 /// command name causes terminal to overwrite the common command.
-///
-/// If CONFIG_TERMINAL_DEDICATED_CALLBACKS is enabled, every command takes their own callback function.
-/// This also changes how the arguments are passed to the callbacks. If CONFIG_TERMINAL_DEDICATED_CALLBACKS
-/// is 1, the callbacks should be variadic functions which take va_list as a parameter.
-/// The given arguments are parsed as integers by default, or as strings if enclosed with " " characters,
-/// and pointers to them are given as va_arg arguments to the callback.
-/// If CONFIG_TERMINAL_DEDICATED_CALLBACKS is 0, the arguments entered from the command line are not parsed
-/// and the arguments are passed to the global callback function as strings.
 ///
 /// NOTE: Note that in order to use UART or CAN as a terminal source, they have to be initialized
 /// correctly. It doesn't matter if this module is initialized before them, but without initializing
@@ -124,6 +115,7 @@ typedef struct {
 typedef enum {
 	CMD_HELP,
 	CMD_DEV,
+	CMD_NODEID,
 #if CONFIG_TERMINAL_INSTRUCTIONS
 	CMD_MAN,
 #endif
@@ -135,8 +127,7 @@ typedef enum {
 } uv_common_commands_e;
 
 
-extern void uv_enter_ISP_mode();
-
+extern uint8_t uv_terminal_enabled;
 
 /// @brief: Sets the pointer to an array containing all application commands.
 /// This function should be called before any other terminal functions
@@ -152,6 +143,11 @@ void uv_terminal_init(const uv_command_st* commands, unsigned int count);
 /// @brief: Step function should be called cyclically in the application
 uv_errors_e uv_terminal_step();
 
+
+
+void uv_terminal_enable(void);
+
+void uv_terminal_disable(void);
 
 /// @brief: Returns the number of commands found in command array pointer registered with
 /// a hal_terminal_init_commands function call.

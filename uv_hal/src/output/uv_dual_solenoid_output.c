@@ -26,7 +26,18 @@
 #define TARGET_DELAY_MS		20
 #define PID_MULTIPLIER		0x10
 #define ACC_MIN				10
-#define DEC_MIN				40
+#define DEC_MIN				60
+
+
+void uv_dual_solenoid_output_conf_reset(uv_dual_solenoid_output_conf_st *this) {
+	uv_solenoid_output_conf_reset(&this->solenoid_conf[0]);
+	uv_solenoid_output_conf_reset(&this->solenoid_conf[1]);
+	this->acc = CONFIG_DUAL_SOLENOID_ACC_DEF;
+	this->dec = CONFIG_DUAL_SOLENOID_DEC_DEF;
+	this->invert = false;
+	this->assembly_invert = false;
+}
+
 
 
 void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
@@ -65,9 +76,9 @@ void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t step_ms) {
 
 
-	uv_dual_solenoid_output_solenoids_e sa = (this->conf->invert) ?
+	uv_dual_solenoid_output_solenoids_e sa = (this->conf->assembly_invert) ?
 			DUAL_OUTPUT_SOLENOID_B : DUAL_OUTPUT_SOLENOID_A;
-	uv_dual_solenoid_output_solenoids_e sb = (this->conf->invert) ?
+	uv_dual_solenoid_output_solenoids_e sb = (this->conf->assembly_invert) ?
 			DUAL_OUTPUT_SOLENOID_A : DUAL_OUTPUT_SOLENOID_B;
 
 	if (uv_delay(&this->target_delay, step_ms)) {
@@ -80,6 +91,16 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 			this->conf->dec = 100;
 		}
 		uint16_t acc = this->conf->acc + ACC_MIN, dec = this->conf->dec + DEC_MIN;
+
+		if (this->target_req > DUAL_SOLENOID_VALUE_MAX) {
+			this->target_req = DUAL_SOLENOID_VALUE_MAX;
+		}
+		else if (this->target_req < DUAL_SOLENOID_VALUE_MIN) {
+			this->target_req = DUAL_SOLENOID_VALUE_MIN;
+		}
+		else {
+
+		}
 
 
 		// different moving average values for accelerating and decelerating

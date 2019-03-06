@@ -29,10 +29,22 @@
 #include "chip.h"
 #endif
 #include "uv_wdt.h"
+#include "uv_memory.h"
+#include <string.h>
 
 
 void uv_system_reset() {
-#if !CONFIG_TARGET_LINUX
+#if CONFIG_UV_BOOTLOADER
+	// if bootloader is enabled, make sure bootloader shared memory is cleared
+	memset(UV_BOOTLOADER_DATA_ADDR, 0, UV_BOOTLOADER_DATA_LEN);
+#endif
+	uv_bootloader_start();
+}
+
+
+
+void uv_bootloader_start() {
+#if !CONFIG_TARGET_LINUX && !CONFIG_TARGET_WIN
 	NVIC_SystemReset();
 #else
 	exit(0);
