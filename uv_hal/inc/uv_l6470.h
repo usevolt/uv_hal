@@ -59,8 +59,8 @@ typedef struct {
 #define L6470_ACC_DEFAULT				0x8A
 #define L6470_DEC_MAX					L6470_ACC_MAX
 #define L6470_DEC_DEFAULT				0x8A
-#define L6470_MAXSPEED_MAX				0x3FF
-#define L6470_MAXSPEED_DEFAULT			0x41
+#define L6470_MAXSPEED_MAX				(0x3FF * 10000)
+#define L6470_MAXSPEED_DEFAULT			(0x41 * 10000)
 #define L6470_MINSPEED_MAX				0x1FFF
 #define L6470_MINSPEED_DEFAULT			0x0
 
@@ -84,6 +84,13 @@ typedef enum {
 } l6470_microstep_e;
 
 
+/// @brief: The direction enumeration. This is used for example *uv_l6470_find_home*,
+/// setting the home search direction.
+typedef enum {
+	L6470_DIR_FORWARD = 0,
+	L6470_DIR_BACKWARD
+} l6470_dir_e;
+
 /// @brief: Initializes the L6470 module. Should be called in the user application,
 /// after the uv_hal library has initialized itself. SPI bus should be preconfigured
 /// with right baudrate and other settings.
@@ -104,7 +111,7 @@ void uv_l6470_init(uv_l6470_st *this, spi_e spi, spi_slaves_e ssel,
 /// @param minspeed: Minimum speed. See L6470 datasheet for units. Maximum value is L6470_MINSPEED_MAX.
 /// @param maxspeed: Maximum speed. See L6470 datasheet for units. Maximum value is L6470_MAXSPEED_MAX.
 void uv_l6470_set_speeds(uv_l6470_st *this, uint16_t acc, uint16_t dec,
-		uint16_t minspeed, uint16_t maxspeed);
+		uint16_t minspeed, uint32_t maxspeed);
 
 
 /// @brief: Can be used to set the duty cycles for phase driver in acceleration,
@@ -118,8 +125,9 @@ void uv_l6470_set_overcurrent(uv_l6470_st *this, uint16_t value_ma);
 
 
 /// @brief: L6470 finds the home with the aid of switch connected to L6470 pin 4 (SW).
-/// Switch should connect to 0 when home is found. Home is searched in the negative direction.
-void uv_l6470_find_home(uv_l6470_st *this);
+/// Switch should connect to 0 when home is found. Home is searched in the direction
+/// pointed by *dir*.
+void uv_l6470_find_home(uv_l6470_st *this, l6470_dir_e dir);
 
 
 /// @brief: Sets the current position as a home position
@@ -128,7 +136,6 @@ void uv_l6470_set_home(uv_l6470_st *this);
 
 /// @brief: Returns the current position
 int32_t uv_l6470_get_pos(uv_l6470_st *this);
-
 
 /// @brief: Goes to absolute position **pos**.
 void uv_l6470_goto(uv_l6470_st *this, int32_t pos);
@@ -145,6 +152,7 @@ void uv_l6470_stop(uv_l6470_st *this);
 
 /// @brief: Waits until the last command has been executed
 void uv_l6470_wait(uv_l6470_st *this);
+
 
 
 /// @brief: Returns true if the L6470 is not busy
