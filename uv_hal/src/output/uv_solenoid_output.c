@@ -46,6 +46,13 @@ static uint16_t current_func(void *this_ptr, uint16_t adc) {
 void uv_solenoid_output_conf_reset(uv_solenoid_output_conf_st *conf) {
 	conf->min_ma = CONFIG_SOLENOID_MIN_CURRENT_DEF;
 	conf->max_ma = CONFIG_SOLENOID_MAX_CURRENT_DEF;
+#if CONFIG_SOLENOID_MODE_PWM
+	conf->min_percent = CONFIG_SOLENOID_MIN_PERCENT_DEF;
+	conf->max_percent = CONFIG_SOLENOID_MAX_PERCENT_DEF;
+#endif
+#if CONFIG_SOLENOID_MODE_ONOFF
+	conf->onoff_mode = CONFIG_SOLENOID_ONOFF_MODE_DEF;
+#endif
 }
 
 
@@ -153,14 +160,31 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 				this->dither_ampl / 2;
 		}
 		// solenoid is PWM driven
-		else {
+		else if (this->mode == SOLENOID_OUTPUT_MODE_PWM) {
+#if CONFIG_SOLENOID_MODE_PWM
 			if (this->target) {
-				int32_t rel = uv_reli(this->target, this->conf->min_ma, uv_mini(this->conf->max_ma, 1000));
-				output = uv_lerpi(rel, this->conf->min_ma, uv_mini(this->conf->max_ma, 1000));
+				int32_t rel = uv_reli(this->target, this->conf->min_percent * 10,
+						uv_mini(this->conf->max_percent * 10, 1000));
+				output = uv_lerpi(rel, this->conf->min_percent * 10,
+						uv_mini(this->conf->max_percent * 10, 1000));
+			}
+#endif
+		}
+		// solenoid is on/off
+		else {
+#if CONFIG_SOLENOID_MODE_ONOFF
+			if (this->conf->onoff_mode == SOLENOID_OUTPUT_ONOFF_MODE_NORMAL) {
+				// normal mode
+				output = this->target ? 1000 : 0;
 			}
 			else {
-				output = 0;
+				// toggle mode
+				if (this->target && !this->last_target) {
+					// target was toggled, toggle the output also
+					output = (this->pwm) ? 0 : 1000;
+				}
 			}
+#endif
 		}
 
 		if (output < 0) {
@@ -179,6 +203,9 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 	uv_pwm_set(this->pwm_chn, this->pwm);
 	// update pwm avg value
 	uv_moving_aver_step(&this->pwmaver, this->pwm);
+
+	// update the last target value
+	this->last_target = this->target;
 }
 
 

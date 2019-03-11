@@ -81,6 +81,15 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 	uv_dual_solenoid_output_solenoids_e sb = (this->conf->assembly_invert) ?
 			DUAL_OUTPUT_SOLENOID_A : DUAL_OUTPUT_SOLENOID_B;
 
+
+#if CONFIG_SOLENOID_MODE_ONOFF || CONFIG_SOLENOID_MODE_PWM
+	// if other solenoid output modes are defined, DUAL_OUTPUT_SOLENOID_B follows
+	// DUAL_OUTPUT_SOLENOID_A's mode
+	uv_solenoid_output_set_mode(&this->solenoid[1],
+			uv_solenoid_output_get_mode(&this->solenoid[0]));
+	#endif
+
+
 	if (uv_delay(&this->target_delay, step_ms)) {
 		uv_delay_init(&this->target_delay, TARGET_DELAY_MS);
 
@@ -90,7 +99,17 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 		if (this->conf->dec > 100) {
 			this->conf->dec = 100;
 		}
-		uint16_t acc = this->conf->acc + ACC_MIN, dec = this->conf->dec + DEC_MIN;
+		uint16_t acc, dec;
+
+		// in ONOFF mode acc and dec are always maximum
+		if (uv_solenoid_output_get_mode(&this->solenoid[0]) == SOLENOID_OUTPUT_MODE_ONOFF) {
+			acc = DUAL_SOLENOID_ACC_MAX;
+			dec = DUAL_SOLENOID_DEC_MAX;
+		}
+		else {
+			acc = this->conf->acc + ACC_MIN;
+			dec = this->conf->dec + DEC_MIN;
+		}
 
 		if (this->target_req > DUAL_SOLENOID_VALUE_MAX) {
 			this->target_req = DUAL_SOLENOID_VALUE_MAX;
