@@ -209,9 +209,7 @@ void uv_init(void *device) {
 	// non-volatile settings.
 	uv_errors_e e = uv_memory_load(MEMORY_COM_PARAMS);
 	if (e) {
-#if CONFIG_CANOPEN
-		_uv_canopen_reset();
-#endif
+		_uv_rtos_hal_reset();
 	}
 
 #if CONFIG_UART0
@@ -320,3 +318,11 @@ void hal_task(void *nullptr) {
 
 
 
+
+
+void _uv_rtos_hal_reset(void) {
+	// reset all modules which depend on non-volatile settings
+#if CONFIG_CANOPEN
+		_uv_canopen_reset();
+#endif
+}
