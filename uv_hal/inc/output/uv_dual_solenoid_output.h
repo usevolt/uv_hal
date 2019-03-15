@@ -52,6 +52,21 @@ typedef enum {
 #define DUAL_SOLENOID_VALUE_MAX	1000
 #define DUAL_SOLENOID_VALUE_MIN	-1000
 
+#define DUAL_SOLENOID_OUTPUT_A_MIN_MA_SUBINDEX			SOLENOID_OUTPUT_MIN_MA_SUBINDEX
+#define DUAL_SOLENOID_OUTPUT_A_MAX_MA_SUBINDEX			SOLENOID_OUTPUT_MAX_MA_SUBINDEX
+#define DUAL_SOLENOID_OUTPUT_A_MIN_PERCENT_SUBINDEX		SOLENOID_OUTPUT_MIN_PERCENT_SUBINDEX
+#define DUAL_SOLENOID_OUTPUT_A_MAX_PERCENT_SUBINDEX		SOLENOID_OUTPUT_MAX_PERCENT_SUBINDEX
+#define DUAL_SOLENOID_OUTPUT_A_ONOFF_MODE_SUBINDEX		SOLENOID_OUTPUT_ONOFF_MODE_SUBINDEX
+#define DUAL_SOLENOID_OUTPUT_B_MIN_MA_SUBINDEX			(SOLENOID_OUTPUT_CONFIG_SUBINDEX_COUNT + SOLENOID_OUTPUT_MIN_MA_SUBINDEX)
+#define DUAL_SOLENOID_OUTPUT_B_MAX_MA_SUBINDEX			(SOLENOID_OUTPUT_CONFIG_SUBINDEX_COUNT + SOLENOID_OUTPUT_MAX_MA_SUBINDEX)
+#define DUAL_SOLENOID_OUTPUT_B_MIN_PERCENT_SUBINDEX		(SOLENOID_OUTPUT_CONFIG_SUBINDEX_COUNT + SOLENOID_OUTPUT_MIN_PERCENT_SUBINDEX)
+#define DUAL_SOLENOID_OUTPUT_B_MAX_PERCENT_SUBINDEX		(SOLENOID_OUTPUT_CONFIG_SUBINDEX_COUNT + SOLENOID_OUTPUT_MAX_PERCENT_SUBINDEX)
+#define DUAL_SOLENOID_OUTPUT_B_ONOFF_MODE_SUBINDEX		(SOLENOID_OUTPUT_CONFIG_SUBINDEX_COUNT + SOLENOID_OUTPUT_ONOFF_MODE_SUBINDEX)
+#define DUAL_SOLENOID_OUTPUT_ACC_SUBINDEX				(SOLENOID_OUTPUT_CONFIG_SUBINDEX_COUNT * 2 + 1)
+#define DUAL_SOLENOID_OUTPUT_DEC_SUBINDEX				(SOLENOID_OUTPUT_CONFIG_SUBINDEX_COUNT * 2 + 2)
+#define DUAL_SOLENOID_OUTPUT_INVERT_SUBINDEX			(SOLENOID_OUTPUT_CONFIG_SUBINDEX_COUNT * 2 + 3)
+#define DUAL_SOLENOID_OUTPUT_ASSEMBLY_INVERT_SUBINDEX	(SOLENOID_OUTPUT_CONFIG_SUBINDEX_COUNT * 2 + 4)
+
 /// @brief: Configuration structure for the dual solenoid module
 typedef struct {
 	//NOTE: All of these variables should
@@ -95,6 +110,8 @@ typedef struct {
 
 	// signed output current
 	int16_t current_ma;
+	// signed output value (depends on the mode)
+	int16_t out;
 } uv_dual_solenoid_output_st;
 
 
@@ -134,6 +151,14 @@ static inline void uv_dual_solenoid_output_enable(uv_dual_solenoid_output_st *th
 /// @brief: Returns the current measured from the sense feedback
 static inline int16_t uv_dual_solenoid_output_get_current(uv_dual_solenoid_output_st *this) {
 	return this->current_ma;
+}
+
+
+/// @brief: Returns the output value, which depends on the mode of the solenoid output.
+/// If the mode is current or onoff, measured current is returned. If the mode is pwm,
+/// the pwm ppt is returned.
+static inline int16_t uv_dual_solenoid_output_get_out(uv_dual_solenoid_output_st *this) {
+	return this->out;
 }
 
 /// @brief: Sets the output current.

@@ -82,6 +82,7 @@ void uv_solenoid_output_init(uv_solenoid_output_st *this,
 		this->dither_ms = 0;
 	}
 	this->target = 0;
+	this->out = 0;
 	this->pwm = 0;
 	this->pwm_chn = pwm_chn;
 	uv_pwm_set(this->pwm_chn, this->pwm);
@@ -158,6 +159,8 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 			output = uv_pwm_get(this->pwm_chn) +
 				uv_pid_get_output(&this->ma_pid) +
 				this->dither_ampl / 2;
+
+			this->out = uv_output_get_current((uv_output_st*) this);
 		}
 		// solenoid is PWM driven
 		else if (this->mode == SOLENOID_OUTPUT_MODE_PWM) {
@@ -168,6 +171,7 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 				output = uv_lerpi(rel, this->conf->min_percent * 10,
 						uv_mini(this->conf->max_percent * 10, 1000));
 			}
+			this->out = output;
 #endif
 		}
 		// solenoid is on/off
@@ -184,6 +188,7 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 					output = (this->pwm) ? 0 : 1000;
 				}
 			}
+			this->out = uv_output_get_current((uv_output_st*) this);
 #endif
 		}
 

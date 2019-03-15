@@ -84,8 +84,25 @@ typedef enum {
 } uv_solenoid_output_mode_st;
 
 
-#define SOLENOID_OUTPUT_MIN_MA_SUBINDEX		1
-#define SOLENOID_OUTPUT_MAX_MA_SUBINDEX		2
+#define SOLENOID_OUTPUT_MIN_MA_SUBINDEX			1
+#define SOLENOID_OUTPUT_MAX_MA_SUBINDEX			2
+#define SOLENOID_OUTPUT_MIN_PERCENT_SUBINDEX	3
+#define SOLENOID_OUTPUT_MAX_PERCENT_SUBINDEX	4
+#define SOLENOID_OUTPUT_ONOFF_MODE_SUBINDEX		5
+
+#if CONFIG_SOLENOID_MODE_PWM
+#define _SOLENOID_PWM_SUBINDEX_COUNT			2
+#else
+#define _SOLENOID_PWM_SUBINDEX_COUNT			0
+#endif
+#if CONFIG_SOLENOID_MODE_ONOFF
+#define _SOLENOID_ONOFF_SUBINDEX_COUNT			1
+#else
+#define _SOLENOID_ONOFF_SUBINDEX_COUNT			0
+#endif
+#define SOLENOID_OUTPUT_CONFIG_SUBINDEX_COUNT	(2 + \
+		_SOLENOID_PWM_SUBINDEX_COUNT + \
+		_SOLENOID_ONOFF_SUBINDEX_COUNT)
 
 
 enum {
@@ -143,6 +160,10 @@ typedef struct {
 	uint16_t target;
 	/// @brief: Stores the current PWM duty cycle
 	uint16_t pwm;
+	/// @brief: Stores the output value on every specific moment. If the
+	/// solenoid output mode is current or onoff, this is in milliamps, if the mode
+	/// is PWM, the output is in ppt.
+	uint16_t out;
 	/// @brief: Stores the average PWM duty cycle value, used for compensation in
 	/// calculating the current
 	uv_moving_aver_st pwmaver;
@@ -196,6 +217,13 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms);
 /// Values should be 0 ... 1000.
 void uv_solenoid_output_set(uv_solenoid_output_st *this, uint16_t value);
 
+
+/// @brief: Returns the output value. The unit of the value depends on the mode of
+/// the solenoid output. In current and onoff mode, output current is returned in milliamps,
+/// and in pwm mode the ppt is returned.
+static inline uint16_t uv_solenoid_output_get_out(uv_solenoid_output_st *this) {
+	return this->out;
+}
 
 /// @brief: Sets the output state
 static inline void uv_solenoid_output_set_state(uv_solenoid_output_st *this,
