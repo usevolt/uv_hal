@@ -59,9 +59,14 @@ void uv_uitreeobject_init(void *me, uv_uiobject_st **object_array,
 
 /// @brief: Adds objects to the uitreeobject. This should be called
 /// in a uitreeiobject's show-callback
-static inline void uv_uitreeobject_add(void *me, void* obj,
+static inline void uv_uitreeobject_addxy(void *me, void* obj,
 		int16_t x, int16_t y, uint16_t width, uint16_t height) {
-	uv_uiwindow_add(me, obj, x, y, width, height);
+	uv_uiwindow_addxy(me, obj, x, y, width, height);
+}
+
+static inline void uv_uitreeobject_add(void *me, void* obj,
+		uv_bounding_box_st *bb) {
+	uv_uiwindow_add(me, obj, bb);
 }
 
 uv_bounding_box_st uv_uitreeobject_get_content_bb(void *me);

@@ -30,6 +30,9 @@ typedef struct {
 	int16_t hpadding;
 	/// @brief: Vertical padding between rows
 	int16_t vpadding;
+	/// @brief: If true (default), the zells are returned in left to right, up to down order.
+	/// Else, in up to down, left to right order.
+	bool horizontal;
 } uv_uigridlayout_st;
 
 
@@ -45,6 +48,15 @@ static inline void uv_uigridlayout_set_padding(uv_uigridlayout_st *this,
 		int16_t horizontal_padding, int16_t vertical_padding) {
 	this->hpadding = horizontal_padding;
 	this->vpadding = vertical_padding;
+}
+
+/// @brief: Sets the gridlayout to vertical order, i.e. from up to down, left to right.
+static inline void uv_uigridlayout_set_vertical_order(uv_uigridlayout_st *this) {
+	this->horizontal = false;
+}
+
+static inline void uv_uigridlayout_set_horizontal_order(uv_uigridlayout_st *this) {
+	this->horizontal = true;
 }
 
 

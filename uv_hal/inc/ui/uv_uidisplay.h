@@ -70,9 +70,14 @@ static inline void uv_uidisplay_set_touch_callb(void *me, void (*touch_callb)(vo
 }
 
 /// @brief: Adds an object to the screen
-static inline void uv_uidisplay_add(void *me, void *obj,
+static inline void uv_uidisplay_addxy(void *me, void *obj,
 		int16_t x, int16_t y, uint16_t width, uint16_t height) {
-	uv_uiwindow_add(me, obj, x, y, width, height);
+	uv_uiwindow_addxy(me, obj, x, y, width, height);
+}
+
+static inline void uv_uidisplay_add(void *me, void *obj,
+		uv_bounding_box_st *bb) {
+	uv_uiwindow_add(me, obj, bb);
 }
 
 /// @brief: Removes an object from the screen

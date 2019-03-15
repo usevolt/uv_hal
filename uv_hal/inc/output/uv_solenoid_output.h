@@ -62,6 +62,9 @@ typedef enum {
 } uv_solenoid_output_mode_st;
 
 
+#define SOLENOID_OUTPUT_MIN_MA_SUBINDEX		1
+#define SOLENOID_OUTPUT_MAX_MA_SUBINDEX		2
+
 /// @brief: Data structure for solenoid output configuration data.
 /// This can be stored in non-volatile memory.
 typedef struct {

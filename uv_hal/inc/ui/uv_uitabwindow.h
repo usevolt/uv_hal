@@ -71,9 +71,14 @@ static inline int16_t uv_uitabwindow_tab(void *me) {
 }
 
 /// @brief: implementation of uv_uiwindow's add function
-static inline void uv_uitabwindow_add(void *me, void *object,
+static inline void uv_uitabwindow_addxy(void *me, void *object,
 		uint16_t x, uint16_t y, uint16_t width, uint16_t height) {
-	uv_uiwindow_add(me, object, x, y, width, height);
+	uv_uiwindow_addxy(me, object, x, y, width, height);
+}
+
+static inline void uv_uitabwindow_add(void *me, void *object,
+		uv_bounding_box_st *bb) {
+	uv_uiwindow_add(me, object, bb);
 }
 
 static inline void uv_uitabwindow_clear(void *me) {

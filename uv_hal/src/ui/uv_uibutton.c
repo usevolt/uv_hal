@@ -44,22 +44,10 @@ void uv_uibutton_draw(void *me, const uv_bounding_box_st *pbb) {
 	color_t fontc = this->text_c;
 
 
-#if CONFIG_LCD
-	color_t framec = (this->state) ? this->style->active_frame_c : this->style->inactive_frame_c;
-
-	uv_lcd_draw_mrect(x, y, w, h, bgc, pbb);
-	uv_lcd_draw_mframe(x, y, w, h, 1, framec, pbb);
-
-	_uv_ui_draw_mtext(uv_ui_get_xglobal(this) + uv_ui_get_bb(this)->width / 2,
-			uv_ui_get_yglobal(this) + uv_ui_get_bb(this)->height / 2,
-			this->style->font, ALIGN_CENTER, fontc, bgc, this->text, 1.0f, pbb);
-
-#elif CONFIG_FT81X
 	uv_ft81x_draw_shadowrrect(x, y, w, h, CONFIG_UI_RADIUS,
 			 bgc, lightc, shadowc);
 	uv_ft81x_draw_string(this->text, this->font, x + w / 2,
 			y + h / 2, ALIGN_CENTER, fontc);
-#endif
 }
 
 uv_uiobject_ret_e uv_uibutton_step(void *me, uint16_t step_ms,

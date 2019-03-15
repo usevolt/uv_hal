@@ -49,9 +49,14 @@ void uv_uidialog_exec(void *me);
 
 
 /// @brief: Adds an object into uidialog
-static inline void uv_uidialog_add(void *me, void *object,
+static inline void uv_uidialog_addxy(void *me, void *object,
 		int16_t x, int16_t y, uint16_t width, uint16_t height) {
-	uv_uidisplay_add(me, object, x, y, width, height);
+	uv_uidisplay_addxy(me, object, x, y, width, height);
+}
+
+static inline void uv_uidialog_add(void *me, void *object,
+		uv_bounding_box_st *bb) {
+	uv_uidisplay_add(me, object, bb);
 }
 
 

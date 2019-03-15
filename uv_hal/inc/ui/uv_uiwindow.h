@@ -111,14 +111,20 @@ static inline void uv_uiwindow_content_move_to(const void *me,
 /// @param window: Pointer to the window where new object is added
 /// @param object: Pointer to the object which is added. If the new object is button,
 /// this should point to the button-structure.
-/// @param x: The object's bounding box's left-most coordinate relative to the window
-/// @param y: The object's bounding box's top-most coordinate relative to the window
-/// @param width: The width of the object in pixels. Some objects might not need this since
-/// they can calculate their own width. In this case give 0.
-/// @param height: The height of the object in pixels. Some ojects might not need this since
-/// they can calculate their own height, such as labels. In this case give 0.
-void uv_uiwindow_add(void *me, void *object,
-		int16_t x, int16_t y, uint16_t width, uint16_t height);
+/// @param bb: The bounding box structure defining the local coordinates and width and height
+void uv_uiwindow_add(void *me, void *object, uv_bounding_box_st *bb);
+
+/// @brief: Same as **uv_uiwindow_add* but with x, y, width and height instead of a boundign box
+static inline void uv_uiwindow_addxy(void *me, void *object,
+		int16_t x, int16_t y, uint16_t width, uint16_t height) {
+	uv_bounding_box_st bb;
+	bb.x = x;
+	bb.y = y;
+	bb.width = width;
+	bb.height = height;
+	uv_uiwindow_add(me, object, &bb);
+}
+
 
 /// @brief: Removes **object** from the window.
 void uv_uiwindow_remove(void *me, void *object);

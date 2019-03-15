@@ -230,7 +230,7 @@ int32_t uv_uinumpaddialog_exec(const char *title, int32_t def_value, const uv_ui
 	uv_uidialog_set_stepcallback(&d, &exec_callb);
 
 	uv_uinumpad_init(&numpad, title, &uv_uistyles[0]);
-	uv_uidialog_add(&d, &numpad, 0, 0,
+	uv_uidialog_addxy(&d, &numpad, 0, 0,
 			uv_uibb(&d)->width, uv_uibb(&d)->height);
 
 	uv_uidialog_exec(&d);

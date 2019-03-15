@@ -40,6 +40,7 @@
 #include "ui/uv_uidigitedit.h"
 #include "ui/uv_uiimage.h"
 #include "ui/uv_uimediabutton.h"
+#include "ui/uv_uilistbutton.h"
 #include <stdarg.h>
 
 

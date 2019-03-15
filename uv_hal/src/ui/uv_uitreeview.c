@@ -169,7 +169,7 @@ void uv_uitreeview_close(void *me, uv_uitreeobject_st *obj) {
 
 void uv_uitreeview_add(void *me, uv_uitreeobject_st * const object,
 		const int16_t content_height, const bool active) {
-	uv_uiwindow_add((uv_uiwindow_st*) this, object, 0,
+	uv_uiwindow_addxy((uv_uiwindow_st*) this, object, 0,
 			CONFIG_UI_TREEVIEW_ITEM_HEIGHT * ((uv_uiwindow_st*)this)->objects_count,
 			uv_uiwindow_get_contentbb(this).width, CONFIG_UI_TREEVIEW_ITEM_HEIGHT + content_height);
 	if (active) {

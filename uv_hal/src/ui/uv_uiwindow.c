@@ -133,10 +133,9 @@ void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array, const uv_ui
 
 
 
-void uv_uiwindow_add(void *me, void *object,
-		int16_t x, int16_t y, uint16_t width, uint16_t height) {
+void uv_uiwindow_add(void *me, void *object, uv_bounding_box_st *bb) {
 
-	uv_bounding_box_init(&((uv_uiobject_st*) object)->bb, x, y, width, height);
+	uv_bounding_box_init(&((uv_uiobject_st*) object)->bb, bb->x, bb->y, bb->width, bb->height);
 	((uv_uiobject_st*) object)->parent = this;
 	uv_ui_refresh(object);
 	this->objects[this->objects_count++] = object;
