@@ -52,18 +52,48 @@
 #if !defined(CONFIG_SOLENOID_MIN_CURRENT_DEF)
 #error "CONFIG_SOLENOID_MIN_CURRENT_DEF should define the default minimum current value for solenoid output in mA."
 #endif
+#if !defined(CONFIG_SOLENOID_MODE_PWM)
+#error "CONFIG_SOLENOID_MODE_PWM should define if the PWM mode and it's configuration settings are enabled"
+#endif
+#if CONFIG_SOLENOID_MODE_PWM
+#if !defined(CONFIG_SOLENOID_MIN_PERCENT_DEF)
+#error "CONFIG_SOLENOID_MIN_PERCENT_DEF should define the min percent default value in PWM mode"
+#endif
+#if !defined(CONFIG_SOLENOID_MAX_PERCENT_DEF)
+#error "CONFIG_SOLENOID_MAX_PERCENT_DEF should define the max percent default value in PWM mode"
+#endif
+#endif
+#if !defined(CONFIG_SOLENOID_MODE_ONOFF)
+#error "CONFIG_SOLENOID_MODE_ONOFF should define if the ONOFF mode and it's configuration settings are enabled"
+#endif
+#if CONFIG_SOLENOID_MODE_ONOFF
+#if !defined(CONFIG_SOLENOID_ONOFF_MODE_DEF)
+#error "CONFIG_SOLENOID_ONOFF_MODE_DEF should define the default state for ONOFF mode, either \
+SOLENOID_OUTPUT_ONOFF_MODE_NORMAL or SOLENOID_OUTPUT_ONOFF_MODE_TOGGLE."
+#endif
+#endif
 
 typedef enum {
 	/// @brief: Output is current controlled with a current sensing feedback
 	SOLENOID_OUTPUT_MODE_CURRENT,
 	/// @brief: Output is raw PWM output, controlled with duty cycle. Note that with this
 	/// mode the conf settings are straightly converted to PWM duty cycle values from 0 ... 1000.
-	SOLENOID_OUTPUT_MODE_PWM
+	SOLENOID_OUTPUT_MODE_PWM,
+	/// @brief: The output is on/off digital output, without any proportional functionality.
+	SOLENOID_OUTPUT_MODE_ONOFF
 } uv_solenoid_output_mode_st;
 
 
 #define SOLENOID_OUTPUT_MIN_MA_SUBINDEX		1
 #define SOLENOID_OUTPUT_MAX_MA_SUBINDEX		2
+
+
+enum {
+	SOLENOID_OUTPUT_ONOFF_MODE_NORMAL = 0,
+	SOLENOID_OUTPUT_ONOFF_MODE_TOGGLE
+};
+typedef uint16_t uv_solenoid_output_onoff_mode_e;
+
 
 /// @brief: Data structure for solenoid output configuration data.
 /// This can be stored in non-volatile memory.
@@ -74,6 +104,17 @@ typedef struct {
 	// maximum current in positive direction in milliamps in current mode,
 	// max pwm value in pwm mode
 	uint16_t max_ma;
+#if CONFIG_SOLENOID_MODE_PWM
+	// minimum PWM percent, equals to min_ma in current mode
+	uint16_t min_percent;
+	// maximum PWM percent, equals to max_ma in current mode
+	uint16_t max_percent;
+#endif
+#if CONFIG_SOLENOID_MODE_ONOFF
+	// defines if the output is toggleable. That is, the output is left ON
+	// waiting for another press to set it off.
+	uint16_t onoff_mode;
+#endif
 } uv_solenoid_output_conf_st;
 
 /// @brief: Resets the output values to defaults
@@ -107,6 +148,8 @@ typedef struct {
 	uv_moving_aver_st pwmaver;
 	/// @brief: PWM channel configured for this output
 	uv_pwm_channel_t pwm_chn;
+	// stores the last target value. Useful i.e. in ONOFF_TOGGLE mode
+	uint16_t last_target;
 
 } uv_solenoid_output_st;
 

@@ -143,6 +143,11 @@ static inline void uv_dual_solenoid_output_set(uv_dual_solenoid_output_st *this,
 	this->target_req = value;
 }
 
+/// @brief: Returns the target value, in -1000 ... 1000
+static inline int16_t uv_dual_solenoid_output_get_target(uv_dual_solenoid_output_st *this) {
+	return this->target;
+}
+
 
 /// @brief: Copies the configuration settings to the module
 void uv_dual_solenoid_output_set_conf(uv_dual_solenoid_output_st *this,
@@ -163,9 +168,9 @@ static inline uv_output_state_e uv_dual_solenoid_output_get_state(uv_dual_soleno
 
 
 /// @brief: Sets the mode for both outputs. The mode can be either current oŕ pwm.
+/// The B output is updated in the dual_solenoid_output_step function according to A output.
 static inline void uv_dual_solenoid_output_set_mode(uv_dual_solenoid_output_st *this,
 		uv_solenoid_output_mode_st value) {
-	uv_solenoid_output_set_mode(&this->solenoid[0], value);
 	uv_solenoid_output_set_mode(&this->solenoid[0], value);
 }
 

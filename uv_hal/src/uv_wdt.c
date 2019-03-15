@@ -17,11 +17,12 @@
 
 
 #include "uv_wdt.h"
+
+#if CONFIG_WDT
 #include "chip.h"
 #include "wwdt_15xx.h"
 
 
-#if CONFIG_WDT
 
 
 void _uv_wdt_init(void) {

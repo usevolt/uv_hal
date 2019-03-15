@@ -190,13 +190,15 @@ void uv_init(void *device) {
 	uv_set_application_ptr(device);
 	uv_mutex_init(&halmutex);
 
-#if CONFIG_TARGET_LPC1549
 	Chip_SYSCTL_PeriphReset(RESET_MUX);
 	Chip_SYSCTL_PeriphReset(RESET_IOCON);
 	Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_IOCON);
 	Chip_SWM_Init();
 	Chip_GPIO_Init(LPC_GPIO);
-#endif
+
+	// configure brown-out detection to reset the device
+	LPC_SYSCON->BODCTRL = (2 << 0) | (1 << 4);
+
 
 #if CONFIG_WDT
 	_uv_wdt_init();
@@ -207,9 +209,7 @@ void uv_init(void *device) {
 	// non-volatile settings.
 	uv_errors_e e = uv_memory_load(MEMORY_COM_PARAMS);
 	if (e) {
-#if CONFIG_CANOPEN
-		_uv_canopen_reset();
-#endif
+		_uv_rtos_hal_reset();
 	}
 
 #if CONFIG_UART0
@@ -318,3 +318,11 @@ void hal_task(void *nullptr) {
 
 
 
+
+
+void _uv_rtos_hal_reset(void) {
+	// reset all modules which depend on non-volatile settings
+#if CONFIG_CANOPEN
+		_uv_canopen_reset();
+#endif
+}

@@ -213,6 +213,9 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 		// calculate the HAL checksum and compare it to the loaded value
 		uint16_t crc = uv_memory_calc_crc(& CONFIG_NON_VOLATILE_START, sizeof(uv_data_start_t));
 		if (crc != CONFIG_NON_VOLATILE_END.hal_crc) {
+			// hal crc didn't match, which means that we have loaded invalid settings.
+			// Revert the HAL system defaults
+			_uv_rtos_hal_reset();
 			ret = ERR_START_CHECKSUM_NOT_MATCH;
 		}
 	}

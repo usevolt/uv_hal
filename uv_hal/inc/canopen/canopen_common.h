@@ -57,6 +57,7 @@ typedef uint8_t canopen_permissions_e;
 #define CANOPEN_IS_STRING(type) ((type) == CANOPEN_STRING)
 
 enum {
+	CANOPEN_UNDEFINED = 0,
 	CANOPEN_UNSIGNED8 = 1,
 	CANOPEN_SIGNED8 = 1,
 	CANOPEN_UNSIGNED16 = 2,

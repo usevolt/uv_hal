@@ -349,6 +349,10 @@ static inline void uv_rtos_end_scheduler(void) {
 #endif
 
 
+/// @brief: Resets the HAL layer non-volatile settings to default values
+///
+/// @note: Only for HAL library's internal use
+void _uv_rtos_hal_reset(void);
 
 
 

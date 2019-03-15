@@ -215,9 +215,6 @@ void uv_init(void *device) {
 	uv_set_application_ptr(device);
 	uv_mutex_init(&halmutex);
 
-	// configure brown-out detection to reset the device
-	LPC_SYSCON->BODCTRL = (2 << 0) | (1 << 4);
-
 #if CONFIG_TARGET_LPC1549
 	Chip_SYSCTL_PeriphReset(RESET_MUX);
 	Chip_SYSCTL_PeriphReset(RESET_IOCON);
