@@ -12,8 +12,6 @@
 #if CONFIG_UI
 
 
-static void touch(void *me, uv_touch_st *touch);
-
 
 #define this ((uv_uibutton_st*)me)
 
@@ -27,7 +25,7 @@ void uv_uibutton_init(void *me, char *text, const uv_uistyle_st *style) {
 	uv_delay_init(&this->delay, CONFIG_UI_BUTTON_LONGPRESS_DELAY_MS);
 
 	uv_uiobject_set_draw_callb(this, &uv_uibutton_draw);
-	uv_uiobject_set_touch_callb(this, &touch);
+	uv_uiobject_set_touch_callb(this, &_uv_uibutton_touch);
 	((uv_uiobject_st*) this)->step_callb = &uv_uibutton_step;
 }
 
@@ -72,7 +70,7 @@ uv_uiobject_ret_e uv_uibutton_step(void *me, uint16_t step_ms,
 }
 
 
-static void touch(void *me, uv_touch_st *touch) {
+void _uv_uibutton_touch(void *me, uv_touch_st *touch) {
 	if (uv_ui_get_enabled(this)) {
 		if (touch->action == TOUCH_IS_DOWN) {
 			if ((this->state != UIBUTTON_PRESSED) &&

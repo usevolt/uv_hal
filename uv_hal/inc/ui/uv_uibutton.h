@@ -108,6 +108,9 @@ uv_uiobject_ret_e uv_uibutton_step(void *me, uint16_t step_ms,
 void uv_uibutton_draw(void *me, const uv_bounding_box_st *pbb);
 
 
+void _uv_uibutton_touch(void *me, uv_touch_st *touch);
+
+
 
 #undef this
 
