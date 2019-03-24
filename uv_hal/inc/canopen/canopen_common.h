@@ -143,8 +143,6 @@ typedef struct {
 	uint32_t product_code;
 	/// @brief: This device's vendor specific revision number
 	uint32_t revision_number;
-	/// @brief: This device's specific serial number. Unique for each device
-	uint32_t serial_number[4];
 } canopen_identity_object_st;
 #define CANOPEN_IDENTITY_OBJECT_ARRAY_SIZE	7
 

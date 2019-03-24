@@ -143,6 +143,9 @@ initialization structure."
 #if !defined(CONFIG_CANOPEN_IDENTITY_INDEX)
 #define CONFIG_CANOPEN_IDENTITY_INDEX		0x1018
 #endif
+#if !defined(CONFIG_CANOPEN_VENDOR_ID)
+#define CONFIG_CANOPEN_VENDOR_ID		CANOPEN_USEVOLT_VENDOR_ID
+#endif
 #if !defined(CONFIG_CANOPEN_PROGRAM_DATA_INDEX)
 #define CONFIG_CANOPEN_PROGRAM_DATA_INDEX	0x1F50
 #endif
@@ -263,6 +266,9 @@ CONFIG_CANOPEN_EMCY_MSG_ID_x symbol should define the message ID, starting from 
 
 
 
+// The usevolt vendor ID assigned by CiA
+#define CANOPEN_USEVOLT_VENDOR_ID			0x049B
+
 
 typedef struct {
 	uint16_t cycle_time;
@@ -376,6 +382,7 @@ typedef struct {
 
 
 } _uv_canopen_st;
+
 
 extern _uv_canopen_st _canopen;
 
