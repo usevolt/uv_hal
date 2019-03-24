@@ -56,11 +56,11 @@
 #error "CONFIG_SOLENOID_MODE_PWM should define if the PWM mode and it's configuration settings are enabled"
 #endif
 #if CONFIG_SOLENOID_MODE_PWM
-#if !defined(CONFIG_SOLENOID_MIN_PERCENT_DEF)
-#error "CONFIG_SOLENOID_MIN_PERCENT_DEF should define the min percent default value in PWM mode"
+#if !defined(CONFIG_SOLENOID_MIN_PPT_DEF)
+#error "CONFIG_SOLENOID_MIN_PPT_DEF should define the min ppt default value in PWM mode"
 #endif
-#if !defined(CONFIG_SOLENOID_MAX_PERCENT_DEF)
-#error "CONFIG_SOLENOID_MAX_PERCENT_DEF should define the max percent default value in PWM mode"
+#if !defined(CONFIG_SOLENOID_MAX_PPT_DEF)
+#error "CONFIG_SOLENOID_MAX_PPT_DEF should define the max ppt default value in PWM mode"
 #endif
 #endif
 #if !defined(CONFIG_SOLENOID_MODE_ONOFF)
@@ -86,8 +86,8 @@ typedef enum {
 
 #define SOLENOID_OUTPUT_MIN_MA_SUBINDEX			1
 #define SOLENOID_OUTPUT_MAX_MA_SUBINDEX			2
-#define SOLENOID_OUTPUT_MIN_PERCENT_SUBINDEX	3
-#define SOLENOID_OUTPUT_MAX_PERCENT_SUBINDEX	4
+#define SOLENOID_OUTPUT_MIN_PPT_SUBINDEX		3
+#define SOLENOID_OUTPUT_MAX_PPT_SUBINDEX		4
 #define SOLENOID_OUTPUT_ONOFF_MODE_SUBINDEX		5
 
 #if CONFIG_SOLENOID_MODE_PWM
@@ -122,10 +122,10 @@ typedef struct {
 	// max pwm value in pwm mode
 	uint16_t max_ma;
 #if CONFIG_SOLENOID_MODE_PWM
-	// minimum PWM percent, equals to min_ma in current mode
-	uint16_t min_percent;
-	// maximum PWM percent, equals to max_ma in current mode
-	uint16_t max_percent;
+	// minimum PWM ppt, equals to min_ma in current mode
+	uint16_t min_ppt;
+	// maximum PWM ppt, equals to max_ma in current mode
+	uint16_t max_ppt;
 #endif
 #if CONFIG_SOLENOID_MODE_ONOFF
 	// defines if the output is toggleable. That is, the output is left ON

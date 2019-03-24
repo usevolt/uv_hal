@@ -100,17 +100,8 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 		if (this->conf->dec > 100) {
 			this->conf->dec = 100;
 		}
-		uint16_t acc, dec;
-
-		// in ONOFF mode acc and dec are always maximum
-		if (uv_solenoid_output_get_mode(&this->solenoid[0]) == SOLENOID_OUTPUT_MODE_ONOFF) {
-			acc = DUAL_SOLENOID_ACC_MAX;
-			dec = DUAL_SOLENOID_DEC_MAX;
-		}
-		else {
-			acc = this->conf->acc + ACC_MIN;
-			dec = this->conf->dec + DEC_MIN;
-		}
+		uint16_t acc = this->conf->acc;
+		uint16_t dec = this->conf->dec;
 
 		if (this->target_req > DUAL_SOLENOID_VALUE_MAX) {
 			this->target_req = DUAL_SOLENOID_VALUE_MAX;
@@ -122,37 +113,42 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 
 		}
 
-
-		// different moving average values for accelerating and decelerating
-		// maximum decelerating time is 1 sec
-		if ((abs(this->target_req) > abs(this->target)) &&
-				((int32_t) this->target_req * this->target >= 0)) {
-			// accelerating
-			uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * acc * acc / 10000);
-		}
-		else {
-			// decelerating
-			uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * dec * dec / 10000);
-		}
-
-		uv_pid_set_target(&this->target_pid, this->target_req * PID_MULTIPLIER);
-		uv_pid_step(&this->target_pid, TARGET_DELAY_MS, this->target_mult);
-		this->target_mult += uv_pid_get_output(&this->target_pid);
-		if ((this->target_mult / PID_MULTIPLIER) > 1000) {
-			this->target_mult = 1000;
-		}
-		else if ((this->target_mult / PID_MULTIPLIER) < -1000) {
-			this->target_mult = -1000;
-		}
-		else {
-
-		}
-		this->target = this->target_mult / PID_MULTIPLIER;
-
-		// clamp output to target value when we're close enough
-		if (uv_pid_get_output(&this->target_pid) == 0) {
+		// in ONOFF mode acc and dec are always maximum
+		if (uv_solenoid_output_get_mode(&this->solenoid[0]) == SOLENOID_OUTPUT_MODE_ONOFF) {
 			this->target = this->target_req;
-			this->target_mult = this->target_req * PID_MULTIPLIER;
+		}
+		else {
+			// different moving average values for accelerating and decelerating
+			// maximum decelerating time is 1 sec
+			if ((abs(this->target_req) > abs(this->target)) &&
+					((int32_t) this->target_req * this->target >= 0)) {
+				// accelerating
+				uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * acc * acc / 10000);
+			}
+			else {
+				// decelerating
+				uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * dec * dec / 10000);
+			}
+
+			uv_pid_set_target(&this->target_pid, this->target_req * PID_MULTIPLIER);
+			uv_pid_step(&this->target_pid, TARGET_DELAY_MS, this->target_mult);
+			this->target_mult += uv_pid_get_output(&this->target_pid);
+			if ((this->target_mult / PID_MULTIPLIER) > 1000) {
+				this->target_mult = 1000;
+			}
+			else if ((this->target_mult / PID_MULTIPLIER) < -1000) {
+				this->target_mult = -1000;
+			}
+			else {
+
+			}
+			this->target = this->target_mult / PID_MULTIPLIER;
+
+			// clamp output to target value when we're close enough
+			if (uv_pid_get_output(&this->target_pid) == 0) {
+				this->target = this->target_req;
+				this->target_mult = this->target_req * PID_MULTIPLIER;
+			}
 		}
 	}
 
@@ -185,7 +181,6 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 						-uv_solenoid_output_get_out(&this->solenoid[1]);
 	// only assembly invert should affect the direction here
 	this->current_ma *= (this->conf->assembly_invert) ? -1 : 1;
-	this->out *= (this->conf->assembly_invert) ? -1 : 1;
 
 }
 

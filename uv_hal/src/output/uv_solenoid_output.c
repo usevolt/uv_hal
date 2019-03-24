@@ -47,8 +47,8 @@ void uv_solenoid_output_conf_reset(uv_solenoid_output_conf_st *conf) {
 	conf->min_ma = CONFIG_SOLENOID_MIN_CURRENT_DEF;
 	conf->max_ma = CONFIG_SOLENOID_MAX_CURRENT_DEF;
 #if CONFIG_SOLENOID_MODE_PWM
-	conf->min_percent = CONFIG_SOLENOID_MIN_PERCENT_DEF;
-	conf->max_percent = CONFIG_SOLENOID_MAX_PERCENT_DEF;
+	conf->min_ppt = CONFIG_SOLENOID_MIN_PPT_DEF;
+	conf->max_ppt = CONFIG_SOLENOID_MAX_PPT_DEF;
 #endif
 #if CONFIG_SOLENOID_MODE_ONOFF
 	conf->onoff_mode = CONFIG_SOLENOID_ONOFF_MODE_DEF;
@@ -116,6 +116,7 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 			this->dither_ampl *= -1;
 		}
 		this->pwm = 0;
+		this->out = 0;
 	}
 	else {
 		// output is ON
@@ -127,6 +128,10 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 		}
 
 		int16_t output = 0;
+
+		if (this->target > 1000) {
+			this->target = 1000;
+		}
 
 		// solenoid is current driven
 		if (this->mode == SOLENOID_OUTPUT_MODE_CURRENT) {
@@ -166,10 +171,8 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 		else if (this->mode == SOLENOID_OUTPUT_MODE_PWM) {
 #if CONFIG_SOLENOID_MODE_PWM
 			if (this->target) {
-				int32_t rel = uv_reli(this->target, this->conf->min_percent * 10,
-						uv_mini(this->conf->max_percent * 10, 1000));
-				output = uv_lerpi(rel, this->conf->min_percent * 10,
-						uv_mini(this->conf->max_percent * 10, 1000));
+				output = uv_lerpi(this->target, this->conf->min_ppt,
+						uv_mini(this->conf->max_ppt, 1000));
 			}
 			this->out = output;
 #endif
