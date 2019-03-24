@@ -60,6 +60,12 @@ void _uv_uilabel_draw(void *me, const uv_bounding_box_st *pbb);
 void uv_uilabel_set_text(void *me, char *str);
 
 
+/// @brief: Returns the current text assigned to the uilabel
+static inline char *uv_uilabel_get_text(void *me) {
+	return this->str;
+}
+
+
 /// @brief: Sets the color of the label text
 void uv_uilabel_set_color(void *me, color_t c);
 

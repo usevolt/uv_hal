@@ -66,10 +66,9 @@ void _uv_canopen_init(void) {
 	}
 	this->can_callback = NULL;
 	this->device_type = 'U';
-	this->identity.vendor_id = ('U' << 24) | ('S' << 16) | ('E' << 8) | ('V');
+	this->identity.vendor_id = CONFIG_CANOPEN_VENDOR_ID;
 	this->identity.product_code = 0;
 	this->identity.revision_number = 0;
-	memset(this->identity.serial_number, 0, sizeof(this->identity.serial_number));
 	this->restore_req[0] = 0x1;
 	this->restore_req[1] = 0x1;
 	this->restore_req[2] = 0x1;
