@@ -120,8 +120,8 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 		else {
 			// different moving average values for accelerating and decelerating
 			// maximum decelerating time is 1 sec
-			if ((abs(this->target_req) > abs(this->target)) &&
-					((int32_t) this->target_req * this->target >= 0)) {
+			if ((abs(this->target_req) > abs(this->target)) ||
+					((int32_t) this->target_req * this->target < 0)) {
 				// accelerating
 				uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * acc * acc / 10000);
 			}
@@ -174,11 +174,11 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 
 
 	// update current output
-	int16_t ca = uv_solenoid_output_get_current(&this->solenoid[DUAL_OUTPUT_SOLENOID_A]);
-	int16_t cb = uv_solenoid_output_get_current(&this->solenoid[DUAL_OUTPUT_SOLENOID_B]);
-	this->current_ma = (ca) ? ca : -cb;
-	this->out = (ca) ? uv_solenoid_output_get_out(&this->solenoid[0]) :
-						-uv_solenoid_output_get_out(&this->solenoid[1]);
+	int16_t ca = uv_solenoid_output_get_out(&this->solenoid[DUAL_OUTPUT_SOLENOID_A]);
+	int16_t cb = uv_solenoid_output_get_out(&this->solenoid[DUAL_OUTPUT_SOLENOID_B]);
+	this->current_ma = (ca) ? uv_solenoid_output_get_current(&this->solenoid[0]) :
+			-uv_solenoid_output_get_current(&this->solenoid[1]);
+	this->out = (ca) ? ca : -cb;
 	// only assembly invert should affect the direction here
 	this->current_ma *= (this->conf->assembly_invert) ? -1 : 1;
 

@@ -144,7 +144,16 @@ initialization structure."
 #define CONFIG_CANOPEN_IDENTITY_INDEX		0x1018
 #endif
 #if !defined(CONFIG_CANOPEN_VENDOR_ID)
+#warning "CANOPEN VENDOR ID set by default to Usevolt Oy Vendor ID. Define ti with CONFIG_CANOPEN_VENDOR_ID."
 #define CONFIG_CANOPEN_VENDOR_ID		CANOPEN_USEVOLT_VENDOR_ID
+#endif
+#if !defined(CONFIG_CANOPEN_PRODUCT_CODE)
+#warning "CANopen Product code set to 0 by default. Define it with CONFIG_CANOPEN_PRODUCT_CODE."
+#define CONFIG_CANOPEN_PRODUCT_CODE		0
+#endif
+#if !defined(CONFIG_CANOPEN_REVISION_NUMBER)
+#warning "CANopen revision number set to 0 by default. Define it with CONFIG_CANOPEN_REVISION_NUMBER."
+#define CONFIG_CANOPEN_REVISION_NUMBER	0
 #endif
 #if !defined(CONFIG_CANOPEN_PROGRAM_DATA_INDEX)
 #define CONFIG_CANOPEN_PROGRAM_DATA_INDEX	0x1F50
