@@ -20,6 +20,8 @@
 
 #if CONFIG_HALSENSOR
 
+#define MAX_VAL_THRESHOLD	(ADC_MAX_VALUE / 20)
+
 void uv_halsensor_config_reset(uv_halsensor_config_st *this) {
 	this->max = CONFIG_HALSENSOR_MAX_DEF;
 	this->min = CONFIG_HALSENSOR_MIN_DEF;
@@ -48,8 +50,11 @@ int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 	if (this->state == HALSENSOR_STATE_ON) {
 		// check if there's a fault in the input
 		// fault limits are double of the config min & max values relative to ADC_MAX_VALUE
+		// In case the max value is too close to ADC_MAX_VALUE, the upper limit is disabled
+		int32_t max_val = (this->config->max > ADC_MAX_VALUE - MAX_VAL_THRESHOLD) ?
+				ADC_MAX_VALUE + 1 : (this->config->max + (ADC_MAX_VALUE - this->config->max) / 2);
 		if ((adc < this->config->min / 2) ||
-				(adc > (this->config->max + (ADC_MAX_VALUE - this->config->max) / 2))) {
+				(adc > max_val)) {
 			if (uv_moving_aver_is_full(&this->moving_aver)) {
 				uv_canopen_emcy_send(CANOPEN_EMCY_DEVICE_SPECIFIC, this->fault_emcy);
 			}

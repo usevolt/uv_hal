@@ -46,6 +46,13 @@
 #endif
 
 
+#define HALSENSOR_CONFIG_MIN_SUBINDEX				1
+#define HALSENSOR_CONFIG_MAX_SUBINDEX				2
+#define HALSENSOR_CONFIG_MIDDLE_SUBINDEX			3
+#define HALSENSOR_CONFIG_MIDDLE_TOLERANCE_SUBINDEX	4
+#define HALSENSOR_CONFIG_SUBINDEX_COUNT				5
+
+
 /// @brief: HAL sensor states
 enum {
 	// sensor is operational
