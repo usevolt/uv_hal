@@ -28,6 +28,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb);
 static void touch(void *me, uv_touch_st *touch);
 
 
+#define TITLE_OFFSET	4
 
 #define this ((uv_uidigitedit_st *) me)
 
@@ -43,6 +44,8 @@ void uv_uidigitedit_init(void *me, uv_font_st *font,
 	this->value = !value;
 	this->changed = false;
 	this->numpaddialog_title = "";
+	this->title = NULL;
+	this->bg_color = style->active_bg_c;
 	uv_uidigitedit_set_value(this, value);
 
 }
@@ -52,6 +55,7 @@ void uv_uidigitedit_set_value(void *me, uint32_t value) {
 	if (this->value != value) {
 		sprintf(this->str, "%u", (unsigned int) value);
 		uv_uilabel_set_text(this, this->str);
+		uv_ui_refresh(this);
 		this->changed = true;
 	}
 	this->value = value;
@@ -71,10 +75,15 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	else {
 		y += (uv_uibb(this)->height - height) / 2;
 	}
-	uv_ft81x_draw_shadowrrect(x, y, uv_uibb(this)->width, height,
-			CONFIG_UI_RADIUS, C(0xFFFFFFFF), C(0xFFDDDDDD), C(0xFFBBBBBB));
+	uv_ft81x_draw_shadowrrect(x, y, uv_uibb(this)->width, height, 0, this->bg_color,
+			uv_uic_brighten(this->bg_color, -30), uv_uic_brighten(this->bg_color, 30));
 
 	_uv_uilabel_draw(this, pbb);
+
+	if (this->title) {
+		uv_ft81x_draw_string(this->title, ((uv_uilabel_st*) this)->font, x + uv_uibb(this)->width / 2,
+				y + height + TITLE_OFFSET, ALIGN_TOP_CENTER, ((uv_uilabel_st*) this)->color);
+	}
 }
 
 
