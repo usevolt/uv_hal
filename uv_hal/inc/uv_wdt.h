@@ -23,7 +23,6 @@
 
 
 
-#if CONFIG_WDT
 
 #if !CONFIG_WDT_CYCLE_S
 #error "CONFIG_WDT_CYCLE_S should define the watchdog timer cycle time in seconds."
@@ -41,7 +40,5 @@ void _uv_wdt_init(void);
 void uv_wdt_update(void);
 
 
-
-#endif
 
 #endif /* UW_WDT_H_ */

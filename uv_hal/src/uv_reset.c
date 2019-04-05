@@ -31,6 +31,7 @@
 #include "uv_wdt.h"
 #include "uv_memory.h"
 #include <string.h>
+#include <uv_rtos.h>
 
 
 void uv_system_reset() {
@@ -45,6 +46,14 @@ void uv_system_reset() {
 
 void uv_bootloader_start() {
 #if !CONFIG_TARGET_LINUX && !CONFIG_TARGET_WIN
+	// BUGFIX NOTE: When resetting, SCT PWM outputs are left ON, keeping
+	// those pins pulled low. To prevent this, SWM mappings from SCT timers
+	// will be cleared here. Some testing with SYSCON periph resets didn't work...
+	LPC_SWM->PINASSIGN[7] |= 0x00FFFFFF;
+	LPC_SWM->PINASSIGN[8] = 0xFFFFFFFF;
+	LPC_SWM->PINASSIGN[9] = 0xFFFFFFFF;
+	LPC_SWM->PINASSIGN[10] |= 0xFF;
+
 	NVIC_SystemReset();
 #else
 	exit(0);

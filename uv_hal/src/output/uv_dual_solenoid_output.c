@@ -29,9 +29,10 @@
 #define DEC_MIN				60
 
 
-void uv_dual_solenoid_output_conf_reset(uv_dual_solenoid_output_conf_st *this) {
-	uv_solenoid_output_conf_reset(&this->solenoid_conf[0]);
-	uv_solenoid_output_conf_reset(&this->solenoid_conf[1]);
+void uv_dual_solenoid_output_conf_reset(uv_dual_solenoid_output_conf_st *this,
+		uv_dual_solenoid_output_limitconf_st *limitconf) {
+	uv_solenoid_output_conf_reset(&this->solenoid_conf[0], &limitconf->solenoid_limitconf[0]);
+	uv_solenoid_output_conf_reset(&this->solenoid_conf[1], &limitconf->solenoid_limitconf[1]);
 	this->acc = CONFIG_DUAL_SOLENOID_ACC_DEF;
 	this->dec = CONFIG_DUAL_SOLENOID_DEC_DEF;
 	this->invert = false;
@@ -42,30 +43,36 @@ void uv_dual_solenoid_output_conf_reset(uv_dual_solenoid_output_conf_st *this) {
 
 void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 		uv_dual_solenoid_output_conf_st *conf,
+		uv_dual_solenoid_output_limitconf_st *limitconf,
 		uv_pwm_channel_t pwm_a, uv_pwm_channel_t pwm_b,
 		uv_adc_channels_e adc_common,
 		uint16_t dither_freq, int16_t dither_ampl,
 		uint16_t sense_ampl, uint16_t max_current, uint16_t fault_current,
 		uint32_t emcy_overload_a, uint32_t emcy_overload_b,
 		uint32_t emcy_fault_a, uint32_t emcy_fault_b) {
+	this->conf = conf;
+	this->limitconf = limitconf;
 	this->target_req = 0;
 	this->target = 0;
 	this->target_mult = 0;
 	this->current_ma = 0;
 	this->out = 0;
-	this->conf = conf;
 	uv_pid_init(&this->target_pid, PID_P_MAX, 0, 0);
 	uv_delay_init(&this->target_delay, TARGET_DELAY_MS);
 
 
 	uv_solenoid_output_init(&this->solenoid[DUAL_OUTPUT_SOLENOID_A],
-			&this->conf->solenoid_conf[DUAL_OUTPUT_SOLENOID_A], pwm_a, dither_freq,
-			dither_ampl, adc_common, sense_ampl, max_current, fault_current,
+			&this->conf->solenoid_conf[DUAL_OUTPUT_SOLENOID_A],
+			&this->limitconf->solenoid_limitconf[DUAL_OUTPUT_SOLENOID_A],
+			pwm_a, dither_freq, dither_ampl,
+			adc_common, sense_ampl, max_current, fault_current,
 			emcy_overload_a, emcy_fault_a);
 
 	uv_solenoid_output_init(&this->solenoid[DUAL_OUTPUT_SOLENOID_B],
-			&this->conf->solenoid_conf[DUAL_OUTPUT_SOLENOID_B], pwm_b, dither_freq,
-			dither_ampl, adc_common, sense_ampl, max_current, fault_current,
+			&this->conf->solenoid_conf[DUAL_OUTPUT_SOLENOID_B],
+			&this->limitconf->solenoid_limitconf[DUAL_OUTPUT_SOLENOID_B],
+			pwm_b, dither_freq, dither_ampl,
+			adc_common, sense_ampl, max_current, fault_current,
 			emcy_overload_b, emcy_fault_b);
 }
 
@@ -114,7 +121,8 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 		}
 
 		// in ONOFF mode acc and dec are always maximum
-		if (uv_solenoid_output_get_mode(&this->solenoid[0]) == SOLENOID_OUTPUT_MODE_ONOFF) {
+		if (uv_solenoid_output_get_mode(&this->solenoid[0]) == SOLENOID_OUTPUT_MODE_ONOFF_NORMAL ||
+				uv_solenoid_output_get_mode(&this->solenoid[0]) == SOLENOID_OUTPUT_MODE_ONOFF_TOGGLE) {
 			this->target = this->target_req;
 		}
 		else {

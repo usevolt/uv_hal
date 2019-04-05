@@ -21,7 +21,7 @@
 #if CONFIG_WDT
 #include "chip.h"
 #include "wwdt_15xx.h"
-
+#include <stdio.h>
 
 
 
@@ -53,5 +53,12 @@ void uv_wdt_update(void) {
 	__enable_irq();
 }
 
+
+
+#else
+
+void uv_wdt_update(void) {
+
+}
 
 #endif

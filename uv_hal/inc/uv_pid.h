@@ -53,6 +53,7 @@ typedef struct {
 	int32_t input;
 	int32_t target;
 	int32_t output;
+	int32_t last_err;
 	pid_state_e state;
 } uv_pid_st;
 

@@ -49,28 +49,15 @@
 #if !defined(CONFIG_SOLENOID_MAX_CURRENT_DEF)
 #error "CONFIG_SOLENOID_MAX_CURRENT_DEF should define the default maximum current value for solenoid output in mA."
 #endif
-#if !defined(CONFIG_SOLENOID_MIN_CURRENT_DEF)
-#error "CONFIG_SOLENOID_MIN_CURRENT_DEF should define the default minimum current value for solenoid output in mA."
-#endif
 #if !defined(CONFIG_SOLENOID_MODE_PWM)
 #error "CONFIG_SOLENOID_MODE_PWM should define if the PWM mode and it's configuration settings are enabled"
-#endif
-#if CONFIG_SOLENOID_MODE_PWM
-#if !defined(CONFIG_SOLENOID_MIN_PPT_DEF)
-#error "CONFIG_SOLENOID_MIN_PPT_DEF should define the min ppt default value in PWM mode"
 #endif
 #if !defined(CONFIG_SOLENOID_MAX_PPT_DEF)
 #error "CONFIG_SOLENOID_MAX_PPT_DEF should define the max ppt default value in PWM mode"
 #endif
-#endif
-#if !defined(CONFIG_SOLENOID_MODE_ONOFF)
-#error "CONFIG_SOLENOID_MODE_ONOFF should define if the ONOFF mode and it's configuration settings are enabled"
-#endif
-#if CONFIG_SOLENOID_MODE_ONOFF
 #if !defined(CONFIG_SOLENOID_ONOFF_MODE_DEF)
 #error "CONFIG_SOLENOID_ONOFF_MODE_DEF should define the default state for ONOFF mode, either \
 SOLENOID_OUTPUT_ONOFF_MODE_NORMAL or SOLENOID_OUTPUT_ONOFF_MODE_TOGGLE."
-#endif
 #endif
 
 typedef enum {
@@ -80,63 +67,38 @@ typedef enum {
 	/// mode the conf settings are straightly converted to PWM duty cycle values from 0 ... 1000.
 	SOLENOID_OUTPUT_MODE_PWM,
 	/// @brief: The output is on/off digital output, without any proportional functionality.
-	SOLENOID_OUTPUT_MODE_ONOFF
+	SOLENOID_OUTPUT_MODE_ONOFF_NORMAL,
+	/// @brief: Solenoid is ONOFF with TOGGLE mode, meaning that the output is left on
+	/// with a click of the input request
+	SOLENOID_OUTPUT_MODE_ONOFF_TOGGLE
 } uv_solenoid_output_mode_st;
 
 
-#define SOLENOID_OUTPUT_MIN_MA_SUBINDEX			1
-#define SOLENOID_OUTPUT_MAX_MA_SUBINDEX			2
-#define SOLENOID_OUTPUT_MIN_PPT_SUBINDEX		3
-#define SOLENOID_OUTPUT_MAX_PPT_SUBINDEX		4
-#define SOLENOID_OUTPUT_ONOFF_MODE_SUBINDEX		5
-
-#if CONFIG_SOLENOID_MODE_PWM
-#define _SOLENOID_PWM_SUBINDEX_COUNT			2
-#else
-#define _SOLENOID_PWM_SUBINDEX_COUNT			0
-#endif
-#if CONFIG_SOLENOID_MODE_ONOFF
-#define _SOLENOID_ONOFF_SUBINDEX_COUNT			1
-#else
-#define _SOLENOID_ONOFF_SUBINDEX_COUNT			0
-#endif
-#define SOLENOID_OUTPUT_CONFIG_SUBINDEX_COUNT	(2 + \
-		_SOLENOID_PWM_SUBINDEX_COUNT + \
-		_SOLENOID_ONOFF_SUBINDEX_COUNT)
+#define SOLENOID_OUTPUT_MIN_PPT_SUBINDEX			1
+#define SOLENOID_OUTPUT_MAX_MPPT_SUBINDEX			2
 
 
-enum {
-	SOLENOID_OUTPUT_ONOFF_MODE_NORMAL = 0,
-	SOLENOID_OUTPUT_ONOFF_MODE_TOGGLE,
-	SOLENOID_OUTPUT_ONOFF_MODE_COUNT
-};
-typedef uint16_t uv_solenoid_output_onoff_mode_e;
 
 
 /// @brief: Data structure for solenoid output configuration data.
 /// This can be stored in non-volatile memory.
 typedef struct {
-	// minimum current in positive direction in milliamps in current mode,
-	// min pwm value in pwm mode
-	uint16_t min_ma;
-	// maximum current in positive direction in milliamps in current mode,
-	// max pwm value in pwm mode
-	uint16_t max_ma;
-#if CONFIG_SOLENOID_MODE_PWM
 	// minimum PWM ppt, equals to min_ma in current mode
 	uint16_t min_ppt;
 	// maximum PWM ppt, equals to max_ma in current mode
 	uint16_t max_ppt;
-#endif
-#if CONFIG_SOLENOID_MODE_ONOFF
-	// defines if the output is toggleable. That is, the output is left ON
-	// waiting for another press to set it off.
-	uint16_t onoff_mode;
-#endif
 } uv_solenoid_output_conf_st;
 
+typedef struct {
+	// maximum milliamps in current mode
+	uint16_t max_ma;
+	// maximum PWM duty cycle in PWM mode
+	uint16_t max_ppt;
+} uv_solenoid_output_limitconf_st;
+
 /// @brief: Resets the output values to defaults
-void uv_solenoid_output_conf_reset(uv_solenoid_output_conf_st *conf);
+void uv_solenoid_output_conf_reset(uv_solenoid_output_conf_st *conf,
+		uv_solenoid_output_limitconf_st *limitconf);
 
 
 
@@ -147,6 +109,8 @@ typedef struct {
 
 	// solenoid configuration parameters
 	uv_solenoid_output_conf_st *conf;
+
+	uv_solenoid_output_limitconf_st *limitconf;
 
 	/// @brief: Dither time cycle (1 / frequency)
 	uint16_t dither_ms;
@@ -190,9 +154,10 @@ typedef struct {
 /// @emcy_overload: CANopen EMCY message for overload situation
 // @emcy_fault: CANopen EMCY message for fault situation
 void uv_solenoid_output_init(uv_solenoid_output_st *this,
-		uv_solenoid_output_conf_st *conf_ptr, uv_pwm_channel_t pwm_chn,
-		uint16_t dither_freq, int16_t dither_ampl, uv_adc_channels_e adc_chn,
-		uint16_t sense_ampl, uint16_t max_current, uint16_t fault_current,
+		uv_solenoid_output_conf_st *conf_ptr, uv_solenoid_output_limitconf_st *limitconf,
+		uv_pwm_channel_t pwm_chn, uint16_t dither_freq, int16_t dither_ampl,
+		uv_adc_channels_e adc_chn, uint16_t sense_ampl,
+		uint16_t max_current, uint16_t fault_current,
 		uint32_t emcy_overload, uint32_t emcy_fault);
 
 

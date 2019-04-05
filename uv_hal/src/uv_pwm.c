@@ -30,7 +30,7 @@
 #if CONFIG_TARGET_LPC1549
 typedef struct {
 	LPC_SCT_T *modules[4];
-	uint16_t pwm_freq[4];
+	uint32_t pwm_freq[4];
 } pwm_st;
 static pwm_st pwm;
 #define this (&pwm)

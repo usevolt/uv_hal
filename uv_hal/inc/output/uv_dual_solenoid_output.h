@@ -84,8 +84,14 @@ typedef struct {
 } uv_dual_solenoid_output_conf_st;
 
 
+typedef struct {
+	uv_solenoid_output_limitconf_st solenoid_limitconf[DUAL_OUTPUT_SOLENOID_COUNT];
+} uv_dual_solenoid_output_limitconf_st;
+
+
 /// @brief: Resets the dual solenoid output configuration module to default settings
-void uv_dual_solenoid_output_conf_reset(uv_dual_solenoid_output_conf_st *this);
+void uv_dual_solenoid_output_conf_reset(uv_dual_solenoid_output_conf_st *this,
+		uv_dual_solenoid_output_limitconf_st *limitconf);
 
 
 /// @brief: Dual solenoid output module. Works as a data structure for controlling dual
@@ -96,6 +102,7 @@ typedef struct {
 
 	// parameter configurations
 	uv_dual_solenoid_output_conf_st *conf;
+	uv_dual_solenoid_output_limitconf_st *limitconf;
 
 	// the requested target output value from -1000 to 1000, the actual drive current is
 	// based on solenoid output configurations.
@@ -120,6 +127,7 @@ typedef struct {
 /// @brief: Initializes the dual solenoid output module
 void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 		uv_dual_solenoid_output_conf_st *conf,
+		uv_dual_solenoid_output_limitconf_st *limitconf,
 		uv_pwm_channel_t pwm_a, uv_pwm_channel_t pwm_b,
 		uv_adc_channels_e adc_common,
 		uint16_t dither_freq, int16_t dither_ampl,
