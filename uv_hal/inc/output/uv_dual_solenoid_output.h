@@ -199,12 +199,12 @@ static inline uv_output_state_e uv_dual_solenoid_output_get_state(uv_dual_soleno
 /// @brief: Sets the mode for both outputs. The mode can be either current oŕ pwm.
 /// The B output is updated in the dual_solenoid_output_step function according to A output.
 static inline void uv_dual_solenoid_output_set_mode(uv_dual_solenoid_output_st *this,
-		uv_solenoid_output_mode_st value) {
+		uv_solenoid_output_mode_e value) {
 	uv_solenoid_output_set_mode(&this->solenoid[0], value);
 }
 
 /// @brief: Returns the solenoid mode
-static inline uv_solenoid_output_mode_st uv_dual_solenoid_output_get_mode(uv_dual_solenoid_output_st *this) {
+static inline uv_solenoid_output_mode_e uv_dual_solenoid_output_get_mode(uv_dual_solenoid_output_st *this) {
 	return this->solenoid[0].mode;
 }
 
