@@ -129,7 +129,8 @@ void uv_ref_output_step(uv_ref_output_st *this, uint16_t vdd_mv, uint16_t step_m
 	}
 
 	this->out = uv_moving_aver_step(&this->out_avg, get_mv(this)) *
-			((this->conf->assembly_invert) ? -1 : 1);
+			((this->conf->assembly_invert) ? -1 : 1) *
+			((this->target < 0) ? -1 : 1);
 
 	// target driving
 	if (this->mode != REF_OUTPUT_MODE_ONOFFABS &&
@@ -259,7 +260,7 @@ void uv_ref_output_step(uv_ref_output_st *this, uint16_t vdd_mv, uint16_t step_m
 
 		this->target_mv = target_mv;
 		uv_pid_set_target(&this->mv_pid, target_mv);
-		uv_pid_step(&this->mv_pid, step_ms, (int32_t) this->out);
+		uv_pid_step(&this->mv_pid, step_ms, (int32_t) uv_moving_aver_get_val(&this->out_avg));
 		int32_t pwmvalue = ((int32_t) this->pwm) + uv_pid_get_output(&this->mv_pid);
 
 //		printf("%i %i\n", uv_pid_get_output(&this->mv_pid), this->out);
