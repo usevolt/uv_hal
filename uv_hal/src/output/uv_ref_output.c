@@ -128,66 +128,82 @@ void uv_ref_output_step(uv_ref_output_st *this, uint16_t vdd_mv, uint16_t step_m
 		this->conf->assembly_invert = 0;
 	}
 
-	this->out = uv_moving_aver_step(&this->out_avg, get_mv(this));
+	this->out = uv_moving_aver_step(&this->out_avg, get_mv(this)) *
+			((this->conf->assembly_invert) ? -1 : 1);
 
 	// target driving
-	if (uv_delay(&this->target_delay, step_ms)) {
-		uv_delay_init(&this->target_delay, TARGET_DELAY_MS);
+	if (this->mode != REF_OUTPUT_MODE_ONOFFABS &&
+			this->mode != REF_OUTPUT_MODE_ONOFFREL) {
+		if (uv_delay(&this->target_delay, step_ms)) {
+			uv_delay_init(&this->target_delay, TARGET_DELAY_MS);
 
-		if (this->conf->acc > 100) {
-			this->conf->acc = 100;
-		}
-		if (this->conf->dec > 100) {
-			this->conf->dec = 100;
-		}
-		uint16_t acc = this->conf->acc;
-		uint16_t dec = this->conf->dec;
+			if (this->conf->acc > 100) {
+				this->conf->acc = 100;
+			}
+			if (this->conf->dec > 100) {
+				this->conf->dec = 100;
+			}
+			uint16_t acc = this->conf->acc;
+			uint16_t dec = this->conf->dec;
 
-		if (this->target_req > REF_OUTPUT_VALUE_MAX) {
-			this->target_req = REF_OUTPUT_VALUE_MAX;
+			if (this->target_req > REF_OUTPUT_VALUE_MAX) {
+				this->target_req = REF_OUTPUT_VALUE_MAX;
+			}
+			else if (this->target_req < REF_OUTPUT_VALUE_MIN) {
+				this->target_req = REF_OUTPUT_VALUE_MIN;
+			}
+			else {
+
+			}
+
+			// in disabled state the PID drives to zero
+			if (this->state == REF_OUTPUT_STATE_DISABLED) {
+				this->target_req = 0;
+			}
+
+			// different moving average values for accelerating and decelerating
+			// maximum decelerating time is 1 sec
+			if ((abs(this->target_req) > abs(this->target)) ||
+					((int32_t) this->target_req * this->target < 0)) {
+				// accelerating
+				uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * acc * acc / 10000);
+			}
+			else {
+				// decelerating
+				uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * dec * dec / 10000);
+			}
+
+			uv_pid_set_target(&this->target_pid, this->target_req * PID_MULTIPLIER);
+			uv_pid_step(&this->target_pid, TARGET_DELAY_MS, this->target_mult);
+			this->target_mult += uv_pid_get_output(&this->target_pid);
+			if ((this->target_mult / PID_MULTIPLIER) > 1000) {
+				this->target_mult = 1000;
+			}
+			else if ((this->target_mult / PID_MULTIPLIER) < -1000) {
+				this->target_mult = -1000;
+			}
+			else {
+
+			}
+			this->target = this->target_mult / PID_MULTIPLIER;
+
+			// clamp output to target value when we're close enough
+			if (uv_pid_get_output(&this->target_pid) == 0) {
+				this->target = this->target_req;
+				this->target_mult = this->target_req * PID_MULTIPLIER;
+			}
 		}
-		else if (this->target_req < REF_OUTPUT_VALUE_MIN) {
-			this->target_req = REF_OUTPUT_VALUE_MIN;
+	}
+	else {
+		// in onoff mode the PID controller is disabled and we put the output value directly
+		if (this->target_req > 0) {
+			this->target = 1000;
+		}
+		else if (this->target_req < 0) {
+			this->target = -1000;
 		}
 		else {
-
-		}
-
-		// in disabled state the PID drives to zero
-		if (this->state == REF_OUTPUT_STATE_DISABLED) {
-			this->target_req = 0;
-		}
-
-		// different moving average values for accelerating and decelerating
-		// maximum decelerating time is 1 sec
-		if ((abs(this->target_req) > abs(this->target)) ||
-				((int32_t) this->target_req * this->target < 0)) {
-			// accelerating
-			uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * acc * acc / 10000);
-		}
-		else {
-			// decelerating
-			uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * dec * dec / 10000);
-		}
-
-		uv_pid_set_target(&this->target_pid, this->target_req * PID_MULTIPLIER);
-		uv_pid_step(&this->target_pid, TARGET_DELAY_MS, this->target_mult);
-		this->target_mult += uv_pid_get_output(&this->target_pid);
-		if ((this->target_mult / PID_MULTIPLIER) > 1000) {
-			this->target_mult = 1000;
-		}
-		else if ((this->target_mult / PID_MULTIPLIER) < -1000) {
-			this->target_mult = -1000;
-		}
-		else {
-
-		}
-		this->target = this->target_mult / PID_MULTIPLIER;
-
-		// clamp output to target value when we're close enough
-		if (uv_pid_get_output(&this->target_pid) == 0) {
-			this->target = this->target_req;
-			this->target_mult = this->target_req * PID_MULTIPLIER;
+			this->target = 0;
 		}
 	}
 
@@ -198,7 +214,8 @@ void uv_ref_output_step(uv_ref_output_st *this, uint16_t vdd_mv, uint16_t step_m
 		int16_t limit_min_mv;
 		int16_t limit_max_mv;
 		// mode is REF_OUTPUT_MODE_REL
-		if (this->mode == REF_OUTPUT_MODE_REL) {
+		if (this->mode == REF_OUTPUT_MODE_REL ||
+				this->mode == REF_OUTPUT_MODE_ONOFFREL) {
 			limit_min_mv = vdd_mv * this->limitconf->limit_min_ppt / 1000;
 			limit_max_mv = vdd_mv * this->limitconf->limit_max_ppt / 1000;
 		}

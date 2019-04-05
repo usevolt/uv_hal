@@ -102,7 +102,11 @@ typedef enum {
 	// output voltage is relative to the supply voltage
 	REF_OUTPUT_MODE_REL = 0,
 	// output voltage is measured in absolute millivolts
-	REF_OUTPUT_MODE_ABS
+	REF_OUTPUT_MODE_ABS,
+	// output voltage is controlled digitally from 0 to vdd
+	REF_OUTPUT_MODE_ONOFFREL,
+	// output voltage is controlled digitally from 0 to limit mv
+	REF_OUTPUT_MODE_ONOFFABS
 } uv_ref_output_mode_e;
 
 
