@@ -207,6 +207,11 @@ static inline void uv_dual_solenoid_output_set_mode(uv_dual_solenoid_output_st *
 	uv_solenoid_output_set_mode(&this->solenoid[0], value);
 }
 
+/// @brief: Returns the solenoid mode
+static inline uv_solenoid_output_mode_st uv_dual_solenoid_output_get_mode(uv_dual_solenoid_output_st *this) {
+	return this->solenoid[0].mode;
+}
+
 
 #endif
 

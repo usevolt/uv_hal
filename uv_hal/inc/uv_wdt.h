@@ -23,11 +23,11 @@
 
 
 
-
+#if CONFIG_WDT
 #if !CONFIG_WDT_CYCLE_S
 #error "CONFIG_WDT_CYCLE_S should define the watchdog timer cycle time in seconds."
 #endif
-
+#endif
 
 /// @brief: Initializes watchdog timer and starts it. After this call the watchdog timer
 /// is locked and cannot be stopped.
