@@ -71,7 +71,7 @@ typedef enum {
 	/// @brief: Solenoid is ONOFF with TOGGLE mode, meaning that the output is left on
 	/// with a click of the input request
 	SOLENOID_OUTPUT_MODE_ONOFF_TOGGLE
-} uv_solenoid_output_mode_st;
+} uv_solenoid_output_mode_e;
 
 
 #define SOLENOID_OUTPUT_MIN_PPT_SUBINDEX			1
@@ -105,7 +105,7 @@ void uv_solenoid_output_conf_reset(uv_solenoid_output_conf_st *conf,
 typedef struct {
 	EXTENDS(uv_output_st);
 
-	uv_solenoid_output_mode_st mode;
+	uv_solenoid_output_mode_e mode;
 
 	// solenoid configuration parameters
 	uv_solenoid_output_conf_st *conf;
@@ -163,12 +163,12 @@ void uv_solenoid_output_init(uv_solenoid_output_st *this,
 
 /// @brief: Sets the output mode. Defaults to current controlled.
 static inline void uv_solenoid_output_set_mode(uv_solenoid_output_st *this,
-		uv_solenoid_output_mode_st mode) {
+		uv_solenoid_output_mode_e mode) {
 	this->mode = mode;
 }
 
 /// @brief: Returns the solenoid output mode
-static inline uv_solenoid_output_mode_st uv_solenoid_output_get_mode(uv_solenoid_output_st *this) {
+static inline uv_solenoid_output_mode_e uv_solenoid_output_get_mode(uv_solenoid_output_st *this) {
 	return this->mode;
 }
 
