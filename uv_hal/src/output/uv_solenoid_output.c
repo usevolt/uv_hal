@@ -165,6 +165,14 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 				uv_pid_get_output(&this->ma_pid) +
 				this->dither_ampl / 2;
 
+			// since current_func applies PWM correction, it can lead
+			// to a situation where pwm dc is non-zero but target is zero.
+			// Here we prevent that from happening.
+			if (this->target == 0 &&
+					uv_pid_get_output(&this->ma_pid) == 0) {
+				output = 0;
+			}
+
 			this->out = uv_output_get_current((uv_output_st*) this);
 		}
 		// solenoid is PWM driven
