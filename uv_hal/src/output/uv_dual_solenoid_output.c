@@ -120,9 +120,11 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 
 		}
 
-		// in ONOFF mode acc and dec are always maximum
+		// in ONOFF mode or when acc and dec are maximum, the pid controller is bypassed
 		if (uv_solenoid_output_get_mode(&this->solenoid[0]) == SOLENOID_OUTPUT_MODE_ONOFF_NORMAL ||
-				uv_solenoid_output_get_mode(&this->solenoid[0]) == SOLENOID_OUTPUT_MODE_ONOFF_TOGGLE) {
+				uv_solenoid_output_get_mode(&this->solenoid[0]) == SOLENOID_OUTPUT_MODE_ONOFF_TOGGLE ||
+				(acc == DUAL_SOLENOID_ACC_MAX &&
+						dec == DUAL_SOLENOID_DEC_MAX)) {
 			this->target = this->target_req;
 		}
 		else {

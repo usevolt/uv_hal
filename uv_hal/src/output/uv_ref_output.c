@@ -25,7 +25,7 @@
 #define PID_P_MAX			20000
 #define TARGET_DELAY_MS		20
 #define PID_MULTIPLIER		0x10
-#define OUT_AVG_COUNT		2
+#define OUT_AVG_COUNT		1
 
 
 void uv_ref_output_conf_reset(uv_ref_output_conf_st *conf, uv_ref_output_limitconf_st *limitconf) {
@@ -162,36 +162,44 @@ void uv_ref_output_step(uv_ref_output_st *this, uint16_t vdd_mv, uint16_t step_m
 				this->target_req = 0;
 			}
 
-			// different moving average values for accelerating and decelerating
-			// maximum decelerating time is 1 sec
-			if ((abs(this->target_req) > abs(this->target)) ||
-					((int32_t) this->target_req * this->target < 0)) {
-				// accelerating
-				uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * acc * acc / 10000);
-			}
-			else {
-				// decelerating
-				uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * dec * dec / 10000);
-			}
-
-			uv_pid_set_target(&this->target_pid, this->target_req * PID_MULTIPLIER);
-			uv_pid_step(&this->target_pid, TARGET_DELAY_MS, this->target_mult);
-			this->target_mult += uv_pid_get_output(&this->target_pid);
-			if ((this->target_mult / PID_MULTIPLIER) > 1000) {
-				this->target_mult = 1000;
-			}
-			else if ((this->target_mult / PID_MULTIPLIER) < -1000) {
-				this->target_mult = -1000;
-			}
-			else {
-
-			}
-			this->target = this->target_mult / PID_MULTIPLIER;
-
-			// clamp output to target value when we're close enough
-			if (uv_pid_get_output(&this->target_pid) == 0) {
+			// when acc and dec are maximum, bypass the pid controller to have
+			// minimum delays
+			if (acc == REF_OUTPUT_ACC_MAX &&
+					dec == REF_OUTPUT_DEC_MAX) {
 				this->target = this->target_req;
-				this->target_mult = this->target_req * PID_MULTIPLIER;
+			}
+			else {
+				// different moving average values for accelerating and decelerating
+				// maximum decelerating time is 1 sec
+				if ((abs(this->target_req) > abs(this->target)) ||
+						((int32_t) this->target_req * this->target < 0)) {
+					// accelerating
+					uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * acc * acc / 10000);
+				}
+				else {
+					// decelerating
+					uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * dec * dec / 10000);
+				}
+
+				uv_pid_set_target(&this->target_pid, this->target_req * PID_MULTIPLIER);
+				uv_pid_step(&this->target_pid, TARGET_DELAY_MS, this->target_mult);
+				this->target_mult += uv_pid_get_output(&this->target_pid);
+				if ((this->target_mult / PID_MULTIPLIER) > 1000) {
+					this->target_mult = 1000;
+				}
+				else if ((this->target_mult / PID_MULTIPLIER) < -1000) {
+					this->target_mult = -1000;
+				}
+				else {
+
+				}
+				this->target = this->target_mult / PID_MULTIPLIER;
+
+				// clamp output to target value when we're close enough
+				if (uv_pid_get_output(&this->target_pid) == 0) {
+					this->target = this->target_req;
+					this->target_mult = this->target_req * PID_MULTIPLIER;
+				}
 			}
 		}
 	}
