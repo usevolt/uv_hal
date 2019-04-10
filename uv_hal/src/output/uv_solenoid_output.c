@@ -242,6 +242,13 @@ void uv_solenoid_output_disable(uv_solenoid_output_st *this) {
 }
 
 
+void uv_solenoid_output_set_dither_ampl(
+		uv_solenoid_output_st *this, int16_t ampl) {
+	if (abs(this->dither_ampl) != ampl) {
+		this->dither_ampl = ampl;
+	}
+}
+
 
 
 

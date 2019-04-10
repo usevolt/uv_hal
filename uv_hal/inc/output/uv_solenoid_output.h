@@ -250,10 +250,8 @@ static inline int16_t uv_solenoid_output_get_dither_ampl(
 
 
 /// @brief: Sets the dither amplitude. Amplitude is in same unit as in uv_pwm.h
-static inline void uv_solenoid_output_set_dither_ampl(
-		uv_solenoid_output_st *this, int16_t ampl) {
-	this->dither_ampl = ampl;
-}
+void uv_solenoid_output_set_dither_ampl(
+		uv_solenoid_output_st *this, int16_t ampl);
 
 
 /// @brief: Returns the solenoid's current PWM duty cycle value
