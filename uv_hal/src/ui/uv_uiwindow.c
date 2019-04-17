@@ -126,6 +126,7 @@ void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array, const uv_ui
 	this->transparent = true;
 #endif
 	this->app_step_callb = NULL;
+	this->user_ptr = NULL;
 	uv_uiobject_set_draw_callb(this, &uv_uiwindow_draw);
 	uv_uiobject_set_touch_callb(this, &uv_uiwindow_touch_callb);
 	uv_uiobject_set_step_callb(this, &uv_uiwindow_step);
@@ -235,7 +236,7 @@ uv_uiobject_ret_e uv_uiwindow_step(void *me, uint16_t step_ms,
 	// call application step callback if one is assigned
 	if ((this->app_step_callb != NULL) &&
 			(((uv_uiobject_st*) this)->enabled)) {
-		ret |= this->app_step_callb(step_ms);
+		ret |= this->app_step_callb(this->user_ptr, step_ms);
 	}
 
 	if (!(ret & UIOBJECT_RETURN_KILLED)) {
@@ -359,6 +360,13 @@ void uv_uiwindow_touch_callb(void *me, uv_touch_st *touch) {
 	}
 }
 
+void uv_uiwindow_set_stepcallback(void *me,
+		uv_uiobject_ret_e (*step)(void *, const uint16_t),
+		void *user_ptr) {
+	this->app_step_callb = step;
+	this->user_ptr = user_ptr;
+}
+
 
 void uv_uiwindow_set_content_bb_default_pos(void *me,
 		const int16_t x, const int16_t y) {
@@ -373,7 +381,7 @@ void uv_uiwindow_clear(void *me) {
 		uv_ui_refresh(me);
 	}
 	this->objects_count = 0;
-	uv_uiwindow_set_stepcallback(me, NULL);
+	uv_uiwindow_set_stepcallback(me, NULL, NULL);
 	uv_uiobject_set_draw_callb(me, &uv_uiwindow_draw);
 }
 

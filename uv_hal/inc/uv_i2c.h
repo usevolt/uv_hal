@@ -22,9 +22,6 @@
 
 #if CONFIG_I2C
 
-#if !defined(CONFIG_I2C_TX_BUFFER_LEN)
-#error "CONFIG_I2C_TX_BUFFER_LEN not defined. It should define the maximum length of the I2C transmit buffer in bytes."
-#endif
 #if !defined(CONFIG_I2C_MODE)
 #error "CONFIG_I2C_MODE should be defined as I2C_MASTER or I2C_SLAVE."
 #endif
@@ -33,18 +30,9 @@
 #elif (CONFIG_I2C_BAUDRATE > 100000)
 #error "CONFIG_I2C_BAUDRATE maximum value is 100000. uv_hal library doesn't support higher baudrates."
 #endif
-#if !defined(CONFIG_I2C_RETRY_COUNT)
-#error "CONFIG_I2C_RETRY_COUNT should define the maximum number of retrys if the data sending fails."
-#endif
 
 typedef enum {
-#if CONFIG_TARGET_LPC11C14
 	I2C0 = 0,
-#elif CONFIG_TARGET_LPC1785
-	I2C0 = 0,
-#elif CONFIG_TARGET_LPC1549
-	I2C0 = 0,
-#endif
 	i2C_COUNT
 } i2c_e;
 
@@ -55,10 +43,6 @@ typedef enum {
 
 
 
-//typedef enum {
-//	I2C_READ =
-//} i2c_readwrite_e;
-
 
 /// @brief: Initializes the I2C module
 /// This should be called before any other function
@@ -66,19 +50,18 @@ uv_errors_e _uv_i2c_init(void);
 
 
 
-/// @brief: Sends the I2C start condition to the bus
-uv_errors_e uv_i2cm_start(i2c_e i2c);
 
-
-/// @brief: Sends the I2C stop condition to the bus
-uv_errors_e uv_i2cm_stop(i2c_e i2c);
-
-
-/// @brief: Sends data to i2c device.
+/// @brief: Sends or reads data to/from i2c device synchronously.
+/// The data transmission is started with a START condition
+/// and ended with STOP condition.
 ///
-/// @param data_length: The number of bytes being written
-/// @param data: A pointer to the data array which will be written or read into.
-uv_errors_e uv_i2cm_readwrite(i2c_e i2c, uint16_t data_length, uint8_t *data);
+/// @param dev_addr: The 7-bit addres of the device which should be read or written
+/// @param tx_buffer: Pointer to the buffer which holds the write data
+/// @param tx_len: The length of the tx buffer in bytes
+/// @param rx_buffer: Pointer to the buffer which holds the read data
+/// @param rx_len: The length of the rx buffer in bytes
+uv_errors_e uv_i2cm_readwrite(i2c_e i2c, uint8_t dev_addr, uint8_t *tx_buffer, uint16_t tx_len,
+		uint8_t *rx_buffer, uint16_t rx_len);
 
 
 

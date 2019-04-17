@@ -71,8 +71,9 @@ static inline void uv_uidialog_set_transparent(void *me, bool value) {
 }
 
 
-static inline void 	uv_uidialog_set_stepcallback(void *me, uv_uiobject_ret_e (*step_callb)(uint16_t)) {
-	uv_uiwindow_set_stepcallback(me, step_callb);
+static inline void 	uv_uidialog_set_stepcallback(void *me,
+		uv_uiobject_ret_e (*step_callb)(void *, uint16_t), void *user_ptr) {
+	uv_uiwindow_set_stepcallback(me, step_callb, user_ptr);
 }
 
 

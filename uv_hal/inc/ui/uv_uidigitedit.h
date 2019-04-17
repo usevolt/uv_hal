@@ -37,6 +37,7 @@ typedef struct {
 	uint32_t value;
 	bool changed;
 	const uv_uistyle_st *style;
+	int32_t limit_max;
 } uv_uidigitedit_st;
 
 
@@ -88,6 +89,18 @@ static inline bool uv_uidigitedit_value_changed(void *me) {
 static inline uint32_t uv_uidigitedit_get_value(void *me) {
 	return this->value;
 }
+
+
+/// @brief: Sets the maximum limit
+static inline void uv_uidigitedit_set_maxlimit(void *me, int32_t value) {
+	this->limit_max = value;
+}
+
+/// @brief: Returns the maximum limit
+static inline int32_t uv_uidigitedit_get_maxlimit(void *me) {
+	return this->limit_max;
+}
+
 
 
 #undef this

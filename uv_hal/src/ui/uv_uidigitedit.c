@@ -103,8 +103,8 @@ static uv_uiobject_ret_e uv_uidigitedit_step(void *me, uint16_t step_ms,
 static void touch(void *me, uv_touch_st *touch) {
 	if (touch->action == TOUCH_CLICKED) {
 		touch->action = TOUCH_NONE;
-		uint32_t value = uv_uinumpaddialog_exec(
-				this->numpaddialog_title, this->value, this->style);
+		uint32_t value = uv_uinumpaddialog_exec( this->numpaddialog_title,
+				this->limit_max, this->value, this->style);
 		uv_uidigitedit_set_value(this, value);
 		uv_ui_refresh(this);
 	}

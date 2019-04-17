@@ -35,6 +35,11 @@ static void add_number(void *me, char value) {
 		str[0] = value;
 		str[1] = '\0';
 		strcat(this->value_str, str);
+		int32_t val = strtol(this->value_str, NULL, 0);
+		// dont add new character if the maximum limit would be exceeded
+		if (val > this->limit_max) {
+			this->value_str[strlen(this->value_str) - 1] = '\0';
+		}
 		this->value = strtol(this->value_str, NULL, 0);
 		uv_ui_refresh(this);
 	}
@@ -54,6 +59,7 @@ void uv_uinumpad_init(void *me, const char *title, const uv_uistyle_st *style) {
 	this->released_index = -1;
 	this->cancelled = false;
 	this->submitted = false;
+	this->limit_max = INT32_MAX;
 	strcpy(this->value_str, "");
 }
 
@@ -90,7 +96,8 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	for (int8_t y = 1; y < 5; y++) {
 		for (int8_t x = 0; x < 3; x++) {
 			uv_ft81x_draw_shadowrrect(globx + x * butw, globy + y * buth, butw, buth, CONFIG_UI_RADIUS,
-					(this->pressed_index == ((y - 1) * 3 + x)) ? this->style->active_bg_c : this->style->inactive_bg_c,
+					(this->pressed_index == ((y - 1) * 3 + x)) ?
+							this->style->active_bg_c : this->style->inactive_bg_c,
 					this->style->highlight_c, this->style->shadow_c);
 			if (y == 4 && x == 0) {
 				uv_ft81x_draw_string("Back", this->style->font,
@@ -206,13 +213,11 @@ static uv_uiobject_ret_e numpad_step(void *me, uint16_t step_ms, const uv_boundi
 	return ret;
 }
 
-static uv_uinumpad_st *numpad_ptr;
-
-static uv_uiobject_ret_e exec_callb(uint16_t step_ms) {
+static uv_uiobject_ret_e exec_callb(void *user_ptr, uint16_t step_ms) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
-	if (uv_uinumpad_get_cancelled(numpad_ptr) ||
-			uv_uinumpad_get_submitted(numpad_ptr)) {
+	if (uv_uinumpad_get_cancelled(user_ptr) ||
+			uv_uinumpad_get_submitted(user_ptr)) {
 		// close the uidialog
 		ret = UIOBJECT_RETURN_KILLED;
 	}
@@ -221,15 +226,16 @@ static uv_uiobject_ret_e exec_callb(uint16_t step_ms) {
 }
 
 
-int32_t uv_uinumpaddialog_exec(const char *title, int32_t def_value, const uv_uistyle_st *style) {
+int32_t uv_uinumpaddialog_exec(const char *title, int32_t max_limit,
+		int32_t def_value, const uv_uistyle_st *style) {
 	uv_uidialog_st d;
 	uv_uiobject_st *bfr;
 	uv_uinumpad_st numpad;
-	numpad_ptr = &numpad;
 	uv_uidialog_init(&d, &bfr, style);
-	uv_uidialog_set_stepcallback(&d, &exec_callb);
+	uv_uidialog_set_stepcallback(&d, &exec_callb, &numpad);
 
 	uv_uinumpad_init(&numpad, title, &uv_uistyles[0]);
+	uv_uinumpad_set_maxlimit(&numpad, max_limit);
 	uv_uidialog_addxy(&d, &numpad, 0, 0,
 			uv_uibb(&d)->width, uv_uibb(&d)->height);
 

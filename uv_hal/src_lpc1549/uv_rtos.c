@@ -266,9 +266,6 @@ void uv_init(void *device) {
 	_uv_eeprom_init();
 #endif
 
-#if CONFIG_RTC
-	_uv_rtc_init();
-#endif
 
 
 

@@ -80,8 +80,9 @@ static inline void uv_uitreeobject_clear(void *me) {
 	uv_uiwindow_clear(me);
 }
 static inline void uv_uitreeobject_set_step_callback(void *me,
-		uv_uiobject_ret_e (*step)(const uint16_t step_ms)) {
-	uv_uiwindow_set_stepcallback(me, step);
+		uv_uiobject_ret_e (*step)(void *user_ptr, const uint16_t step_ms),
+		void *user_ptr) {
+	uv_uiwindow_set_stepcallback(me, user_ptr, step);
 }
 
 
@@ -112,8 +113,8 @@ static inline void uv_uitreeview_set_oneactive(void *me, bool value) {
 
 
 static inline void uv_uitreeview_set_stepcallb(void *me,
-		uv_uiobject_ret_e (*step)(const uint16_t step_ms)) {
-	uv_uiwindow_set_stepcallback(me, step);
+		uv_uiobject_ret_e (*step)(void *, const uint16_t), void *user_ptr) {
+	uv_uiwindow_set_stepcallback(me, step, user_ptr);
 }
 
 
