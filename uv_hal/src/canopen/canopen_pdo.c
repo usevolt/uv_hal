@@ -124,6 +124,12 @@ void _uv_canopen_pdo_init() {
 	}
 	for (int i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
 		if ((obj = _uv_canopen_obj_dict_get(CONFIG_CANOPEN_RXPDO_COM_INDEX + i, 0))) {
+			uv_can_msg_st msg;
+			msg.type = CAN_STD;
+			msg.data_length = 4;
+			msg.data_32bit[0] = ((canopen_rxpdo_com_parameter_st*) obj->data_ptr)->cob_id;
+			msg.id = i;
+			uv_can_send(CAN0, &msg);
 			uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
 					((canopen_rxpdo_com_parameter_st*) obj->data_ptr)->cob_id, CAN_ID_MASK_DEFAULT, CAN_STD);
 		}
@@ -455,6 +461,22 @@ canopen_pdo_mapping_parameter_st *uv_canopen_rxpdo_get_mapping(uint16_t msg_id) 
 		}
 	}
 	return ret;
+}
+
+
+
+canopen_rxpdo_com_parameter_st *uv_canopen_rxpdo_get_com(uint16_t rxpdo) {
+	if (rxpdo >= CONFIG_CANOPEN_RXPDO_COUNT) {
+		rxpdo = CONFIG_CANOPEN_RXPDO_COUNT - 1;
+	}
+	return &thisnv->rxpdo_coms[rxpdo];
+}
+
+canopen_txpdo_com_parameter_st *uv_canopen_txpdo_get_com(uint16_t txpdo) {
+	if (txpdo >= CONFIG_CANOPEN_TXPDO_COUNT) {
+		txpdo = CONFIG_CANOPEN_TXPDO_COUNT - 1;
+	}
+	return &thisnv->txpdo_coms[txpdo];
 }
 
 

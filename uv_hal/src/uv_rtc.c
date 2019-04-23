@@ -57,12 +57,6 @@ void uv_rtc_get_time(uv_time_st *dest) {
 	uint8_t read[7] = { };
 	uv_i2cm_readwrite(I2C0, addr, NULL, 0, read, sizeof(read));
 
-	for (uint8_t i = 0; i < 7; i++) {
-		printf("0x%x ", read[i]);
-	}
-	printf("0x%x\n", bitswap(0xF));
-
-
 	dest->year = 2000 + bitswap(read[0] << 4) * 10 + bitswap(read[0] & 0xF0);
 	dest->month = bitswap((read[1] << 4)) * 10 + bitswap(read[1] & 0xF0);
 	dest->day = bitswap((read[2] << 4)) * 10 + bitswap(read[2] & 0xF0);

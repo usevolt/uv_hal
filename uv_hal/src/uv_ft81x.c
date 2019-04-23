@@ -1478,6 +1478,18 @@ color_t uv_uic_brighten(color_t c, int8_t value) {
 }
 
 
+color_t uv_uic_lerpi(int32_t t, color_t ca, color_t cb) {
+	uint32_t ret = 0;
+	for (uint8_t i = 0; i < 4; i++) {
+		int16_t val, start_val, end_val;
+		start_val = (ca >> (i * 8)) & 0xFF;
+		end_val = (cb >> (i * 8)) & 0xFF;
+
+		val = uv_lerpi(t, start_val, end_val);
+		ret += ((val & 0xFF) << (i * 8));
+	}
+	return (color_t) ret;
+}
 
 
 

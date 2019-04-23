@@ -122,6 +122,12 @@ void uv_canopen_pdo_mapping_update(uint16_t main_index, uint8_t subindex);
 canopen_pdo_mapping_parameter_st *uv_canopen_rxpdo_get_mapping(uint16_t msg_id);
 
 
+/// @brief: Returns the RXPDO communication parameter assigned to RXPDO with an index of *rxpdo*
+canopen_rxpdo_com_parameter_st *uv_canopen_rxpdo_get_com(uint16_t rxpdo);
+
+canopen_txpdo_com_parameter_st *uv_canopen_txpdo_get_com(uint16_t txpdo);
+
+
 #endif
 
 #endif /* UV_HAL_INC_CANOPEN_CANOPEN_PDO_H_ */

@@ -182,6 +182,7 @@ static void touch(void *me, uv_touch_st *touch) {
 			}
 		}
 		uv_uislider_set_value(this, this->cur_val + i);
+		touch->action = TOUCH_NONE;
 	}
 	else if (touch->action == TOUCH_NONE && this->dragging) {
 		this->dragging = false;
