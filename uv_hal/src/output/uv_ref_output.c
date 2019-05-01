@@ -25,7 +25,7 @@
 #define PID_P_MAX			20000
 #define TARGET_DELAY_MS		20
 #define PID_MULTIPLIER		0x10
-#define OUT_AVG_COUNT		1
+#define OUT_AVG_COUNT		20
 
 
 void uv_ref_output_conf_reset(uv_ref_output_conf_st *conf, uv_ref_output_limitconf_st *limitconf) {
