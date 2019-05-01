@@ -197,6 +197,10 @@ typedef uint32_t color_t;
 /// from all R, G and B color channels
 color_t uv_uic_brighten(color_t c, int8_t value);
 
+/// @brief: Returns a color which is linearily interpolated between colors ca and cb.
+/// t = 0 returns ca, t = 1000 returns cb. No boundary checks are done in the calculations.
+color_t uv_uic_lerpi(int32_t t, color_t ca, color_t cb);
+
 /// @brief: Copies the alpha channel from *dest* color to *src* color
 static inline void uv_uic_copy_alpha(color_t *dest, color_t *src) {
 	((color_st*) dest)->a = ((color_st *)src)->a;

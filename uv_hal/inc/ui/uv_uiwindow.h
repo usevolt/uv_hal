@@ -57,10 +57,14 @@ struct _uv_uiwindow_st {
 
 	color_t bg_c;
 	color_t handle_c;
+	void *user_ptr;
 	/// @brief: Application step callback. This will be called every step cycle
 	/// after updating the UI. This should be used in the application to actually
 	/// do anything with the UI.
-	uv_uiobject_ret_e (*app_step_callb)(const uint16_t step_ms);
+	///
+	/// @param ptr: A user defined pointer which can be used to hold a pointer to the actual
+	/// UI module structure
+	uv_uiobject_ret_e (*app_step_callb)(void *user_ptr, const uint16_t step_ms);
 };
 
 
@@ -132,10 +136,12 @@ void uv_uiwindow_remove(void *me, void *object);
 /// @brief: Adds a user application step callback function to this window.
 /// The step function is called on every update step and should be used for
 /// updating the display according to user input.
-static inline void uv_uiwindow_set_stepcallback(void *me,
-		uv_uiobject_ret_e (*step)(const uint16_t step_ms)) {
-	this->app_step_callb = step;
-}
+///
+/// @param step: The step function pointer
+/// @param user_ptr: Pointer for the application which can hold pointer to anything.
+/// Useful for giving a UI structure pointer to the window
+void uv_uiwindow_set_stepcallback(void *me,
+		uv_uiobject_ret_e (*step)(void *user_ptr, const uint16_t step_ms), void *user_ptr);
 
 /// @brief: Sets the content bounding boxes default position
 void uv_uiwindow_set_content_bb_default_pos(void *me,

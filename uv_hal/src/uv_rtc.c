@@ -17,91 +17,79 @@
 
 
 #include "uv_rtc.h"
-#if CONFIG_TARGET_LPC1785
-#include "LPC177x_8x.h"
-#elif CONFIG_TARGET_LPC1549
-#include "chip.h"
-#include "rtc_15xx.h"
-#endif
+#include <uv_i2c.h>
 
 
 #if CONFIG_RTC
 
 
+#define S35390A_DEVICE_CODE				(0b0110)
+#define S35390A_CMD(cmd)				((S35390A_DEVICE_CODE << 3) | (cmd))
+#define S35390A_STATUS_REG1				0b000
+#define S35390A_STATUS_REG2				0b001
+#define S35390A_REALTIME_DATA1			0b010
+#define S35390A_REALTIME_DATA2			0b011
+#define S35390A_INT1_REG				0b100
+#define S35390A_INT2_REG				0b101
+#define S35390A_CLOCK_CORR_REG			0b110
+#define S35390A_FREE_REG				0b111
 
 
-void _uv_rtc_init() {
-#if CONFIG_TARGET_LPC1785
-	LPC_SC->PCONP |= (1 << 9);
-	// disable the clock counters for initialization
-	LPC_RTC->CCR = 1;
 
-	// disable calibration
-	LPC_RTC->CALIBRATION = 0;
+uint8_t bitswap(uint8_t b) {
+   b = (b & 0xF0) >> 4 | (b & 0x0F) << 4;
+   b = (b & 0xCC) >> 2 | (b & 0x33) << 2;
+   b = (b & 0xAA) >> 1 | (b & 0x55) << 1;
+   return b;
+}
 
-	// check that all values are more or less right values
-	if (LPC_RTC->YEAR > 2100) {
-		LPC_RTC->YEAR = 2000;
-	}
-	else if (LPC_RTC->YEAR < 2000) {
-		LPC_RTC->YEAR = 2000;
-	}
-	if (LPC_RTC->MONTH > 12) {
-		LPC_RTC->MONTH = 1;
-	}
-	if (LPC_RTC->DOM > 31) {
-		LPC_RTC->DOM = 31;
-	}
-	if (LPC_RTC->HOUR > 24) {
-		LPC_RTC->HOUR = 1;
-	}
-	if (LPC_RTC->MIN >= 60) {
-		LPC_RTC->MIN = 0;
-	}
-	if (LPC_RTC->SEC >= 60) {
-		LPC_RTC->SEC = 0;
-	}
-#elif CONFIG_TARGET_LPC1549
-	Chip_RTC_Init(LPC_RTC);
-
-#endif
+bool uv_rtc_get_low_power_flag(void) {
+	uint8_t addr = S35390A_CMD(S35390A_STATUS_REG1);
+	uint8_t read[1] = { };
+	uv_i2cm_readwrite(I2C0, addr, NULL, 0, read, sizeof(read));
+	return (read[0] & (1 << 1));
 }
 
 
-void uv_rtc_get_time(uv_time_st *dest) {
-#if CONFIG_TARGET_LPC1785
-	dest->hour = LPC_RTC->HOUR;
-	dest->min = LPC_RTC->MIN;
-	dest->sec = LPC_RTC->SEC;
-	dest->year = LPC_RTC->YEAR;
-	dest->month = LPC_RTC->MONTH;
-	dest->day = LPC_RTC->DOM;
-#elif CONFIG_TARGET_LPC1549
-	dest->sec = Chip_RTC_GetCount(LPC_RTC) / 60;
-	dest->min = Chip_RTC_GetCount(LPC_RTC) / (60 * 60);
-	dest->hour = Chip_RTC_GetCount(LPC_RTC) / (60 * 60 * 24);
-	// todo: date
 
-#endif
+void uv_rtc_get_time(uv_time_st *dest) {
+	uint8_t addr = S35390A_CMD(S35390A_REALTIME_DATA1);
+	uint8_t read[7] = { };
+	uv_i2cm_readwrite(I2C0, addr, NULL, 0, read, sizeof(read));
+
+	dest->year = 2000 + bitswap(read[0] << 4) * 10 + bitswap(read[0] & 0xF0);
+	dest->month = bitswap((read[1] << 4)) * 10 + bitswap(read[1] & 0xF0);
+	dest->day = bitswap((read[2] << 4)) * 10 + bitswap(read[2] & 0xF0);
+	dest->hour = bitswap(((read[4] & 0xC) << 4)) * 10 + bitswap(read[4] & 0xF0);
+	dest->min = bitswap((read[5] << 4)) * 10 + bitswap(read[5] & 0xF0);
+	dest->sec = bitswap((read[6] << 4)) * 10 + bitswap(read[6] & 0xF0);
+
 }
 
 
 void uv_rtc_set_time(uv_time_st *src) {
-#if CONFIG_TARGET_LPC1785
-	// disable RTC in order to enable access to the clock registers
-	LPC_RTC->CCR = 0;
-	LPC_RTC->SEC = src->sec;
-	LPC_RTC->MIN = src->min;
-	LPC_RTC->HOUR = src->hour;
-	LPC_RTC->DOM = src->day;
-	LPC_RTC->MONTH = src->month;
-	LPC_RTC->YEAR = src->year;
-	// enable rtc
-	LPC_RTC->CCR = 1;
-#elif CONFIG_TARGET_LPC1549
 
+	uint8_t write[7] = { };
 
-#endif
+	// start by setting the hour mode to 24h
+	uint8_t addr = S35390A_CMD(S35390A_STATUS_REG1);
+	write[0] = 0x40;
+	uv_i2cm_readwrite(I2C0, addr, write, 1, NULL, 0);
+
+	addr = S35390A_CMD(S35390A_REALTIME_DATA1);
+	int16_t year = src->year - 2000;
+	if (year < 0) {
+		year = 0;
+	}
+	write[0] = (bitswap(year / 10) >> 4) + bitswap(year % 10);
+	write[1] = (bitswap(src->month / 10) >> 4) + bitswap(src->month % 10);
+	write[2] = (bitswap(src->day / 10) >> 4) + bitswap(src->day % 10);
+	write[3] = 0;
+	write[4] = (bitswap(src->hour / 10) >> 4) + bitswap(src->hour % 10);
+	write[5] = (bitswap(src->min / 10) >> 4) + bitswap(src->min % 10);
+	write[6] = (bitswap(src->sec / 10) >> 4) + bitswap(src->sec % 10);
+
+	uv_i2cm_readwrite(I2C0, addr, write, sizeof(write), NULL, 0);
 }
 
 

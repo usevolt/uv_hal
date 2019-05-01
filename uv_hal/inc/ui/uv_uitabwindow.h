@@ -86,8 +86,8 @@ static inline void uv_uitabwindow_clear(void *me) {
 }
 
 static inline void uv_uitabwindow_set_stepcallb(void *me,
-		uv_uiobject_ret_e (*step)(const uint16_t step_ms)) {
-	uv_uiwindow_set_stepcallback(me, step);
+		uv_uiobject_ret_e (*step)(void *, const uint16_t), void *user_ptr) {
+	uv_uiwindow_set_stepcallback(me, step, user_ptr);
 }
 
 /// @brief: Returns the bounding box of the tab windows content

@@ -61,6 +61,10 @@ static inline uint8_t uv_uilistbutton_get_current_index(void *me) {
 	return this->current_index;
 }
 
+static inline uint8_t uv_uilistbutton_get_content_len(void *me) {
+	return this->content_len;
+}
+
 /// @brief: Sets the current index. Should not be assigned bigger
 /// (or equal) value than *content_len*
 static inline void uv_uilistbutton_set_current_index(void *me, uint8_t value) {

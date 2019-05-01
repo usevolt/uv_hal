@@ -209,6 +209,20 @@ static inline uv_solenoid_output_mode_e uv_dual_solenoid_output_get_mode(uv_dual
 }
 
 
+static inline void uv_dual_solenoid_output_set_dither_freq(uv_dual_solenoid_output_st *this,
+		uint16_t value) {
+	uv_solenoid_output_set_dither_freq(&this->solenoid[0], value);
+	uv_solenoid_output_set_dither_freq(&this->solenoid[1], value);
+}
+
+
+static inline void uv_dual_solenoid_output_set_dither_ampl(uv_dual_solenoid_output_st *this,
+		uint16_t value) {
+	uv_solenoid_output_set_dither_ampl(&this->solenoid[0], value);
+	uv_solenoid_output_set_dither_ampl(&this->solenoid[1], value);
+}
+
+
 #endif
 
 #endif /* UV_HAL_INC_OUTPUT_UV_DUAL_SOLENOID_OUTPUT_H_ */

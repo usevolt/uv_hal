@@ -66,6 +66,15 @@ static inline char *uv_uilabel_get_text(void *me) {
 }
 
 
+static inline void uv_uilabel_set_font(void *me, uv_font_st *value) {
+	this->font = value;
+	uv_ui_refresh(this);
+}
+
+static inline uv_font_st *uv_uilabel_get_font(void *me) {
+	return this->font;
+}
+
 /// @brief: Sets the color of the label text
 void uv_uilabel_set_color(void *me, color_t c);
 

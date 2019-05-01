@@ -24,6 +24,15 @@
 
 #if CONFIG_RTC
 
+/// @file: Defines a Real time clock module. Since LPC1549 errata sheet
+/// prohibits the use of internal RTC on LPC1549, an I2C RTC component S-35390A
+/// is used instead.
+
+
+#if !CONFIG_I2C
+#error "RTC module requires I2C to be enabled with CONFIG_I2C."
+#endif
+
 
 /// @brief: Time structure which is used to represent time.
 /// newlib time_t and struct tm are more complicated and
@@ -38,14 +47,15 @@ typedef struct {
 } uv_time_st;
 
 
-/// @brief: Inits the real time clock.
-void _uv_rtc_init();
-
+/// @brief: Returns true if the RTC module detects a low power warning
+bool uv_rtc_get_low_power_flag(void);
 
 /// @brief: Returns the current time to *dest*.
+/// With S35390A this communicates with I2C bus, thus the execution takes a long time.
 void uv_rtc_get_time(uv_time_st *dest);
 
 /// @brief: Sets the current time
+/// With S35390A this communicates with I2C bus, thus the execution takes a long time.
 void uv_rtc_set_time(uv_time_st *src);
 
 

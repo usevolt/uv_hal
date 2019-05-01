@@ -97,6 +97,13 @@ static inline void uv_uitransition_set_state_change_callback(void *me,
 }
 
 
+
+/// @brief: Sets the absolute position of the transition. Note that this
+/// affects only if the transition is playing /reverse playing.
+static inline void uv_uitransition_set_position(uv_uitransition_st *me, uint16_t value) {
+	this->current_time_ms = value;
+}
+
 /// @brief: Returns true if the transition is finished
 static inline bool uv_uitransition_is_finished(void *me) {
 	return (this->state == UITRANSITION_FINISH);
@@ -117,6 +124,10 @@ static inline void uv_uitransition_set_speed(void *me, uint16_t speed_ppt) {
 	this->speed_ppt = speed_ppt;
 }
 
+
+static inline int16_t uv_uitransition_get_duration_ms(void *me) {
+	return this->duration_ms;
+}
 
 
 /// @bief: Transition animating a signed 16 bit integer value.
