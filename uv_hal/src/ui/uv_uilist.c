@@ -20,12 +20,14 @@ void uv_uilist_init(void *me, char **buffer, uint16_t buffer_len, const uv_uisty
 	uv_uiobject_init(me);
 	this->selected_index = -1;
 	uv_vector_init(&this->entries, buffer, buffer_len, sizeof(char*));
-	this->style = style;
 	((uv_uiobject_st*) this)->step_callb = &uv_uilist_step;
 	uv_uiobject_set_draw_callb(this, &draw);
 	uv_uiobject_set_touch_callb(this, &touch);
 	this->align = ALIGN_CENTER;
 	this->clicked = false;
+	this->bg_c = style->bg_c;
+	this->text_c = style->text_color;
+	this->font = style->font;
 }
 
 
@@ -46,6 +48,8 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t sely = 0;
 	int16_t y;
 	valignment_e valign = uv_ui_get_valignment(this->align);
+	color_t highlight_c = uv_uic_brighten(this->bg_c, 30);
+	color_t shadow_c = uv_uic_brighten(this->bg_c, -30);
 	if (valign == VALIGN_CENTER) {
 		y = thisy + uv_uibb(this)->height / 2 -
 				(entry_height * uv_vector_size(&this->entries) / 2);
@@ -68,19 +72,19 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 		}
 		else {
 			uv_ft81x_draw_shadowrrect(x, y, uv_uibb(this)->width, entry_height, CONFIG_UI_RADIUS,
-					this->style->inactive_bg_c, this->style->highlight_c, this->style->shadow_c);
-			uv_ft81x_draw_string(*((char**) uv_vector_at(&this->entries, i)), this->style->font,
+					this->bg_c, highlight_c, shadow_c);
+			uv_ft81x_draw_string(*((char**) uv_vector_at(&this->entries, i)), this->font,
 					x + uv_uibb(this)->width / 2, y + entry_height / 2, ALIGN_CENTER,
-					this->style->inactive_font_c);
+					this->text_c);
 		}
 		y += entry_height - 1;
 	}
 	if (this->selected_index >= 0) {
 		uv_ft81x_draw_shadowrrect(x, sely, uv_uibb(this)->width, entry_height, CONFIG_UI_RADIUS,
-				this->style->active_bg_c, this->style->highlight_c, this->style->shadow_c);
+				highlight_c, uv_uic_brighten(highlight_c, 30), this->bg_c);
 		uv_ft81x_draw_string(*((char**) uv_vector_at(&this->entries, this->selected_index)),
-				this->style->font, x + uv_uibb(this)->width / 2, sely + entry_height / 2,
-				ALIGN_CENTER, this->style->active_font_c);
+				this->font, x + uv_uibb(this)->width / 2, sely + entry_height / 2,
+				ALIGN_CENTER, this->text_c);
 	}
 
 }

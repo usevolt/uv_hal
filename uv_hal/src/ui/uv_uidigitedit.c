@@ -45,7 +45,7 @@ void uv_uidigitedit_init(void *me, uv_font_st *font,
 	this->changed = false;
 	this->numpaddialog_title = "";
 	this->title = NULL;
-	this->bg_color = style->active_bg_c;
+	this->bg_color = style->bg_c;
 	this->limit_max = INT32_MAX;
 	uv_uidigitedit_set_value(this, value);
 

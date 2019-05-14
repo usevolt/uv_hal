@@ -24,7 +24,7 @@ void uv_uiprogressbar_init(void *me, int16_t min_value,
 	this->max_val = max_value;
 	this->font = style->font;
 	this->text_c = style->text_color;
-	this->main_c = style->active_fg_c;
+	this->main_c = style->fg_c;
 	this->bg_c = style->window_c;
 	this->horizontal = true;
 	this->value = this->min_val;

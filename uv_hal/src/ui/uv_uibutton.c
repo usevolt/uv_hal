@@ -18,8 +18,8 @@
 void uv_uibutton_init(void *me, char *text, const uv_uistyle_st *style) {
 	uv_uiobject_init(me);
 	this->state = UIBUTTON_UP;
-	this->main_c = style->inactive_bg_c;
-	this->text_c = style->inactive_font_c;
+	this->main_c = style->bg_c;
+	this->text_c = style->text_color;
 	this->text = text;
 	this->font = style->font;
 	uv_delay_init(&this->delay, CONFIG_UI_BUTTON_LONGPRESS_DELAY_MS);

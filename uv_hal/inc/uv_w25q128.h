@@ -169,6 +169,21 @@ uint32_t uv_exmem_read_fd(uv_w25q128_st *this, uv_fd_st *fd,
 		void *dest, uint32_t max_len, uint32_t offset);
 
 
+/// Writes a file to the external flash memory
+///
+/// @return: The number of bytes written. On success, it should match the *len* argument.
+/// If the writing failed, returns 0.
+///
+/// @param filename: The path and the name to the file which will be read
+/// @param src: The source memory address where the file is read
+/// @param len: The length of the source buffer
+/// @param offset: The offset byte count from the start of the file where the bytes are written.
+/// This can be used if the file was bigger than the memory buffer available, by using multiple calls
+/// to this function and incrementing the offset by the amount of *len*.
+uint32_t uv_exmem_write(uv_w25q128_st *this, char *filename,
+		void *src, uint32_t len, uint32_t offset);
+
+
 /// @brief: Tries to find a file specified with *filename* from the external memory and if found,
 /// copies the file desciprtor to *dest*.
 ///
@@ -186,6 +201,8 @@ bool uv_exmem_find(uv_w25q128_st *this, char *filename, uv_fd_st *dest);
 ///
 /// @return: True of the *index*'th file was found, false otherwise.
 bool uv_exmem_index(uv_w25q128_st *this, uint32_t index, uv_fd_st *dest);
+
+
 
 #endif
 

@@ -30,8 +30,9 @@ typedef struct {
 	int16_t selected_index;
 	bool clicked;
 	uint8_t clicked_index;
-	/// @brief: UI style
-	const uv_uistyle_st *style;
+	color_t bg_c;
+	color_t text_c;
+	uv_font_st *font;
 
 	alignment_e align;
 } uv_uilist_st;
@@ -61,6 +62,36 @@ static inline void uv_uilist_set_align(void *me, alignment_e align) {
 /// @brief: Returns true for one step cycle if the list was clicked
 static inline bool uv_uilist_clicked(void *me) {
 	return this->clicked;
+}
+
+/// @brief: Sets the background color of the uilist cells
+static inline void uv_uilist_set_bgc(void *me, color_t c) {
+	this->bg_c = c;
+}
+
+/// @brief: Returns the background color of the uilist
+static inline color_t uv_uilist_get_bgc(void *me) {
+	return this->bg_c;
+}
+
+/// @brief: Sets the text color of the uilist
+static inline void uv_uilist_set_textc(void *me, color_t c) {
+	this->text_c = c;
+}
+
+/// @brief: Gets the text color of the uilist
+static inline color_t uv_uilist_get_textc(void *me) {
+	return this->text_c;
+}
+
+/// @brief: Returns the font of the uilist
+static inline uv_font_st *uv_uilist_get_font(void *me) {
+	return this->font;
+}
+
+/// @brief: Sets the font of the uilist
+static inline void uv_uilist_set_font(void *me, uv_font_st *font) {
+	this->font = font;
 }
 
 /// @brief: Step function is called every frame. It is also used to distinguish

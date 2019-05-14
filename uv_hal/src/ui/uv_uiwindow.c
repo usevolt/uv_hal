@@ -114,7 +114,7 @@ void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array, const uv_ui
 	this->objects = object_array;
 	this->objects_count = 0;
 	this->bg_c = style->window_c;
-	this->handle_c = style->active_fg_c;
+	this->handle_c = style->bg_c;
 	this->dragging = false;
 #if CONFIG_LCD
 	// on LCD module transparent is by default false since

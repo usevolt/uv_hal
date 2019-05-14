@@ -69,8 +69,8 @@ void uv_uilistbutton_init(void *me, char **content,
 	uv_uiobject_set_draw_callb(this, &uv_uilistbutton_draw);
 	uv_uiobject_set_step_callb(this, &uv_uilistbutton_step);
 	uv_uiobject_set_touch_callb(this, &touch);
-	this->activebar_c = style->active_fg_c;
-	this->bar_c = style->active_bg_c;
+	this->activebar_c = style->fg_c;
+	this->bar_c = this->activebar_c;
 	this->content_len = content_len;
 	this->content = content;
 	this->current_index = current_index;

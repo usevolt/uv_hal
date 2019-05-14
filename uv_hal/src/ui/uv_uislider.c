@@ -28,8 +28,8 @@ void uv_uislider_init(void *me, int16_t min_value, int16_t max_value, int16_t cu
 	else if (this->cur_val < this->min_val) this->cur_val = this->min_val;
 	this->font = style->font;
 	this->text_c = style->text_color;
-	this->handle_c = style->active_fg_c;
-	this->bg_c = style->inactive_bg_c;
+	this->handle_c = style->fg_c;
+	this->bg_c = style->bg_c;
 	this->horizontal = true;
 	this->show_value = true;
 	this->dragging = false;

@@ -15,7 +15,7 @@
 
 
 #if !defined(CONFIG_UI_LISTBUTTON_BAR_HEIGHT)
-#error "CONFIG_UI_LISTBUTTON_BAR_HEIGHT should define the heiht used for listbutton content bars."
+#error "CONFIG_UI_LISTBUTTON_BAR_HEIGHT should define the height used for listbutton content bars."
 #endif
 
 

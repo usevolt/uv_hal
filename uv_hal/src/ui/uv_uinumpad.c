@@ -82,6 +82,8 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t globy = uv_ui_get_yglobal(this);
 	int16_t butw = uv_uibb(this)->width / 3;
 	int16_t buth = uv_uibb(this)->height / 5;
+	color_t highlight_c = uv_uic_brighten(this->style->bg_c, 30);
+	color_t shadow_c = uv_uic_brighten(this->style->bg_c, -30);
 
 	uv_ft81x_draw_string((char*) this->title, this->style->font,
 			globx + uv_uibb(this)->width / 2, globy, ALIGN_TOP_CENTER, this->style->text_color);
@@ -97,8 +99,8 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 		for (int8_t x = 0; x < 3; x++) {
 			uv_ft81x_draw_shadowrrect(globx + x * butw, globy + y * buth, butw, buth, CONFIG_UI_RADIUS,
 					(this->pressed_index == ((y - 1) * 3 + x)) ?
-							this->style->active_bg_c : this->style->inactive_bg_c,
-					this->style->highlight_c, this->style->shadow_c);
+							highlight_c : this->style->bg_c,
+					highlight_c, shadow_c);
 			if (y == 4 && x == 0) {
 				uv_ft81x_draw_string("Back", this->style->font,
 						globx + x * butw + butw / 2, globy + y * buth + buth / 2,

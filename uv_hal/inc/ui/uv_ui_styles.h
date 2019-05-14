@@ -29,33 +29,19 @@
 
 /// @brief: Generic style structure for UI
 typedef struct {
-	color_t active_bg_c;
-	color_t active_fg_c;
-	color_t active_frame_c;
-	color_t active_font_c;
-	color_t inactive_bg_c;
-	color_t inactive_fg_c;
-	color_t inactive_frame_c;
-	color_t inactive_font_c;
+	color_t bg_c;
+	color_t fg_c;
 	color_t window_c;
 	color_t display_c;
 	uv_font_st *font;
 	color_t text_color;
-	color_t shadow_c;
-	color_t highlight_c;
 
 } uv_uistyle_st;
 extern const uv_uistyle_st uv_uistyles[CONFIG_UI_STYLES_COUNT];
 
 /* Example configuration:
-#define CONFIG_UI_STYLE_ACTIVE_BG_C_1			C(0xFF222222)
-#define CONFIG_UI_STYLE_ACTIVE_FG_C_1			C(0xFF222222)
-#define CONFIG_UI_STYLE_ACTIVE_FRAME_C_1		C(0xFF222222)
-#define CONFIG_UI_STYLE_ACTIVE_FONT_C_1			C(0xFF222222)
-#define CONFIG_UI_STYLE_INACTIVE_BG_C_1			C(0xFF222222)
-#define CONFIG_UI_STYLE_INACTIVE_FG_C_1			C(0xFF222222)
-#define CONFIG_UI_STYLE_INACTIVE_FRAME_C_1		C(0xFF222222)
-#define CONFIG_UI_STYLE_INACTIVE_FONT_C_1		C(0xFF222222)
+#define CONFIG_UI_STYLE_BG_C_1					C(0xFF222222)
+#define CONFIG_UI_STYLE_FG_C_1					C(0xFF666666)
 #define CONFIG_UI_STYLE_FONT_1					font_5X12
 #define CONFIG_UI_STYLE_WINDOW_C_1				C(0xFF000000)
 #define CONFIG_UI_STYLE_DISPLAY_C_1				C(0xFF000000)
