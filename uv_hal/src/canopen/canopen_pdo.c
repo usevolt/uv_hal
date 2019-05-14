@@ -124,12 +124,6 @@ void _uv_canopen_pdo_init() {
 	}
 	for (int i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
 		if ((obj = _uv_canopen_obj_dict_get(CONFIG_CANOPEN_RXPDO_COM_INDEX + i, 0))) {
-			uv_can_msg_st msg;
-			msg.type = CAN_STD;
-			msg.data_length = 4;
-			msg.data_32bit[0] = ((canopen_rxpdo_com_parameter_st*) obj->data_ptr)->cob_id;
-			msg.id = i;
-			uv_can_send(CAN0, &msg);
 			uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
 					((canopen_rxpdo_com_parameter_st*) obj->data_ptr)->cob_id, CAN_ID_MASK_DEFAULT, CAN_STD);
 		}
