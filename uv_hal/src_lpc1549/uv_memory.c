@@ -107,8 +107,8 @@ uv_errors_e uv_memory_save(void) {
 	uint16_t hal_crc = uv_memory_calc_crc(&CONFIG_NON_VOLATILE_START, sizeof(uv_data_start_t));
 
 
-	int32_t length = (((unsigned int) &CONFIG_NON_VOLATILE_END) + sizeof(uv_data_end_t)) -
-			((unsigned int) &CONFIG_NON_VOLATILE_START);
+	int32_t length = (((uint32_t) &CONFIG_NON_VOLATILE_END) + sizeof(uv_data_end_t)) -
+			((uint32_t) &CONFIG_NON_VOLATILE_START);
 
 	bool match = true;
 	for (uint32_t i = 0; i < length; i++) {
@@ -117,7 +117,8 @@ uv_errors_e uv_memory_save(void) {
 			match = false;
 			break;
 		}
-	}if (crc != CONFIG_NON_VOLATILE_END.crc ||
+	}
+	if (crc != CONFIG_NON_VOLATILE_END.crc ||
 			hal_crc != CONFIG_NON_VOLATILE_END.hal_crc) {
 		match = false;
 	}
