@@ -21,6 +21,7 @@
 
 
 #include <uv_hal_config.h>
+#include <uv_dual_solenoid_output.h>
 #include "uv_utilities.h"
 #include "uv_filters.h"
 #include "uv_pid.h"
@@ -66,26 +67,8 @@
 #if !defined(CONFIG_REF_LIMITMIN_PPT_DEF)
 #error "CONFIG_REF_LIMITMIN_PPT_DEF should define the default minimum limit in ppt for ref output in relative mode"
 #endif
-#if !defined(CONFIG_REF_LIMITMAX_MV_DEF)
-#error "CONFIG_REF_LIMITMAX_MV_DEF should define the default maximum limit in mv for ref output in absolute mode"
-#endif
-#if !defined(CONFIG_REF_LIMITMIN_MV_DEF)
-#error "CONFIG_REF_LIMITMIN_MV_DEF should define the default minimum limit in ppt for ref output in absolute mode"
-#endif
-#if !defined(CONFIG_REF_PID_P_DEF)
-#error "CONFIG_REF_PID_P_DEF should define the default P factor for the absolute mode PID controller"
-#endif
-#if !defined(CONFIG_REF_PID_I_DEF)
-#error "CONFIG_REF_PID_I_DEF should define the default I factor for the absolute mode PID controller"
-#endif
 
 
-
-#define REF_OUTPUT_POSMIN_PPT_SUBINDEX			1
-#define REF_OUTPUT_POSMAX_PPT_SUBINDEX			2
-#define REF_OUTPUT_NEGMIN_PPT_SUBINDEX			3
-#define REF_OUTPUT_NEGMAX_PPT_SUBINDEX			4
-#define REF_OUTPUT_SUBINDEX_COUNT				4
 
 
 #define REF_OUTPUT_ACC_MAX						100
@@ -98,56 +81,21 @@
 
 
 
-typedef enum {
-	// output voltage is relative to the supply voltage
-	REF_OUTPUT_MODE_REL = 0,
-	// output voltage is measured in absolute millivolts
-	REF_OUTPUT_MODE_ABS,
-	// output voltage is controlled digitally from 0 to vdd
-	REF_OUTPUT_MODE_ONOFFREL,
-	// output voltage is controlled digitally from 0 to limit mv
-	REF_OUTPUT_MODE_ONOFFABS
-} uv_ref_output_mode_e;
-
-
-typedef enum {
-	REF_OUTPUT_STATE_ENABLED = 0,
-	REF_OUTPUT_STATE_DISABLED
-} uv_ref_output_state_e;
+/// @brief: Defines the output mode. See uv_solenoid_output_st for the details.
+/// Both SOLENOID_OUTPUT_MODE_CURRENT and SOLENOID_OUTPUT_MODE_PWM are interpreted
+/// as proportional control.
+typedef uv_solenoid_output_mode_e uv_ref_output_mode_e;
 
 
 /// @brief: Data structure for ref output configuration data.
 /// This can be stored in non-volatile memory.
-typedef struct {
-	// positive minimum value ppt
-	uint16_t posmin_ppt;
-	// positive maximum PWM ppt
-	uint16_t posmax_ppt;
-	// negative minimum PWM ppt
-	uint16_t negmin_ppt;
-	// negative maximum PWM ppt
-	uint16_t negmax_ppt;
-	// The acceleration factor
-	uint16_t acc;
-	// The deceleration factor
-	uint16_t dec;
-	// This invert is not used in this library. It is meant for user application.
-	uint16_t invert;
-	// Inverts the direction of output
-	uint16_t assembly_invert;
-} uv_ref_output_conf_st;
+typedef uv_dual_solenoid_output_conf_st uv_ref_output_conf_st;
 
 
-typedef struct {
-	// The maximum limit for the output in ppt for mode REF_OUTPUT_MODE_REL.
-	uint16_t limit_max_ppt;
-	// The minimum limit for the output in ppt for mode REF_OUTPUT_MODE_REL.
-	uint16_t limit_min_ppt;
-	// The maximum limit for the output in mv for mode REF_OUTPUT_MODE_ABS.
-	uint16_t limit_max_mv;
-	// The minimum limit for the output in mv for mode REF_OUTPUT_MODE_ABS.
-	uint16_t limit_min_mv;
-} uv_ref_output_limitconf_st;
+/// @brief: Limit configurations uses the same limitconf structure as uv_dual_solenoid_output.
+/// The Dual solenoid positive side (array index 0) is the maximum limit and
+/// the negative side (array index 1) is the minimum limit.
+typedef uv_dual_solenoid_output_limitconf_st uv_ref_output_limitconf_st;
 
 
 /// @brief: Resets the output values to defaults
@@ -155,7 +103,19 @@ void uv_ref_output_conf_reset(uv_ref_output_conf_st *conf, uv_ref_output_limitco
 
 
 
+/// @brief: defines a single ref output lookup table entry. An array of these
+/// is used to linearily interpolate the output pwm duty cycle
 typedef struct {
+	// The PWM duty cycle which results in a *rel_value*
+	uint16_t pwm_value;
+	// The relative value as 1000 * output_value / vdd. Should be 0 ... 1000
+	uint16_t rel_value;
+} uv_ref_output_lookup_st;
+
+
+typedef struct {
+	EXTENDS(uv_output_st);
+
 	// configuration parameters
 	uv_ref_output_conf_st *conf;
 	uv_ref_output_limitconf_st *limitconf;
@@ -170,26 +130,22 @@ typedef struct {
 	/// @brief: Target value from -1000 ... 1000. This is scaled to the output value
 	/// depending on the output mode.
 	int16_t target;
-	/// @brief: Stores the target value in millivolts
-	int16_t target_mv;
 	/// @brief: The request for the target value. This is set via the user application
 	int16_t target_req;
 	/// @brief: Stores the current PWM duty cycle
 	uint16_t pwm;
 	/// @brief: Stores the output value on every specific moment. The value is in mv
 	uint16_t out;
-	uv_moving_aver_st out_avg;
 	/// @brief: PWM channel configured for this output
 	uv_pwm_channel_t pwm_chn;
-	uv_adc_channels_e adc_chn;
-	uint16_t adc_mult;
+
+	const uv_ref_output_lookup_st *lookuptable;
+	uint8_t lookuptable_len;
 
 	// the mode of this output
 	uv_ref_output_mode_e mode;
-	uv_ref_output_state_e state;
 
 } uv_ref_output_st;
-
 
 
 
@@ -199,11 +155,18 @@ typedef struct {
 /// @param pwm_chn: The PWM channel used to driving the output
 /// @param sense_ampl: Amplification for current sense feedback. ADC value
 /// from current sense feedback is multiplied with this in order to get milliamps.
-/// @emcy_overload: CANopen EMCY message for overload situation
-// @emcy_fault: CANopen EMCY message for fault situation
+/// @param fault_ma: The limit in ma which is indicated being a fault. Ref output
+/// should not be used as a power output, but this is used just to protect
+/// the vnd5050 power mosfet in case of shortcircuit.
+/// @param lookup_table: Pointer to a const array of uv_ref_output_lookup_st entries.
+/// The table should be in rising order, i.e. the first element should have the
+/// smallest relative value and the last one the biggest.
+/// @param lookup_table_len: The length of the lookup table in element count
 void uv_ref_output_init(uv_ref_output_st *this,
 		uv_ref_output_conf_st *conf_ptr, uv_ref_output_limitconf_st *limitconf,
-		uv_pwm_channel_t pwm_chn, uv_adc_channels_e adc_chn, uint16_t sense_ampl);
+		uv_pwm_channel_t pwm_chn, uv_adc_channels_e adc_chn, uint16_t sense_ampl,
+		uint16_t fault_ma, uint32_t emcy_fault,
+		const uv_ref_output_lookup_st *lookup_table, uint8_t lookup_table_len);
 
 
 /// @brief: Sets the output mode
@@ -211,20 +174,20 @@ static inline void uv_ref_output_set_mode(uv_ref_output_st *this, uv_ref_output_
 	this->mode = value;
 }
 
+
 /// @brief: Gets the ref output mode
 static inline uv_ref_output_mode_e uv_ref_output_get_mode(uv_ref_output_st *this) {
 	return this->mode;
 }
 
-static inline uv_ref_output_state_e uv_ref_output_get_state(uv_ref_output_st *this) {
-	return this->state;
+
+static inline uv_output_state_e uv_ref_output_get_state(uv_ref_output_st *this) {
+	return uv_output_get_state((uv_output_st*) this);
 }
 
+
 /// @brief: Step funtion
-///
-/// @param vdd_mv: The system supply voltage in millivolts. This has to be measured
-/// for relative mode, since the output voltage is relative to the system voltage
-void uv_ref_output_step(uv_ref_output_st *this, uint16_t vdd_mv, uint16_t step_ms);
+void uv_ref_output_step(uv_ref_output_st *this, uint16_t step_ms);
 
 
 /// @brief: Sets the ref output target value in ppt.
@@ -238,18 +201,23 @@ static inline uint16_t uv_ref_output_get_out(uv_ref_output_st *this) {
 	return this->out;
 }
 
+
 static inline int16_t uv_ref_output_get_target(uv_ref_output_st *this) {
 	return this->target;
 }
 
+
 /// @brief: Disables the output. Output can be enabled only by calling
 /// *uv_ref_output_enable*.
-void uv_ref_output_disable(uv_ref_output_st *this);
+static inline void uv_ref_output_disable(uv_ref_output_st *this) {
+	uv_output_disable((uv_output_st*) this);
+}
 
 
 /// @brief: Enabled the output once it's disabled with *uv_ref_output_disable*.
-void uv_ref_output_enable(uv_ref_output_st *this);
-
+static inline void uv_ref_output_enable(uv_ref_output_st *this) {
+	uv_output_enable((uv_output_st*) this);
+}
 
 
 /// @brief: Copies the configuration parameters to the output
@@ -270,6 +238,8 @@ static inline uint16_t uv_ref_output_get_pwm_dc(uv_ref_output_st *this) {
 	return this->pwm;
 }
 
+
 #endif
+
 
 #endif /* UV_HAL_INC_UV_REF_OUTPUT_H_ */

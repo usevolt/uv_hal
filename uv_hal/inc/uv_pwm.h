@@ -425,6 +425,7 @@ uv_errors_e _uv_pwm_init();
 /// @brief: Sets the PWM channels output.
 ///
 /// @param chn: The PWM channel to be set
+/// @param value: The PWM value given in the range of 0 ... PWM_MAX_VALUE
 uv_errors_e uv_pwm_set(uv_pwm_channel_t chn, uint16_t value);
 
 
