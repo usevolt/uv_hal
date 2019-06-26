@@ -132,7 +132,7 @@ extern uint32_t exmem_file_size;
 extern uint32_t exmem_data_offset;
 
 /// @brief: Write request. This should be written with
-/// the count fo data to be written. The data should be stored in
+/// the count of data to be written. The data should be stored in
 /// *exmem_data_buffer* and filename and downloadable size should be written to *exmem_filename_buffer* and
 /// *exmem_file_size* prior to setting this.
 ///
@@ -175,12 +175,14 @@ uint32_t uv_exmem_read_fd(uv_w25q128_st *this, uv_fd_st *fd,
 /// If the writing failed, returns 0.
 ///
 /// @param filename: The path and the name to the file which will be read
+/// @param filesize: The total length of the file. It is important that no more than
+/// this amount of data is written to the file, as this is used to reserve space for the file.
 /// @param src: The source memory address where the file is read
-/// @param len: The length of the source buffer
+/// @param len: The length of the source buffer, i.e. count of the data to be written on this call.
 /// @param offset: The offset byte count from the start of the file where the bytes are written.
 /// This can be used if the file was bigger than the memory buffer available, by using multiple calls
 /// to this function and incrementing the offset by the amount of *len*.
-uint32_t uv_exmem_write(uv_w25q128_st *this, char *filename,
+uint32_t uv_exmem_write(uv_w25q128_st *this, char *filename, uint32_t filesize,
 		void *src, uint32_t len, uint32_t offset);
 
 
