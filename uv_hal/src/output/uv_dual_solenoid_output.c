@@ -176,6 +176,15 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 
 	if (this->target > 0) {
 		uv_solenoid_output_set(&this->solenoid[sb], 0);
+#if CONFIG_SOLENOID_MODE_ONOFF
+		// if ONOFF mode is enabled, make sure that ONOFFTOGGLE cannot put both outputs ON
+		// at the same time
+		if (this->target > 0 &&
+				this->target >=
+				uv_solenoid_output_get_onofftoggle_threshold(&this->solenoid[sa])) {
+			uv_solenoid_output_set_onofftoggle_state(&this->solenoid[sb], false);
+		}
+#endif
 		// only set output active if the other direction has gone to zero
 		if (uv_solenoid_output_get_pwm_dc(&this->solenoid[sb]) == 0) {
 			uv_solenoid_output_set(&this->solenoid[sa], abs(this->target));
@@ -183,6 +192,15 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 	}
 	else {
 		uv_solenoid_output_set(&this->solenoid[sa], 0);
+#if CONFIG_SOLENOID_MODE_ONOFF
+		// if ONOFF mode is enabled, make sure that ONOFFTOGGLE cannot put both outputs ON
+		// at the same time
+		if (this->target &&
+				abs(this->target) >=
+					uv_solenoid_output_get_onofftoggle_threshold(&this->solenoid[sb])) {
+			uv_solenoid_output_set_onofftoggle_state(&this->solenoid[sa], false);
+		}
+#endif
 		// only set output active if the other direction has gone to zero
 		if (uv_solenoid_output_get_pwm_dc(&this->solenoid[sa]) == 0) {
 			uv_solenoid_output_set(&this->solenoid[sb], abs(this->target));
@@ -216,6 +234,22 @@ void uv_dual_solenoid_output_set_conf(uv_dual_solenoid_output_st *this,
 			&this->conf->solenoid_conf[DUAL_OUTPUT_SOLENOID_B]);
 }
 
+
+
+
+uint8_t uv_dual_solenoid_output_get_onofftoggle(uv_dual_solenoid_output_st *this) {
+	uint8_t ret = 0;
+	if (uv_solenoid_output_get_onofftoggle_state(&this->solenoid[0])) {
+		ret = 1;
+	}
+	else if (uv_solenoid_output_get_onofftoggle_state(&this->solenoid[1])) {
+		ret = -1;
+	}
+	else {
+
+	}
+	return ret;
+}
 
 
 

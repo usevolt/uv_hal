@@ -214,6 +214,25 @@ static inline void uv_dual_solenoid_output_set_mode(uv_dual_solenoid_output_st *
 	uv_solenoid_output_set_mode(&this->solenoid[0], value);
 }
 
+static inline void uv_dual_solenoid_output_set_onofftoggle_threshold(
+		uv_dual_solenoid_output_st *this, uint16_t value) {
+	uv_solenoid_output_set_onofftoggle_threshold(&this->solenoid[0], value);
+	uv_solenoid_output_set_onofftoggle_threshold(&this->solenoid[1], value);
+}
+
+
+static inline void uv_dual_solenoid_output_set_onofftoggle_limit_ms(
+		uv_dual_solenoid_output_st *this, uint32_t value) {
+	uv_solenoid_output_set_onofftoggle_limit_ms(&this->solenoid[0], value);
+	uv_solenoid_output_set_onofftoggle_limit_ms(&this->solenoid[1], value);
+}
+
+
+/// @brief: Returns the direction of ONOFFTOGGLE mode state. -1 if negative direction is active,
+/// 1 if positive is active, 0 otherwise.
+uint8_t uv_dual_solenoid_output_get_onofftoggle(uv_dual_solenoid_output_st *this);
+
+
 /// @brief: Returns the solenoid mode
 static inline uv_solenoid_output_mode_e uv_dual_solenoid_output_get_mode(uv_dual_solenoid_output_st *this) {
 	return this->solenoid[0].mode;

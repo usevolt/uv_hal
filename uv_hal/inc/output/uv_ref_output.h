@@ -43,6 +43,10 @@
 #if CONFIG_REF_OUTPUT
 
 
+#define REF_OUTPUT_TOGGLE_THRESHOLD_DEFAULT	500
+#define REF_OUTPUT_LIMIT_MS_DEFAULT	0
+
+
 /// @file: defines a ref output module. Ref output works as a voltage reference. It
 /// drives the output with PWM and measures the voltage back with a adc input.
 
@@ -105,7 +109,10 @@ typedef uv_dual_solenoid_output_conf_st uv_ref_output_conf_st;
 
 /// @brief: Limit configurations uses the same limitconf structure as uv_dual_solenoid_output.
 /// The Dual solenoid positive side (array index 0) is the maximum limit and
-/// the negative side (array index 1) is the minimum limit.
+/// the negative side (array index 1) is the minimum limit. both of these values should be given
+/// as in dual solenoid output, i.e. the minimum value is given on 0 ... 1000, wich indicates
+/// the negative value. As ref output has only one channel, this number is internally converted
+/// to 0 ... 500 output scale.
 typedef uv_dual_solenoid_output_limitconf_st uv_ref_output_limitconf_st;
 
 
@@ -146,12 +153,21 @@ typedef struct {
 	/// @brief: Stores the current PWM duty cycle
 	uint16_t pwm;
 	/// @brief: Stores the output value on every specific moment. The value is in mv
-	uint16_t out;
+	int16_t out;
 	/// @brief: PWM channel configured for this output
 	uv_pwm_channel_t pwm_chn;
 
 	const uv_ref_output_lookup_st *lookuptable;
 	uint8_t lookuptable_len;
+
+	uv_hysteresis_st toggle_hyst;
+	uint8_t last_hyst;
+	// tells the output state on ONOFFTOGGLE modes. 0, -1 or 1 depending on
+	// the direction of the toggle.
+	int8_t toggle_on;
+	uv_delay_st toggle_delay;
+	uint32_t toggle_limit_ms;
+
 
 	// the mode of this output
 	uv_ref_output_mode_e mode;
@@ -197,6 +213,19 @@ static inline uv_output_state_e uv_ref_output_get_state(uv_ref_output_st *this) 
 }
 
 
+/// @brief: Sets the toggle threshold value which has to be exceeded in
+/// either direction to trigger the toggle state. 0 .. 1000.
+static inline void uv_ref_output_set_onofftoggle_threshold(uv_ref_output_st *this, uint16_t value) {
+	this->toggle_hyst.trigger_value = value;
+}
+
+
+/// @brief: Sets the toggle limit in milliseconds. When the output has been ON after this time,
+/// The toggle state is cleared.
+static inline void uv_ref_output_set_onofftoggle_limit_ms(uv_ref_output_st *this, uint32_t value) {
+	this->toggle_limit_ms = value;
+}
+
 /// @brief: Step funtion
 void uv_ref_output_step(uv_ref_output_st *this, uint16_t step_ms);
 
@@ -208,7 +237,7 @@ void uv_ref_output_set(uv_ref_output_st *this, int16_t value);
 
 
 /// @brief: Returns the output value. The value is -1000 ... 1000
-static inline uint16_t uv_ref_output_get_out(uv_ref_output_st *this) {
+static inline int16_t uv_ref_output_get_out(uv_ref_output_st *this) {
 	return this->out;
 }
 

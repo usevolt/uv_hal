@@ -33,6 +33,8 @@
 
 #if CONFIG_SOLENOID_OUTPUT
 
+#define TOGGLE_HYSTERESIS_DEFAULT		100
+
 
 static uint16_t current_func(void *this_ptr, uint16_t adc) {
 	int32_t current = (int32_t) adc * ((uv_output_st*) this_ptr)->sense_ampl / 1000;
@@ -91,6 +93,14 @@ void uv_solenoid_output_init(uv_solenoid_output_st *this,
 		this->dither_ms = 0;
 	}
 	this->target = 0;
+#if CONFIG_SOLENOID_MODE_ONOFF
+	uv_hysteresis_init(&this->toggle_hyst,
+			SOLENOID_OUTPUT_TOGGLE_THRESHOLD_DEFAULT, TOGGLE_HYSTERESIS_DEFAULT, false);
+	this->last_hyst = 0;
+	this->toggle_on = false;
+	this->toggle_limit_ms = SOLENOID_OUTPUT_TOGGLE_LIMIT_MS_DEFAULT;
+	uv_delay_init(&this->toggle_delay, this->toggle_limit_ms);
+#endif
 	this->out = 0;
 	this->pwm = 0;
 	this->pwm_chn = pwm_chn;
@@ -136,6 +146,9 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 		}
 		this->pwm = 0;
 		this->out = 0;
+#if CONFIG_SOLENOID_MODE_ONOFF
+		this->toggle_hyst.result = 0;
+#endif
 	}
 	else {
 		// output is ON
@@ -204,18 +217,42 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 		// solenoid is on/off
 		else {
 #if CONFIG_SOLENOID_MODE_ONOFF
+			uv_hysteresis_step(&this->toggle_hyst, this->target);
+
 			if (this->mode == SOLENOID_OUTPUT_MODE_ONOFF_NORMAL) {
 				// normal mode
-				output = this->target ? 1000 : 0;
+				if (uv_hysteresis_get_output(&this->toggle_hyst) && this->target) {
+					output = 1000;
+				}
+				else {
+					// small trick to prevent bugs when hysteresis > trigger_value
+					this->toggle_hyst.result = 0;
+				}
+				this->out = uv_output_get_current((uv_output_st*) this);
 			}
 			else {
 				// toggle mode
-				if (this->target && !this->last_target) {
-					// target was toggled, toggle the output also
-					output = (this->pwm) ? 0 : 1000;
+				if (uv_hysteresis_get_output(&this->toggle_hyst) && this->target) {
+					if (!this->last_hyst) {
+						// target was toggled, toggle the output also
+						this->toggle_on = !this->toggle_on;
+					}
+					uv_delay_init(&this->toggle_delay, this->toggle_limit_ms);
 				}
+				else {
+					// small trick to prevent bugs when hysteresis > trigger_value
+					this->toggle_hyst.result = 0;
+				}
+				// check if the toggle time limit has passed (if enabled)
+				// and in that case disable the output
+				if (this->toggle_limit_ms > 0 &&
+						uv_delay(&this->toggle_delay, step_ms)) {
+					this->toggle_on = false;
+				}
+				this->last_hyst = uv_hysteresis_get_output(&this->toggle_hyst);
+				output = (this->toggle_on) ? 1000 : 0;
+				this->out = this->toggle_on ? uv_output_get_current((uv_output_st*) this) : 0;
 			}
-			this->out = uv_output_get_current((uv_output_st*) this);
 #endif
 		}
 
@@ -235,9 +272,6 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 	uv_pwm_set(this->pwm_chn, this->pwm);
 	// update pwm avg value
 	uv_moving_aver_step(&this->pwmaver, this->pwm);
-
-	// update the last target value
-	this->last_target = this->target;
 }
 
 

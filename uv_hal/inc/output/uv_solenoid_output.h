@@ -42,6 +42,8 @@
 
 #define SOLENOID_OUTPUT_PWMAVG_COUNT	10
 #define SOLENOID_OUTPUT_MAAVG_COUNT		100
+#define SOLENOID_OUTPUT_TOGGLE_THRESHOLD_DEFAULT	500
+#define SOLENOID_OUTPUT_TOGGLE_LIMIT_MS_DEFAULT		0
 
 #if !CONFIG_PID
 #error "uv_solenoid_output requires uv_pid_st to be enabled with CONFIG_PID defined as 1."
@@ -145,8 +147,15 @@ typedef struct {
 	uv_moving_aver_st pwmaver;
 	/// @brief: PWM channel configured for this output
 	uv_pwm_channel_t pwm_chn;
-	// stores the last target value. Useful i.e. in ONOFF_TOGGLE mode
-	uint16_t last_target;
+
+#if CONFIG_SOLENOID_MODE_ONOFF
+	uv_hysteresis_st toggle_hyst;
+	uint8_t last_hyst;
+	// tells the output state on ONOFFTOGGLE modes
+	bool toggle_on;
+	uv_delay_st toggle_delay;
+	uint32_t toggle_limit_ms;
+#endif
 
 } uv_solenoid_output_st;
 
@@ -183,6 +192,48 @@ static inline uv_solenoid_output_mode_e uv_solenoid_output_get_mode(uv_solenoid_
 	return this->mode;
 }
 
+
+#if CONFIG_SOLENOID_MODE_ONOFF
+/// @brief: Sets the ONOFFTOGGLE mode threshold value.
+/// The threshold value has to be exceeded
+/// in order for the state of the output to be toggled.
+/// Defaults to SOLENOID_OUTPUT_TOGGLE_THRESHOLD_DEFAULT.
+static inline void uv_solenoid_output_set_onofftoggle_threshold(
+		uv_solenoid_output_st *this, uint16_t value) {
+	this->toggle_hyst.trigger_value = value;
+}
+
+
+/// @brief: Returns the current ONOFFTOGGLE threshold value
+static inline uint16_t uv_solenoid_output_get_onofftoggle_threshold(
+		uv_solenoid_output_st *this) {
+	return this->toggle_hyst.trigger_value;
+}
+
+
+static inline int32_t uv_solenoid_output_get_onofftoggle_limit_ms(
+		uv_solenoid_output_st *this) {
+	return this->toggle_limit_ms;
+}
+
+
+static inline void uv_solenoid_output_set_onofftoggle_limit_ms(
+		uv_solenoid_output_st *this, int32_t value) {
+	this->toggle_limit_ms = value;
+}
+
+/// @brief: Sets the ONOFFTOGGLE mode state.
+static inline void uv_solenoid_output_set_onofftoggle_state(
+		uv_solenoid_output_st *this, bool value) {
+	this->toggle_on = value;
+}
+
+/// @brief: Returns the ONOFFTOGGLE mode out state
+static inline bool uv_solenoid_output_get_onofftoggle_state(
+		uv_solenoid_output_st *this) {
+	return this->toggle_on;
+}
+#endif
 
 /// @brief: Step funtion
 void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms);
