@@ -2,18 +2,29 @@
  * This file is part of the uv_hal distribution (www.usevolt.fi).
  * Copyright (c) 2017 Usevolt Oy.
  * 
- * This program is free software: you can redistribute it and/or modify  
- * it under the terms of the GNU General Public License as published by  
- * the Free Software Foundation, version 3.
  *
- * This program is distributed in the hope that it will be useful, but 
- * WITHOUT ANY WARRANTY; without even the implied warranty of 
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
- * General Public License for more details.
+ * MIT License
  *
- * You should have received a copy of the GNU General Public License 
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (c) 2019 usevolt
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 
 
 
@@ -165,6 +176,15 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 
 	if (this->target > 0) {
 		uv_solenoid_output_set(&this->solenoid[sb], 0);
+#if CONFIG_SOLENOID_MODE_ONOFF
+		// if ONOFF mode is enabled, make sure that ONOFFTOGGLE cannot put both outputs ON
+		// at the same time
+		if (this->target > 0 &&
+				this->target >=
+				uv_solenoid_output_get_onofftoggle_threshold(&this->solenoid[sa])) {
+			uv_solenoid_output_set_onofftoggle_state(&this->solenoid[sb], false);
+		}
+#endif
 		// only set output active if the other direction has gone to zero
 		if (uv_solenoid_output_get_pwm_dc(&this->solenoid[sb]) == 0) {
 			uv_solenoid_output_set(&this->solenoid[sa], abs(this->target));
@@ -172,6 +192,15 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 	}
 	else {
 		uv_solenoid_output_set(&this->solenoid[sa], 0);
+#if CONFIG_SOLENOID_MODE_ONOFF
+		// if ONOFF mode is enabled, make sure that ONOFFTOGGLE cannot put both outputs ON
+		// at the same time
+		if (this->target &&
+				abs(this->target) >=
+					uv_solenoid_output_get_onofftoggle_threshold(&this->solenoid[sb])) {
+			uv_solenoid_output_set_onofftoggle_state(&this->solenoid[sa], false);
+		}
+#endif
 		// only set output active if the other direction has gone to zero
 		if (uv_solenoid_output_get_pwm_dc(&this->solenoid[sa]) == 0) {
 			uv_solenoid_output_set(&this->solenoid[sb], abs(this->target));
@@ -205,6 +234,22 @@ void uv_dual_solenoid_output_set_conf(uv_dual_solenoid_output_st *this,
 			&this->conf->solenoid_conf[DUAL_OUTPUT_SOLENOID_B]);
 }
 
+
+
+
+uint8_t uv_dual_solenoid_output_get_onofftoggle(uv_dual_solenoid_output_st *this) {
+	uint8_t ret = 0;
+	if (uv_solenoid_output_get_onofftoggle_state(&this->solenoid[0])) {
+		ret = 1;
+	}
+	else if (uv_solenoid_output_get_onofftoggle_state(&this->solenoid[1])) {
+		ret = -1;
+	}
+	else {
+
+	}
+	return ret;
+}
 
 
 

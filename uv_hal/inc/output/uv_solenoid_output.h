@@ -2,18 +2,29 @@
  * This file is part of the uv_hal distribution (www.usevolt.fi).
  * Copyright (c) 2017 Usevolt Oy.
  * 
- * This program is free software: you can redistribute it and/or modify  
- * it under the terms of the GNU General Public License as published by  
- * the Free Software Foundation, version 3.
  *
- * This program is distributed in the hope that it will be useful, but 
- * WITHOUT ANY WARRANTY; without even the implied warranty of 
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU 
- * General Public License for more details.
+ * MIT License
  *
- * You should have received a copy of the GNU General Public License 
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
-*/
+ * Copyright (c) 2019 usevolt
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 
 
 #ifndef UV_HAL_INC_UV_SOLENOID_OUTPUT_H_
@@ -31,6 +42,8 @@
 
 #define SOLENOID_OUTPUT_PWMAVG_COUNT	10
 #define SOLENOID_OUTPUT_MAAVG_COUNT		100
+#define SOLENOID_OUTPUT_TOGGLE_THRESHOLD_DEFAULT	500
+#define SOLENOID_OUTPUT_TOGGLE_LIMIT_MS_DEFAULT		0
 
 #if !CONFIG_PID
 #error "uv_solenoid_output requires uv_pid_st to be enabled with CONFIG_PID defined as 1."
@@ -134,8 +147,15 @@ typedef struct {
 	uv_moving_aver_st pwmaver;
 	/// @brief: PWM channel configured for this output
 	uv_pwm_channel_t pwm_chn;
-	// stores the last target value. Useful i.e. in ONOFF_TOGGLE mode
-	uint16_t last_target;
+
+#if CONFIG_SOLENOID_MODE_ONOFF
+	uv_hysteresis_st toggle_hyst;
+	uint8_t last_hyst;
+	// tells the output state on ONOFFTOGGLE modes
+	bool toggle_on;
+	uv_delay_st toggle_delay;
+	uint32_t toggle_limit_ms;
+#endif
 
 } uv_solenoid_output_st;
 
@@ -172,6 +192,48 @@ static inline uv_solenoid_output_mode_e uv_solenoid_output_get_mode(uv_solenoid_
 	return this->mode;
 }
 
+
+#if CONFIG_SOLENOID_MODE_ONOFF
+/// @brief: Sets the ONOFFTOGGLE mode threshold value.
+/// The threshold value has to be exceeded
+/// in order for the state of the output to be toggled.
+/// Defaults to SOLENOID_OUTPUT_TOGGLE_THRESHOLD_DEFAULT.
+static inline void uv_solenoid_output_set_onofftoggle_threshold(
+		uv_solenoid_output_st *this, uint16_t value) {
+	this->toggle_hyst.trigger_value = value;
+}
+
+
+/// @brief: Returns the current ONOFFTOGGLE threshold value
+static inline uint16_t uv_solenoid_output_get_onofftoggle_threshold(
+		uv_solenoid_output_st *this) {
+	return this->toggle_hyst.trigger_value;
+}
+
+
+static inline int32_t uv_solenoid_output_get_onofftoggle_limit_ms(
+		uv_solenoid_output_st *this) {
+	return this->toggle_limit_ms;
+}
+
+
+static inline void uv_solenoid_output_set_onofftoggle_limit_ms(
+		uv_solenoid_output_st *this, int32_t value) {
+	this->toggle_limit_ms = value;
+}
+
+/// @brief: Sets the ONOFFTOGGLE mode state.
+static inline void uv_solenoid_output_set_onofftoggle_state(
+		uv_solenoid_output_st *this, bool value) {
+	this->toggle_on = value;
+}
+
+/// @brief: Returns the ONOFFTOGGLE mode out state
+static inline bool uv_solenoid_output_get_onofftoggle_state(
+		uv_solenoid_output_st *this) {
+	return this->toggle_on;
+}
+#endif
 
 /// @brief: Step funtion
 void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms);
