@@ -62,14 +62,19 @@ void uv_uilistbutton_draw(void *me, const uv_bounding_box_st *pbb) {
 
 	uv_ft81x_draw_shadowrrect(x, y, w, h, CONFIG_UI_RADIUS,
 			 bgc, lightc, shadowc);
-	alignment_e a = (this->title) ? ALIGN_TOP_CENTER : ALIGN_CENTER;
+	uint16_t ty = h / 2;
 	if (this->title) {
+		uint16_t th = uv_ft81x_get_string_height(this->title, ((uv_uibutton_st*) this)->font);
+		uint16_t ch = uv_ft81x_get_string_height(this->content[this->current_index],
+				((uv_uibutton_st*) this)->font);
+
 		uv_ft81x_draw_string(this->title, ((uv_uibutton_st*) this)->font, x + w / 2,
-				y + h / 2 - uv_ft81x_get_string_height(this->title,
-						((uv_uibutton_st*) this)->font), ALIGN_TOP_CENTER, fontc);
+				y + ty - (th + ch) / 2 + th / 2, ALIGN_CENTER, fontc);
+
+		ty += (th + ch) / 2 - ch / 2;
 	}
 	uv_ft81x_draw_string(this->content[this->current_index], ((uv_uibutton_st*) this)->font,
-			x + w / 2, y + h / 2, a, fontc);
+			x + w / 2, y + ty, ALIGN_CENTER, fontc);
 
 
 	int16_t offset = 4;
@@ -91,7 +96,7 @@ void uv_uilistbutton_init(void *me, char **content,
 	uv_uiobject_set_step_callb(this, &uv_uilistbutton_step);
 	uv_uiobject_set_touch_callb(this, &touch);
 	this->activebar_c = style->fg_c;
-	this->bar_c = this->activebar_c;
+	this->bar_c = uv_uic_brighten(style->bg_c, -10);
 	this->content_len = content_len;
 	this->content = content;
 	this->current_index = current_index;
@@ -108,12 +113,9 @@ uv_uiobject_ret_e uv_uilistbutton_step(void *me, uint16_t step_ms,
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
 
-	if (uv_ui_get_enabled(this)) {
-		if (((uv_uiobject_st*) this)->refresh) {
-			((uv_uiobject_st*) this)->vrtl_draw(this, pbb);
-			((uv_uiobject_st*) this)->refresh = false;
-			ret = UIOBJECT_RETURN_REFRESH;
-		}
+	if (((uv_uiobject_st*) this)->refresh) {
+		_uv_uiobject_draw(this, pbb);
+		ret = UIOBJECT_RETURN_REFRESH;
 	}
 
 

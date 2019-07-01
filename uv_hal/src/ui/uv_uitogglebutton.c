@@ -74,9 +74,7 @@ uv_uiobject_ret_e uv_uitogglebutton_step(void *me, uint16_t step_ms,
 	this->clicked = false;
 
 	// update if necessary
-	if (((uv_uiobject_st*) this)->refresh) {
-		((uv_uiobject_st*) this)->vrtl_draw(this, pbb);
-		((uv_uiobject_st*) this)->refresh = false;
+	if (_uv_uiobject_draw(this, pbb)) {
 		ret = UIOBJECT_RETURN_REFRESH;
 	}
 

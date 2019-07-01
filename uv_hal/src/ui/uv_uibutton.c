@@ -73,12 +73,8 @@ uv_uiobject_ret_e uv_uibutton_step(void *me, uint16_t step_ms,
 		const uv_bounding_box_st *pbb) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
-	if (uv_ui_get_enabled(this)) {
-		if (((uv_uiobject_st*) this)->refresh) {
-			((uv_uiobject_st*) this)->vrtl_draw(this, pbb);
-			((uv_uiobject_st*) this)->refresh = false;
-			ret = UIOBJECT_RETURN_REFRESH;
-		}
+	if (_uv_uiobject_draw(this, pbb)) {
+		ret = UIOBJECT_RETURN_REFRESH;
 	}
 
 	if ((this->state == UIBUTTON_PRESSED) &&

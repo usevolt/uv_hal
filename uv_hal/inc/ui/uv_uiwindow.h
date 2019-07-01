@@ -191,6 +191,11 @@ static inline void uv_uiwindow_set_bgc(void *me, color_t c) {
 void uv_uiwindow_draw(void *me, const uv_bounding_box_st *pbb);
 
 
+/// @brief: Enables or disabled the window. Compared to uv_uiobject_set_enabled,
+/// This also affect all uiwindow's children
+void uv_uiwindow_set_enabled(void *me, bool value);
+
+
 
 
 #undef this

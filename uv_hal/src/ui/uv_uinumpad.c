@@ -100,9 +100,10 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 			globx + uv_uibb(this)->width / 2, globy, ALIGN_TOP_CENTER, this->style->text_color);
 
 	if (strlen(this->value_str)) {
+		int32_t strl = uv_ft81x_get_string_height((char*) this->title, this->style->font);
 		uv_ft81x_draw_string(this->value_str, this->style->font,
-				globx + uv_uibb(this)->width / 2, globy + buth / 2,
-				ALIGN_TOP_CENTER, this->style->text_color);
+				globx + uv_uibb(this)->width / 2, globy + strl + (buth - strl) / 2,
+				ALIGN_CENTER, this->style->text_color);
 	}
 
 	uint8_t index = 0;
@@ -174,9 +175,8 @@ static void touch(void *me, uv_touch_st *touch) {
 static uv_uiobject_ret_e numpad_step(void *me, uint16_t step_ms, const uv_bounding_box_st * pbb) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
-	if (((uv_uiobject_st*) this)->refresh) {
-		draw(this, pbb);
-		((uv_uiobject_st*) this)->refresh = false;
+	if (_uv_uiobject_draw(this, pbb)) {
+		ret = UIOBJECT_RETURN_REFRESH;
 	}
 
 	this->cancelled = false;

@@ -47,11 +47,22 @@ void uv_bounding_box_init(uv_bounding_box_st *bb,
 	bb->height = height;
 }
 
-void _uv_uiobject_draw(void *me, const uv_bounding_box_st *pbb) {
-	if (this->vrtl_draw) {
+bool _uv_uiobject_draw(void *me, const uv_bounding_box_st *pbb) {
+	bool ret = false;
+	if (this->refresh && this->vrtl_draw && this->visible) {
+		if (!this->enabled) {
+			uv_ft81x_set_color_mode(COLOR_MODE_GRAYSCALE);
+			uv_ft81x_set_grayscale_luminosity(CONFIG_UI_DISABLED_OBJECT_BRIGHTNESS);
+		}
+		else {
+			uv_ft81x_set_color_mode(COLOR_MODE_RGB);
+		}
 		this->vrtl_draw(me, pbb);
+		ret = true;
 	}
 	this->refresh = false;
+
+	return ret;
 }
 
 

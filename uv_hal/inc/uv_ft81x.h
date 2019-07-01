@@ -171,6 +171,11 @@ typedef enum {
 } ft81x_align_e;
 
 
+typedef enum {
+	COLOR_MODE_RGB = 0,
+	COLOR_MODE_GRAYSCALE
+} ft81x_color_modes_e;
+
 
 
 /// @brief: Width of the LCD in pixels
@@ -207,6 +212,9 @@ typedef uint32_t color_t;
 /// @brief: Returns a color which is brightened by removing *value* amount of 8-bit color
 /// from all R, G and B color channels
 color_t uv_uic_brighten(color_t c, int8_t value);
+
+/// @brief: Converts *c* to grayscale and returns it
+color_t uv_uic_grayscale(color_t c);
 
 /// @brief: Returns a color which is linearily interpolated between colors ca and cb.
 /// t = 0 returns ca, t = 1000 returns cb. No boundary checks are done in the calculations.
@@ -416,6 +424,16 @@ void uv_ft81x_touchscreen_set_transform_matrix(ft81x_transfmat_st *transform_mat
 /// @param x: Pointer to where the x px coordinate will be written (or NULL)
 /// @param y: Pointer to where the y px coordinate will be written (or NULL)
 bool uv_ft81x_get_touch(int16_t *x, int16_t *y);
+
+
+/// @brief: Sets the color mode for the ft81x. The mode affects  how different colors
+/// are drawn on the screen.
+void uv_ft81x_set_color_mode(ft81x_color_modes_e value);
+
+/// @brief: Sets the grayscale luminosity correction. value should be INT8_MIN + 1 ... INT8_MAX,
+/// 0 is the default value. Can be used to finetune the grayscale color luminosity.
+void uv_ft81x_set_grayscale_luminosity(int8_t value);
+
 
 
 /// @brief: Draws a letter on the screen
