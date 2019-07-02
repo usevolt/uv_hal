@@ -74,7 +74,7 @@ void uv_hysteresis_init(uv_hysteresis_st *this, int32_t trigger_value,
 
 bool uv_hysteresis_step(uv_hysteresis_st *this, int32_t value) {
 	if (this->invert) {
-		if ((!this->result) && (value < this->trigger_value - this->hysteresis)) {
+		if ((!this->result) && (value < this->trigger_value)) {
 			this->result = 1;
 		}
 		else if ((this->result) && (value > this->trigger_value + this->hysteresis)) {
@@ -85,7 +85,7 @@ bool uv_hysteresis_step(uv_hysteresis_st *this, int32_t value) {
 		}
 	}
 	else {
-		if ((!this->result) && (value > this->trigger_value + this->hysteresis)) {
+		if ((!this->result) && (value > this->trigger_value)) {
 			this->result = 1;
 		}
 		else if ((this->result) && (value < this->trigger_value - this->hysteresis)) {

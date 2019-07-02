@@ -38,6 +38,7 @@
 #define PID_MULTIPLIER		0x10
 #define ACC_MIN				10
 #define DEC_MIN				60
+#define TOGGLE_HYSTERESIS_DEFAULT		100
 
 
 void uv_dual_solenoid_output_conf_reset(uv_dual_solenoid_output_conf_st *this,
@@ -68,8 +69,17 @@ void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 	this->target_mult = 0;
 	this->current_ma = 0;
 	this->out = 0;
+	this->mode = DUAL_SOLENOID_OUTPUT_MODE_PROP_NORMAL;
 	uv_pid_init(&this->target_pid, PID_P_MAX, 0, 0);
 	uv_delay_init(&this->target_delay, TARGET_DELAY_MS);
+
+	this->toggle_threshold = DUAL_SOLENOID_OUTPUT_TOGGLE_THRESHOLD_DEFAULT;
+	this->last_hyst = 0;
+	this->toggle_on = 0;
+	this->toggle_limit_ms = DUAL_SOLENOID_OUTPUT_TOGGLE_LIMIT_MS_DEFAULT;
+	uv_hysteresis_init(&this->toggle_hyst,
+			this->toggle_threshold, TOGGLE_HYSTERESIS_DEFAULT, false);
+	uv_delay_init(&this->toggle_delay, this->toggle_limit_ms);
 
 
 	uv_solenoid_output_init(&this->solenoid[DUAL_OUTPUT_SOLENOID_A],
@@ -101,48 +111,115 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 			DUAL_OUTPUT_SOLENOID_A : DUAL_OUTPUT_SOLENOID_B;
 
 
-#if CONFIG_SOLENOID_MODE_ONOFF || CONFIG_SOLENOID_MODE_PWM
 	// if other solenoid output modes are defined, DUAL_OUTPUT_SOLENOID_B follows
 	// DUAL_OUTPUT_SOLENOID_A's mode
 	uv_solenoid_output_set_mode(&this->solenoid[1],
 			uv_solenoid_output_get_mode(&this->solenoid[0]));
-	#endif
 
 
 	if (uv_delay(&this->target_delay, step_ms)) {
 		uv_delay_init(&this->target_delay, TARGET_DELAY_MS);
 
-		if (this->conf->acc > 100) {
-			this->conf->acc = 100;
-		}
-		if (this->conf->dec > 100) {
-			this->conf->dec = 100;
-		}
 		uint16_t acc = this->conf->acc;
 		uint16_t dec = this->conf->dec;
+		LIMIT_MAX(acc, 100);
+		LIMIT_MAX(dec, 100);
 
-		if (this->target_req > DUAL_SOLENOID_VALUE_MAX) {
-			this->target_req = DUAL_SOLENOID_VALUE_MAX;
+		// make sure the solenoid ouptuts are in right mode
+		if (this->mode == DUAL_SOLENOID_OUTPUT_MODE_ONOFF_NORMAL ||
+				this->mode == DUAL_SOLENOID_OUTPUT_MODE_ONOFF_TOGGLE) {
+			uv_solenoid_output_set_mode(&this->solenoid[0], SOLENOID_OUTPUT_MODE_ONOFF);
+			uv_solenoid_output_set_mode(&this->solenoid[1], SOLENOID_OUTPUT_MODE_ONOFF);
 		}
-		else if (this->target_req < DUAL_SOLENOID_VALUE_MIN) {
-			this->target_req = DUAL_SOLENOID_VALUE_MIN;
+		else if (this->mode == DUAL_SOLENOID_OUTPUT_MODE_PROP_NORMAL ||
+				this->mode == DUAL_SOLENOID_OUTPUT_MODE_PROP_TOGGLE) {
+			uv_solenoid_output_set_mode(&this->solenoid[0], SOLENOID_OUTPUT_MODE_CURRENT);
+			uv_solenoid_output_set_mode(&this->solenoid[1], SOLENOID_OUTPUT_MODE_CURRENT);
 		}
 		else {
 
 		}
+		// update hysteresis parameters
+		// because of uv_hysteresis module compares greater-than, and not greater-or-equal,
+		// maximum value is not valid threshold as that would never trigger the output.
+		this->toggle_hyst.trigger_value = (this->toggle_threshold < DUAL_SOLENOID_VALUE_MAX) ?
+				this->toggle_threshold : DUAL_SOLENOID_VALUE_MAX - 1;
 
-		// in ONOFF mode or when acc and dec are maximum, the pid controller is bypassed
-		if (uv_solenoid_output_get_mode(&this->solenoid[0]) == SOLENOID_OUTPUT_MODE_ONOFF_NORMAL ||
-				uv_solenoid_output_get_mode(&this->solenoid[0]) == SOLENOID_OUTPUT_MODE_ONOFF_TOGGLE ||
+
+		int32_t target_req = this->target_req;
+		LIMITS(target_req, DUAL_SOLENOID_VALUE_MIN, DUAL_SOLENOID_VALUE_MAX);
+
+		if (target_req == 0) {
+			this->toggle_hyst.result = 0;
+		}
+
+		uv_hysteresis_step(&this->toggle_hyst, abs(target_req));
+		// calculate the target value depending on the mode
+		if (this->mode == DUAL_SOLENOID_OUTPUT_MODE_PROP_TOGGLE ||
+				this->mode == DUAL_SOLENOID_OUTPUT_MODE_ONOFF_TOGGLE) {
+			if (uv_hysteresis_get_output(&this->toggle_hyst)) {
+				if (!this->last_hyst) {
+					if (target_req > 0) {
+						if (this->toggle_on == -1) {
+							this->toggle_on = 1;
+						}
+						else {
+							this->toggle_on = (this->toggle_on) ? 0 : 1;
+						}
+					}
+					else {
+						if (this->toggle_on == 1) {
+							this->toggle_on = -1;
+						}
+						else {
+							this->toggle_on = (this->toggle_on) ? 0 : -1;
+						}
+					}
+				}
+				uv_delay_init(&this->toggle_delay, this->toggle_limit_ms);
+			}
+			if (this->toggle_limit_ms && uv_delay(&this->toggle_delay, TARGET_DELAY_MS)) {
+				this->toggle_on = 0;
+			}
+			target_req = (this->toggle_on) ? ((this->toggle_on > 0) ? 1000 : -1000) : 0;
+		}
+		else if (this->mode == DUAL_SOLENOID_OUTPUT_MODE_ONOFF_NORMAL) {
+			if (uv_hysteresis_get_output(&this->toggle_hyst)) {
+				if (target_req > 0) {
+					target_req = DUAL_SOLENOID_VALUE_MAX;
+				}
+				else if (target_req < 0) {
+					target_req = DUAL_SOLENOID_VALUE_MIN;
+				}
+				else {
+					target_req = 0;
+				}
+			}
+			else {
+				target_req = 0;
+			}
+		}
+		else {
+			// DUAL_SOLENOID_OUTPUT_MODE_PROP_NORMAL
+			// Nothing to do here
+		}
+		this->last_hyst = uv_hysteresis_get_output(&this->toggle_hyst);
+
+
+
+		// calculate the output target value depending on the conf parameters
+		// when acc and dec are maximum, the pid controller is bypassed
+		if (this->mode == DUAL_SOLENOID_OUTPUT_MODE_ONOFF_NORMAL ||
+				this->mode == DUAL_SOLENOID_OUTPUT_MODE_ONOFF_TOGGLE ||
 				(acc == DUAL_SOLENOID_ACC_MAX &&
 						dec == DUAL_SOLENOID_DEC_MAX)) {
-			this->target = this->target_req;
+			this->target = target_req;
 		}
 		else {
 			// different moving average values for accelerating and decelerating
 			// maximum decelerating time is 1 sec
-			if ((abs(this->target_req) > abs(this->target)) ||
-					((int32_t) this->target_req * this->target < 0)) {
+			if ((abs(target_req) > abs(this->target)) ||
+					((int32_t) target_req * this->target < 0)) {
 				// accelerating
 				uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * acc * acc / 10000);
 			}
@@ -151,7 +228,7 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 				uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * dec * dec / 10000);
 			}
 
-			uv_pid_set_target(&this->target_pid, this->target_req * PID_MULTIPLIER);
+			uv_pid_set_target(&this->target_pid, target_req * PID_MULTIPLIER);
 			uv_pid_step(&this->target_pid, TARGET_DELAY_MS, this->target_mult);
 			this->target_mult += uv_pid_get_output(&this->target_pid);
 			if ((this->target_mult / PID_MULTIPLIER) > 1000) {
@@ -167,8 +244,8 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 
 			// clamp output to target value when we're close enough
 			if (uv_pid_get_output(&this->target_pid) == 0) {
-				this->target = this->target_req;
-				this->target_mult = this->target_req * PID_MULTIPLIER;
+				this->target = target_req;
+				this->target_mult = target_req * PID_MULTIPLIER;
 			}
 		}
 	}
@@ -176,15 +253,7 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 
 	if (this->target > 0) {
 		uv_solenoid_output_set(&this->solenoid[sb], 0);
-#if CONFIG_SOLENOID_MODE_ONOFF
-		// if ONOFF mode is enabled, make sure that ONOFFTOGGLE cannot put both outputs ON
-		// at the same time
-		if (this->target > 0 &&
-				this->target >=
-				uv_solenoid_output_get_onofftoggle_threshold(&this->solenoid[sa])) {
-			uv_solenoid_output_set_onofftoggle_state(&this->solenoid[sb], false);
-		}
-#endif
+
 		// only set output active if the other direction has gone to zero
 		if (uv_solenoid_output_get_pwm_dc(&this->solenoid[sb]) == 0) {
 			uv_solenoid_output_set(&this->solenoid[sa], abs(this->target));
@@ -192,15 +261,7 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 	}
 	else {
 		uv_solenoid_output_set(&this->solenoid[sa], 0);
-#if CONFIG_SOLENOID_MODE_ONOFF
-		// if ONOFF mode is enabled, make sure that ONOFFTOGGLE cannot put both outputs ON
-		// at the same time
-		if (this->target &&
-				abs(this->target) >=
-					uv_solenoid_output_get_onofftoggle_threshold(&this->solenoid[sb])) {
-			uv_solenoid_output_set_onofftoggle_state(&this->solenoid[sa], false);
-		}
-#endif
+
 		// only set output active if the other direction has gone to zero
 		if (uv_solenoid_output_get_pwm_dc(&this->solenoid[sa]) == 0) {
 			uv_solenoid_output_set(&this->solenoid[sb], abs(this->target));
@@ -237,19 +298,6 @@ void uv_dual_solenoid_output_set_conf(uv_dual_solenoid_output_st *this,
 
 
 
-uint8_t uv_dual_solenoid_output_get_onofftoggle(uv_dual_solenoid_output_st *this) {
-	uint8_t ret = 0;
-	if (uv_solenoid_output_get_onofftoggle_state(&this->solenoid[0])) {
-		ret = 1;
-	}
-	else if (uv_solenoid_output_get_onofftoggle_state(&this->solenoid[1])) {
-		ret = -1;
-	}
-	else {
-
-	}
-	return ret;
-}
 
 
 

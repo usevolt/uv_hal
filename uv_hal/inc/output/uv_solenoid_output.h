@@ -42,8 +42,6 @@
 
 #define SOLENOID_OUTPUT_PWMAVG_COUNT	10
 #define SOLENOID_OUTPUT_MAAVG_COUNT		100
-#define SOLENOID_OUTPUT_TOGGLE_THRESHOLD_DEFAULT	500
-#define SOLENOID_OUTPUT_TOGGLE_LIMIT_MS_DEFAULT		0
 
 #if !CONFIG_PID
 #error "uv_solenoid_output requires uv_pid_st to be enabled with CONFIG_PID defined as 1."
@@ -68,10 +66,6 @@
 #if !defined(CONFIG_SOLENOID_MAX_PPT_DEF)
 #error "CONFIG_SOLENOID_MAX_PPT_DEF should define the max ppt default value in PWM mode"
 #endif
-#if !defined(CONFIG_SOLENOID_ONOFF_MODE_DEF)
-#error "CONFIG_SOLENOID_ONOFF_MODE_DEF should define the default state for ONOFF mode, either \
-SOLENOID_OUTPUT_ONOFF_MODE_NORMAL or SOLENOID_OUTPUT_ONOFF_MODE_TOGGLE."
-#endif
 
 typedef enum {
 	/// @brief: Output is current controlled with a current sensing feedback
@@ -80,10 +74,7 @@ typedef enum {
 	/// mode the conf settings are straightly converted to PWM duty cycle values from 0 ... 1000.
 	SOLENOID_OUTPUT_MODE_PWM,
 	/// @brief: The output is on/off digital output, without any proportional functionality.
-	SOLENOID_OUTPUT_MODE_ONOFF_NORMAL,
-	/// @brief: Solenoid is ONOFF with TOGGLE mode, meaning that the output is left on
-	/// with a click of the input request
-	SOLENOID_OUTPUT_MODE_ONOFF_TOGGLE
+	SOLENOID_OUTPUT_MODE_ONOFF
 } uv_solenoid_output_mode_e;
 
 
@@ -148,15 +139,6 @@ typedef struct {
 	/// @brief: PWM channel configured for this output
 	uv_pwm_channel_t pwm_chn;
 
-#if CONFIG_SOLENOID_MODE_ONOFF
-	uv_hysteresis_st toggle_hyst;
-	uint8_t last_hyst;
-	// tells the output state on ONOFFTOGGLE modes
-	bool toggle_on;
-	uv_delay_st toggle_delay;
-	uint32_t toggle_limit_ms;
-#endif
-
 } uv_solenoid_output_st;
 
 
@@ -192,48 +174,6 @@ static inline uv_solenoid_output_mode_e uv_solenoid_output_get_mode(uv_solenoid_
 	return this->mode;
 }
 
-
-#if CONFIG_SOLENOID_MODE_ONOFF
-/// @brief: Sets the ONOFFTOGGLE mode threshold value.
-/// The threshold value has to be exceeded
-/// in order for the state of the output to be toggled.
-/// Defaults to SOLENOID_OUTPUT_TOGGLE_THRESHOLD_DEFAULT.
-static inline void uv_solenoid_output_set_onofftoggle_threshold(
-		uv_solenoid_output_st *this, uint16_t value) {
-	this->toggle_hyst.trigger_value = value;
-}
-
-
-/// @brief: Returns the current ONOFFTOGGLE threshold value
-static inline uint16_t uv_solenoid_output_get_onofftoggle_threshold(
-		uv_solenoid_output_st *this) {
-	return this->toggle_hyst.trigger_value;
-}
-
-
-static inline int32_t uv_solenoid_output_get_onofftoggle_limit_ms(
-		uv_solenoid_output_st *this) {
-	return this->toggle_limit_ms;
-}
-
-
-static inline void uv_solenoid_output_set_onofftoggle_limit_ms(
-		uv_solenoid_output_st *this, int32_t value) {
-	this->toggle_limit_ms = value;
-}
-
-/// @brief: Sets the ONOFFTOGGLE mode state.
-static inline void uv_solenoid_output_set_onofftoggle_state(
-		uv_solenoid_output_st *this, bool value) {
-	this->toggle_on = value;
-}
-
-/// @brief: Returns the ONOFFTOGGLE mode out state
-static inline bool uv_solenoid_output_get_onofftoggle_state(
-		uv_solenoid_output_st *this) {
-	return this->toggle_on;
-}
-#endif
 
 /// @brief: Step funtion
 void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms);

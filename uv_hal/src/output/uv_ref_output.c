@@ -116,7 +116,7 @@ void uv_ref_output_init(uv_ref_output_st *this,
 	this->conf = conf_ptr;
 	this->limitconf = limitconf;
 	this->pwm_chn = pwm_chn;
-	this->mode = SOLENOID_OUTPUT_MODE_CURRENT;
+	this->mode = DUAL_SOLENOID_OUTPUT_MODE_PROP_NORMAL;
 	this->out = 0;
 	this->pwm = 0;
 	uv_pid_init(&this->mv_pid, CONFIG_REF_PID_P_DEF, CONFIG_REF_PID_I_DEF, 0);
@@ -206,8 +206,7 @@ void uv_ref_output_step(uv_ref_output_st *this, uint16_t step_ms) {
 		}
 	}
 	else {
-		if (this->mode == SOLENOID_OUTPUT_MODE_CURRENT ||
-				this->mode == SOLENOID_OUTPUT_MODE_PWM) {
+		if (this->mode == DUAL_SOLENOID_OUTPUT_MODE_PROP_NORMAL) {
 			if (uv_delay(&this->target_delay, step_ms)) {
 				uv_delay_init(&this->target_delay, TARGET_DELAY_MS);
 
@@ -295,8 +294,9 @@ void uv_ref_output_step(uv_ref_output_st *this, uint16_t step_ms) {
 			}
 		}
 		else {
+			// ONOFF_NORMAL MODE
 			uv_hysteresis_step(&this->toggle_hyst, abs(this->target_req));
-			if (this->mode == SOLENOID_OUTPUT_MODE_ONOFF_NORMAL) {
+			if (this->mode == DUAL_SOLENOID_OUTPUT_MODE_ONOFF_NORMAL) {
 				// in onoff mode the PID controller is disabled and we put the output value directly
 				if (uv_hysteresis_get_output(&this->toggle_hyst) && this->target_req) {
 					this->target = (this->target_req > 0) ? 1000 : -1000;
@@ -306,7 +306,7 @@ void uv_ref_output_step(uv_ref_output_st *this, uint16_t step_ms) {
 					this->toggle_hyst.result = 0;
 				}
 			}
-			// SOLENOID_OUTPUT_MODE_ONOFF_TOGGLE
+			// TOGGLE modes
 			else {
 				if (uv_hysteresis_get_output(&this->toggle_hyst) && this->target_req) {
 					if (!this->last_hyst) {
@@ -341,10 +341,12 @@ void uv_ref_output_step(uv_ref_output_st *this, uint16_t step_ms) {
 			// in both onoff modes the output is always either maximum or minimum.
 			// This is to comply with solenoid_output modules
 			if (this->target > 0) {
-				rel_value = 1000;
+				rel_value = (this->mode == DUAL_SOLENOID_OUTPUT_MODE_PROP_TOGGLE) ?
+						this->limitconf->solenoid_limitconf[0].max_ppt : 1000;
 			}
 			else if (this->target < 0) {
-				rel_value = 0;
+				rel_value = (this->mode == DUAL_SOLENOID_OUTPUT_MODE_PROP_TOGGLE) ?
+						this->limitconf->solenoid_limitconf[1].max_ppt : 0;
 			}
 			else {
 				rel_value = 500;

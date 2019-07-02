@@ -96,10 +96,8 @@
 
 
 
-/// @brief: Defines the output mode. See uv_solenoid_output_st for the details.
-/// Both SOLENOID_OUTPUT_MODE_CURRENT and SOLENOID_OUTPUT_MODE_PWM are interpreted
-/// as proportional control.
-typedef uv_solenoid_output_mode_e uv_ref_output_mode_e;
+/// @brief: Defines the output mode. See uv_dual_solenoid_output_st for the details.
+typedef uv_dual_solenoid_output_modes_e uv_ref_output_mode_e;
 
 
 /// @brief: Data structure for ref output configuration data.

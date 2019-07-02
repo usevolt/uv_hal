@@ -208,8 +208,13 @@ extern CONFIG_APP_ST;
 
 
 /// @brief: Checks *x* towards the limits *min* and *max* and clamps the output to them.
-#define LIMITS(x, min, max) do { if (x < min) { x = min; } else if (x > max) { x = max; } else { } } while (0);
+#define LIMITS(x, min, max) do { if (x < min) { x = min; } else if (x > max) { x = max; } else { } } while (0)
 
+/// @brief: Checks that *x* cannot be greater than *max*
+#define LIMIT_MAX(x, max) do { if (x > max) { x = max; } } while (0)
+
+/// @brief: Checks that *x* cannot be smaller than *min*
+#define LIMIT_MIN(x, min) do { if (x < min) { x = min; } } while (0)
 
 typedef int32_t uv_delay_st;
 
