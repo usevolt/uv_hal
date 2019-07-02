@@ -120,7 +120,7 @@ void uv_w25q128_step(uv_w25q128_st *this, uint16_t step_ms);
 /// The filename is stored right after the fd, before the actual file
 typedef struct {
 	// Address of this file descriptor
-	uint32_t data_addr;
+	int32_t data_addr;
 	// size of the file in bytes, excluding the filename
 	uint32_t file_size;
 	char filename[EXMEM_FILENAME_LEN];
@@ -215,6 +215,9 @@ bool uv_exmem_find(uv_w25q128_st *this, char *filename, uv_fd_st *dest);
 /// @return: True of the *index*'th file was found, false otherwise.
 bool uv_exmem_index(uv_w25q128_st *this, uint32_t index, uv_fd_st *dest);
 
+
+/// @brief: Deletes a file with a name of *filename*
+bool uv_exmem_delete(uv_w25q128_st *this, char *filename);
 
 
 #endif
