@@ -170,10 +170,8 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 uv_uiobject_ret_e uv_uiprogressbar_step(void *me, uint16_t step_ms,
 		const uv_bounding_box_st *pbb) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
-	if (this->super.refresh) {
-		((uv_uiobject_st*) this)->vrtl_draw(this, pbb);
+	if (_uv_uiobject_draw(this, pbb)) {
 		ret = UIOBJECT_RETURN_REFRESH;
-		this->super.refresh = false;
 	}
 	return ret;
 }

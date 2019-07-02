@@ -85,12 +85,16 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 		height = uv_uibb(this)->height;
 	}
 	else {
-		y += (uv_uibb(this)->height - height) / 2;
+		y += (uv_uibb(this)->height - height) / 2 - ((this->title) ?
+				((TITLE_OFFSET + uv_ft81x_get_string_height(this->title, ((uv_uilabel_st*) this)->font)) / 2)
+				: 0);
 	}
 	uv_ft81x_draw_shadowrrect(x, y, uv_uibb(this)->width, height, 0, this->bg_color,
 			uv_uic_brighten(this->bg_color, -30), uv_uic_brighten(this->bg_color, 30));
 
-	_uv_uilabel_draw(this, pbb);
+	uv_ft81x_draw_string(((uv_uilabel_st*) this)->str, ((uv_uilabel_st*) this)->font,
+			x + uv_uibb(this)->width / 2, y + height / 2,
+			FT81X_ALIGN_CENTER, ((uv_uilabel_st*)this)->color);
 
 	if (this->title) {
 		uv_ft81x_draw_string(this->title, ((uv_uilabel_st*) this)->font, x + uv_uibb(this)->width / 2,

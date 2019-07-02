@@ -41,6 +41,9 @@
 
 #if CONFIG_UI
 
+#if !defined(CONFIG_UI_DISABLED_OBJECT_BRIGHTNESS)
+#warning "CONFIG_UI_DISABLED_OBJECT_BRIGHTNESS not defined. Defaults to 1. Should be between INT8_MIN + 1 ... INT8_MAX"
+#endif
 
 
 
@@ -189,8 +192,11 @@ static inline void uv_uiobject_set_draw_callb(void *me,
 }
 
 
-/// @brief: Calls the redraw callback function if one is assigned
-void _uv_uiobject_draw(void *me, const uv_bounding_box_st *pbb);
+/// @brief: Draws the uiobject on the screen. This should be always used to
+/// request the drawing of objects derived from uiobject
+///
+/// @return: True if the draw callback was actually called, false if drawing was not necessary
+bool _uv_uiobject_draw(void *me, const uv_bounding_box_st *pbb);
 
 /// @brief: Sets the virtual touch function pointer
 static inline void uv_uiobject_set_touch_callb(void *me,
@@ -233,6 +239,14 @@ static inline void uv_uiobject_set_enabled(void *me, bool value) {
 
 static inline bool uv_ui_get_enabled(const void *me) {
 	return this->enabled;
+}
+
+static inline void uv_uiobject_set_visible(void *me, bool value) {
+	this->visible = value;
+}
+
+static inline bool uv_uiobject_get_visible(void *me) {
+	return this->visible;
 }
 
 /// @brief: Getter for the object's bounding box

@@ -74,9 +74,7 @@ void _uv_uilabel_draw(void *me, const uv_bounding_box_st *pbb) {
 uv_uiobject_ret_e uv_uilabel_step(void *me, uint16_t step_ms, const uv_bounding_box_st *pbb) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
-	if (((uv_uiobject_st*) this)->refresh) {
-		_uv_uiobject_draw(this, pbb);
-	}
+	_uv_uiobject_draw(this, pbb);
 
 	return ret;
 }

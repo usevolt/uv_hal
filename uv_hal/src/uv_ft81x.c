@@ -436,6 +436,8 @@ typedef struct {
 	uint32_t dl_index_max;
 	color_st color;
 	color_st clear_color;
+	ft81x_color_modes_e color_mode;
+	int8_t grayscale_luminosity;
 	bool color_init;
 	bool clear_color_init;
 	uint8_t backlight;
@@ -495,6 +497,8 @@ bool uv_ft81x_init(void) {
 	this->mask.y = 0;
 	this->mask.width = LCD_W_PX;
 	this->mask.height = LCD_H_PX;
+	this->grayscale_luminosity = 0;
+	this->color_mode = COLOR_MODE_RGB;
 	init_values();
 
 	// toggle PD pin to reset the FT81X
@@ -730,6 +734,9 @@ static void writehostcmd(const ft81x_hostcmds_e hostcmd, uint8_t parameter) {
 
 
 static void set_color(color_t c) {
+	if (this->color_mode == COLOR_MODE_GRAYSCALE) {
+		c = uv_uic_grayscale(c);
+	}
 	if ((!this->color_init) ||
 			(((color_st*) &c)->a != this->color.a)) {
 		DEBUG("set alpha\n");
@@ -1489,6 +1496,26 @@ color_t uv_uic_brighten(color_t c, int8_t value) {
 }
 
 
+color_t uv_uic_grayscale(color_t c) {
+	color_st *cst = (void*) &c;
+	uint32_t shade = ((uint32_t) cst->r + cst->g + cst->b) / 3;
+	if (shade > UINT8_MAX) {
+		shade = UINT8_MAX;
+	}
+	if (this->grayscale_luminosity) {
+		int32_t reli = uv_reli(this->grayscale_luminosity, INT8_MIN + 1, INT8_MAX);
+		LIMITS(reli, 0, 1000);
+		shade = shade * reli / 500;
+	}
+	cst->r = shade;
+	cst->g = shade;
+	cst->b = shade;
+	memcpy(&c, cst, sizeof(c));
+
+	return c;
+}
+
+
 color_t uv_uic_lerpi(int32_t t, color_t ca, color_t cb) {
 	uint32_t ret = 0;
 	for (uint8_t i = 0; i < 4; i++) {
@@ -1504,7 +1531,14 @@ color_t uv_uic_lerpi(int32_t t, color_t ca, color_t cb) {
 
 
 
+void uv_ft81x_set_color_mode(ft81x_color_modes_e value) {
+	this->color_mode = value;
+}
 
+
+void uv_ft81x_set_grayscale_luminosity(int8_t value) {
+	this->grayscale_luminosity = value;
+}
 
 
 

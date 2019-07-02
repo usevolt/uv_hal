@@ -263,8 +263,9 @@ uv_uiobject_ret_e uv_uiwindow_step(void *me, uint16_t step_ms,
 	if (!(ret & UIOBJECT_RETURN_KILLED)) {
 		if (((uv_uiobject_st*)this)->refresh) {
 			// first redraw this window
-			((uv_uiobject_st*) this)->vrtl_draw(this, pbb);
-			ret = UIOBJECT_RETURN_REFRESH;
+			if (_uv_uiobject_draw(this, pbb)) {
+				ret = UIOBJECT_RETURN_REFRESH;
+			}
 			// then request redraw all children objects
 			uint16_t i;
 			for (i = 0; i < this->objects_count; i++) {
@@ -274,7 +275,7 @@ uv_uiobject_ret_e uv_uiwindow_step(void *me, uint16_t step_ms,
 		}
 
 		// call step functions for all children which are visible
-		if (((uv_uiobject_st*) this)->enabled) {
+		if (((uv_uiobject_st*) this)->visible) {
 			int16_t i;
 			uv_bounding_box_st bb = *uv_uibb(this);
 			int16_t globx = uv_ui_get_xglobal(this);
@@ -327,7 +328,9 @@ void uv_uiwindow_touch_callb(void *me, uv_touch_st *touch) {
 	for (i = this->objects_count - 1; i >= 0; i--) {
 		uv_touch_st t2 = *touch;
 
-		if (this->objects[i]->visible && this->objects[i]->vrtl_touch) {
+		if (this->objects[i]->visible &&
+				this->objects[i]->enabled &&
+				this->objects[i]->vrtl_touch) {
 			if (t2.action != TOUCH_NONE) {
 				if (t2.action != TOUCH_DRAG) {
 					t2.x -= uv_uibb(this->objects[i])->x + this->content_bb.x;
@@ -411,6 +414,14 @@ void uv_uiwindow_set_transparent(void *me, bool value) {
 		uv_ui_refresh(this);
 	}
 	this->transparent = value;
+}
+
+
+void uv_uiwindow_set_enabled(void *me, bool value) {
+	for (uint16_t i = 0; i < this->objects_count; i++) {
+		uv_uiobject_set_enabled(this->objects[i], value);
+	}
+	uv_uiobject_set_enabled(this, value);
 }
 
 

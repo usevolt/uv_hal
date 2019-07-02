@@ -116,9 +116,7 @@ uv_uiobject_ret_e uv_uilist_step(void *me, uint16_t step_ms,
 		const uv_bounding_box_st *pbb) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
-	if (this->super.refresh) {
-		((uv_uiobject_st*) this)->vrtl_draw(this, pbb);
-		this->super.refresh = false;
+	if (_uv_uiobject_draw(this, pbb)) {
 		ret = UIOBJECT_RETURN_REFRESH;
 	}
 
