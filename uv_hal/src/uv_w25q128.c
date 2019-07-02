@@ -494,7 +494,6 @@ bool uv_exmem_find(uv_w25q128_st *this, char *filename, uv_fd_st *dest) {
 	return ret;
 }
 
-#include <uv_terminal.h>
 bool uv_exmem_index(uv_w25q128_st *this, uint32_t index, uv_fd_st *dest) {
 	bool ret = false;
 	uint32_t addr = 0;
