@@ -20,6 +20,8 @@
 #include <uv_uiacceptdialog.h>
 
 
+#if CONFIG_UI
+
 static uv_uiobject_ret_e step(void *user_ptr, uint16_t step_ms);
 
 
@@ -76,3 +78,5 @@ static uv_uiobject_ret_e step(void *user_ptr, uint16_t step_ms) {
 
 	return ret;
 }
+
+#endif
