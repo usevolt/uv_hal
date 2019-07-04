@@ -54,6 +54,7 @@ void uv_halsensor_init(uv_halsensor_st *this, uv_halsensor_config_st *config,
 int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 	uint16_t adc = uv_adc_read(this->adc_chn);
 	adc = uv_moving_aver_step(&this->moving_aver, adc);
+	this->out_adc = adc;
 
 	// voltage output is always calculated
 	this->out_mv = adc * 3300 / ADC_MAX_VALUE;
