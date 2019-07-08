@@ -80,7 +80,7 @@ static void pwm_set(uv_ref_output_st *this, int16_t rel_value) {
 			}
 			// find closest bigger value
 			for (uint8_t i = 1; i < this->lookuptable_len; i++) {
-				if (this->lookuptable[i].rel_value > rel_value) {
+				if (this->lookuptable[i].rel_value >= rel_value) {
 					bigger = &this->lookuptable[i];
 					break;
 				}
