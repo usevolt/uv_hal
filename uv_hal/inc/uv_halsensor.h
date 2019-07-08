@@ -110,6 +110,8 @@ typedef struct {
 
 	// output raw value in millivolts
 	uint16_t out_mv;
+	// output value in adc
+	uint16_t out_adc;
 
 	// emcy which will be sent if the sensor goes into fault mode
 	uint32_t fault_emcy;
@@ -157,6 +159,10 @@ static inline int32_t uv_halsensor_get_output32(uv_halsensor_st *this) {
 /// @brief: Returns the output absolute voltage in millivolts
 static inline uint16_t uv_halsensor_get_out_mv(uv_halsensor_st *this) {
 	return this->out_mv;
+}
+
+static inline uint16_t uv_halsensor_get_out_adc(uv_halsensor_st *this) {
+	return this->out_adc;
 }
 
 

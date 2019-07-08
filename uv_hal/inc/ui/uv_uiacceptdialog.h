@@ -23,6 +23,8 @@
 #include <uv_utilities.h>
 #include <uv_ui.h>
 
+#if CONFIG_UI
+
 
 /// @file: uiacceptdialog is a quick one-function-call way of showing
 /// a full-screen acceptance window. It consists of a informative
@@ -55,3 +57,6 @@ uv_uiacceptdialog_ret_e uv_uiacceptdialog_exec(uv_uiacceptdialog_st *this,
 		char *info_str, char *yes_str, char *no_str, const uv_uistyle_st *style);
 
 #endif /* INC_UIACCEPTDIALOG_H_ */
+
+
+#endif
