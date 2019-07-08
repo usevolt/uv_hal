@@ -451,12 +451,12 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		if (GET_MASKED(this->used_msg_objs, (1 << i))) {
 
 			read_msg_obj(i + 1);
-			volatile uint8_t msgif_type = get_msgif_type();
-			volatile uint32_t msgif_id = get_msgif_id(msgif_type),
+			uint8_t msgif_type = get_msgif_type();
+			uint32_t msgif_id = get_msgif_id(msgif_type),
 					msgif_mask = get_msgif_mask(msgif_type);
 			if ((msgif_type == (type == CAN_EXT)) &&
-					((id & mask) == (msgif_id & msgif_mask))) {
-
+					(id == msgif_id) &&
+					(mask == msgif_mask)) {
 				match = true;
 				break;
 			}
