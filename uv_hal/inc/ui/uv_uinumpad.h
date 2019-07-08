@@ -40,7 +40,7 @@
 #define NUMPAD_VALUE_STR_LEN	16
 
 
-typedef struct {
+typedef struct __attribute__((packed)) {
 	EXTENDS(uv_uiobject_st);
 
 	char value_str[NUMPAD_VALUE_STR_LEN];

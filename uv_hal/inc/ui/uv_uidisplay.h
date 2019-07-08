@@ -62,7 +62,7 @@ used on a touchscreen display."
 #define UIDISPLAY_PRESS_DELAY_MS	100
 
 /// @brief: Main display class. This represents a whole display.
-typedef struct {
+typedef struct __attribute__((packed)) {
 	EXTENDS(uv_uiwindow_st);
 #if CONFIG_UI_TOUCHSCREEN
 	uv_moving_aver_st avr_x;

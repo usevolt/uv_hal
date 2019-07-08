@@ -53,7 +53,7 @@ typedef uint8_t uiimage_wrap_e;
 
 
 /// @brief: Image structure
-typedef struct {
+typedef struct __attribute__((packed)) {
 	EXTENDS(uv_uiobject_st);
 
 	// pointer to the media structure which should be loaded to media RAM externally,

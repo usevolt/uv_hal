@@ -57,7 +57,7 @@ enum {
 };
 typedef uint8_t uiprogressbar_limit_e;
 
-typedef struct {
+typedef struct __attribute__((packed)) {
 	EXTENDS(uv_uiobject_st);
 
 	/// @brief: Current value

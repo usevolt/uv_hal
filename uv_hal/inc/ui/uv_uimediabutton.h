@@ -47,7 +47,7 @@ typedef enum {
 
 
 /// @brief: uimediabutton is a button with a media (i.e. an image) placed next to the text
-typedef struct {
+typedef struct __attribute__((packed)) {
 	EXTENDS(uv_uibutton_st);
 
 	uv_uimedia_st *media;

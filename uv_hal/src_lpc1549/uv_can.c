@@ -113,13 +113,6 @@ typedef struct
 extern bool can_log;
 #endif
 
-// all controllers which implement the C_CAN hardware
-#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549
-#define C_CAN		1
-#endif
-
-
-#if C_CAN
 /// @brief: Basic CAN message data structure
 /// LPC11C22 C_CAN driver struct. Do not change!
 typedef struct {
@@ -143,8 +136,6 @@ typedef struct {
 	/// For receiving multiple messages with a single message object, use mask bits.
 	uint8_t msgobj;
 } hal_can_msg_obj_st;
-
-#endif
 
 
 typedef struct {
@@ -456,13 +447,15 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 
 	// check if any message objects are configured to receive this type of data already
 	bool match = false;
-	for (uint8_t i = 0; i < 32; i++) {
+	for (uint8_t i = TX_MSG_OBJ; i < 32; i++) {
 		if (GET_MASKED(this->used_msg_objs, (1 << i))) {
 
 			read_msg_obj(i + 1);
-			if ((id == get_msgif_id((type == CAN_EXT))) &&
-					(mask == get_msgif_mask(CAN_EXT)) &&
-					(get_msgif_type() == (type == CAN_EXT))) {
+			volatile uint8_t msgif_type = get_msgif_type();
+			volatile uint32_t msgif_id = get_msgif_id(msgif_type),
+					msgif_mask = get_msgif_mask(msgif_type);
+			if ((msgif_type == (type == CAN_EXT)) &&
+					((id & mask) == (msgif_id & msgif_mask))) {
 
 				match = true;
 				break;
@@ -510,6 +503,15 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 	if (!match) {
 		ret = ERR_CAN_RX_MESSAGE_COUNT_FULL;
 	}
+
+	uv_can_msg_st msg;
+	msg.type = CAN_EXT;
+	msg.id = 0x1;
+	msg.data_length = 8;
+	msg.data_32bit[0] = this->used_msg_objs;
+	msg.data_32bit[1] = id;
+	uv_can_send(CAN0, &msg);
+	printf("0x%x\n", this->used_msg_objs);
 
 	__enable_irq();
 

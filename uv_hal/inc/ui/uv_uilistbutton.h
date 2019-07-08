@@ -41,7 +41,7 @@
 
 
 /// @brief: Button structure
-typedef struct {
+typedef struct __attribute__((packed)) {
 	EXTENDS(uv_uibutton_st);
 	char **content;
 	char *title;
@@ -92,6 +92,12 @@ static inline void uv_uilistbutton_set_current_index(void *me, uint8_t value) {
 	this->current_index = value;
 }
 
+
+/// @brief: sets the content buffer. Also need the content len parameter
+static inline void uv_uilistbutton_set_content(void *me, char **buffer, uint8_t content_len) {
+	this->content = buffer;
+	this->content_len = content_len;
+}
 
 /// @brief: Returns true if the button was clicked
 static inline bool uv_uilistbutton_clicked(void *me) {

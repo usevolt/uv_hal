@@ -34,12 +34,12 @@
 
 
 void uv_uigridlayout_init(uv_uigridlayout_st *this, int16_t x, int16_t y,
-		int16_t width, int16_t height, int16_t cell_count, int16_t row_count) {
+		int16_t width, int16_t height, int16_t column_count, int16_t row_count) {
 	this->bb.x = x;
 	this->bb.y = y;
 	this->bb.width = width;
 	this->bb.height = height;
-	this->cell_count = cell_count;
+	this->cell_count = column_count;
 	this->row_count = row_count;
 	this->index = 0;
 	this->hpadding = 0;
