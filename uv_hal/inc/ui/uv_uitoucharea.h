@@ -42,7 +42,7 @@
 #if CONFIG_UI
 
 
-typedef struct {
+typedef struct __attribute__((packed)) {
 	EXTENDS(uv_uiobject_st);
 	bool transparent;
 	uv_touch_st touch;

@@ -43,7 +43,7 @@
 
 
 /// @brief: Structure for showing text label on the screen.
-typedef struct {
+typedef struct __attribute__((packed)) {
 	EXTENDS(uv_uiobject_st);
 
 	/// @brief: Pointer to the font of this label

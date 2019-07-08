@@ -52,7 +52,7 @@
 /// Inherits from the uv_uiobject_st.
 ///
 /// @note: Type defined already in uv_uiobject.h
-struct _uv_uiwindow_st {
+struct __attribute__((packed)) _uv_uiwindow_st {
 	EXTENDS(uv_uiobject_st);
 
 	/// @brief: Children of this object reside in their own content bounding box.

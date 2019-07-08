@@ -47,7 +47,7 @@
 
 
 /// @brief: tab window is a window with different tabs
-typedef struct {
+typedef struct __attribute__((packed)) {
 	EXTENDS(uv_uiwindow_st);
 
 	/// @brief: tells how many tabs this tabwindow has

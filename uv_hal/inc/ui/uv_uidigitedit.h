@@ -38,7 +38,7 @@
 
 
 /// @brief: Structure for showing text label on the screen.
-typedef struct {
+typedef struct __attribute__((packed)) {
 	EXTENDS(uv_uilabel_st);
 
 	char str[16];

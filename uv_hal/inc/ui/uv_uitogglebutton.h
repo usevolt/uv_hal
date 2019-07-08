@@ -37,7 +37,7 @@
 #if CONFIG_UI
 
 /// @brief: uitogglebutton is a button with a toggleable state.
-typedef struct {
+typedef struct __attribute__((packed)) {
 	EXTENDS(uv_uibutton_st);
 
 	bool state;

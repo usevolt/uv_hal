@@ -42,7 +42,7 @@
 
 
 /// @brief: List is a selectable vertical list of label entries
-typedef struct {
+typedef struct __attribute__((packed)) {
 	EXTENDS(uv_uiobject_st);
 
 	/// @brief: List of the entry strings (char *)

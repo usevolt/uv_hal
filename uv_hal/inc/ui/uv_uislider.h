@@ -45,7 +45,7 @@
 
 
 /// @brief: Slider is a vertical or horizontal slider with a value
-typedef struct {
+typedef struct __attribute__((packed)) {
 	EXTENDS(uv_uiobject_st);
 
 	int16_t min_val;

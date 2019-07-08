@@ -41,7 +41,7 @@
 ///
 /// @note: This should apply exactly with uitogglebutton, as the uicheckbox
 /// uses uitogglebutton functions.
-typedef struct {
+typedef struct __attribute__((packed)) {
 	EXTENDS(uv_uibutton_st);
 
 	bool state;
