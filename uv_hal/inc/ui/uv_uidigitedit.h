@@ -37,6 +37,9 @@
 #if CONFIG_UI
 
 
+
+
+
 /// @brief: Structure for showing text label on the screen.
 typedef struct __attribute__((packed)) {
 	EXTENDS(uv_uilabel_st);
@@ -45,10 +48,11 @@ typedef struct __attribute__((packed)) {
 	char *title;
 	char *numpaddialog_title;
 	color_t bg_color;
-	uint32_t value;
+	int32_t value;
 	bool changed;
 	const uv_uistyle_st *style;
 	int32_t limit_max;
+	int32_t limit_min;
 } uv_uidigitedit_st;
 
 
@@ -60,12 +64,13 @@ void uv_uidigitedit_init(void *me, uv_font_st *font,
 		color_t color, uint32_t value, const uv_uistyle_st *style);
 
 
-
 /// @brief: Set's the text of all objects which are inherited from uv_uilabel_st
 ///
 /// @note: Since string are passed as a reference parameters, updating the same text
 /// will not refresh the label itself. Thus uv_ui_refresh should be called after updating the text.
-void uv_uidigitedit_set_value(void *me, uint32_t value);
+void uv_uidigitedit_set_value(void *me, int32_t value);
+
+
 
 
 /// @brief: Sets the color of the label text
@@ -97,7 +102,7 @@ static inline bool uv_uidigitedit_value_changed(void *me) {
 	return this->changed;
 }
 
-static inline uint32_t uv_uidigitedit_get_value(void *me) {
+static inline int64_t uv_uidigitedit_get_value(void *me) {
 	return this->value;
 }
 
@@ -110,6 +115,12 @@ static inline void uv_uidigitedit_set_maxlimit(void *me, int32_t value) {
 /// @brief: Returns the maximum limit
 static inline int32_t uv_uidigitedit_get_maxlimit(void *me) {
 	return this->limit_max;
+}
+
+/// @brief: Sets the negative limit. The limit defaults to 0, in which case
+/// the uinumpad wont display sign-button.
+static inline void uv_uidigitedit_set_minlimit(void *me, int32_t value) {
+	this->limit_min = value;
 }
 
 

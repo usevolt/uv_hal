@@ -48,7 +48,6 @@ void uv_uidigitedit_init(void *me, uv_font_st *font,
 		color_t color, uint32_t value, const uv_uistyle_st *style) {
 	uv_uilabel_init(this, font, ALIGN_CENTER, color, "");
 	this->style = style;
-
 	uv_uiobject_set_step_callb(this, &uv_uidigitedit_step);
 	uv_uiobject_set_draw_callb(this, &draw);
 	uv_uiobject_set_touch_callb(this, &touch);
@@ -58,14 +57,15 @@ void uv_uidigitedit_init(void *me, uv_font_st *font,
 	this->title = NULL;
 	this->bg_color = style->bg_c;
 	this->limit_max = INT32_MAX;
+	this->limit_min = INT32_MIN;
 	uv_uidigitedit_set_value(this, value);
 
 }
 
 
-void uv_uidigitedit_set_value(void *me, uint32_t value) {
+void uv_uidigitedit_set_value(void *me, int32_t value) {
 	if (this->value != value) {
-		sprintf(this->str, "%u", (unsigned int) value);
+		sprintf(this->str, "%i", (int) value);
 		uv_uilabel_set_text(this, this->str);
 		uv_ui_refresh(this);
 		this->changed = true;
@@ -120,7 +120,7 @@ static void touch(void *me, uv_touch_st *touch) {
 	if (touch->action == TOUCH_CLICKED) {
 		touch->action = TOUCH_NONE;
 		uint32_t value = uv_uinumpaddialog_exec( this->numpaddialog_title,
-				this->limit_max, this->value, this->style);
+				this->limit_max, this->limit_min, this->value, this->style);
 		uv_uidigitedit_set_value(this, value);
 		uv_ui_refresh(this);
 	}
