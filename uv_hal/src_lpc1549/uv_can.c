@@ -504,15 +504,6 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		ret = ERR_CAN_RX_MESSAGE_COUNT_FULL;
 	}
 
-	uv_can_msg_st msg;
-	msg.type = CAN_EXT;
-	msg.id = 0x1;
-	msg.data_length = 8;
-	msg.data_32bit[0] = this->used_msg_objs;
-	msg.data_32bit[1] = id;
-	uv_can_send(CAN0, &msg);
-	printf("0x%x\n", this->used_msg_objs);
-
 	__enable_irq();
 
 	return ret;
