@@ -1,29 +1,8 @@
 /*
- * This file is part of the uv_hal distribution (www.usevolt.fi).
- * Copyright (c) 2017 Usevolt Oy.
+ * sensor.c
  *
- *
- * MIT License
- *
- * Copyright (c) 2019 usevolt
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ *  Created on: Sep 7, 2017
+ *      Author: usevolt
  */
 
 
@@ -41,6 +20,9 @@ void uv_sensor_init(uv_sensor_st *this, uv_adc_channels_e adc_chn, uint16_t avg_
 	this->warning.emcy = 0;
 	this->get_data = get_data;
 	this->state = SENSOR_STATE_OK;
+	uv_ring_buffer_init(&this->vals, &this->val_buffer,
+			sizeof(this->val_buffer) / sizeof(this->val_buffer[0]),
+			sizeof(this->val_buffer[0]));
 }
 
 
@@ -61,7 +43,16 @@ void uv_sensor_set_fault(uv_sensor_st *this, int16_t min_value, int16_t max_valu
 
 
 void uv_sensor_step(uv_sensor_st *this, uint16_t step_ms) {
-	this->value = uv_moving_aver_step(&this->avg, this->get_data(this->adc));
+	int16_t vals = this->get_data(this->adc);
+	if (uv_ring_buffer_get_element_count(&this->vals) >=
+			uv_ring_buffer_get_element_max_count(&this->vals)) {
+		uv_ring_buffer_pop(&this->vals, NULL);
+	}
+	uv_ring_buffer_push(&this->vals, &vals);
+	for (int8_t i = 0; i < uv_ring_buffer_get_element_count(&this->vals); i++) {
+			vals = uv_mini(this->val_buffer[i], vals);
+	}
+	this->value = uv_moving_aver_step(&this->avg, vals);
 
 	if (uv_moving_aver_is_full(&this->avg)) {
 		if (this->warning.enabled &&

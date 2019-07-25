@@ -319,6 +319,10 @@ static inline uint16_t uv_ring_buffer_get_element_count(uv_ring_buffer_st *buffe
 	return buffer->element_count;
 }
 
+static inline uint16_t uv_ring_buffer_get_element_max_count(uv_ring_buffer_st *buffer) {
+	return buffer->buffer_size;
+}
+
 
 
 /// @brief: Simple vector data structure.

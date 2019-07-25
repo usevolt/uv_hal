@@ -1,29 +1,8 @@
 /*
- * This file is part of the uv_hal distribution (www.usevolt.fi).
- * Copyright (c) 2017 Usevolt Oy.
+ * sensor.h
  *
- *
- * MIT License
- *
- * Copyright (c) 2019 usevolt
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ *  Created on: Sep 7, 2017
+ *      Author: usevolt
  */
 
 #ifndef SENSOR_H_
@@ -48,11 +27,14 @@ enum {
 };
 typedef uint8_t uv_sensor_state_e;
 
+#define UV_SENSOR_VALS_COUNT	5
 
 /// @file: Implements a module for reading analog sensor data
 typedef struct {
 	uv_moving_aver_st avg;
 	int16_t value;
+	int16_t val_buffer[UV_SENSOR_VALS_COUNT];
+	uv_ring_buffer_st vals;
 	uv_sensor_state_e state;
 	struct {
 		uv_hysteresis_st hyst;
