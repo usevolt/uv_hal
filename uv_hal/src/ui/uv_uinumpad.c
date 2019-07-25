@@ -36,7 +36,8 @@
 
 static void draw(void *me, const uv_bounding_box_st *pbb);
 static void touch(void *me, uv_touch_st *touch);
-static uv_uiobject_ret_e numpad_step(void *me, uint16_t step_ms, const uv_bounding_box_st * pbb);
+static uv_uiobject_ret_e numpad_step(void *me, uint16_t step_ms,
+		const uv_bounding_box_st * pbb);
 static void add_number(void *me, char value);
 
 
@@ -65,12 +66,14 @@ void uv_uinumpad_init(void *me, const char *title, const uv_uistyle_st *style) {
 
 	this->title = title;
 	this->style = style;
-	this->value = -1;
+	this->value = 0;
+	this->sign = 1;
 	this->pressed_index = -1;
 	this->released_index = -1;
 	this->cancelled = false;
 	this->submitted = false;
 	this->limit_max = INT32_MAX;
+	this->limit_min = 0;
 	strcpy(this->value_str, "");
 }
 
@@ -109,14 +112,43 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	uint8_t index = 0;
 	for (int8_t y = 1; y < 5; y++) {
 		for (int8_t x = 0; x < 3; x++) {
-			uv_ft81x_draw_shadowrrect(globx + x * butw, globy + y * buth, butw, buth, CONFIG_UI_RADIUS,
-					(this->pressed_index == ((y - 1) * 3 + x)) ?
-							highlight_c : this->style->bg_c,
-					highlight_c, shadow_c);
+
+			if (this->limit_min < 0 && y == 4 && x == 0) {
+				// draw background for back & sign buttons in case if the numpad is signed
+				uv_ft81x_draw_shadowrrect(globx + x * butw, globy + y * buth,
+						butw / 2, buth, CONFIG_UI_RADIUS,
+						(this->pressed_index == ((y - 1) * 3 + x)) ?
+								highlight_c : this->style->bg_c,
+						highlight_c, shadow_c);
+
+				uv_ft81x_draw_shadowrrect(globx + x * butw + butw / 2, globy + y * buth,
+						butw / 2, buth, CONFIG_UI_RADIUS,
+						(this->sign == -1) ?
+								highlight_c : this->style->bg_c,
+						highlight_c, shadow_c);
+			}
+			else {
+				// draw background for all other buttons except sign button
+				uv_ft81x_draw_shadowrrect(globx + x * butw, globy + y * buth,
+						butw, buth, CONFIG_UI_RADIUS,
+						(this->pressed_index == ((y - 1) * 3 + x)) ?
+								highlight_c : this->style->bg_c,
+						highlight_c, shadow_c);
+			}
 			if (y == 4 && x == 0) {
-				uv_ft81x_draw_string("Back", this->style->font,
-						globx + x * butw + butw / 2, globy + y * buth + buth / 2,
-						ALIGN_CENTER, this->style->text_color);
+				if (this->limit_min < 0) {
+					uv_ft81x_draw_string("Back", this->style->font,
+							globx + x * butw + butw / 4, globy + y * buth + buth / 2,
+							ALIGN_CENTER, this->style->text_color);
+					uv_ft81x_draw_string("+/-", this->style->font,
+							globx + x * butw  + butw * 3 / 4, globy + y * buth + buth / 2,
+							ALIGN_CENTER, this->style->text_color);
+				}
+				else {
+					uv_ft81x_draw_string("Back", this->style->font,
+							globx + x * butw + butw / 2, globy + y * buth + buth / 2,
+							ALIGN_CENTER, this->style->text_color);
+				}
 			}
 			else if (y == 4 && x == 2) {
 				uv_ft81x_draw_string("OK", this->style->font,
@@ -146,12 +178,36 @@ static void touch(void *me, uv_touch_st *touch) {
 			for (uint8_t x = 0; x < 3; x++) {
 				if ((touch->y >= y * buth) &&
 						(touch->y < (y + 1) * buth)) {
-					if ((touch->x >= x * butw) &&
-							(touch->x < (x + 1) * butw)) {
-						this->pressed_index = index;
-						uv_ui_refresh(this);
-						found = true;
-						break;
+					if (this->limit_min < 0 && y == 4 && x == 0) {
+						if ((touch->x >= x * butw) &&
+								(touch->x < (x + 1) * butw - butw / 2)) {
+							this->pressed_index = index;
+							uv_ui_refresh(this);
+							found = true;
+							break;
+						}
+						else if ((touch->x >= x * butw + butw / 2) &&
+								(touch->x < (x + 1) * butw)) {
+							// sign-button needs special handling
+							this->pressed_index = 12;
+							this->sign = (this->sign > 0) ? -1 : 1;
+							uv_ui_refresh(this);
+							found = true;
+
+						}
+						else {
+
+						}
+
+					}
+					else {
+						if ((touch->x >= x * butw) &&
+								(touch->x < (x + 1) * butw)) {
+							this->pressed_index = index;
+							uv_ui_refresh(this);
+							found = true;
+							break;
+						}
 					}
 				}
 				index++;
@@ -186,12 +242,18 @@ static uv_uiobject_ret_e numpad_step(void *me, uint16_t step_ms, const uv_boundi
 	if (this->released_index == 9) {
 		uint8_t len = strlen(this->value_str);
 		if (len) {
+			if (len == 2 && this->value_str[0] == '-') {
+				// make sure negative sign cannot be the only character
+				len = 1;
+				this->sign = 1;
+				uv_ui_refresh(this);
+			}
 			this->value_str[len - 1] = '\0';
 			if (strlen(this->value_str)) {
 				this->value = strtol(this->value_str, NULL, 0);
 			}
 			else {
-				this->value = -1;
+				this->value = 0;
 			}
 			uv_ui_refresh(this);
 		}
@@ -201,21 +263,43 @@ static uv_uiobject_ret_e numpad_step(void *me, uint16_t step_ms, const uv_boundi
 	}
 	// 0 pressed
 	else if (this->released_index == 10) {
-		if (this->value != 0) {
-			add_number(this, '0');
+		add_number(this, '0');
+		// remove trailing zeros
+		uint8_t i = (this->sign >= 0) ? 0 : 1;
+		while (this->value_str[i] == '0' && this->value_str[i + 1] == '0') {
+			memmove(&this->value_str[i], &this->value_str[i + 1], strlen(this->value_str) - i);
 		}
 	}
 	// ok pressed
 	else if (this->released_index == 11) {
 		this->submitted = true;
 	}
+	// sign pressed
+	else if (this->released_index == 12) {
+		if (this->sign > 0) {
+			if (strlen(this->value_str)) {
+				memmove(this->value_str, &this->value_str[1],
+						MIN(strlen(this->value_str) + 1, sizeof(this->value_str)));
+			}
+		}
+		else {
+			// add the minus sign to the value
+			memmove(&this->value_str[1], this->value_str,
+					MIN(strlen(this->value_str) + 1, sizeof(this->value_str)));
+			this->value_str[0] = '-';
+		}
+		this->value = strtol(this->value_str, NULL, 0);
+		uv_ui_refresh(this);
+	}
 	// other numbers pressed
 	else if (this->released_index != -1) {
-		// remove MSB zero
-		if (this->value == 0) {
-			strcpy(this->value_str, "");
-		}
 		add_number(this, '0' + this->released_index + 1);
+		// remove trailing zeros
+		uint8_t i = (this->sign >= 0) ? 0 : 1;
+		while (this->value_str[i] == '0') {
+			memmove(&this->value_str[i], &this->value_str[i + 1], strlen(this->value_str) - i);
+		}
+		this->value = strtol(this->value_str, NULL, 0);
 	}
 	else {
 
@@ -239,7 +323,8 @@ static uv_uiobject_ret_e exec_callb(void *user_ptr, uint16_t step_ms) {
 }
 
 
-int32_t uv_uinumpaddialog_exec(const char *title, int32_t max_limit,
+int32_t uv_uinumpaddialog_exec(const char *title,
+		int32_t max_limit, int32_t min_limit,
 		int32_t def_value, const uv_uistyle_st *style) {
 	uv_uidialog_st d;
 	uv_uiobject_st *bfr;
@@ -249,6 +334,7 @@ int32_t uv_uinumpaddialog_exec(const char *title, int32_t max_limit,
 
 	uv_uinumpad_init(&numpad, title, &uv_uistyles[0]);
 	uv_uinumpad_set_maxlimit(&numpad, max_limit);
+	uv_uinumpad_set_minlimit(&numpad, min_limit);
 	uv_uidialog_addxy(&d, &numpad, 0, 0,
 			uv_uibb(&d)->width, uv_uibb(&d)->height);
 

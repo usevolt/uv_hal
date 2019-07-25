@@ -51,8 +51,10 @@ typedef struct __attribute__((packed)) {
 	bool cancelled;
 	int8_t pressed_index;
 	int8_t released_index;
+	// 1 or -1 representing the sign of the value
+	int8_t sign;
 	int32_t limit_max;
-
+	int32_t limit_min;
 
 } uv_uinumpad_st;
 
@@ -74,7 +76,8 @@ void uv_uinumpad_init(void *me, const char *title, const uv_uistyle_st *style);
 /// @note: This uses lots of stack to store the uielements!
 ///
 /// @return: Value entered into the numpad
-int32_t uv_uinumpaddialog_exec(const char *title, int32_t max_limit,
+int32_t uv_uinumpaddialog_exec(const char *title,
+		int32_t max_limit, int32_t min_limit,
 		int32_t def_value, const uv_uistyle_st *style);
 
 #ifdef this
@@ -104,6 +107,14 @@ static inline void uv_uinumpad_set_maxlimit(void *me, int32_t value) {
 
 static inline int32_t uv_uinumpad_get_maxlimit(void *me) {
 	return this->limit_max;
+}
+
+static inline void uv_uinumpad_set_minlimit(void *me, int32_t value) {
+	this->limit_min = value;
+}
+
+static inline int32_t uv_uinumpad_get_minlimit(void *me) {
+	return this->limit_min;
 }
 
 #undef this
