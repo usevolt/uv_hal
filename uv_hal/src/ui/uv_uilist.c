@@ -107,7 +107,7 @@ uv_uiobject_ret_e uv_uilist_step(void *me, uv_touch_st *touch,
 
 /// @brief: Pushes a new element into the end of the list
 void uv_uilist_push_back(void *me, char *str) {
-	uv_vector_push_back(&this->entries, (void*) &str);
+	uv_vector_push_back(&this->entries, &str);
 	uv_uilist_recalc_height(this);
 	uv_ui_refresh_parent(this);
 }

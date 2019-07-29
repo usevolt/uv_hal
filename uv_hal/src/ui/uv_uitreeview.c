@@ -42,7 +42,15 @@ static uv_uiobject_ret_e _uv_uitreeobject_step(void *me, uv_touch_st *touch, uin
 		const uv_bounding_box_st *pbb) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
-	ret = uv_uiwindow_step(this, touch, step_ms, pbb);
+	if (((uv_uiobject_st*) this)->enabled) {
+		ret = uv_uiwindow_step(this, touch, step_ms, pbb);
+	}
+	else {
+		if (((uv_uiobject_st*) this)->refresh) {
+			((uv_uiwindow_st*) this)->vrtl_draw(this, pbb);
+			((uv_uiobject_st*)this)->refresh = false;
+		}
+	}
 
 	if (touch->action == TOUCH_CLICKED) {
 		if ((touch->y >= 0) && (touch->y < CONFIG_UI_TREEVIEW_ITEM_HEIGHT)) {
@@ -51,6 +59,7 @@ static uv_uiobject_ret_e _uv_uitreeobject_step(void *me, uv_touch_st *touch, uin
 			}
 			else {
 				uv_uitreeview_open(((uv_uiobject_st*) this)->parent, this);
+				ret = UIOBJECT_RETURN_KILLED;
 			}
 			touch->action = TOUCH_NONE;
 		}
@@ -121,7 +130,6 @@ void uv_uitreeview_init(void *me,
 	uv_uiwindow_init(this, (uv_uiobject_st ** const) object_array, style);
 	this->one_active = true;
 }
-
 
 
 
