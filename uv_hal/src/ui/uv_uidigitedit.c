@@ -57,7 +57,7 @@ void uv_uidigitedit_init(void *me, uv_font_st *font,
 	this->title = NULL;
 	this->bg_color = style->bg_c;
 	this->limit_max = INT32_MAX;
-	this->limit_min = INT32_MIN;
+	this->limit_min = 0;
 	uv_uidigitedit_set_value(this, value);
 
 }
