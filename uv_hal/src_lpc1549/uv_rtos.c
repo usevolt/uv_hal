@@ -197,7 +197,7 @@ void uv_init(void *device) {
 	Chip_GPIO_Init(LPC_GPIO);
 
 	// configure brown-out detection to reset the device
-//	LPC_SYSCON->BODCTRL = (2 << 0) | (1 << 4);
+	LPC_SYSCON->BODCTRL = (2 << 0) | (1 << 4);
 
 
 #if CONFIG_WDT
