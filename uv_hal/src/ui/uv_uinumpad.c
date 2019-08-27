@@ -51,8 +51,15 @@ static void add_number(void *me, char value) {
 		// dont add new character if the maximum limit would be exceeded
 		if (val > this->limit_max) {
 			this->value_str[strlen(this->value_str) - 1] = '\0';
+			this->value = this->limit_max;
 		}
-		this->value = strtol(this->value_str, NULL, 0);
+		else if (val < this->limit_min) {
+			this->value_str[strlen(this->value_str) - 1] = '\0';
+			this->value = this->limit_min;
+		}
+		else {
+			this->value = strtol(this->value_str, NULL, 0);
+		}
 		uv_ui_refresh(this);
 	}
 }
