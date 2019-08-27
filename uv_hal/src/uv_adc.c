@@ -376,6 +376,7 @@ int16_t uv_adc_read(uv_adc_channels_e channel) {
 	// channel 1
 	if (channel < (1 << 12)) {
 #if (CONFIG_ADC_MODE == ADC_MODE_SYNC)
+		uv_disable_int();
 		Chip_ADC_DisableSequencer(LPC_ADC0, ADC_SEQA_IDX);
 		Chip_ADC_SetupSequencer(LPC_ADC0, ADC_SEQA_IDX,
 				channel | ADC_SEQ_CTRL_HWTRIG_POLPOS);
@@ -385,11 +386,10 @@ int16_t uv_adc_read(uv_adc_channels_e channel) {
 		Chip_ADC_EnableSequencer(LPC_ADC0, ADC_SEQA_IDX);
 		Chip_ADC_StartSequencer(LPC_ADC0, ADC_SEQA_IDX);
 		// wait for the conversion to finish
-		while (!(LPC_ADC0->SEQ_GDAT[ADC_SEQA_IDX] & (1 << 31))) {
-			uv_rtos_task_yield();
-		}
+		while (!(LPC_ADC0->SEQ_GDAT[ADC_SEQA_IDX] & (1 << 31)));
 #endif
 		uint32_t raw = Chip_ADC_GetDataReg(LPC_ADC0, uv_ctz(channel));
+		uv_enable_int();
 		ret = ADC_DR_RESULT(raw);
 	}
 #endif
@@ -398,17 +398,17 @@ int16_t uv_adc_read(uv_adc_channels_e channel) {
 	if (channel >= (1 << 12)) {
 		channel = channel >> 12;
 #if (CONFIG_ADC_MODE == ADC_MODE_SYNC)
+		uv_disable_int();
 		Chip_ADC_DisableSequencer(LPC_ADC1, ADC_SEQA_IDX);
 		Chip_ADC_SetupSequencer(LPC_ADC1, ADC_SEQA_IDX,
 				channel | ADC_SEQ_CTRL_HWTRIG_POLPOS);
 		Chip_ADC_EnableSequencer(LPC_ADC1, ADC_SEQA_IDX);
 		Chip_ADC_StartSequencer(LPC_ADC1, ADC_SEQA_IDX);
 		// wait for the conversion to finish
-		while (!(LPC_ADC1->SEQ_GDAT[ADC_SEQA_IDX] & (1 << 31))) {
-			uv_rtos_task_yield();
-		}
+		while (!(LPC_ADC1->SEQ_GDAT[ADC_SEQA_IDX] & (1 << 31)));
 #endif
 		uint32_t raw = Chip_ADC_GetDataReg(LPC_ADC1, uv_ctz(channel));
+		uv_enable_int();
 		ret = ADC_DR_RESULT(raw);
 	}
 #endif
