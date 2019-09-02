@@ -449,6 +449,13 @@ int32_t uv_mini(int32_t a, int32_t b);
 uint32_t uv_ctz(uint32_t a);
 
 
+/// @brief: Calculates the integer square root from *value*.
+/// The return value is rounded.
+///
+/// @note: This algorithm is based on an example given in
+/// https://stackoverflow.com/questions/1100090/looking-
+/// for-an-efficient-integer-square-root-algorithm-for-arm-thumb2
+uint32_t uv_isqrt(uint32_t value);
 
 
 

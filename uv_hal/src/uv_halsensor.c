@@ -38,6 +38,7 @@ void uv_halsensor_config_reset(uv_halsensor_config_st *this) {
 	this->min = CONFIG_HALSENSOR_MIN_DEF;
 	this->middle = CONFIG_HALSENSOR_MIDDLE_DEF;
 	this->middle_tolerance = CONFIG_HALSENSOR_MIDDLE_TOLERANCE_DEF;
+	this->progression = HALSENSOR_PROG_2;
 }
 
 
@@ -48,6 +49,27 @@ void uv_halsensor_init(uv_halsensor_st *this, uv_halsensor_config_st *config,
 	this->fault_emcy = fault_emcy;
 	this->state = HALSENSOR_STATE_ON;
 	uv_moving_aver_init(&this->moving_aver, HALSENSOR_AVG_COUNT);
+}
+
+
+static uint32_t get_progression_value(uint32_t input,
+		uint32_t numberspace, halsensor_progression_e prog) {
+	uint32_t ret = 0;
+
+	switch (prog) {
+	case HALSENSOR_PROG_0:
+		ret = input;
+		break;
+	case HALSENSOR_PROG_1:
+		ret = uv_isqrt(input * input * input) / uv_isqrt(numberspace);
+		break;
+	default:
+		ret = input * input / numberspace;
+		break;
+	}
+	LIMIT_MAX(ret, numberspace);
+
+	return ret;
 }
 
 
@@ -89,8 +111,8 @@ int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 				if (scale != 0) {
 					// scale adc from zero to config max
 					adc -= offset;
-					// apply second exponent
-					adc = adc * adc / scale;
+					// apply the progression
+					adc = get_progression_value(adc, scale, this->config->progression);
 					// linearily interpolate output value
 					int32_t rel = uv_reli(adc, 0, scale);
 					int32_t result = uv_lerpi(rel, 0, INT16_MAX);
@@ -118,7 +140,7 @@ int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 					// this is a little more difficult than on positive side
 					adc = abs(adc - offset);
 					// apply second exponent
-					adc = adc * adc / scale;
+					adc = get_progression_value(adc, scale, this->config->progression);
 					// linearily interpolate output value
 					int32_t rel = uv_reli(adc, 0, scale);
 					int32_t result = uv_lerpi(rel, 0, INT16_MAX);

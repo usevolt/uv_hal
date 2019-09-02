@@ -77,6 +77,15 @@ enum {
 typedef uint8_t halsensor_state_e;
 
 
+enum {
+	// PROG_0 is linear, no progression (exponent is 1)
+	HALSENSOR_PROG_0 = 0,
+	// PROG_1 is mild progression, with exponent of 3/2
+	HALSENSOR_PROG_1,
+	// PROG_2 is the default, with exponent of 2
+	HALSENSOR_PROG_2
+};
+typedef uint16_t halsensor_progression_e;
 
 typedef struct {
 	uint16_t min;
@@ -84,6 +93,8 @@ typedef struct {
 	uint16_t middle;
 	// tolerance around the middle value
 	uint16_t middle_tolerance;
+	// The value progression
+	halsensor_progression_e progression;
 } uv_halsensor_config_st;
 
 /// @brief: resets the configuration structure to default values

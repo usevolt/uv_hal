@@ -362,6 +362,40 @@ uint32_t uv_ctz(uint32_t a) {
 }
 
 
+uint32_t uv_isqrt(uint32_t value) {
+    uint32_t op  = value;
+    uint32_t res = 0;
+    uint32_t one = 1uL << 30; // The second-to-top bit is set:
+    // use 1u << 14 for uint16_t type; use 1uL<<30 for uint32_t type
+
+
+    // "one" starts at the highest power of four <= than the argument.
+    while (one > op)
+    {
+        one >>= 2;
+    }
+
+    while (one != 0)
+    {
+        if (op >= res + one)
+        {
+            op = op - (res + one);
+            res = res +  2 * one;
+        }
+        res >>= 1;
+        one >>= 2;
+    }
+
+    /* Do arithmetic rounding to nearest integer */
+    if (op > res)
+    {
+        res++;
+    }
+
+    return res;
+}
+
+
 
 
 
