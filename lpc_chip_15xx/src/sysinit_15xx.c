@@ -92,6 +92,7 @@ void Chip_SetupIrcClocking(void)
 void Chip_SetupXtalClocking(void)
 {
 	volatile int i;
+	Chip_Clock_SetMainClockSource(SYSCTL_MAINCLKSRC_IRC);
 
 	/* Powerup main oscillator */
 	Chip_SYSCTL_PowerUp(SYSCTL_POWERDOWN_SYSOSC_PD);

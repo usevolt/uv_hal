@@ -201,14 +201,21 @@ void uv_init(void *device) {
 	uv_set_application_ptr(device);
 	uv_mutex_init(&halmutex);
 
+#if CONFIG_UV_BOOTLOADER
+	// if uv_bootloader is used, remap vector table to point to the new location
+	SCB->VTOR = APP_START_ADDR;
+#endif
+
 	Chip_SYSCTL_PeriphReset(RESET_MUX);
 	Chip_SYSCTL_PeriphReset(RESET_IOCON);
 	Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_IOCON);
+	Chip_SWM_Deinit();
 	Chip_SWM_Init();
+	Chip_GPIO_DeInit(LPC_GPIO);
 	Chip_GPIO_Init(LPC_GPIO);
 
 	// configure brown-out detection to reset the device
-//	LPC_SYSCON->BODCTRL = (2 << 0) | (1 << 4);
+	LPC_SYSCON->BODCTRL = (2 << 0) | (1 << 4);
 
 
 #if CONFIG_WDT

@@ -45,6 +45,7 @@ void _uv_spi_init(void) {
 	{
 		SPI_CFG_T cfg;
 		SPI_DELAY_CONFIG_T delaycfg;
+		Chip_SPI_DeInit(LPC_SPI0);
 		Chip_SPI_Init(LPC_SPI0);
 
 		Chip_IOCON_PinMuxSet(LPC_IOCON, UV_GPIO_PORT(CONFIG_SPI0_SCK_IO),
@@ -70,6 +71,7 @@ void _uv_spi_init(void) {
 #endif
 
 		cfg.ClkDiv = Chip_SPI_CalClkRateDivider(LPC_SPI0, CONFIG_SPI0_BAUDRATE);
+
 		cfg.Mode = SPI_MODE_MASTER;
 		cfg.ClockMode = (CONFIG_SPI0_CLOCK_PHASE << 4) | (CONFIG_SPI0_CLOCK_POL << 5);
 		// MSB or LSB first
@@ -119,6 +121,7 @@ void _uv_spi_init(void) {
 	{
 		SPI_CFG_T cfg;
 		SPI_DELAY_CONFIG_T delaycfg;
+		Chip_SPI_DeInit(LPC_SPI1);
 		Chip_SPI_Init(LPC_SPI1);
 
 		Chip_IOCON_PinMuxSet(LPC_IOCON, UV_GPIO_PORT(CONFIG_SPI1_SCK_IO),

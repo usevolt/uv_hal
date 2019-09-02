@@ -330,9 +330,12 @@ ResetISR(void) {
 	*TRACECLKDIV = 1;
 #endif
 
-#if !CONFIG_UV_BOOTLOADER
+	// note: previously setting the clock source was done in uv_bootloader.
+	// This however causes the clock source to be unset if the mcu is booted
+	// with a debugger and uv_bootloader is not run. Here
+	// we setup the clock source again, which is unnecessary for all other
+	// situations except booting with debugger.
     Chip_SetupXtalClocking();
-#endif
 
 #if defined (__cplusplus)
     //

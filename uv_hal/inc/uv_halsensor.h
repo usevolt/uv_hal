@@ -43,7 +43,8 @@
 #define HALSENSOR_CONFIG_MAX_SUBINDEX				2
 #define HALSENSOR_CONFIG_MIDDLE_SUBINDEX			3
 #define HALSENSOR_CONFIG_MIDDLE_TOLERANCE_SUBINDEX	4
-#define HALSENSOR_CONFIG_SUBINDEX_COUNT				5
+#define HALSENSOR_CONFIG_PROGRESSIONS_SUBINDEX		5
+#define HALSENSOR_CONFIG_SUBINDEX_COUNT				6
 
 #if CONFIG_HALSENSOR
 
@@ -83,7 +84,9 @@ enum {
 	// PROG_1 is mild progression, with exponent of 3/2
 	HALSENSOR_PROG_1,
 	// PROG_2 is the default, with exponent of 2
-	HALSENSOR_PROG_2
+	HALSENSOR_PROG_2,
+
+	HALSENSOR_PROG_COUNT
 };
 typedef uint16_t halsensor_progression_e;
 

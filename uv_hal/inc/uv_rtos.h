@@ -67,6 +67,12 @@
 #if !defined(CONFIG_HAL_TASK_PRIORITY)
 #define CONFIG_HAL_TASK_PRIORITY	0xFFFD
 #endif
+#if defined(CONFIG_UV_BOOTLOADER)
+// defines the start address where the firmware is found.
+// Usually defaults to 0x0, but uv_bootloader changes this to 0x1000
+// since the bootloader resides in 0x0.
+#define APP_START_ADDR						0x1000
+#endif
 
 #if !defined(CONFIG_HAL_STEP_MS)
 #define CONFIG_HAL_STEP_MS			2
