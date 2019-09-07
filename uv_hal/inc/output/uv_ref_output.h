@@ -44,7 +44,8 @@
 
 
 #define REF_OUTPUT_TOGGLE_THRESHOLD_DEFAULT	500
-#define REF_OUTPUT_LIMIT_MS_DEFAULT	0
+#define REF_OUTPUT_LIMIT_MS_DEFAULT			0
+#define REF_OUTPUT_ENABLE_DELAY_MS_DEFAULT	0
 
 
 /// @file: defines a ref output module. Ref output works as a voltage reference. It
@@ -148,6 +149,7 @@ typedef struct {
 	int16_t target;
 	/// @brief: The request for the target value. This is set via the user application
 	int16_t target_req;
+	int16_t last_target_req;
 	/// @brief: Stores the current PWM duty cycle
 	uint16_t pwm;
 	/// @brief: Stores the output value on every specific moment. The value is in mv
@@ -165,6 +167,8 @@ typedef struct {
 	int8_t toggle_on;
 	uv_delay_st toggle_delay;
 	uint32_t toggle_limit_ms;
+	uint32_t enable_delay_ms;
+	uv_delay_st enable_delay;
 
 
 	// the mode of this output
@@ -223,6 +227,14 @@ static inline void uv_ref_output_set_onofftoggle_threshold(uv_ref_output_st *thi
 static inline void uv_ref_output_set_onofftoggle_limit_ms(uv_ref_output_st *this, uint32_t value) {
 	this->toggle_limit_ms = value;
 }
+
+/// @brief: Sets the enable delay time in milliseconds. The output
+/// is set ON only after the request has been active for this delay.
+static inline void uv_ref_output_set_enable_delay_ms(
+		uv_ref_output_st *this, uint32_t value) {
+	this->enable_delay_ms = value;
+}
+
 
 /// @brief: Step funtion
 void uv_ref_output_step(uv_ref_output_st *this, uint16_t step_ms);

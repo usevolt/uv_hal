@@ -86,6 +86,7 @@ typedef enum {
 #define DUAL_SOLENOID_OUTPUT_ASSEMBLY_INVERT_SUBINDEX	(SOLENOID_OUTPUT_CONF_SUBINDEX_COUNT * 2 + 4)
 #define DUAL_SOLENOID_OUTPUT_TOGGLE_THRESHOLD_DEFAULT		500
 #define DUAL_SOLENOID_OUTPUT_TOGGLE_LIMIT_MS_DEFAULT		0
+#define DUAL_SOLENOID_OUTPUT_ENABLE_DELAY_MS_DEFAULT		0
 
 /// @brief: Configuration structure for the dual solenoid module
 typedef struct {
@@ -127,6 +128,7 @@ typedef struct {
 	// the requested target output value from -1000 to 1000, the actual drive current is
 	// based on solenoid output configurations.
 	int16_t target_req;
+	int16_t last_target_req;
 	// the actual target value. This is smoothened with acc and dec.
 	int16_t target;
 	// Helper variable to hold more precise target value. With this
@@ -148,6 +150,8 @@ typedef struct {
 	uv_delay_st toggle_delay;
 
 	uint32_t toggle_limit_ms;
+	uint32_t enable_delay_ms;
+	uv_delay_st enable_delay;
 
 } uv_dual_solenoid_output_st;
 
@@ -251,6 +255,14 @@ static inline void uv_dual_solenoid_output_set_toggle_threshold(
 static inline void uv_dual_solenoid_output_set_toggle_limit_ms(
 		uv_dual_solenoid_output_st *this, uint32_t value) {
 	this->toggle_limit_ms = value;
+}
+
+
+/// @brief: Sets the enable delay time in milliseconds. The output
+/// is set ON only after the request has been active for this delay.
+static inline void uv_dual_solenoid_output_set_enable_delay_ms(
+		uv_dual_solenoid_output_st *this, uint32_t value) {
+	this->enable_delay_ms = value;
 }
 
 

@@ -127,6 +127,7 @@ void uv_ref_output_init(uv_ref_output_st *this,
 	uv_delay_init(&this->target_delay, TARGET_DELAY_MS);
 	this->target = 0;
 	this->target_req = 0;
+	this->last_target_req = 0;
 	this->target_mult = 0;
 	uv_hysteresis_init(&this->toggle_hyst,
 			REF_OUTPUT_TOGGLE_THRESHOLD_DEFAULT, TOGGLE_HYSTERESIS, false);
@@ -134,6 +135,8 @@ void uv_ref_output_init(uv_ref_output_st *this,
 	this->toggle_limit_ms = REF_OUTPUT_LIMIT_MS_DEFAULT;
 	uv_delay_init(&this->toggle_delay, this->toggle_limit_ms);
 	this->toggle_on = 0;
+	this->enable_delay_ms = REF_OUTPUT_ENABLE_DELAY_MS_DEFAULT;
+	uv_delay_init(&this->enable_delay, this->enable_delay_ms);
 
 	pwm_set(this, 0);
 }
@@ -204,42 +207,70 @@ void uv_ref_output_step(uv_ref_output_st *this, uint16_t step_ms) {
 			// otherwise put the state back to ON
 			uv_output_set_state((uv_output_st*) this, OUTPUT_STATE_ON);
 		}
+
+		uv_delay_init(&this->enable_delay, this->enable_delay_ms);
 	}
 	else {
+		LIMIT_MAX(this->conf->acc, 100);
+		LIMIT_MAX(this->conf->dec, 100);
+		uint16_t acc = this->conf->acc;
+		uint16_t dec = this->conf->dec;
+
+		LIMITS(this->target_req, REF_OUTPUT_VALUE_MIN, REF_OUTPUT_VALUE_MAX);
+		int16_t target_req = this->target_req;
+
+
+		// enable delay handling
+		if (target_req == 0 || target_req * this->last_target_req < 0) {
+			target_req = 0;
+			uv_delay_init(&this->enable_delay, this->enable_delay_ms);
+		}
+		this->last_target_req = target_req;
+
+		bool hyston = uv_hysteresis_step(&this->toggle_hyst, abs(target_req));
+
+		// enable delay prevents the output to go ON if the enable delay
+		// has not been passed
+		bool on = (this->mode == DUAL_SOLENOID_OUTPUT_MODE_PROP_NORMAL) ?
+						!!target_req : hyston;
+		if (on) {
+			uv_delay(&this->enable_delay, step_ms);
+		}
+		else {
+			uv_delay_init(&this->enable_delay, this->enable_delay_ms);
+		}
+		if (!uv_delay_has_ended(&this->enable_delay)) {
+			target_req = 0;
+			// we affect the hysteresis value only if the toggle state is off.
+			// This makes sure that the output is always possible to switch off.
+			if (!this->toggle_on) {
+				hyston = false;
+			}
+			else {
+				if (this->mode != DUAL_SOLENOID_OUTPUT_MODE_PROP_NORMAL) {
+					uv_delay_end(&this->enable_delay);
+				}
+			}
+		}
+
+
 		if (this->mode == DUAL_SOLENOID_OUTPUT_MODE_PROP_NORMAL) {
 			if (uv_delay(&this->target_delay, step_ms)) {
 				uv_delay_init(&this->target_delay, TARGET_DELAY_MS);
 
-				if (this->conf->acc > 100) {
-					this->conf->acc = 100;
-				}
-				if (this->conf->dec > 100) {
-					this->conf->dec = 100;
-				}
-				uint16_t acc = this->conf->acc;
-				uint16_t dec = this->conf->dec;
 
-				if (this->target_req > REF_OUTPUT_VALUE_MAX) {
-					this->target_req = REF_OUTPUT_VALUE_MAX;
-				}
-				else if (this->target_req < REF_OUTPUT_VALUE_MIN) {
-					this->target_req = REF_OUTPUT_VALUE_MIN;
-				}
-				else {
-
-				}
 
 				// when acc and dec are maximum, bypass the pid controller to have
 				// minimum delays
 				if (acc == REF_OUTPUT_ACC_MAX &&
 						dec == REF_OUTPUT_DEC_MAX) {
-					this->target = this->target_req;
+					this->target = target_req;
 				}
 				else {
 					// different moving average values for accelerating and decelerating
 					// maximum decelerating time is 1 sec
-					if ((abs(this->target_req) > abs(this->target)) ||
-							((int32_t) this->target_req * this->target < 0)) {
+					if ((abs(target_req) > abs(this->target)) ||
+							((int32_t) target_req * this->target < 0)) {
 						// accelerating
 						uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * acc * acc / 10000);
 					}
@@ -248,7 +279,7 @@ void uv_ref_output_step(uv_ref_output_st *this, uint16_t step_ms) {
 						uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * dec * dec / 10000);
 					}
 
-					uv_pid_set_target(&this->target_pid, this->target_req * PID_MULTIPLIER);
+					uv_pid_set_target(&this->target_pid, target_req * PID_MULTIPLIER);
 					uv_pid_step(&this->target_pid, TARGET_DELAY_MS, this->target_mult);
 					this->target_mult += uv_pid_get_output(&this->target_pid);
 					if ((this->target_mult / PID_MULTIPLIER) > 1000) {
@@ -264,8 +295,8 @@ void uv_ref_output_step(uv_ref_output_st *this, uint16_t step_ms) {
 
 					// clamp output to target value when we're close enough
 					if (uv_pid_get_output(&this->target_pid) == 0) {
-						this->target = this->target_req;
-						this->target_mult = this->target_req * PID_MULTIPLIER;
+						this->target = target_req;
+						this->target_mult = target_req * PID_MULTIPLIER;
 					}
 				}
 			}
@@ -295,11 +326,10 @@ void uv_ref_output_step(uv_ref_output_st *this, uint16_t step_ms) {
 		}
 		else {
 			// ONOFF_NORMAL MODE
-			uv_hysteresis_step(&this->toggle_hyst, abs(this->target_req));
 			if (this->mode == DUAL_SOLENOID_OUTPUT_MODE_ONOFF_NORMAL) {
 				// in onoff mode the PID controller is disabled and we put the output value directly
-				if (uv_hysteresis_get_output(&this->toggle_hyst) && this->target_req) {
-					this->target = (this->target_req > 0) ? 1000 : -1000;
+				if (hyston && target_req) {
+					this->target = (target_req > 0) ? 1000 : -1000;
 				}
 				else {
 					this->target = 0;
@@ -308,35 +338,27 @@ void uv_ref_output_step(uv_ref_output_st *this, uint16_t step_ms) {
 			}
 			// TOGGLE modes
 			else {
-				if (uv_hysteresis_get_output(&this->toggle_hyst) && this->target_req) {
+				if (hyston) {
 					if (!this->last_hyst) {
-						if (this->target_req > 0) {
-							if (this->toggle_on == -1) {
+						if (this->toggle_on) {
+							this->toggle_on = 0;
+						}
+						else {
+							if (target_req > 0) {
 								this->toggle_on = 1;
 							}
 							else {
-								this->toggle_on = (this->toggle_on) ? 0 : 1;
-							}
-						}
-						else {
-							if (this->toggle_on == 1) {
 								this->toggle_on = -1;
-							}
-							else {
-								this->toggle_on = (this->toggle_on) ? 0 : -1;
 							}
 						}
 					}
 					uv_delay_init(&this->toggle_delay, this->toggle_limit_ms);
 				}
-				else {
-					this->toggle_hyst.result = 0;
-				}
-				if (this->toggle_limit_ms && uv_delay(&this->toggle_delay, step_ms)) {
+				if (this->toggle_limit_ms && uv_delay(&this->toggle_delay, TARGET_DELAY_MS)) {
 					this->toggle_on = 0;
 				}
 				this->target = (this->toggle_on) ? ((this->toggle_on > 0) ? 1000 : -1000) : 0;
-				this->last_hyst = uv_hysteresis_get_output(&this->toggle_hyst);
+				this->last_hyst = hyston;
 			}
 			// in both onoff modes the output is always either maximum or minimum.
 			// This is to comply with solenoid_output modules

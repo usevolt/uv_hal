@@ -65,6 +65,7 @@ void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 	this->conf = conf;
 	this->limitconf = limitconf;
 	this->target_req = 0;
+	this->last_target_req = 0;
 	this->target = 0;
 	this->target_mult = 0;
 	this->current_ma = 0;
@@ -80,6 +81,8 @@ void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 	uv_hysteresis_init(&this->toggle_hyst,
 			this->toggle_threshold, TOGGLE_HYSTERESIS_DEFAULT, false);
 	uv_delay_init(&this->toggle_delay, this->toggle_limit_ms);
+	this->enable_delay_ms = DUAL_SOLENOID_OUTPUT_ENABLE_DELAY_MS_DEFAULT;
+	uv_delay_init(&this->enable_delay, this->enable_delay_ms);
 
 
 	uv_solenoid_output_init(&this->solenoid[DUAL_OUTPUT_SOLENOID_A],
@@ -149,30 +152,55 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 		int32_t target_req = this->target_req;
 		LIMITS(target_req, DUAL_SOLENOID_VALUE_MIN, DUAL_SOLENOID_VALUE_MAX);
 
-		if (target_req == 0) {
+		if (target_req == 0 ||
+				(int32_t) target_req * this->last_target_req < 0) {
 			this->toggle_hyst.result = 0;
+			uv_delay_init(&this->enable_delay, this->enable_delay_ms);
+		}
+		this->last_target_req = target_req;
+
+		bool hyston = uv_hysteresis_step(&this->toggle_hyst, abs(target_req));
+
+		// enable delay prevents the output to go ON if the enable delay
+		// has not been passed
+		bool on = (this->mode == DUAL_SOLENOID_OUTPUT_MODE_PROP_NORMAL) ?
+						!!target_req : hyston;
+		if (on) {
+			uv_delay(&this->enable_delay, TARGET_DELAY_MS);
+		}
+		else {
+			uv_delay_init(&this->enable_delay, this->enable_delay_ms);
+		}
+		if (!uv_delay_has_ended(&this->enable_delay)) {
+			target_req = 0;
+			// we affect the hysteresis value only if the toggle state is off.
+			// This makes sure that the output is always possible to
+			// switch off without any delays.
+			if (!this->toggle_on) {
+				hyston = false;
+			}
+			else {
+				if (this->mode != DUAL_SOLENOID_OUTPUT_MODE_PROP_NORMAL) {
+					uv_delay_end(&this->enable_delay);
+				}
+			}
 		}
 
-		uv_hysteresis_step(&this->toggle_hyst, abs(target_req));
+
 		// calculate the target value depending on the mode
 		if (this->mode == DUAL_SOLENOID_OUTPUT_MODE_PROP_TOGGLE ||
 				this->mode == DUAL_SOLENOID_OUTPUT_MODE_ONOFF_TOGGLE) {
-			if (uv_hysteresis_get_output(&this->toggle_hyst)) {
+			if (hyston) {
 				if (!this->last_hyst) {
-					if (target_req > 0) {
-						if (this->toggle_on == -1) {
+					if (!!this->toggle_on) {
+						this->toggle_on = 0;
+					}
+					else {
+						if (target_req > 0) {
 							this->toggle_on = 1;
 						}
 						else {
-							this->toggle_on = (this->toggle_on) ? 0 : 1;
-						}
-					}
-					else {
-						if (this->toggle_on == 1) {
 							this->toggle_on = -1;
-						}
-						else {
-							this->toggle_on = (this->toggle_on) ? 0 : -1;
 						}
 					}
 				}
@@ -183,27 +211,30 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 			}
 			target_req = (this->toggle_on) ? ((this->toggle_on > 0) ? 1000 : -1000) : 0;
 		}
-		else if (this->mode == DUAL_SOLENOID_OUTPUT_MODE_ONOFF_NORMAL) {
-			if (uv_hysteresis_get_output(&this->toggle_hyst)) {
-				if (target_req > 0) {
-					target_req = DUAL_SOLENOID_VALUE_MAX;
-				}
-				else if (target_req < 0) {
-					target_req = DUAL_SOLENOID_VALUE_MIN;
+		else {
+			this->toggle_on = 0;
+			if (this->mode == DUAL_SOLENOID_OUTPUT_MODE_ONOFF_NORMAL) {
+				if (hyston) {
+					if (target_req > 0) {
+						target_req = DUAL_SOLENOID_VALUE_MAX;
+					}
+					else if (target_req < 0) {
+						target_req = DUAL_SOLENOID_VALUE_MIN;
+					}
+					else {
+						target_req = 0;
+					}
 				}
 				else {
 					target_req = 0;
 				}
 			}
 			else {
-				target_req = 0;
+				// DUAL_SOLENOID_OUTPUT_MODE_PROP_NORMAL
+				// Nothing to do here
 			}
 		}
-		else {
-			// DUAL_SOLENOID_OUTPUT_MODE_PROP_NORMAL
-			// Nothing to do here
-		}
-		this->last_hyst = uv_hysteresis_get_output(&this->toggle_hyst);
+		this->last_hyst = hyston;
 
 
 
@@ -281,6 +312,7 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 	this->out = (ca) ? ca : -cb;
 	// only assembly invert should affect the direction here
 	this->current_ma *= (this->conf->assembly_invert) ? -1 : 1;
+
 
 }
 
