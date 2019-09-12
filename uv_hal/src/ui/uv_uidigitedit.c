@@ -52,13 +52,15 @@ void uv_uidigitedit_init(void *me, uv_font_st *font,
 	uv_uiobject_set_draw_callb(this, &draw);
 	uv_uiobject_set_touch_callb(this, &touch);
 	this->value = !value;
-	this->changed = false;
 	this->numpaddialog_title = "";
 	this->title = NULL;
 	this->bg_color = style->bg_c;
 	this->limit_max = INT32_MAX;
 	this->limit_min = 0;
 	uv_uidigitedit_set_value(this, value);
+	// this has to be set after *uv_uidigit_set_value* to make sure
+	// that the change flag is not set after init
+	this->changed = false;
 
 }
 
