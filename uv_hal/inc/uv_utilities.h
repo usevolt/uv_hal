@@ -52,6 +52,13 @@
 #define _STRINGIFY(x)		#x
 #define STRINGIFY(x)		_STRINGIFY(x)
 
+
+/// @brief: A macro for compile time assertion. An error is
+/// generated if the given expression evaluates as false
+#define ASSERT_CONCAT_(a, b) a##b
+#define ASSERT_CONCAT(a, b) ASSERT_CONCAT_(a, b)
+#define ASSERT(e) enum { ASSERT_CONCAT(assert_line_, __LINE__) = 1/(!!(e)) }
+
 /// @brief: Extern declaration of the main application. This is used
 /// to access uv_data_start and uv_data_end variables at build time.
 extern CONFIG_APP_ST;

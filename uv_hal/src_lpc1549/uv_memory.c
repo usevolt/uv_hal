@@ -75,9 +75,6 @@ extern void CONFIG_SAVE_CALLBACK (void);
 
 
 
-
-
-
 void uv_get_device_serial(unsigned int dest[4]) {
 
 	unsigned int command_param[5];
