@@ -133,6 +133,10 @@ typedef struct {
 	/// @brief: Checksum to identify if data between start and end
 	/// was uninitialized or changed from what was found in non-volatile memory.
 	uint16_t crc;
+	// pointer to the matching *uv_data_start_t* variable. This is needed since
+	// the non-volatile data is written always to the end of memory and
+	// we dont know the amount of the data written.
+	uint32_t data_start_ptr;
 } uv_data_end_t;
 
 
@@ -218,7 +222,6 @@ typedef enum {
 
 /// @brief: Writes data to flash non-volatile application memory section. Depends on SystemCoreClock to
 /// determine the clock frequency of application.
-/// If while saving data occurred any error, info is logged into stdout (see uv_stdout.h)
 ///
 /// @note: Only one memory location can be saved per application!
 ///
@@ -253,8 +256,8 @@ uv_errors_e uv_memory_clear(memory_scope_e scope);
 
 /// @brief: Writes RAM data to flash. Note that the data can be written only a limited
 /// amount of times, so using this function in a loop is not a good idea.
-/// First prepares the given sector ready for earase and writing, then erases all data in the section
-/// and lastly writes the data.
+/// First prepares the given sector ready for earase and writing, then writes the data.
+/// The memory might need to be erased before writing.
 /// Executing this function may take a significant amount of time, while the interrupts are disabled.
 /// Flash sections used for storing application level data should be excluded from linker
 /// to make sure no application code resides on that region
@@ -267,10 +270,13 @@ uv_errors_e uv_memory_clear(memory_scope_e scope);
 /// of ram where this address and the last writable address (flash_address + num_bytes) are
 /// going to be erased before writing.
 /// @param fosc Oscillator frequency in Hz
-uv_iap_status_e uv_erase_and_write_to_flash(unsigned int ram_address,
-		uv_writable_amount_e num_bytes, unsigned int flash_address);
+uv_iap_status_e uv_write_to_flash(unsigned int flash_address,
+		uv_writable_amount_e num_bytes, unsigned int ram_address);
 
 
+/// @brief: Erases a single flash sector where the given flash address belongs to.
+/// All data on that sector will be lost.
+uv_iap_status_e uv_erase_flash(unsigned int flash_address);
 
 
 

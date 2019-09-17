@@ -40,8 +40,23 @@
 #endif
 
 #define FLASH_SECTOR_SIZE					0x1000
+#define FLASH_BLOCK_SIZE					256
 #define FLASH_START_ADDRESS 				0x00000000
-#define NON_VOLATILE_MEMORY_START_ADDRESS	0x3F000
+# ifndef CONFIG_NONVOL_MEM_START_ADDR
+#warning "CONFIG_NONVOL_MEM_START_ADDR not defined. Will use 0x3F000 as default\
+ which gives 4096 bytes of non-volatile memory space. This must be aligned\
+ to memory sector (0x1000) size!"
+#define CONFIG_NONVOL_MEM_START_ADDR		0x3F000
+#endif
+#if ((CONFIG_NONVOL_MEM_START_ADDR & 0xFFF) != 0)
+#error "CONFIG_NONVOL_MEM_START_ADDR has to be a multiple of the flash memory sector size,\
+ e.g. multiple of 0x1000."
+#endif
+#if (CONFIG_NONVOL_MEM_START_ADDR >= 0x40000)
+#error "CONFIG_NONVOL_MEM_START_ADDR cannot be greater than flash size on LPC1549.\
+ The maximum value is 0x3F000."
+#endif
+#define NON_VOLATILE_MEMORY_END_ADDRESS		0x40000
 
 
 
@@ -124,7 +139,7 @@ uv_errors_e uv_memory_save(void) {
 	bool match = true;
 	for (uint32_t i = 0; i < length; i++) {
 		if (((uint8_t*) &CONFIG_NON_VOLATILE_START)[i] !=
-				((uint8_t*) NON_VOLATILE_MEMORY_START_ADDRESS)[i]) {
+				((uint8_t*) CONFIG_NONVOL_MEM_START_ADDR)[i]) {
 			match = false;
 			break;
 		}
@@ -138,27 +153,15 @@ uv_errors_e uv_memory_save(void) {
 		ret = ERR_NONE;
 	}
 	else {
-		printf("Flashing %u bytes\n", (int) length);
-		if (length < 0) {
-			ret = ERR_END_ADDR_LESS_THAN_START_ADDR;
-		}
-		//calculate the right length
-		else if (length > IAP_BYTES_4096) {
+		uint32_t dest_addr = CONFIG_NONVOL_MEM_START_ADDR;
+
+		if (length > NON_VOLATILE_MEMORY_END_ADDRESS - dest_addr) {
 			ret = ERR_NOT_ENOUGH_MEMORY;
 		}
-		else if (length > IAP_BYTES_1024) {
-			length = IAP_BYTES_4096;
-		}
-		else if (length > IAP_BYTES_512) {
-			length = IAP_BYTES_1024;
-		}
-		else if (length > IAP_BYTES_256) {
-			length = IAP_BYTES_512;
+		else if (length < 0) {
+			ret = ERR_END_ADDR_LESS_THAN_START_ADDR;
 		}
 		else {
-			length = IAP_BYTES_256;
-		}
-		if (ret == ERR_NONE) {
 
 			// add the right value to data checksum
 			CONFIG_NON_VOLATILE_START.project_name = uv_projname;
@@ -166,11 +169,58 @@ uv_errors_e uv_memory_save(void) {
 			CONFIG_NON_VOLATILE_END.hal_crc = hal_crc;
 			CONFIG_NON_VOLATILE_END.crc = crc;
 
-			uv_iap_status_e status = uv_erase_and_write_to_flash((uint32_t) &CONFIG_NON_VOLATILE_START,
-					length, NON_VOLATILE_MEMORY_START_ADDRESS);
-			if (status != IAP_CMD_SUCCESS) {
-				ret = ERR_INTERNAL| HAL_MODULE_MEMORY;
+			uint32_t start_addr = NON_VOLATILE_MEMORY_END_ADDRESS - length;
+			CONFIG_NON_VOLATILE_END.data_start_ptr = start_addr;
+
+			printf("Saving %u bytes of non-volatile memory starting from 0x%x\n",
+					(unsigned int) length, (unsigned int) start_addr);
+
+			// first erase the needed 4096 kb sectors
+			uv_iap_status_e status;
+			printf("Erasing memory");
+			for (uint8_t i = 0; i < length / FLASH_SECTOR_SIZE + 1; i++) {
+				printf(" .");
+				uint32_t addr = CONFIG_NONVOL_MEM_START_ADDR + FLASH_SECTOR_SIZE * i;
+				status = uv_erase_flash((uint32_t) addr);
+				if (status != IAP_CMD_SUCCESS) {
+					ret = ERR_INTERNAL;
+					break;
+				}
 			}
+			printf("\n");
+			// todo: If new application is flashed with old bootloader,
+			// the non-vol data should be stored starting from address 0x3F000
+
+			if (ret == ERR_NONE) {
+				// then write the new data in 256 kb blocks
+				uint8_t bfr[FLASH_BLOCK_SIZE] = {};
+				uint32_t offset = 0;
+				printf("Flashing %i bytes to 0x%x ",
+						(unsigned int) length, (unsigned int) start_addr);
+				while (length > 0) {
+					// always make the writing in 256 byte blocks to minimize memory usage
+					uint32_t l = FLASH_BLOCK_SIZE;
+					uint16_t of = (start_addr + offset) % FLASH_BLOCK_SIZE;
+
+					printf(". ");
+
+					memset(bfr, 0, of);
+					memcpy(&bfr[of], (void*) ((uint32_t) &CONFIG_NON_VOLATILE_START + offset),
+							FLASH_BLOCK_SIZE - of);
+
+					status = uv_write_to_flash(start_addr + offset - of, l, (unsigned int) bfr);
+					length -= l - of;
+					offset += l - of;
+					if (status != IAP_CMD_SUCCESS) {
+						ret = ERR_INTERNAL;
+						break;
+					}
+				}
+				printf("\n");
+			}
+		}
+		if (ret != ERR_NONE) {
+			printf("Error %u while flashing.\n", ret);
 		}
 	}
 	return ret;
@@ -187,11 +237,11 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 
 	if (scope & MEMORY_COM_PARAMS) {
 		d = (uint8_t*) & CONFIG_NON_VOLATILE_START;
-		source = (uint8_t*) NON_VOLATILE_MEMORY_START_ADDRESS;
+		source = (uint8_t*) CONFIG_NONVOL_MEM_START_ADDR;
 	}
 	else {
 		d = ((uint8_t*) & CONFIG_NON_VOLATILE_START) + sizeof(uv_data_start_t);
-		source = ((uint8_t*) NON_VOLATILE_MEMORY_START_ADDRESS) + sizeof(uv_data_start_t);
+		source = ((uint8_t*) CONFIG_NONVOL_MEM_START_ADDR) + sizeof(uv_data_start_t);
 	}
 
 	if (scope & MEMORY_APP_PARAMS) {
@@ -206,7 +256,7 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 	memcpy(d, source, length);
 
 	// make sure to copy the end structure, since it contains the crc checksums
-	memcpy(& CONFIG_NON_VOLATILE_END, (uint8_t *) NON_VOLATILE_MEMORY_START_ADDRESS +
+	memcpy(& CONFIG_NON_VOLATILE_END, (uint8_t *) CONFIG_NONVOL_MEM_START_ADDR +
 			((uint32_t) & CONFIG_NON_VOLATILE_END - (uint32_t) & CONFIG_NON_VOLATILE_START),
 			sizeof(uv_data_end_t));
 
@@ -236,8 +286,8 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 
 
 
-uv_iap_status_e uv_erase_and_write_to_flash(unsigned int ram_address,
-		uv_writable_amount_e num_bytes, unsigned int flash_address) {
+uv_iap_status_e uv_write_to_flash(unsigned int flash_address,
+		uv_writable_amount_e num_bytes, unsigned int ram_address) {
 	uv_iap_status_e ret = IAP_CMD_SUCCESS;
 	//find out the sectors to be erased
 	unsigned int command_param[5];
@@ -267,48 +317,22 @@ uv_iap_status_e uv_erase_and_write_to_flash(unsigned int ram_address,
 
 	if (ret == IAP_CMD_SUCCESS) {
 
-		//prepare the flash sections for erase operation
+		//prepare the flash sections for write operation
 		command_param[0] = PREPARE_SECTOR;
 		command_param[1] = startSection;
 		command_param[2] = endSection;
-
 		iap_entry(command_param, status_result);
 
 		if (status_result[0] == IAP_CMD_SUCCESS) {
-			//erase the sectors
-			command_param[0] = ERASE_SECTOR;
-			command_param[1] = startSection;
-			command_param[2] = endSection;
-			command_param[3] = SystemCoreClock / 1000;
+			//write the sections
+			command_param[0] = COPY_RAM_TO_FLASH;
+			command_param[1] = flash_address;
+			command_param[2] = ram_address;
+			command_param[3] = num_bytes;
+			command_param[4] = SystemCoreClock / 1000;
 			iap_entry(command_param, status_result);
 
-			if (status_result[0] == IAP_CMD_SUCCESS) {
-				//prepare sections for writing
-				command_param[0] = PREPARE_SECTOR;
-				command_param[1] = startSection;
-				command_param[2] = endSection;
-
-				iap_entry(command_param, status_result);
-
-				if (status_result[0] == IAP_CMD_SUCCESS) {
-					//write the sections
-					command_param[0] = COPY_RAM_TO_FLASH;
-					command_param[1] = flash_address;
-					command_param[2] = ram_address;
-					command_param[3] = num_bytes;
-					command_param[4] = SystemCoreClock / 1000;
-
-					iap_entry(command_param, status_result);
-
-					ret = status_result[0];
-				}
-				else {
-					ret = status_result[0];
-				}
-			}
-			else {
-				ret = status_result[0];
-			}
+			ret = status_result[0];
 		}
 		else {
 			ret = status_result[0];
@@ -320,6 +344,52 @@ uv_iap_status_e uv_erase_and_write_to_flash(unsigned int ram_address,
 	return ret;
 }
 
+
+uv_iap_status_e uv_erase_flash(unsigned int flash_address) {
+	uv_iap_status_e ret = IAP_CMD_SUCCESS;
+	unsigned int command_param[5];
+	unsigned int status_result[4];
+
+	SystemCoreClockUpdate();
+
+	IAP iap_entry = (IAP) IAP_LOCATION;
+
+	//disable interrupts
+	__disable_irq();
+
+	int startSection;
+
+	startSection = (flash_address - FLASH_START_ADDRESS) / FLASH_SECTOR_SIZE;
+
+	if (ret == IAP_CMD_SUCCESS) {
+
+		//prepare the flash sections for write operation
+		command_param[0] = PREPARE_SECTOR;
+		command_param[1] = startSection;
+		command_param[2] = startSection;
+
+		iap_entry(command_param, status_result);
+
+		if (status_result[0] == IAP_CMD_SUCCESS) {
+			//erase the sectors
+			command_param[0] = ERASE_SECTOR;
+			command_param[1] = startSection;
+			command_param[2] = startSection;
+			command_param[3] = SystemCoreClock / 1000;
+			iap_entry(command_param, status_result);
+		}
+		else {
+			ret = status_result[0];
+		}
+	}
+	else {
+		ret = status_result[0];
+	}
+
+	__enable_irq();
+
+	return ret;
+}
 
 
 
@@ -356,8 +426,8 @@ uv_errors_e uv_memory_clear(memory_scope_e scope) {
 	}
 
 	if (ret == ERR_NONE) {
-		uv_iap_status_e status = uv_erase_and_write_to_flash((uint32_t) &CONFIG_NON_VOLATILE_START,
-				length, NON_VOLATILE_MEMORY_START_ADDRESS);
+		uv_iap_status_e status = uv_erase_flash(
+				(uint32_t) CONFIG_NONVOL_MEM_START_ADDR);
 		if (status != IAP_CMD_SUCCESS) {
 			ret = ERR_INTERNAL;
 		}

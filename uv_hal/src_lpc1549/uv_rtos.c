@@ -203,7 +203,7 @@ void uv_init(void *device) {
 
 #if CONFIG_UV_BOOTLOADER
 	// if uv_bootloader is used, remap vector table to point to the new location
-	SCB->VTOR = APP_START_ADDR;
+	SCB->VTOR = APP_START_ADDR + 0x100;
 #endif
 
 	Chip_SYSCTL_PeriphReset(RESET_MUX);
