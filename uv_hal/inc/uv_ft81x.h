@@ -331,9 +331,13 @@ uint32_t uv_ft81x_get_ramdl_usage(void);
 /// After these steps, the media should be loaded to the mcu with:
 /// ´´´´uvcan --nodeid 0xD --loadmedia path/to/image.png´´´´
 ///
-/// @note: Currently known bugs: FT81X cannot parse small Paletted PNG files (so called PNG-8 files).
+/// @note: Currently known bugs:
+/// * FT81X cannot parse small Paletted PNG files (so called PNG-8 files).
 /// The file size for successful parsing is somewhere 373 and 155 bytes. To be sure, dont parse
 /// Paletted PNG files which are smaller than 373 bytes.
+/// * Inkscape and Gimp seem to have problems exporting PNG's the way that FT81x can read them
+/// if there isn't any semitransparent pixels in the image. This is because FT81X supports
+/// png's only with alpha channel. To fix this, add some transparency into the image
 ///
 /// @param dest_addr: The destination address where the data is loaded in FT81X memory
 /// @param exmem: The external non-volatile memory module to be used for data download

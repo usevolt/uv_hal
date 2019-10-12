@@ -70,25 +70,17 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 	for (int16_t i = 0; i < this->tab_count; i++) {
 		tab_w = uv_ft81x_get_string_height((char *)this->tab_names[i], this->font) + 10;
-		if (tab_w < CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH) tab_w = CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH;
+		if (tab_w < CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH) {
+			tab_w = CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH;
+		}
 		if (this->active_tab != i) {
-#if CONFIG_LCD
-			uv_lcd_draw_mrect(x, y, tab_w, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
-					this->super.style->inactive_bg_c, pbb);
-			uv_lcd_draw_mframe(x, y, tab_w + 1, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
-					1, this->super.style->inactive_frame_c, pbb);
-			_uv_ui_draw_mtext(x + 5, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, this->super.style->font,
-					ALIGN_CENTER_LEFT, this->super.style->inactive_font_c, C(0xFFFFFFFF),
-					(char*) this->tab_names[i], 1.0f, pbb);
-#elif CONFIG_FT81X
 			uv_ft81x_draw_shadowrrect(x, y, tab_w, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
 					CONFIG_UI_RADIUS, ((uv_uiwindow_st*) this)->bg_c,
 					uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, 30),
 					uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, -30));
 			uv_ft81x_draw_string((char*) this->tab_names[i], this->font,
-					x + x, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, ALIGN_CENTER_LEFT,
+					x + 4, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, ALIGN_CENTER_LEFT,
 					this->text_c);
-#endif
 		}
 		else {
 			active_tab_x = x;
@@ -96,25 +88,6 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 		}
 		x += tab_w;
 	}
-#if CONFIG_LCD
-	// draw horizontal line
-	uv_lcd_draw_mrect(x, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT - 1,
-			thisx + uv_uibb(this)->width - x,
-			1, this->super.style->inactive_frame_c, pbb);
-
-	// lastly draw active tab
-	uv_lcd_draw_mrect(active_tab_x, y, active_tab_w, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
-			this->super.style->active_bg_c, pbb);
-	uv_lcd_draw_mrect(active_tab_x, y, active_tab_w, 1,
-			this->super.style->active_frame_c, pbb);
-	uv_lcd_draw_mrect(active_tab_x, y, 1, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
-			this->super.style->active_frame_c, pbb);
-	uv_lcd_draw_mrect(active_tab_x + active_tab_w, y, 1, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
-			this->super.style->active_frame_c, pbb);
-	_uv_ui_draw_mtext(active_tab_x + 5, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, this->super.style->font,
-			ALIGN_CENTER_LEFT, this->super.style->active_font_c,
-			C(0xFFFFFFFF), (char *) this->tab_names[this->active_tab], 1.0f, pbb);
-#elif CONFIG_FT81X
 	// draw horizontal line
 	uv_ft81x_draw_line(thisx, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT - 1,
 			thisx + uv_uibb(this)->width,
@@ -129,8 +102,6 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 			this->font, active_tab_x + 5,
 			y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, ALIGN_CENTER_LEFT,
 			this->text_c);
-
-#endif
 
 }
 
