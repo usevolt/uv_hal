@@ -49,6 +49,7 @@ void uv_uitabwindow_init(void *me, int16_t tab_count,
 	this->active_tab = 0;
 	this->tab_count = tab_count;
 	this->tab_names = tab_names;
+	this->tab_changed = false;
 	((uv_uiobject_st*) this)->step_callb = &uv_uitabwindow_step;
 	uv_uiobject_set_draw_callb(this, &draw);
 	uv_uiobject_set_touch_callb(this, &touch);
