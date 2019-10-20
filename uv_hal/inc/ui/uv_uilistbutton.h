@@ -49,6 +49,7 @@ typedef struct __attribute__((packed)) {
 	color_t bar_c;
 	uint8_t content_len;
 	uint8_t current_index;
+	uint16_t content_string_len;
 } uv_uilistbutton_st;
 
 #ifdef this
@@ -65,6 +66,20 @@ typedef struct __attribute__((packed)) {
 void uv_uilistbutton_init(void *me, char **content,
 		uint8_t content_len, uint8_t current_index, const uv_uistyle_st *style);
 
+
+/// @brief: Sets the content type to array-of-pointers. This is the default behaviour.
+/// The content buffer should be an array of pointers that point to the location of the strings.
+static inline void uv_uilistbutton_set_content_type_arrayofpointers(void *me) {
+	this->content_string_len = 0;
+}
+
+/// @brief: Sets the content type to array-of-strings. The content buffer
+/// should be an array of constant length null-terminated strings. Good if
+/// the content array is completely strored in RAM memory.
+static inline void uv_uilistbutton_set_content_type_arrayofstring(
+		void *me, uint16_t string_lengths) {
+	this->content_string_len = string_lengths;
+}
 
 /// @brief: Sets the title text. The title will be shown as a prefix to the actual content
 /// on all entries. The title defaults to NULL.

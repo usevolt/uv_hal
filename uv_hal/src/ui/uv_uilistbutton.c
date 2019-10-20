@@ -46,7 +46,9 @@ void uv_uilistbutton_draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t y = uv_ui_get_yglobal(this);
 	int16_t w = uv_uibb(this)->width;
 	int16_t h = uv_uibb(this)->height;
-
+	char *content = (this->content_string_len == 0) ?
+			this->content[this->current_index] :
+			(&((char*) this->content)[this->content_string_len * this->current_index]);
 
 	color_t bgc = (((uv_uibutton_st*) this)->state) ?
 			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 20) :
@@ -64,8 +66,9 @@ void uv_uilistbutton_draw(void *me, const uv_bounding_box_st *pbb) {
 			 bgc, lightc, shadowc);
 	uint16_t ty = h / 2;
 	if (this->title) {
-		uint16_t th = uv_ft81x_get_string_height(this->title, ((uv_uibutton_st*) this)->font);
-		uint16_t ch = uv_ft81x_get_string_height(this->content[this->current_index],
+		uint16_t th = uv_ft81x_get_string_height(this->title,
+				((uv_uibutton_st*) this)->font);
+		uint16_t ch = uv_ft81x_get_string_height(content,
 				((uv_uibutton_st*) this)->font);
 
 		uv_ft81x_draw_string(this->title, ((uv_uibutton_st*) this)->font, x + w / 2,
@@ -73,7 +76,7 @@ void uv_uilistbutton_draw(void *me, const uv_bounding_box_st *pbb) {
 
 		ty += (th + ch) / 2 - ch / 2;
 	}
-	uv_ft81x_draw_string(this->content[this->current_index], ((uv_uibutton_st*) this)->font,
+	uv_ft81x_draw_string(content, ((uv_uibutton_st*) this)->font,
 			x + w / 2, y + ty, ALIGN_CENTER, fontc);
 
 
@@ -100,6 +103,7 @@ void uv_uilistbutton_init(void *me, char **content,
 	this->content_len = content_len;
 	this->content = content;
 	this->current_index = current_index;
+	this->content_string_len = 0;
 	if (this->current_index >= this->content_len) {
 		this->current_index = 0;
 	}
