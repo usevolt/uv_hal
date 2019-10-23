@@ -40,6 +40,8 @@
 #define NUMPAD_VALUE_STR_LEN	16
 
 
+
+
 typedef struct __attribute__((packed)) {
 	EXTENDS(uv_uiobject_st);
 
@@ -84,6 +86,7 @@ int32_t uv_uinumpaddialog_exec(const char *title,
 #undef this
 #endif
 #define this ((uv_uinumpad_st*) me)
+
 
 /// @brief: Returns the current input value. If nothing has been inputted,
 /// returns -1.

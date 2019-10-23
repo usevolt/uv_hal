@@ -80,6 +80,20 @@ static inline void uv_uigridlayout_set_horizontal_order(uv_uigridlayout_st *this
 	this->horizontal = true;
 }
 
+/// @brief: Sets the gridlayout's height. If this is changed in the middle of
+/// laying the elements with *uv_uigridlayout_next*, the calculation of the cells
+/// updates for the future cells.
+static inline void uv_uigridlayout_set_height(uv_uigridlayout_st *this, int16_t value) {
+	this->bb.height = value;
+}
+
+/// @brief: Sets the gridlayout's width. If this is changed in the middle of
+/// laying the elements with *uv_uigridlayout_next*, the calculation of the cells
+/// updates for the future cells.
+static inline void uv_uigridlayout_set_width(uv_uigridlayout_st *this, int16_t value) {
+	this->bb.width = value;
+}
+
 
 /// @brief: Returns the bounding box describing the position and dimensions
 /// of the next entry in the grid.
