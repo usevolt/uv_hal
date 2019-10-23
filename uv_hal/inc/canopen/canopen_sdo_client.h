@@ -56,9 +56,17 @@ uv_errors_e _uv_canopen_sdo_client_write(uint8_t node_id,
 /// @brief: Sends a CANOpen SDO read request and waits for the response
 /// **timeout_ms** milliseconds. If the read request failed or the timeout
 /// expires, returns an error.
+///
+/// @note: Currently this requires the SDO server to indicate the data_len on
+/// expedited transfers. Otherwise we cannot know how much data should be copied and
+/// it would make a risk of index overflow when copying the data.
 uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *data);
 
+
+/// @brief: Returns the last encountered error code. This should correspond to the
+/// errors encountered during the SDO transfer.
+uv_sdo_error_codes_e _uv_canopen_sdo_get_error_code(void);
 
 #if CONFIG_CANOPEN_SDO_BLOCK_TRANSFER
 

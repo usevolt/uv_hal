@@ -59,6 +59,7 @@
 static inline void sdo_client_abort(uint16_t main_index,
 				uint8_t sub_index, uv_sdo_error_codes_e err_code) {
 	_uv_canopen_sdo_abort(CANOPEN_SDO_RESPONSE_ID, main_index, sub_index, err_code);
+	this->last_err_code = err_code;
 	this->state = CANOPEN_SDO_STATE_TRANSFER_ABORTED;
 }
 
@@ -66,6 +67,7 @@ static inline void sdo_client_abort(uint16_t main_index,
 void _uv_canopen_sdo_client_init(void) {
 	this->state = CANOPEN_SDO_STATE_READY;
 	this->delay = -1;
+	this->last_err_code = CANOPEN_SDO_ERROR_NONE;
 #if CONFIG_TARGET_LPC1785
 #warning "Note: On LPC1785 receiving SDO server response messages have to be configured individually"
 #else
@@ -451,9 +453,18 @@ uv_errors_e _uv_canopen_sdo_client_write(uint8_t node_id,
 
 		if (data_len <= 4) {
 			// expedited write
+			// if the data_len is given, size is indicated. Otherwise
+			// 4 bytes of data is copied from *data* to the message and the
+			// SDO receiver (server) is responsible to read only the amount of
+			// bytes that it requires.
 			this->state = CANOPEN_SDO_STATE_EXPEDITED_DOWNLOAD;
-			SET_CMD_BYTE(&msg, INITIATE_DOMAIN_DOWNLOAD | 0b11 | ((4 - data_len) << 2));
-			memcpy(&msg.data_32bit[1], data, data_len);
+			if (data_len == 0) {
+				SET_CMD_BYTE(&msg, INITIATE_DOMAIN_DOWNLOAD | 0b10);
+			}
+			else {
+				SET_CMD_BYTE(&msg, INITIATE_DOMAIN_DOWNLOAD | 0b11 | ((4 - data_len) << 2));
+			}
+			memcpy(&msg.data_32bit[1], data, (data_len == 0) ? 4 : data_len);
 			uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
 		}
 		else {
@@ -642,6 +653,11 @@ uv_errors_e _uv_canopen_sdo_client_block_read(uint8_t node_id,
 }
 
 #endif
+
+
+uv_sdo_error_codes_e _uv_canopen_sdo_get_error_code(void) {
+	return this->last_err_code;
+}
 
 
 #endif

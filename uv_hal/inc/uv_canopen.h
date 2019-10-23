@@ -349,6 +349,8 @@ typedef struct {
 	struct {
 		struct {
 			canopen_sdo_state_e state;
+			// stores the last error encountered while reading or writing data
+			uv_sdo_error_codes_e last_err_code;
 			uint8_t server_node_id;
 			uint8_t sindex;
 			uint16_t mindex;
@@ -537,6 +539,18 @@ void uv_canopen_set_state(canopen_node_states_e state);
 canopen_node_states_e uv_canopen_get_state(void);
 
 /// @brief: Quick way for sending a SDO write request
+///
+/// @param node_id: The nodeID of the device to be written
+/// @param mindex: The main index of the object to be written
+/// @param sindex: The sub index of the object to be written
+/// @param data_len: The length of the data to be written. This should match the
+/// object, otherwise the server device will respond with a SDO Abort message.
+/// If this is set to 0, the SDO request is done as an expedited transfer without
+/// indicating the data length. Thus 4 bytes of data is copied from *data* to
+/// the CAN message and the server device is responsible to read the correct
+/// numbre of bytes from the message.
+/// @param data: A pointer to the data that is written. In case of *data_len* == 0,
+/// this is expected to be a pointer to uint32_t variable where 4 bytes of data is read.
 static inline uv_errors_e uv_canopen_sdo_write(uint8_t node_id,
 		uint16_t mindex, uint8_t sindex, uint32_t data_len, void *data) {
 	return _uv_canopen_sdo_client_write(node_id, mindex, sindex, data_len, data);
@@ -599,6 +613,11 @@ uv_errors_e uv_canopen_sdo_restore_params(uint8_t node_id, memory_scope_e_ param
 /// @brief: Sends a store params request to node *node_id*.
 uv_errors_e uv_canopen_sdo_store_params(uint8_t node_id, memory_scope_e_ param_scope);
 
+
+/// @brief: Returns the last error code received while sending read or write SDO requests.
+static inline uv_sdo_error_codes_e uv_canopen_sdo_get_error(void) {
+	return _uv_canopen_sdo_get_error_code();
+}
 
 /// @brief: Returns the current nodeid of this device
 static inline uint8_t uv_canopen_get_our_nodeid(void) {

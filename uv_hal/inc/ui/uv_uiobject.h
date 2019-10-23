@@ -192,6 +192,12 @@ static inline void uv_uiobject_set_draw_callb(void *me,
 }
 
 
+/// @brief: Returns the parent of the give object or NULL if parent hasn't been given.
+static inline uv_uiwindow_st *uv_uiobject_get_parent(void *me) {
+	return this->parent;
+}
+
+
 /// @brief: Draws the uiobject on the screen. This should be always used to
 /// request the drawing of objects derived from uiobject
 ///
