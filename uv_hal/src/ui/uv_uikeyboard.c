@@ -270,11 +270,22 @@ bool uv_uikeyboard_show(const char *title, char *buffer,
 		uint16_t buf_len, const uv_uistyle_st *style) {
 
 	uv_touch_st t;
-	uint16_t input_len = 0;
 	shift = true;
 	bool pressed = uv_ft81x_get_touch(&t.x, &t.y);
 	refresh = true;
-	buffer[0] = '\0';
+	bool nullterm = false;
+	for (uint8_t i = 0; i < buf_len; i++) {
+		if (buffer[i] == '\0') {
+			nullterm = true;
+			break;
+		}
+	}
+	if (!nullterm) {
+		// buffer doesn't contain a null-terminated string,
+		// initialize it to zero-length string
+		buffer[0] = '\0';
+	}
+	uint16_t input_len = strlen(buffer);
 
 	while (true) {
 

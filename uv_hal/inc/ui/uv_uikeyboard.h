@@ -45,7 +45,9 @@
 /// @return: True if the user entered any text, false if keyboard was canceled
 ///
 /// @param title: One line info text which will be shown on top of the text area
-/// @param buffer: Buffer where the inputted text will be saved
+/// @param buffer: Buffer where the inputted text will be saved. In case if the *buffer*
+/// already contains a null-terminated string, that string will be shown on the keyboard
+/// at start. Otherwise the buffer will be initialized as a zero-length string.
 /// @param buf_len: The maximum length of the buffer
 /// @param style: The UI style of the keyboard
 bool uv_uikeyboard_show(const char *title, char *buffer,

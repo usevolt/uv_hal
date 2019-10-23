@@ -207,6 +207,7 @@ typedef struct {
 typedef uint32_t color_t;
 // Macro which should be used when colors are assigned. This is to keep
 // UI libraries compatible with different color spaces than ARGB8888.
+// Give the color as C(0xAARRGGBB)
 #define C(x)		(x)
 
 /// @brief: Returns a color which is brightened by removing *value* amount of 8-bit color
