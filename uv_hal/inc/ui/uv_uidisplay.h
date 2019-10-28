@@ -113,6 +113,13 @@ static inline void uv_uidisplay_clear(void *me) {
 /// @brief: Step function takes care of updating the screen and touch events
 uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms);
 
+
+/// @brief: Refreshes the screen and redraw all children instantly.
+/// This is automatically called after every step cycle, but can also
+/// be called anytime inside the gui step task.
+void uv_uidisplay_draw(void *me);
+
+
 #endif
 
 #endif /* UV_HAL_INC_UI_UV_UIDISPLAY_H_ */

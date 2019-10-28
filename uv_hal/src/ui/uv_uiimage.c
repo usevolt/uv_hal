@@ -34,8 +34,6 @@
 
 
 static inline void draw(void *me, const uv_bounding_box_st *pbb);
-static uv_uiobject_ret_e uv_uiimage_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st *pbb);
 
 
 #define this ((uv_uiimage_st*)me)
@@ -49,7 +47,6 @@ void uv_uiimage_init(void *me, uv_uimedia_st *media,
 	this->blend_c = C(0xFFFFFFFF);
 
 	uv_uiobject_set_draw_callb(this, &draw);
-	((uv_uiobject_st*) this)->step_callb = &uv_uiimage_step;
 }
 
 
@@ -80,16 +77,6 @@ static inline void draw(void *me, const uv_bounding_box_st *pbb) {
 	uv_ft81x_draw_bitmap_ext(this->media, x, y, mw, mh, this->wrap, this->blend_c);
 }
 
-static uv_uiobject_ret_e uv_uiimage_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st *pbb) {
-	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
-
-	if (_uv_uiobject_draw(this, pbb)) {
-		ret = UIOBJECT_RETURN_REFRESH;
-	}
-
-	return ret;
-}
 
 
 

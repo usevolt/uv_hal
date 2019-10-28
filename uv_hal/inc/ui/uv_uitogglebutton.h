@@ -84,8 +84,7 @@ static inline char *uv_uitogglebutton_get_text(void *me) {
 
 
 /// @brief: Step function should be called every step cycle
-uv_uiobject_ret_e uv_uitogglebutton_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st *pbb);
+uv_uiobject_ret_e uv_uitogglebutton_step(void *me, uint16_t step_ms);
 
 
 

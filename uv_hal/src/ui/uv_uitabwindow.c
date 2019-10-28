@@ -104,6 +104,8 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 			y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, ALIGN_CENTER_LEFT,
 			this->text_c);
 
+
+	_uv_uiwindow_draw_children(this, pbb);
 }
 
 uv_bounding_box_st uv_uitabwindow_get_contentbb(void *me) {
@@ -115,11 +117,10 @@ uv_bounding_box_st uv_uitabwindow_get_contentbb(void *me) {
 
 
 
-uv_uiobject_ret_e uv_uitabwindow_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st *pbb) {
+uv_uiobject_ret_e uv_uitabwindow_step(void *me, uint16_t step_ms) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
-	ret = uv_uiwindow_step(this, step_ms, pbb);
+	ret = uv_uiwindow_step(this, step_ms);
 
 	// When tab has been changed, this->tab_changed has to be true for 1 step cycle
 	this->tab_changed = false;

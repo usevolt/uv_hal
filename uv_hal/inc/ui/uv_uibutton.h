@@ -120,8 +120,7 @@ static inline color_t uv_uibutton_get_main_color(void *me) {
 
 
 /// @brief: Step function should be called every step cycle
-uv_uiobject_ret_e uv_uibutton_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st *pbb);
+uv_uiobject_ret_e uv_uibutton_step(void *me, uint16_t step_ms);
 
 
 /// @brief: Draw function. Normally this is called internally but it can also be

@@ -36,16 +36,25 @@
 
 
 
+static void draw(void *me, const uv_bounding_box_st *pbb) {
+	uv_uiwindow_draw(this, pbb);
+
+	// draw all the objects added to the screen
+	_uv_uiwindow_draw_children(this, pbb);
+
+	// all UI components should now be updated, swap display list buffers
+	uv_ft81x_dlswap();
+}
+
+
 
 void uv_uidialog_init(void *me, uv_uiobject_st **object_array, const uv_uistyle_st* style) {
 
 	uv_uidisplay_init(this, object_array, style);
-	// uidialog uses uiwindow's draw function
-	uv_uiobject_set_draw_callb(this, &uv_uiwindow_draw);
 	// dialog defaults to non-transparent.
 	uv_uidialog_set_transparent(this, false);
-	// dialog uses same draw callback as windows
-	uv_uiobject_set_draw_callb(this, &uv_uiwindow_draw);
+	// uidialog uses uiwindow's draw function
+	uv_uiobject_set_draw_callb(this, &draw);
 }
 
 

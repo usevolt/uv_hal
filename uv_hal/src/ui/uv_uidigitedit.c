@@ -33,8 +33,7 @@
 
 #if CONFIG_UI
 
-static uv_uiobject_ret_e uv_uidigitedit_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st *pbb);
+static uv_uiobject_ret_e uv_uidigitedit_step(void *me, uint16_t step_ms);
 static void draw(void *me, const uv_bounding_box_st *pbb);
 static void touch(void *me, uv_touch_st *touch);
 
@@ -105,11 +104,8 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 }
 
 
-static uv_uiobject_ret_e uv_uidigitedit_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st *pbb) {
+static uv_uiobject_ret_e uv_uidigitedit_step(void *me, uint16_t step_ms) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
-
-	uv_uilabel_step(this, step_ms, pbb);
 
 	this->changed = false;
 

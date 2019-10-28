@@ -139,10 +139,6 @@ void uv_uiprogressbar_set_limit(void *me, uiprogressbar_limit_e type,
 		int16_t limit, color_t color);
 
 
-/// @brief: Set function is called by the parent window
-uv_uiobject_ret_e uv_uiprogressbar_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st *pbb);
-
 
 #undef this
 

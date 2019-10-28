@@ -162,6 +162,20 @@ void uv_uitransition_pause(void *me) {
 }
 
 
+void uv_uitransition_set_position(uv_uitransition_st *me, uint16_t value) {
+	this->current_time_ms = value;
+	// update the current positions to prevent glitches
+	this->calc_callb(this);
+	// call this for the parallel transition as well
+	if (this->parallel) {
+		uv_uitransition_set_position(this->parallel, value);
+	}
+}
+
+
+
+
+
 
 static int16_t scalar_calc(uv_uitransition_easing_e easing, int16_t current_time_ms,
 		int16_t duration_ms, int16_t start_val, int16_t end_val) {

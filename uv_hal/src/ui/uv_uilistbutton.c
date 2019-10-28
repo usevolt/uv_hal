@@ -96,7 +96,6 @@ void uv_uilistbutton_init(void *me, char **content,
 		uint8_t content_len, uint8_t current_index, const uv_uistyle_st *style) {
 	uv_uibutton_init(this, (char*) content[content_len], style);
 	uv_uiobject_set_draw_callb(this, &uv_uilistbutton_draw);
-	uv_uiobject_set_step_callb(this, &uv_uilistbutton_step);
 	uv_uiobject_set_touch_callb(this, &touch);
 	this->activebar_c = style->fg_c;
 	this->bar_c = uv_uic_brighten(style->bg_c, -10);
@@ -111,20 +110,6 @@ void uv_uilistbutton_init(void *me, char **content,
 
 }
 
-
-uv_uiobject_ret_e uv_uilistbutton_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st *pbb) {
-	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
-
-
-	if (((uv_uiobject_st*) this)->refresh) {
-		_uv_uiobject_draw(this, pbb);
-		ret = UIOBJECT_RETURN_REFRESH;
-	}
-
-
-	return ret;
-}
 
 
 static void touch(void *me, uv_touch_st *touch) {

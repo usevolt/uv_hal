@@ -95,10 +95,6 @@ void uv_uislider_init(void *me, int16_t min_value, int16_t max_value, int16_t cu
 		const uv_uistyle_st *style);
 
 
-/// @brief: Step function which is also used to update the slider
-uv_uiobject_ret_e uv_uislider_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st *pbb);
-
 
 /// @brief: Configures the slider as a horizontal slider
 static inline void uv_uislider_set_horizontal(void *me) {

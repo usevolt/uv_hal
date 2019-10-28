@@ -67,16 +67,10 @@ void uv_uitogglebutton_init(void *me, bool state, char *text, const uv_uistyle_s
 }
 
 
-uv_uiobject_ret_e uv_uitogglebutton_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st *pbb) {
+uv_uiobject_ret_e uv_uitogglebutton_step(void *me, uint16_t step_ms) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
 	this->clicked = false;
-
-	// update if necessary
-	if (_uv_uiobject_draw(this, pbb)) {
-		ret = UIOBJECT_RETURN_REFRESH;
-	}
 
 
 	return ret;

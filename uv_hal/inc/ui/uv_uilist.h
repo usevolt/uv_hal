@@ -117,8 +117,7 @@ static inline void uv_uilist_set_font(void *me, uv_font_st *font) {
 
 /// @brief: Step function is called every frame. It is also used to distinguish
 /// different objects from each others in uv_uiwindow_st.
-uv_uiobject_ret_e uv_uilist_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st *pbb);
+uv_uiobject_ret_e uv_uilist_step(void *me, uint16_t step_ms);
 
 
 /// @brief: Recalculates the height of this list and modifies the bounding box accordingly
@@ -136,9 +135,13 @@ static inline int16_t uv_uilist_get_count(void *me) {
 	return uv_vector_size(&this->entries);
 }
 
+
 /// @brief: Selects an entry from the list
 static inline void uv_uilist_select(void *me, int16_t index) {
 	this->selected_index = index;
+}
+static inline void uv_uilist_set_selected(void *me, int16_t index) {
+	uv_uilist_select(me, index);
 }
 
 

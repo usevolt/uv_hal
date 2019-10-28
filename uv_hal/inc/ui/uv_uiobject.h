@@ -124,8 +124,7 @@ typedef struct __attribute__((packed)) uv_uiobject_st {
 	/// @param this: Pointer to this object
 	/// @param step_ms: The step cycle duration in milliseconds
 	/// @param touch: Touchscreen structure which holds the touchscreen actions made on this object
-	uv_uiobject_ret_e (*step_callb)(void *this, uint16_t step_ms,
-			const uv_bounding_box_st *pbb);
+	uv_uiobject_ret_e (*step_callb)(void *this, uint16_t step_ms);
 	/// @brief: Virtual drawing function. This will be called anytime when
 	/// the object needs redrawing.
 	void (*vrtl_draw)(void *me, const uv_bounding_box_st *pbb);
@@ -182,8 +181,7 @@ void uv_uiobject_init(void *me);
 
 
 /// @brief: uiobject step function
-uv_uiobject_ret_e uv_uiobject_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st *pbb);
+uv_uiobject_ret_e uv_uiobject_step(void *me, uint16_t step_ms);
 
 /// @brief: Set's the drawing function
 static inline void uv_uiobject_set_draw_callb(void *me,
@@ -212,7 +210,7 @@ static inline void uv_uiobject_set_touch_callb(void *me,
 
 /// @brief: Sets the step callback function
 static inline void uv_uiobject_set_step_callb(void *me,
-		uv_uiobject_ret_e (*step_callb)(void *, uint16_t, const uv_bounding_box_st *)) {
+		uv_uiobject_ret_e (*step_callb)(void *, uint16_t)) {
 	((uv_uiobject_st*) me)->step_callb = step_callb;
 }
 

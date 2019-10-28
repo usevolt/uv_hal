@@ -51,9 +51,6 @@ typedef struct __attribute__((packed)) {
 
 void uv_uitoucharea_init(void *me);
 
-uv_uiobject_ret_e uv_uitoucharea_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st *pbb);
-
 
 
 #if defined(this)

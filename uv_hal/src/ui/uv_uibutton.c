@@ -69,13 +69,8 @@ void uv_uibutton_draw(void *me, const uv_bounding_box_st *pbb) {
 			y + h / 2, ALIGN_CENTER, fontc);
 }
 
-uv_uiobject_ret_e uv_uibutton_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st *pbb) {
+uv_uiobject_ret_e uv_uibutton_step(void *me, uint16_t step_ms) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
-
-	if (_uv_uiobject_draw(this, pbb)) {
-		ret = UIOBJECT_RETURN_REFRESH;
-	}
 
 	if ((this->state == UIBUTTON_PRESSED) &&
 			uv_delay(&this->delay, step_ms)) {

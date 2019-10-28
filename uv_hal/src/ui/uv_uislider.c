@@ -57,7 +57,6 @@ void uv_uislider_init(void *me, int16_t min_value, int16_t max_value, int16_t cu
 	this->inc_step = 1;
 	this->drag_val = 0;
 	this->title = NULL;
-	((uv_uiobject_st*) this)->step_callb = &uv_uislider_step;
 	uv_uiobject_set_draw_callb(this, &draw);
 	uv_uiobject_set_touch_callb(this, &touch);
 }
@@ -141,16 +140,6 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 }
 
 
-uv_uiobject_ret_e uv_uislider_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st *pbb) {
-	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
-
-	if (_uv_uiobject_draw(me, pbb)) {
-		ret = UIOBJECT_RETURN_REFRESH;
-	}
-
-	return ret;
-}
 
 static void touch(void *me, uv_touch_st *touch) {
 	if (touch->action == TOUCH_PRESSED) {

@@ -36,8 +36,7 @@
 
 static void draw(void *me, const uv_bounding_box_st *pbb);
 static void touch(void *me, uv_touch_st *touch);
-static uv_uiobject_ret_e numpad_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st * pbb);
+static uv_uiobject_ret_e numpad_step(void *me, uint16_t step_ms);
 static void add_number(void *me, char value);
 
 
@@ -235,12 +234,8 @@ static void touch(void *me, uv_touch_st *touch) {
 	}
 }
 
-static uv_uiobject_ret_e numpad_step(void *me, uint16_t step_ms, const uv_bounding_box_st * pbb) {
+static uv_uiobject_ret_e numpad_step(void *me, uint16_t step_ms) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
-
-	if (_uv_uiobject_draw(this, pbb)) {
-		ret = UIOBJECT_RETURN_REFRESH;
-	}
 
 	this->cancelled = false;
 	this->submitted = false;

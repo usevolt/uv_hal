@@ -65,11 +65,6 @@ void uv_uicheckbox_init(void *me, bool state, char *text, const uv_uistyle_st *s
 }
 
 
-uv_uiobject_ret_e uv_uicheckbox_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st *pbb) {
-	return uv_uitogglebutton_step(me, step_ms, pbb);
-}
-
 
 
 

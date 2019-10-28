@@ -79,14 +79,13 @@ void uv_uiobject_init(void *me) {
 }
 
 
-uv_uiobject_ret_e uv_uiobject_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st *pbb) {
+uv_uiobject_ret_e uv_uiobject_step(void *me, uint16_t step_ms) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 	if (this->transition) {
 		_uv_uitransition_step(this->transition, this, step_ms);
 	}
 	if (this->step_callb) {
-		ret = this->step_callb(this, step_ms, pbb);
+		ret = this->step_callb(this, step_ms);
 	}
 	return ret;
 }

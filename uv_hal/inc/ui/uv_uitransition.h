@@ -121,9 +121,7 @@ static inline void uv_uitransition_set_state_change_callback(void *me,
 
 /// @brief: Sets the absolute position of the transition. Note that this
 /// affects only if the transition is playing /reverse playing.
-static inline void uv_uitransition_set_position(uv_uitransition_st *me, uint16_t value) {
-	this->current_time_ms = value;
-}
+void uv_uitransition_set_position(uv_uitransition_st *me, uint16_t value);
 
 /// @brief: Returns true if the transition is finished
 static inline bool uv_uitransition_is_finished(void *me) {
@@ -149,6 +147,7 @@ static inline void uv_uitransition_set_speed(void *me, uint16_t speed_ppt) {
 static inline int16_t uv_uitransition_get_duration_ms(void *me) {
 	return this->duration_ms;
 }
+
 
 
 /// @bief: Transition animating a signed 16 bit integer value.
@@ -181,7 +180,6 @@ typedef struct {
 /// @brief: Initializes a color transition
 void uv_uicolortransition_init(void *me, uv_uitransition_easing_e easing,
 		uint16_t duration_ms, color_t start_c, color_t end_c, color_t *c_ptr);
-
 
 
 

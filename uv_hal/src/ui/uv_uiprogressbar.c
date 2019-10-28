@@ -52,7 +52,6 @@ void uv_uiprogressbar_init(void *me, int16_t min_value,
 	this->limit = this->min_val;
 	this->limit_type = UI_PROGRESSBAR_LIMIT_NONE;
 	this->title = NULL;
-	((uv_uiobject_st*) this)->step_callb = &uv_uiprogressbar_step;
 	uv_uiobject_set_draw_callb(this, &draw);
 }
 
@@ -92,48 +91,6 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t rel = uv_reli(this->value, this->min_val, this->max_val);
 	if (rel < 0) { rel = 0; }
 
-#if CONFIG_LCD
-	int16_t w = this->horizontal ?
-			(CONFIG_UI_PROGRESSBAR_WIDTH) : CONFIG_UI_PROGRESSBAR_HEIGHT;
-	int16_t h = this->horizontal ?
-			CONFIG_UI_PROGRESSBAR_HEIGHT : CONFIG_UI_PROGRESSBAR_WIDTH;
-	// total amount of bars to draw
-	int16_t bars;
-	// amount of active bars
-	int16_t active_bars;
-
-	if (this->horizontal) {
-		bars = uv_uibb(this)->width /
-				(CONFIG_UI_PROGRESSBAR_WIDTH + CONFIG_UI_PROGRESSBAR_SPACE);
-	}
-	else {
-		bars = (uv_uibb(this)->height -
-				(this->title ? uv_ui_text_height_px(this->title, this->style->font, 1.0f) : 0)) /
-				(CONFIG_UI_PROGRESSBAR_WIDTH + CONFIG_UI_PROGRESSBAR_SPACE) - 1;
-	}
-	active_bars = uv_lerpi(rel, 0, bars);
-	// draw all bars
-	for (int16_t i = 0; i < bars; i++) {
-		uv_lcd_draw_mrect(x, y, w, h, c, pbb);
-		if (this->horizontal) {
-			x += (CONFIG_UI_PROGRESSBAR_SPACE + CONFIG_UI_PROGRESSBAR_WIDTH);
-		}
-		else {
-			y -= (CONFIG_UI_PROGRESSBAR_SPACE + CONFIG_UI_PROGRESSBAR_WIDTH);
-		}
-		if (i == active_bars) {
-			c = this->style->inactive_bg_c;
-		}
-	}
-	// draw title
-	if (this->title) {
-		_uv_ui_draw_mtext(uv_ui_get_xglobal(this) + uv_uibb(this)->width / 2,
-				uv_ui_get_yglobal(this) + uv_uibb(this)->height,
-				this->style->font, ALIGN_BOTTOM_CENTER,
-				this->style->text_color, C(0xFFFFFFFF), this->title, 1.0f, pbb);
-	}
-
-#elif CONFIG_FT81X
 	int16_t w = this->horizontal ?
 			(uv_uibb(this)->width) : CONFIG_UI_PROGRESSBAR_HEIGHT;
 	int16_t h = this->horizontal ?
@@ -162,19 +119,10 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 				this->text_c);
 	}
 
-#endif
 }
 
 
 
-uv_uiobject_ret_e uv_uiprogressbar_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st *pbb) {
-	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
-	if (_uv_uiobject_draw(this, pbb)) {
-		ret = UIOBJECT_RETURN_REFRESH;
-	}
-	return ret;
-}
 
 
 

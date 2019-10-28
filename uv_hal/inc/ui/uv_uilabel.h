@@ -64,9 +64,6 @@ typedef struct __attribute__((packed)) {
 void uv_uilabel_init(void *me, uv_font_st *font,
 		alignment_e alignment, color_t color, char *str);
 
-/// @brief: Step function which should be called every step cycle
-uv_uiobject_ret_e uv_uilabel_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st *pbb);
 
 void _uv_uilabel_draw(void *me, const uv_bounding_box_st *pbb);
 
@@ -135,11 +132,6 @@ typedef struct {
 void uv_uidigit_init(void *me, uv_font_st *font,
 		alignment_e alignment, color_t color, char *format, int value);
 
-
-static inline uv_uiobject_ret_e uv_uidigit_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st *pbb) {
-	return uv_uilabel_step(me, step_ms, pbb);
-}
 
 void uv_uidigit_set_value(void *me, int value);
 

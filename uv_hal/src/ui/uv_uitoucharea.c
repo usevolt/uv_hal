@@ -39,20 +39,11 @@ static void touch(void *me, uv_touch_st* touch);
 
 void uv_uitoucharea_init(void *me) {
 	uv_uiobject_init(this);
-	((uv_uiobject_st*) this)->step_callb = &uv_uitoucharea_step;
 	uv_uiobject_set_touch_callb(this, &touch);
 	this->touch.action = TOUCH_NONE;
 	this->transparent = false;
 }
 
-uv_uiobject_ret_e uv_uitoucharea_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st *pbb) {
-	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
-
-	_uv_uiobject_draw(this, pbb);
-
-	return ret;
-}
 
 
 static void touch(void *me, uv_touch_st* touch) {

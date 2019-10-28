@@ -46,22 +46,28 @@ enum {
 #define this ((uv_uidisplay_st*) me)
 
 
-static void draw(void *me, const uv_bounding_box_st *pbb);
 extern void uv_uiwindow_touch_callb(void *me, uv_touch_st *touch);
+static void _uv_uidisplay_draw(void *me, const uv_bounding_box_st *pbb);
 
 
+void uv_uidisplay_draw(void *me) {
+	_uv_uidisplay_draw(this, uv_uibb(this));
+}
 
-static void draw(void *me, const uv_bounding_box_st *pbb) {
-#if CONFIG_LCD
-	uv_lcd_draw_rect(uv_uibb(this)->x, uv_uibb(this)->y, uv_uibb(this)->width,
-			uv_uibb(this)->height, ((uv_uiwindow_st*) this)->style->window_c);
-#elif CONFIG_FT81X
+
+static void _uv_uidisplay_draw(void *me, const uv_bounding_box_st *pbb) {
 	uv_ft81x_set_mask(uv_ui_get_xglobal(this), uv_ui_get_yglobal(this),
 			uv_uibb(this)->width, uv_uibb(this)->height);
 
 	uv_ft81x_clear(this->display_c);
 	uv_ft81x_draw_point(LCD_W(0.5f), -400, uv_uic_brighten(this->display_c, 20), 1000);
-#endif
+
+	// draw all the objects added to the screen
+	_uv_uiwindow_draw_children(this, pbb);
+
+	// all UI components should now be updated, swap display list buffers
+	uv_ft81x_dlswap();
+
 }
 
 
@@ -74,8 +80,8 @@ void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *
 	uv_uibb(me)->height = LCD_H_PX;
 	this->display_c = style->display_c;
 	uv_ui_refresh_parent(this);
-	uv_uiobject_set_draw_callb(this, &draw);
-	// ave to set touch callback to null as uiwindow tries to set it to itself
+	uv_uiobject_set_draw_callb(this, &_uv_uidisplay_draw);
+	// have to set touch callback to null as uiwindow tries to set it to itself
 	uv_uiobject_set_touch_callb(this, NULL);
 
 #if CONFIG_UI_TOUCHSCREEN
@@ -164,21 +170,26 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 	// propagate touches to all objects in reverse order
 	uv_uiwindow_touch_callb(this, &t);
 
-	ret = uv_uiwindow_step(me, step_ms, uv_uibb(this));
+	// call the step function and let it propagate through all objects in order
+	ret = uv_uiwindow_step(me, step_ms);
+
 	if (ret & UIOBJECT_RETURN_KILLED) {
 		// if UIOBJECT_RETURN_KILLED was returned, the children of objects might
 		// have changed and some might not have been called. This can create glitches
-		// on the display, thus call step function once more
+		// on the display, thus request refresh of the whole screen
 		uv_ui_refresh(this);
 	}
 
-	if (ret == UIOBJECT_RETURN_REFRESH) {
-		// all UI components should now be updated, swap display list buffers
-		uv_ft81x_dlswap();
+	// if refreshing was requested in the step functions, draw the whole screen
+	if (((uv_uiobject_st *) this)->refresh || ret == UIOBJECT_RETURN_REFRESH) {
+		((uv_uiobject_st*) this)->refresh = true;
+		_uv_uiobject_draw(this, uv_uibb(this));
 	}
 
 	return ret;
 }
+
+
 
 
 

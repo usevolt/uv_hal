@@ -98,8 +98,7 @@ struct __attribute__((packed)) _uv_uiwindow_st {
 ///
 /// @note: The step function also takes care of showing the window on the display.
 /// Only those windows step functions should be called which are currently shown on the display.
-uv_uiobject_ret_e uv_uiwindow_step(void *me, uint16_t step_ms,
-		const uv_bounding_box_st *pbb);
+uv_uiobject_ret_e uv_uiwindow_step(void *me, uint16_t step_ms);
 
 
 #ifdef this
@@ -187,15 +186,21 @@ static inline void uv_uiwindow_set_bgc(void *me, color_t c) {
 	this->bg_c = c;
 }
 
-/// @brief: UIwindow drawing
-void uv_uiwindow_draw(void *me, const uv_bounding_box_st *pbb);
-
 
 /// @brief: Enables or disabled the window. Compared to uv_uiobject_set_enabled,
 /// This also affect all uiwindow's children
 void uv_uiwindow_set_enabled(void *me, bool value);
 
 
+
+/// @brief: Draws the background of the uiwindow
+void uv_uiwindow_draw(void *me, const uv_bounding_box_st *pbb);
+
+
+/// @brief: Draws the children objects. Will be called inside _uv_uiwindow_draw function,
+/// but if custom draw function is added to this uiwindow, this should
+/// be called at the end of that custom function to update the children.
+void _uv_uiwindow_draw_children(void *me, const uv_bounding_box_st *pbb);
 
 
 #undef this

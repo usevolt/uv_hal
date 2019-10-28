@@ -43,7 +43,6 @@
 	this->align = alignment;
 	this->color = color;
 	uv_uiobject_set_draw_callb(this, &_uv_uilabel_draw);
-	uv_uiobject_set_step_callb(this, &uv_uilabel_step);
 }
 
 
@@ -69,14 +68,6 @@ void _uv_uilabel_draw(void *me, const uv_bounding_box_st *pbb) {
 	}
 	uv_ft81x_draw_string(this->str, this->font, x, y, this->align, this->color);
 
-}
-
-uv_uiobject_ret_e uv_uilabel_step(void *me, uint16_t step_ms, const uv_bounding_box_st *pbb) {
-	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
-
-	_uv_uiobject_draw(this, pbb);
-
-	return ret;
 }
 
 
@@ -114,7 +105,6 @@ void uv_uilabel_set_color(void *me, color_t c) {
 	// force redraw
 	uv_uidigit_set_value(this, !value);
 	uv_uidigit_set_value(this, value);
-	((uv_uiobject_st*) this)->step_callb = &uv_uidigit_step;
 }
 
 
