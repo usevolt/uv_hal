@@ -94,12 +94,74 @@ static inline void uv_uigridlayout_set_width(uv_uigridlayout_st *this, int16_t v
 	this->bb.width = value;
 }
 
+/// @brief: Sets the horizontal row count. This can be called in the middle of calling
+/// *uv_uigridlayout_next*
+void uv_uigridlayout_set_row_count(uv_uigridlayout_st *this, int16_t value);
+
 
 /// @brief: Returns the bounding box describing the position and dimensions
 /// of the next entry in the grid.
 ///
 /// @note: Grid entries go from left to right and from up to down -order.
 uv_bounding_box_st uv_uigridlayout_next(uv_uigridlayout_st *this);
+
+
+
+/// @brief: Defines a uistrlayout module. uistrlayout is a layout that defines
+/// the cells with a string given to it. The string *str* _has_ to be null-terminated.
+///
+/// @info: The string defines all the cells in uistrlayout. Each cell should have a unique
+/// name, horizontally separated with '|' and vertically with new line character '\n'.
+/// White space is evaluated as a part of the cell names and the cell names are case-sensitive.
+///
+/// @example: "a|b|c\nd1|e" string constructs a layout:
+///	a   b   c
+///	  d1   e
+/// Where each horizontal row is divided equally for the cells. Thus cells 'd' and 'e'
+/// are bigger than 'a', 'b' and 'c'.
+typedef struct {
+	uv_bounding_box_st bb;
+	int16_t h_padding;
+	int16_t v_padding;
+	const char *str;
+	// calculated row count from the str in the init function
+	uint8_t row_count;
+	// The current index calculated with *uv_uistrlayout_next* or
+	// *uv_uistrlayout_find*.
+	uint8_t index;
+	// When true, the uistrlayout lays the cells in left-to-right, up-to-down order.
+	// when false, the uistrlayout lays the cells in up-to-down, left-to-right order.
+	// Defaults to true.
+	bool horizontal;
+} uv_uistrlayout_st;
+
+
+/// @brief: Initializes the uistrlayout
+///
+/// @param str: The sring which build up the layout. See uv_uistrlayout_st definition for help
+/// @param bb: The bounding box of this layout.
+/// @param h_padding: The horizontal padding between cells in pixels
+/// @param v_padding: The vertical padding between rows in pixels
+void uv_uistrlayout_init(uv_uistrlayout_st *this, const char *str,
+		int16_t x, int16_t y, int16_t width, int16_t height,
+		int16_t h_padding, int16_t v_padding);
+
+
+/// @brief: Sets the layout in down-to-up, left-to-right laying order.
+static inline void uv_uistrlayout_set_vertical(uv_uistrlayout_st *this) {
+	this->horizontal = false;
+}
+
+
+/// @brief: Returns the bounding box of the "next" cell. This shouldn't be called
+/// more times than the string given to uistrlayout defines cells.
+uv_bounding_box_st uv_uistrlayout_next(uv_uistrlayout_st *this);
+
+
+/// @brief: Finds the cell with a name of "c" and returns the bounding box to it.
+/// If multiple cells with the same name are defined, this returns the bounding box
+/// to the first one.
+uv_bounding_box_st uv_uistrlayout_find(uv_uistrlayout_st *this, const char *c);
 
 #endif
 

@@ -74,4 +74,144 @@ uv_bounding_box_st uv_uigridlayout_next(uv_uigridlayout_st *this) {
 }
 
 
+
+
+
+
+void uv_uistrlayout_init(uv_uistrlayout_st *this, const char *str,
+		int16_t x, int16_t y, int16_t width, int16_t height,
+		int16_t h_padding, int16_t v_padding) {
+	this->str = str;
+	this->bb.x = x;
+	this->bb.y = y;
+	this->bb.width = width;
+	this->bb.height = height;
+	this->h_padding = h_padding;
+	this->v_padding = v_padding;
+	this->index = 0;
+	this->horizontal = true;
+	this->row_count = 1;
+	for (uint16_t i = 0; i < strlen(this->str); i++) {
+		if (this->str[i] == '\n') {
+			this->row_count++;
+		}
+	}
+
+}
+
+static const char *uistrlayout_get_cell_ptr(uv_uistrlayout_st *this, int16_t index) {
+	const char *ret = this->str;
+	for (uint8_t i = 0; i < strlen(this->str); i++) {
+		if (index == 0) {
+			ret = &this->str[i];
+			break;
+		}
+		if (this->str[i] == '|' || this->str[i] == '\n') {
+			index--;
+		}
+	}
+	return ret;
+}
+
+static int16_t uistrlayout_get_row_count_at(uv_uistrlayout_st *this, const char *cell_ptr) {
+	int16_t ret = 0;
+	while (cell_ptr != this->str) {
+		if (*cell_ptr == '\n') {
+			ret++;
+		}
+		cell_ptr--;
+	}
+	return ret;
+}
+
+// returns the number of cols on the row where *cell_ptr* is
+static int16_t uistrlayout_get_col_count_at_cell(uv_uistrlayout_st *this, const char *cell_ptr) {
+	int16_t ret = 0;
+	while ((cell_ptr != this->str) &&
+			(*cell_ptr != '\n')) {
+		cell_ptr--;
+	}
+	if (*cell_ptr == '\n') {
+		cell_ptr++;
+	}
+	// cell_ptr now points to the first cell on this row
+	// calculate the number of cols until the end of the string or next row
+	while ((cell_ptr < &this->str[strlen(this->str)]) &&
+			(*cell_ptr != '\n')) {
+		if (*cell_ptr == '|') {
+			// on first '|', col count is inreased by 2 (0 col rows are possible)
+			if (ret == 0) {
+				ret++;
+			}
+			ret++;
+		}
+		cell_ptr++;
+	}
+	return ret;
+}
+
+static int16_t uistrlayout_get_nth_cell_at_row(uv_uistrlayout_st *this, const char *cell_ptr) {
+	int16_t ret = 0;
+	while ((cell_ptr != this->str) &&
+			(*cell_ptr != '\n')) {
+		if (*cell_ptr == '|') {
+			ret++;
+		}
+		cell_ptr--;
+	}
+	return ret;
+}
+
+
+static uv_bounding_box_st uistrlayout_get_bb_from_cell(uv_uistrlayout_st *this, const char *cell) {
+	uv_bounding_box_st bb = {};
+
+	int16_t col_i = uistrlayout_get_nth_cell_at_row(this, cell);
+	int16_t row_i = uistrlayout_get_row_count_at(this, cell);
+	int16_t col_count = uistrlayout_get_col_count_at_cell(this, cell);
+
+	if (this->horizontal) {
+		bb.x = this->bb.x + col_i * this->bb.width / col_count + this->h_padding;
+		bb.y = this->bb.y + row_i * this->bb.height / this->row_count + this->v_padding;
+		bb.width = this->bb.width / col_count - this->h_padding * 2;
+		bb.height = this->bb.height / this->row_count - this->v_padding * 2;
+	}
+	else {
+		bb.y = this->bb.y + col_i * this->bb.height / col_count + this->v_padding;
+		bb.x = this->bb.x + row_i * this->bb.width / this->row_count + this->h_padding;
+		bb.height = this->bb.height / col_count - this->v_padding * 2;
+		bb.width = this->bb.width / this->row_count - this->h_padding * 2;
+	}
+
+
+	return bb;
+}
+
+
+uv_bounding_box_st uv_uistrlayout_next(uv_uistrlayout_st *this) {
+	uv_bounding_box_st bb;
+
+	const char *cell = uistrlayout_get_cell_ptr(this, this->index);
+
+	bb = uistrlayout_get_bb_from_cell(this, cell);
+
+	this->index++;
+	return bb;
+}
+
+
+uv_bounding_box_st uv_uistrlayout_find(uv_uistrlayout_st *this, const char *c) {
+	uv_bounding_box_st bb = {};
+
+	const char *cell = strstr(this->str, c);
+
+	bb = uistrlayout_get_bb_from_cell(this, cell);
+
+	return bb;
+}
+
+
+
+
+
 #endif

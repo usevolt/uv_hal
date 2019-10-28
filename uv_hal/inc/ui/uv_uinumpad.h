@@ -89,7 +89,7 @@ int32_t uv_uinumpaddialog_exec(const char *title,
 
 
 /// @brief: Returns the current input value. If nothing has been inputted,
-/// returns -1.
+/// returns 0.
 static inline int32_t uv_uinumpad_get_value(void *me) {
 	return this->value;
 }
