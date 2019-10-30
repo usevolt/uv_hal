@@ -146,6 +146,10 @@ static inline void uv_queue_init(uv_queue_st *this,
 	*this = xQueueCreate(queue_len, element_size);
 }
 
+static inline void uv_queue_clear(uv_queue_st *this) {
+	xQueueReset(*this);
+}
+
 
 /// @brief: Returns the count of elements currently in the queue
 static inline int32_t uv_queue_get_len(uv_queue_st *this) {

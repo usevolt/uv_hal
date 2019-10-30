@@ -34,6 +34,7 @@ void _uv_spi_init(void) {
 	{
 		SPI_CFG_T cfg;
 		SPI_DELAY_CONFIG_T delaycfg;
+		Chip_SYSCTL_PeriphReset(RESET_SPI0);
 		Chip_SPI_Init(LPC_SPI0);
 
 		Chip_IOCON_PinMuxSet(LPC_IOCON, UV_GPIO_PORT(CONFIG_SPI0_SCK_IO),
@@ -108,6 +109,7 @@ void _uv_spi_init(void) {
 	{
 		SPI_CFG_T cfg;
 		SPI_DELAY_CONFIG_T delaycfg;
+		Chip_SYSCTL_PeriphReset(RESET_SPI1);
 		Chip_SPI_Init(LPC_SPI1);
 
 		Chip_IOCON_PinMuxSet(LPC_IOCON, UV_GPIO_PORT(CONFIG_SPI1_SCK_IO),

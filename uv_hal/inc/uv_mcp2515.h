@@ -74,6 +74,7 @@ typedef struct {
 int32_t uv_mcp2515_init(uv_mcp2515_st *this, spi_e spi, spi_slaves_e ssel,
 		uv_gpios_e int_gpio, uint32_t can_baudrate);
 
+int32_t uv_mcp2515_reinit(uv_mcp2515_st *this);
 
 
 /// @brief: Interrupt handler. This should be called when the gpio interrupt happens

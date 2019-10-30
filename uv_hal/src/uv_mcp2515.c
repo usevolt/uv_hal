@@ -40,6 +40,7 @@
 static void task(void *ptr);
 static inline void handle_int(uv_mcp2515_st *this);
 
+
 int32_t uv_mcp2515_init(uv_mcp2515_st *this, spi_e spi, spi_slaves_e ssel,
 		uv_gpios_e int_gpio, uint32_t can_baudrate) {
 	int32_t ret = 1;
@@ -47,11 +48,32 @@ int32_t uv_mcp2515_init(uv_mcp2515_st *this, spi_e spi, spi_slaves_e ssel,
 	this->ssel = ssel;
 	this->int_gpio = int_gpio;
 	this->can_baudrate = can_baudrate;
+
 	uv_queue_init(&this->rx_queue, CONFIG_MCP2515_RX_BUFFER_LEN, sizeof(uv_can_msg_st));
 	uv_queue_init(&this->tx_queue, CONFIG_MCP2515_TX_BUFFER_LEN, sizeof(uv_can_msg_st));
 	uv_mutex_init(&this->int_mutex);
+
+	ret = uv_mcp2515_reinit(this);
+
+	if (ret == 0) {
+		uv_rtos_task_create(&task, "mcp2515_", UV_RTOS_MIN_STACK_SIZE,
+							this, 0xFFFFFFFF, NULL);
+	}
+
+
+	return ret;
+}
+
+
+
+int32_t uv_mcp2515_reinit(uv_mcp2515_st *this) {
+	int32_t ret = 1;
+
+	uv_queue_clear(&this->rx_queue);
+	uv_queue_clear(&this->tx_queue);
 	// lock interrupt mutex. Int mutex is unlocked only when there's
 	// interrupt pending in the mcp2515.
+	uv_mutex_unlock(&this->int_mutex);
 	uv_mutex_lock(&this->int_mutex);
 
 	// send reset command
@@ -134,18 +156,18 @@ int32_t uv_mcp2515_init(uv_mcp2515_st *this, spi_e spi, spi_slaves_e ssel,
 		write[3] = 0;
 		uv_spi_write_sync(this->spi, this->ssel, write, 8, 3);
 
-
 		// last things last, set gpio interrupt since MCP2515 is running
 		uv_gpio_init_input(this->int_gpio, PULL_UP_ENABLED);
 		uv_gpio_init_int(this->int_gpio, INT_FALLING_EDGE);
 
-		int32_t task_ret = uv_rtos_task_create(&task, "mcp2515_", UV_RTOS_MIN_STACK_SIZE,
-				this, 0xFFFFFFFF, NULL);
-		ret = (task_ret == -1) ? false : ret;
+	}
+	else {
+		printf("read: 0x%x\n", read[2]);
 	}
 
 	return ret;
 }
+
 
 static void task(void *ptr) {
 	uv_mcp2515_st *this = ptr;
