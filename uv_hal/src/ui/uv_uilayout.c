@@ -205,7 +205,20 @@ uv_bounding_box_st uv_uistrlayout_find(uv_uistrlayout_st *this, const char *c) {
 
 	const char *cell = strstr(this->str, c);
 
-	bb = uistrlayout_get_bb_from_cell(this, cell);
+	if (cell != NULL) {
+		// calculate the found cell index
+		const char *s = cell;
+		int32_t index = 0;
+		while (s >= this->str) {
+			if (*s == '\n' || *s == '|') {
+				index++;
+			}
+			s--;
+		}
+		this->index = index + 1;
+
+		bb = uistrlayout_get_bb_from_cell(this, cell);
+	}
 
 	return bb;
 }
