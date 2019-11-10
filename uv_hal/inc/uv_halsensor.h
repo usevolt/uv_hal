@@ -49,7 +49,6 @@
 #if CONFIG_HALSENSOR
 
 
-#define HALSENSOR_AVG_COUNT		1
 
 #if !defined(CONFIG_HALSENSOR_MIN_DEF)
 #define CONFIG_HALSENSOR_MIN_DEF				(ADC_MAX_VALUE / 2)
@@ -63,16 +62,25 @@
 #if !defined(CONFIG_HALSENSOR_MIDDLE_TOLERANCE_DEF)
 #define CONFIG_HALSENSOR_MIDDLE_TOLERANCE_DEF	(ADC_MAX_VALUE / 40)
 #endif
+#if !defined(CONFIG_HALSENSOR_CALIB_PASS)
+// Defines the amount of measured adc value to be changed when calibrating the sensor
+// to implicate a successful calibration. If the adc value during the calibration
+// doesnt change this much, the calibration fails and the halsensor state is set to
+// HALSENSOR_STATE_NOT_CALIBRATED.
+#define CONFIG_HALSENSOR_CALIB_PASS				(ADC_MAX_VALUE / 40)
+#endif
 
 
 /// @brief: HAL sensor states
 enum {
 	// sensor is operational
 	HALSENSOR_STATE_ON = 0,
-	// sensor is in a fault state
+	// sensor is in a fault state, all outputs set to zero.
 	HALSENSOR_STATE_FAULT,
-	// sensor is in calibration
+	// sensor is in calibration. All outputs set to zero.
 	HALSENSOR_STATE_CALIBRATION,
+	// the sensor requires a valid calibration. All outputs set to zero.
+	HALSENSOR_STATE_NOT_CALIBRATED,
 	HALSENSOR_STATE_COUNT
 };
 typedef uint8_t halsensor_state_e;
@@ -111,10 +119,14 @@ void uv_halsensor_config_reset(uv_halsensor_config_st *this);
 typedef struct {
 	// adc channel for reading the sensor value
 	uv_adc_channels_e adc_chn;
-	// moving average filter for the input adc
-	uv_moving_aver_st moving_aver;
 
+	// halsensor state variable. Can be mapped to CANopen object dictionary.
 	halsensor_state_e state;
+	halsensor_state_e last_state;
+	// the adc value at the start of the calibration. Set to -1 when the adc value
+	// has changed enough that the calibration can actually start and the
+	// old config values can be forgotten
+	int16_t calib_start_adc;
 
 	// output value, between range INTX_MIN + 1 ... INTX_MAX, where X is 8, 16 or 32.
 	// if fault is detected, output is driven to 0.
@@ -148,9 +160,12 @@ int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms);
 
 
 /// @brief: Puts the hal sensor into calibration state or out from it
-void uv_halsensor_set_calbration(uv_halsensor_st *this, bool value);
+static inline void uv_halsensor_set_calbration(uv_halsensor_st *this, bool value) {
+	this->state = (value) ? HALSENSOR_STATE_CALIBRATION : HALSENSOR_STATE_ON;
+}
 
 
+/// @brief: Returns the halsensor state
 static inline halsensor_state_e uv_halsensor_get_state(uv_halsensor_st *this) {
 	return this->state;
 }
