@@ -302,8 +302,8 @@ void uv_ref_output_step(uv_ref_output_st *this, uint16_t step_ms) {
 			}
 			// since limits are given in uv_dual_solenoid_output format, limitmin is 0 ... 1000
 			// which should represent the output value between 500 ... 0.
-			uint16_t limit_max = this->limitconf->solenoid_limitconf[0].max_ppt,
-					limit_min = 500 - this->limitconf->solenoid_limitconf[1].max_ppt / 2;
+			uint16_t limit_max = 500 + (this->limitconf->solenoid_limitconf[0].max_ppt / 2),
+					limit_min = 500 - (this->limitconf->solenoid_limitconf[1].max_ppt / 2);
 			// target value is always the middle value between limit_max and limit_min
 			rel_value = (limit_max - limit_min) / 2 + limit_min;
 

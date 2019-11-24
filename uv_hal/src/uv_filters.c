@@ -62,6 +62,24 @@ void uv_moving_aver_set_count(uv_moving_aver_st *this, int32_t value) {
 	this->count = value;
 }
 
+void uv_ewma_init(uv_ewma_st *this, uint32_t alpha, int32_t val) {
+	this->val = val * 0x100;
+	this->alpha = alpha;
+}
+
+
+int32_t uv_ewma_step(uv_ewma_st *this, int32_t val, uint16_t step_ms) {
+	int32_t alpha = this->alpha * step_ms / 1000;
+	if (alpha == 0) {
+		alpha = 1;
+	}
+
+	this->val = ((EWMA_ALPHA_MAX - alpha) * this->val + alpha * val) / EWMA_ALPHA_MAX;
+
+	return this->val;
+}
+
+
 
 
 void uv_hysteresis_init(uv_hysteresis_st *this, int32_t trigger_value,

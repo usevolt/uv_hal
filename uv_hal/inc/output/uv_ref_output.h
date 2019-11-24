@@ -257,6 +257,14 @@ static inline int16_t uv_ref_output_get_target(uv_ref_output_st *this) {
 }
 
 
+/// @brief: Returns the direction of ONOFFTOGGLE mode state. -1 if negative direction is active,
+/// 1 if positive is active, 0 otherwise.
+static inline uint8_t uv_ref_output_get_onofftoggle_dir(uv_ref_output_st *this) {
+	return this->toggle_on;
+}
+
+
+
 /// @brief: Disables the output. Output can be enabled only by calling
 /// *uv_ref_output_enable*.
 static inline void uv_ref_output_disable(uv_ref_output_st *this) {

@@ -67,6 +67,43 @@ static inline bool uv_moving_aver_is_full(uv_moving_aver_st *this) {
 
 
 typedef struct {
+	int32_t val;
+	int32_t alpha;
+} uv_ewma_st;
+
+
+#define EWMA_ALPHA_MAX			1000000
+
+
+/// @brief: Initializes the ewma filter
+///
+/// @param alpha: The time constant in microseconds, e.g. 0 ... EWMA_ALPHA_MAX.
+/// The ewma filter calculates the time constant based on this value and step_ms internally.
+void uv_ewma_init(uv_ewma_st *this, uint32_t alpha, int32_t val);
+
+
+/// @brief: Resets the ewma filter to the given value
+static inline void uv_ewma_reset(uv_ewma_st *this, int32_t val) {
+	this->val = val;
+}
+
+
+/// @brief: Ewma filter step function.
+///
+/// @return: The output from the ewma filter
+///
+/// @param val: The new measured value that is input to the filter
+/// @param step_ms: The step cycle time in ms
+int32_t uv_ewma_step(uv_ewma_st *this, int32_t val, uint16_t step_ms);
+
+
+/// @brief: Returns the output from the ewma filter
+static inline int32_t uv_ewma_get_val(uv_ewma_st *this) {
+	return (this->val / 0x100);
+}
+
+
+typedef struct {
 	int32_t trigger_value;
 	int32_t hysteresis;
 	uint8_t result;
