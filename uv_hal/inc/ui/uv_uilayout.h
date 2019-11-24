@@ -163,6 +163,11 @@ uv_bounding_box_st uv_uistrlayout_next(uv_uistrlayout_st *this);
 /// to the first one.
 uv_bounding_box_st uv_uistrlayout_find(uv_uistrlayout_st *this, const char *c);
 
+
+/// @brief: Finds the next cell with a name of *c* starting from the last cell that was
+/// returned.
+uv_bounding_box_st uv_uistrlayout_find_next(uv_uistrlayout_st *this, const char *c);
+
 #endif
 
 #endif /* UV_HAL_INC_UI_UV_UILAYOUT_H_ */

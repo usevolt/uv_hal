@@ -200,10 +200,10 @@ uv_bounding_box_st uv_uistrlayout_next(uv_uistrlayout_st *this) {
 }
 
 
-uv_bounding_box_st uv_uistrlayout_find(uv_uistrlayout_st *this, const char *c) {
-	uv_bounding_box_st bb = {};
-
-	const char *cell = strstr(this->str, c);
+static uv_bounding_box_st strlayout_find_next(uv_uistrlayout_st *this,
+		const char *str, const char *c) {
+	uv_bounding_box_st bb;
+	const char *cell = strstr(str, c);
 
 	if (cell != NULL) {
 		// calculate the found cell index
@@ -223,7 +223,15 @@ uv_bounding_box_st uv_uistrlayout_find(uv_uistrlayout_st *this, const char *c) {
 	return bb;
 }
 
+uv_bounding_box_st uv_uistrlayout_find(uv_uistrlayout_st *this, const char *c) {
+	return strlayout_find_next(this, this->str, c);
+}
 
+
+uv_bounding_box_st uv_uistrlayout_find_next(uv_uistrlayout_st *this, const char *c) {
+	const char *str = uistrlayout_get_cell_ptr(this, this->index);
+	return strlayout_find_next(this, str, c);
+}
 
 
 
