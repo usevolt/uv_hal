@@ -40,6 +40,7 @@ void uv_halsensor_config_reset(uv_halsensor_config_st *this) {
 	this->middle = CONFIG_HALSENSOR_MIDDLE_DEF;
 	this->middle_tolerance = CONFIG_HALSENSOR_MIDDLE_TOLERANCE_DEF;
 	this->progression = HALSENSOR_PROG_2;
+	this->invert = 0;
 }
 
 
@@ -157,7 +158,7 @@ int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 						else {
 
 						}
-						this->output16 = result;
+						this->output16 = (this->config->invert) ? -result : result;
 					}
 					else {
 						this->output16 = 0;
@@ -186,7 +187,7 @@ int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 
 						}
 						// result should be negative on this side
-						this->output16 = -result;
+						this->output16 = (this->config->invert) ? result : -result;
 					}
 					else {
 						this->output16 = 0;
@@ -237,7 +238,7 @@ int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 		this->output16 = 0;
 	}
 
-	// lastly update output16 and output8
+	// lastly update output32 and output8
 	this->output32 = this->output16 * 0x10000;
 	this->output8 = this->output16 / 0x100;
 

@@ -106,6 +106,7 @@ typedef struct {
 	uint16_t middle_tolerance;
 	// The value progression
 	halsensor_progression_e progression;
+	uint16_t invert;
 } uv_halsensor_config_st;
 
 /// @brief: resets the configuration structure to default values
