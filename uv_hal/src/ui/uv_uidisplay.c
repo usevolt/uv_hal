@@ -46,7 +46,6 @@ enum {
 #define this ((uv_uidisplay_st*) me)
 
 
-extern void uv_uiwindow_touch_callb(void *me, uv_touch_st *touch);
 static void _uv_uidisplay_draw(void *me, const uv_bounding_box_st *pbb);
 
 
@@ -168,7 +167,7 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 
 	// call uiwindow's touch callback to
 	// propagate touches to all objects in reverse order
-	uv_uiwindow_touch_callb(this, &t);
+	_uv_uiwindow_touch(this, &t);
 
 	// call the step function and let it propagate through all objects in order
 	ret = uv_uiwindow_step(me, step_ms);

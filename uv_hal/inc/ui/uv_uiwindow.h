@@ -202,6 +202,10 @@ void uv_uiwindow_draw(void *me, const uv_bounding_box_st *pbb);
 /// be called at the end of that custom function to update the children.
 void _uv_uiwindow_draw_children(void *me, const uv_bounding_box_st *pbb);
 
+/// @brief: Internal uiwindow touch handler function. Can be used when inheriting uiwindow
+/// in other modules
+void _uv_uiwindow_touch(void *me, uv_touch_st *touch);
+
 
 #undef this
 
