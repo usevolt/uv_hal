@@ -200,10 +200,29 @@ uv_bounding_box_st uv_uistrlayout_next(uv_uistrlayout_st *this) {
 }
 
 
-uv_bounding_box_st uv_uistrlayout_find(uv_uistrlayout_st *this, const char *c) {
+static uv_bounding_box_st strlayout_find_next(uv_uistrlayout_st *this,
+		const char *str, const char *c) {
 	uv_bounding_box_st bb = {};
+	char s[strlen(str) + 1];
+	strcpy(s, str);
+	uint16_t last_i = 0;
+	const char *cell = NULL;
+	// replace all cell changes with termination marks, to make string finding easier
+	uint16_t len = strlen(str);
+	for (uint16_t i = 0; i < len + 1; i++) {
+		if (str[i] == '|' || str[i] == '\n' || str[i] == '\0') {
+			s[i] = '\0';
+			if (strcmp(&s[last_i], c) == 0) {
+				cell = &str[last_i];
+				break;
+			}
+			else {
+				last_i = i + 1;
+			}
+		}
+	}
+	// now *cell* should point to the start of the selected cell
 
-	const char *cell = strstr(this->str, c);
 
 	if (cell != NULL) {
 		// calculate the found cell index
@@ -223,7 +242,15 @@ uv_bounding_box_st uv_uistrlayout_find(uv_uistrlayout_st *this, const char *c) {
 	return bb;
 }
 
+uv_bounding_box_st uv_uistrlayout_find(uv_uistrlayout_st *this, const char *c) {
+	return strlayout_find_next(this, this->str, c);
+}
 
+
+uv_bounding_box_st uv_uistrlayout_find_next(uv_uistrlayout_st *this, const char *c) {
+	const char *str = uistrlayout_get_cell_ptr(this, this->index);
+	return strlayout_find_next(this, str, c);
+}
 
 
 

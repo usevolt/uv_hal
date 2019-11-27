@@ -83,11 +83,14 @@ void uv_uilistbutton_draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t offset = 4;
 	if (this->content_len) {
 		int16_t barw = (w - offset * 2) / (this->content_len);
-		for (uint8_t i = 0; i < this->content_len; i++) {
-			color_t c = (this->current_index == i) ? this->activebar_c : this->bar_c;
-			uv_ft81x_draw_rrect(x + offset + i * barw, y + h - offset - CONFIG_UI_LISTBUTTON_BAR_HEIGHT,
-					barw, CONFIG_UI_LISTBUTTON_BAR_HEIGHT, 0, c);
-		}
+
+		uv_ft81x_draw_rrect(x + offset, y + h - offset - CONFIG_UI_LISTBUTTON_BAR_HEIGHT,
+				w - offset * 2, CONFIG_UI_LISTBUTTON_BAR_HEIGHT, 0, this->bar_c);
+
+		uv_ft81x_draw_rrect(x + offset +
+				(this->current_index * (w - offset * 2)) / this->content_len,
+				y + h - offset - CONFIG_UI_LISTBUTTON_BAR_HEIGHT,
+				barw, CONFIG_UI_LISTBUTTON_BAR_HEIGHT, 0, this->activebar_c);
 	}
 }
 

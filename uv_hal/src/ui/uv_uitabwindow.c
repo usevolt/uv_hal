@@ -29,6 +29,7 @@
 
 #include <string.h>
 #include "ui/uv_uitabwindow.h"
+#include "uv_uiwindow.h"
 
 #if CONFIG_UI
 
@@ -133,7 +134,8 @@ static void touch(void *me, uv_touch_st *touch) {
 		if (touch->y <= CONFIG_UI_TABWINDOW_HEADER_HEIGHT) {
 			int16_t total_w = 0;
 			for (int16_t i = 0; i < this->tab_count; i++) {
-				int16_t tab_w = uv_ft81x_get_string_height((char *) this->tab_names[i], this->font) + 10;
+				int16_t tab_w =
+						uv_ft81x_get_string_height((char *) this->tab_names[i], this->font) + 10;
 				if (tab_w < CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH) {
 					tab_w = CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH;
 				}
@@ -149,6 +151,8 @@ static void touch(void *me, uv_touch_st *touch) {
 			}
 		}
 	}
+	// let uv_uiwindow to handle propagating the touch event to all children
+	_uv_uiwindow_touch(this, touch);
 }
 
 #endif

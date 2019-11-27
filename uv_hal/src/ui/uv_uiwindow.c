@@ -38,7 +38,6 @@
 #define SCROLLBAR_PADDING		2
 
 static void draw_scrollbar(void *me, bool horizontal, const uv_bounding_box_st *pbb);
-void uv_uiwindow_touch_callb(void *me, uv_touch_st *touch);
 
 static void draw_scrollbar(void *me, bool horizontal, const uv_bounding_box_st *pbb) {
 	int16_t x = uv_ui_get_xglobal(this);
@@ -186,7 +185,7 @@ void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array, const uv_ui
 	this->app_step_callb = NULL;
 	this->user_ptr = NULL;
 	uv_uiobject_set_draw_callb(this, &_uv_uiwindow_draw);
-	uv_uiobject_set_touch_callb(this, &uv_uiwindow_touch_callb);
+	uv_uiobject_set_touch_callb(this, &_uv_uiwindow_touch);
 	uv_uiobject_set_step_callb(this, &uv_uiwindow_step);
 }
 
@@ -318,7 +317,7 @@ uv_uiobject_ret_e uv_uiwindow_step(void *me, uint16_t step_ms) {
 	return ret;
 }
 
-void uv_uiwindow_touch_callb(void *me, uv_touch_st *touch) {
+void _uv_uiwindow_touch(void *me, uv_touch_st *touch) {
 	// touch event is unique for each children object
 
 	int16_t i;
