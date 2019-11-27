@@ -89,6 +89,9 @@ void _uv_canopen_init(void) {
 	_uv_canopen_sdo_init();
 	_uv_canopen_pdo_init();
 	_uv_canopen_emcy_init();
+
+	uv_canopen_config_rx_msgs();
+
 #if CONFIG_UV_BOOTLOADER
 	// program started
 	this->prog_control = 1;
@@ -208,6 +211,49 @@ uv_errors_e uv_canopen_sdo_write16(uint8_t node_id, uint16_t mindex, uint8_t sin
 uv_errors_e uv_canopen_sdo_write32(uint8_t node_id, uint16_t mindex, uint8_t sindex, uint32_t data) {
 	return uv_canopen_sdo_write(node_id, mindex, sindex, sizeof(uint32_t), &data);
 }
+
+
+void uv_canopen_config_rx_msgs(void) {
+#if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
+	// Heartbeat consumer
+	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
+			CANOPEN_HEARTBEAT_ID, ~0x7F, CAN_STD);
+#endif
+
+#if !CONFIG_CANOPEN_RXCONFIG_DISABLE
+	// NMT
+	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
+			CANOPEN_NMT_ID, CAN_ID_MASK_DEFAULT, CAN_STD);
+#endif
+
+	// RXPDO
+	const canopen_object_st *obj;
+	for (int i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
+		if ((obj = _uv_canopen_obj_dict_get(CONFIG_CANOPEN_RXPDO_COM_INDEX + i, 0))) {
+			canopen_rxpdo_com_parameter_st* com = obj->data_ptr;
+			if (!(com->cob_id & CANOPEN_PDO_DISABLED)) {
+				// only config the receive msg object if the pdo is enabled
+				uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
+						com->cob_id,
+						CAN_ID_MASK_DEFAULT, CAN_STD);
+			}
+		}
+		else {
+			// something went wrong, PDO communication parameter couldn't be found
+		}
+	}
+
+	// SDO Client
+	// configure to receive all SDO response messages
+	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
+			CANOPEN_SDO_RESPONSE_ID, ~0x7F, CAN_STD);
+
+	// SDO Server
+	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
+			CANOPEN_SDO_REQUEST_ID + NODEID, CAN_ID_MASK_DEFAULT, CAN_STD);
+
+}
+
 
 uv_errors_e uv_canopen_sdo_restore_params(uint8_t node_id, memory_scope_e_ param_scope) {
 	uint32_t d = 0x64616F6C;

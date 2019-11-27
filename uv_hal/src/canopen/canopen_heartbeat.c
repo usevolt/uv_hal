@@ -50,10 +50,10 @@
 void _uv_canopen_heartbeat_init(void) {
 	uv_delay_init(&this->heartbeat_time, this_nonvol->producer_heartbeat_time_ms);
 #if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
-	memset(this->consumer_heartbeat_times, 0, sizeof(this->consumer_heartbeat_times));
-	memset(this->consumer_heartbeat_states, CANOPEN_STOPPED, sizeof(this->consumer_heartbeat_states));
-	// if Heartbeat consumer is enabled, configure to receive all heartbeat messages
-	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, CANOPEN_HEARTBEAT_ID, ~0x7F, CAN_STD);
+	memset(this->consumer_heartbeat_times,
+			0, sizeof(this->consumer_heartbeat_times));
+	memset(this->consumer_heartbeat_states,
+			CANOPEN_STOPPED, sizeof(this->consumer_heartbeat_states));
 #endif
 }
 

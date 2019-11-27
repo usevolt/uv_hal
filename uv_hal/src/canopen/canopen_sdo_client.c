@@ -68,16 +68,6 @@ void _uv_canopen_sdo_client_init(void) {
 	this->state = CANOPEN_SDO_STATE_READY;
 	this->delay = -1;
 	this->last_err_code = CANOPEN_SDO_ERROR_NONE;
-#if CONFIG_TARGET_LPC1785
-#warning "Note: On LPC1785 receiving SDO server response messages have to be configured individually"
-#else
-#if !CONFIG_CANOPEN_RXCONFIG_DISABLE
-	// configure to receive all SDO response messages
-	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
-			CANOPEN_SDO_RESPONSE_ID, ~0x7F, CAN_STD);
-#endif
-#endif
-
 }
 
 void _uv_canopen_sdo_client_reset(void) {

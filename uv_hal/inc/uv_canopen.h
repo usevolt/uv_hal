@@ -604,6 +604,8 @@ uv_errors_e uv_canopen_sdo_write32(uint8_t node_id, uint16_t mindex,
 		uint8_t sindex, uint32_t data);
 
 
+/// @brief: Configures all CAN rx messages to be received that are required in CANopen stack
+void uv_canopen_config_rx_msgs(void);
 
 typedef uint8_t memory_scope_e_;
 

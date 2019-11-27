@@ -143,23 +143,6 @@ void _uv_canopen_pdo_init() {
 			// something went wrong
 		}
 	}
-	for (int i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
-		if ((obj = _uv_canopen_obj_dict_get(CONFIG_CANOPEN_RXPDO_COM_INDEX + i, 0))) {
-			canopen_rxpdo_com_parameter_st* com = obj->data_ptr;
-			if (!(com->cob_id & CANOPEN_PDO_DISABLED)) {
-				// only config the receive msg object if the pdo is enabled
-#if !CONFIG_CANOPEN_RXCONFIG_DISABLE
-				uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
-						com->cob_id,
-						CAN_ID_MASK_DEFAULT, CAN_STD);
-#endif
-			}
-		}
-		else {
-			// something went wrong, PDO communication parameter couldn't be found
-		}
-	}
-
 }
 
 

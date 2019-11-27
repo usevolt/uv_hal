@@ -56,10 +56,6 @@ void _uv_canopen_nmt_init(void) {
 #if CONFIG_CANOPEN_AUTO_PREOPERATIONAL
 	uv_canopen_set_state(CANOPEN_PREOPERATIONAL);
 #endif
-#if !CONFIG_CANOPEN_RXCONFIG_DISABLE
-	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
-			CANOPEN_NMT_ID, CAN_ID_MASK_DEFAULT, CAN_STD);
-#endif
 }
 
 void _uv_canopen_nmt_reset(void) {

@@ -233,29 +233,16 @@ uv_errors_e _uv_can_init();
 /// To receive only a single dedicated message, this should be set to 0xFFFFFFFF or
 /// CAN_ID_MASK_DEFAULT
 /// @param type: The type of the message ID. Either 11-bit or 29-bit identifier is supported.
-#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		unsigned int id,
 		unsigned int mask,
 		uv_can_msg_types_e type);
-#elif CONFIG_TARGET_LPC1785
-/// @brief: Configures the CAN hardware to receive the messages with the given ID.
-///
-/// @note: Without a call to this, the CAN hardware doesn't process any received messages.
-/// For a receive callback function to be called when the message is received,
-/// the wanted message's ID needs to be configured with a call to this function.
-///
-/// The maximum number of messages which can be registered with this is hardware dependent.
-/// If the maximum message count is exceeded, this function returns error from that.
-///
-/// @param channel: The CAN hardware channel to be configured
-/// @param id: The messages ID which is wanted to be received
-/// @param type: The type of the message ID. Either 11-bit or 29-bit identifier is supported.
-uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
-		unsigned int id,
-		uv_can_msg_types_e type);
-#endif
 
+
+/// @brief: Clears all receive messages configured with *uv_can_config_rx_message*.
+/// After call to this none messages are received and the reserved messages objects
+/// are released for new usage.
+void uv_can_clear_rx_messages(void);
 
 
 /// @brief: An alternative way to send a CAN message

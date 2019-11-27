@@ -454,11 +454,17 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 			uint8_t msgif_type = get_msgif_type();
 			uint32_t msgif_id = get_msgif_id(msgif_type),
 					msgif_mask = get_msgif_mask(msgif_type);
-			if ((msgif_type == (type == CAN_EXT)) &&
-					(id == msgif_id) &&
-					(mask == msgif_mask)) {
-				match = true;
-				break;
+			if (msgif_type == (type == CAN_EXT)) {
+				// check if new mask is a subset of the existing msgif mask
+				if (~((~msgif_mask) | mask) == 0) {
+
+					// if new msg matches with msgif message and mask, we dont
+					// need to configure new message
+					if ((msgif_id & msgif_mask) == (id & msgif_mask)) {
+						match = true;
+						break;
+					}
+				}
 			}
 		}
 	}
@@ -468,7 +474,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		// If any message objects are still not in use,
 		// config them with settings requested
 		// the last message object is reserved for sending messages
-		for (uint8_t i = 0; i < 32; i++) {
+		for (uint8_t i = TX_MSG_OBJ; i < 32; i++) {
 			// search for a unused message object to be used for receiving the messages
 			if (!GET_MASKED(this->used_msg_objs, (1 << i))) {
 
@@ -507,6 +513,16 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 	__enable_irq();
 
 	return ret;
+}
+
+
+void uv_can_clear_rx_messages(void) {
+	this->used_msg_objs = (1 << (TX_MSG_OBJ - 1));
+
+	// clear all rx message objects
+	for (int i = TX_MSG_OBJ; i < 32; i++) {
+		msg_obj_disable(i + 1);
+	}
 }
 
 
