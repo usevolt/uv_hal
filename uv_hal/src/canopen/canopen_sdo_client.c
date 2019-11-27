@@ -71,9 +71,11 @@ void _uv_canopen_sdo_client_init(void) {
 #if CONFIG_TARGET_LPC1785
 #warning "Note: On LPC1785 receiving SDO server response messages have to be configured individually"
 #else
+#if !CONFIG_CANOPEN_RXCONFIG_DISABLE
 	// configure to receive all SDO response messages
 	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
 			CANOPEN_SDO_RESPONSE_ID, ~0x7F, CAN_STD);
+#endif
 #endif
 
 }

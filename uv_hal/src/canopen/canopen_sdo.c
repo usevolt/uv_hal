@@ -119,10 +119,7 @@ sdo_request_type_e _canopen_sdo_get_request_type(const uv_can_message_st *msg) {
 
 
 void _uv_canopen_sdo_init(void) {
-#if CONFIG_TARGET_LPC1785
-	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
-			CANOPEN_SDO_REQUEST_ID + NODEID, CAN_STD);
-#else
+#if !CONFIG_CANOPEN_RXCONFIG_DISABLE
 	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
 			CANOPEN_SDO_REQUEST_ID + NODEID, CAN_ID_MASK_DEFAULT, CAN_STD);
 #endif
