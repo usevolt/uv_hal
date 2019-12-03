@@ -120,7 +120,9 @@ sdo_request_type_e _canopen_sdo_get_request_type(const uv_can_message_st *msg) {
 
 void _uv_canopen_sdo_init(void) {
 	_uv_canopen_sdo_client_init();
+#if CONFIG_CANOPEN_SDO_SERVER
 	_uv_canopen_sdo_server_init();
+#endif
 
 }
 
@@ -134,7 +136,9 @@ void _uv_canopen_sdo_rx(const uv_can_message_st *msg) {
 		// SDO Server receives only SDO requested dedicated to this device
 		if ((GET_NODEID(msg) == NODEID) &&
 				IS_SDO_REQUEST(msg)) {
+#if CONFIG_CANOPEN_SDO_SERVER
 			_uv_canopen_sdo_server_rx(msg, msg_type);
+#endif
 		}
 		// SDO Client receives only SDO responses from other nodes than this device
 		else if ((GET_NODEID(msg) != NODEID) &&
