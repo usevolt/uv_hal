@@ -55,11 +55,11 @@ typedef enum {
 
 /// @brief: Describes all possible NMT commands
 typedef enum {
-	CANOPEN_NMT_START_NODE 			= 0x1,
-	CANOPEN_NMT_STOP_NODE 			= 0x2,
-	CANOPEN_NMT_SET_PREOPERATIONAL 	= 0x80,
-	CANOPEN_NMT_RESET_NODE 			= 0x81,
-	CANOPEN_NMT_RESET_COM 			= 0x82
+	CANOPEN_NMT_CMD_START_NODE 			= 0x1,
+	CANOPEN_NMT_CMD_STOP_NODE 			= 0x2,
+	CANOPEN_NMT_CMD_SET_PREOPERATIONAL 	= 0x80,
+	CANOPEN_NMT_CMD_RESET_NODE 			= 0x81,
+	CANOPEN_NMT_CMD_RESET_COM 			= 0x82
 } canopen_nmt_commands_e;
 
 
@@ -82,11 +82,8 @@ void _uv_canopen_nmt_set_state(canopen_node_states_e state);
 
 #if CONFIG_CANOPEN_NMT_MASTER
 
-/// @brief: Resets the specified CANopen node. All nodes can be reset by giving **nodeid** as 0.
-void uv_canopen_nmt_master_reset_node(uint8_t nodeid);
-
-/// @brief: Sets the node state to **state**
-void uv_canopen_nmt_master_set_node_state(uint8_t nodeid, canopen_nmt_commands_e state);
+/// @brief: Sets a NMT command to the device indicated with *nodeid*
+void uv_canopen_nmt_master_send_cmd(uint8_t nodeid, canopen_nmt_commands_e command);
 
 #endif
 

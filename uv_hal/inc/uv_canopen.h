@@ -610,9 +610,16 @@ void uv_canopen_config_rx_msgs(void);
 typedef uint8_t memory_scope_e_;
 
 /// @brief: Sends a restore params request to node *node_id*.
+///
+/// @param param_scope: Defines if the app or communication parameters are restored.
+/// Refer to uv_memory.h for values of this.
 uv_errors_e uv_canopen_sdo_restore_params(uint8_t node_id, memory_scope_e_ param_scope);
 
+
 /// @brief: Sends a store params request to node *node_id*.
+///
+/// @param param_scope: Defines if the app or communication parameters are stored.
+/// Refer to uv_memory.h for values of this.
 uv_errors_e uv_canopen_sdo_store_params(uint8_t node_id, memory_scope_e_ param_scope);
 
 

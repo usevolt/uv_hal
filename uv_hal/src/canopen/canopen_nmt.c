@@ -128,23 +128,14 @@ void uv_canopen_command(uint8_t nodeid, canopen_nmt_commands_e cmd) {
 
 #if CONFIG_CANOPEN_NMT_MASTER
 
-void uv_canopen_nmt_master_reset_node(uint8_t nodeid) {
+
+
+void uv_canopen_nmt_master_send_cmd(uint8_t nodeid, canopen_nmt_commands_e command) {
 	uv_can_msg_st msg;
 	msg.type = CAN_STD;
 	msg.data_length = 2;
 	msg.id = CANOPEN_NMT_ID;
-	msg.data_8bit[0] = CANOPEN_NMT_RESET_NODE;
-	msg.data_8bit[1] = nodeid;
-	uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
-}
-
-
-void uv_canopen_nmt_master_set_node_state(uint8_t nodeid, canopen_nmt_commands_e state) {
-	uv_can_msg_st msg;
-	msg.type = CAN_STD;
-	msg.data_length = 2;
-	msg.id = CANOPEN_NMT_ID;
-	msg.data_8bit[0] = state;
+	msg.data_8bit[0] = command;
 	msg.data_8bit[1] = nodeid;
 	uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
 }
