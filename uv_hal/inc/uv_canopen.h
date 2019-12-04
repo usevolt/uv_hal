@@ -84,6 +84,11 @@
 #if CONFIG_CANOPEN
 
 /* uv_hal_config.h symbol checks */
+#if !defined(CONFIG_CANOPEN_SDO_SERVER)
+// define CONFIG_CANOPEN_SDO_SERVER as 0 to disable the SDO server functionality.
+// Useful for example on CAN conf tools that only listen and send commands to devices
+#define CONFIG_CANOPEN_SDO_SERVER		1
+#endif
 #if !defined(CONFIG_CANOPEN_DEVICE_TYPE_INDEX)
 #define CONFIG_CANOPEN_DEVICE_TYPE_INDEX	0x1000
 #endif
