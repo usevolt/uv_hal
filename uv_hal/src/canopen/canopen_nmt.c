@@ -73,17 +73,17 @@ void _uv_canopen_nmt_rx(const uv_can_message_st *msg) {
 		if (msg->data_length >= 2) {
 			if (msg->data_8bit[1] == NODEID || msg->data_8bit[1] == 0) {
 				switch (msg->data_8bit[0]) {
-				case CANOPEN_NMT_START_NODE:
+				case CANOPEN_NMT_CMD_START_NODE:
 					this->state = CANOPEN_OPERATIONAL;
 					break;
-				case CANOPEN_NMT_STOP_NODE:
+				case CANOPEN_NMT_CMD_STOP_NODE:
 					this->state = CANOPEN_STOPPED;
 					break;
-				case CANOPEN_NMT_RESET_NODE:
-				case CANOPEN_NMT_RESET_COM:
+				case CANOPEN_NMT_CMD_RESET_NODE:
+				case CANOPEN_NMT_CMD_RESET_COM:
 					uv_system_reset();
 					break;
-				case CANOPEN_NMT_SET_PREOPERATIONAL:
+				case CANOPEN_NMT_CMD_SET_PREOPERATIONAL:
 					this->state = CANOPEN_PREOPERATIONAL;
 					break;
 				default:
