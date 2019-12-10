@@ -33,27 +33,8 @@
 
 #if CONFIG_REF_OUTPUT
 
-#define PID_P_MAX			20000
-#define TARGET_DELAY_MS		20
-#define PID_MULTIPLIER		0x10
-#define OUT_AVG_COUNT		20
-#define TOGGLE_HYSTERESIS	100
 
 
-void uv_ref_output_conf_reset(uv_ref_output_conf_st *conf, uv_ref_output_limitconf_st *limitconf) {
-	conf->solenoid_conf[0].max_ppt = CONFIG_REF_POSMAX_PPT_DEF;
-	conf->solenoid_conf[0].min_ppt = CONFIG_REF_POSMIN_PPT_DEF;
-	conf->solenoid_conf[1].max_ppt = CONFIG_REF_NEGMAX_PPT_DEF;
-	conf->solenoid_conf[1].min_ppt = CONFIG_REF_NEGMIN_PPT_DEF;
-	conf->acc = CONFIG_REF_ACC_DEF;
-	conf->dec = CONFIG_REF_DEC_DEF;
-	conf->assembly_invert = 0;
-	conf->invert = 0;
-	limitconf->solenoid_limitconf[0].max_ppt = CONFIG_REF_LIMITMAX_PPT_DEF;
-	limitconf->solenoid_limitconf[0].max_ma = 0;
-	limitconf->solenoid_limitconf[1].max_ppt = CONFIG_REF_LIMITMIN_PPT_DEF;
-	limitconf->solenoid_limitconf[1].max_ma = 0;
-}
 
 // small helper function to assign the pwm value based on the look up table
 static void pwm_set(uv_ref_output_st *this, int16_t rel_value) {
@@ -104,39 +85,18 @@ static void pwm_set(uv_ref_output_st *this, int16_t rel_value) {
 
 
 void uv_ref_output_init(uv_ref_output_st *this,
-		uv_ref_output_conf_st *conf_ptr, uv_ref_output_limitconf_st *limitconf,
+		uv_prop_output_conf_st *conf, uv_prop_output_limitconf_st *limitconf,
 		uv_pwm_channel_t pwm_chn, uv_adc_channels_e adc_chn, uint16_t sense_ampl,
 		uint16_t fault_ma, uint32_t emcy_fault,
 		const uv_ref_output_lookup_st *lookup_table, uint8_t lookup_table_len) {
 
-	uv_output_init((uv_output_st*) this, adc_chn, 0,
-			sense_ampl, fault_ma, fault_ma, 5, 0, emcy_fault);
-	uv_output_set_state((uv_output_st*) this, OUTPUT_STATE_ON);
+	uv_prop_output_init((uv_prop_output_st*) this, conf, limitconf);
 
-	this->conf = conf_ptr;
-	this->limitconf = limitconf;
 	this->pwm_chn = pwm_chn;
-	this->mode = DUAL_SOLENOID_OUTPUT_MODE_PROP_NORMAL;
 	this->out = 0;
 	this->pwm = 0;
-	uv_pid_init(&this->mv_pid, CONFIG_REF_PID_P_DEF, CONFIG_REF_PID_I_DEF, 0);
-	uv_pid_set_target(&this->mv_pid, this->target);
 	this->lookuptable = lookup_table;
 	this->lookuptable_len = lookup_table_len;
-	uv_pid_init(&this->target_pid, PID_P_MAX, 0, 0);
-	uv_delay_init(&this->target_delay, TARGET_DELAY_MS);
-	this->target = 0;
-	this->target_req = 0;
-	this->last_target_req = 0;
-	this->target_mult = 0;
-	uv_hysteresis_init(&this->toggle_hyst,
-			REF_OUTPUT_TOGGLE_THRESHOLD_DEFAULT, TOGGLE_HYSTERESIS, false);
-	this->last_hyst = 0;
-	this->toggle_limit_ms = REF_OUTPUT_LIMIT_MS_DEFAULT;
-	uv_delay_init(&this->toggle_delay, this->toggle_limit_ms);
-	this->toggle_on = 0;
-	this->enable_delay_ms = REF_OUTPUT_ENABLE_DELAY_MS_DEFAULT;
-	uv_delay_init(&this->enable_delay, this->enable_delay_ms);
 
 	pwm_set(this, 0);
 }
@@ -145,259 +105,63 @@ void uv_ref_output_init(uv_ref_output_st *this,
 
 
 void uv_ref_output_step(uv_ref_output_st *this, uint16_t step_ms) {
-	// check the conf limits
-	LIMITS(this->limitconf->solenoid_limitconf[0].max_ppt, 100, 1000);
-	LIMITS(this->limitconf->solenoid_limitconf[1].max_ppt, 100, 1000);
-	if (this->conf->solenoid_conf[0].max_ppt > 1000) {
-		this->conf->solenoid_conf[0].max_ppt = 1000;
-	}
-	if (this->conf->solenoid_conf[1].max_ppt > 1000) {
-		this->conf->solenoid_conf[1].max_ppt = 1000;
-	}
-	if (this->conf->solenoid_conf[0].min_ppt > 1000) {
-		this->conf->solenoid_conf[0].min_ppt = 1000;
-	}
-	if (this->conf->solenoid_conf[1].min_ppt > 1000) {
-		this->conf->solenoid_conf[1].min_ppt = 1000;
-	}
-	if (this->conf->acc > REF_OUTPUT_ACC_MAX) {
-		this->conf->acc = REF_OUTPUT_ACC_MAX;
-	}
-	else if (this->conf->acc < REF_OUTPUT_ACC_MIN) {
-		this->conf->acc = REF_OUTPUT_ACC_MIN;
-	}
-	else {
-
-	}
-	if (this->conf->dec > REF_OUTPUT_DEC_MAX) {
-		this->conf->dec = REF_OUTPUT_DEC_MAX;
-	}
-	else if (this->conf->dec < REF_OUTPUT_DEC_MIN) {
-		this->conf->dec = REF_OUTPUT_DEC_MIN;
-	}
-	else {
-
-	}
-	if (this->conf->assembly_invert > 1) {
-		this->conf->assembly_invert = 1;
-	}
+	uv_prop_output_step((uv_prop_output_st *) this, step_ms);
 
 	int32_t rel_value = 500;
 
-	// in disabled state target is always zero
-	if (uv_output_get_state((uv_output_st*) this) != OUTPUT_STATE_ON) {
-		this->target = 0;
-		uv_output_state_e state = uv_output_get_state((uv_output_st*) this);
-		if (state == OUTPUT_STATE_DISABLED ||
-				state == OUTPUT_STATE_OFF) {
-			// put the state to the middle value
-			pwm_set(this, 500);
-		}
-		else {
-			// fault state puts the output to zero.
-			// This should never happen if the system works as it should
-			uv_pwm_set(this->pwm_chn, 0);
-		}
-		if (this->target_req == 0) {
-			// put the output off when the request has ended. This
-			// clears the fault states in case of a short circuit.
-			uv_output_set_state((uv_output_st *) this, OUTPUT_STATE_OFF);
-		}
-		else if (uv_output_get_state((uv_output_st*) this) == OUTPUT_STATE_OFF) {
-			// otherwise put the state back to ON
-			uv_output_set_state((uv_output_st*) this, OUTPUT_STATE_ON);
-		}
+	uv_prop_output_conf_st *conf = uv_prop_output_get_conf((uv_prop_output_st*) this);
+	uv_prop_output_limitconf_st *limitconf =
+			uv_prop_output_get_limitconf((uv_prop_output_st*) this);
 
-		uv_delay_init(&this->enable_delay, this->enable_delay_ms);
+	// in disabled state target is always zero
+	uv_output_state_e state = uv_prop_output_get_state((uv_prop_output_st*) this);
+	if (state != OUTPUT_STATE_ON) {
+		// put the state to the middle value
+		pwm_set(this, 500);
 	}
 	else {
-		LIMIT_MAX(this->conf->acc, 100);
-		LIMIT_MAX(this->conf->dec, 100);
-		uint16_t acc = this->conf->acc;
-		uint16_t dec = this->conf->dec;
 
-		LIMITS(this->target_req, REF_OUTPUT_VALUE_MIN, REF_OUTPUT_VALUE_MAX);
-		int16_t target_req = this->target_req;
+		int16_t target = uv_prop_output_get_target((uv_prop_output_st *) this);
 
 
-		// enable delay handling
-		if (target_req == 0 || target_req * this->last_target_req < 0) {
-			target_req = 0;
-			uv_delay_init(&this->enable_delay, this->enable_delay_ms);
+
+
+		// since limits are given in uv_prop_output format, limitmin is 0 ... 1000
+		// which should represent the output value between 500 ... 0.
+		uint16_t limit_max = 500 + (limitconf->solenoid_limitconf[0].max_ppt / 2),
+				limit_min = 500 - (limitconf->solenoid_limitconf[1].max_ppt / 2);
+		// target value is always the middle value between limit_max and limit_min
+		rel_value = (limit_max - limit_min) / 2 + limit_min;
+
+		if ((target * ((conf->assembly_invert) ? -1 : 1)) > 0) {
+			// positive limit values
+			int32_t rel = uv_lerpi(abs(target),
+					conf->solenoid_conf[0].min_ppt,
+					conf->solenoid_conf[0].max_ppt);
+			rel_value = uv_lerpi(rel, rel_value, limit_max);
 		}
-		this->last_target_req = target_req;
-
-		bool hyston = uv_hysteresis_step(&this->toggle_hyst, abs(target_req));
-
-		// enable delay prevents the output to go ON if the enable delay
-		// has not been passed
-		bool on = (this->mode == DUAL_SOLENOID_OUTPUT_MODE_PROP_NORMAL) ?
-						!!target_req : hyston;
-		if (on) {
-			uv_delay(&this->enable_delay, step_ms);
-		}
-		else {
-			uv_delay_init(&this->enable_delay, this->enable_delay_ms);
-		}
-		if (!uv_delay_has_ended(&this->enable_delay)) {
-			target_req = 0;
-			// we affect the hysteresis value only if the toggle state is off.
-			// This makes sure that the output is always possible to switch off.
-			if (!this->toggle_on) {
-				hyston = false;
-			}
-			else {
-				if (this->mode != DUAL_SOLENOID_OUTPUT_MODE_PROP_NORMAL) {
-					uv_delay_end(&this->enable_delay);
-				}
-			}
-		}
-
-
-		if (this->mode == DUAL_SOLENOID_OUTPUT_MODE_PROP_NORMAL) {
-			if (uv_delay(&this->target_delay, step_ms)) {
-				uv_delay_init(&this->target_delay, TARGET_DELAY_MS);
-
-
-
-				// when acc and dec are maximum, bypass the pid controller to have
-				// minimum delays
-				if (acc == REF_OUTPUT_ACC_MAX &&
-						dec == REF_OUTPUT_DEC_MAX) {
-					this->target = target_req;
-				}
-				else {
-					// different moving average values for accelerating and decelerating
-					// maximum decelerating time is 1 sec
-					if ((abs(target_req) > abs(this->target)) ||
-							((int32_t) target_req * this->target < 0)) {
-						// accelerating
-						uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * acc * acc / 10000);
-					}
-					else {
-						// decelerating
-						uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * dec * dec / 10000);
-					}
-
-					uv_pid_set_target(&this->target_pid, target_req * PID_MULTIPLIER);
-					uv_pid_step(&this->target_pid, TARGET_DELAY_MS, this->target_mult);
-					this->target_mult += uv_pid_get_output(&this->target_pid);
-					if ((this->target_mult / PID_MULTIPLIER) > 1000) {
-						this->target_mult = 1000;
-					}
-					else if ((this->target_mult / PID_MULTIPLIER) < -1000) {
-						this->target_mult = -1000;
-					}
-					else {
-
-					}
-					this->target = this->target_mult / PID_MULTIPLIER;
-
-					// clamp output to target value when we're close enough
-					if (uv_pid_get_output(&this->target_pid) == 0) {
-						this->target = target_req;
-						this->target_mult = target_req * PID_MULTIPLIER;
-					}
-				}
-			}
-			// since limits are given in uv_dual_solenoid_output format, limitmin is 0 ... 1000
-			// which should represent the output value between 500 ... 0.
-			uint16_t limit_max = 500 + (this->limitconf->solenoid_limitconf[0].max_ppt / 2),
-					limit_min = 500 - (this->limitconf->solenoid_limitconf[1].max_ppt / 2);
-			// target value is always the middle value between limit_max and limit_min
-			rel_value = (limit_max - limit_min) / 2 + limit_min;
-
-			if ((this->target * ((this->conf->assembly_invert) ? -1 : 1)) > 0) {
-				// output value increases
-				int32_t rel = uv_lerpi(abs(this->target),
-						this->conf->solenoid_conf[0].min_ppt,
-						this->conf->solenoid_conf[0].max_ppt);
-				rel_value = uv_lerpi(rel, rel_value, limit_max);
-			}
-			else if (this->target != 0) {
-				// output value decreases
-				int32_t rel = uv_lerpi(abs(this->target),
-						this->conf->solenoid_conf[1].min_ppt,
-						this->conf->solenoid_conf[1].max_ppt);
-				rel_value = uv_lerpi(rel, rel_value, limit_min);
-			}
-			else {
-			}
+		else if (target != 0) {
+			// negative limit values
+			int32_t rel = uv_lerpi(abs(target),
+					conf->solenoid_conf[1].min_ppt,
+					conf->solenoid_conf[1].max_ppt);
+			rel_value = uv_lerpi(rel, rel_value, limit_min);
 		}
 		else {
-			// ONOFF_NORMAL MODE
-			if (this->mode == DUAL_SOLENOID_OUTPUT_MODE_ONOFF_NORMAL) {
-				// in onoff mode the PID controller is disabled and we put the output value directly
-				if (hyston && target_req) {
-					this->target = (target_req > 0) ? 1000 : -1000;
-				}
-				else {
-					this->target = 0;
-					this->toggle_hyst.result = 0;
-				}
-			}
-			// TOGGLE modes
-			else {
-				if (hyston) {
-					if (!this->last_hyst) {
-						if (this->toggle_on) {
-							this->toggle_on = 0;
-						}
-						else {
-							if (target_req > 0) {
-								this->toggle_on = 1;
-							}
-							else {
-								this->toggle_on = -1;
-							}
-						}
-					}
-					uv_delay_init(&this->toggle_delay, this->toggle_limit_ms);
-				}
-				if (this->toggle_limit_ms && uv_delay(&this->toggle_delay, TARGET_DELAY_MS)) {
-					this->toggle_on = 0;
-				}
-				this->target = (this->toggle_on) ? ((this->toggle_on > 0) ? 1000 : -1000) : 0;
-				this->last_hyst = hyston;
-			}
-			// in both onoff modes the output is always either maximum or minimum.
-			// This is to comply with solenoid_output modules
-			if (this->target > 0) {
-				rel_value = (this->mode == DUAL_SOLENOID_OUTPUT_MODE_PROP_TOGGLE) ?
-						this->limitconf->solenoid_limitconf[0].max_ppt : 1000;
-			}
-			else if (this->target < 0) {
-				rel_value = (this->mode == DUAL_SOLENOID_OUTPUT_MODE_PROP_TOGGLE) ?
-						this->limitconf->solenoid_limitconf[1].max_ppt : 0;
-			}
-			else {
-				rel_value = 500;
-			}
 		}
+
+
 
 
 		LIMITS(rel_value, 0, 1000);
 		pwm_set(this, rel_value);
 	}
 
-	this->out = this->target *
-			(((int16_t) this->conf->assembly_invert) ? -1 : 1);
+	this->out = uv_prop_output_get_target((uv_prop_output_st *) this) *
+			(((int16_t) conf->assembly_invert) ? -1 : 1);
 
 }
 
-
-void uv_ref_output_set(uv_ref_output_st *this, int16_t value) {
-	if (value > 1000) {
-		value = 1000;
-	}
-	else if (value < -1000) {
-		value = -1000;
-	}
-	else {
-
-	}
-	this->target_req = value;
-}
 
 
 
