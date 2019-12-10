@@ -150,12 +150,9 @@ const uv_command_st common_cmds[] = {
 				.str = "reset",
 #if CONFIG_TERMINAL_INSTRUCTIONS
 				.instructions =
-						"Usage: reset (1/0)"
+						"Usage: reset"
 						"Resets the controller instantly.\n"
-						"All unsave modifications will be lost.\n"
-						"If 1 is given as an argument, the system will use\n"
-						"watchdog timer to make a hardware reset. Else software\n"
-						"reset is done." ,
+						"All unsave modifications will be lost.",
 #endif
 				.callback = uv_terminal_reset_callb
 		}
@@ -377,15 +374,7 @@ void uv_terminal_man_callb(void *me, unsigned int cmd, unsigned int args, argume
 }
 #endif
 void uv_terminal_reset_callb(void *me, unsigned int cmd, unsigned int args, argument_st *argv) {
-	if (!args) {
-		uv_system_reset(false);
-	}
-	if (argv[0].number) {
-		uv_system_reset(true);
-	}
-	else {
-		uv_system_reset(false);
-	}
+	uv_system_reset();
 }
 #if CONFIG_NON_VOLATILE_MEMORY
 void uv_terminal_save_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv) {

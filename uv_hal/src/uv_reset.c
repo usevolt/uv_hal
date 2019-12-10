@@ -45,7 +45,7 @@
 #include <uv_rtos.h>
 
 
-void uv_system_reset() {
+void uv_system_reset(void) {
 #if CONFIG_UV_BOOTLOADER
 	// if bootloader is enabled, make sure bootloader shared memory is cleared
 	memset(UV_BOOTLOADER_DATA_ADDR, 0, UV_BOOTLOADER_DATA_LEN);
@@ -55,7 +55,7 @@ void uv_system_reset() {
 
 
 
-void uv_bootloader_start() {
+void uv_bootloader_start(void) {
 #if !CONFIG_TARGET_LINUX && !CONFIG_TARGET_WIN
 	// BUGFIX NOTE: When resetting, SCT PWM outputs are left ON, keeping
 	// those pins pulled low. To prevent this, SWM mappings from SCT timers

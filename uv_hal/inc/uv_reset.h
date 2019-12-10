@@ -47,12 +47,12 @@ typedef enum {
 
 
 /// @brief: resets the system via software reset
-void uv_system_reset();
+void uv_system_reset(void);
 
 
 /// @brief: Starts the uv bootloader. As bootloader starts when the device resets,
 /// this effectively just resets the device without clearing
 /// the shared RAM memory for the uv bootloader.
-void uv_bootloader_start();
+void uv_bootloader_start(void);
 
 #endif /* HAL_RESET_H_ */
