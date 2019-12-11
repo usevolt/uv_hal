@@ -176,7 +176,6 @@ static uv_bounding_box_st uistrlayout_get_bb_from_cell(uv_uistrlayout_st *this, 
 		bb.y = this->bb.y + col_i * this->bb.height / col_count + this->v_padding;
 		bb.x = this->bb.x + row_i * this->bb.width / this->row_count + this->h_padding;
 		bb.height = this->bb.height / col_count - this->v_padding * 2;
-		printf("%i %i %i\n", this->bb.height, bb.height, col_count);
 		bb.width = this->bb.width / this->row_count - this->h_padding * 2;
 	}
 
