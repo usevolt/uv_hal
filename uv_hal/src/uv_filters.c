@@ -62,21 +62,29 @@ void uv_moving_aver_set_count(uv_moving_aver_st *this, int32_t value) {
 	this->count = value;
 }
 
-void uv_ewma_init(uv_ewma_st *this, uint32_t alpha, int32_t val) {
-	this->val = val * 0x100;
-	this->alpha = alpha;
+void uv_ewma_init(uv_ewma_st *this, uint32_t tau, int32_t val) {
+	this->val = val * EWMA_ALPHA_MAX;
+	this->tau = tau;
 }
 
 
-int32_t uv_ewma_step(uv_ewma_st *this, int32_t val, uint16_t step_ms) {
-	int32_t alpha = this->alpha * step_ms / 1000;
-	if (alpha == 0) {
-		alpha = 1;
+int32_t uv_ewma_step(uv_ewma_st *this, int64_t val, uint16_t step_ms) {
+	int64_t alpha;
+	LIMITS(this->tau, 0, EWMA_ALPHA_MAX);
+	if (this->tau == 0) {
+		alpha = EWMA_ALPHA_MAX;
 	}
+	else {
+		alpha = EWMA_ALPHA_MAX * (int64_t) step_ms / this->tau;
+	}
+	LIMITS(alpha, 1, EWMA_ALPHA_MAX);
 
-	this->val = ((EWMA_ALPHA_MAX - alpha) * this->val + alpha * val) / EWMA_ALPHA_MAX;
 
-	return this->val;
+	int64_t newval = (((EWMA_ALPHA_MAX - alpha) * this->val) / EWMA_ALPHA_MAX +
+			alpha * val);
+	this->val = (this->val == newval) ? (val * EWMA_ALPHA_MAX) : newval;
+
+	return this->val / EWMA_ALPHA_MAX;
 }
 
 
