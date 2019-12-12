@@ -126,7 +126,7 @@ static int16_t uistrlayout_get_row_count_at(uv_uistrlayout_st *this, const char 
 
 // returns the number of cols on the row where *cell_ptr* is
 static int16_t uistrlayout_get_col_count_at_cell(uv_uistrlayout_st *this, const char *cell_ptr) {
-	int16_t ret = 0;
+	int16_t ret = 1;
 	while ((cell_ptr != this->str) &&
 			(*cell_ptr != '\n')) {
 		cell_ptr--;
@@ -139,10 +139,6 @@ static int16_t uistrlayout_get_col_count_at_cell(uv_uistrlayout_st *this, const 
 	while ((cell_ptr < &this->str[strlen(this->str)]) &&
 			(*cell_ptr != '\n')) {
 		if (*cell_ptr == '|') {
-			// on first '|', col count is inreased by 2 (0 col rows are possible)
-			if (ret == 0) {
-				ret++;
-			}
 			ret++;
 		}
 		cell_ptr++;
