@@ -102,17 +102,14 @@ typedef struct {
 /// @param pwm_chn: The PWM channel used to driving the output
 /// @param sense_ampl: Amplification for current sense feedback. ADC value
 /// from current sense feedback is multiplied with this in order to get milliamps.
-/// @param fault_ma: The limit in ma which is indicated being a fault. Ref output
-/// should not be used as a power output, but this is used just to protect
-/// the vnd5050 power mosfet in case of shortcircuit.
 /// @param lookup_table: Pointer to a const array of uv_ref_output_lookup_st entries.
 /// The table should be in rising order, i.e. the first element should have the
 /// smallest relative value and the last one the biggest.
 /// @param lookup_table_len: The length of the lookup table in element count
 void uv_ref_output_init(uv_ref_output_st *this,
 		uv_prop_output_conf_st *conf, uv_prop_output_limitconf_st *limitconf,
-		uv_pwm_channel_t pwm_chn, uv_adc_channels_e adc_chn, uint16_t sense_ampl,
-		uint16_t fault_ma, uint32_t emcy_fault,
+		uv_pwm_channel_t pwm_chn, uv_adc_channels_e adc_chn,
+		uint32_t emcy_fault,
 		const uv_ref_output_lookup_st *lookup_table, uint8_t lookup_table_len);
 
 

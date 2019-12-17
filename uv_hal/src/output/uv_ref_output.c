@@ -86,8 +86,8 @@ static void pwm_set(uv_ref_output_st *this, int16_t rel_value) {
 
 void uv_ref_output_init(uv_ref_output_st *this,
 		uv_prop_output_conf_st *conf, uv_prop_output_limitconf_st *limitconf,
-		uv_pwm_channel_t pwm_chn, uv_adc_channels_e adc_chn, uint16_t sense_ampl,
-		uint16_t fault_ma, uint32_t emcy_fault,
+		uv_pwm_channel_t pwm_chn, uv_adc_channels_e adc_chn,
+		uint32_t emcy_fault,
 		const uv_ref_output_lookup_st *lookup_table, uint8_t lookup_table_len) {
 
 	uv_prop_output_init((uv_prop_output_st*) this, conf, limitconf);

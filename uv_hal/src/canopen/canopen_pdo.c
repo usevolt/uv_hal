@@ -455,17 +455,15 @@ void uv_canopen_pdo_mapping_update(uint16_t main_index, uint8_t subindex) {
 
 }
 
+canopen_pdo_mapping_parameter_st *uv_canopen_rxpdo_get_mapping(uint16_t rxpdo) {
+	LIMIT_MAX(rxpdo, CONFIG_CANOPEN_RXPDO_COUNT - 1);
+	return &thisnv->rxpdo_maps[rxpdo];
+}
 
 
-canopen_pdo_mapping_parameter_st *uv_canopen_rxpdo_get_mapping(uint16_t msg_id) {
-	canopen_pdo_mapping_parameter_st *ret = NULL;
-	for (uint16_t i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
-		if (thisnv->rxpdo_coms[i].cob_id == msg_id) {
-			ret = &thisnv->rxpdo_maps[i];
-			break;
-		}
-	}
-	return ret;
+canopen_pdo_mapping_parameter_st *uv_canopen_txpdo_get_mapping(uint16_t txpdo) {
+	LIMIT_MAX(txpdo, CONFIG_CANOPEN_TXPDO_COUNT - 1);
+	return &thisnv->txpdo_maps[txpdo];
 }
 
 

@@ -138,9 +138,11 @@ void _uv_canopen_pdo_rx(const uv_can_message_st *msg);
 void uv_canopen_pdo_mapping_update(uint16_t main_index, uint8_t subindex);
 
 
-/// @brief: Returns a pointer to the PDO mapping parameter by searching the
-/// RXPDO's by their cob-id's
-canopen_pdo_mapping_parameter_st *uv_canopen_rxpdo_get_mapping(uint16_t msg_id);
+/// @brief: Returns a pointer to the PDO mapping parameter of the RXPDO of and index of *rxpdo*
+canopen_pdo_mapping_parameter_st *uv_canopen_rxpdo_get_mapping(uint16_t rxpdo);
+
+/// @brief: Returns a pointer to the PDO mapping parameter of the TXPDO of and index of *txpdo*
+canopen_pdo_mapping_parameter_st *uv_canopen_txpdo_get_mapping(uint16_t txpdo);
 
 
 /// @brief: Returns the RXPDO communication parameter assigned to RXPDO with an index of *rxpdo*
