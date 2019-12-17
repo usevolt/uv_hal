@@ -70,6 +70,8 @@ typedef struct __attribute__((packed)) {
 	/// @brief: Variables holding the press coordinates
 	int16_t press_x;
 	int16_t press_y;
+	int16_t drag_x;
+	int16_t drag_y;
 	/// @brief: Stores the current state of the press event
 	int16_t press_state;
 

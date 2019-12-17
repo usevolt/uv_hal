@@ -119,15 +119,16 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 			if (abs(this->press_x - t.x) > CONFIG_UI_CLICK_THRESHOLD ||
 					abs(this->press_y - t.y) > CONFIG_UI_CLICK_THRESHOLD) {
 				t.action = TOUCH_DRAG;
-				int16_t tx = t.x, ty = t.y;
-				t.x -= this->press_x;
-				t.y -= this->press_y;
-				this->press_x = tx;
-				this->press_y = ty;
+				this->drag_x = t.x;
+				this->drag_y = t.y;
+				t.x = 0;
+				t.y = 0;
 				this->press_state = DRAGGING;
 			}
 			else {
 				t.action = TOUCH_IS_DOWN;
+				t.x = this->press_x;
+				t.y = this->press_y;
 			}
 		}
 		else if (this->press_state == DRAGGING) {
@@ -136,11 +137,11 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 			t.action = TOUCH_DRAG;
 			// drag event gives an offset from
 			// last drag position as parameters
-			t.x -= this->press_x;
-			t.y -= this->press_y;
-			// save current position to touch variables
-			this->press_x = tx;
-			this->press_y = ty;
+			t.x -= this->drag_x;
+			t.y -= this->drag_y;
+			// save current position to drag variables
+			this->drag_x = tx;
+			this->drag_y = ty;
 		}
 	}
 	else {
