@@ -66,7 +66,7 @@ void uv_ui_refresh_parent(void *me) {
 		((uv_uiobject_st*) this->parent)->refresh = true;
 		// on FT81x the refresh request goes recursively all the way to
 		// uidisplay. This way the whole display is updated when needed
-		uv_ui_refresh_parent(this->parent);
+		// uv_ui_refresh_parent(this->parent);
 	}
 	this->refresh = true;
 #elif CONFIG_FT81X
