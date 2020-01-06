@@ -44,6 +44,7 @@ void uv_uitabwindow_init(void *me, int16_t tab_count,
 		uv_uiobject_st **obj_array,
 		const char **tab_names) {
 	uv_uiwindow_init(this, obj_array, style);
+	uv_uiwindow_set_transparent(this, false);
 	uv_uiwindow_set_content_bb_default_pos(this, 0, CONFIG_UI_TABWINDOW_HEADER_HEIGHT);
 	this->font = style->font;
 	this->text_c = style->text_color;
@@ -154,5 +155,13 @@ static void touch(void *me, uv_touch_st *touch) {
 	// let uv_uiwindow to handle propagating the touch event to all children
 	_uv_uiwindow_touch(this, touch);
 }
+
+
+void uv_uitabwindow_clear(void *me) {
+	void (*draw)(void *, const uv_bounding_box_st *) = ((uv_uiobject_st*) this)->vrtl_draw;
+	uv_uiwindow_clear(this);
+	uv_uiobject_set_draw_callb(this, draw);
+}
+
 
 #endif

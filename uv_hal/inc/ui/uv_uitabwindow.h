@@ -102,9 +102,7 @@ static inline void uv_uitabwindow_add(void *me, void *object,
 	uv_uiwindow_add(me, object, bb);
 }
 
-static inline void uv_uitabwindow_clear(void *me) {
-	uv_uiwindow_clear(this);
-}
+void uv_uitabwindow_clear(void *me);
 
 static inline void uv_uitabwindow_set_stepcallb(void *me,
 		uv_uiobject_ret_e (*step)(void *, const uint16_t), void *user_ptr) {
