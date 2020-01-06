@@ -102,7 +102,7 @@ int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 
 	// the sensor was set to calibration mode
 	if (state == HALSENSOR_STATE_CALIBRATION &&
-			this->last_state != this->state) {
+			this->last_state != state) {
 		this->calib_start_adc = adc;
 	}
 
