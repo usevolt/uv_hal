@@ -68,6 +68,8 @@ void _uv_canopen_sdo_client_init(void) {
 	this->state = CANOPEN_SDO_STATE_READY;
 	this->delay = -1;
 	this->last_err_code = CANOPEN_SDO_ERROR_NONE;
+	this->wait_callb = NULL;
+	uv_delay_init(&this->wait_delay, CANOPEN_SDO_CLIENT_WAIT_CALLB_DELAY_MS);
 }
 
 void _uv_canopen_sdo_client_reset(void) {
@@ -75,16 +77,29 @@ void _uv_canopen_sdo_client_reset(void) {
 }
 
 void _uv_canopen_sdo_client_step(uint16_t step_ms) {
-	if ((this->state != CANOPEN_SDO_STATE_READY) &&
-			uv_delay(&this->delay, step_ms)) {
-		if (this->state == CANOPEN_SDO_STATE_TRANSFER_ABORTED) {
-			this->state = CANOPEN_SDO_STATE_READY;
+	if (this->state != CANOPEN_SDO_STATE_READY) {
+		// abort delay logic
+		if (uv_delay(&this->delay, step_ms)) {
+			if (this->state == CANOPEN_SDO_STATE_TRANSFER_ABORTED) {
+				this->state = CANOPEN_SDO_STATE_READY;
+			}
+			else {
+				sdo_client_abort(this->mindex, this->sindex, CANOPEN_SDO_ERROR_SDO_PROTOCOL_TIMED_OUT);
+				this->state = CANOPEN_SDO_STATE_TRANSFER_ABORTED;
+				uv_delay_init(&this->delay, step_ms);
+			}
 		}
-		else {
-			sdo_client_abort(this->mindex, this->sindex, CANOPEN_SDO_ERROR_SDO_PROTOCOL_TIMED_OUT);
-			this->state = CANOPEN_SDO_STATE_TRANSFER_ABORTED;
-			uv_delay_init(&this->delay, step_ms);
+		// wait callback function logic
+		if (uv_delay(&this->wait_delay, step_ms)) {
+			// call wait callback if one is assigned
+			if (this->wait_callb) {
+				this->wait_callb(this->mindex, this->sindex);
+			}
+			uv_delay_init(&this->wait_delay, CANOPEN_SDO_CLIENT_WAIT_CALLB_DELAY_MS);
 		}
+	}
+	else {
+		uv_delay_init(&this->wait_delay, CANOPEN_SDO_CLIENT_WAIT_CALLB_DELAY_MS);
 	}
 }
 
@@ -650,6 +665,11 @@ uv_errors_e _uv_canopen_sdo_client_block_read(uint8_t node_id,
 uv_sdo_error_codes_e _uv_canopen_sdo_get_error_code(void) {
 	return this->last_err_code;
 }
+
+void uv_canopen_sdo_client_set_wait_callback(void (*callb)(uint16_t, uint8_t)) {
+	this->wait_callb = callb;
+}
+
 
 
 #endif

@@ -36,7 +36,40 @@
 #include "canopen/canopen_sdo.h"
 
 
+#define CANOPEN_SDO_CLIENT_WAIT_CALLB_DELAY_MS	100
+
 #if CONFIG_CANOPEN
+
+typedef struct {
+	canopen_sdo_state_e state;
+	// stores the last error encountered while reading or writing data
+	uv_sdo_error_codes_e last_err_code;
+	uint8_t server_node_id;
+	uint8_t sindex;
+	uint16_t mindex;
+	void *data_ptr;
+	// callback that is called with CANOPEN_SDO_CLIENT_WAIT_CALLB_DELAY_MS step time
+	// always when SDO transfer is currently active
+	void (*wait_callb)(uint16_t mindex, uint8_t sindex);
+	uv_delay_st wait_delay;
+	uv_delay_st delay;
+#if (CONFIG_CANOPEN_SDO_SEGMENTED || CONFIG_CANOPEN_SDO_BLOCK_TRANSFER)
+	uint32_t data_index;
+	uint32_t data_count;
+	union {
+		uint8_t toggle;
+		/// @brief: Last correctly received sequence number for block transfer.
+		/// Starts from -1.
+		int8_t seq;
+	};
+#if CONFIG_CANOPEN_SDO_BLOCK_TRANSFER
+	uint8_t data_buffer[7];
+	bool new_data;
+	uint8_t server_blksize;
+	bool crc_enabled;
+#endif
+#endif
+} _uv_canopen_sdo_client_st;
 
 
 void _uv_canopen_sdo_client_init(void);
@@ -67,6 +100,14 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 /// @brief: Returns the last encountered error code. This should correspond to the
 /// errors encountered during the SDO transfer.
 uv_sdo_error_codes_e _uv_canopen_sdo_get_error_code(void);
+
+
+
+/// @brief: Sets the callback function that is called with a time delay always
+/// when an SDO request is active. Can be used to, for example, update GUI when
+/// waiting for SDO request to complete.
+void uv_canopen_sdo_client_set_wait_callback(void (*callb)(uint16_t, uint8_t));
+
 
 #if CONFIG_CANOPEN_SDO_BLOCK_TRANSFER
 

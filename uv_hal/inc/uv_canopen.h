@@ -352,58 +352,8 @@ typedef struct {
 
 	// SDO member variables
 	struct {
-		struct {
-			canopen_sdo_state_e state;
-			// stores the last error encountered while reading or writing data
-			uv_sdo_error_codes_e last_err_code;
-			uint8_t server_node_id;
-			uint8_t sindex;
-			uint16_t mindex;
-			void *data_ptr;
-			uv_delay_st delay;
-#if (CONFIG_CANOPEN_SDO_SEGMENTED || CONFIG_CANOPEN_SDO_BLOCK_TRANSFER)
-			uint32_t data_index;
-			uint32_t data_count;
-			union {
-				uint8_t toggle;
-				/// @brief: Last correctly received sequence number for block transfer.
-				/// Starts from -1.
-				int8_t seq;
-			};
-#if CONFIG_CANOPEN_SDO_BLOCK_TRANSFER
-			uint8_t data_buffer[7];
-			bool new_data;
-			uint8_t server_blksize;
-			bool crc_enabled;
-#endif
-#endif
-		} client;
-		struct {
-			canopen_sdo_state_e state;
-			uint16_t mindex;
-			uint8_t sindex;
-			// an optional callback to be called when something has been written to an object
-			// pointed by **mindex** and **sindex**.
-			void (*callb)(uint16_t mindex, uint8_t sindex);
-#if (CONFIG_CANOPEN_SDO_SEGMENTED || CONFIG_CANOPEN_SDO_BLOCK_TRANSFER)
-			// contains the index of next data to be transmitted
-			uint16_t data_index;
-			const canopen_object_st *obj;
-			union {
-				uint8_t toggle;
-				/// @brief: Last correctly received sequence number for block transfer.
-				/// Starts from -1.
-				int8_t seq;
-			};
-			uv_delay_st delay;
-#if CONFIG_CANOPEN_SDO_BLOCK_TRANSFER
-			uint8_t data_buffer[7];
-			bool new_data;
-			uint8_t client_blksize;
-			bool crc_enabled;
-#endif
-#endif
-		} server;
+		_uv_canopen_sdo_client_st client;
+		_uv_canopen_sdo_server_st server;
 	} sdo;
 	void (*can_callback)(void *user_ptr, uv_can_message_st* msg);
 
