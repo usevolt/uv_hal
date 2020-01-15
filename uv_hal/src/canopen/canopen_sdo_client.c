@@ -69,6 +69,7 @@ void _uv_canopen_sdo_client_init(void) {
 	this->delay = -1;
 	this->last_err_code = CANOPEN_SDO_ERROR_NONE;
 	this->wait_callb = NULL;
+	this->wait_callb_req = false;
 	uv_delay_init(&this->wait_delay, CANOPEN_SDO_CLIENT_WAIT_CALLB_DELAY_MS);
 }
 
@@ -91,15 +92,14 @@ void _uv_canopen_sdo_client_step(uint16_t step_ms) {
 		}
 		// wait callback function logic
 		if (uv_delay(&this->wait_delay, step_ms)) {
-			// call wait callback if one is assigned
-			if (this->wait_callb) {
-				this->wait_callb(this->mindex, this->sindex);
-			}
+			// request to call wait callback if one is assigned
+			this->wait_callb_req = true;
 			uv_delay_init(&this->wait_delay, CANOPEN_SDO_CLIENT_WAIT_CALLB_DELAY_MS);
 		}
 	}
 	else {
 		uv_delay_init(&this->wait_delay, CANOPEN_SDO_CLIENT_WAIT_CALLB_DELAY_MS);
+		this->wait_callb_req = false;
 	}
 }
 
@@ -491,6 +491,11 @@ uv_errors_e _uv_canopen_sdo_client_write(uint8_t node_id,
 		// wait for transfer to finish
 		while ((this->state != CANOPEN_SDO_STATE_READY) &&
 				(this->state != CANOPEN_SDO_STATE_TRANSFER_ABORTED)) {
+			// check wait callback request and call it
+			if (this->wait_callb_req && this->wait_callb) {
+				this->wait_callb_req = false;
+				this->wait_callb(this->mindex, this->sindex);
+			}
 			uv_rtos_task_yield();
 		}
 
@@ -553,6 +558,11 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 		// wait for reply
 		while ((this->state != CANOPEN_SDO_STATE_READY) &&
 				(this->state != CANOPEN_SDO_STATE_TRANSFER_ABORTED)) {
+			// check wait callback request and call it
+			if (this->wait_callb_req && this->wait_callb) {
+				this->wait_callb_req = false;
+				this->wait_callb(this->mindex, this->sindex);
+			}
 			uv_rtos_task_yield();
 		}
 

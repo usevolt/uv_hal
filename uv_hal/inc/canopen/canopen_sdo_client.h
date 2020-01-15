@@ -52,6 +52,7 @@ typedef struct {
 	// always when SDO transfer is currently active
 	void (*wait_callb)(uint16_t mindex, uint8_t sindex);
 	uv_delay_st wait_delay;
+	bool wait_callb_req;
 	uv_delay_st delay;
 #if (CONFIG_CANOPEN_SDO_SEGMENTED || CONFIG_CANOPEN_SDO_BLOCK_TRANSFER)
 	uint32_t data_index;
