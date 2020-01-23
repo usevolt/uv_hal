@@ -40,15 +40,7 @@
 #endif
 #endif
 
-#if CONFIG_TARGET_LPC11C14
-#error "LPC11C14 doesn't have an EEPROM memory. Please undefine CONFIG_EEPROM or set it to 0."
-#elif CONFIG_TARGET_LPC1785
-#include "LPC177x_8x.h"
-#define _UV_EEPROM_SIZE			4032
-#define _UV_EEPROM_PAGE_SIZE	64
-#elif CONFIG_TARGET_LPC1549
 #define _UV_EEPROM_SIZE			(4032 - 64)
-#endif
 
 /// @brief: Initializes the EEPROM memory
 ///
@@ -110,6 +102,11 @@ void uv_eeprom_init_circular_buffer(const uint16_t entry_len);
 /// @return Error if the memory was full and couln't push any more
 uv_errors_e uv_eeprom_push_back(const void *src);
 
+///@brief: Pushes new data to the end of the EEPROM circular buffer. If the buffer
+/// is full, calls *uv_eeprom_pop_front* to delete the oldest data and then
+/// pushes new data.
+uv_errors_e uv_eeprom_push_back_force(const void *src);
+
 
 /// @brief: Deletes the newest entry from the EEPROM circular buffer
 ///
@@ -139,12 +136,15 @@ uv_errors_e uv_eeprom_pop_front(void *dest);
 uv_errors_e uv_eeprom_at(void *dest, uint16_t *eeprom_addr, uint16_t index);
 
 
-/// @brief: Clears the whole EEPROM memory to zeroes
-void uv_eeprom_clear(void);
+/// @brief: Returns the number of elements in the ring buffer
+uint32_t uv_eeprom_ring_buffer_get_count(void);
 
 
 #endif
 
+
+/// @brief: Clears the whole EEPROM memory to zeroes
+void uv_eeprom_clear(void);
 
 #endif
 #endif /* UV_HAL_INC_UV_EEPROM_H_ */

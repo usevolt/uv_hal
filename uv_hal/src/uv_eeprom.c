@@ -32,11 +32,9 @@
 
 #if CONFIG_EEPROM
 
-#if CONFIG_TARGET_LPC1549
 #include "chip.h"
 #include "eeprom.h"
 #include "iap.h"
-#endif
 
 
 typedef struct {
@@ -52,94 +50,29 @@ static this_st _this;
 #define this (&_this)
 
 uv_errors_e _uv_eeprom_init(void) {
-#if CONFIG_TARGET_LPC1785
-	// enable power
-	LPC_EEPROM->PWRDWN = 0;
-
-	// set clock frequency to 375 kHz
-	LPC_EEPROM->CLKDIV = SystemCoreClock / 375000 - 1;
-
-	// set the required timing register values
-	LPC_EEPROM->WSTATE = (unsigned long int) 15 * SystemCoreClock / 1000000000 |	// min 15 ns
-			(((unsigned long int) 55 * SystemCoreClock / 1000000000) << 8) |		// min 55 ns
-			(((unsigned long int) 35 * SystemCoreClock / 1000000000) << 16);		// min 35 ns
-
-	// clear eeprom int bits. For some reason leaving these may cause IAP programming to
-	// end with a BUSY error code
-	LPC_EEPROM->INT_CLR_STATUS = ((1 << 26) | (1 << 28));
-
-#elif CONFIG_TARGET_LPC1549
 	Chip_SYSCTL_PowerUp(SYSCTL_POWERDOWN_EEPROM_PD);
 	Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_EEPROM);
 	Chip_SYSCTL_PeriphReset(RESET_EEPROM);
 
-#endif
 	return ERR_NONE;
 }
 
 
 uv_errors_e uv_eeprom_write(const void *data, uint16_t len, uint16_t eeprom_addr) {
 	uv_errors_e ret = ERR_NONE;
-#if CONFIG_TARGET_LPC1549
 	// top 64 bytes are reserved
 	eeprom_addr += 64;
-#endif
 
 	// out of EEPROM memory
 	if (eeprom_addr + len > _UV_EEPROM_SIZE) {
 		ret = ERR_NOT_ENOUGH_MEMORY;
 	}
 	else {
-#if CONFIG_TARGET_LPC1785
-
-		__disable_irq();
-
-		// clear pending interrupt flag
-		LPC_EEPROM->INT_CLR_STATUS = (1 << 28);
-
-		// for simplicity every 8 byte is written
-		uint8_t page = eeprom_addr % _UV_EEPROM_PAGE_SIZE;
-
-		uint16_t i;
-		// write the actual data
-		for (i = 0; i < len; i++) {
-			// clear the write/read status bit
-			LPC_EEPROM->INT_CLR_STATUS = (1 << 26);
-			// write 8-byte
-			LPC_EEPROM->CMD = 0x3;
-			// set the write address
-			LPC_EEPROM->ADDR = eeprom_addr + i;
-			// write data to the page register
-			LPC_EEPROM->WDATA = ((const uint8_t*)data)[i];
-			// increase page counter
-			page++;
-
-			// if the page is full or the last byte was written, write the data to the EEPROM
-			if (page >= _UV_EEPROM_PAGE_SIZE || i == len - 1) {
-				while(!(LPC_EEPROM->INT_STATUS & (1 << 26)));
-				// set the address. (6 LSB bits are don't care).
-				LPC_EEPROM->ADDR = eeprom_addr + i;
-				// flash the page register to EEPROM
-				LPC_EEPROM->CMD = 0x6;
-				// wait for the transaction to finish
-				while (!(LPC_EEPROM->INT_STATUS & (1 << 28)));
-				// clear the interrupt flag
-				LPC_EEPROM->INT_CLR_STATUS = (1 << 28);
-				// clear page counter to start the next page programming
-				page = 0;
-			}
-		}
-		// clear eeprom int bits. For some reason leaving these may cause IAP programming to
-		// end with a BUSY error code
-		LPC_EEPROM->INT_CLR_STATUS = ((1 << 26) | (1 << 28));
-
-		__enable_irq();
-
-#elif CONFIG_TARGET_LPC1549
+		uv_disable_int();
 		if (Chip_EEPROM_Write(eeprom_addr, (void*) data, len) != IAP_CMD_SUCCESS) {
 			ret = ERR_HARDWARE_NOT_SUPPORTED;
 		}
-#endif
+		uv_enable_int();
 	}
 	return ret;
 }
@@ -147,44 +80,19 @@ uv_errors_e uv_eeprom_write(const void *data, uint16_t len, uint16_t eeprom_addr
 
 uv_errors_e uv_eeprom_read(void *dest, uint16_t len, uint16_t eeprom_addr) {
 	uv_errors_e ret = ERR_NONE;
-#if CONFIG_TARGET_LPC1549
 	// top 64 bytes are reserved
 	eeprom_addr += 64;
-#endif
 
 	if (eeprom_addr + len > _UV_EEPROM_SIZE) {
 		ret = ERR_NOT_ENOUGH_MEMORY;
 	}
 	else {
 
-#if CONFIG_TARGET_LPC1785
-
-		__disable_irq();
-		// set the reading address
-		LPC_EEPROM->ADDR = eeprom_addr;
-		LPC_EEPROM->INT_CLR_STATUS = (1 << 26);
-		// read the data
-		uint16_t i;
-		for (i = 0; i < len; i++) {
-			LPC_EEPROM->CMD = 0;
-			while (!(LPC_EEPROM->INT_STATUS & (1 << 26))) {
-				uv_rtos_task_yield();
-			}
-			*dest++ = LPC_EEPROM->RDATA;
-			LPC_EEPROM->INT_CLR_STATUS = (1 << 26);
-		}
-
-		// clear eeprom int bits. For some reason leaving these may cause IAP programming to
-		// end with a BUSY error code
-		LPC_EEPROM->INT_CLR_STATUS = ((1 << 26) | (1 << 28));
-
-		__enable_irq();
-
-#elif CONFIG_TARGET_LPC1549
+		uv_disable_int();
 		if (Chip_EEPROM_Read(eeprom_addr, dest, len) != IAP_CMD_SUCCESS) {
 			ret = ERR_HARDWARE_NOT_SUPPORTED;
 		}
-#endif
+		uv_enable_int();
 	}
 	return ret;
 }
@@ -273,6 +181,20 @@ uv_errors_e uv_eeprom_push_back(const void *src) {
 
 	return ret;
 }
+
+
+uv_errors_e uv_eeprom_push_back_force(const void *src) {
+	uv_errors_e ret = ERR_NONE;
+	if ((ret = uv_eeprom_push_back(src)) == ERR_BUFFER_OVERFLOW) {
+		uint8_t d[this->entry_len];
+		ret = uv_eeprom_pop_front(d);
+		if (ret == ERR_NONE) {
+			ret = uv_eeprom_push_back(src);
+		}
+	}
+	return ret;
+}
+
 
 
 uv_errors_e uv_eeprom_pop_back(void *dest) {
@@ -372,6 +294,15 @@ uv_errors_e uv_eeprom_at(void *dest, uint16_t *eeprom_addr, uint16_t index) {
 
 	return ret;
 }
+
+uint32_t uv_eeprom_ring_buffer_get_count(void) {
+	uint32_t ret = 0;
+	while (uv_eeprom_at(NULL, NULL, ret) == ERR_NONE) {
+		ret++;
+	}
+	return ret;
+}
+
 
 #endif
 
