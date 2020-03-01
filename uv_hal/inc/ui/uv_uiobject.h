@@ -245,20 +245,18 @@ static inline bool uv_ui_get_enabled(const void *me) {
 	return this->enabled;
 }
 
-static inline void uv_uiobject_set_visible(void *me, bool value) {
-	this->visible = value;
-}
+void uv_uiobject_set_visible(void *me, bool value);
 
 static inline bool uv_uiobject_get_visible(void *me) {
 	return this->visible;
 }
 
 static inline void uv_uiobject_show(void *me) {
-	this->visible = true;
+	uv_uiobject_set_visible(me, true);
 }
 
 static inline void uv_uiobject_hide(void *me) {
-	this->visible = false;
+	uv_uiobject_set_visible(me, false);
 }
 
 /// @brief: Getter for the object's bounding box

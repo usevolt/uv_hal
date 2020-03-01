@@ -152,6 +152,14 @@ int16_t uv_ui_get_yglobal(const void *me) {
 }
 
 
+void uv_uiobject_set_visible(void *me, bool value) {
+	if (this->visible != value) {
+		uv_ui_refresh(this);
+	}
+	this->visible = value;
+}
+
+
 
 #if CONFIG_FT81X
 
