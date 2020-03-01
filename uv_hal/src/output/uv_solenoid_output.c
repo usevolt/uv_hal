@@ -58,8 +58,7 @@ void uv_solenoid_output_conf_reset(uv_solenoid_output_conf_st *conf,
 		uv_solenoid_output_limitconf_st *limitconf) {
 	conf->min_ppt = 100;
 	conf->max_ppt = 1000;
-	limitconf->max_ma = CONFIG_SOLENOID_MAX_CURRENT_DEF;
-	limitconf->max_ppt = CONFIG_SOLENOID_MAX_PPT_DEF;
+	limitconf->max = CONFIG_SOLENOID_MAX_CURRENT_DEF;
 }
 
 
@@ -109,9 +108,7 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 	if (this->conf->max_ppt > 1000) {
 		this->conf->max_ppt = 1000;
 	}
-	if (this->limitconf->max_ppt > 1000) {
-		this->limitconf->max_ppt = 1000;
-	}
+	LIMIT_MAX(this->limitconf->max, CONFIG_SOLENOID_MAX_CURRENT_DEF);
 
 	// set output to OFF state when target is zero and either PWM or ADC value is zero.
 	// This disables the ADC current measuring, even when there's open load.
@@ -160,10 +157,10 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 			// clamp the output current to min & max current limits
 			if (this->target) {
 				target_ma = uv_lerpi(this->target,
-						uv_lerpi(this->conf->min_ppt, 0, this->limitconf->max_ma),
-						uv_lerpi(this->conf->max_ppt, 0, this->limitconf->max_ma));
-				if (target_ma > this->limitconf->max_ma) {
-					target_ma = this->limitconf->max_ma;
+						uv_lerpi(this->conf->min_ppt, 0, this->limitconf->max),
+						uv_lerpi(this->conf->max_ppt, 0, this->limitconf->max));
+				if (target_ma > this->limitconf->max) {
+					target_ma = this->limitconf->max;
 				}
 			}
 			uv_pid_set_target(&this->ma_pid, target_ma);
@@ -195,8 +192,8 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 #if CONFIG_SOLENOID_MODE_PWM
 			if (this->target) {
 				output = uv_lerpi(this->target,
-						uv_lerpi(this->conf->min_ppt, 0, this->limitconf->max_ppt),
-						uv_lerpi(this->conf->max_ppt, 0, this->limitconf->max_ppt));
+						uv_lerpi(this->conf->min_ppt, 0, this->limitconf->max),
+						uv_lerpi(this->conf->max_ppt, 0, this->limitconf->max));
 			}
 			this->out = output;
 #endif

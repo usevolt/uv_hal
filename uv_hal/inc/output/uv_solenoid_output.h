@@ -63,9 +63,6 @@
 #if !defined(CONFIG_SOLENOID_MODE_PWM)
 #error "CONFIG_SOLENOID_MODE_PWM should define if the PWM mode and it's configuration settings are enabled"
 #endif
-#if !defined(CONFIG_SOLENOID_MAX_PPT_DEF)
-#error "CONFIG_SOLENOID_MAX_PPT_DEF should define the max ppt default value in PWM mode"
-#endif
 
 typedef enum {
 	/// @brief: Output is current controlled with a current sensing feedback
@@ -87,17 +84,15 @@ typedef enum {
 /// @brief: Data structure for solenoid output configuration data.
 /// This can be stored in non-volatile memory.
 typedef struct {
-	// minimum PWM ppt, equals to min_ma in current mode
+	// minimum PWM in ppt
 	uint16_t min_ppt;
-	// maximum PWM ppt, equals to max_ma in current mode
+	// maximum PWM in ppt
 	uint16_t max_ppt;
 } uv_solenoid_output_conf_st;
 
 typedef struct {
-	// maximum milliamps in current mode
-	uint16_t max_ma;
-	// maximum PWM duty cycle in PWM mode
-	uint16_t max_ppt;
+	// maximum milliamps / ppt depending on the mode
+	uint16_t max;
 } uv_solenoid_output_limitconf_st;
 
 /// @brief: Resets the output values to defaults

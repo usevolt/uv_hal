@@ -161,12 +161,16 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 							}
 						}
 					}
-					uv_delay_init(&this->toggle_delay, this->toggle_limit_ms_pos);
+					uv_delay_init(&this->toggle_delay,
+							(this->toggle_on > 0) ?
+									this->toggle_limit_ms_pos :
+									this->toggle_limit_ms_neg);
 				}
-				printf("%u %i\n", this->toggle_limit_ms_pos, this->toggle_delay);
-				if (this->toggle_limit_ms_pos &&
-						uv_delay(&this->toggle_delay, TARGET_DELAY_MS)) {
-					this->toggle_on = 0;
+				if (((this->toggle_on > 0) && this->toggle_limit_ms_pos) ||
+					((this->toggle_on < 0) && this->toggle_limit_ms_neg)) {
+					if (uv_delay(&this->toggle_delay, TARGET_DELAY_MS)) {
+						this->toggle_on = 0;
+					}
 				}
 				target_req = (this->toggle_on) ?
 						((this->toggle_on > 0) ? 1000 : -1000) : 0;
