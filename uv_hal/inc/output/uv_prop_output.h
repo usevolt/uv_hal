@@ -139,7 +139,8 @@ typedef struct {
 	int8_t toggle_on;
 	uv_delay_st toggle_delay;
 
-	uint32_t toggle_limit_ms;
+	uint32_t toggle_limit_ms_pos;
+	uint32_t toggle_limit_ms_neg;
 	uint32_t enable_delay_ms;
 	uv_delay_st enable_delay;
 
@@ -219,8 +220,9 @@ static inline void uv_prop_output_set_toggle_threshold(
 
 
 static inline void uv_prop_output_set_toggle_limit_ms(
-		uv_prop_output_st *this, uint32_t value) {
-	this->toggle_limit_ms = value;
+		uv_prop_output_st *this, uint32_t value_pos, uint32_t value_neg) {
+	this->toggle_limit_ms_pos = value_pos;
+	this->toggle_limit_ms_neg = value_neg;
 }
 
 

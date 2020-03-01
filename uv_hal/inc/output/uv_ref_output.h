@@ -141,8 +141,9 @@ static inline void uv_ref_output_set_toggle_threshold(uv_ref_output_st *this,
 
 /// @brief: Sets the toggle limit in milliseconds. When the output has been ON after this time,
 /// The toggle state is cleared.
-static inline void uv_ref_output_set_toggle_limit_ms(uv_ref_output_st *this, uint32_t value) {
-	uv_prop_output_set_toggle_limit_ms((uv_prop_output_st*) this, value);
+static inline void uv_ref_output_set_toggle_limit_ms(
+		uv_ref_output_st *this, uint32_t value_pos, uint32_t value_neg) {
+	uv_prop_output_set_toggle_limit_ms((uv_prop_output_st*) this, value_pos, value_neg);
 }
 
 /// @brief: Sets the enable delay time in milliseconds. The output

@@ -170,8 +170,8 @@ static inline void uv_dual_solenoid_output_set_toggle_threshold(
 
 
 static inline void uv_dual_solenoid_output_set_toggle_limit_ms(
-		uv_dual_solenoid_output_st *this, uint32_t value) {
-	uv_prop_output_set_toggle_limit_ms((uv_prop_output_st *) this, value);
+		uv_dual_solenoid_output_st *this, uint32_t value_pos, uint32_t value_neg) {
+	uv_prop_output_set_toggle_limit_ms((uv_prop_output_st *) this, value_pos, value_neg);
 }
 
 
