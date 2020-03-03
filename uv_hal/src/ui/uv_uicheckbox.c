@@ -49,7 +49,7 @@ static inline void draw(void *me, const uv_bounding_box_st *pbb) {
 
 	uv_ft81x_draw_shadowrrect(x, y + uv_uibb(this)->height / 2 - bh / 2, bh, bh, CONFIG_UI_RADIUS,
 			((uv_uibutton_st*) this)->main_c, lightc, shadowc);
-	if (this->state) {
+	if (uv_uitogglebutton_get_state((uv_uitogglebutton_st*) this)) {
 		const uint8_t offset = 6;
 		uv_ft81x_draw_rrect(x + offset, y + uv_uibb(this)->height / 2 - bh / 2 + offset,
 				bh - offset * 2, bh - offset * 2, CONFIG_UI_RADIUS, this->fillc);

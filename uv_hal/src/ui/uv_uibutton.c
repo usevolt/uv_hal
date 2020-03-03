@@ -83,29 +83,26 @@ uv_uiobject_ret_e uv_uibutton_step(void *me, uint16_t step_ms) {
 
 
 void _uv_uibutton_touch(void *me, uv_touch_st *touch) {
-	if (uv_ui_get_enabled(this)) {
-		if (touch->action == TOUCH_IS_DOWN) {
-			if ((this->state != UIBUTTON_PRESSED) &&
-					(this->state != UIBUTTON_LONGPRESSED)) {
-				uv_ui_refresh(this);
-			}
-			if (this->state != UIBUTTON_LONGPRESSED) {
-				this->state = UIBUTTON_PRESSED;
-			}
+	if (touch->action == TOUCH_IS_DOWN) {
+		if ((this->state != UIBUTTON_PRESSED) &&
+				(this->state != UIBUTTON_LONGPRESSED)) {
+			uv_ui_refresh(this);
 		}
-		else if (touch->action == TOUCH_CLICKED) {
-			// prevent touch action propagating to other elements
-			touch->action = TOUCH_NONE;
-			this->state = UIBUTTON_CLICKED;
-		}
-		else {
-			if (this->state != UIBUTTON_UP) {
-				uv_ui_refresh(this);
-			}
-			this->state = UIBUTTON_UP;
+		if (this->state != UIBUTTON_LONGPRESSED) {
+			this->state = UIBUTTON_PRESSED;
 		}
 	}
-
+	else if (touch->action == TOUCH_CLICKED) {
+		// prevent touch action propagating to other elements
+		touch->action = TOUCH_NONE;
+		this->state = UIBUTTON_CLICKED;
+	}
+	else {
+		if (this->state != UIBUTTON_UP) {
+			uv_ui_refresh(this);
+		}
+		this->state = UIBUTTON_UP;
+	}
 }
 
 
