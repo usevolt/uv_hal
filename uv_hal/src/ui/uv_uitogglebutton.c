@@ -61,6 +61,7 @@ void uv_uitogglebutton_init(void *me, bool state, char *text, const uv_uistyle_s
 	uv_uibutton_init(me, text, style);
 	this->state = state;
 	this->clicked = false;
+	this->is_down = false;
 	((uv_uiobject_st*) this)->step_callb = uv_uitogglebutton_step;
 	uv_uiobject_set_draw_callb(this, &draw);
 	uv_uiobject_set_touch_callb(this, &touch);
@@ -71,7 +72,7 @@ uv_uiobject_ret_e uv_uitogglebutton_step(void *me, uint16_t step_ms) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
 	this->clicked = false;
-
+	this->is_down = false;
 
 	return ret;
 }
@@ -83,6 +84,12 @@ static void touch(void *me, uv_touch_st *touch) {
 		this->state = !this->state;
 		uv_ui_refresh(this);
 		touch->action = TOUCH_NONE;
+	}
+	else if (touch->action == TOUCH_IS_DOWN) {
+		this->is_down = true;
+	}
+	else {
+
 	}
 
 }

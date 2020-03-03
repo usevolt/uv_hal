@@ -46,6 +46,7 @@ typedef struct __attribute__((packed)) {
 
 	bool state;
 	bool clicked;
+	bool is_pressed;
 	color_t fillc;
 } uv_uicheckbox_st;
 
