@@ -34,6 +34,7 @@
 
 static void draw(void *me, const uv_bounding_box_st *pbb);
 static void touch(void *me, uv_touch_st *touch);
+static uv_uiobject_ret_e step(void *me, uint16_t step_ms);
 
 
 #define this ((uv_uislider_st*) me)
@@ -57,8 +58,12 @@ void uv_uislider_init(void *me, int16_t min_value, int16_t max_value, int16_t cu
 	this->inc_step = 1;
 	this->drag_val = 0;
 	this->title = NULL;
+	uv_delay_init(&this->longpress_delay, UISLIDER_LONGPRESS_DELAY_MS);
+	uv_delay_end(&this->longpress_delay);
+	this->incdec = 0;
 	uv_uiobject_set_draw_callb(this, &draw);
 	uv_uiobject_set_touch_callb(this, &touch);
+	uv_uiobject_set_step_callb(this, &step);
 }
 
 
@@ -162,41 +167,73 @@ static void touch(void *me, uv_touch_st *touch) {
 		touch->action = TOUCH_NONE;
 		uv_ui_refresh(this);
 	}
-	else if (touch->action == TOUCH_CLICKED) {
-		int8_t i = this->inc_step;
+	else if (touch->action == TOUCH_IS_DOWN) {
+		this->drag_start_val = this->cur_val;
+		if (uv_delay_has_ended(&this->longpress_delay)) {
+			uv_delay_init(&this->longpress_delay,
+					(this->incdec == 0) ?
+							UISLIDER_LONGPRESS_DELAY_MS :
+							UISLIDER_LONGPRESS_MIN_DELAY_MS);
 
-		if (this->horizontal) {
-			int16_t hpx = uv_reli(this->cur_val, this->min_val, this->max_val);
-			int16_t hx = uv_lerpi(hpx, 0,
-					uv_uibb(this)->width - CONFIG_UI_SLIDER_WIDTH - 1);
-			if (touch->x < hx + CONFIG_UI_SLIDER_WIDTH / 2) {
-				i = -this->inc_step;
+			// if incdec was 0, it means that the uislider was pressed for the first step cycle
+			// and we should determine if we want to increase or decrease the value
+			if (this->incdec == 0) {
+				this->incdec = this->inc_step;
+
+				if (this->horizontal) {
+					int16_t hpx = uv_reli(this->cur_val, this->min_val, this->max_val);
+					int16_t hx = uv_lerpi(hpx, 0,
+							uv_uibb(this)->width - CONFIG_UI_SLIDER_WIDTH - 1);
+					if (touch->x < hx + CONFIG_UI_SLIDER_WIDTH / 2) {
+						this->incdec = -this->inc_step;
+					}
+				}
+				else {
+					int16_t hpy = uv_reli(this->cur_val, this->min_val, this->max_val);
+					int16_t hy = uv_lerpi(hpy, uv_uibb(this)->height -
+							CONFIG_UI_SLIDER_WIDTH - 1 - (this->title ? this->font->char_height + 5 : 0), 0);
+					if (touch->y > hy + CONFIG_UI_SLIDER_WIDTH / 2) {
+						this->incdec = -this->inc_step;
+					}
+				}
 			}
+			// round up to the closest inc_step value
+			int8_t i = this->incdec;
+			if ((this->cur_val % this->inc_step) != 0) {
+				if (i < 0) {
+					i = -(this->cur_val % this->inc_step);
+				}
+				else {
+					i = this->inc_step - (this->cur_val % this->inc_step);
+				}
+			}
+			uv_uislider_set_value(this, this->cur_val + i);
 		}
-		else {
-			int16_t hpy = uv_reli(this->cur_val, this->min_val, this->max_val);
-			int16_t hy = uv_lerpi(hpy, uv_uibb(this)->height -
-					CONFIG_UI_SLIDER_WIDTH - 1 - (this->title ? this->font->char_height + 5 : 0), 0);
-			if (touch->y > hy + CONFIG_UI_SLIDER_WIDTH / 2) {
-				i = -this->inc_step;
-			}
-		}
-		if ((this->cur_val % this->inc_step) != 0) {
-			if (i < 0) {
-				i = -(this->cur_val % this->inc_step);
-			}
-			else {
-				i = this->inc_step - (this->cur_val % this->inc_step);
-			}
-		}
-		uv_uislider_set_value(this, this->cur_val + i);
+		// prevent action from propagating into other elements
 		touch->action = TOUCH_NONE;
 	}
 	else if (touch->action == TOUCH_NONE && this->dragging) {
 		this->dragging = false;
 		this->drag_val = 0;
 	}
+	else if (touch->action == TOUCH_CLICKED) {
+		// prevent action from propagating into other elements
+		touch->action = TOUCH_NONE;
+	}
+	else {
+		uv_delay_end(&this->longpress_delay);
+		this->incdec = 0;
+	}
 
+}
+
+
+static uv_uiobject_ret_e step(void *me, uint16_t step_ms) {
+	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
+
+	uv_delay(&this->longpress_delay, step_ms);
+
+	return ret;
 }
 
 
