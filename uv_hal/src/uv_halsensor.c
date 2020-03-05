@@ -234,6 +234,14 @@ int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 		}
 		this->output16 = 0;
 	}
+	else if (state == HALSENSOR_STATE_NOT_CALIBRATED) {
+		// set the halsensor to ON state if the config values have been modified by hand
+		if (abs(this->config->max - this->config->min) >= CONFIG_HALSENSOR_CALIB_PASS) {
+			this->state = HALSENSOR_STATE_ON;
+			this->output16 = 0;
+		}
+
+	}
 	else {
 		this->output16 = 0;
 	}
