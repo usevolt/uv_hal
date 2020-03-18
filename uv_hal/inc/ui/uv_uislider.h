@@ -43,6 +43,8 @@
 #error "CONFIG_UI_SLIDER_INC_DEC_WIDTH should define the width of uilisder increase and decrease buttons in pizels."
 #endif
 
+#define UISLIDER_LONGPRESS_DELAY_MS			500
+#define UISLIDER_LONGPRESS_MIN_DELAY_MS		50
 
 /// @brief: Slider is a vertical or horizontal slider with a value
 typedef struct __attribute__((packed)) {
@@ -57,6 +59,10 @@ typedef struct __attribute__((packed)) {
 	int16_t drag_start_val;
 	/// @brief: Defines how much the value is changed when tapping the slider. Defualts to 1
 	uint16_t inc_step;
+	// indicates the direction of the increase or decrease step when the slider is pressed
+	int8_t incdec;
+	// longpress delay for updating the value if the user presses the slider for a long time
+	uv_delay_st longpress_delay;
 	/// @brief: If true, displays the current value next to the slider.
 	/// On vertical slider, value is shown below the slider.
 	/// On horizontal slider, value is shown to the right of the slider.
