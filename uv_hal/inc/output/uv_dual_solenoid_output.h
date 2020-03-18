@@ -175,11 +175,9 @@ static inline void uv_dual_solenoid_output_set_toggle_limit_ms(
 }
 
 
-/// @brief: Sets the enable delay time in milliseconds. The output
-/// is set ON only after the request has been active for this delay.
-static inline void uv_dual_solenoid_output_set_enable_delay_ms(
-		uv_dual_solenoid_output_st *this, uint32_t value) {
-	uv_prop_output_set_enable_delay_ms((uv_prop_output_st *) this, value);
+static inline void uv_dual_solenoid_output_set_enable_delays_ms(
+		uv_dual_solenoid_output_st *this, uint32_t pre_delay, uint32_t post_delay) {
+	uv_prop_output_set_enable_delays_ms((uv_prop_output_st*) this, pre_delay, post_delay);
 }
 
 

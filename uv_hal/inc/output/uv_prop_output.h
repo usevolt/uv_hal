@@ -141,8 +141,10 @@ typedef struct {
 
 	uint32_t toggle_limit_ms_pos;
 	uint32_t toggle_limit_ms_neg;
-	uint32_t enable_delay_ms;
-	uv_delay_st enable_delay;
+	uint32_t enable_pre_delay_ms;
+	uint32_t enable_post_delay_ms;
+	uv_delay_st pre_enable_delay;
+	uv_delay_st post_enable_delay;
 
 } uv_prop_output_st;
 
@@ -226,11 +228,13 @@ static inline void uv_prop_output_set_toggle_limit_ms(
 }
 
 
-/// @brief: Sets the enable delay time in milliseconds. The output
-/// is set ON only after the request has been active for this delay.
-static inline void uv_prop_output_set_enable_delay_ms(
-		uv_prop_output_st *this, uint32_t value) {
-	this->enable_delay_ms = value;
+/// @brief: Sets the enable delays time in milliseconds. The output
+/// is set ON only after the request has been active for pre delay amount of time,
+/// and OFF after the request has been off for post delay amount of time
+static inline void uv_prop_output_set_enable_delays_ms(
+		uv_prop_output_st *this, uint32_t pre_delay, uint32_t post_delay) {
+	this->enable_pre_delay_ms = pre_delay;
+	this->enable_post_delay_ms = post_delay;
 }
 
 

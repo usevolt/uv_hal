@@ -74,8 +74,10 @@ void uv_prop_output_init(uv_prop_output_st *this,
 	uv_hysteresis_init(&this->toggle_hyst,
 			this->toggle_threshold, TOGGLE_HYSTERESIS_DEFAULT, false);
 	uv_delay_init(&this->toggle_delay, this->toggle_limit_ms_pos);
-	this->enable_delay_ms = PROP_OUTPUT_ENABLE_DELAY_MS_DEFAULT;
-	uv_delay_init(&this->enable_delay, this->enable_delay_ms);
+	this->enable_pre_delay_ms = 0;
+	this->enable_post_delay_ms = 0;
+	uv_delay_init(&this->pre_enable_delay, this->enable_pre_delay_ms);
+	uv_delay_init(&this->post_enable_delay, this->enable_post_delay_ms);
 }
 
 
@@ -88,7 +90,8 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 			this->state == OUTPUT_STATE_FAULT) {
 		this->target = 0;
 		this->target_req = 0;
-		uv_delay_init(&this->enable_delay, this->enable_delay_ms);
+		uv_delay_init(&this->pre_enable_delay, this->enable_pre_delay_ms);
+		uv_delay_init(&this->post_enable_delay, this->enable_post_delay_ms);
 	}
 	else {
 		if (uv_delay(&this->target_delay, step_ms)) {
@@ -112,7 +115,10 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 			if (target_req == 0 ||
 					(int32_t) target_req * this->last_target_req < 0) {
 				this->toggle_hyst.result = 0;
-				uv_delay_init(&this->enable_delay, this->enable_delay_ms);
+				uv_delay_init(&this->pre_enable_delay, this->enable_pre_delay_ms);
+			}
+			else {
+				uv_delay_init(&this->post_enable_delay, this->enable_post_delay_ms);
 			}
 			this->last_target_req = target_req;
 
@@ -123,12 +129,14 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 			bool on = (this->mode == PROP_OUTPUT_MODE_PROP_NORMAL) ?
 							!!target_req : hyston;
 			if (on) {
-				uv_delay(&this->enable_delay, TARGET_DELAY_MS);
+				uv_delay(&this->pre_enable_delay, TARGET_DELAY_MS);
+				uv_delay_init(&this->post_enable_delay, this->enable_post_delay_ms);
 			}
 			else {
-				uv_delay_init(&this->enable_delay, this->enable_delay_ms);
+				uv_delay_init(&this->pre_enable_delay, this->enable_pre_delay_ms);
+				uv_delay(&this->post_enable_delay, TARGET_DELAY_MS);
 			}
-			if (!uv_delay_has_ended(&this->enable_delay)) {
+			if (!uv_delay_has_ended(&this->pre_enable_delay)) {
 				target_req = 0;
 				// we affect the hysteresis value only if the toggle state is off.
 				// This makes sure that the output is always possible to
@@ -138,7 +146,7 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 				}
 				else {
 					if (this->mode != PROP_OUTPUT_MODE_PROP_NORMAL) {
-						uv_delay_end(&this->enable_delay);
+						uv_delay_end(&this->pre_enable_delay);
 					}
 				}
 			}
