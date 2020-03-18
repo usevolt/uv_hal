@@ -110,7 +110,7 @@ typedef struct {
 	uint16_t invert;
 } uv_halsensor_config_st;
 
-/// @brief: resets the configuration structure to default values
+/// @brief: resets the configuration structure to default values defined in uv_hal_config.h
 void uv_halsensor_config_reset(uv_halsensor_config_st *this);
 
 

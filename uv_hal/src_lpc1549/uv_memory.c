@@ -202,30 +202,41 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 	// copy values from flash to destination
 	memcpy(d, source, length);
 
-	// make sure to copy the end structure, since it contains the crc checksums
-	memcpy(& CONFIG_NON_VOLATILE_END, (uint8_t *) NON_VOLATILE_MEMORY_START_ADDRESS +
-			((uint32_t) & CONFIG_NON_VOLATILE_END - (uint32_t) & CONFIG_NON_VOLATILE_START),
-			sizeof(uv_data_end_t));
+	source = (uint8_t *) NON_VOLATILE_MEMORY_START_ADDRESS +
+			((uint32_t) & CONFIG_NON_VOLATILE_END - (uint32_t) & CONFIG_NON_VOLATILE_START);
 
-	//check crc
-	if (scope & MEMORY_APP_PARAMS) {
-		uint32_t len = (uint32_t) & CONFIG_NON_VOLATILE_END -
-				(uint32_t) & CONFIG_NON_VOLATILE_START - sizeof(uv_data_start_t);
-		uint16_t crc = uv_memory_calc_crc(((uint8_t*) & CONFIG_NON_VOLATILE_START) +
-				sizeof(uv_data_start_t), len);
-
-		if (CONFIG_NON_VOLATILE_END.crc != crc) {
-			ret = ERR_END_CHECKSUM_NOT_MATCH;
-		}
+	if ((unsigned int) source + sizeof(uv_data_end_t) >
+			NON_VOLATILE_MEMORY_START_ADDRESS + FLASH_SECTOR_SIZE) {
+		// the non-volatile data was greater than Flash sector size.
+		// This is not allowed
+		ret = ERR_NOT_ENOUGH_MEMORY;
 	}
-	if (scope & MEMORY_COM_PARAMS) {
-		// calculate the HAL checksum and compare it to the loaded value
-		uint16_t crc = uv_memory_calc_crc(& CONFIG_NON_VOLATILE_START, sizeof(uv_data_start_t));
-		if (crc != CONFIG_NON_VOLATILE_END.hal_crc) {
-			// hal crc didn't match, which means that we have loaded invalid settings.
-			// Revert the HAL system defaults
-			_uv_rtos_hal_reset();
-			ret = ERR_START_CHECKSUM_NOT_MATCH;
+	else {
+		// make sure to copy the end structure, since it contains the crc checksums
+		memcpy(& CONFIG_NON_VOLATILE_END, (uint8_t *) NON_VOLATILE_MEMORY_START_ADDRESS +
+				((uint32_t) & CONFIG_NON_VOLATILE_END - (uint32_t) & CONFIG_NON_VOLATILE_START),
+				sizeof(uv_data_end_t));
+
+		//check crc
+		if (scope & MEMORY_APP_PARAMS) {
+			uint32_t len = (uint32_t) & CONFIG_NON_VOLATILE_END -
+					(uint32_t) & CONFIG_NON_VOLATILE_START - sizeof(uv_data_start_t);
+			uint16_t crc = uv_memory_calc_crc(((uint8_t*) & CONFIG_NON_VOLATILE_START) +
+					sizeof(uv_data_start_t), len);
+
+			if (CONFIG_NON_VOLATILE_END.crc != crc) {
+				ret = ERR_END_CHECKSUM_NOT_MATCH;
+			}
+		}
+		if (scope & MEMORY_COM_PARAMS) {
+			// calculate the HAL checksum and compare it to the loaded value
+			uint16_t crc = uv_memory_calc_crc(& CONFIG_NON_VOLATILE_START, sizeof(uv_data_start_t));
+			if (crc != CONFIG_NON_VOLATILE_END.hal_crc) {
+				// hal crc didn't match, which means that we have loaded invalid settings.
+				// Revert the HAL system defaults
+				_uv_rtos_hal_reset();
+				ret = ERR_START_CHECKSUM_NOT_MATCH;
+			}
 		}
 	}
 	return ret;
