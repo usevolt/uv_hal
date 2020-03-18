@@ -290,11 +290,16 @@ char *jump_to(char *position, char* match) {
 	return position;
 }
 
+// returns the next character. If a string is detected, it is jumped over
+// and the next character after the ending \" is returned.
 char *next(char *position) {
-	position++;
 	if (*position == '"') {
-		while (*(++position) != '"' && *position != '\0');
+		do {
+			position++;
+		}
+		while (*position != '"' && *position != '\0');
 	}
+	position++;
 	return position;
 }
 
@@ -304,9 +309,9 @@ static char *get_value_ptr(char *ptr);
 
 bool uv_jsonreader_get_next_sibling(char *object, char **dest) {
 	bool ret = false;
-	unsigned int count = 0;
+	int count = 0;
 	char *ptr;
-	for (ptr = object; *ptr != '\0'; ptr++) {
+	for (ptr = object; *ptr != '\0'; ptr = next(ptr)) {
 		bool br = false;
 		// cycle to the end of this object
 		if (*ptr == '{' || *ptr == '[') {
@@ -324,14 +329,10 @@ bool uv_jsonreader_get_next_sibling(char *object, char **dest) {
 			ret = true;
 			br = true;
 		}
-		// if count is negative, starting object didn't have any more siblings
-		else if (count < 0) {
-			br = true;
-		}
 		else {
 
 		}
-		if (br) {
+		if (br || count < 0) {
 			break;
 		}
 	}
@@ -361,10 +362,9 @@ static char *objarray_to_end(char *obj) {
 
 
 
-char *uv_jsonreader_find_child(char *parent, char *child_name,
-		int depth) {
+char *uv_jsonreader_find_child(char *parent, char *child_name) {
 	char *ret = NULL;
-	unsigned int count = 0, name_len = strlen(child_name);
+	unsigned int name_len = strlen(child_name);
 	char *ptr;
 
 	// check if this object is of type object or array
@@ -375,37 +375,23 @@ char *uv_jsonreader_find_child(char *parent, char *child_name,
 	else {
 		// jump to the start of this object
 		parent = get_value_ptr(parent);
-
-		for (ptr = parent; *ptr != '\0'; ptr = next(ptr)) {
+		ptr = parent;
+		if (*ptr == '{') {
+			ptr++;
+		}
+		while (*ptr != '\0') {
 			bool br = false;
 
-			if (*ptr == '{' || *ptr == '[') {
-				count++;
-			}
-			else if (*ptr == '}' || *ptr == ']') {
-				count--;
-			}
-			// no more children
-			else if (count < 0) {
+			// child found, check if child has the name requested
+			if (strncmp(ptr + 1, child_name, name_len) == 0 &&
+					*(ptr + 1 + name_len) == '"') {
+				ret = ptr;
 				br = true;
 			}
-			else if (*(ptr + 1) == ':') {
-				if (depth < 0 || count <= depth) {
-					while (*(--ptr) != '"');
-
-					// child found, check if child has the name requested
-					if (strncmp(ptr + 1, child_name, name_len) == 0 &&
-							*(ptr + 1 + name_len) == '"') {
-						ret = ptr;
-						br = true;
-					}
-					else {
-						ptr = jump_to(ptr, ",");
-					}
-				}
-			}
 			else {
-
+				if (!uv_jsonreader_get_next_sibling(ptr, &ptr)) {
+					br = true;
+				}
 			}
 			if (br) {
 				break;
