@@ -188,7 +188,6 @@ bool uv_jsonreader_get_next_sibling(char *object, char **dest);
 
 
 /// @brief: Finds and stores a child object with a key 'key' from 'object' parent to 'dest'.
-/// Child is searched recursively 'depth' many times. For unlimited depth, pass -1.
 ///
 /// @note: Since array-type object's children don't have names, they are evaluated as an
 /// empty strings.
@@ -197,13 +196,10 @@ bool uv_jsonreader_get_next_sibling(char *object, char **dest);
 ///
 /// @param parent: Pointer to the parent object which child's are parsed recursively
 /// @param child_name: The name of the child which is searched.
-/// @param depth: The depth of how deep recursively will be searched. For unlimited depth,
-/// pass a negative value.
 /// @param dest: If the child is found, it's pointer is stored in here. Otherwise this will be
 /// left untouched. Passing NULL here allows to use this function to only check is a child exists
 /// without getting a pointer to it.
-char *uv_jsonreader_find_child(char *parent, char *child_name,
-		int depth);
+char *uv_jsonreader_find_child(char *parent, char *child_name);
 
 
 
