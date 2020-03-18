@@ -105,8 +105,9 @@ void uv_canopen_emcy_send(const uv_emcy_codes_e err_code, uint32_t data);
 
 
 /// @brief: Gets the oldest received EMCY message and returns true.
-/// If no EMCY messages were received, returns false.
-bool uv_canopen_emcy_get(canopen_emcy_msg_st *dest);
+///
+/// @return: ERR_NONE if there was an EMCY message to be returned, an error otherwise
+uv_errors_e uv_canopen_emcy_get(canopen_emcy_msg_st *dest);
 
 
 

@@ -60,15 +60,17 @@ void _uv_canopen_emcy_rx(const uv_can_message_st *msg) {
 		emcy.node_id = msg->id & CANOPEN_NODE_ID_MASK;
 		emcy.error_code = msg->data_16bit[3];
 		emcy.data = msg->data_32bit[0];
+		uv_disable_int();
 		uv_ring_buffer_push(&this->emcy_rx, &emcy);
+		uv_enable_int();
 	}
 }
 
 
-bool uv_canopen_emcy_get(canopen_emcy_msg_st *dest) {
+uv_errors_e uv_canopen_emcy_get(canopen_emcy_msg_st *dest) {
 	uv_errors_e e;
 	e = uv_ring_buffer_pop(&this->emcy_rx, dest);
-	return (e == ERR_NONE);
+	return e;
 }
 
 
