@@ -144,7 +144,9 @@ typedef struct {
 	uint32_t enable_pre_delay_ms;
 	uint32_t enable_post_delay_ms;
 	uv_delay_st pre_enable_delay;
+	uint8_t pre_enable_dir;
 	uv_delay_st post_enable_delay;
+	int16_t post_enable_val;
 
 } uv_prop_output_st;
 
