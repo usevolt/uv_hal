@@ -29,6 +29,7 @@
 
 #include "canopen/canopen_emcy.h"
 #include "uv_canopen.h"
+#include "uv_rtos.h"
 #include CONFIG_MAIN_H
 
 #define this (&_canopen)
