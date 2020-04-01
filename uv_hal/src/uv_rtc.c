@@ -75,6 +75,39 @@ void uv_rtc_get_time(uv_time_st *dest) {
 	dest->min = bitswap((read[5] << 4)) * 10 + bitswap(read[5] & 0xF0);
 	dest->sec = bitswap((read[6] << 4)) * 10 + bitswap(read[6] & 0xF0);
 
+	uint16_t buildyear = strtol(&__DATE__[7], NULL, 0);
+
+	if (dest->year < buildyear) {
+		// past date given, update the time with build date
+		dest->year = strtol(&__DATE__[7], NULL, 0);
+		char *months[] = {
+				"Jan",
+				"Feb",
+				"Mar",
+				"Apr",
+				"May",
+				"Jun",
+				"Jul",
+				"Aug",
+				"Sep",
+				"Oct",
+				"Nov",
+				"Dec"
+		};
+		for (uint8_t i = 0; i < 12; i++) {
+			if (strstr(__DATE__, months[i])) {
+				dest->month = i + 1;
+				break;
+			}
+		}
+		dest->day = strtol(&__DATE__[3], NULL, 0);
+		dest->hour = strtol(__TIME__, NULL, 0);
+		dest->min = strtol(&__TIME__[3], NULL, 0);
+		dest->sec = strtol(&__TIME__[6], NULL, 0);
+
+		uv_rtc_set_time(dest);
+	}
+
 }
 
 
