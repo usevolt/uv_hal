@@ -68,7 +68,9 @@ void uv_rtc_get_time(uv_time_st *dest) {
 	uint8_t read[7] = { };
 	uv_i2cm_readwrite(I2C0, addr, NULL, 0, read, sizeof(read));
 
-	dest->year = 2000 + bitswap(read[0] << 4) * 10 + bitswap(read[0] & 0xF0);
+	// get the base year from the build date
+	uint16_t base_year = strtol(&__DATE__[7], NULL, 0);
+	dest->year = base_year + bitswap(read[0] << 4) * 10 + bitswap(read[0] & 0xF0);
 	dest->month = bitswap((read[1] << 4)) * 10 + bitswap(read[1] & 0xF0);
 	dest->day = bitswap((read[2] << 4)) * 10 + bitswap(read[2] & 0xF0);
 	dest->hour = bitswap(((read[4] & 0xC) << 4)) * 10 + bitswap(read[4] & 0xF0);
@@ -88,7 +90,9 @@ void uv_rtc_set_time(uv_time_st *src) {
 	uv_i2cm_readwrite(I2C0, addr, write, 1, NULL, 0);
 
 	addr = S35390A_CMD(S35390A_REALTIME_DATA1);
-	int16_t year = src->year - 2000;
+	// get the base year from the build date
+	uint16_t base_year = strtol(&__DATE__[7], NULL, 0);
+	int16_t year = src->year - base_year;
 	if (year < 0) {
 		year = 0;
 	}
