@@ -68,7 +68,6 @@ void uv_prop_output_init(uv_prop_output_st *this,
 
 	this->toggle_threshold = PROP_OUTPUT_TOGGLE_THRESHOLD_DEFAULT;
 	this->last_hyst = 0;
-	this->toggle_on = 0;
 	this->toggle_limit_ms_pos = PROP_OUTPUT_TOGGLE_LIMIT_MS_DEFAULT;
 	this->toggle_limit_ms_neg = PROP_OUTPUT_TOGGLE_LIMIT_MS_DEFAULT;
 	uv_hysteresis_init(&this->toggle_hyst,
@@ -79,9 +78,16 @@ void uv_prop_output_init(uv_prop_output_st *this,
 	this->pre_enable_dir = 0;
 	this->post_enable_val = 0;
 	uv_delay_init(&this->pre_enable_delay, this->enable_pre_delay_ms);
+	uv_delay_end(&this->pre_enable_delay);
 	uv_delay_init(&this->post_enable_delay, this->enable_post_delay_ms);
+	uv_delay_end(&this->post_enable_delay);
+	uv_prop_output_clear(this);
 }
 
+
+void uv_prop_output_clear(uv_prop_output_st *this) {
+	this->toggle_on = 0;
+}
 
 
 
@@ -219,11 +225,11 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 								this->toggle_on = -1;
 							}
 						}
+						uv_delay_init(&this->toggle_delay,
+								(this->toggle_on > 0) ?
+										this->toggle_limit_ms_pos :
+										this->toggle_limit_ms_neg);
 					}
-					uv_delay_init(&this->toggle_delay,
-							(this->toggle_on > 0) ?
-									this->toggle_limit_ms_pos :
-									this->toggle_limit_ms_neg);
 				}
 				if (((this->toggle_on > 0) && this->toggle_limit_ms_pos) ||
 					((this->toggle_on < 0) && this->toggle_limit_ms_neg)) {
