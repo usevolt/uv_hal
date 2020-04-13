@@ -163,6 +163,9 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms);
 
 
 
+void uv_prop_output_clear(uv_prop_output_st *this);
+
+
 static inline uv_output_state_e uv_prop_output_get_state(uv_prop_output_st *this) {
 	return this->state;
 }

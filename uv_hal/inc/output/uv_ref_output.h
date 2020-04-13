@@ -113,6 +113,12 @@ void uv_ref_output_init(uv_ref_output_st *this,
 		const uv_ref_output_lookup_st *lookup_table, uint8_t lookup_table_len);
 
 
+
+static inline void uv_ref_output_clear(uv_ref_output_st *this) {
+	uv_prop_output_clear((uv_prop_output_st*) this);
+}
+
+
 /// @brief: Sets the output mode
 static inline void uv_ref_output_set_mode(uv_ref_output_st *this,
 		uv_prop_output_modes_e value) {

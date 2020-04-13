@@ -89,6 +89,10 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 
 
 
+static inline void uv_dual_solenoid_output_clear(uv_dual_solenoid_output_st *this) {
+	uv_prop_output_clear((uv_prop_output_st*) this);
+}
+
 
 /// @brief: Disables the dual solenoid output module
 static inline void uv_dual_solenoid_output_disable(uv_dual_solenoid_output_st *this) {
