@@ -28,27 +28,29 @@
 
 #include <ui/uv_uilist.h>
 
-
 #if CONFIG_UI
 
 #define this ((uv_uilist_st*)me)
 
-static void draw(void *me, const uv_bounding_box_st *pbb);
 static void touch(void *me, uv_touch_st *touch);
+static void draw(void *me, const uv_bounding_box_st *pbb);
+static void draw_entry(void *me, void *entry, bool selected, uv_bounding_box_st *bb);
 
 
-void uv_uilist_init(void *me, char **buffer, uint16_t buffer_len, const uv_uistyle_st *style) {
+void uv_uilist_init(void *me, uv_uilist_entry_st *buffer,
+		uint16_t buffer_len, const uv_uistyle_st *style) {
 	uv_uiobject_init(me);
 	this->selected_index = -1;
-	uv_vector_init(&this->entries, buffer, buffer_len, sizeof(char*));
+	uv_vector_init(&this->entries, buffer, buffer_len, sizeof(uv_uilist_entry_st));
 	((uv_uiobject_st*) this)->step_callb = &uv_uilist_step;
-	uv_uiobject_set_draw_callb(this, &draw);
-	uv_uiobject_set_touch_callb(this, &touch);
 	this->align = ALIGN_CENTER;
 	this->clicked = false;
 	this->bg_c = style->bg_c;
 	this->text_c = style->text_color;
 	this->font = style->font;
+	this->draw_entry = &draw_entry;
+	uv_uiobject_set_draw_callb(this, &draw);
+	uv_uiobject_set_touch_callb(this, &touch);
 }
 
 
@@ -66,11 +68,8 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t x = uv_ui_get_xglobal(this);
 	int16_t thisy = uv_ui_get_yglobal(this);
 	uint16_t entry_height = CONFIG_UI_LIST_ENTRY_HEIGHT;
-	int16_t sely = 0;
 	int16_t y;
 	valignment_e valign = uv_ui_get_valignment(this->align);
-	color_t highlight_c = uv_uic_brighten(this->bg_c, 30);
-	color_t shadow_c = uv_uic_brighten(this->bg_c, -30);
 	if (valign == VALIGN_CENTER) {
 		y = thisy + uv_uibb(this)->height / 2 -
 				(entry_height * uv_vector_size(&this->entries) / 2);
@@ -84,31 +83,43 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	}
 
 
+	uv_bounding_box_st bb;
 	for (i = 0; i < uv_vector_size(&this->entries); i++) {
+		bb.x = x;
+		bb.y = y;
+		bb.width = uv_uibb(this)->width;
+		bb.height = entry_height;
 		if ((uv_uibb(this)->height + thisy) < (y + entry_height)) {
 			break;
 		}
-		if (this->selected_index == i) {
-			sely = y;
-		}
-		else {
-			uv_ft81x_draw_shadowrrect(x, y, uv_uibb(this)->width, entry_height, CONFIG_UI_RADIUS,
-					this->bg_c, highlight_c, shadow_c);
-			uv_ft81x_draw_string(*((char**) uv_vector_at(&this->entries, i)), this->font,
-					x + uv_uibb(this)->width / 2, y + entry_height / 2, ALIGN_CENTER,
-					this->text_c);
+		if (this->selected_index != i) {
+			if (this->draw_entry) {
+				this->draw_entry(this, uv_uilist_at(this, i), false, &bb);
+			}
 		}
 		y += entry_height - 1;
 	}
 	if (this->selected_index >= 0) {
-		uv_ft81x_draw_shadowrrect(x, sely, uv_uibb(this)->width, entry_height, CONFIG_UI_RADIUS,
-				highlight_c, uv_uic_brighten(highlight_c, 30), this->bg_c);
-		uv_ft81x_draw_string(*((char**) uv_vector_at(&this->entries, this->selected_index)),
-				this->font, x + uv_uibb(this)->width / 2, sely + entry_height / 2,
-				ALIGN_CENTER, this->text_c);
+		if (this->draw_entry) {
+			this->draw_entry(this, uv_uilist_at(this, i), true, &bb);
+		}
 	}
-
 }
+
+static void draw_entry(void *me, void *entry, bool selected, uv_bounding_box_st *bb) {
+	color_t highlight_c = uv_uic_brighten(this->bg_c, selected ? 60 : 30);
+	color_t shadow_c = uv_uic_brighten(this->bg_c, selected ? 0 : -30);
+	color_t c = uv_uic_brighten(this->bg_c, selected ? 30 : 0);
+	uv_uilist_entry_st *uilist_entry = entry;
+
+	uv_ft81x_draw_shadowrrect(bb->x, bb->y, bb->width, bb->height, CONFIG_UI_RADIUS,
+			c, highlight_c, shadow_c);
+	uv_ft81x_draw_string(uilist_entry->str, this->font,
+			bb->x + bb->width / 2, bb->y + bb->height / 2, ALIGN_CENTER,
+			this->text_c);
+}
+
+
 
 
 
@@ -148,14 +159,14 @@ static void touch(void *me, uv_touch_st *touch) {
 
 
 /// @brief: Pushes a new element into the end of the list
-void uv_uilist_push_back(void *me, char *str) {
+void uv_uilist_push_back(void *me, uv_uilist_entry_st *str) {
 	uv_vector_push_back(&this->entries, (void*) &str);
 	uv_uilist_recalc_height(this);
 	uv_ui_refresh_parent(this);
 }
 
 /// @brief: Pops the last element from the list
-void uv_uilist_pop_back(void *me, char *dest) {
+void uv_uilist_pop_back(void *me, uv_uilist_entry_st *dest) {
 	uv_vector_pop_back(&this->entries, &dest);
 	uv_uilist_recalc_height(this);
 	uv_ui_refresh_parent(this);
@@ -180,6 +191,14 @@ void uv_uilist_clear(void *me) {
 	uv_vector_clear(&this->entries);
 	uv_uilist_recalc_height(this);
 	uv_ui_refresh_parent(this);
+}
+
+
+void uv_uilist_select(void *me, int16_t index) {
+	if (this->selected_index != index) {
+		uv_ui_refresh(this);
+	}
+	this->selected_index = index;
 }
 
 

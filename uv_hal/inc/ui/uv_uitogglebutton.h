@@ -31,8 +31,7 @@
 
 
 #include <uv_hal_config.h>
-#include "uv_ui.h"
-
+#include "uv_uibutton.h"
 
 #if CONFIG_UI
 

@@ -31,7 +31,7 @@
 
 
 #include <uv_hal_config.h>
-#include "uv_ui.h"
+#include "uv_uitogglebutton.h"
 
 
 #if CONFIG_UI
@@ -42,11 +42,8 @@
 /// @note: This should apply exactly with uitogglebutton, as the uicheckbox
 /// uses uitogglebutton functions.
 typedef struct __attribute__((packed)) {
-	EXTENDS(uv_uibutton_st);
+	EXTENDS(uv_uitogglebutton_st);
 
-	bool state;
-	bool clicked;
-	bool is_pressed;
 	color_t fillc;
 } uv_uicheckbox_st;
 
@@ -63,20 +60,17 @@ typedef struct __attribute__((packed)) {
 void uv_uicheckbox_init(void *me, bool state, char *text, const uv_uistyle_st *style);
 
 static inline void uv_uicheckbox_set_state(void *me, bool state) {
-	if (this->state != state) {
-		uv_ui_refresh(this);
-	}
-	this->state = state;
+	uv_uitogglebutton_set_state(me, state);
 }
 
 
 static inline bool uv_uicheckbox_get_state(void *me) {
-	return this->state;
+	return uv_uitogglebutton_get_state(me);
 }
 
 
 static inline bool uv_uicheckbox_clicked(void *me) {
-	return this->clicked;
+	return uv_uitogglebutton_clicked(me);
 }
 
 /// @brief: Sets the button text
