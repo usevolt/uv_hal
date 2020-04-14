@@ -218,7 +218,7 @@ void uv_uilist_clear(void *me);
 
 /// @brief: Indexes the list and returns the string at *index*
 static inline uv_uilist_entry_st *uv_uilist_at(void *me, uint16_t index) {
-	return (*((uv_uilist_entry_st **)uv_vector_at(&this->entries, index)));
+	return (uv_uilist_entry_st*) uv_vector_at(&this->entries, index);
 }
 
 

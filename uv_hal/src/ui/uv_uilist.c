@@ -84,6 +84,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 
 	uv_bounding_box_st bb;
+	uv_bounding_box_st selected_bb;
 	for (i = 0; i < uv_vector_size(&this->entries); i++) {
 		bb.x = x;
 		bb.y = y;
@@ -97,11 +98,14 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 				this->draw_entry(this, uv_uilist_at(this, i), false, &bb);
 			}
 		}
+		else {
+			selected_bb = bb;
+		}
 		y += entry_height - 1;
 	}
-	if (this->selected_index >= 0) {
+	if (this->selected_index != -1) {
 		if (this->draw_entry) {
-			this->draw_entry(this, uv_uilist_at(this, i), true, &bb);
+			this->draw_entry(this, uv_uilist_at(this, this->selected_index), true, &selected_bb);
 		}
 	}
 }
@@ -160,7 +164,7 @@ static void touch(void *me, uv_touch_st *touch) {
 
 /// @brief: Pushes a new element into the end of the list
 void uv_uilist_push_back(void *me, uv_uilist_entry_st *str) {
-	uv_vector_push_back(&this->entries, (void*) &str);
+	uv_vector_push_back(&this->entries, str);
 	uv_uilist_recalc_height(this);
 	uv_ui_refresh_parent(this);
 }
