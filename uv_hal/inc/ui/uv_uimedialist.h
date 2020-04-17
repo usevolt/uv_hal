@@ -31,10 +31,11 @@
 
 
 #include <uv_hal_config.h>
-#include <uv_utilities.h>
-#include <uv_uilist.h>
 
 #if CONFIG_UI
+
+#include <uv_utilities.h>
+#include <uv_uilist.h>
 
 
 
