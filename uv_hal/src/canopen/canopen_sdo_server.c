@@ -57,8 +57,12 @@
 
 
 
-void _uv_canopen_sdo_server_add_callb(void (*callb)(uint16_t mindex, uint8_t sindex)) {
-	this->callb = callb;
+void _uv_canopen_sdo_server_add_write_callb(void (*write_callb)(uint16_t mindex, uint8_t sindex)) {
+	this->write_callb = write_callb;
+}
+
+void _uv_canopen_sdo_server_add_read_callb(void (*read_callb)(uint16_t mindex, uint8_t sindex)) {
+	this->read_callb = read_callb;
 }
 
 /// @brief: Send a SDO Server abort response message
@@ -72,7 +76,7 @@ static void sdo_server_abort(uint16_t main_index,
 
 void _uv_canopen_sdo_server_init(void) {
 	this->state = CANOPEN_SDO_STATE_READY;
-	this->callb = NULL;
+	this->write_callb = NULL;
 }
 
 void _uv_canopen_sdo_server_reset(void) {
@@ -164,8 +168,8 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 					if (_canopen_write_data(obj, msg, GET_SINDEX(msg))) {
 						memcpy(&reply_msg.data_32bit[1], &msg->data_32bit[1], 4);
 						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
-						if (this->callb) {
-							this->callb(this->mindex, this->sindex);
+						if (this->write_callb) {
+							this->write_callb(this->mindex, this->sindex);
 						}
 					}
 					else {
@@ -205,6 +209,9 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 							INITIATE_DOMAIN_UPLOAD | (1 << 1) | (1 << 0) |
 							((4 - CANOPEN_TYPE_LEN(obj->type)) << 2));
 					_canopen_copy_data(&reply_msg, obj, GET_SINDEX(msg));
+					if (this->read_callb) {
+						this->read_callb(GET_MINDEX(msg), GET_SINDEX(msg));
+					}
 					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 				}
 			}
@@ -285,6 +292,9 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 			this->data_index += data_count;
 			uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 			this->toggle = !this->toggle;
+			if (this->read_callb) {
+				this->read_callb(this->mindex, this->sindex);
+			}
 		}
 		else {
 			sdo_server_abort(this->mindex, this->sindex,
@@ -322,8 +332,8 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 				sdo_server_abort(this->mindex, this->sindex,
 						CANOPEN_SDO_ERROR_OUT_OF_MEMORY);
 			}
-			if ((this->state == CANOPEN_SDO_STATE_READY) && this->callb) {
-				this->callb(this->mindex, this->sindex);
+			if ((this->state == CANOPEN_SDO_STATE_READY) && this->write_callb) {
+				this->write_callb(this->mindex, this->sindex);
 			}
 		}
 		else {
@@ -363,8 +373,8 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 					SET_CMD_BYTE(&reply_msg, END_BLOCK_DOWNLOAD_REPLY);
 					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 					this->state = CANOPEN_SDO_STATE_READY;
-					if (this->callb) {
-						this->callb(this->mindex, this->sindex);
+					if (this->write_callb) {
+						this->write_callb(this->mindex, this->sindex);
 					}
 				}
 			}

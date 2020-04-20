@@ -108,8 +108,7 @@ typedef struct {
 /// @param lookup_table_len: The length of the lookup table in element count
 void uv_ref_output_init(uv_ref_output_st *this,
 		uv_prop_output_conf_st *conf, uv_prop_output_limitconf_st *limitconf,
-		uv_pwm_channel_t pwm_chn, uv_adc_channels_e adc_chn,
-		uint32_t emcy_fault,
+		uv_pwm_channel_t pwm_chn, uint32_t emcy_fault,
 		const uv_ref_output_lookup_st *lookup_table, uint8_t lookup_table_len);
 
 

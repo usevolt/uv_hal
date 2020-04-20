@@ -540,7 +540,11 @@ void uv_canopen_set_can_callback(void (*callb)(void *user_ptr, uv_can_message_st
 ///
 /// @note: The callback will be called from the HAL task
 static inline void uv_canopen_set_sdo_write_callback(void (*callb)(uint16_t mindex, uint8_t sindex)) {
-	_uv_canopen_sdo_server_add_callb(callb);
+	_uv_canopen_sdo_server_add_write_callb(callb);
+}
+
+static inline void uv_canopen_set_sdo_read_callback(void (*callb)(uint16_t mindex, uint8_t sindex)) {
+	_uv_canopen_sdo_server_add_read_callb(callb);
 }
 
 uint8_t uv_canopen_sdo_read8(uint8_t node_id, uint16_t mindex, uint8_t sindex);

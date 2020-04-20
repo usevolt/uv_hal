@@ -110,6 +110,7 @@ static inline void uv_dual_solenoid_output_enable(uv_dual_solenoid_output_st *th
 }
 
 
+
 /// @brief: Returns the current measured from the sense feedback
 static inline int16_t uv_dual_solenoid_output_get_current(uv_dual_solenoid_output_st *this) {
 	return this->current_ma;
