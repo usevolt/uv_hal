@@ -100,13 +100,13 @@ static inline uint32_t uv_uimedia_get_end_addr(uv_uimedia_st *this) {
 
 /// @brief: Returns the width of the bitmap in pixels
 static inline uint16_t uv_uimedia_get_bitmapwidth(uv_uimedia_st *this) {
-	return this->width;
+	return (this == NULL) ? 0 : this->width;
 }
 
 
 /// @brief: Returns the height of the bitmap in pixels
 static inline uint16_t uv_uimedia_get_bitmapheight(uv_uimedia_st *this) {
-	return this->height;
+	return (this == NULL) ? 0 : this->height;
 }
 
 /// @brief: Returns the size of the bitmap in bytes

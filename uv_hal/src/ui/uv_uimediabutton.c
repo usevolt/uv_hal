@@ -36,17 +36,28 @@
 
 #define this ((uv_uimediabutton_st*)me)
 
+static void draw_common(void *me, bool pressed, const uv_bounding_box_st *pbb);
 
 
-static inline void draw(void *me, const uv_bounding_box_st *pbb) {
+static void draw_mediabutton(void *me, const uv_bounding_box_st *pbb) {
+	draw_common(me, uv_uibutton_is_down(me), pbb);
+}
+
+static void draw_mediatogglebutton(void *me, const uv_bounding_box_st *pbb) {
+	draw_common(me, uv_uitogglebutton_get_state(me), pbb);
+}
+
+
+
+static void draw_common(void *me, bool pressed, const uv_bounding_box_st *pbb) {
 	color_t fontc = ((uv_uibutton_st *) this)->text_c;
-	color_t bgc = (uv_uimediabutton_is_down(this)) ?
+	color_t bgc = (pressed) ?
 			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 20) :
 			((uv_uibutton_st*) this)->main_c;
-	color_t shadowc = (uv_uimediabutton_is_down(this)) ?
+	color_t shadowc = (pressed) ?
 			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 30) :
 			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, -30);
-	color_t lightc = (uv_uimediabutton_is_down(this)) ?
+	color_t lightc = (pressed) ?
 			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, -30) :
 			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 30);
 	int16_t x = uv_ui_get_xglobal(this);
@@ -57,11 +68,14 @@ static inline void draw(void *me, const uv_bounding_box_st *pbb) {
 	uint8_t offset = 10;
 	uv_ft81x_draw_shadowrrect(x, y, w, h, CONFIG_UI_RADIUS, bgc, lightc, shadowc);
 	if (this->align == UIMEDIABUTTON_ALIGN_HORIZONTAL) {
-		int16_t imgw = uv_uimedia_get_bitmapwidth(this->media);
-		uv_ft81x_draw_bitmap(this->media, x + ((strlen(this->super.text) == 0) ?
-					((w - uv_uimedia_get_bitmapwidth(this->media)) / 2) : offset),
-				y + h / 2 - uv_uimedia_get_bitmapheight(this->media) / 2);
-		uv_ft81x_draw_string(this->super.text,
+		int16_t imgw = 0;
+		if (this->media != NULL) {
+			imgw = uv_uimedia_get_bitmapwidth(this->media);
+			uv_ft81x_draw_bitmap(this->media, x + ((strlen(((uv_uibutton_st*) this)->text) == 0) ?
+						((w - uv_uimedia_get_bitmapwidth(this->media)) / 2) : offset),
+					y + h / 2 - uv_uimedia_get_bitmapheight(this->media) / 2);
+		}
+		uv_ft81x_draw_string(((uv_uibutton_st*) this)->text,
 				((uv_uibutton_st*) this)->font, x + imgw + (w - imgw) / 2,
 				y + h / 2, ALIGN_CENTER, fontc);
 	}
@@ -71,10 +85,17 @@ static inline void draw(void *me, const uv_bounding_box_st *pbb) {
 						((uv_uibutton_st*)this)->font);
 		int16_t space = (uv_uibb(me)->height - contenth) /
 				((*((uv_uibutton_st*) this)->text == '\0') ? 2 : 3);
-		uv_ft81x_draw_bitmap(this->media, x + w / 2 - uv_uimedia_get_bitmapwidth(this->media) / 2,
-				y + space);
-		uv_ft81x_draw_string(this->super.text, ((uv_uibutton_st*) this)->font, x + w / 2,
-				y + space * 2 + uv_uimedia_get_bitmapheight(this->media),
+		if (this->media != NULL) {
+			uv_ft81x_draw_bitmap(this->media,
+					x + w / 2 - uv_uimedia_get_bitmapwidth(this->media) / 2,
+					MAX(y + space, y));
+		}
+		uv_ft81x_draw_string(((uv_uibutton_st*) this)->text,
+				((uv_uibutton_st*) this)->font, x + w / 2,
+				MIN((y + space * 2 + uv_uimedia_get_bitmapheight(this->media)),
+						y + h - uv_ft81x_get_string_height(
+								((uv_uibutton_st*) this)->text,
+								((uv_uibutton_st*) this)->font)),
 						ALIGN_TOP_CENTER, fontc);
 
 	}
@@ -85,8 +106,8 @@ void uv_uimediabutton_init(void *me, char *text,
 	uv_uibutton_init(me, text, style);
 	this->media = media;
 	this->align = UIMEDIABUTTON_ALIGN_HORIZONTAL;
-	((uv_uiobject_st*) this)->step_callb = &uv_uibutton_step;
-	uv_uiobject_set_draw_callb(this, &draw);
+	uv_uiobject_set_step_callb(this, &uv_uibutton_step);
+	uv_uiobject_set_draw_callb(this, &draw_mediabutton);
 }
 
 
@@ -98,6 +119,29 @@ void uv_uimediabutton_set_media(void *me, uv_uimedia_st *media) {
 		uv_ui_refresh(this);
 	}
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+void uv_uimediatogglebutton_init(void *me, bool state, char *text,
+		uv_uimedia_st *media, const uv_uistyle_st *style) {
+	uv_uimediabutton_init(me, text, media, style);
+	uv_uitogglebutton_init(me, state, text, style);
+	uv_uiobject_set_draw_callb(this, &draw_mediatogglebutton);
+	uv_uiobject_set_step_callb(this, &uv_uitogglebutton_step);
+}
+
+
+
 
 
 

@@ -48,12 +48,21 @@ typedef enum {
 
 /// @brief: uimediabutton is a button with a media (i.e. an image) placed next to the text
 typedef struct __attribute__((packed)) {
-	EXTENDS(uv_uibutton_st);
+	// has to extend togglebutton since uv_uimediatogglebutton_st is used for
+	// toggle behaviour
+	EXTENDS(uv_uitogglebutton_st);
 
 	uv_uimedia_st *media;
 	uimediabutton_alignment_e align;
 
 } uv_uimediabutton_st;
+
+
+
+typedef uimediabutton_alignment_e uimediatogglebutton_alignment_e;
+typedef uv_uimediabutton_st uv_uimediatogglebutton_st;
+
+
 
 #ifdef this
 #undef this
@@ -98,6 +107,72 @@ static inline void uv_uimediabutton_set_align(void *me, uimediabutton_alignment_
 static inline uimediabutton_alignment_e uv_uimediabutton_get_align(void *me) {
 	return this->align;
 }
+
+
+
+#undef this
+
+
+
+#ifdef this
+#undef this
+#endif
+#define this ((uv_uimediatogglebutton_st*)me)
+
+
+/// @brief: Initializes the mediatogglebutton
+///
+/// @param media: The media file which will be shown on this uimediatogglebutton
+void uv_uimediatogglebutton_init(void *me, bool state, char *text,
+		uv_uimedia_st *media, const uv_uistyle_st *style);
+
+
+static inline bool uv_uimediatogglebutton_clicked(void *me) {
+	return uv_uitogglebutton_clicked(this);
+}
+
+static inline bool uv_uimediatogglebutton_is_down(void *me) {
+	return uv_uitogglebutton_is_down(this);
+}
+
+static inline bool uv_uimediatogglebutton_get_state(void *me) {
+	return uv_uitogglebutton_get_state(this);
+}
+
+
+/// @brief: Sets the button text
+static inline void uv_uimediatogglebutton_set_text(void *me, char *text) {
+	uv_uitogglebutton_set_text(me, text);
+}
+
+static inline void uv_uimediatogglebutton_set_media(void *me, uv_uimedia_st *media) {
+	uv_uimediabutton_set_media(me, media);
+}
+
+/// @brief: Returns the button text
+static inline char *uv_uimediatogglebutton_get_text(void *me) {
+	return uv_uitogglebutton_get_text(me);
+}
+
+
+/// @brief: Sets the button alignment
+static inline void uv_uimediatogglebutton_set_align(
+		void *me, uimediatogglebutton_alignment_e value) {
+	this->align = value;
+}
+
+static inline void uv_uimediatogglebutton_set_state(
+		void *me, bool state) {
+	uv_uitogglebutton_set_state(me, state);
+}
+
+/// @brief: Gets the alignment
+static inline uimediatogglebutton_alignment_e uv_uimediatogglebutton_get_align(void *me) {
+	return this->align;
+}
+
+
+
 
 
 
