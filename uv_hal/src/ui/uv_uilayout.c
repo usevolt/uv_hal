@@ -141,6 +141,9 @@ static int16_t uistrlayout_get_col_count_at_cell(uv_uistrlayout_st *this, const 
 		if (*cell_ptr == '|') {
 			ret++;
 		}
+		else if (*cell_ptr == '#') {
+			ret += MAX(strtol(cell_ptr + 1, NULL, 10) - 1, 0);
+		}
 		cell_ptr++;
 	}
 	return ret;
@@ -152,6 +155,9 @@ static int16_t uistrlayout_get_nth_cell_at_row(uv_uistrlayout_st *this, const ch
 			(*cell_ptr != '\n')) {
 		if (*cell_ptr == '|') {
 			ret++;
+		}
+		else if (*cell_ptr == '#') {
+			ret += MAX(strtol(cell_ptr + 1, NULL, 10) - 1, 0);
 		}
 		cell_ptr--;
 	}
@@ -165,17 +171,25 @@ static uv_bounding_box_st uistrlayout_get_bb_from_cell(uv_uistrlayout_st *this, 
 	int16_t col_i = uistrlayout_get_nth_cell_at_row(this, cell);
 	int16_t row_i = uistrlayout_get_row_count_at(this, cell);
 	int16_t col_count = uistrlayout_get_col_count_at_cell(this, cell);
+	int16_t span = 0;
+	if (*cell == '#') {
+		span = MAX(strtol(cell + 1, NULL, 10) - 1, 0);
+	}
 
 	if (this->horizontal) {
-		bb.x = this->bb.x + col_i * this->bb.width / col_count + this->h_padding;
+		bb.x = this->bb.x + col_i * this->bb.width / col_count + this->h_padding -
+				(this->bb.width * span / col_count + this->h_padding * MAX(span - 1, 0));
 		bb.y = this->bb.y + row_i * this->bb.height / this->row_count + this->v_padding;
-		bb.width = this->bb.width / col_count - this->h_padding * 2;
+		bb.width = this->bb.width / col_count - this->h_padding * 2 +
+				this->bb.width * span / col_count + this->h_padding * MAX(span - 1, 0);
 		bb.height = this->bb.height / this->row_count - this->v_padding * 2;
 	}
 	else {
-		bb.y = this->bb.y + col_i * this->bb.height / col_count + this->v_padding;
+		bb.y = this->bb.y + col_i * this->bb.height / col_count + this->v_padding -
+				(this->bb.height * span / col_count + this->v_padding * MAX(span - 1, 0));
 		bb.x = this->bb.x + row_i * this->bb.width / this->row_count + this->h_padding;
-		bb.height = this->bb.height / col_count - this->v_padding * 2;
+		bb.height = this->bb.height / col_count - this->v_padding * 2 +
+				this->bb.height * span / col_count + this->v_padding * MAX(span - 1, 0);
 		bb.width = this->bb.width / this->row_count - this->h_padding * 2;
 	}
 
@@ -203,13 +217,28 @@ static uv_bounding_box_st strlayout_find_next(uv_uistrlayout_st *this,
 	strcpy(s, str);
 	uint16_t last_i = 0;
 	const char *cell = NULL;
-	// replace all cell changes with termination marks, to make string finding easier
+	// replace all cell changes and span markings with termination marks,
+	// to make string finding easier
 	uint16_t len = strlen(str);
 	for (uint16_t i = 0; i < len + 1; i++) {
-		if (str[i] == '|' || str[i] == '\n' || str[i] == '\0') {
+		if (str[i] == '|' || str[i] == '\n' || str[i] == '\0' || str[i] == '#') {
+			if (str[i] == '#') {
+				s[i] = '\0';
+				// skip all numbers that follow span character '#'
+				while(str[i + 1] >= '0' && str[i + 1] <= '9') {
+					i++;
+				}
+			}
 			s[i] = '\0';
 			if (strcmp(&s[last_i], c) == 0) {
 				cell = &str[last_i];
+				// go back until the start of the cell.
+				// Necessary to include '#' span characters
+				while (cell != str &&
+						*(cell - 1) != '\n' &&
+						*(cell - 1) != '|') {
+					cell--;
+				}
 				break;
 			}
 			else {
