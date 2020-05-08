@@ -58,8 +58,10 @@ void uv_uibutton_draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t w = uv_uibb(this)->width;
 	int16_t h = uv_uibb(this)->height;
 	color_t bgc = (this->state) ? uv_uic_brighten(this->main_c, 20) : this->main_c;
-	color_t shadowc = (this->state) ? uv_uic_brighten(this->main_c, 30) : uv_uic_brighten(this->main_c, -30);
-	color_t lightc = (this->state) ? uv_uic_brighten(this->main_c, -30) : uv_uic_brighten(this->main_c, 30);
+	color_t shadowc = (this->state) ?
+			uv_uic_brighten(this->main_c, 30) : uv_uic_brighten(this->main_c, -30);
+	color_t lightc = (this->state) ?
+			uv_uic_brighten(this->main_c, -30) : uv_uic_brighten(this->main_c, 30);
 	color_t fontc = this->text_c;
 
 
@@ -111,6 +113,12 @@ void uv_uibutton_set_text(void *me, char *text) {
 		uv_ui_refresh(this);
 	}
 	this->text = text;
+}
+
+
+
+bool uv_uibutton_is_down(void *me) {
+	return (this->state == UIBUTTON_PRESSED || this->state == UIBUTTON_LONGPRESSED);
 }
 
 

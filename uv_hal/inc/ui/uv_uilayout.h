@@ -113,12 +113,15 @@ uv_bounding_box_st uv_uigridlayout_next(uv_uigridlayout_st *this);
 /// @info: The string defines all the cells in uistrlayout. Each cell should have a unique
 /// name, horizontally separated with '|' and vertically with new line character '\n'.
 /// White space is evaluated as a part of the cell names and the cell names are case-sensitive.
+/// Additionally a span-character '#' can be used to determine how many horizontal
+/// cells the cell fills. The '#' character should be followed with the amount of cells to fill.
+/// This span-tag is not calculated being part of the cell name.
 ///
-/// @example: "a|b|c\nd1|e" string constructs a layout:
-///	a   b   c
+/// @example: "a|#2b|c\nd1|e" string constructs a layout:
+///	a   b   b    c
 ///	  d1   e
 /// Where each horizontal row is divided equally for the cells. Thus cells 'd' and 'e'
-/// are bigger than 'a', 'b' and 'c'.
+/// are bigger than 'a', 'b' and 'c', but because of cell spanning, b is double to a and c.
 typedef struct {
 	uv_bounding_box_st bb;
 	int16_t h_padding;
