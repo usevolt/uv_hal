@@ -128,6 +128,9 @@ initialization structure."
 initialization structure."
 #endif
 #endif
+#if !defined(CONFIG_CANOPEN_EMCY_INHIBIT_TIME_MS)
+#error "CONFIG_CANOPEN_EMCY_INIHBIT_TIME_MS should define the inhibit delay time for EMCY messages"
+#endif
 #if !defined(CONFIG_CANOPEN_CONSUMER_HEARTBEAT_INDEX)
 #define CONFIG_CANOPEN_CONSUMER_HEARTBEAT_INDEX	0x1016
 #endif
@@ -290,11 +293,6 @@ CONFIG_CANOPEN_EMCY_MSG_ID_x symbol should define the message ID, starting from 
 
 
 
-
-// The usevolt vendor ID assigned by CiA
-#define CANOPEN_USEVOLT_VENDOR_ID			0x049B
-
-
 typedef struct {
 	uint16_t cycle_time;
 	uint8_t node_id;
@@ -349,6 +347,7 @@ typedef struct {
 
 	uv_ring_buffer_st emcy_rx;
 	canopen_emcy_msg_st emcy_rx_buffer[CONFIG_CANOPEN_EMCY_RX_BUFFER_SIZE];
+	uv_delay_st emcy_inihbit_delay;
 
 	// SDO member variables
 	struct {
@@ -362,6 +361,12 @@ typedef struct {
 
 
 extern _uv_canopen_st _canopen;
+
+
+
+// The usevolt vendor ID assigned by CiA
+#define CANOPEN_USEVOLT_VENDOR_ID			0x049B
+
 
 
 

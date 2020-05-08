@@ -115,6 +115,7 @@ uv_errors_e uv_canopen_emcy_get(canopen_emcy_msg_st *dest);
 void _uv_canopen_emcy_init(void);
 void _uv_canopen_emcy_reset(void);
 void _uv_canopen_emcy_rx(const uv_can_message_st *msg);
+void _uv_canopen_emcy_step(uint16_t step_ms);
 
 
 #endif /* UV_HAL_INC_CANOPEN_CANOPEN_EMCY_H_ */

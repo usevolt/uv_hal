@@ -43,6 +43,7 @@ CAT(CONFIG_CANOPEN_EMCY_MSG_ID_, INC(i)), CAN_STD); } while(0)
 void _uv_canopen_emcy_init(void) {
 	uv_ring_buffer_init(&this->emcy_rx, this->emcy_rx_buffer,
 			CONFIG_CANOPEN_EMCY_RX_BUFFER_SIZE, sizeof(canopen_emcy_msg_st));
+	uv_delay_init(&this->emcy_inihbit_delay, CONFIG_CANOPEN_EMCY_INHIBIT_TIME_MS);
 #if CONFIG_TARGET_LPC1785
 	REPEAT(CONFIG_CANOPEN_EMCY_MSG_COUNT, CONFIG_RX_MSG);
 
@@ -77,13 +78,23 @@ uv_errors_e uv_canopen_emcy_get(canopen_emcy_msg_st *dest) {
 
 void uv_canopen_emcy_send(const uv_emcy_codes_e err_code, uint32_t data) {
 
-	uv_can_message_st msg = { };
-	msg.id = CANOPEN_EMCY_ID + NODEID;
-	msg.type = CAN_STD;
-	msg.data_length = 8;
-	msg.data_16bit[3] = err_code;
-	msg.data_32bit[0] = data;
-	uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
+	if (uv_delay_has_ended(&this->emcy_inihbit_delay)) {
+		uv_can_message_st msg = { };
+		msg.id = CANOPEN_EMCY_ID + NODEID;
+		msg.type = CAN_STD;
+		msg.data_length = 8;
+		msg.data_16bit[3] = err_code;
+		msg.data_32bit[0] = data;
+		uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
+	}
 
 	// todo: add error code to [1003]
 }
+
+
+
+void _uv_canopen_emcy_step(uint16_t step_ms) {
+	uv_delay(&_canopen.emcy_inihbit_delay, step_ms);
+}
+
+

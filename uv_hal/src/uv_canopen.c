@@ -116,6 +116,7 @@ void _uv_canopen_step(unsigned int step_ms) {
 	_uv_canopen_pdo_step(step_ms);
 	_uv_canopen_nmt_step(step_ms);
 	_uv_canopen_sdo_step(step_ms);
+	_uv_canopen_emcy_step(step_ms);
 
 	uv_can_message_st msg;
 	uv_errors_e e;
