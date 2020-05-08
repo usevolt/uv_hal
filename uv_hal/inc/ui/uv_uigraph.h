@@ -1,0 +1,168 @@
+/*
+ * This file is part of the uv_hal distribution (www.usevolt.fi).
+ * Copyright (c) 2017 Usevolt Oy.
+ *
+ *
+ * MIT License
+ *
+ * Copyright (c) 2019 usevolt
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+#ifndef HAL_UV_HAL_INC_UI_UV_UIGRAPH_H_
+#define HAL_UV_HAL_INC_UI_UV_UIGRAPH_H_
+
+
+#include <uv_hal_config.h>
+#include "uv_utilities.h"
+#include "uv_uiobject.h"
+
+/// @file: defines a uigraph module. Uigraph is a graph that draws a graph background
+/// and a graph specified by the given values.
+
+#if CONFIG_UI
+
+
+#ifndef CONFIG_UI_GRAPH_LINE_WIDTH
+#error "CONFIG_UI_GRAPH_LINE_WIDTH should define the line width\
+ used when drawing the graph in pixels"
+#endif
+
+typedef struct __attribute__((packed)) {
+	int16_t x;
+	int16_t y;
+	bool interactive;
+} uv_uigraph_point_st;
+
+
+void uv_uigraph_point_init(uv_uigraph_point_st *this,
+		int16_t x, int16_t y, bool interactive);
+
+
+
+typedef struct __attribute__((packed)) {
+	EXTENDS(uv_uiobject_st);
+
+	color_t coordinate_c;
+	color_t graph_c;
+
+	uv_uigraph_point_st *points;
+	uint16_t points_count;
+	int16_t active_point;
+	int16_t min_x;
+	int16_t min_y;
+	int16_t max_x;
+	int16_t max_y;
+	// helper variables that define the content width and height. These are
+	// calculated in the draw function and stored here, so that they can be used
+	// in touch function.
+	int16_t content_w;
+	int16_t content_x;
+	int16_t content_h;
+	char *title;
+	const uv_uistyle_st *style;
+} uv_uigraph_st;
+
+
+
+
+#ifdef this
+#undef this
+#endif
+#define this ((uv_uigraph_st*)me)
+
+
+
+/// @brief: Initializes the button
+///
+/// @param points_buffer: Pointer to an array of *uv_uigraph_point_st* objects,
+/// that should define the graph drawn on the screen
+/// @param min_x: The minimum value for the X axis, i.e. the left edge
+/// @param max_x: The maximum value for the X axis, i.e. the right edge
+/// @param min_y: The minimum value for the Y axis, i.e. the bottom edge
+/// @param max_y: The maximum value for the Y axis, i.e. the top edge
+/// @param style: Pointer to the ui style used
+void uv_uigraph_init(void *me, uv_uigraph_point_st *points_buffer,
+		uint16_t points_count, int16_t min_x, int16_t max_x,
+		int16_t min_y, int16_t max_y, const uv_uistyle_st *style);
+
+
+
+/// @brief: Sets the title text of the uigraph
+static inline void uv_uigraph_set_title(void *me, char *str) {
+	this->title = str;
+}
+
+
+
+/// @brief: Returns the title if assigned
+static inline char *uv_uigraph_get_title(void *me) {
+	return this->title;
+}
+
+
+
+/// @brief: Sets the coordinate color of the uigraph
+static inline void uv_uigraph_set_coordinate_color(void *me, color_t c) {
+	this->coordinate_c = c;
+}
+
+/// @brief: Returns the uigraph coordinate color
+static inline color_t uv_uigraph_get_coordinate_color(void *me) {
+	return this->coordinate_c;
+}
+
+
+
+/// @brief: Sets the main color of the uibutton. The button should be refreshed after
+/// calling this.
+static inline void uv_uigraph_set_graph_color(void *me, color_t c) {
+	this->graph_c = c;
+}
+
+/// @brief: Returns the button main color
+static inline color_t uv_uigraph_get_graph_color(void *me) {
+	return this->graph_c;
+}
+
+
+
+/// @brief: Step function should be called every step cycle
+uv_uiobject_ret_e uv_uigraph_step(void *me, uint16_t step_ms);
+
+
+
+/// @brief: Draw function. Normally this is called internally but it can also be
+/// called when using draw callbacks
+void uv_uigraph_draw(void *me, const uv_bounding_box_st *pbb);
+
+
+
+void uv_uigraph_touch(void *me, uv_touch_st *touch);
+
+
+
+
+#undef this
+
+
+
+
+#endif
+#endif /* HAL_UV_HAL_INC_UI_UV_UIGRAPH_H_ */
