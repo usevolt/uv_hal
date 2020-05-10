@@ -69,6 +69,9 @@ typedef struct __attribute__((packed)) {
 	int16_t min_y;
 	int16_t max_x;
 	int16_t max_y;
+	int16_t current_val_x;
+	int16_t current_val_y;
+	bool clicked;
 	// helper variables that define the content width and height. These are
 	// calculated in the draw function and stored here, so that they can be used
 	// in touch function.
@@ -102,6 +105,20 @@ void uv_uigraph_init(void *me, uv_uigraph_point_st *points_buffer,
 		uint16_t points_count, int16_t min_x, int16_t max_x,
 		int16_t min_y, int16_t max_y, const uv_uistyle_st *style);
 
+
+
+/// @brief: True for one step cycle when the user presses the uigraph
+static inline bool uv_uigraph_clicked(void *me) {
+	return this->clicked;
+}
+
+
+
+/// @brief: Returns the index number of the selected point. If no points are
+/// selected, returns -1.
+static inline int16_t uv_uigraph_get_selected_point(void *me) {
+	return this->active_point;
+}
 
 
 /// @brief: Sets the title text of the uigraph
@@ -140,6 +157,14 @@ static inline void uv_uigraph_set_graph_color(void *me, color_t c) {
 static inline color_t uv_uigraph_get_graph_color(void *me) {
 	return this->graph_c;
 }
+
+
+
+/// @brief: Sets the current value on the graph. The *val_x* is shown
+/// as a vertical line, and *val_y* is shown as a horizontal line.
+// To disable any one of these, enter a value smaller than the minimum or bigger than
+/// the maximum.
+void uv_uigraph_set_current_val(void *me, int16_t val_x, int16_t val_y);
 
 
 

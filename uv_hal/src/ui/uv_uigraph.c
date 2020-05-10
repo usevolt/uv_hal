@@ -54,6 +54,7 @@ void uv_uigraph_init(void *me, uv_uigraph_point_st *points_buffer,
 	this->points_count = points_count;
 	this->style = style;
 	this->title = NULL;
+	this->clicked = false;
 	this->active_point = -1;
 	this->min_x = min_x;
 	this->max_x = max_x;
@@ -62,6 +63,8 @@ void uv_uigraph_init(void *me, uv_uigraph_point_st *points_buffer,
 	this->content_w = 0;
 	this->content_x = 0;
 	this->content_h = 0;
+	this->current_val_x = this->min_x - 1;
+	this->current_val_y = this->min_y - 1;
 	this->coordinate_c = this->style->text_color;
 	this->graph_c = this->style->fg_c;
 
@@ -87,52 +90,78 @@ void uv_uigraph_draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t maxy_value_width = uv_ft81x_get_string_width(str, this->style->font);
 	sprintf(str, "%i", this->min_y);
 	int16_t miny_value_width = uv_ft81x_get_string_width(str, this->style->font);
-	int16_t value_width = MAX(maxy_value_width, miny_value_width);
+	int16_t value_width = MAX(maxy_value_width, miny_value_width) + CONFIG_UI_GRAPH_LINE_WIDTH;
+
+	this->content_x = 0;
+	this->content_w = w;
+	this->content_h = h;
 
 	// draw the coordinate lines and text values on edges
 	// x axis
-	int32_t rel = uv_reli(0, this->min_y, this->max_y);
-	rel = uv_lerpi(rel, y + ch, y);
+	int32_t rely = uv_reli(0, this->min_y, this->max_y);
+	rely = uv_lerpi(rely, y + ch, y);
 	// check if the x-axis is drawn too low, so that the values won't fit under it.
 	// In this case make the content a little more narrow.
-	if (rel > y + ch - value_height) {
-		ch -= rel - (y + ch - value_height);
+	if (rely > y + ch - value_height) {
+		ch -= rely - (y + ch - value_height);
 	}
-	LIMITS(rel, y, y + ch);
-	uv_ft81x_draw_line(x, rel, x + w, rel, CONFIG_UI_GRAPH_LINE_WIDTH, this->coordinate_c);
-	sprintf(str, "%i", this->min_x);
-	uv_ft81x_draw_string(str, this->style->font, x, rel + CONFIG_UI_GRAPH_LINE_WIDTH,
-			ALIGN_TOP_LEFT, this->coordinate_c);
-	sprintf(str, "%i", this->max_x);
-	uv_ft81x_draw_string(str, this->style->font, x + w, rel + CONFIG_UI_GRAPH_LINE_WIDTH,
-			ALIGN_TOP_RIGHT, this->coordinate_c);
+	LIMITS(rely, y, y + ch);
 
 	// y axis
-	rel = uv_reli(0, this->min_x, this->max_x);
-	rel = uv_lerpi(rel, x, x + cw);
-	if (rel < x + value_width) {
-		int16_t v = rel - (x + cw - value_width);
+	int32_t relx = uv_reli(0, this->min_x, this->max_x);
+	relx = uv_lerpi(relx, x, x + cw);
+	if (relx < x + value_width) {
+		int16_t v = relx - (x - value_width);
 		x += v;
 		// update the content_x variable
 		this->content_x += v;
 		cw -= v;
 	}
-	LIMITS(rel, x, x + cw);
-	uv_ft81x_draw_line(rel, y, rel, y + ch, CONFIG_UI_GRAPH_LINE_WIDTH, this->coordinate_c);
+	LIMITS(relx, x, x + cw);
+
+	// draw the current value lines
+	int16_t cx = uv_lerpi(uv_reli(this->current_val_x, this->min_x, this->max_x), x, x + cw);
+	int16_t cy = uv_lerpi(uv_reli(this->current_val_y, this->min_y, this->max_y), y + ch, y);
+	if (this->current_val_x >= this->min_x &&
+			this->current_val_x <= this->max_x) {
+		uv_ft81x_draw_line(cx, y, cx, y + ch, CONFIG_UI_GRAPH_LINE_WIDTH, this->style->bg_c);
+	}
+	if (this->current_val_y >= this->min_y &&
+			this->current_val_y <= this->max_y) {
+		uv_ft81x_draw_line(x, cy, x + cw, cy, CONFIG_UI_GRAPH_LINE_WIDTH, this->style->bg_c);
+	}
+
+	// draw x axis
+	uv_ft81x_draw_line(x, rely, x + cw, rely, CONFIG_UI_GRAPH_LINE_WIDTH, this->coordinate_c);
+	sprintf(str, "%i", this->min_x);
+	uv_ft81x_draw_string(str, this->style->font, x, rely + CONFIG_UI_GRAPH_LINE_WIDTH,
+			ALIGN_TOP_LEFT, this->coordinate_c);
+	sprintf(str, "%i", this->max_x);
+	uv_ft81x_draw_string(str, this->style->font, x + cw, rely + CONFIG_UI_GRAPH_LINE_WIDTH,
+			ALIGN_TOP_RIGHT, this->coordinate_c);
+
+	// draw y axis
+	uv_ft81x_draw_line(relx, y, relx, y + ch, CONFIG_UI_GRAPH_LINE_WIDTH, this->coordinate_c);
 	sprintf(str, "%i", this->max_y);
-	uv_ft81x_draw_string(str, this->style->font, rel, y,
+	uv_ft81x_draw_string(str, this->style->font, relx - CONFIG_UI_GRAPH_LINE_WIDTH, y,
 			ALIGN_TOP_RIGHT, this->coordinate_c);
 	sprintf(str, "%i", this->min_y);
-	uv_ft81x_draw_string(str, this->style->font, rel,
+	uv_ft81x_draw_string(str, this->style->font, relx - CONFIG_UI_GRAPH_LINE_WIDTH,
 			y + ch - uv_ft81x_get_string_height(str, this->style->font),
 			ALIGN_TOP_RIGHT, this->coordinate_c);
+
+
+	// draw the title text if assigned
+	if (this->title != NULL) {
+		uv_ft81x_draw_string(this->title, this->style->font,
+				x + w / 2, y + h - title_h, ALIGN_TOP_CENTER, this->style->text_color);
+	}
+
 
 	// draw the lines between the points
 	int16_t last_px = 0;
 	int16_t last_py = 0;
-	int16_t inter_px = 0;
-	int16_t inter_py = 0;
-	bool interactive = false;
+	uv_ft81x_set_mask(x, y, cw, ch);
 	for (uint16_t i = 0; i < this->points_count; i++) {
 		uv_uigraph_point_st *p = &this->points[i];
 		int16_t px = uv_lerpi(uv_reli(p->x, this->min_x, this->max_x), x, x + cw);
@@ -142,28 +171,25 @@ void uv_uigraph_draw(void *me, const uv_bounding_box_st *pbb) {
 			uv_ft81x_draw_line(last_px, last_py, px, py,
 					CONFIG_UI_GRAPH_LINE_WIDTH, this->graph_c);
 		}
-		if (p->interactive) {
-			inter_px = px;
-			inter_py = py;
-			interactive = true;
-		}
 		last_px = px;
 		last_py = py;
 	}
-	// after the lines draw the interactive point's dot
-	if (interactive) {
-		uv_ft81x_draw_shadowpoint(inter_px, inter_py,
-				this->style->fg_c,
-				uv_uic_brighten(this->style->fg_c, 30),
-				uv_uic_brighten(this->style->fg_c, -30),
-				this->style->font->char_height);
+	// after the lines draw the point dots
+	for (uint16_t i = 0; i < this->points_count; i++) {
+		uv_uigraph_point_st *p = &this->points[i];
+		int16_t px = uv_lerpi(uv_reli(p->x, this->min_x, this->max_x), x, x + cw);
+		int16_t py = uv_lerpi(uv_reli(p->y, this->min_y, this->max_y), y + ch, y);
+		color_t c = (p->interactive) ? this->graph_c : this->style->bg_c;
+		if (i == this->active_point) {
+			uv_ft81x_draw_shadowpoint(px, py, c,
+					uv_uic_brighten(c, 30), uv_uic_brighten(c, -30),
+					this->style->font->char_height * 3 / 2);
+		}
+		else {
+			uv_ft81x_draw_point(px, py, c, this->style->font->char_height);
+		}
 	}
 
-	// draw the title text if assigned
-	if (this->title != NULL) {
-		uv_ft81x_draw_string(this->title, this->style->font,
-				x + w / 2, y + h - title_h, ALIGN_TOP_CENTER, this->style->text_color);
-	}
 
 	this->content_w = cw;
 	this->content_h = ch;
@@ -182,15 +208,20 @@ void uv_uigraph_touch(void *me, uv_touch_st *touch) {
 			int16_t py = uv_lerpi(uv_reli(p->y, this->min_y, this->max_y),
 					this->content_h, 0);
 
-			if (touch->x > px - this->style->font->char_height &&
-					touch->x < px + this->style->font->char_height &&
-					touch->y > py - this->style->font->char_height &&
-					touch->y < py + this->style->font->char_height) {
-				this->active_point = i;
-				// prevent the touch to propagate any further
-				touch->action = TOUCH_NONE;
-				found = true;
-				break;
+			if (touch->x > px - this->style->font->char_height * 2 &&
+					touch->x < px + this->style->font->char_height * 2 &&
+					touch->y > py - this->style->font->char_height * 2 &&
+					touch->y < py + this->style->font->char_height * 2) {
+				if (this->active_point != i && this->points[i].interactive) {
+					// only select this if it was not yet selected.
+					// This logic makes it possible to cycle through
+					// multiple points that are on top of each others
+					this->active_point = i;
+					// prevent the touch to propagate any further
+					touch->action = TOUCH_NONE;
+					found = true;
+					break;
+				}
 			}
 		}
 		if (found == false) {
@@ -198,6 +229,7 @@ void uv_uigraph_touch(void *me, uv_touch_st *touch) {
 			this->active_point = -1;
 			touch->action = TOUCH_NONE;
 		}
+		this->clicked = true;
 		uv_ui_refresh(this);
 	}
 
@@ -208,9 +240,21 @@ void uv_uigraph_touch(void *me, uv_touch_st *touch) {
 uv_uiobject_ret_e uv_uigraph_step(void *me, uint16_t step_ms) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
-
+	this->clicked = false;
 
 	return ret;
+}
+
+
+
+
+void uv_uigraph_set_current_val(void *me, int16_t val_x, int16_t val_y) {
+	if (this->current_val_x != val_x ||
+			this->current_val_y != val_y) {
+		uv_ui_refresh(this);
+	}
+	this->current_val_x = val_x;
+	this->current_val_y = val_y;
 }
 
 

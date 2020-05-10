@@ -55,6 +55,7 @@
 #include "ui/uv_uicheckbox.h"
 #include "ui/uv_uiacceptdialog.h"
 #include "ui/uv_uimedialist.h"
+#include "ui/uv_uigraph.h"
 #include <stdarg.h>
 
 
