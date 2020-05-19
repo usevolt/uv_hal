@@ -208,6 +208,19 @@ static inline void uv_dual_solenoid_output_set_dither_ampl(uv_dual_solenoid_outp
 }
 
 
+static inline void uv_dual_solenoid_output_set_maxspeed_scaler(
+		uv_dual_solenoid_output_st *this, int16_t value) {
+	uv_prop_output_set_maxspeed_scaler((uv_prop_output_st*) this, value);
+}
+
+
+static inline int16_t uv_dual_solenoid_output_get_maxspeed_scaler(
+		uv_dual_solenoid_output_st *this) {
+	return uv_prop_output_get_maxspeed_scaler((uv_prop_output_st*) this);
+}
+
+
+
 #endif
 
 #endif /* UV_HAL_INC_OUTPUT_UV_DUAL_SOLENOID_OUTPUT_H_ */

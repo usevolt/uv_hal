@@ -112,6 +112,9 @@ void uv_ref_output_step(uv_ref_output_st *this, uint16_t step_ms) {
 	uv_prop_output_limitconf_st *limitconf =
 			uv_prop_output_get_limitconf((uv_prop_output_st*) this);
 
+	int16_t maxspeed_scaler = uv_ref_output_get_maxspeed_scaler(this);
+	LIMITS(maxspeed_scaler, 0, 1000);
+
 	// in disabled state target is always zero
 	uv_output_state_e state = uv_prop_output_get_state((uv_prop_output_st*) this);
 	if (state != OUTPUT_STATE_ON) {
@@ -129,21 +132,25 @@ void uv_ref_output_step(uv_ref_output_st *this, uint16_t step_ms) {
 		// which should represent the output value between 500 ... 0.
 		uint16_t limit_max = 500 + (limitconf->solenoid_limitconf[0].max / 2),
 				limit_min = 500 - (limitconf->solenoid_limitconf[1].max / 2);
-		// target value is always the middle value between limit_max and limit_min
+		// middle value is always the middle value between limit_max and limit_min
 		rel_value = (limit_max - limit_min) / 2 + limit_min;
 
 		if ((target * ((conf->assembly_invert) ? -1 : 1)) > 0) {
 			// positive limit values
 			int32_t rel = uv_lerpi(abs(target),
-					conf->solenoid_conf[0].min_ppt,
-					conf->solenoid_conf[0].max_ppt);
+									conf->solenoid_conf[0].min_ppt,
+									uv_lerpi(maxspeed_scaler,
+											conf->solenoid_conf[0].min_ppt,
+											conf->solenoid_conf[0].max_ppt));
 			rel_value = uv_lerpi(rel, rel_value, limit_max);
 		}
 		else if (target != 0) {
 			// negative limit values
 			int32_t rel = uv_lerpi(abs(target),
-					conf->solenoid_conf[1].min_ppt,
-					conf->solenoid_conf[1].max_ppt);
+									conf->solenoid_conf[1].min_ppt,
+									uv_lerpi(maxspeed_scaler,
+											conf->solenoid_conf[1].min_ppt,
+											conf->solenoid_conf[1].max_ppt));
 			rel_value = uv_lerpi(rel, rel_value, limit_min);
 		}
 		else {

@@ -81,6 +81,8 @@ void uv_solenoid_output_init(uv_solenoid_output_st *this,
 
 	this->mode = SOLENOID_OUTPUT_MODE_CURRENT;
 
+	this->maxspeed_scaler = 1000;
+
 	this->dither_ampl = dither_ampl;
 	if (dither_freq) {
 		this->dither_ms = 1000 / (dither_freq * 2);
@@ -102,12 +104,9 @@ void uv_solenoid_output_init(uv_solenoid_output_st *this,
 void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 	uv_output_step((uv_output_st *)this, step_ms);
 
-	if (this->conf->min_ppt > this->conf->max_ppt) {
-		this->conf->min_ppt = this->conf->max_ppt;
-	}
-	if (this->conf->max_ppt > 1000) {
-		this->conf->max_ppt = 1000;
-	}
+	LIMITS(this->maxspeed_scaler, 0, 1000);
+	LIMIT_MAX(this->conf->max_ppt, 1000);
+	LIMIT_MAX(this->conf->min_ppt, this->conf->max_ppt);
 	LIMIT_MAX(this->limitconf->max, CONFIG_SOLENOID_MAX_CURRENT_DEF);
 
 	// set output to OFF state when target is zero and either PWM or ADC value is zero.
@@ -145,9 +144,7 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 
 		int16_t output = 0;
 
-		if (this->target > 1000) {
-			this->target = 1000;
-		}
+		LIMIT_MAX(this->target, 1000);
 
 		// solenoid is current driven
 		if (this->mode == SOLENOID_OUTPUT_MODE_CURRENT) {
@@ -158,10 +155,15 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 			if (this->target) {
 				target_ma = uv_lerpi(this->target,
 						uv_lerpi(this->conf->min_ppt, 0, this->limitconf->max),
-						uv_lerpi(this->conf->max_ppt, 0, this->limitconf->max));
-				if (target_ma > this->limitconf->max) {
-					target_ma = this->limitconf->max;
-				}
+						uv_lerpi(
+								uv_lerpi(this->maxspeed_scaler,
+										this->conf->min_ppt,
+										this->conf->max_ppt),
+								0,
+								this->limitconf->max)
+								);
+
+				LIMIT_MAX(target_ma, this->limitconf->max);
 			}
 			uv_pid_set_target(&this->ma_pid, target_ma);
 
@@ -193,7 +195,13 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 			if (this->target) {
 				output = uv_lerpi(this->target,
 						uv_lerpi(this->conf->min_ppt, 0, this->limitconf->max),
-						uv_lerpi(this->conf->max_ppt, 0, this->limitconf->max));
+						uv_lerpi(
+								uv_lerpi(
+										this->maxspeed_scaler,
+										this->conf->min_ppt,
+										this->conf->max_ppt),
+								0,
+								this->limitconf->max));
 			}
 			this->out = output;
 #endif

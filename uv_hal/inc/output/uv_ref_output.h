@@ -221,6 +221,16 @@ static inline uint16_t uv_ref_output_get_pwm_dc(uv_ref_output_st *this) {
 }
 
 
+static inline void uv_ref_output_set_maxspeed_scaler(uv_ref_output_st *this, int16_t value) {
+	uv_prop_output_set_maxspeed_scaler((uv_prop_output_st*) this, value);
+}
+
+
+static inline int16_t uv_ref_output_get_maxspeed_scaler(uv_ref_output_st *this) {
+	return uv_prop_output_get_maxspeed_scaler((uv_prop_output_st*) this);
+}
+
+
 #endif
 
 

@@ -81,6 +81,7 @@ void uv_prop_output_init(uv_prop_output_st *this,
 	uv_delay_end(&this->pre_enable_delay);
 	uv_delay_init(&this->post_enable_delay, this->enable_post_delay_ms);
 	uv_delay_end(&this->post_enable_delay);
+	this->maxspeed_scaler = 1000;
 	uv_prop_output_clear(this);
 }
 
@@ -107,6 +108,7 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 			uint16_t dec = this->conf->dec;
 			LIMIT_MAX(acc, 100);
 			LIMIT_MAX(dec, 100);
+			LIMITS(this->maxspeed_scaler, 0, 1000);
 
 			// update hysteresis parameters
 			// because of uv_hysteresis module compares greater-than, and not greater-or-equal,

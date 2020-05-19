@@ -134,6 +134,9 @@ typedef struct {
 	/// @brief: PWM channel configured for this output
 	uv_pwm_channel_t pwm_chn;
 
+	// scales the maximum speed of the solenoid. 0 ... 1000
+	int16_t maxspeed_scaler;
+
 } uv_solenoid_output_st;
 
 
@@ -168,6 +171,20 @@ static inline void uv_solenoid_output_set_mode(uv_solenoid_output_st *this,
 static inline uv_solenoid_output_mode_e uv_solenoid_output_get_mode(uv_solenoid_output_st *this) {
 	return this->mode;
 }
+
+
+/// @brief: Sets the maximum speed scaler value
+static inline void uv_solenoid_output_set_maxspeed_scaler(
+		uv_solenoid_output_st *this, int16_t value) {
+	this->maxspeed_scaler = value;
+}
+
+
+/// @brief: Returns the maximum speed scaler value
+static inline int16_t uv_solenoid_output_get_maxspeed_scaler(uv_solenoid_output_st *this) {
+	return this->maxspeed_scaler;
+}
+
 
 
 /// @brief: Step funtion

@@ -148,6 +148,8 @@ typedef struct {
 	uv_delay_st post_enable_delay;
 	int16_t post_enable_val;
 
+	int16_t maxspeed_scaler;
+
 } uv_prop_output_st;
 
 
@@ -219,6 +221,19 @@ static inline uv_prop_output_modes_e uv_prop_output_get_mode(
 		uv_prop_output_st *this) {
 	return this->mode;
 }
+
+
+static inline void uv_prop_output_set_maxspeed_scaler(
+		uv_prop_output_st *this, int16_t value) {
+	this->maxspeed_scaler = value;
+}
+
+
+static inline int16_t uv_prop_output_get_maxspeed_scaler(
+		uv_prop_output_st *this) {
+	return this->maxspeed_scaler;
+}
+
 
 static inline void uv_prop_output_set_toggle_threshold(
 		uv_prop_output_st *this, uint16_t value) {

@@ -70,7 +70,6 @@ void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 
 
 void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t step_ms) {
-
 	uv_prop_output_step((uv_prop_output_st *) this, step_ms);
 
 	uv_prop_output_conf_st *conf = uv_prop_output_get_conf((uv_prop_output_st*) this);
@@ -122,6 +121,13 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 		}
 	}
 
+	int16_t maxspeed_scaler = uv_dual_solenoid_output_get_maxspeed_scaler(this);
+	LIMITS(maxspeed_scaler, 0, 1000);
+
+	uv_solenoid_output_set_maxspeed_scaler(
+			&this->solenoid[DUAL_OUTPUT_SOLENOID_A], maxspeed_scaler);
+	uv_solenoid_output_set_maxspeed_scaler(
+			&this->solenoid[DUAL_OUTPUT_SOLENOID_B], maxspeed_scaler);
 
 	uv_solenoid_output_step(&this->solenoid[DUAL_OUTPUT_SOLENOID_A], step_ms);
 	uv_solenoid_output_step(&this->solenoid[DUAL_OUTPUT_SOLENOID_B], step_ms);
