@@ -278,6 +278,9 @@ should be enabled. Defaults to 0. Segmented parth takes roughly 1k4 bytes of fla
  the time limit which indicates a node connection loss."
 #endif
 #endif
+#if !defined(CONFIG_CANOPEN_RXPDO_TIMEOUT_MS)
+#error "CONFIG_CANOPEN_RXPDO_TIMEOUT_MS should define the timeout for RXPDO's in ms."
+#endif
 #if CONFIG_TARGET_LPC1785
 #if !defined(CONFIG_CANOPEN_EMCY_MSG_COUNT)
 #error "CONFIG_CANOPEN_EMCY_MSG_COUNT should define the count of different EMCY message ID's \
@@ -320,7 +323,6 @@ typedef struct {
 } uv_canopen_non_volatile_st;
 
 
-
 /// @brief: The main CANopen data structure.
 /// A variable of this struct type should be created in a
 /// RAM section which can be saved to the non-volatile flash. This way
@@ -342,9 +344,6 @@ typedef struct {
 	canopen_node_states_e consumer_heartbeat_states[CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT];
 #endif
 
-	int32_t txpdo_time[CONFIG_CANOPEN_TXPDO_COUNT];
-	int16_t inhibit_time[CONFIG_CANOPEN_TXPDO_COUNT];
-
 	uv_ring_buffer_st emcy_rx;
 	canopen_emcy_msg_st emcy_rx_buffer[CONFIG_CANOPEN_EMCY_RX_BUFFER_SIZE];
 	uv_delay_st emcy_inihbit_delay;
@@ -354,6 +353,18 @@ typedef struct {
 		_uv_canopen_sdo_client_st client;
 		_uv_canopen_sdo_server_st server;
 	} sdo;
+
+	// TXPDO member variables
+	struct {
+		int32_t time;
+		int16_t inhibit_time;
+	} txpdo[CONFIG_CANOPEN_TXPDO_COUNT];
+
+	// RXPDO member variables
+	struct {
+		uv_delay_st def_delay;
+	} rxpdo[CONFIG_CANOPEN_RXPDO_COUNT];
+
 	void (*can_callback)(void *user_ptr, uv_can_message_st* msg);
 
 

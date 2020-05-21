@@ -136,12 +136,15 @@ void _uv_canopen_pdo_init() {
 			// PDO communication parameter found
 			canopen_txpdo_com_parameter_st *com;
 			com = obj->data_ptr;
-			uv_delay_init((uv_delay_st*) &this->txpdo_time[i], com->event_timer);
-			this->inhibit_time[i] = 0;
+			uv_delay_init((uv_delay_st*) &this->txpdo[i].time, com->event_timer);
+			this->txpdo[i].inhibit_time = 0;
 		}
 		else {
 			// something went wrong
 		}
+	}
+	for (int32_t i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
+		uv_delay_init(&this->rxpdo[i].def_delay, CONFIG_CANOPEN_RXPDO_TIMEOUT_MS);
 	}
 }
 
@@ -181,8 +184,8 @@ void _uv_canopen_pdo_step(uint16_t step_ms) {
 			com = obj->data_ptr;
 
 			// check inhibit time
-			if (this->inhibit_time[i] > 0) {
-				this->inhibit_time[i] -= step_ms;
+			if (this->txpdo[i].inhibit_time > 0) {
+				this->txpdo[i].inhibit_time -= step_ms;
 			}
 
 			// if PDO is not enabled, skip it
@@ -190,12 +193,12 @@ void _uv_canopen_pdo_step(uint16_t step_ms) {
 
 				// check if event timer in this PDO triggers and the inhibit time has passed
 				// since last transmission
-				uv_delay((uv_delay_st*) &this->txpdo_time[i], step_ms);
-				if ((uv_delay_has_ended(&this->txpdo_time[i])) &&
-						(this->inhibit_time[i] <= 0)) {
+				uv_delay((uv_delay_st*) &this->txpdo[i].time, step_ms);
+				if ((uv_delay_has_ended(&this->txpdo[i].time)) &&
+						(this->txpdo[i].inhibit_time <= 0)) {
 					// initialize delay again
-					uv_delay_init((uv_delay_st*) &this->txpdo_time[i], com->event_timer);
-					this->inhibit_time[i] = com->inhibit_time;
+					uv_delay_init((uv_delay_st*) &this->txpdo[i].time, com->event_timer);
+					this->txpdo[i].inhibit_time = com->inhibit_time;
 
 					uint8_t byte_count = 0;
 					uv_can_message_st msg;
@@ -295,6 +298,33 @@ void _uv_canopen_pdo_step(uint16_t step_ms) {
 			}
 		}
 	}
+
+	/*
+	 * RXPDO
+	 */
+	for (int32_t i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
+		if (uv_delay(&this->rxpdo[i].def_delay, step_ms)) {
+			// the delay has passed, reset the mapped object dictionary parameters
+			// to their default values
+
+			for (uint8_t j = 0; j < CONFIG_CANOPEN_PDO_MAPPING_COUNT; j++) {
+				canopen_pdo_mapping_st *map = &thisnv->rxpdo_maps[i].mappings[j];
+
+				if (map->length != 0 &&
+						map->main_index != 0) {
+					// if mapping was found, try to find the object that it was pointing
+					// and reset it to defaults
+					const canopen_object_st *obj =
+							_uv_canopen_obj_dict_get(map->main_index, map->sub_index);
+					if (obj != NULL &&
+							obj->def_ptr != NULL &&
+							obj->data_ptr != NULL) {
+						memcpy(obj->data_ptr, obj->def_ptr, CANOPEN_SIZEOF(obj->type));
+					}
+				}
+			}
+		}
+	}
 }
 
 
@@ -335,24 +365,16 @@ void _uv_canopen_pdo_rx(const uv_can_message_st *msg) {
 			}
 
 		}
-		if (valid) {
-			if (!(obj = _uv_canopen_obj_dict_get(CONFIG_CANOPEN_RXPDO_MAP_INDEX + i, 0))) {
-				// something weird happened,
-				// mapping parameter not found for this RXPDO object
-				_uv_canopen_sdo_abort(CANOPEN_SDO_REQUEST_ID,
-						CONFIG_CANOPEN_RXPDO_MAP_INDEX + i, 0,
-						CANOPEN_SDO_ERROR_OBJECT_DOES_NOT_EXIST);
-				valid = false;
-			}
-		}
 
 		if (valid) {
-			canopen_pdo_mapping_parameter_st *mapping_par = obj->data_ptr;
+			// update the def_delay and prevent setting the parameters
+			// to their default values
+			uv_delay_init(&this->rxpdo[i].def_delay, CONFIG_CANOPEN_RXPDO_TIMEOUT_MS);
 
 			// matching RXPDO found. Cycle trough it's mapping parameters
 			for (uint8_t j = 0; j < CONFIG_CANOPEN_PDO_MAPPING_COUNT; j++) {
 
-				canopen_pdo_mapping_st *mapping = &(*mapping_par).mappings[j];
+				canopen_pdo_mapping_st *mapping = &thisnv->rxpdo_maps[i].mappings[j];
 
 				valid = true;
 
@@ -446,7 +468,7 @@ void uv_canopen_pdo_mapping_update(uint16_t main_index, uint8_t subindex) {
 			for (uint8_t j = 0; j < CONFIG_CANOPEN_PDO_MAPPING_COUNT; j++) {
 				if ((mapping_par->mappings[j].main_index == main_index) &&
 						(mapping_par->mappings[j].sub_index == subindex)) {
-					uv_delay_trigger(&this->txpdo_time[i]);
+					uv_delay_trigger(&this->txpdo[i].time);
 					break;
 				}
 			}

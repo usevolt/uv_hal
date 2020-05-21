@@ -148,6 +148,9 @@ typedef struct {
 	canopen_object_type_e type;
 	/// @brief: Pointer to the location where data of this object is saved
 	void* data_ptr;
+	/// @brief: Pointer to the location where the default value for this data can be fetched.
+	/// The length of the default data should match the object type
+	void *def_ptr;
 	/// @brief: If this object is string type,
 	/// this indicates the string length.
 	uint16_t string_len;
