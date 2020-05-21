@@ -377,6 +377,11 @@ static inline void uv_ft81x_draw_bitmap(uv_uimedia_st *bitmap, int16_t x, int16_
 void uv_ft81x_draw_point(int16_t x, int16_t y, color_t color, uint16_t diameter);
 
 
+/// @brief: Helper function for drawing shadow points
+void uv_ft81x_draw_shadowpoint(int16_t x, int16_t y,
+		color_t color, color_t highlight_c, color_t shadow_c, uint16_t diameter);
+
+
 /// @brief: Draws a filled rounded rectangle on the screen
 ///
 /// @param x: The X coordinate of the upper left corner
@@ -463,6 +468,12 @@ static inline uint8_t uv_ft81x_get_font_height(ft81x_font_st *font) {
 
 /// @brief: Returns the height of string. Takes account the font height and the line count
 int16_t uv_ft81x_get_string_height(char *str, ft81x_font_st *font);
+
+
+/// @brief: Returns the width of the string in pixels. Note that since characters are different
+/// widths, the width of every character has to be read from the FT81X and this takes
+/// relatively long time.
+int16_t uv_ft81x_get_string_width(char *str, ft81x_font_st *font);
 
 
 /// @brief: Sets the drawing mask which masks all drawing functions to the masked area

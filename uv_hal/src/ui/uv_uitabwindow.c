@@ -72,7 +72,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 
 	for (int16_t i = 0; i < this->tab_count; i++) {
-		tab_w = uv_ft81x_get_string_height((char *)this->tab_names[i], this->font) + 10;
+		tab_w = uv_ft81x_get_string_width((char *)this->tab_names[i], this->font) + 10;
 		if (tab_w < CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH) {
 			tab_w = CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH;
 		}

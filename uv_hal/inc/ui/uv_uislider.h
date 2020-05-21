@@ -43,8 +43,8 @@
 #error "CONFIG_UI_SLIDER_INC_DEC_WIDTH should define the width of uilisder increase and decrease buttons in pizels."
 #endif
 
-#define UISLIDER_LONGPRESS_DELAY_MS			500
-#define UISLIDER_LONGPRESS_MIN_DELAY_MS		50
+#define UISLIDER_LONGPRESS_DELAY_MS			250
+#define UISLIDER_LONGPRESS_MIN_DELAY_MS		30
 
 /// @brief: Slider is a vertical or horizontal slider with a value
 typedef struct __attribute__((packed)) {

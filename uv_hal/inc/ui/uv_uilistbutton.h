@@ -97,6 +97,10 @@ static inline uint8_t uv_uilistbutton_get_current_index(void *me) {
 	return this->current_index;
 }
 
+static inline uint8_t uv_uilistbutton_get_index(void *me) {
+	return uv_uilistbutton_get_current_index(me);
+}
+
 static inline uint8_t uv_uilistbutton_get_content_len(void *me) {
 	return this->content_len;
 }

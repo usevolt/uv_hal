@@ -50,6 +50,7 @@
 #define DRAW_LINE_BUF_LEN				6
 #define FONT_METRICS_BASE_ADDR			0x201EE0
 #define FONT_METRICS_FONT_LEN			148
+#define FONT_METRICS_CHAR_WIDTH_OFFSET	0
 #define FONT_METRICS_FONT_HEIGHT_OFFSET	140
 
 
@@ -1225,6 +1226,14 @@ void uv_ft81x_draw_point(int16_t x, int16_t y, color_t color, uint16_t diameter)
 }
 
 
+void uv_ft81x_draw_shadowpoint(int16_t x, int16_t y,
+		color_t color, color_t highlight_c, color_t shadow_c, uint16_t diameter) {
+	uv_ft81x_draw_point(x - 2, y - 2, shadow_c, diameter);
+	uv_ft81x_draw_point(x + 2, y + 2, highlight_c, diameter);
+	uv_ft81x_draw_point(x, y, color, diameter);
+}
+
+
 void uv_ft81x_draw_rrect(const int16_t x, const int16_t y,
 		const uint16_t width, const uint16_t height,
 		const uint16_t radius, const color_t color) {
@@ -1393,6 +1402,32 @@ int16_t uv_ft81x_get_string_height(char *str, ft81x_font_st *font) {
 
 	return ret;
 }
+
+
+
+int16_t uv_ft81x_get_string_width(char *str, ft81x_font_st *font) {
+	int16_t ret = 0;
+	int16_t line_len = 0;
+
+	for (uint32_t i = 0; i < strlen(str); i++) {
+		// clear the calculated width on every new line character
+		if (str[i] == '\n') {
+			line_len = 0;
+		}
+		else {
+			// fetch the width of this character from FT81X
+			int16_t w = read8(FONT_METRICS_BASE_ADDR +
+					(font->index - 16) * FONT_METRICS_FONT_LEN +
+					FONT_METRICS_CHAR_WIDTH_OFFSET + str[i]);
+			line_len += w;
+		}
+		if (line_len > ret) {
+			ret = line_len;
+		}
+	}
+	return ret;
+}
+
 
 
 void uv_ft81x_draw_string(char *str, ft81x_font_st *font,
