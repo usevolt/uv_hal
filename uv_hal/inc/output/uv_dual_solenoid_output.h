@@ -62,6 +62,9 @@ typedef struct {
 	uv_solenoid_output_st solenoid[DUAL_OUTPUT_SOLENOID_COUNT];
 
 
+	// if true, both solenoids are controlled with the same control value.
+	// if false, other solenoid is always at 0 duty cycle depending on the direction.
+	bool unidir;
 	// signed output current
 	int16_t current_ma;
 	// signed output value (depends on the mode)
@@ -84,6 +87,7 @@ void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 		uint32_t emcy_fault_a, uint32_t emcy_fault_b);
 
 
+
 /// @brief: Dual solenoid step function
 void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t step_ms);
 
@@ -94,12 +98,23 @@ static inline void uv_dual_solenoid_output_clear(uv_dual_solenoid_output_st *thi
 }
 
 
+
+/// @brief: Sets the dual solenoid output to unidir mode, where both outputs
+/// are controlled with the same value. Due to the limitations in the hardware,
+/// the current measurement is calculated as the sum of currents.
+static inline void uv_dual_solenoid_output_set_unidir(uv_dual_solenoid_output_st *this,
+		bool value) {
+	this->unidir = value;
+}
+
+
 /// @brief: Disables the dual solenoid output module
 static inline void uv_dual_solenoid_output_disable(uv_dual_solenoid_output_st *this) {
 	uv_prop_output_disable((uv_prop_output_st*) this);
 	uv_solenoid_output_disable(&this->solenoid[DUAL_OUTPUT_SOLENOID_A]);
 	uv_solenoid_output_disable(&this->solenoid[DUAL_OUTPUT_SOLENOID_B]);
 }
+
 
 
 /// @brief: Enabled the dual solenoid output module
@@ -117,12 +132,15 @@ static inline int16_t uv_dual_solenoid_output_get_current(uv_dual_solenoid_outpu
 }
 
 
+
 /// @brief: Returns the output value, which depends on the mode of the solenoid output.
 /// If the mode is current or onoff, measured current is returned. If the mode is pwm,
 /// the pwm ppt is returned.
 static inline int16_t uv_dual_solenoid_output_get_out(uv_dual_solenoid_output_st *this) {
 	return this->out;
 }
+
+
 
 /// @brief: Sets the output current.
 ///
@@ -131,10 +149,13 @@ static inline void uv_dual_solenoid_output_set(uv_dual_solenoid_output_st *this,
 	uv_prop_output_set((uv_prop_output_st *) this, value);
 }
 
+
+
 /// @brief: Returns the target value, in -1000 ... 1000
 static inline int16_t uv_dual_solenoid_output_get_target(uv_dual_solenoid_output_st *this) {
 	return uv_prop_output_get_target((uv_prop_output_st *) this);
 }
+
 
 
 /// @brief: Copies the configuration settings to the module
@@ -142,11 +163,13 @@ void uv_dual_solenoid_output_set_conf(uv_dual_solenoid_output_st *this,
 					uv_prop_output_conf_st *conf);
 	
 
+
 /// @brief: Returns the configuration parameter structure
 static inline uv_prop_output_conf_st *uv_dual_solenoid_output_get_conf(
 		uv_dual_solenoid_output_st *this) {
 	return uv_prop_output_get_conf((uv_prop_output_st *) this);
 }
+
 
 
 /// @brief: returns the state of the solenoid output module
@@ -156,6 +179,7 @@ static inline uv_output_state_e uv_dual_solenoid_output_get_state(uv_dual_soleno
 }
 
 
+
 /// @brief: Sets the mode for both outputs. The mode can be either current oŕ pwm.
 /// The B output is updated in the dual_solenoid_output_step function according to A output.
 static inline void uv_dual_solenoid_output_set_mode(uv_dual_solenoid_output_st *this,
@@ -163,15 +187,20 @@ static inline void uv_dual_solenoid_output_set_mode(uv_dual_solenoid_output_st *
 	uv_prop_output_set_mode((uv_prop_output_st *) this, value);
 }
 
+
+
 static inline uv_prop_output_modes_e uv_dual_solenoid_output_get_mode(
 		uv_dual_solenoid_output_st *this) {
 	return uv_prop_output_get_mode((uv_prop_output_st *) this);
 }
 
+
+
 static inline void uv_dual_solenoid_output_set_toggle_threshold(
 		uv_dual_solenoid_output_st *this, uint16_t value) {
 	uv_prop_output_set_toggle_threshold((uv_prop_output_st *) this, value);
 }
+
 
 
 static inline void uv_dual_solenoid_output_set_toggle_limit_ms(
@@ -180,10 +209,12 @@ static inline void uv_dual_solenoid_output_set_toggle_limit_ms(
 }
 
 
+
 static inline void uv_dual_solenoid_output_set_enable_delays_ms(
 		uv_dual_solenoid_output_st *this, uint32_t pre_delay, uint32_t post_delay) {
 	uv_prop_output_set_enable_delays_ms((uv_prop_output_st*) this, pre_delay, post_delay);
 }
+
 
 
 /// @brief: Returns the direction of ONOFFTOGGLE mode state. -1 if negative direction is active,
@@ -201,6 +232,7 @@ static inline void uv_dual_solenoid_output_set_dither_freq(uv_dual_solenoid_outp
 }
 
 
+
 static inline void uv_dual_solenoid_output_set_dither_ampl(uv_dual_solenoid_output_st *this,
 		uint16_t value) {
 	uv_solenoid_output_set_dither_ampl(&this->solenoid[0], value);
@@ -208,10 +240,12 @@ static inline void uv_dual_solenoid_output_set_dither_ampl(uv_dual_solenoid_outp
 }
 
 
+
 static inline void uv_dual_solenoid_output_set_maxspeed_scaler(
 		uv_dual_solenoid_output_st *this, int16_t value) {
 	uv_prop_output_set_maxspeed_scaler((uv_prop_output_st*) this, value);
 }
+
 
 
 static inline int16_t uv_dual_solenoid_output_get_maxspeed_scaler(
