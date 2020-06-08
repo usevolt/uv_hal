@@ -33,14 +33,24 @@
 #include "uv_utilities.h"
 #if CONFIG_EEPROM
 
+#define _UV_EEPROM_SIZE			(4032 - 64)
+
+
 #if CONFIG_EEPROM_RING_BUFFER
+#ifndef CONFIG_EEPROM_RING_BUFFER_START_ADDR
+#error "CONFIG_EEPROM_RING_BUFFER_START_ADDR should define the start\
+ EEPROM address for the ring buffer."
+#endif
 #ifndef CONFIG_EEPROM_RING_BUFFER_END_ADDR
-#error "CONFIG_EEPROM_RING_BUFFER_END_ADDR should define the end EEPROM address of the ring buffer.\
- Ring buffer starts from address 0."
+#error "CONFIG_EEPROM_RING_BUFFER_END_ADDR should define the end\
+ EEPROM address of the ring buffer."
+#endif
+#if (CONFIG_EEPROM_RING_BUFFER_END_ADDR < CONFIG_EEPROM_RING_BUFFER_START_ADDR)
+#error "CONFIG_EEPROM_RING_BUFFER_END_ADDR cannot be smaller than\
+ CONFIG_EEPROM_RING_BUFFER_START_ADDR"
 #endif
 #endif
 
-#define _UV_EEPROM_SIZE			(4032 - 64)
 
 /// @brief: Initializes the EEPROM memory
 ///
@@ -90,7 +100,7 @@ uv_errors_e uv_eeprom_read(void *dest, uint16_t len, uint16_t eeprom_addr);
 
 /// @brief: Sets the entry length in bytes. This needs to be called only if
 /// EEPROM ring buffer functions are used
-void uv_eeprom_init_circular_buffer(const uint16_t entry_len);
+void uv_eeprom_ring_buffer_init(const uint16_t entry_len);
 
 
 
@@ -100,12 +110,12 @@ void uv_eeprom_init_circular_buffer(const uint16_t entry_len);
 /// for anything else
 ///
 /// @return Error if the memory was full and couln't push any more
-uv_errors_e uv_eeprom_push_back(const void *src);
+uv_errors_e uv_eeprom_ring_buffer_push_back(const void *src);
 
 ///@brief: Pushes new data to the end of the EEPROM circular buffer. If the buffer
 /// is full, calls *uv_eeprom_pop_front* to delete the oldest data and then
 /// pushes new data.
-uv_errors_e uv_eeprom_push_back_force(const void *src);
+uv_errors_e uv_eeprom_ring_buffer_push_back_force(const void *src);
 
 
 /// @brief: Deletes the newest entry from the EEPROM circular buffer
@@ -114,7 +124,7 @@ uv_errors_e uv_eeprom_push_back_force(const void *src);
 /// for anything else
 ///
 /// @return Error if the memory was empty and couln't remove anything
-uv_errors_e uv_eeprom_pop_back(void *dest);
+uv_errors_e uv_eeprom_ring_buffer_pop_back(void *dest);
 
 
 
@@ -124,7 +134,7 @@ uv_errors_e uv_eeprom_pop_back(void *dest);
 /// for anything else
 ///
 /// @return Error if the memory was empty and couln't remove anything
-uv_errors_e uv_eeprom_pop_front(void *dest);
+uv_errors_e uv_eeprom_ring_buffer_pop_front(void *dest);
 
 
 
@@ -133,7 +143,7 @@ uv_errors_e uv_eeprom_pop_front(void *dest);
 /// @param dest: destination where the data is copied
 /// @param eeprom_addr: Destination where the actual eeprom address where
 /// the **index**'th data was found will be copied
-uv_errors_e uv_eeprom_at(void *dest, uint16_t *eeprom_addr, uint16_t index);
+uv_errors_e uv_eeprom_ring_buffer_at(void *dest, uint16_t *eeprom_addr, uint16_t index);
 
 
 /// @brief: Returns the number of elements in the ring buffer

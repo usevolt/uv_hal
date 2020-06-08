@@ -97,7 +97,9 @@ void _uv_uibutton_touch(void *me, uv_touch_st *touch) {
 	else if (touch->action == TOUCH_CLICKED) {
 		// prevent touch action propagating to other elements
 		touch->action = TOUCH_NONE;
-		this->state = UIBUTTON_CLICKED;
+		this->state = (this->state == UIBUTTON_LONGPRESSED) ?
+				UIBUTTON_UP : UIBUTTON_CLICKED;
+
 	}
 	else {
 		if (this->state != UIBUTTON_UP) {

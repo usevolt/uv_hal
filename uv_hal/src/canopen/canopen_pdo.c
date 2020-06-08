@@ -317,9 +317,16 @@ void _uv_canopen_pdo_step(uint16_t step_ms) {
 					const canopen_object_st *obj =
 							_uv_canopen_obj_dict_get(map->main_index, map->sub_index);
 					if (obj != NULL &&
-							obj->def_ptr != NULL &&
 							obj->data_ptr != NULL) {
-						memcpy(obj->data_ptr, obj->def_ptr, CANOPEN_SIZEOF(obj->type));
+						if (obj->def_ptr != NULL) {
+							// if default value pointer is assigned, copy the default value
+							// to the parameter
+							memcpy(obj->data_ptr, obj->def_ptr, CANOPEN_SIZEOF(obj->type));
+						}
+						else {
+							// default value pointer not assigned, initialize the data to zeroes
+							memset(obj->data_ptr, 0, CANOPEN_SIZEOF(obj->type));
+						}
 					}
 				}
 			}

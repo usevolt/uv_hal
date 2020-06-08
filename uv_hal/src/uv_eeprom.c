@@ -100,17 +100,25 @@ uv_errors_e uv_eeprom_read(void *dest, uint16_t len, uint16_t eeprom_addr) {
 
 #if CONFIG_EEPROM_RING_BUFFER
 
-void uv_eeprom_init_circular_buffer(const uint16_t entry_len) {
+
+#define RING_BUFFER_LEN		(CONFIG_EEPROM_RING_BUFFER_END_ADDR - \
+								CONFIG_EEPROM_RING_BUFFER_START_ADDR)
+
+
+void uv_eeprom_ring_buffer_init(const uint16_t entry_len) {
 	uint16_t i;
 	uint16_t min_index = -1;
 	uint16_t max_index = 1;
 
 	this->entry_len = entry_len + sizeof(uint16_t);
 
-	this->back_addr = this->front_addr = 0;
+	this->back_addr = this->front_addr = CONFIG_EEPROM_RING_BUFFER_START_ADDR;
 	uint16_t index;
-	for (i = 0; i <= CONFIG_EEPROM_RING_BUFFER_END_ADDR - this->entry_len; i += this->entry_len) {
-		uv_eeprom_read((unsigned char*) &index, sizeof(uint16_t), i + this->entry_len - sizeof(uint16_t));
+	for (i = CONFIG_EEPROM_RING_BUFFER_START_ADDR;
+			i <= CONFIG_EEPROM_RING_BUFFER_START_ADDR + RING_BUFFER_LEN - this->entry_len;
+			i += this->entry_len) {
+		uv_eeprom_read((unsigned char*) &index, sizeof(uint16_t),
+				i + this->entry_len - sizeof(uint16_t));
 		if (index == 0) {
 			continue;
 		}
@@ -125,17 +133,16 @@ void uv_eeprom_init_circular_buffer(const uint16_t entry_len) {
 			max_index = index;
 		}
 	}
-
 }
 
 
-uv_errors_e uv_eeprom_push_back(const void *src) {
+uv_errors_e uv_eeprom_ring_buffer_push_back(const void *src) {
 	uv_errors_e ret = ERR_NONE;
 
 	// check for overflow
 	int16_t t = this->back_addr + this->entry_len;
 	if (t + this->entry_len > CONFIG_EEPROM_RING_BUFFER_END_ADDR) {
-		t = 0;
+		t = CONFIG_EEPROM_RING_BUFFER_START_ADDR;
 	}
 	if (t == this->front_addr) {
 		ret = ERR_BUFFER_OVERFLOW;
@@ -152,7 +159,7 @@ uv_errors_e uv_eeprom_push_back(const void *src) {
 			this->back_addr += this->entry_len;
 		}
 		if (this->back_addr + this->entry_len > CONFIG_EEPROM_RING_BUFFER_END_ADDR) {
-			this->back_addr = 0;
+			this->back_addr = CONFIG_EEPROM_RING_BUFFER_START_ADDR;
 		}
 		uv_eeprom_write(src, this->entry_len - sizeof(uint16_t), this->back_addr);
 
@@ -162,7 +169,9 @@ uv_errors_e uv_eeprom_push_back(const void *src) {
 			// cycle trough all entries and reduce their index numbers
 			uint16_t i;
 			uint16_t new_index;
-			for (i = 0; i <= CONFIG_EEPROM_RING_BUFFER_END_ADDR - this->entry_len; i += this->entry_len) {
+			for (i = CONFIG_EEPROM_RING_BUFFER_START_ADDR;
+					i <= CONFIG_EEPROM_RING_BUFFER_END_ADDR - this->entry_len;
+					i += this->entry_len) {
 				uv_eeprom_read((unsigned char*) &new_index,  sizeof(uint16_t),
 						i + this->entry_len - sizeof(uint16_t));
 				if (new_index) {
@@ -183,13 +192,13 @@ uv_errors_e uv_eeprom_push_back(const void *src) {
 }
 
 
-uv_errors_e uv_eeprom_push_back_force(const void *src) {
+uv_errors_e uv_eeprom_ring_buffer_push_back_force(const void *src) {
 	uv_errors_e ret = ERR_NONE;
-	if ((ret = uv_eeprom_push_back(src)) == ERR_BUFFER_OVERFLOW) {
+	if ((ret = uv_eeprom_ring_buffer_push_back(src)) == ERR_BUFFER_OVERFLOW) {
 		uint8_t d[this->entry_len];
-		ret = uv_eeprom_pop_front(d);
+		ret = uv_eeprom_ring_buffer_pop_front(d);
 		if (ret == ERR_NONE) {
-			ret = uv_eeprom_push_back(src);
+			ret = uv_eeprom_ring_buffer_push_back(src);
 		}
 	}
 	return ret;
@@ -197,7 +206,7 @@ uv_errors_e uv_eeprom_push_back_force(const void *src) {
 
 
 
-uv_errors_e uv_eeprom_pop_back(void *dest) {
+uv_errors_e uv_eeprom_ring_buffer_pop_back(void *dest) {
 	uv_errors_e ret = ERR_NONE;
 	uint8_t d = 0;
 	uint16_t i;
@@ -215,7 +224,7 @@ uv_errors_e uv_eeprom_pop_back(void *dest) {
 		}
 		if (this->back_addr != this->front_addr) {
 			this->back_addr = (this->back_addr - this->entry_len);
-			if (this->back_addr < 0) {
+			if (this->back_addr < CONFIG_EEPROM_RING_BUFFER_START_ADDR) {
 				this->back_addr = CONFIG_EEPROM_RING_BUFFER_END_ADDR -
 						this->entry_len - (CONFIG_EEPROM_RING_BUFFER_END_ADDR % this->entry_len);
 			}
@@ -227,7 +236,7 @@ uv_errors_e uv_eeprom_pop_back(void *dest) {
 
 
 
-uv_errors_e uv_eeprom_pop_front(void *dest) {
+uv_errors_e uv_eeprom_ring_buffer_pop_front(void *dest) {
 	uv_errors_e ret = ERR_NONE;
 	uint8_t d = 0;
 	uint16_t i;
@@ -246,7 +255,7 @@ uv_errors_e uv_eeprom_pop_front(void *dest) {
 		if (this->back_addr != this->front_addr) {
 			this->front_addr += this->entry_len;
 			if (this->front_addr + this->entry_len > CONFIG_EEPROM_RING_BUFFER_END_ADDR) {
-				this->front_addr = 0;
+				this->front_addr = CONFIG_EEPROM_RING_BUFFER_START_ADDR;
 			}
 		}
 	}
@@ -255,7 +264,7 @@ uv_errors_e uv_eeprom_pop_front(void *dest) {
 }
 
 
-uv_errors_e uv_eeprom_at(void *dest, uint16_t *eeprom_addr, uint16_t index) {
+uv_errors_e uv_eeprom_ring_buffer_at(void *dest, uint16_t *eeprom_addr, uint16_t index) {
 	uv_errors_e ret = ERR_NONE;
 	uint16_t i;
 
@@ -275,7 +284,7 @@ uv_errors_e uv_eeprom_at(void *dest, uint16_t *eeprom_addr, uint16_t index) {
 			}
 			else {
 				addr -= this->entry_len;
-				if (addr < 0) {
+				if (addr < CONFIG_EEPROM_RING_BUFFER_START_ADDR) {
 					addr = CONFIG_EEPROM_RING_BUFFER_END_ADDR -
 							(CONFIG_EEPROM_RING_BUFFER_END_ADDR % this->entry_len);
 				}
@@ -297,7 +306,7 @@ uv_errors_e uv_eeprom_at(void *dest, uint16_t *eeprom_addr, uint16_t index) {
 
 uint32_t uv_eeprom_ring_buffer_get_count(void) {
 	uint32_t ret = 0;
-	while (uv_eeprom_at(NULL, NULL, ret) == ERR_NONE) {
+	while (uv_eeprom_ring_buffer_at(NULL, NULL, ret) == ERR_NONE) {
 		ret++;
 	}
 	return ret;
