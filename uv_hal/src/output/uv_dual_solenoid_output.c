@@ -50,6 +50,7 @@ void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 
 	this->current_ma = 0;
 	this->out = 0;
+	this->unidir = false;
 
 	uv_solenoid_output_init(&this->solenoid[DUAL_OUTPUT_SOLENOID_A],
 			&conf->solenoid_conf[DUAL_OUTPUT_SOLENOID_A],
@@ -104,20 +105,26 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 
 
 	int16_t target = uv_prop_output_get_target((uv_prop_output_st *) this);
-	if (target > 0) {
-		uv_solenoid_output_set(&this->solenoid[sb], 0);
-
-		// only set output active if the other direction has gone to zero
-		if (uv_solenoid_output_get_pwm_dc(&this->solenoid[sb]) == 0) {
-			uv_solenoid_output_set(&this->solenoid[sa], abs(target));
-		}
+	if (this->unidir) {
+		uv_solenoid_output_set(&this->solenoid[sa], abs(target));
+		uv_solenoid_output_set(&this->solenoid[sb], abs(target));
 	}
 	else {
-		uv_solenoid_output_set(&this->solenoid[sa], 0);
+		if (target > 0) {
+			uv_solenoid_output_set(&this->solenoid[sb], 0);
 
-		// only set output active if the other direction has gone to zero
-		if (uv_solenoid_output_get_pwm_dc(&this->solenoid[sa]) == 0) {
-			uv_solenoid_output_set(&this->solenoid[sb], abs(target));
+			// only set output active if the other direction has gone to zero
+			if (uv_solenoid_output_get_pwm_dc(&this->solenoid[sb]) == 0) {
+				uv_solenoid_output_set(&this->solenoid[sa], abs(target));
+			}
+		}
+		else {
+			uv_solenoid_output_set(&this->solenoid[sa], 0);
+
+			// only set output active if the other direction has gone to zero
+			if (uv_solenoid_output_get_pwm_dc(&this->solenoid[sa]) == 0) {
+				uv_solenoid_output_set(&this->solenoid[sb], abs(target));
+			}
 		}
 	}
 
