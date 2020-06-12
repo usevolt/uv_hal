@@ -106,8 +106,8 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 
 	int16_t target = uv_prop_output_get_target((uv_prop_output_st *) this);
 	if (this->unidir) {
-		uv_solenoid_output_set(&this->solenoid[sa], abs(target));
-		uv_solenoid_output_set(&this->solenoid[sb], abs(target));
+		uv_solenoid_output_set(&this->solenoid[DUAL_OUTPUT_SOLENOID_A], abs(target));
+		uv_solenoid_output_set(&this->solenoid[DUAL_OUTPUT_SOLENOID_B], 0);
 	}
 	else {
 		if (target > 0) {
@@ -137,7 +137,14 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 			&this->solenoid[DUAL_OUTPUT_SOLENOID_B], maxspeed_scaler);
 
 	uv_solenoid_output_step(&this->solenoid[DUAL_OUTPUT_SOLENOID_A], step_ms);
-	uv_solenoid_output_step(&this->solenoid[DUAL_OUTPUT_SOLENOID_B], step_ms);
+	if (this->unidir) {
+		// control solenoid B with the same value as solenoid A
+		uv_pwm_set(this->solenoid[DUAL_OUTPUT_SOLENOID_B].pwm_chn,
+				uv_solenoid_output_get_pwm_dc(&this->solenoid[DUAL_OUTPUT_SOLENOID_A]));
+	}
+	else {
+		uv_solenoid_output_step(&this->solenoid[DUAL_OUTPUT_SOLENOID_B], step_ms);
+	}
 
 
 	// update current output

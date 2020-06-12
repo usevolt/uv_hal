@@ -60,9 +60,6 @@
 #if !defined(CONFIG_SOLENOID_MAX_CURRENT_DEF)
 #error "CONFIG_SOLENOID_MAX_CURRENT_DEF should define the default maximum current value for solenoid output in mA."
 #endif
-#if !defined(CONFIG_SOLENOID_MODE_PWM)
-#error "CONFIG_SOLENOID_MODE_PWM should define if the PWM mode and it's configuration settings are enabled"
-#endif
 
 typedef enum {
 	/// @brief: Output is current controlled with a current sensing feedback
@@ -193,9 +190,10 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms);
 
 /// @brief: Sets the solenoid output target value. In current mode this is scaled to milliamps
 /// according to configuration values,
-/// in PWM mode the duty cycle.
-/// Values should be 0 ... 1000.
-void uv_solenoid_output_set(uv_solenoid_output_st *this, uint16_t value);
+/// in PWM mode the duty cycle, in range of 0 ... 1000. The conf values affect the actual duty cycle.
+static inline void uv_solenoid_output_set(uv_solenoid_output_st *this, uint16_t value) {
+	this->target = value;
+}
 
 
 /// @brief: Returns the output value. The unit of the value depends on the mode of

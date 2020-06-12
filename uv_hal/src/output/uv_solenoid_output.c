@@ -191,7 +191,6 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 		}
 		// solenoid is PWM driven
 		else if (this->mode == SOLENOID_OUTPUT_MODE_PWM) {
-#if CONFIG_SOLENOID_MODE_PWM
 			if (this->target) {
 				output = uv_lerpi(this->target,
 						uv_lerpi(this->conf->min_ppt, 0, this->limitconf->max),
@@ -204,7 +203,6 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 								this->limitconf->max));
 			}
 			this->out = output;
-#endif
 		}
 		// solenoid is on/off
 		else {
@@ -228,10 +226,6 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 }
 
 
-
-void uv_solenoid_output_set(uv_solenoid_output_st *this, uint16_t value) {
-	this->target = value;
-}
 
 
 void uv_solenoid_output_disable(uv_solenoid_output_st *this) {
