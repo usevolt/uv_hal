@@ -44,10 +44,7 @@ void _uv_canopen_emcy_init(void) {
 	uv_ring_buffer_init(&this->emcy_rx, this->emcy_rx_buffer,
 			CONFIG_CANOPEN_EMCY_RX_BUFFER_SIZE, sizeof(canopen_emcy_msg_st));
 	uv_delay_init(&this->emcy_inihbit_delay, CONFIG_CANOPEN_EMCY_INHIBIT_TIME_MS);
-#if CONFIG_TARGET_LPC1785
-	REPEAT(CONFIG_CANOPEN_EMCY_MSG_COUNT, CONFIG_RX_MSG);
-
-#endif
+	this->emcy_callb = NULL;
 }
 
 void _uv_canopen_emcy_reset(void) {
@@ -86,6 +83,11 @@ void uv_canopen_emcy_send(const uv_emcy_codes_e err_code, uint32_t data) {
 		msg.data_16bit[3] = err_code;
 		msg.data_32bit[0] = data;
 		uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
+
+		// call the emcy callback if one has been assigned
+		if (this->emcy_callb != NULL) {
+			this->emcy_callb(err_code, data);
+		}
 	}
 
 	// todo: add error code to [1003]

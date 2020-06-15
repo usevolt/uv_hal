@@ -347,6 +347,7 @@ typedef struct {
 	uv_ring_buffer_st emcy_rx;
 	canopen_emcy_msg_st emcy_rx_buffer[CONFIG_CANOPEN_EMCY_RX_BUFFER_SIZE];
 	uv_delay_st emcy_inihbit_delay;
+	void (*emcy_callb) (uint32_t emcy, uint32_t data);
 
 	// SDO member variables
 	struct {
@@ -562,6 +563,11 @@ static inline void uv_canopen_set_sdo_write_callback(void (*callb)(uint16_t mind
 static inline void uv_canopen_set_sdo_read_callback(void (*callb)(uint16_t mindex, uint8_t sindex)) {
 	_uv_canopen_sdo_server_add_read_callb(callb);
 }
+
+static inline void uv_canopen_set_emcy_callback(void (*callb)(uint32_t emcy, uint32_t data)) {
+	_canopen.emcy_callb = callb;
+}
+
 
 uint8_t uv_canopen_sdo_read8(uint8_t node_id, uint16_t mindex, uint8_t sindex);
 
