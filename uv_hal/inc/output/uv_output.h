@@ -77,9 +77,7 @@ typedef struct {
 	uint16_t sense_ampl;
 	/// @brief: Current max limit in mA
 	uint16_t limit_max_ma;
-	/// @brief: Fault limit in **adc** value. This makes the calculations faster
-	/// since when checking fault, we dont average the adc reading
-	uint16_t limit_fault;
+	uint16_t limit_fault_ma;
 	uv_moving_aver_st moving_avg;
 	/// @brief: Holds the moving average output value in milliamps
 	uint16_t current;
@@ -87,6 +85,9 @@ typedef struct {
 	uv_output_state_e state;
 	/// @brief: gpio pin for the gate driving
 	uv_gpios_e gate_io;
+
+	// delay for fault freexing
+	uv_delay_st fault_freeze_delay;
 
 	/// brief: Current calculation function pointer. This function should calculate the current
 	/// in milliamps from the adc reading
@@ -114,6 +115,17 @@ static inline void uv_output_set_current_func(uv_output_st *this,
 		uint16_t (*current_func)(void *this_ptr, uint16_t adc)) {
 	this->current_func = current_func;
 }
+
+
+/// @brief: Freezes the fault detection for *ms* given time. This can be used
+/// to prevent unintentional faults.
+///
+/// @note: More than 100 ms freeze is not suggested, as this might burn the whole controller
+/// in case of short circuit. The VN5T100 amplifier won't sustain too long short circuit
+static inline void uv_output_freeze_fault_detection(uv_output_st *this, uint32_t ms) {
+	uv_delay_init(&this->fault_freeze_delay, ms);
+}
+
 
 /// @brief: Sets the current sense amplification value. Defaults to 50
 static inline void uv_output_set_ampl(uv_output_st *this, const uint16_t value) {

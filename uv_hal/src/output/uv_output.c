@@ -65,9 +65,9 @@ void uv_output_init(uv_output_st *this,  uv_adc_channels_e adc_chn, uv_gpios_e g
 	set_out(this, 0);
 	this->sense_ampl = sense_ampl;
 	this->limit_max_ma = max_val_ma;
-	// convert fault_val_ma from ma to adc reading
-	this->limit_fault = fault_val_ma * 1000 / sense_ampl;
+	this->limit_fault_ma = fault_val_ma;
 	uv_moving_aver_init(&this->moving_avg, moving_avg_count);
+	uv_delay_end(&this->fault_freeze_delay);
 	this->emcy_overload = emcy_overload;
 	this->emcy_fault = emcy_fault;
 	this->state = OUTPUT_STATE_OFF;
@@ -118,26 +118,29 @@ void uv_output_step(uv_output_st *this, uint16_t step_ms) {
 
 	if (this->state == OUTPUT_STATE_ON) {
 
-		int16_t adc = 0;
+		int32_t current = 0;
 		// current sense feedback
 		if (this->adc_chn) {
-			adc = uv_adc_read(this->adc_chn);
+			int32_t adc = uv_adc_read(this->adc_chn);
 			if (adc < 0) {
 				adc = 0;
 			}
-			int32_t current = this->current_func(this, adc);
+			current = this->current_func(this, adc);
 			uv_moving_aver_step(&this->moving_avg, current);
 		}
 
 		this->current = uv_moving_aver_get_val(&this->moving_avg);
 
-		// Disable fault detection for a short time during power on
-		if (uv_moving_aver_is_full(&this->moving_avg)) {
-			if (adc > this->limit_fault) {
-				set_out(this, false);
-				uv_output_set_state(this, OUTPUT_STATE_FAULT);
-			}
-			else if ((this->current > this->limit_max_ma)) {
+		// fault detection should be performed from the not-averaged current value
+		uv_delay(&this->fault_freeze_delay, step_ms);
+		if (uv_delay_has_ended(&this->fault_freeze_delay) &&
+				(current > this->limit_fault_ma)) {
+			set_out(this, false);
+			uv_output_set_state(this, OUTPUT_STATE_FAULT);
+		}
+		// overcurrent detection is disabled for a short time during power on
+		else if (uv_moving_aver_is_full(&this->moving_avg)) {
+			if ((this->current > this->limit_max_ma)) {
 				set_out(this, false);
 				uv_output_set_state(this, OUTPUT_STATE_OVERLOAD);
 			}
