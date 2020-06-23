@@ -218,11 +218,8 @@ uv_errors_e uv_vector_insert(uv_vector_st *this, uint16_t index, void *src) {
 	else if (this->len >= this->buffer_size) {
 		ret = ERR_BUFFER_OVERFLOW;
 	}
-	else if (index == this->len) {
+	else if (index >= this->len) {
 		uv_vector_push_back(this, src);
-	}
-	else if (this->len <= index) {
-		ret = ERR_INDEX_OVERFLOW;
 	}
 	else {
 		memmove(this->buffer + index * this->element_size + this->element_size,

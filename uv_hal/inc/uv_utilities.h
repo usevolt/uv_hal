@@ -400,7 +400,7 @@ static inline void *uv_vector_at(uv_vector_st *this, int16_t index) {
 }
 
 /// @brief: Returns the current length of the vector, e.g. the element count
-static inline uint16_t uv_vector_size(uv_vector_st *this) {
+static inline int16_t uv_vector_size(uv_vector_st *this) {
 	return this->len;
 }
 
