@@ -231,6 +231,13 @@ static inline int16_t uv_ref_output_get_maxspeed_scaler(uv_ref_output_st *this) 
 }
 
 
+static inline void uv_ref_output_set_lookuptable(uv_ref_output_st *this,
+		const uv_ref_output_lookup_st *table, uint16_t table_len) {
+	this->lookuptable = table;
+	this->lookuptable_len = table_len;
+}
+
+
 #endif
 
 
