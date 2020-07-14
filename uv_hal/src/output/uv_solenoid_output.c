@@ -107,7 +107,8 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 	LIMITS(this->maxspeed_scaler, 0, 1000);
 	LIMIT_MAX(this->conf->max_ppt, 1000);
 	LIMIT_MAX(this->conf->min_ppt, this->conf->max_ppt);
-	LIMIT_MAX(this->limitconf->max, CONFIG_SOLENOID_MAX_CURRENT_DEF);
+	LIMIT_MAX(this->limitconf->max, this->mode == SOLENOID_OUTPUT_MODE_PWM ?
+			1000 : CONFIG_SOLENOID_MAX_CURRENT_DEF);
 
 	// set output to OFF state when target is zero and either PWM or ADC value is zero.
 	// This disables the ADC current measuring, even when there's open load.

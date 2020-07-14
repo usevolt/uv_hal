@@ -53,6 +53,7 @@ void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 	this->current_ma = 0;
 	this->out = 0;
 	this->unidir = false;
+	this->out_type = SOLENOID_OUTPUT_MODE_CURRENT;
 
 	uv_solenoid_output_init(&this->solenoid[DUAL_OUTPUT_SOLENOID_A],
 			&conf->solenoid_conf[DUAL_OUTPUT_SOLENOID_A],
@@ -98,8 +99,8 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 	}
 	else if (mode == PROP_OUTPUT_MODE_PROP_NORMAL ||
 			mode == PROP_OUTPUT_MODE_PROP_TOGGLE) {
-		uv_solenoid_output_set_mode(&this->solenoid[0], SOLENOID_OUTPUT_MODE_CURRENT);
-		uv_solenoid_output_set_mode(&this->solenoid[1], SOLENOID_OUTPUT_MODE_CURRENT);
+		uv_solenoid_output_set_mode(&this->solenoid[0], this->out_type);
+		uv_solenoid_output_set_mode(&this->solenoid[1], this->out_type);
 	}
 	else {
 

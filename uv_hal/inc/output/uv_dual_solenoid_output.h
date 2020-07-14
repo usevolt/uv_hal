@@ -52,7 +52,6 @@ typedef enum {
 } uv_dual_solenoid_output_solenoids_e;
 
 
-
 /// @brief: Dual solenoid output module. Works as a data structure for controlling dual
 /// direction proportional valves.
 typedef struct {
@@ -62,6 +61,8 @@ typedef struct {
 	uv_solenoid_output_st solenoid[DUAL_OUTPUT_SOLENOID_COUNT];
 
 
+	// the type of the solenoid outputs. Should be either current (default) or PWM
+	uv_solenoid_output_mode_e out_type;
 	// if true, both solenoids are controlled with the same control value.
 	// if false, other solenoid is always at 0 duty cycle depending on the direction.
 	bool unidir;
@@ -95,6 +96,22 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 
 static inline void uv_dual_solenoid_output_clear(uv_dual_solenoid_output_st *this) {
 	uv_prop_output_clear((uv_prop_output_st*) this);
+}
+
+
+
+/// @brief: Sets the output type. Either current of PWM, defaults for current.
+static inline void uv_dual_solenoid_output_set_type(uv_dual_solenoid_output_st *this,
+		uv_solenoid_output_mode_e type) {
+	this->out_type = type;
+}
+
+
+
+/// @brief: Getter for the output type
+static inline uv_solenoid_output_mode_e uv_dual_solenoid_output_get_type(
+		uv_dual_solenoid_output_st* this) {
+	return this->out_type;
 }
 
 
