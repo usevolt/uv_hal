@@ -63,12 +63,13 @@
 
 typedef enum {
 	/// @brief: Output is current controlled with a current sensing feedback
-	SOLENOID_OUTPUT_MODE_CURRENT,
+	SOLENOID_OUTPUT_MODE_CURRENT = 0,
 	/// @brief: Output is raw PWM output, controlled with duty cycle. Note that with this
 	/// mode the conf settings are straightly converted to PWM duty cycle values from 0 ... 1000.
 	SOLENOID_OUTPUT_MODE_PWM,
 	/// @brief: The output is on/off digital output, without any proportional functionality.
-	SOLENOID_OUTPUT_MODE_ONOFF
+	SOLENOID_OUTPUT_MODE_ONOFF,
+	SOLENOID_OUTPUT_MODE_COUNT
 } uv_solenoid_output_mode_e;
 
 

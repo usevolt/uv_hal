@@ -177,16 +177,18 @@ void uv_uigraph_draw(void *me, const uv_bounding_box_st *pbb) {
 	// after the lines draw the point dots
 	for (uint16_t i = 0; i < this->points_count; i++) {
 		uv_uigraph_point_st *p = &this->points[i];
-		int16_t px = uv_lerpi(uv_reli(p->x, this->min_x, this->max_x), x, x + cw);
-		int16_t py = uv_lerpi(uv_reli(p->y, this->min_y, this->max_y), y + ch, y);
-		color_t c = (p->interactive) ? this->graph_c : this->style->bg_c;
-		if (i == this->active_point) {
-			uv_ft81x_draw_shadowpoint(px, py, c,
-					uv_uic_brighten(c, 30), uv_uic_brighten(c, -30),
-					this->style->font->char_height * 3 / 2);
-		}
-		else {
-			uv_ft81x_draw_point(px, py, c, this->style->font->char_height);
+		if (p->interactive) {
+			int16_t px = uv_lerpi(uv_reli(p->x, this->min_x, this->max_x), x, x + cw);
+			int16_t py = uv_lerpi(uv_reli(p->y, this->min_y, this->max_y), y + ch, y);
+			color_t c = this->graph_c;
+			if (i == this->active_point) {
+				uv_ft81x_draw_shadowpoint(px, py, c,
+						uv_uic_brighten(c, 30), uv_uic_brighten(c, -30),
+						this->style->font->char_height * 3 / 2);
+			}
+			else {
+				uv_ft81x_draw_point(px, py, c, this->style->font->char_height);
+			}
 		}
 	}
 
