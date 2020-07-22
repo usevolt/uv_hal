@@ -211,6 +211,19 @@ static inline void uv_solenoid_output_set_state(uv_solenoid_output_st *this,
 }
 
 
+
+/// @brief: Freezes the fault detection for *ms* given time. This can be used
+/// to prevent unintentional faults.
+///
+/// @note: More than 100 ms freeze is not suggested, as this might burn the whole controller
+/// in case of short circuit. The VN5T100 amplifier won't sustain too long short circuit
+static inline void uv_solenoid_output_freeze_fault_detection(
+		uv_solenoid_output_st *this, uint32_t ms) {
+	uv_output_freeze_fault_detection((uv_output_st*) this, ms);
+}
+
+
+
 /// @brief: Disables the output. Output can be enabled only by calling
 /// *uv_solenoid_output_enable*.
 void uv_solenoid_output_disable(uv_solenoid_output_st *this);

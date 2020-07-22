@@ -115,29 +115,22 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 	else {
 		if (target > 0) {
 			uv_solenoid_output_set(&this->solenoid[sb], 0);
+			uv_solenoid_output_freeze_fault_detection(&this->solenoid[sb],
+					OUTPUT_FAULT_FREEZE_MS);
 
 			// only set output active if the other direction has gone to zero
 			if (uv_solenoid_output_get_pwm_dc(&this->solenoid[sb]) == 0) {
 				uv_solenoid_output_set(&this->solenoid[sa], abs(target));
 			}
-			else {
-				// the other direction was still active, mark solenoid output to
-				// delay the fault detection. Otherwise the fault emcy would trigger,
-				// probably because the both directions share the current measurement
-				uv_output_freeze_fault_detection((uv_output_st*) &this->solenoid[sa],
-						OUTPUT_FAULT_FREEZE_MS);
-			}
 		}
 		else {
 			uv_solenoid_output_set(&this->solenoid[sa], 0);
+			uv_solenoid_output_freeze_fault_detection(&this->solenoid[sa],
+					OUTPUT_FAULT_FREEZE_MS);
 
 			// only set output active if the other direction has gone to zero
 			if (uv_solenoid_output_get_pwm_dc(&this->solenoid[sa]) == 0) {
 				uv_solenoid_output_set(&this->solenoid[sb], abs(target));
-			}
-			else {
-				uv_output_freeze_fault_detection((uv_output_st*) &this->solenoid[sb],
-						OUTPUT_FAULT_FREEZE_MS);
 			}
 		}
 	}
