@@ -46,7 +46,6 @@ void uv_uiprogressbar_set_limit(void *me, uiprogressbar_limit_e type,
 	this->limit_type = type;
 	this->limit = limit;
 	this->limit_color = color;
-	uv_ui_refresh(this);
 }
 
 
