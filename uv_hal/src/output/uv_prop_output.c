@@ -48,7 +48,6 @@ void uv_prop_output_conf_reset(uv_prop_output_conf_st *this,
 	this->acc = CONFIG_PROP_OUTPUT_ACC_DEF;
 	this->dec = CONFIG_PROP_OUTPUT_DEC_DEF;
 	this->invert = false;
-	this->assembly_invert = false;
 }
 
 
@@ -106,8 +105,8 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 
 			uint16_t acc = this->conf->acc;
 			uint16_t dec = this->conf->dec;
-			LIMIT_MAX(acc, 100);
-			LIMIT_MAX(dec, 100);
+			LIMITS(acc, PROP_ACC_MIN, PROP_ACC_MAX);
+			LIMITS(dec, PROP_DEC_MIN, PROP_DEC_MAX);
 			LIMITS(this->maxspeed_scaler, 0, 1000);
 
 			// update hysteresis parameters
@@ -282,11 +281,13 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 				if ((abs(target_req) > abs(this->target)) ||
 						((int32_t) target_req * this->target < 0)) {
 					// accelerating
-					uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * acc * acc / 10000);
+					uv_pid_set_p(&this->target_pid,
+							(uint32_t) PID_P_MAX * acc * acc / (PROP_ACC_MAX * PROP_ACC_MAX));
 				}
 				else {
 					// decelerating
-					uv_pid_set_p(&this->target_pid, (uint32_t) PID_P_MAX * dec * dec / 10000);
+					uv_pid_set_p(&this->target_pid,
+							(uint32_t) PID_P_MAX * dec * dec / (PROP_DEC_MAX * PROP_DEC_MAX));
 				}
 
 				uv_pid_set_target(&this->target_pid, target_req * PID_MULTIPLIER);

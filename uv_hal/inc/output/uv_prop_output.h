@@ -39,10 +39,10 @@
 #if CONFIG_PROP_OUTPUT
 
 #if !defined(CONFIG_PROP_OUTPUT_ACC_DEF)
-#error "CONFIG_PROP_OUTPUT_ACC_DEF should define the default value for acceleration factor, 0 ... 100"
+#error "CONFIG_PROP_OUTPUT_ACC_DEF should define the default value for acceleration factor, 0 ... INT8_MAX"
 #endif
 #if !defined(CONFIG_PROP_OUTPUT_ACC_DEF)
-#error "CONFIG_PROP_OUTPUT_ACC_DEF should define the default value for acceleration factor, 0 ... 100"
+#error "CONFIG_PROP_OUTPUT_ACC_DEF should define the default value for acceleration factor, 0 ... INT8_MAX"
 #endif
 
 
@@ -60,12 +60,12 @@ typedef enum {
 } uv_prop_output_modes_e;
 
 
-#define PROP_ACC_MAX							100
+#define PROP_ACC_MAX							INT8_MAX
 #define PROP_ACC_MIN							20
-#define PROP_DEC_MAX							100
+#define PROP_DEC_MAX							INT8_MAX
 #define PROP_DEC_MIN							20
-#define PROP_VALUE_MAX							1000
-#define PROP_VALUE_MIN							-1000
+#define PROP_VALUE_MAX							INT8_MAX
+#define PROP_VALUE_MIN							(INT8_MIN + 1)
 
 #define PROP_OUTPUT_A_MIN_PPT_SUBINDEX			SOLENOID_OUTPUT_MIN_PPT_SUBINDEX
 #define PROP_OUTPUT_A_MAX_PPT_SUBINDEX			SOLENOID_OUTPUT_MAX_PPT_SUBINDEX
@@ -84,15 +84,11 @@ typedef struct {
 	//NOTE: All of these variables should
 	uv_solenoid_output_conf_st solenoid_conf[2];
 	/// @brief: Control value acceleration factor, from 0 ... 100
-	uint16_t acc;
+	uint8_t acc;
 	/// @brief: Control value deceleration factor, from 0 ... 100
-	uint16_t dec;
-	/// @brief: Inverts the solenoid direction. Note that this actually doesn't do
-	/// anything here in prop_output. Rather, it can be used in user application.
-	uint16_t invert;
-	/// @brief: Another invertion meant for service configurations. **invert** should be
-	/// meant for user application settings, **assembly_invert** for service.
-	uint16_t assembly_invert;
+	uint8_t dec;
+	/// @brief: Inverts the direction of the output
+	uint8_t invert;
 } uv_prop_output_conf_st;
 
 
