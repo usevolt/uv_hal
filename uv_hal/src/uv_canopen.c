@@ -33,6 +33,7 @@
 #include "uv_can.h"
 #include "uv_reset.h"
 #include "uv_utilities.h"
+#include "uv_rtos.h"
 #include "uv_memory.h"
 #include CONFIG_MAIN_H
 #include <string.h>
@@ -299,7 +300,25 @@ uv_errors_e uv_canopen_sdo_store_params(uint8_t node_id, memory_scope_e_ param_s
 
 
 void uv_canopen_set_our_nodeid(uint8_t nodeid) {
+	uint8_t last_nodeid = uv_canopen_get_our_nodeid();
 	CONFIG_NON_VOLATILE_START.id = nodeid;
+	// update all PDO's which where mapped for the previous node id
+	uv_enter_critical();
+	for (uint8_t i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
+		canopen_txpdo_com_parameter_st *com = &dev.data_start.canopen_data.txpdo_coms[i];
+		if ((com->cob_id & 0x7F) == last_nodeid) {
+			com->cob_id &= ~(0x7F);
+			com->cob_id |= nodeid;
+		}
+	}
+	for (uint8_t i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
+		canopen_rxpdo_com_parameter_st *com = &dev.data_start.canopen_data.rxpdo_coms[i];
+		if ((com->cob_id & 0x7F) == last_nodeid) {
+			com->cob_id &= ~(0x7F);
+			com->cob_id |= nodeid;
+		}
+	}
+	uv_exit_critical();
 }
 
 
