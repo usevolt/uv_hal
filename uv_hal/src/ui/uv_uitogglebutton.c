@@ -65,7 +65,7 @@ void uv_uitogglebutton_init(void *me, bool state, char *text, const uv_uistyle_s
 	this->state = state;
 	this->clicked = false;
 	this->is_down = false;
-	this->active_c = uv_uic_brighten(style->fg_c, -40);
+	this->active_c = uv_uic_brighten(((uv_uibutton_st*) this)->main_c, -30);
 	((uv_uiobject_st*) this)->step_callb = uv_uitogglebutton_step;
 	uv_uiobject_set_draw_callb(this, &draw);
 	uv_uiobject_set_touch_callb(this, &touch);
