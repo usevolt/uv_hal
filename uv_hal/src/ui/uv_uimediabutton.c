@@ -52,7 +52,7 @@ static void draw_mediatogglebutton(void *me, const uv_bounding_box_st *pbb) {
 static void draw_common(void *me, bool pressed, const uv_bounding_box_st *pbb) {
 	color_t fontc = ((uv_uibutton_st *) this)->text_c;
 	color_t bgc = (pressed) ?
-			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 20) :
+			((uv_uitogglebutton_st*) this)->active_c :
 			((uv_uibutton_st*) this)->main_c;
 	color_t shadowc = (pressed) ?
 			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 30) :
@@ -104,6 +104,8 @@ static void draw_common(void *me, bool pressed, const uv_bounding_box_st *pbb) {
 void uv_uimediabutton_init(void *me, char *text,
 		uv_uimedia_st *media, const uv_uistyle_st *style) {
 	uv_uibutton_init(me, text, style);
+	uv_uitogglebutton_set_active_c(me,
+			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 30));
 	this->media = media;
 	this->align = UIMEDIABUTTON_ALIGN_HORIZONTAL;
 	uv_uiobject_set_step_callb(this, &uv_uibutton_step);

@@ -42,10 +42,13 @@ static void touch(void *me, uv_touch_st *touch);
 
 static inline void draw(void *me, const uv_bounding_box_st *pbb) {
 	color_t fontc = ((uv_uibutton_st *) this)->text_c;
-	color_t bgc = (this->state) ? uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 20) : ((uv_uibutton_st*) this)->main_c;
-	color_t shadowc = (this->state) ? uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 30) :
+	color_t bgc = (this->state) ?
+			this->active_c : ((uv_uibutton_st*) this)->main_c;
+	color_t shadowc = (this->state) ?
+			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 30) :
 			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, -30);
-	color_t lightc = (this->state) ? uv_uic_brighten(((uv_uibutton_st*) this)->main_c, -30) :
+	color_t lightc = (this->state) ?
+			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, -30) :
 			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 30);
 	int16_t x = uv_ui_get_xglobal(this);
 	int16_t y = uv_ui_get_yglobal(this);
@@ -62,6 +65,7 @@ void uv_uitogglebutton_init(void *me, bool state, char *text, const uv_uistyle_s
 	this->state = state;
 	this->clicked = false;
 	this->is_down = false;
+	this->active_c = uv_uic_brighten(((uv_uibutton_st*) this)->main_c, -30);
 	((uv_uiobject_st*) this)->step_callb = uv_uitogglebutton_step;
 	uv_uiobject_set_draw_callb(this, &draw);
 	uv_uiobject_set_touch_callb(this, &touch);

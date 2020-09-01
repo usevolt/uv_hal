@@ -42,6 +42,7 @@ typedef struct __attribute__((packed)) {
 	bool state;
 	bool clicked;
 	bool is_down;
+	color_t active_c;
 } uv_uitogglebutton_st;
 
 #ifdef this
@@ -72,6 +73,15 @@ static inline bool uv_uitogglebutton_clicked(void *me) {
 	return this->clicked;
 }
 
+
+static inline color_t uv_uitogglebutton_get_active_c(void *me) {
+	return this->active_c;
+}
+
+
+static inline void uv_uitogglebutton_set_active_c(void *me, color_t value) {
+	this->active_c = value;
+}
 
 /// @brief: Returns true when the user is pressing the togglebutton
 static inline bool uv_uitogglebutton_is_down(void *me) {
