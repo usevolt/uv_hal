@@ -239,7 +239,7 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 					}
 				}
 				target_req = (this->toggle_on) ?
-						((this->toggle_on > 0) ? 1000 : -1000) : 0;
+						((this->toggle_on > 0) ? PROP_VALUE_MAX : PROP_VALUE_MIN) : 0;
 			}
 			else {
 				this->toggle_on = 0;

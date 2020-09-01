@@ -75,7 +75,7 @@ typedef enum {
 #define PROP_OUTPUT_DEC_SUBINDEX				(SOLENOID_OUTPUT_CONF_SUBINDEX_COUNT * 2 + 2)
 #define PROP_OUTPUT_INVERT_SUBINDEX			(SOLENOID_OUTPUT_CONF_SUBINDEX_COUNT * 2 + 3)
 #define PROP_OUTPUT_ASSEMBLY_INVERT_SUBINDEX	(SOLENOID_OUTPUT_CONF_SUBINDEX_COUNT * 2 + 4)
-#define PROP_OUTPUT_TOGGLE_THRESHOLD_DEFAULT		500
+#define PROP_OUTPUT_TOGGLE_THRESHOLD_DEFAULT		(INT8_MAX / 2)
 #define PROP_OUTPUT_TOGGLE_LIMIT_MS_DEFAULT		0
 #define PROP_OUTPUT_ENABLE_DELAY_MS_DEFAULT		0
 
@@ -130,7 +130,7 @@ typedef struct {
 
 	uv_hysteresis_st toggle_hyst;
 	uint8_t last_hyst;
-	uint16_t toggle_threshold;
+	uint8_t toggle_threshold;
 	// tells the output state on ONOFFTOGGLE modes
 	int8_t toggle_on;
 	uv_delay_st toggle_delay;
@@ -232,8 +232,8 @@ static inline int16_t uv_prop_output_get_maxspeed_scaler(
 
 
 static inline void uv_prop_output_set_toggle_threshold(
-		uv_prop_output_st *this, uint16_t value) {
-	this->toggle_threshold = value;
+		uv_prop_output_st *this, int8_t value) {
+	this->toggle_threshold = abs(value);
 }
 
 
