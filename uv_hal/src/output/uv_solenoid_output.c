@@ -57,7 +57,7 @@ static uint16_t current_func(void *this_ptr, uint16_t adc) {
 void uv_solenoid_output_conf_reset(uv_solenoid_output_conf_st *conf,
 		uv_solenoid_output_limitconf_st *limitconf) {
 	conf->min = 0;
-	conf->max = INT8_MAX;
+	conf->max = UINT8_MAX;
 	limitconf->max = CONFIG_SOLENOID_MAX_CURRENT_DEF;
 }
 
