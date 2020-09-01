@@ -82,9 +82,9 @@ typedef enum {
 /// @brief: Data structure for solenoid output configuration data.
 /// This can be stored in non-volatile memory.
 typedef struct {
-	// minimum PWM in 0 ... INT8_MAX
+	// minimum PWM in 0 ... UINT8_MAX
 	uint8_t min;
-	// maximum PWM in 0 ... INT8_MAX
+	// maximum PWM in 0 ... UINT8_MAX
 	uint8_t max;
 } uv_solenoid_output_conf_st;
 
