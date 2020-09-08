@@ -75,6 +75,12 @@ typedef struct {
 	/// ADC reading with this value should result into microamperes
 	/// which is then converted into milliamps in the output_st.
 	uint16_t sense_ampl;
+	/// @brief: If the output uses on/off stat feedback,
+	/// *stat_io* should define the GPIO pin used for the feedback. in this case,
+	/// adc_chn, sense_ampl, limit values and overload emcy are not used.
+	/// *stat_io* defaults to 0, i.e. disabled. Enable it with a call to
+	/// *uv_output_set_stat_io*
+	uv_gpios_e stat_io;
 	/// @brief: Current max limit in mA
 	uint16_t limit_max_ma;
 	uint16_t limit_fault_ma;
@@ -135,6 +141,14 @@ static inline void uv_output_set_ampl(uv_output_st *this, const uint16_t value) 
 /// @brief: Sets the maximum allowed current value
 static inline void uv_output_set_max(uv_output_st *this, uint16_t value) {
 	this->limit_max_ma = value;
+}
+
+
+
+/// @brief: Sets the output to work in a stat io feedback mode. See uv_output_st member
+/// variable documentation for more info.
+static inline void uv_output_set_stat_feedback_io(uv_output_st* this, uv_gpios_e gpio) {
+	this->stat_io = gpio;
 }
 
 /// @brief: Returns the state of the output

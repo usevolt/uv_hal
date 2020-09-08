@@ -43,6 +43,9 @@
 #define SOLENOID_OUTPUT_PWMAVG_COUNT	10
 #define SOLENOID_OUTPUT_MAAVG_COUNT		100
 
+
+#define SOLENOID_OUTPUT_CONF_MAX		UINT8_MAX
+
 #if !CONFIG_PID
 #error "uv_solenoid_output requires uv_pid_st to be enabled with CONFIG_PID defined as 1."
 #endif
@@ -189,8 +192,11 @@ static inline int16_t uv_solenoid_output_get_maxspeed_scaler(uv_solenoid_output_
 void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms);
 
 
-/// @brief: Sets the solenoid output target value. In current mode this is scaled to milliamps
-/// according to configuration values,
+
+#define SOLENOID_OUTPUT_TARGET_MAX	1000
+
+/// @brief: Sets the solenoid output target value. In current mode range of 0 ... 1000
+/// is scaled to milliamps according to configuration values,
 /// in PWM mode the duty cycle, in range of 0 ... 1000. The conf values affect the actual duty cycle.
 static inline void uv_solenoid_output_set(uv_solenoid_output_st *this, uint16_t value) {
 	this->target = value;

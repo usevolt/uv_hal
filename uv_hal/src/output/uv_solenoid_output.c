@@ -57,7 +57,7 @@ static uint16_t current_func(void *this_ptr, uint16_t adc) {
 void uv_solenoid_output_conf_reset(uv_solenoid_output_conf_st *conf,
 		uv_solenoid_output_limitconf_st *limitconf) {
 	conf->min = 0;
-	conf->max = UINT8_MAX;
+	conf->max = SOLENOID_OUTPUT_CONF_MAX;
 	limitconf->max = CONFIG_SOLENOID_MAX_CURRENT_DEF;
 }
 
@@ -105,7 +105,7 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 	uv_output_step((uv_output_st *)this, step_ms);
 
 	LIMITS(this->maxspeed_scaler, 0, 1000);
-	LIMIT_MAX(this->conf->max, UINT8_MAX);
+	LIMIT_MAX(this->conf->max, SOLENOID_OUTPUT_CONF_MAX);
 	LIMIT_MAX(this->conf->min, this->conf->max);
 	LIMIT_MAX(this->limitconf->max, this->mode == SOLENOID_OUTPUT_MODE_PWM ?
 			1000 : CONFIG_SOLENOID_MAX_CURRENT_DEF);
