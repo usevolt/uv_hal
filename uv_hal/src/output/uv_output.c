@@ -62,6 +62,7 @@ void uv_output_init(uv_output_st *this,  uv_adc_channels_e adc_chn, uv_gpios_e g
 	if (this->gate_io) {
 		uv_gpio_init_output(this->gate_io, false);
 	}
+	this->stat_io = 0;
 	set_out(this, 0);
 	this->sense_ampl = sense_ampl;
 	this->limit_max_ma = max_val_ma;
@@ -120,15 +121,23 @@ void uv_output_step(uv_output_st *this, uint16_t step_ms) {
 
 		int32_t current = 0;
 		// current sense feedback
-		if (this->adc_chn) {
-			int32_t adc = uv_adc_read(this->adc_chn);
-			if (adc < 0) {
-				adc = 0;
+		if (this->stat_io == 0) {
+			if (this->adc_chn) {
+				int32_t adc = uv_adc_read(this->adc_chn);
+				if (adc < 0) {
+					adc = 0;
+				}
+				current = this->current_func(this, adc);
 			}
-			current = this->current_func(this, adc);
-			uv_moving_aver_step(&this->moving_avg, current);
-		}
 
+		}
+		else {
+			// stat io mode
+			if (uv_gpio_get(this->stat_io)) {
+				current = this->limit_fault_ma + 1;
+			}
+		}
+		uv_moving_aver_step(&this->moving_avg, current);
 		this->current = uv_moving_aver_get_val(&this->moving_avg);
 
 		// fault detection should be performed from the not-averaged current value
