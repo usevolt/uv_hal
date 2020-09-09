@@ -155,16 +155,15 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 			// clamp the output current to min & max current limits
 			if (this->target) {
 				int32_t rel = uv_reli(this->conf->min, 0, UINT8_MAX);
-				target_ma = uv_lerpi(this->target,
-						uv_lerpi(rel, 0, this->limitconf->max),
-						uv_lerpi(
-								uv_lerpi(this->maxspeed_scaler,
-										this->conf->min,
-										this->conf->max),
-								0,
-								this->limitconf->max)
-								);
-
+				int32_t maxspeed = uv_lerpi(
+						this->maxspeed_scaler,
+						this->conf->min,
+						this->conf->max);
+				// convert maxspeed to 0...1000 scale
+				maxspeed = uv_reli(maxspeed, 0, SOLENOID_OUTPUT_CONF_MAX);
+				int32_t min_ma = uv_lerpi(rel, 0, this->limitconf->max),
+						max_ma = uv_lerpi(maxspeed, 0, this->limitconf->max);
+				target_ma = uv_lerpi(this->target, min_ma, max_ma);
 				LIMIT_MAX(target_ma, this->limitconf->max);
 			}
 			uv_pid_set_target(&this->ma_pid, target_ma);

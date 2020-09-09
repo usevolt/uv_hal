@@ -108,6 +108,7 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 			LIMITS(acc, PROP_ACC_MIN, PROP_ACC_MAX);
 			LIMITS(dec, PROP_DEC_MIN, PROP_DEC_MAX);
 			LIMITS(this->maxspeed_scaler, 0, 1000);
+			LIMITS(this->target, PROP_OUTPUT_TARGET_MIN, PROP_OUTPUT_TARGET_MAX);
 
 			// update hysteresis parameters
 			// because of uv_hysteresis module compares greater-than, and not greater-or-equal,
@@ -126,7 +127,7 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 
 
 			int32_t target_req = this->target_req;
-			LIMITS(target_req, PROP_VALUE_MIN, PROP_VALUE_MAX);
+			LIMITS(target_req, PROP_OUTPUT_TARGET_MIN, PROP_OUTPUT_TARGET_MAX);
 
 			if ((int32_t) target_req * this->last_target_req < 0) {
 				this->toggle_hyst.result = 0;

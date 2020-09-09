@@ -174,6 +174,9 @@ static inline void uv_prop_output_disable(uv_prop_output_st *this) {
 	this->state = OUTPUT_STATE_DISABLED;
 }
 
+
+#define PROP_OUTPUT_TARGET_MAX			1000
+#define PROP_OUTPUT_TARGET_MIN			-1000
 /// @brief: Sets the output current.
 ///
 /// @param value: current in -1000 ... 1000 which is set to the actual solenoid output modules

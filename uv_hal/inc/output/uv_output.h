@@ -76,7 +76,8 @@ typedef struct {
 	/// which is then converted into milliamps in the output_st.
 	uint16_t sense_ampl;
 	/// @brief: If the output uses on/off stat feedback,
-	/// *stat_io* should define the GPIO pin used for the feedback. in this case,
+	/// *stat_io* should define the GPIO pin used for the feedback.
+	/// Low state in *stat_io* is read as a fault condition. in this case,
 	/// adc_chn, sense_ampl, limit values and overload emcy are not used.
 	/// *stat_io* defaults to 0, i.e. disabled. Enable it with a call to
 	/// *uv_output_set_stat_io*

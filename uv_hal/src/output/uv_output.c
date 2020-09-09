@@ -133,7 +133,7 @@ void uv_output_step(uv_output_st *this, uint16_t step_ms) {
 		}
 		else {
 			// stat io mode
-			if (uv_gpio_get(this->stat_io)) {
+			if (!uv_gpio_get(this->stat_io)) {
 				current = this->limit_fault_ma + 1;
 			}
 		}
