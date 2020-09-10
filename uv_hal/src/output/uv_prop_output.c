@@ -47,7 +47,6 @@ void uv_prop_output_conf_reset(uv_prop_output_conf_st *this,
 	uv_solenoid_output_conf_reset(&this->solenoid_conf[1], &limitconf->solenoid_limitconf[1]);
 	this->acc = CONFIG_PROP_OUTPUT_ACC_DEF;
 	this->dec = CONFIG_PROP_OUTPUT_DEC_DEF;
-	this->invert = false;
 }
 
 

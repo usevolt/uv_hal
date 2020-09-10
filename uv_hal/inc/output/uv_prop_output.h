@@ -73,8 +73,6 @@ typedef enum {
 #define PROP_OUTPUT_B_MAX_PPT_SUBINDEX			(SOLENOID_OUTPUT_CONF_SUBINDEX_COUNT + SOLENOID_OUTPUT_MAX_PPT_SUBINDEX)
 #define PROP_OUTPUT_ACC_SUBINDEX				(SOLENOID_OUTPUT_CONF_SUBINDEX_COUNT * 2 + 1)
 #define PROP_OUTPUT_DEC_SUBINDEX				(SOLENOID_OUTPUT_CONF_SUBINDEX_COUNT * 2 + 2)
-#define PROP_OUTPUT_INVERT_SUBINDEX			(SOLENOID_OUTPUT_CONF_SUBINDEX_COUNT * 2 + 3)
-#define PROP_OUTPUT_ASSEMBLY_INVERT_SUBINDEX	(SOLENOID_OUTPUT_CONF_SUBINDEX_COUNT * 2 + 4)
 #define PROP_OUTPUT_TOGGLE_THRESHOLD_DEFAULT		(INT8_MAX / 2)
 #define PROP_OUTPUT_TOGGLE_LIMIT_MS_DEFAULT		0
 #define PROP_OUTPUT_ENABLE_DELAY_MS_DEFAULT		0
@@ -87,8 +85,6 @@ typedef struct {
 	uint8_t acc;
 	/// @brief: Control value deceleration factor, from 0 ... 100
 	uint8_t dec;
-	/// @brief: Inverts the direction of the output
-	uint8_t invert;
 } uv_prop_output_conf_st;
 
 
