@@ -74,9 +74,13 @@ void uv_uibutton_draw(void *me, const uv_bounding_box_st *pbb) {
 uv_uiobject_ret_e uv_uibutton_step(void *me, uint16_t step_ms) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
-	if ((this->state == UIBUTTON_PRESSED) &&
-			uv_delay(&this->delay, step_ms)) {
-		this->state = UIBUTTON_LONGPRESSED;
+	if ((this->state == UIBUTTON_PRESSED)) {
+		if (uv_delay(&this->delay, step_ms)) {
+			this->state = UIBUTTON_LONGPRESSED;
+			uv_delay_init(&this->delay, CONFIG_UI_BUTTON_LONGPRESS_DELAY_MS);
+		}
+	}
+	else {
 		uv_delay_init(&this->delay, CONFIG_UI_BUTTON_LONGPRESS_DELAY_MS);
 	}
 
