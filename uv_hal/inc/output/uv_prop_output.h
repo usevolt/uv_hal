@@ -60,9 +60,9 @@ typedef enum {
 } uv_prop_output_modes_e;
 
 
-#define PROP_ACC_MAX							INT8_MAX
+#define PROP_ACC_MAX							UINT8_MAX
 #define PROP_ACC_MIN							20
-#define PROP_DEC_MAX							INT8_MAX
+#define PROP_DEC_MAX							UINT8_MAX
 #define PROP_DEC_MIN							20
 #define PROP_VALUE_MAX							INT8_MAX
 #define PROP_VALUE_MIN							(INT8_MIN + 1)
