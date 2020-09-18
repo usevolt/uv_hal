@@ -209,9 +209,12 @@ int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 	else if (state == HALSENSOR_STATE_FAULT) {
 		this->output16 = 0;
 		// move back to ON state if read value is in middle
-		if ((adc > this->config->middle - this->config->middle_tolerance / 2) &&
-				(adc < this->config->middle + this->config->middle_tolerance / 2)) {
-			this->state = HALSENSOR_STATE_ON;
+		if (this->config->min < this->config->middle &&
+				this->config->max > this->config->middle) {
+			if ((adc > this->config->middle - this->config->middle_tolerance / 2) &&
+					(adc < this->config->middle + this->config->middle_tolerance / 2)) {
+				this->state = HALSENSOR_STATE_ON;
+			}
 		}
 	}
 	else if (state == HALSENSOR_STATE_CALIBRATION) {
