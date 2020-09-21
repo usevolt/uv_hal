@@ -110,9 +110,17 @@
 /// inside interrupt routines.
 #define uv_enable_int_ISR()		taskEXIT_CRITICAL_FROM_ISR(1)
 
+#if (CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN)
+#define uv_enter_critical()
+#else
 #define uv_enter_critical()		taskENTER_CRITICAL()
+#endif
 
+#if (CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN)
+#define uv_exit_critical()
+#else
 #define uv_exit_critical()		taskEXIT_CRITICAL()
+#endif
 
 
 
