@@ -122,6 +122,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 		// aborted transfers
 		if (sdo_type == ABORT_DOMAIN_TRANSFER) {
 			this->state = CANOPEN_SDO_STATE_TRANSFER_ABORTED;
+			this->last_err_code = msg->data_32bit[1];
 			uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 		}
 		// reply to expedited downloads
@@ -248,6 +249,9 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 				else {
 					// ask for more data
 					SET_CMD_BYTE(&reply_msg, UPLOAD_DOMAIN_SEGMENT | (this->toggle << 4));
+					memset(&reply_msg.data_8bit[1], 0, 7);
+					memcpy(&reply_msg.data_8bit[1], &msg->data_8bit[1],
+							uv_mini(msg->data_length, 7));
 					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 					this->toggle = !this->toggle;
 				}
@@ -572,7 +576,6 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 		}
 		// data should now be copied and transfer is finished
 	}
-
 
 	return ret;
 }
