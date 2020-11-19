@@ -34,10 +34,8 @@
 #include "uv_errors.h"
 #include <stdbool.h>
 #include <stdint.h>
+#include <uv_gpio.h>
 #if CONFIG_ADC || CONFIG_ADC1 || CONFIG_ADC0
-
-#define ADC_MODE_SYNC	1
-#define ADC_MODE_ASYNC	2
 
 
 #define ADC_MAX_FREQ	50000000
@@ -64,7 +62,10 @@ enum {
 	ADC_MAX_VALUE = 0x1000
 };
 
-/// @brief: Defines all ADC channels available on specific hardware
+/// @brief: Defines all ADC channels available on specific hardware.
+///
+/// @note: These enums have to be in ascending order, starting from zero. The last
+/// *ADC_COUNT* has to define the number of ADC channels on the system
 typedef enum {
 	ADC0_0 = 0,
 	ADC0_1,
@@ -99,11 +100,6 @@ uv_errors_e _uv_adc_init();
 
 
 /// @brief: returns the channel'd adc channel value as 32-bit integer
-/// In burst operation this function executes fastly, otherwise the ADC conversion is triggered
-/// and it takes 11 clock cycles to finish. In ASYNC mode application should first call
-/// *uv_adc_start* and wait for the conversion to finish.
-/// For CONFIG_TARGET_LPC11C14 ADC has a 10 bit resolution -> return value is 0 - 1024.
-/// For CONFIG_TARGET_LPC1785 ADC has a 12 bit resolution -> return value is 0 - 4096.
 ///
 /// @return: Value from the adc, 0 ... ADC_MAX_VALUE
 /// @param channel to be returned. Should be ADC_CHN_0, ADC_CHN_1, etc etc.
@@ -111,14 +107,9 @@ uv_errors_e _uv_adc_init();
 int16_t uv_adc_read(uv_adc_channels_e channel);
 
 
-/// @brief: returns the channel'd adc channel value as 32-bit integer averaged by
-/// 'conversion_count' times.
-/// In burst operation this function executes fastly, otherwise the ADC conversion is triggered
-/// and it takes 11 clock cycles to finish.
-/// for CONFIG_TARGET_LPC11C14 adc has a 10 bit resolution -> return value is 0 - 1024
-/// @return: Value from the adc, 0 ... ADC_MAX_VALUE
-/// @param channel to be returned. Should be ADC_CHN_0, ADC_CHN_1, etc etc.
-/// invalid channels return -1.
+/// @brief: Makes the analog conversion *conversion_count* times and
+/// returns the average value.
+///
 /// @param conversion_count: The amount of AD conversions to be done and averaged.
 int16_t uv_adc_read_average(uv_adc_channels_e channel, uint32_t conversion_count);
 
@@ -126,6 +117,11 @@ int16_t uv_adc_read_average(uv_adc_channels_e channel, uint32_t conversion_count
 /// @brief: Enabled and initializes the given AIN pin. The GPIO is set in analog
 /// mode and all digital functions are disabled.
 void uv_adc_enable_ain(uv_adc_channels_e channel);
+
+
+
+/// @brief: Returns the GPIO pin for the given adc channel
+uv_gpios_e uv_adc_get_gpio_pin(uv_adc_channels_e channel);
 
 
 
