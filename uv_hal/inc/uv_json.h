@@ -29,7 +29,7 @@
 #ifndef UW_JSON_H_
 #define UW_JSON_H_
 
-
+#include <stdint.h>
 #include "uv_hal_config.h"
 
 
@@ -108,7 +108,8 @@ uv_errors_e uv_jsonreader_init(char *buffer_ptr, unsigned int buffer_length);
 /// @param buffer_ptr: A pointer to a string buffer which contains the JSON to be parsed
 /// OR a string where the constructed json will be saved.
 /// @param buffer_length: The maximum length in bytes of the buffer.
-uv_errors_e uv_jsonwriter_init(uv_json_st *json, char *buffer_ptr, unsigned int buffer_length);
+uv_errors_e uv_jsonwriter_init(uv_json_st *json, char *buffer_ptr,
+		unsigned int buffer_length);
 
 
 
@@ -129,7 +130,7 @@ uv_errors_e uv_jsonwriter_end(uv_json_st *json, uv_json_errors_e *errors);
 /// @brief: Starts to write a JSON object
 ///
 /// @param name: The name of the object
-uv_errors_e uv_jsonwriter_begin_object(uv_json_st *json, char *name);
+uv_errors_e uv_jsonwriter_begin_object(uv_json_st *json);
 
 /// @brief: Ends a write of a JSON object
 ///

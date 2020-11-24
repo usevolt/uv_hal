@@ -73,7 +73,8 @@ uv_errors_e uv_jsonreader_init(char *buffer_ptr, unsigned int buffer_length) {
 
 
 
-uv_errors_e uv_jsonwriter_init(uv_json_st *json, char *buffer_ptr, unsigned int buffer_length) {
+uv_errors_e uv_jsonwriter_init(uv_json_st *json, char *buffer_ptr,
+		unsigned int buffer_length) {
 	json->start_ptr = buffer_ptr;
  	json->buffer_length = buffer_length;
 	sprintf(json->start_ptr, "{");
@@ -120,15 +121,15 @@ uv_errors_e uv_jsonwriter_end(uv_json_st *json, uv_json_errors_e *errors) {
 }
 
 
-uv_errors_e uv_jsonwriter_begin_object(uv_json_st *json, char *name) {
+uv_errors_e uv_jsonwriter_begin_object(uv_json_st *json) {
 	uv_errors_e ret = ERR_NONE;
 
-	unsigned int len = strlen(name) + 4;
+	unsigned int len = 1;
 
 	ret = check_overflow(json, len);
 
 	if (ret == ERR_NONE) {
-		snprintf(json->start_ptr + strlen(json->start_ptr), len, "\"%s\":{", name);
+		snprintf(json->start_ptr + strlen(json->start_ptr), len + 1, "{");
 	}
 
 	return ret;
@@ -152,12 +153,17 @@ uv_errors_e uv_jsonwriter_end_object(uv_json_st *json) {
 
 uv_errors_e uv_jsonwriter_begin_array(uv_json_st *json, char *name) {
 	uv_errors_e ret = ERR_NONE;
-	unsigned int len = strlen(name) + 4;
+	unsigned int len = strlen(name) + 5;
 
 	ret = check_overflow(json, len);
 
 	if (ret == ERR_NONE) {
-		snprintf(json->start_ptr + strlen(json->start_ptr), len, "\"%s\":[", name);
+		if (strlen(name) == 0) {
+			snprintf(json->start_ptr + strlen(json->start_ptr), len + 1, "[");
+		}
+		else {
+			snprintf(json->start_ptr + strlen(json->start_ptr), len + 1, "\"%s\":[", name);
+		}
 	}
 
 	return ret;
@@ -189,7 +195,7 @@ uv_errors_e uv_jsonwriter_add_int(uv_json_st *json, char *name, int value) {
 	ret = check_overflow(json, len);
 
 	if (ret == ERR_NONE) {
-		snprintf(json->start_ptr + strlen(json->start_ptr), len, "\"%s\":%s,",
+		snprintf(json->start_ptr + strlen(json->start_ptr), len + 1, "\"%s\":%s,",
 				name, v);
 	}
 	return ret;
@@ -204,7 +210,7 @@ uv_errors_e uv_jsonwriter_array_add_int(uv_json_st *json, int value) {
 	ret = check_overflow(json, len);
 
 	if (ret == ERR_NONE) {
-		snprintf(json->start_ptr + strlen(json->start_ptr), len, "%s,", v);
+		snprintf(json->start_ptr + strlen(json->start_ptr), len + 1, "%s,", v);
 	}
 
 	return ret;
@@ -218,7 +224,7 @@ uv_errors_e uv_jsonwriter_add_string(uv_json_st *json, char *name, char *value) 
 	ret = check_overflow(json, len);
 
 	if (ret == ERR_NONE) {
-		snprintf(json->start_ptr + strlen(json->start_ptr), len, "\"%s\":\"%s\",",
+		snprintf(json->start_ptr + strlen(json->start_ptr), len + 1, "\"%s\":\"%s\",",
 				name, value);
 	}
 	return ret;
@@ -231,7 +237,7 @@ uv_errors_e uv_jsonwriter_array_add_string(uv_json_st *json, char *value) {
 	ret = check_overflow(json, len);
 
 	if (ret == ERR_NONE) {
-		snprintf(json->start_ptr + strlen(json->start_ptr), len, "\"%s\",", value);
+		snprintf(json->start_ptr + strlen(json->start_ptr), len + 1, "\"%s\",", value);
 	}
 	return ret;
 }
@@ -244,7 +250,7 @@ uv_errors_e uv_jsonwriter_add_bool(uv_json_st *json, char *name, bool value) {
 	ret = check_overflow(json, len);
 
 	if (ret == ERR_NONE) {
-		snprintf(json->start_ptr + strlen(json->start_ptr), len, "\"%s\":%s,",
+		snprintf(json->start_ptr + strlen(json->start_ptr), len + 1, "\"%s\":%s,",
 				name, (value) ? "true" : "false");
 	}
 	return ret;
@@ -259,7 +265,7 @@ uv_errors_e uv_jsonwriter_array_add_bool(uv_json_st *json, bool value) {
 	ret = check_overflow(json, len);
 
 	if (ret == ERR_NONE) {
-		snprintf(json->start_ptr + strlen(json->start_ptr), len, "%s,",
+		snprintf(json->start_ptr + strlen(json->start_ptr), len + 1, "%s,",
 				(value) ? "true" : "false");
 	}
 
