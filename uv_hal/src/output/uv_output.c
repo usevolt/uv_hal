@@ -58,6 +58,7 @@ void uv_output_init(uv_output_st *this,  uv_adc_channels_e adc_chn, uv_gpios_e g
 		uint16_t moving_avg_count, uint32_t emcy_overload, uint32_t emcy_fault) {
 	this->current_func = &current_func;
 	this->adc_chn = adc_chn;
+	uv_adc_enable_ain(this->adc_chn);
 	this->gate_io = gate_io;
 	if (this->gate_io) {
 		uv_gpio_init_output(this->gate_io, false);
