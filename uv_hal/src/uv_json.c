@@ -273,6 +273,26 @@ uv_errors_e uv_jsonwriter_array_add_bool(uv_json_st *json, bool value) {
 }
 
 
+bool uv_jsonwriter_append_json(uv_json_st *json, char *data) {
+	bool ret = true;
+	if (strlen(json->start_ptr) + strlen(data) + 1 > json->buffer_length) {
+		ret = false;
+	}
+	else {
+		for (uint32_t i = 0; i < strlen(data); i++) {
+			if (!isspace(data[i])) {
+				uint32_t index = strlen(json->start_ptr);
+				json->start_ptr[index] = data[i];
+				json->start_ptr[index + 1] = '\0';
+			}
+		}
+	}
+	return ret;
+}
+
+
+
+
 char *jump_to(char *position, char* match) {
 	bool is_string = false;
 	bool found = false;
@@ -669,5 +689,6 @@ char *uv_jsonreader_array_at(char *object, unsigned int index) {
 
 	return ret;
 }
+
 
 #endif

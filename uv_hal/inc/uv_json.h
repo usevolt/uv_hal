@@ -175,6 +175,15 @@ uv_errors_e uv_jsonwriter_add_bool(uv_json_st *json, char *name, bool value);
 uv_errors_e uv_jsonwriter_array_add_bool(uv_json_st *json, bool value);
 
 
+/// @brief: Appends JSON data to the JSON file. The *data* has to be
+/// valid json and the application is responsible if the *json* module
+/// is in a state that appending to it actually results in a valid json file.
+///
+/// @return: True on success, false if the JSON buffer would overflow
+bool uv_jsonwriter_append_json(uv_json_st *json, char *data);
+
+
+
 /***** READING FUNCTIONS ******/
 
 /// @brief: Gives a pointer pointing to the start to the next sibling coming after 'object'
@@ -225,11 +234,6 @@ uv_json_types_e uv_jsonreader_get_type(char *object);
 /// @brief: Returns the object's value as an integer
 int uv_jsonreader_get_int(char *object);
 
-/// @brief: Returns the array's cell value as an integer
-///
-/// @note: Do not overindex!
-int uv_jsonreader_array_get_int(char *object, unsigned int index);
-
 
 /// @brief: Passes the object's value as a null-terminated string to 'dest'
 /// If the string is longer than dest_length (including the termination '\0' char),
@@ -247,7 +251,8 @@ unsigned int uv_jsonreader_get_string_len(char *object);
 /// If the string is longer than dest_length, returns false.
 ///
 /// @note: Do not overindex!
-bool uv_jsonreader_array_get_string(char *object, unsigned int index, char *dest, unsigned int dest_length);
+bool uv_jsonreader_array_get_string(char *object, unsigned int index, char *dest,
+		unsigned int dest_length);
 
 
 /// @brief: Returns the object's value as a bool
@@ -264,6 +269,7 @@ char *uv_jsonreader_array_at(char *object, unsigned int index);
 
 /// @brief: Returns the array's child count
 unsigned int uv_jsonreader_array_get_size(char *array);
+
 
 #endif
 
