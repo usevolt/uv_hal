@@ -48,14 +48,12 @@ static uv_errors_e check_overflow(uv_json_st *json, unsigned int length_req) {
 }
 
 
-uv_errors_e uv_jsonreader_init(char *buffer_ptr, unsigned int buffer_length) {
-	uv_errors_e ret = ERR_NONE;
-
+static void json_remove_whitespace(char *buffer_ptr, unsigned int buffer_len) {
 	unsigned int count = 0;
 	char *ptr;
 	bool in_string = false;
 	// remove all whitespace
-	for (ptr = buffer_ptr; ptr != buffer_ptr + buffer_length; ptr++) {
+	for (ptr = buffer_ptr; ptr != buffer_ptr + buffer_len; ptr++) {
 		if (*ptr == '"') {
 			in_string = !in_string;
 		}
@@ -66,7 +64,14 @@ uv_errors_e uv_jsonreader_init(char *buffer_ptr, unsigned int buffer_length) {
 			*(ptr - count) = *ptr;
 		}
 	}
-	*(buffer_ptr + buffer_length - count) = '\0';
+	*(buffer_ptr + buffer_len - count) = '\0';
+}
+
+
+uv_errors_e uv_jsonreader_init(char *buffer_ptr, unsigned int buffer_length) {
+	uv_errors_e ret = ERR_NONE;
+
+	json_remove_whitespace(buffer_ptr, buffer_length);
 
 	return ret;
 }
@@ -275,17 +280,15 @@ uv_errors_e uv_jsonwriter_array_add_bool(uv_json_st *json, bool value) {
 
 bool uv_jsonwriter_append_json(uv_json_st *json, char *data) {
 	bool ret = true;
-	if (strlen(json->start_ptr) + strlen(data) + 1 > json->buffer_length) {
+	json_remove_whitespace(data, strlen(data));
+	uint32_t len = strlen(data);
+	uint32_t jsonlen = strlen(json->start_ptr);
+	if (jsonlen + len + 2 > json->buffer_length) {
 		ret = false;
 	}
 	else {
-		for (uint32_t i = 0; i < strlen(data); i++) {
-			if (!isspace(data[i])) {
-				uint32_t index = strlen(json->start_ptr);
-				json->start_ptr[index] = data[i];
-				json->start_ptr[index + 1] = '\0';
-			}
-		}
+		snprintf(json->start_ptr + jsonlen, len + 2, "%s,", data);
+		printf("%s\n", json->start_ptr + strlen(json->start_ptr) - 1);
 	}
 	return ret;
 }
