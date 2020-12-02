@@ -304,40 +304,39 @@ uv_errors_e uv_can_get_char(char *dest) {
 uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message) {
 	uv_errors_e ret = ERR_NONE;
 
-	if (this->connection) {
-		int retval;
-		struct can_frame frame;
-		frame.can_id = message->id | ((message->type == CAN_EXT) ? CAN_EFF_FLAG : 0);
-		frame.can_dlc = message->data_length;
-		memcpy(frame.data, message->data_8bit, message->data_length);
+	if (!this->connection) {
+		uv_can_set_up();
+	}
 
+	int retval;
+	struct can_frame frame;
+	frame.can_id = message->id | ((message->type == CAN_EXT) ? CAN_EFF_FLAG : 0);
+	frame.can_dlc = message->data_length;
+	memcpy(frame.data, message->data_8bit, message->data_length);
+
+	retval = write(this->soc, &frame, sizeof(struct can_frame));
+	if (retval != sizeof(struct can_frame) && errno == ENETDOWN) {
+		// try to set the net dev up
+		uv_can_set_up();
 		retval = write(this->soc, &frame, sizeof(struct can_frame));
-		if (retval != sizeof(struct can_frame) && errno == ENETDOWN) {
-			// try to set the net dev up
-			uv_can_set_up();
-			retval = write(this->soc, &frame, sizeof(struct can_frame));
+	}
+	if (retval != sizeof(struct can_frame)) {
+		printf("Sending a message with ID of 0x%x resulted in a CAN error: %u , %s***\n",
+				message->id, errno, strerror(errno));
+		if (errno == ENETDOWN) {
+			printf("The network is down. Initialize the network with command:\n\n"
+					"sudo ip link set CHANNEL type can bitrate BAUDRATE txqueuelen 1000\n\n"
+					"And open the network with command:\n\n"
+					"sudo ip link set dev CHANNEL up\n\n"
+					"After that you can communicate with the device.\n");
+			// exit the program to prevent further error messages
+			exit(0);
 		}
-		if (retval != sizeof(struct can_frame)) {
-			printf("Sending a message with ID of 0x%x resulted in a CAN error: %u , %s***\n",
-					message->id, errno, strerror(errno));
-			if (errno == ENETDOWN) {
-				printf("The network is down. Initialize the network with command:\n\n"
-						"sudo ip link set CHANNEL type can bitrate BAUDRATE txqueuelen 1000\n\n"
-						"And open the network with command:\n\n"
-						"sudo ip link set dev CHANNEL up\n\n"
-						"After that you can communicate with the device.\n");
-				// exit the program to prevent further error messages
-				exit(0);
-			}
-			printf("Failed to send message with id 0f 0x%x to CAN channel %s\n",
-					message->id, channel);
-			ret = ERR_HARDWARE_NOT_SUPPORTED;
-		}
-		else {
-		}
+		printf("Failed to send message with id 0f 0x%x to CAN channel %s\n",
+				message->id, channel);
+		ret = ERR_HARDWARE_NOT_SUPPORTED;
 	}
 	else {
-		uv_can_set_up();
 	}
 
 	return ret;
