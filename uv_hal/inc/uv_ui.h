@@ -33,6 +33,7 @@
 #include "ui/uv_uimedia.h"
 #include "ui/uv_uibutton.h"
 #include "ui/uv_uitogglebutton.h"
+#include "ui/uv_uiduallabelbutton.h"
 #include "ui/uv_uidisplay.h"
 #include "ui/uv_uilabel.h"
 #include "ui/uv_uislider.h"
