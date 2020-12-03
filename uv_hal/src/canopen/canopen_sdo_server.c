@@ -287,8 +287,10 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 				this->state = CANOPEN_SDO_STATE_READY;
 			}
 			memset(&reply_msg.data_8bit[1], 0, 7);
-			memcpy(&reply_msg.data_8bit[1],
-					((uint8_t*) this->obj->data_ptr) + this->data_index, data_count);
+			if (this->obj->data_ptr != NULL) {
+				memcpy(&reply_msg.data_8bit[1],
+						((uint8_t*) this->obj->data_ptr) + this->data_index, data_count);
+			}
 			this->data_index += data_count;
 			uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 			this->toggle = !this->toggle;
@@ -319,8 +321,10 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 			if ((this->data_index + data_count) <= this->obj->string_len) {
 				// copy data to destination. Bits 1-4 in command byte indicate
 				// how much data is copied
-				memcpy(((uint8_t*)this->obj->data_ptr) + this->data_index,
-						&msg->data_8bit[1], data_count);
+				if (this->obj->data_ptr) {
+					memcpy(((uint8_t*)this->obj->data_ptr) + this->data_index,
+							&msg->data_8bit[1], data_count);
+				}
 				this->data_index += data_count;
 
 				SET_CMD_BYTE(&reply_msg, DOWNLOAD_DOMAIN_SEGMENT_REPLY | (this->toggle << 4));

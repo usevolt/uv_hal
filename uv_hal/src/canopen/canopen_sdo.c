@@ -190,13 +190,17 @@ void _canopen_copy_data(uv_can_message_st *dest, const canopen_object_st *src, u
 		}
 		else {
 			dest->data_32bit[1] = 0;
-			memcpy(&dest->data_32bit[1],
-					&((uint8_t*) src->data_ptr)[(subindex - 1) * CANOPEN_TYPE_LEN(src->type)],
-					CANOPEN_TYPE_LEN(src->type));
+			if (src->data_ptr != NULL) {
+				memcpy(&dest->data_32bit[1],
+						&((uint8_t*) src->data_ptr)[(subindex - 1) * CANOPEN_TYPE_LEN(src->type)],
+						CANOPEN_TYPE_LEN(src->type));
+			}
 		}
 	}
 	else {
-		memcpy(&dest->data_32bit[1], src->data_ptr, CANOPEN_TYPE_LEN(src->type));
+		if (src->data_ptr != NULL) {
+			memcpy(&dest->data_32bit[1], src->data_ptr, CANOPEN_TYPE_LEN(src->type));
+		}
 	}
 	uv_enable_int();
 }
@@ -210,8 +214,10 @@ bool _canopen_write_data(const canopen_object_st *dest, const uv_can_msg_st *src
 			ret = false;
 		}
 		else {
-			memcpy(&((uint8_t*) dest->data_ptr)[(subindex - 1) * CANOPEN_TYPE_LEN(dest->type)],
-					&src->data_32bit[1], CANOPEN_TYPE_LEN(dest->type));
+			if (dest->data_ptr != NULL) {
+				memcpy(&((uint8_t*) dest->data_ptr)[(subindex - 1) * CANOPEN_TYPE_LEN(dest->type)],
+						&src->data_32bit[1], CANOPEN_TYPE_LEN(dest->type));
+			}
 		}
 	}
 	else {
@@ -227,7 +233,9 @@ bool _canopen_write_data(const canopen_object_st *dest, const uv_can_msg_st *src
 				len = CANOPEN_TYPE_LEN(dest->type);
 			}
 		}
-		memcpy(dest->data_ptr, &src->data_32bit[1], len);
+		if (dest->data_ptr != NULL) {
+			memcpy(dest->data_ptr, &src->data_32bit[1], len);
+		}
 	}
 
 	uv_enable_int();
