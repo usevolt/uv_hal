@@ -130,7 +130,6 @@ void uv_output_step(uv_output_st *this, uint16_t step_ms) {
 				}
 				current = this->current_func(this, adc);
 			}
-
 		}
 		else {
 			// stat io mode
@@ -169,6 +168,11 @@ void uv_output_step(uv_output_st *this, uint16_t step_ms) {
 	}
 }
 
+
+void uv_output_set_stat_feedback_io(uv_output_st* this, uv_gpios_e gpio) {
+	uv_gpio_init_input(gpio, PULL_UP_ENABLED);
+	this->stat_io = gpio;
+}
 
 
 

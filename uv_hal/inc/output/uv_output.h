@@ -148,9 +148,7 @@ static inline void uv_output_set_max(uv_output_st *this, uint16_t value) {
 
 /// @brief: Sets the output to work in a stat io feedback mode. See uv_output_st member
 /// variable documentation for more info.
-static inline void uv_output_set_stat_feedback_io(uv_output_st* this, uv_gpios_e gpio) {
-	this->stat_io = gpio;
-}
+void uv_output_set_stat_feedback_io(uv_output_st* this, uv_gpios_e gpio);
 
 /// @brief: Returns the state of the output
 static inline uv_output_state_e uv_output_get_state(const uv_output_st *this) {

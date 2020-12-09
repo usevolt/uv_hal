@@ -64,10 +64,10 @@ enum {
 
 /// @brief: Defines all ADC channels available on specific hardware.
 ///
-/// @note: These enums have to be in ascending order, starting from zero. The last
-/// *ADC_COUNT* has to define the number of ADC channels on the system
+/// @note: These enums have to be in ascending order, starting from 1. 0 is read as NULL value.
+/// The last *ADC_COUNT* has to define the number of ADC channels on the system plus 1.
 typedef enum {
-	ADC0_0 = 0,
+	ADC0_0 = 1,
 	ADC0_1,
 	ADC0_2,
 	ADC0_3,

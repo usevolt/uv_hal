@@ -51,7 +51,7 @@
 static const struct {
 	uint8_t port;
 	uint8_t pin;
-} adc_table[ADC_COUNT] = {
+} adc_table[ADC_COUNT - 1] = {
 		{ 0, 8 }, 	// ADC0_0
 		{ 0, 7 }, 	// ADC0_1
 		{ 0, 6 }, 	// ADC0_2
@@ -115,11 +115,12 @@ int16_t uv_adc_read(uv_adc_channels_e channel) {
 
 #if CONFIG_ADC0
 	// channel 1
-	if (channel < ADC1_0) {
+	if (channel != 0 &&
+			channel < ADC1_0) {
 		uv_disable_int();
 		Chip_ADC_DisableSequencer(LPC_ADC0, ADC_SEQA_IDX);
 		Chip_ADC_SetupSequencer(LPC_ADC0, ADC_SEQA_IDX,
-				ADC_SEQ_CTRL_CHANSEL(channel) | ADC_SEQ_CTRL_HWTRIG_POLPOS);
+				ADC_SEQ_CTRL_CHANSEL(channel - 1) | ADC_SEQ_CTRL_HWTRIG_POLPOS);
 		for (uint16_t i = 0; i < 0x800; i++) {
 			__NOP();
 		}
@@ -127,7 +128,7 @@ int16_t uv_adc_read(uv_adc_channels_e channel) {
 		Chip_ADC_StartSequencer(LPC_ADC0, ADC_SEQA_IDX);
 		// wait for the conversion to finish
 		while (!(LPC_ADC0->SEQ_GDAT[ADC_SEQA_IDX] & (1 << 31)));
-		uint32_t raw = Chip_ADC_GetDataReg(LPC_ADC0, channel);
+		uint32_t raw = Chip_ADC_GetDataReg(LPC_ADC0, channel - 1);
 		uv_enable_int();
 		ret = ADC_DR_RESULT(raw);
 	}
@@ -135,16 +136,16 @@ int16_t uv_adc_read(uv_adc_channels_e channel) {
 #if CONFIG_ADC1
 	// channel 2
 	if (channel >= ADC1_0 && channel < ADC_COUNT) {
-		channel -= ADC1_0;
+		channel -= ADC1_0 - 1;
 		uv_disable_int();
 		Chip_ADC_DisableSequencer(LPC_ADC1, ADC_SEQA_IDX);
 		Chip_ADC_SetupSequencer(LPC_ADC1, ADC_SEQA_IDX,
-				ADC_SEQ_CTRL_CHANSEL(channel) | ADC_SEQ_CTRL_HWTRIG_POLPOS);
+				ADC_SEQ_CTRL_CHANSEL(channel - 1) | ADC_SEQ_CTRL_HWTRIG_POLPOS);
 		Chip_ADC_EnableSequencer(LPC_ADC1, ADC_SEQA_IDX);
 		Chip_ADC_StartSequencer(LPC_ADC1, ADC_SEQA_IDX);
 		// wait for the conversion to finish
 		while (!(LPC_ADC1->SEQ_GDAT[ADC_SEQA_IDX] & (1 << 31)));
-		uint32_t raw = Chip_ADC_GetDataReg(LPC_ADC1, channel);
+		uint32_t raw = Chip_ADC_GetDataReg(LPC_ADC1, channel - 1);
 		uv_enable_int();
 		ret = ADC_DR_RESULT(raw);
 	}
@@ -172,21 +173,23 @@ int16_t uv_adc_read_average(uv_adc_channels_e channel, uint32_t conversion_count
 
 
 void uv_adc_enable_ain(uv_adc_channels_e channel) {
-	if (channel < ADC_COUNT) {
-		Chip_IOCON_PinMuxSet(LPC_IOCON, adc_table[channel].port, adc_table[channel].pin,
+	if (channel != 0 &&
+			channel < ADC_COUNT) {
+		Chip_IOCON_PinMuxSet(LPC_IOCON, adc_table[channel - 1].port, adc_table[channel - 1].pin,
 				(IOCON_MODE_INACT | IOCON_ADMODE_EN));
 		// depends on the SWM_FIXED_ADCX_X values to be in ascending order
-		Chip_SWM_EnableFixedPin(SWM_FIXED_ADC0_0 + channel);
+		Chip_SWM_EnableFixedPin(SWM_FIXED_ADC0_0 + channel - 1);
 	}
 }
 
 
 
 void uv_adc_disable_ain(uv_adc_channels_e channel) {
-	if (channel < ADC_COUNT) {
+	if (channel != 0 &&
+			channel < ADC_COUNT) {
 		// depends on the SWM_FIXED_ADCX_X values to be in ascending order
-		Chip_SWM_DisableFixedPin(SWM_FIXED_ADC0_0 + channel);
-		Chip_IOCON_PinMuxSet(LPC_IOCON, adc_table[channel].port, adc_table[channel].pin,
+		Chip_SWM_DisableFixedPin(SWM_FIXED_ADC0_0 + channel - 1);
+		Chip_IOCON_PinMuxSet(LPC_IOCON, adc_table[channel - 1].port, adc_table[channel - 1].pin,
 				(IOCON_MODE_INACT | IOCON_HYS_EN | IOCON_DIGMODE_EN));
 	}
 }
@@ -195,8 +198,9 @@ void uv_adc_disable_ain(uv_adc_channels_e channel) {
 
 uv_gpios_e uv_adc_get_gpio_pin(uv_adc_channels_e channel) {
 	uint32_t ret = 0;
-	if (channel < ADC_COUNT) {
-		ret = 32 * adc_table[channel].port + adc_table[channel].pin + 1;
+	if (channel != 0 &&
+			channel < ADC_COUNT) {
+		ret = 32 * adc_table[channel - 1].port + adc_table[channel - 1].pin + 1;
 	}
 	return ret;
 }
