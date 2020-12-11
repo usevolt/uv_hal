@@ -40,6 +40,15 @@
 #endif
 #define this ((uv_uivalveslider_st*) me)
 
+
+typedef enum {
+	UIVALVESLIDER_HANDLE_POS_MIN = 0,
+	UIVALVESLIDER_HANDLE_POS_MAX,
+	UIVALVESLIDER_HANDLE_NEG_MIN,
+	UIVALVESLIDER_HANDLE_NEG_MAX,
+	UIVALVESLIDER_HANDLE_COUNT
+} uv_uivalveslider_handles_e;
+
 /// @brief: uivalveslider is a multihandle slider that is used for setting
 /// the min & max currents for a unidir or dual dir solenoid output
 typedef struct __attribute__((packed)) {
@@ -47,10 +56,13 @@ typedef struct __attribute__((packed)) {
 
 	int16_t min_val;
 	int16_t max_val;
-	uint16_t selected_slider;
+	uv_uivalveslider_handles_e selected_handle;
+	bool value_changed;
 
 	uv_uimedia_st *leftarrow_media;
 	uv_uimedia_st *rightarrow_media;
+	char *handle_strs[UIVALVESLIDER_HANDLE_COUNT];
+	int16_t handle_values[UIVALVESLIDER_HANDLE_COUNT];
 
 	color_t negative_c;
 	color_t positive_c;
@@ -60,16 +72,52 @@ typedef struct __attribute__((packed)) {
 } uv_uivalveslider_st;
 
 
-/// @brief: Initializes the uivalveslider.
+/// @brief: Initializes the uivalveslider. If the **min_val** is positive,
+/// the valveslider works in unidirectional mode.
 ///
 /// @param leftarrow_media: If not NULL, this media will be shown on the
 /// left side of the selected handle
 /// @param rightarrow_media: If not NULL, this media will be shown on the
 /// right side of the selected handle
+/// @param handle_strs: Array of strings that are used as handle titles.
+/// UIVALVESLIDER_HANDLE_COUNT length array expected.
+/// @param handle_values: Array of int16_t containing the initial values for
+/// the handles
 void uv_uivalveslider_init(void *me, int16_t min_val, int16_t max_val,
 		uv_uimedia_st *leftarrow_media, uv_uimedia_st *rightarrowmedia,
+		char *handle_strs[], int16_t handle_values[],
 		const uv_uistyle_st *style);
 
+
+
+
+/// @brief: Returns true for 1 step cycle when any handle's value has been changed
+static inline bool uv_uivalveslider_value_changed(void *me) {
+	return this->value_changed;
+}
+
+
+/// @brief: Returns the index of the currently selected handle. Only 1 slider can be active
+/// at the given time. If no slider is active, returns UIVALVESLIDER_HANDLE_COUNT.
+static inline uv_uivalveslider_handles_e uv_uivalveslider_get_selected_handle(void *me) {
+	return this->selected_handle;
+}
+
+
+/// @brief: Sets the currently active handle
+static inline void uv_uivalveslider_set_selected_handle(void *me,
+		uv_uivalveslider_handles_e value) {
+	this->selected_handle = value;
+}
+
+
+/// @brief: Returns the value of the handle specified by **handle**
+///
+/// @note: **handle** should not over-index
+static inline int16_t uv_uivalveslider_get_handle_value(void *me,
+		uv_uivalveslider_handles_e handle) {
+	return ((uv_uivalveslider_st*) me)->handle_values[handle];
+}
 
 
 /// @brief: Sets the color for the negative side of the slider
