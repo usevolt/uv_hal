@@ -153,6 +153,13 @@ static inline void uv_uiwindow_addxy(void *me, void *object,
 /// @brief: Removes **object** from the window.
 void uv_uiwindow_remove(void *me, void *object);
 
+
+/// @brief: Sends the given **object** to the backmost in the drawing order.
+///
+/// @param object: The object that has to be this uiwindow's child added with *uv_uiwindow_add*.
+void uv_uiwindow_send_to_back(void *me, void *object);
+
+
 /// @brief: Adds a user application step callback function to this window.
 /// The step function is called on every update step and should be used for
 /// updating the display according to user input.
