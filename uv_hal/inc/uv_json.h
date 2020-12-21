@@ -264,6 +264,10 @@ bool uv_jsonreader_get_bool(char *object);
 /// @note: Do not overindex!
 bool uv_jsonreader_array_get_bool(char *object, unsigned int index);
 
+
+/// @brief: Returns the array cell's value as an integer
+int uv_jsonreader_array_get_int(char *object, unsigned int index);
+
 /// @brief: indexes arrays values
 char *uv_jsonreader_array_at(char *object, unsigned int index);
 

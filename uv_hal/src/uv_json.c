@@ -680,6 +680,17 @@ bool uv_jsonreader_array_get_bool(char *object, unsigned int index) {
 
 
 
+int uv_jsonreader_array_get_int(char *object, unsigned int index) {
+	int ret = 0;
+
+	object = array_index(object, index);
+	ret = strtol(object, NULL, 0);
+
+	return ret;
+}
+
+
+
 char *uv_jsonreader_array_at(char *object, unsigned int index) {
 	char *ret = NULL;
 
