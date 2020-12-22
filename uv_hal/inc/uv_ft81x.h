@@ -408,6 +408,28 @@ void uv_ft81x_draw_line(const int16_t start_x, const int16_t start_y,
 		const uint16_t width, const color_t color);
 
 
+typedef struct {
+	int16_t x;
+	int16_t y;
+} uv_ft81x_linestrip_point_st;
+
+typedef enum {
+	FT81X_STRIP_TYPE_LINE = 0,
+	FT81X_STRIP_TYPE_RIGHT,
+	FT81X_STRIP_TYPE_LEFT,
+	FT81X_STRIP_TYPE_ABOVE,
+	FT81X_STRIP_TYPE_BELOW
+} uv_ft81x_strip_type_e;
+
+/// @brief: draws a line strip on the screen
+///
+/// @param points: Buffer of the point coordinates
+/// @param type: The type of the strip. Refer to FT81X manual for different types.
+void uv_ft81x_draw_linestrip(const uv_ft81x_linestrip_point_st *points,
+		const uint16_t point_count, const uint16_t width, const color_t color,
+		const uv_ft81x_strip_type_e type);
+
+
 /// @brief: Structure for the touchscreen transform matrix
 typedef struct {
 	uint32_t mat[6];

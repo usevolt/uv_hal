@@ -41,6 +41,12 @@
 #define this ((uv_uivalveslider_st*) me)
 
 
+#ifndef CONFIG_UIVALVESLIDER_HANDLE_WIDTH
+// Defines the uivalveslider handle width in pixels
+#define CONFIG_UIVALVESLIDER_HANDLE_WIDTH	40
+#endif
+
+
 typedef enum {
 	UIVALVESLIDER_HANDLE_POS_MIN = 0,
 	UIVALVESLIDER_HANDLE_POS_MAX,
@@ -49,6 +55,8 @@ typedef enum {
 	UIVALVESLIDER_HANDLE_COUNT
 } uv_uivalveslider_handles_e;
 
+
+
 /// @brief: uivalveslider is a multihandle slider that is used for setting
 /// the min & max currents for a unidir or dual dir solenoid output
 typedef struct __attribute__((packed)) {
@@ -56,6 +64,7 @@ typedef struct __attribute__((packed)) {
 
 	int16_t min_val;
 	int16_t max_val;
+	int16_t inc_step;
 	uv_uivalveslider_handles_e selected_handle;
 	bool value_changed;
 
@@ -68,6 +77,8 @@ typedef struct __attribute__((packed)) {
 	color_t positive_c;
 	uv_font_st *font;
 	color_t handle_c;
+	color_t text_c;
+	uv_delay_st inc_delay;
 
 } uv_uivalveslider_st;
 
@@ -84,7 +95,7 @@ typedef struct __attribute__((packed)) {
 /// @param handle_values: Array of int16_t containing the initial values for
 /// the handles
 void uv_uivalveslider_init(void *me, int16_t min_val, int16_t max_val,
-		uv_uimedia_st *leftarrow_media, uv_uimedia_st *rightarrowmedia,
+		uv_uimedia_st *leftarrow_media, uv_uimedia_st *rightarrow_media,
 		char *handle_strs[], int16_t handle_values[],
 		const uv_uistyle_st *style);
 
@@ -152,6 +163,15 @@ static inline void uv_uivalveslider_set_font(void *me, uv_font_st *font) {
 /// @brief: Getter for the font
 static inline uv_font_st *uv_uivalveslider_get_font(void *me) {
 	return this->font;
+}
+
+
+static inline void uv_uivalveslider_set_inc_step(void *me, uint16_t value) {
+	this->inc_step = value;
+}
+
+static inline uint16_t uv_uivalveslider_get_inc_step(void *me) {
+	return this->inc_step;
 }
 
 
