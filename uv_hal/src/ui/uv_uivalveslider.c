@@ -37,9 +37,9 @@ static void touch(void *me, uv_touch_st *touch);
 static uv_uiobject_ret_e step(void *me, uint16_t step_ms);
 
 
-#define POS_C C(0x2200FF00)
+#define POS_C C(0x8800FF00)
 #define POSTEXT_C C(0xFF00FF00)
-#define NEG_C C(0x22FF0000)
+#define NEG_C C(0x88FF0000)
 #define NEGTEXT_C C(0xFFFF0000)
 
 
@@ -102,6 +102,31 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	};
 
 	// draw the triangles
+	uv_ft81x_linestrip_point_st p[2];
+	p[0].x = handle_x[UIVALVESLIDER_HANDLE_POS_MIN];
+	p[0].y = uv_lerpi(
+					uv_reli(this->handle_values[UIVALVESLIDER_HANDLE_POS_MIN],
+							0, this->max_val),
+					y + h - val_height,
+					y + handlestr_height);
+	p[1].x = x + w / 2;
+	p[1].y = y + h - val_height;
+	uv_ft81x_set_mask(x + w / 2, y, handle_x[UIVALVESLIDER_HANDLE_POS_MIN] - (x + w / 2), h);
+	uv_ft81x_draw_linestrip(p, sizeof(p) / sizeof(p[0]), 1,
+			uv_uic_grayscale(this->positive_c), FT81X_STRIP_TYPE_RIGHT);
+
+	p[0].x = handle_x[UIVALVESLIDER_HANDLE_NEG_MIN];
+	p[0].y = uv_lerpi(
+			uv_reli(this->handle_values[UIVALVESLIDER_HANDLE_NEG_MIN],
+					0, this->min_val),
+			y + h - val_height,
+			y + handlestr_height);
+	uv_ft81x_set_mask(handle_x[UIVALVESLIDER_HANDLE_NEG_MIN], y, w, h);
+	uv_ft81x_draw_linestrip(p, sizeof(p) / sizeof(p[0]), 1,
+			uv_uic_grayscale(this->negative_c), FT81X_STRIP_TYPE_LEFT);
+
+
+	uv_ft81x_set_mask(x, y, w, h);
 
 	// draw the handles
 	for (uint8_t i = 0; i < UIVALVESLIDER_HANDLE_COUNT; i++) {
@@ -140,7 +165,7 @@ void uv_uivalveslider_init(void *me, int16_t min_val, int16_t max_val,
 	this->text_c = style->text_color;
 	this->value_changed = false;
 	this->selected_handle = UIVALVESLIDER_HANDLE_COUNT;
-	this->inc_step = MAX((this->max_val - this->min_val) / 20, 1);
+	this->inc_step = MAX((this->max_val - this->min_val) / 100, 1);
 }
 
 
@@ -155,16 +180,30 @@ static void add_to_selected_handle(void *me, int16_t value) {
 		LIMITS(this->handle_values[this->selected_handle], 0, this->max_val);
 	}
 
-	if (this->selected_handle == UIVALVESLIDER_HANDLE_NEG_MIN ||
-			this->selected_handle == UIVALVESLIDER_HANDLE_POS_MIN) {
+	if (this->selected_handle == UIVALVESLIDER_HANDLE_POS_MIN) {
 		if (this->handle_values[this->selected_handle] >
 				this->handle_values[this->selected_handle + 1]) {
 			this->handle_values[this->selected_handle + 1] =
 					this->handle_values[this->selected_handle];
 		}
 	}
-	else {
+	else if (this->selected_handle == UIVALVESLIDER_HANDLE_NEG_MIN) {
 		if (this->handle_values[this->selected_handle] <
+				this->handle_values[this->selected_handle + 1]) {
+			this->handle_values[this->selected_handle + 1] =
+					this->handle_values[this->selected_handle];
+		}
+	}
+	else if (this->selected_handle == UIVALVESLIDER_HANDLE_POS_MAX) {
+		if (this->handle_values[this->selected_handle] <
+				this->handle_values[this->selected_handle - 1]) {
+			this->handle_values[this->selected_handle - 1] =
+					this->handle_values[this->selected_handle];
+		}
+	}
+	else {
+		// UIVALVESLIDER_HANDLE_NEG_MAX
+		if (this->handle_values[this->selected_handle] >
 				this->handle_values[this->selected_handle - 1]) {
 			this->handle_values[this->selected_handle - 1] =
 					this->handle_values[this->selected_handle];
@@ -202,8 +241,7 @@ static void touch(void *me, uv_touch_st *touch) {
 				uv_reli(this->handle_values[this->selected_handle], this->min_val, this->max_val),
 				0, uv_uibb(this)->width);
 
-		if (touch->action == TOUCH_CLICKED ||
-				touch->action == TOUCH_PRESSED) {
+		if (touch->action == TOUCH_CLICKED) {
 			if (touch->x < handle_x - CONFIG_UIVALVESLIDER_HANDLE_WIDTH / 2) {
 				// decrease the value
 				add_to_selected_handle(this, -this->inc_step);
@@ -213,21 +251,19 @@ static void touch(void *me, uv_touch_st *touch) {
 				add_to_selected_handle(this, this->inc_step);
 			}
 			else {
-				if (touch->action == TOUCH_CLICKED) {
-					// the selected handle was clicked. De-select the current handle
-					// and select the handle under this one if possible.
-					uint8_t i = this->selected_handle + 1;
-					this->selected_handle = 0;
-					for (; i < UIVALVESLIDER_HANDLE_COUNT; i++) {
-						int16_t handle_x = uv_lerpi(
-								uv_reli(this->handle_values[i], this->min_val, this->max_val),
-								0, uv_uibb(this)->width);
-						if (touch->x > handle_x - CONFIG_UIVALVESLIDER_HANDLE_WIDTH / 2 &&
-								touch->x < handle_x + CONFIG_UIVALVESLIDER_HANDLE_WIDTH / 2) {
-							this->selected_handle = i;
-							uv_ui_refresh(this);
-							break;
-						}
+				// the selected handle was clicked. De-select the current handle
+				// and select the handle under this one if possible.
+				uint8_t i = this->selected_handle + 1;
+				this->selected_handle = UIVALVESLIDER_HANDLE_COUNT;
+				uv_ui_refresh(this);
+				for (; i < UIVALVESLIDER_HANDLE_COUNT; i++) {
+					int16_t handle_x = uv_lerpi(
+							uv_reli(this->handle_values[i], this->min_val, this->max_val),
+							0, uv_uibb(this)->width);
+					if (touch->x > handle_x - CONFIG_UIVALVESLIDER_HANDLE_WIDTH / 2 &&
+							touch->x < handle_x + CONFIG_UIVALVESLIDER_HANDLE_WIDTH / 2) {
+						this->selected_handle = i;
+						break;
 					}
 				}
 			}

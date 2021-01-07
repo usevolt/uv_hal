@@ -426,7 +426,7 @@ typedef enum {
 /// @param points: Buffer of the point coordinates
 /// @param type: The type of the strip. Refer to FT81X manual for different types.
 void uv_ft81x_draw_linestrip(const uv_ft81x_linestrip_point_st *points,
-		const uint16_t point_count, const uint16_t width, const color_t color,
+		const uint16_t point_count, const uint16_t line_width, const color_t color,
 		const uv_ft81x_strip_type_e type);
 
 
