@@ -297,8 +297,17 @@ static inline void uv_gpio_init_output(uv_gpios_e gpio, bool value) {
 }
 
 
-/// @brief: Initializes interrupt on pin **gpio**
-void uv_gpio_init_int(uv_gpios_e gpio, uv_gpio_interrupt_config_e confs);
+/// @brief: Enables interrupts on pin **gpio**
+///
+/// @note: There is a maximum limit of enabled interrupt pins depending on the hardware
+///
+/// @return: ERR_HARDWARE_NOT_SUPPORTED if the maximum number of int pins has been
+/// reached, ERR_NO_NEW_VALUES if the current pin already has int enabled,
+/// otherwise ERR_NONE.
+uv_errors_e uv_gpio_enable_int(uv_gpios_e gpio, uv_gpio_interrupt_config_e confs);
+
+/// @brief: Disables interrupts on pin **gpio**
+void uv_gpio_disable_int(uv_gpios_e gpio);
 
 
 
