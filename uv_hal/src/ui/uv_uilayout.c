@@ -90,12 +90,26 @@ void uv_uistrlayout_init(uv_uistrlayout_st *this, const char *str,
 	this->v_padding = v_padding;
 	this->index = 0;
 	this->horizontal = true;
+	// special vertical marking in the string. Mark the layout as vertical.
+	if (strncmp(str, "#V#", 3) == 0) {
+		this->horizontal = false;
+		this->str = str + 3;
+	}
+	// special horizontal marking in the string. Mark the layout as horizontal.
+	else if (strncmp(str, "#H#", 3) == 0) {
+		this->horizontal = true;
+		this->str = str + 3;
+	}
+	else {
+
+	}
 	this->row_count = 1;
 	for (uint16_t i = 0; i < strlen(this->str); i++) {
 		if (this->str[i] == '\n') {
 			this->row_count++;
 		}
 	}
+
 
 }
 
@@ -277,6 +291,18 @@ uv_bounding_box_st uv_uistrlayout_find_next(uv_uistrlayout_st *this, const char 
 	return strlayout_find_next(this, str, c);
 }
 
+bool uv_uistrlayout_contains(uv_uistrlayout_st *this, const char *c) {
+	bool ret = true;
+
+	uv_bounding_box_st bb = uv_uistrlayout_find(this, c);
+	if (bb.x == 0 &&
+			bb.y == 0 &&
+			bb.width == 0 &&
+			bb.height == 0) {
+		ret = false;
+	}
+	return ret;
+}
 
 
 #endif

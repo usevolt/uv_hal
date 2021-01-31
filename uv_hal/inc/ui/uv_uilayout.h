@@ -151,6 +151,9 @@ void uv_uistrlayout_init(uv_uistrlayout_st *this, const char *str,
 
 
 /// @brief: Sets the layout in down-to-up, left-to-right laying order.
+///
+/// @note: Additional way of marking the layout vertical is to prefix the layout string with
+/// *#V# characters in uv_uistrlayout_init function.
 static inline void uv_uistrlayout_set_vertical(uv_uistrlayout_st *this) {
 	this->horizontal = false;
 }
@@ -170,6 +173,10 @@ uv_bounding_box_st uv_uistrlayout_find(uv_uistrlayout_st *this, const char *c);
 /// @brief: Finds the next cell with a name of *c* starting from the last cell that was
 /// returned.
 uv_bounding_box_st uv_uistrlayout_find_next(uv_uistrlayout_st *this, const char *c);
+
+
+/// @brief: Returns true if a cell with a name of *c* can be found from the layout.
+bool uv_uistrlayout_contains(uv_uistrlayout_st *this, const char *c);
 
 #endif
 

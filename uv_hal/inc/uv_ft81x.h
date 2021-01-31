@@ -238,6 +238,13 @@ typedef struct {
 	int16_t height;
 } uv_bounding_box_st;
 
+static inline bool uv_bb_is_null(uv_bounding_box_st *bb) {
+	return bb->x == 0 &&
+			bb->y == 0 &&
+			bb->width == 0 &&
+			bb->height == 0;
+}
+
 
 /// @brief: Bitmap formats for custom fonts
 enum {
