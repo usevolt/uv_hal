@@ -57,6 +57,7 @@
 #include "ui/uv_uiacceptdialog.h"
 #include "ui/uv_uimedialist.h"
 #include "ui/uv_uigraph.h"
+#include "ui/uv_uivalveslider.h"
 #include <stdarg.h>
 
 

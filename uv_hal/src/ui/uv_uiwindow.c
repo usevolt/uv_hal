@@ -225,6 +225,19 @@ void uv_uiwindow_remove(void *me, void *object) {
 }
 
 
+void uv_uiwindow_send_to_back(void *me, void *object) {
+	for (uint16_t i = 0; i < this->objects_count; i++) {
+		if (this->objects[i] == object) {
+			memmove(&this->objects[1], this->objects, sizeof(this->objects[0]) * i);
+			this->objects[0] = object;
+			uv_ui_refresh(this);
+			break;
+		}
+	}
+}
+
+
+
 uv_bounding_box_st uv_uiwindow_get_contentbb(const void *me) {
 	// if bounding box dimensions are 0, it is not set
 	// and it should be initializes with window dimensions

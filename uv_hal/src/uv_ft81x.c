@@ -1288,6 +1288,32 @@ void uv_ft81x_draw_line(const int16_t start_x, const int16_t start_y,
 
 
 
+void uv_ft81x_draw_linestrip(const uv_ft81x_linestrip_point_st *points,
+		const uint16_t point_count, const uint16_t line_width, const color_t color,
+		const uv_ft81x_strip_type_e type) {
+	bool vis = false;
+	for (uint16_t i = 0; i < point_count; i++) {
+		if (visible(points[0].x, points[0].y, 0, 0)) {
+			vis = true;
+			break;
+		}
+	}
+	if (vis) {
+		set_color(color);
+		set_begin(BEGIN_LINE_STRIP + type);
+		set_line_diameter(line_width);
+		DEBUG("Drawing line strip\n");
+		for (uint16_t i = 0; i < point_count; i++) {
+			const uv_ft81x_linestrip_point_st *p = &points[i];
+			vertex2f_st v;
+			v.sx = p->x;
+			v.sy = p->y;
+			writedl(VERTEX2F(v.ux, v.uy));
+		}
+	}
+}
+
+
 
 void uv_ft81x_touchscreen_calibrate(ft81x_transfmat_st *transform_matrix) {
 	DEBUG("Starting the screen calibration\n");
