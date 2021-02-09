@@ -93,6 +93,8 @@ void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *
 
 
 
+#define DRAG_MAX_SPEED_PX		50
+
 uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 	uv_uiobject_ret_e ret;
 	uv_touch_st t = {};
@@ -139,6 +141,14 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 			// last drag position as parameters
 			t.x -= this->drag_x;
 			t.y -= this->drag_y;
+			if (abs(t.x) > DRAG_MAX_SPEED_PX ||
+					abs(t.y) > DRAG_MAX_SPEED_PX) {
+				// dragging speed exceeded the maximum allowed dragging speed.
+				// This might indicate a faulty press, thus we ignore the dragging
+				// on this step cycle
+				t.x = 0;
+				t.y = 0;
+			}
 			// save current position to drag variables
 			this->drag_x = tx;
 			this->drag_y = ty;
