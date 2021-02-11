@@ -764,6 +764,14 @@ static void set_begin(uint8_t begin_type) {
 	}
 }
 
+static void set_end(void) {
+	if (this->begin_type < 0xFF) {
+		DEBUG("set end\n");
+		writedl(END());
+		this->begin_type = 0xFF;
+	}
+}
+
 
 
 static void set_point_size(uint16_t diameter) {
@@ -1291,26 +1299,19 @@ void uv_ft81x_draw_line(const int16_t start_x, const int16_t start_y,
 void uv_ft81x_draw_linestrip(const uv_ft81x_linestrip_point_st *points,
 		const uint16_t point_count, const uint16_t line_width, const color_t color,
 		const uv_ft81x_strip_type_e type) {
-	bool vis = false;
+	set_color(color);
+	set_begin(BEGIN_LINE_STRIP + type);
+	set_line_diameter(line_width);
+	DEBUG("Drawing line strip\n");
 	for (uint16_t i = 0; i < point_count; i++) {
-		if (visible(points[0].x, points[0].y, 0, 0)) {
-			vis = true;
-			break;
-		}
+		const uv_ft81x_linestrip_point_st *p = &points[i];
+		vertex2f_st v;
+		v.sx = p->x;
+		v.sy = p->y;
+		writedl(VERTEX2F(v.ux, v.uy));
 	}
-	if (vis) {
-		set_color(color);
-		set_begin(BEGIN_LINE_STRIP + type);
-		set_line_diameter(line_width);
-		DEBUG("Drawing line strip\n");
-		for (uint16_t i = 0; i < point_count; i++) {
-			const uv_ft81x_linestrip_point_st *p = &points[i];
-			vertex2f_st v;
-			v.sx = p->x;
-			v.sy = p->y;
-			writedl(VERTEX2F(v.ux, v.uy));
-		}
-	}
+	set_end();
+
 }
 
 
@@ -1553,6 +1554,17 @@ color_t uv_uic_brighten(color_t c, int8_t value) {
 		}
 		ret += (col << (i * 8));
 	}
+	return ret;
+}
+
+
+color_t uv_uic_alpha(color_t c, int8_t value) {
+	color_t ret = c & ~(0xFF000000);
+	int16_t alpha = (c & 0xFF000000) >> 24;
+	alpha += value;
+	LIMITS(alpha, 0, 0xFF);
+	ret += (alpha << 24);
+
 	return ret;
 }
 

@@ -214,6 +214,10 @@ typedef uint32_t color_t;
 /// from all R, G and B color channels
 color_t uv_uic_brighten(color_t c, int8_t value);
 
+
+/// @brief: Returns a color by adding *value* amount of alpha to the given color *c*
+color_t uv_uic_alpha(color_t c, int8_t value);
+
 /// @brief: Converts *c* to grayscale and returns it
 color_t uv_uic_grayscale(color_t c);
 
