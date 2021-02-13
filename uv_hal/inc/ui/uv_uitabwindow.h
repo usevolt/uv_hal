@@ -91,6 +91,10 @@ static inline int16_t uv_uitabwindow_tab(void *me) {
 	return this->active_tab;
 }
 
+static inline int16_t uv_uitabwindow_get_tab(void *me) {
+	return uv_uitabwindow_get_tab(me);
+}
+
 /// @brief: implementation of uv_uiwindow's add function
 static inline void uv_uitabwindow_addxy(void *me, void *object,
 		uint16_t x, uint16_t y, uint16_t width, uint16_t height) {

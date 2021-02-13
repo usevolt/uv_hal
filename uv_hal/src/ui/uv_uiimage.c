@@ -78,6 +78,12 @@ static inline void draw(void *me, const uv_bounding_box_st *pbb) {
 }
 
 
+void uv_uiimage_set_blendc(void *me, color_t c) {
+	if (this->blend_c != c) {
+		uv_ui_refresh(this);
+	}
+	this->blend_c = c;
+}
 
 
 #endif

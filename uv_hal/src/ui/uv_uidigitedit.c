@@ -55,7 +55,7 @@ void uv_uidigitedit_init(void *me, uint32_t value, const uv_uistyle_st *style) {
 	this->title = NULL;
 	this->bg_color = style->bg_c;
 	this->limit_max = INT32_MAX;
-	this->limit_min = 0;
+	this->limit_min = (value > 0) ? 0 : INT16_MIN + 1;
 	uv_uidigitedit_set_value(this, value);
 	// this has to be set after *uv_uidigit_set_value* to make sure
 	// that the change flag is not set after init

@@ -123,6 +123,8 @@ typedef struct {
 /// @param invert: If false, output is 0 when the value is smaller than trigger_value.
 void uv_hysteresis_init(uv_hysteresis_st *this, int32_t trigger_value, int32_t hysteresis, bool invert);
 
+/// @brief: Return: True for 1 step cycle when the result value changes
+/// either from 1 to 0 or from 0 to 1. Use *uv_hysteresis_get_output* to know the actual value.
 bool uv_hysteresis_step(uv_hysteresis_st *this, int32_t value);
 
 /// @brief: Sets the trigger value
