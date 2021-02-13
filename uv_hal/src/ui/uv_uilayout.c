@@ -165,13 +165,17 @@ static int16_t uistrlayout_get_col_count_at_cell(uv_uistrlayout_st *this, const 
 
 static int16_t uistrlayout_get_nth_cell_at_row(uv_uistrlayout_st *this, const char *cell_ptr) {
 	int16_t ret = 0;
-	while ((cell_ptr != this->str) &&
+	cell_ptr--;
+	while ((cell_ptr >= this->str) &&
 			(*cell_ptr != '\n')) {
 		if (*cell_ptr == '|') {
 			ret++;
 		}
 		else if (*cell_ptr == '#') {
 			ret += MAX(strtol(cell_ptr + 1, NULL, 10) - 1, 0);
+		}
+		else {
+
 		}
 		cell_ptr--;
 	}
@@ -189,18 +193,15 @@ static uv_bounding_box_st uistrlayout_get_bb_from_cell(uv_uistrlayout_st *this, 
 	if (*cell == '#') {
 		span = MAX(strtol(cell + 1, NULL, 10) - 1, 0);
 	}
-
 	if (this->horizontal) {
-		bb.x = this->bb.x + col_i * this->bb.width / col_count + this->h_padding -
-				(this->bb.width * span / col_count + this->h_padding * MAX(span - 1, 0));
+		bb.x = this->bb.x + col_i * this->bb.width / col_count + this->h_padding;
 		bb.y = this->bb.y + row_i * this->bb.height / this->row_count + this->v_padding;
 		bb.width = this->bb.width / col_count - this->h_padding * 2 +
 				this->bb.width * span / col_count + this->h_padding * MAX(span - 1, 0);
 		bb.height = this->bb.height / this->row_count - this->v_padding * 2;
 	}
 	else {
-		bb.y = this->bb.y + col_i * this->bb.height / col_count + this->v_padding -
-				(this->bb.height * span / col_count + this->v_padding * MAX(span - 1, 0));
+		bb.y = this->bb.y + col_i * this->bb.height / col_count + this->v_padding;
 		bb.x = this->bb.x + row_i * this->bb.width / this->row_count + this->h_padding;
 		bb.height = this->bb.height / col_count - this->v_padding * 2 +
 				this->bb.height * span / col_count + this->v_padding * MAX(span - 1, 0);

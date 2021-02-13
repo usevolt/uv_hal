@@ -236,10 +236,16 @@ typedef struct {
 	int16_t x;
 	/// @brief: Local top-most y-coordinate relative to the parent
 	int16_t y;
-	/// @brief: Width, growing to right
-	int16_t width;
-	/// @brief: Height, growing to bottom
-	int16_t height;
+	union {
+		/// @brief: Width, growing to right
+		int16_t width;
+		int16_t w;
+	};
+	union {
+		/// @brief: Height, growing to bottom
+		int16_t height;
+		int16_t h;
+	};
 } uv_bounding_box_st;
 
 static inline bool uv_bb_is_null(uv_bounding_box_st *bb) {

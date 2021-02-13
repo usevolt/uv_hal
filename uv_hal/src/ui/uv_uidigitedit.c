@@ -77,6 +77,8 @@ void uv_uidigitedit_set_mode(void *me, uv_uidigitedit_mode_e value) {
 
 
 void uv_uidigitedit_set_value(void *me, int32_t value) {
+	LIMITS(value, this->limit_min, this->limit_max);
+
 	if (this->value != value) {
 		if (this->divider == 0) {
 			sprintf(this->str, "%i", (int) value);

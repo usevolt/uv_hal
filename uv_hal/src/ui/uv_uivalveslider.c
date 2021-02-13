@@ -37,9 +37,9 @@ static void touch(void *me, uv_touch_st *touch);
 static uv_uiobject_ret_e step(void *me, uint16_t step_ms);
 
 
-#define POS_C C(0x2000FF00)
-#define NEG_C C(0x20FF0000)
-#define OUTBOUNDS_C	C(0x10FFFFFF)
+#define POS_C C(0x6000FF00)
+#define NEG_C C(0x60FF0000)
+#define OUTBOUNDS_C	C(0x20FFFFFF)
 #define POSTEXT_C C(0xFF00FF00)
 #define NEGTEXT_C C(0xFFFF0000)
 

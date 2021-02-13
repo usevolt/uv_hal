@@ -100,7 +100,7 @@ void uv_uidigitedit_set_value(void *me, int32_t value);
 /// be dividable by 10.
 static inline void uv_uidigitedit_set_divider(void *me, uint16_t value) {
 	this->divider = value;
-	uv_uidigitedit_set_value(this, this->value);
+	uv_ui_refresh(this);
 }
 
 
