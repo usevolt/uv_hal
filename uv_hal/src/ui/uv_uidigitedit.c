@@ -43,7 +43,7 @@ static void touch(void *me, uv_touch_st *touch);
 #define this ((uv_uidigitedit_st *) me)
 
 
-void uv_uidigitedit_init(void *me, uint32_t value, const uv_uistyle_st *style) {
+void uv_uidigitedit_init(void *me, int32_t value, const uv_uistyle_st *style) {
 	uv_uilabel_init(this, style->font, ALIGN_CENTER, style->text_color, "");
 	this->style = style;
 	this->divider = 0;

@@ -83,7 +83,7 @@ typedef struct __attribute__((packed)) {
 #define this ((uv_uidigitedit_st*)me)
 
 
-void uv_uidigitedit_init(void *me, uint32_t value, const uv_uistyle_st *style);
+void uv_uidigitedit_init(void *me, int32_t value, const uv_uistyle_st *style);
 
 
 /// @brief: Set's the text of all objects which are inherited from uv_uilabel_st
