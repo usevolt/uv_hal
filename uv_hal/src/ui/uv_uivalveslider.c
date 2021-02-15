@@ -452,6 +452,15 @@ int16_t uv_uivalveslider_get_selected_handle_value(void *me) {
 }
 
 
+void uv_uivalveslider_set_cursor(void *me, int16_t position, char *text) {
+	if (this->cursor_position != position ||
+			strcmp(this->cursor_text, text) != 0) {
+		uv_ui_refresh(this);
+	}
+	this->cursor_position = position;
+	this->cursor_text = text;
+}
+
 
 
 #endif

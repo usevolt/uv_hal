@@ -58,6 +58,7 @@ typedef struct __attribute__((packed)) {
 
 	char str[16];
 	char *title;
+	char *unit;
 	color_t bg_color;
 	int32_t value;
 	uint16_t divider;
@@ -98,14 +99,20 @@ void uv_uidigitedit_set_value(void *me, int32_t value);
 /// @brief: Sets the divider. When set, the shown value will be divided by *value*,
 /// and the decimals are shown after a period mark. Note that the *value* should
 /// be dividable by 10.
-static inline void uv_uidigitedit_set_divider(void *me, uint16_t value) {
-	this->divider = value;
-	uv_ui_refresh(this);
-}
+void uv_uidigitedit_set_divider(void *me, uint16_t value);
 
 
 static inline uint16_t uv_uidigitedit_get_divider(void *me) {
 	return this->divider;
+}
+
+
+static inline void uv_uidigitedit_set_unit(void *me, char *value) {
+	this->unit = value;
+}
+
+static inline char *uv_uidigitedit_get_unit(void *me) {
+	return this->unit;
 }
 
 /// @brief: Sets the color of the label text
@@ -182,6 +189,9 @@ static inline void uv_uidigitedit_set_limits(void *me, int32_t min_value, int32_
 	this->limit_min = min_value;
 	this->limit_max = max_value;
 }
+
+
+void uv_uidigitedit_draw(void *me, const uv_bounding_box_st *pbb);
 
 
 

@@ -34,7 +34,6 @@
 #if CONFIG_UI
 
 static uv_uiobject_ret_e uv_uidigitedit_step(void *me, uint16_t step_ms);
-static void draw(void *me, const uv_bounding_box_st *pbb);
 static void touch(void *me, uv_touch_st *touch);
 
 
@@ -49,10 +48,11 @@ void uv_uidigitedit_init(void *me, int32_t value, const uv_uistyle_st *style) {
 	this->divider = 0;
 	uv_uidigitedit_set_mode(this, UIDIGITEDIT_MODE_NORMAL);
 	uv_uiobject_set_step_callb(this, &uv_uidigitedit_step);
-	uv_uiobject_set_draw_callb(this, &draw);
+	uv_uiobject_set_draw_callb(this, &uv_uidigitedit_draw);
 	uv_uiobject_set_touch_callb(this, &touch);
 	this->value = !value;
 	this->title = NULL;
+	this->unit = NULL;
 	this->bg_color = style->bg_c;
 	this->limit_max = INT32_MAX;
 	this->limit_min = (value > 0) ? 0 : INT16_MIN + 1;
@@ -76,12 +76,13 @@ void uv_uidigitedit_set_mode(void *me, uv_uidigitedit_mode_e value) {
 }
 
 
-void uv_uidigitedit_set_value(void *me, int32_t value) {
+static void set_value(void *me, int32_t value, bool forced_update) {
 	LIMITS(value, this->limit_min, this->limit_max);
 
-	if (this->value != value) {
+	if (this->value != value ||
+			forced_update) {
 		if (this->divider == 0) {
-			sprintf(this->str, "%i", (int) value);
+			sprintf(this->str, "%i %s", (int) value, (this->unit) ? this->unit : "");
 		}
 		else {
 			char format[16];
@@ -93,10 +94,11 @@ void uv_uidigitedit_set_value(void *me, int32_t value) {
 			}
 			strcpy(format, "%i.%0");
 			sprintf(format + strlen(format), "%u", decimals);
-			strcat(format, "u");
+			strcat(format, "u %s");
 
 			sprintf(this->str, format, (int) value / this->divider,
-					(unsigned int) value % this->divider);
+					(unsigned int) value % this->divider,
+					(this->unit) ? this->unit : "");
 		}
 		uv_uilabel_set_text(this, this->str);
 		uv_ui_refresh(this);
@@ -105,47 +107,46 @@ void uv_uidigitedit_set_value(void *me, int32_t value) {
 	this->value = value;
 }
 
+void uv_uidigitedit_set_value(void *me, int32_t value) {
+	set_value(this, value, false);
+}
 
-static void draw(void *me, const uv_bounding_box_st *pbb) {
+
+void uv_uidigitedit_draw(void *me, const uv_bounding_box_st *pbb) {
 	uint16_t x = uv_ui_get_xglobal(this),
 			y = uv_ui_get_yglobal(this);
 
-	uint16_t height = uv_ft81x_get_string_height(((uv_uilabel_st*) this)->str,
+	uint16_t height = (this->mode == UIDIGITEDIT_MODE_NORMAL) ?
+			(uv_ft81x_get_string_height(((uv_uilabel_st*) this)->str,
 			((uv_uilabel_st*) this)->font) +
-					uv_ft81x_get_font_height(((uv_uilabel_st*) this)->font);
-	if (height > uv_uibb(this)->height) {
-		height = uv_uibb(this)->height;
-	}
-	else {
-		int16_t v = (uv_uibb(this)->height - height) / 2 - ((this->title) ?
-				((TITLE_OFFSET + uv_ft81x_get_string_height(this->title,
-						((uv_uilabel_st*) this)->font)) / 2) : 0);
-		if (v > 0) {
-			height += v;
-		}
-	}
+					uv_ft81x_get_font_height(((uv_uilabel_st*) this)->font)) :
+					CONFIG_UI_DIGITEDIT_INCDEC_BUTTON_WIDTH;
+
 	int16_t inc_w = (this->mode == UIDIGITEDIT_MODE_INCDEC) ?
 			CONFIG_UI_DIGITEDIT_INCDEC_BUTTON_WIDTH : 0;
-	uv_ft81x_draw_shadowrrect(x + inc_w, y, uv_uibb(this)->width - inc_w * 2, height, 0,
-			this->bg_color, uv_uic_brighten(this->bg_color, -30),
-			uv_uic_brighten(this->bg_color, 30));
+
+	if (this->mode == UIDIGITEDIT_MODE_NORMAL) {
+		uv_ft81x_draw_shadowrrect(x, y, uv_uibb(this)->width, height, 0,
+				this->bg_color, uv_uic_brighten(this->bg_color, -30),
+				uv_uic_brighten(this->bg_color, 30));
+	}
 
 	if (this->mode == UIDIGITEDIT_MODE_INCDEC) {
 		// draw the increment and decrement buttons
-		uv_ft81x_draw_shadowrrect(x, y, inc_w, height, CONFIG_UI_RADIUS, this->bg_color,
-				uv_uic_brighten(this->bg_color, 30 *
-						((this->incdec.pressed_button == -1) ? -1 : 1)),
-				uv_uic_brighten(this->bg_color, -30 *
-						((this->incdec.pressed_button == -1) ? -1 : 1)));
+		color_t c = (this->value == this->limit_min) ?
+				uv_uic_grayscale(this->bg_color) : this->bg_color;
+		uv_ft81x_draw_shadowrrect(x, y, inc_w, height, CONFIG_UI_RADIUS, c,
+				uv_uic_brighten(c, 30 * ((this->incdec.pressed_button == -1) ? -1 : 1)),
+				uv_uic_brighten(c, -30 * ((this->incdec.pressed_button == -1) ? -1 : 1)));
 		uv_ft81x_draw_string("-", ((uv_uilabel_st*) this)->font, x + inc_w / 2, y + height / 2,
 				ALIGN_CENTER, ((uv_uilabel_st*) this)->color);
 
+		c = (this->value == this->limit_max) ?
+				uv_uic_grayscale(this->bg_color) : this->bg_color;
 		uv_ft81x_draw_shadowrrect(x + uv_uibb(this)->width - inc_w, y, inc_w, height,
-				CONFIG_UI_RADIUS, this->bg_color,
-				uv_uic_brighten(this->bg_color, 30 *
-						((this->incdec.pressed_button == 1) ? -1 : 1)),
-				uv_uic_brighten(this->bg_color, -30 *
-						((this->incdec.pressed_button == 1) ? -1 : 1)));
+				CONFIG_UI_RADIUS, c,
+				uv_uic_brighten(c, 30 * ((this->incdec.pressed_button == 1) ? -1 : 1)),
+				uv_uic_brighten(c, -30 * ((this->incdec.pressed_button == 1) ? -1 : 1)));
 		uv_ft81x_draw_string("+", ((uv_uilabel_st*) this)->font,
 				x + uv_uibb(this)->width - inc_w / 2, y + height / 2,
 				ALIGN_CENTER, ((uv_uilabel_st*) this)->color);
@@ -220,6 +221,12 @@ static void touch(void *me, uv_touch_st *touch) {
 	else {
 
 	}
+}
+
+
+void uv_uidigitedit_set_divider(void *me, uint16_t value) {
+	this->divider = value;
+	set_value(this, this->value, true);
 }
 
 

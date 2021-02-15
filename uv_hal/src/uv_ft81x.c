@@ -1501,7 +1501,7 @@ void uv_ft81x_draw_string(char *str, ft81x_font_st *font,
 
 
 
-void uv_ft81x_set_mask(int16_t x, int16_t y, uint16_t width, uint16_t height) {
+void uv_ft81x_set_mask(int16_t x, int16_t y, int16_t width, int16_t height) {
 	if (x < 0) {
 		width += x;
 		x = 0;
@@ -1522,14 +1522,10 @@ void uv_ft81x_set_mask(int16_t x, int16_t y, uint16_t width, uint16_t height) {
 		this->mask.x = x;
 		this->mask.y = y;
 	}
-	if (width > 2048) {
-		width = 2048;
-	}
-	if (height > 2048) {
-		height = 2048;
-	}
+	LIMITS(width, 0, 2048);
+	LIMITS(height, 0, 2048);
 	if ((width != this->mask.width) || (height != this->mask.height)) {
-		DEBUG("Setting schissor width: %u, height: %u\n", width, height);
+		DEBUG("Setting scissor width: %u, height: %u\n", width, height);
 		writedl(SCISSOR_SIZE(width, height));
 		this->mask.width = width;
 		this->mask.height = height;
