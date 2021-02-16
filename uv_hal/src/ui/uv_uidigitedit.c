@@ -102,7 +102,9 @@ static void set_value(void *me, int32_t value, bool forced_update) {
 		}
 		uv_uilabel_set_text(this, this->str);
 		uv_ui_refresh(this);
-		this->changed = true;
+		if (this->value != value) {
+			this->changed = true;
+		}
 	}
 	this->value = value;
 }
