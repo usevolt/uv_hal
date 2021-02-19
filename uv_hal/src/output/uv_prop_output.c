@@ -135,10 +135,10 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 			}
 
 			// scale the toggle point to -1000 ... 1000
-			bool hyston = uv_hysteresis_step(&this->toggle_hyst,
-					((int32_t) abs(target_req) * PROP_VALUE_MAX + PROP_OUTPUT_TARGET_MAX / 2) /
-					PROP_OUTPUT_TARGET_MAX);
-
+			;uv_hysteresis_step(&this->toggle_hyst,
+				((int32_t) abs(target_req) * PROP_VALUE_MAX + PROP_OUTPUT_TARGET_MAX / 2) /
+				PROP_OUTPUT_TARGET_MAX);
+			bool hyston = uv_hysteresis_get_output(&this->toggle_hyst);
 
 			bool on = (this->mode == PROP_OUTPUT_MODE_PROP_NORMAL) ?
 					(!!target_req) : hyston;
