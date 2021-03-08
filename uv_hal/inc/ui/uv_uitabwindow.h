@@ -92,7 +92,7 @@ static inline int16_t uv_uitabwindow_tab(void *me) {
 }
 
 static inline int16_t uv_uitabwindow_get_tab(void *me) {
-	return uv_uitabwindow_get_tab(me);
+	return uv_uitabwindow_tab(me);
 }
 
 /// @brief: implementation of uv_uiwindow's add function
