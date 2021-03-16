@@ -40,6 +40,9 @@
 #if CONFIG_TERMINAL_UART
 #include "uv_uart.h"
 #endif
+#if CONFIG_TERMINAL_USBDVCOM
+#include "cdc_vcom.h"
+#endif
 
 
 
@@ -101,7 +104,6 @@ int outbyte(int c) {
 
 #endif
 #if CONFIG_TERMINAL_CAN
-
 		uint8_t ch = c;
 		uv_vector_push_back(&can_vec, &ch);
 #if !CONFIG_TARGET_LPC1549
@@ -110,6 +112,11 @@ int outbyte(int c) {
 		}
 #else
 		send_can_msg();
+#endif
+#if CONFIG_TERMINAL_USBDVCOM
+		if (vcom_connected()) {
+			vcom_write((char*) &c, 1);
+		}
 #endif
 
 #endif
