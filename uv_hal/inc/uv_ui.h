@@ -62,10 +62,8 @@
 
 
 /// @brief: Variadic language function. Returns a pointer to a string
-/// in language iven with *lang_index*. The following arguments
-/// should be strings in different languages. The number of strings should
-/// match the number of languages set with *uv_ui_set_lang_count*.
-///
+/// in language given by *lang_index*. The following arguments
+/// should be strings in different languages. ///
 /// @example: // This returns "English"
 ///			uv_uitr(0, "English", "Finnish", "Swedish");
 char *uv_uitr(uint8_t lang_index, ...);

@@ -67,7 +67,6 @@ void _uv_uilabel_draw(void *me, const uv_bounding_box_st *pbb) {
 		y += uv_uibb(this)->height / 2;
 	}
 	uv_ft81x_draw_string(this->str, this->font, x, y, this->align, this->color);
-
 }
 
 

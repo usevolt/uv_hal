@@ -139,15 +139,8 @@ static inline void uv_uiwindow_content_move_to(const void *me,
 void uv_uiwindow_add(void *me, void *object, uv_bounding_box_st *bb);
 
 /// @brief: Same as **uv_uiwindow_add* but with x, y, width and height instead of a boundign box
-static inline void uv_uiwindow_addxy(void *me, void *object,
-		int16_t x, int16_t y, uint16_t width, uint16_t height) {
-	uv_bounding_box_st bb;
-	bb.x = x;
-	bb.y = y;
-	bb.width = width;
-	bb.height = height;
-	uv_uiwindow_add(me, object, &bb);
-}
+void uv_uiwindow_addxy(void *me, void *object,
+		int16_t x, int16_t y, uint16_t width, uint16_t height);
 
 
 /// @brief: Removes **object** from the window.

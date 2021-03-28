@@ -192,7 +192,6 @@ void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array, const uv_ui
 
 
 void uv_uiwindow_add(void *me, void *object, uv_bounding_box_st *bb) {
-
 	uv_bounding_box_init(&((uv_uiobject_st*) object)->bb, bb->x, bb->y, bb->width, bb->height);
 	((uv_uiobject_st*) object)->parent = this;
 	uv_ui_refresh(object);
@@ -204,6 +203,18 @@ void uv_uiwindow_add(void *me, void *object, uv_bounding_box_st *bb) {
 		this->content_bb.height = uv_uibb(this)->height;
 	}
 }
+
+
+void uv_uiwindow_addxy(void *me, void *object,
+		int16_t x, int16_t y, uint16_t width, uint16_t height) {
+	uv_bounding_box_st bb;
+	bb.x = x;
+	bb.y = y;
+	bb.width = width;
+	bb.height = height;
+	uv_uiwindow_add(me, object, &bb);
+}
+
 
 
 void uv_uiwindow_remove(void *me, void *object) {

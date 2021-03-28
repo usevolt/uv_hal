@@ -45,6 +45,14 @@
 #error "CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH should define the tabwindow header minimum width in pixels"
 #endif
 
+typedef enum {
+	// The tab names are given as a list of strings, separated by '\0' characters.
+	// This is the default value.
+	UITABWINDOW_LIST_OF_POINTERS = 0,
+	// the tab names are given as a list of pointers to strings, i.e. as an array.
+	UITABWINDOW_LIST_OF_STRINGS
+} uitabwindow_names_type_e;
+
 
 /// @brief: tab window is a window with different tabs
 typedef struct __attribute__((packed)) {
@@ -52,8 +60,10 @@ typedef struct __attribute__((packed)) {
 
 	/// @brief: tells how many tabs this tabwindow has
 	uint16_t tab_count;
-	/// @brief: Pointers to the tab names
-	const char **tab_names;
+	/// @brief: Pointers to the tab names. Either of type char** or char*, depending
+	/// on the value of *names_type*
+	void *tab_names;
+	uitabwindow_names_type_e names_type;
 	/// @brief: Index of the current active tab
 	uint16_t active_tab;
 	/// @brief: True for 1 step cycle when the tab was changed
@@ -73,7 +83,16 @@ typedef struct __attribute__((packed)) {
 void uv_uitabwindow_init(void *me, int16_t tab_count,
 		const uv_uistyle_st *style,
 		uv_uiobject_st **obj_array,
-		const char **tab_names);
+		void *tab_names);
+
+
+/// @brief: sets if the tab names are given as a list of pointers (default) or as
+/// a list of strings.
+static inline void uv_uitabwindow_set_tab_names_type(void *me, uitabwindow_names_type_e value) {
+	this->names_type = value;
+}
+
+
 
 
 static inline bool uv_uitabwindow_tab_changed(void *me) {

@@ -39,10 +39,31 @@ static void draw(void *me, const uv_bounding_box_st *pbb);
 static void touch(void *me, uv_touch_st *touch);
 
 
+char *get_tab_name(void *me, uint16_t tab_i) {
+	char *ret = "";
+	if (this->names_type == UITABWINDOW_LIST_OF_POINTERS) {
+		ret = ((char**) this->tab_names)[tab_i];
+	}
+	else {
+		// UITABWINDOW_LIST_OF_STRINGS
+		// cycle through all the names until we get to the one requested
+		ret = (char*) this->tab_names;
+		for (uint8_t  i = 0; i < tab_i; i++) {
+			ret += strlen(ret) + 1;
+		}
+	}
+	return ret;
+}
+
+
+/// @param tab_names: Should be of type (char**) if the tab names are given as a list or pointers,
+/// or (char*) if the tab names are given as a list of strings and also
+/// uv_uitabwindow_set_tab_names_type has to be called and the type has to be specified to
+/// UITABWINDOW_LIST_OF_STRINGS.
 void uv_uitabwindow_init(void *me, int16_t tab_count,
 		const uv_uistyle_st *style,
 		uv_uiobject_st **obj_array,
-		const char **tab_names) {
+		void *tab_names) {
 	uv_uiwindow_init(this, obj_array, style);
 	uv_uiwindow_set_transparent(this, false);
 	uv_uiwindow_set_content_bb_default_pos(this, 0, CONFIG_UI_TABWINDOW_HEADER_HEIGHT);
@@ -51,6 +72,7 @@ void uv_uitabwindow_init(void *me, int16_t tab_count,
 	this->active_tab = 0;
 	this->tab_count = tab_count;
 	this->tab_names = tab_names;
+	this->names_type = UITABWINDOW_LIST_OF_POINTERS;
 	this->tab_changed = false;
 	uv_uiobject_set_step_callb((uv_uiobject_st*) this, &uv_uitabwindow_step);
 	uv_uiobject_set_draw_callb(this, &draw);
@@ -72,7 +94,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 
 	for (int16_t i = 0; i < this->tab_count; i++) {
-		tab_w = uv_ft81x_get_string_width((char *)this->tab_names[i], this->font) + 10;
+		tab_w = uv_ft81x_get_string_width(get_tab_name(this, i), this->font) + 10;
 		if (tab_w < CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH) {
 			tab_w = CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH;
 		}
@@ -81,7 +103,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 					CONFIG_UI_RADIUS, ((uv_uiwindow_st*) this)->bg_c,
 					uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, 30),
 					uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, -30));
-			uv_ft81x_draw_string((char*) this->tab_names[i], this->font,
+			uv_ft81x_draw_string(get_tab_name(this, i), this->font,
 					x + 4, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, ALIGN_CENTER_LEFT,
 					this->text_c);
 		}
@@ -101,7 +123,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 			CONFIG_UI_RADIUS, uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, 20),
 			uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, 30),
 			uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, -30));
-	uv_ft81x_draw_string((char*) this->tab_names[this->active_tab],
+	uv_ft81x_draw_string(get_tab_name(this, this->active_tab),
 			this->font, active_tab_x + 5,
 			y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, ALIGN_CENTER_LEFT,
 			this->text_c);
@@ -136,7 +158,7 @@ static void touch(void *me, uv_touch_st *touch) {
 			int16_t total_w = 0;
 			for (int16_t i = 0; i < this->tab_count; i++) {
 				int16_t tab_w =
-						uv_ft81x_get_string_height((char *) this->tab_names[i], this->font) + 10;
+						uv_ft81x_get_string_height(get_tab_name(this, i), this->font) + 10;
 				if (tab_w < CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH) {
 					tab_w = CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH;
 				}
