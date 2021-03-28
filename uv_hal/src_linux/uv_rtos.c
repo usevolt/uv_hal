@@ -43,12 +43,6 @@
 #include <string.h>
 #include <time.h>
 #include <stdio.h>
-#if CONFIG_WDT
-#include "uv_wdt.h"
-#endif
-#if CONFIG_ADC || CONFIG_ADC0 || CONFIG_ADC1
-#include "uv_adc.h"
-#endif
 
 typedef struct {
 	pthread_t thread;
@@ -226,31 +220,6 @@ void uv_init(void *device) {
 	uv_set_application_ptr(device);
 	uv_mutex_init(&halmutex);
 
-#if CONFIG_TARGET_LPC1549
-	Chip_SYSCTL_PeriphReset(RESET_MUX);
-	Chip_SYSCTL_PeriphReset(RESET_IOCON);
-	Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_IOCON);
-	Chip_SWM_Init();
-	Chip_GPIO_Init(LPC_GPIO);
-#endif
-
-#if CONFIG_WDT
-	_uv_wdt_init();
-#endif
-
-#if CONFIG_UART0
-	_uv_uart_init(UART0);
-#endif
-#if CONFIG_UART1
-	_uv_uart_init(UART1);
-#endif
-#if CONFIG_UART2
-	_uv_uart_init(UART2);
-#endif
-#if CONFI_UART3
-	_uv_uart_init(UART3);
-#endif
-
 #if CONFIG_CAN
 	_uv_can_init();
 #endif
@@ -267,53 +236,6 @@ void uv_init(void *device) {
 #if CONFIG_CANOPEN
 	_uv_canopen_init();
 #endif
-
-#if CONFIG_ADC || CONFIG_ADC0 || CONFIG_ADC1
-	_uv_adc_init();
-#endif
-
-#if CONFIG_SPI
-	_uv_spi_init();
-#endif
-
-#if CONFIG_EMC
-	_uv_emc_init();
-#endif
-
-#if CONFIG_LCD
-	_uv_lcd_init();
-#endif
-
-#if CONFIG_PWM
-	_uv_pwm_init();
-#endif
-
-#if CONFIG_EEPROM
-	_uv_eeprom_init();
-#endif
-
-#if CONFIG_RTC
-	_uv_rtc_init();
-#endif
-
-
-#if CONFIG_TARGET_LPC11C14
-	// delay of half a second on start up.
-	// Makes entering ISP mode possible on startup before freeRTOS scheduler is started
-	_delay_ms(500);
-	char c;
-
-	uv_errors_e e;
-	while (true) {
-		if ((e = uv_uart_get_char(UART0, &c))) {
-			break;
-		}
-		if (c == '?') {
-			uv_enter_ISP_mode();
-		}
-	}
-#endif
-
 
 	uv_rtos_task_create(hal_task, "uv_hal", UV_RTOS_MIN_STACK_SIZE, NULL, 0xFFFF, NULL);
 }

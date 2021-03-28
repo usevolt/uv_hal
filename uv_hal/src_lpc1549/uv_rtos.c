@@ -47,6 +47,9 @@
 #include "uv_adc.h"
 #endif
 #include "uv_dac.h"
+#if CONFIG_TERMINAL_USBDVCOM
+#include "cdc_vcom.h"
+#endif
 
 
 
@@ -246,6 +249,9 @@ void uv_init(void *device) {
 #if CONFIG_CAN
 	_uv_can_init();
 #endif
+#if CONFIG_TERMINAL_USBDVCOM
+	vcom_init();
+#endif
 
 
 #if CONFIG_CANOPEN
@@ -287,7 +293,8 @@ void uv_init(void *device) {
 
 
 
-	uv_rtos_task_create(hal_task, "uv_hal", UV_RTOS_MIN_STACK_SIZE, NULL, CONFIG_HAL_TASK_PRIORITY, NULL);
+	uv_rtos_task_create(hal_task, "uv_hal",
+			UV_RTOS_MIN_STACK_SIZE, NULL, CONFIG_HAL_TASK_PRIORITY, NULL);
 }
 
 
