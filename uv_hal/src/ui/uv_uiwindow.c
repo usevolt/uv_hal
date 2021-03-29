@@ -321,21 +321,18 @@ uv_uiobject_ret_e uv_uiwindow_step(void *me, uint16_t step_ms) {
 
 	if (!(ret & UIOBJECT_RETURN_KILLED)) {
 		// call step functions for all children which are visible
-		if (((uv_uiobject_st*) this)->visible) {
-			for (int16_t i = 0; i < this->objects_count; i++) {
-				if (this->objects[i]->visible) {
+		for (int16_t i = 0; i < this->objects_count; i++) {
+			if (this->objects[i]->visible) {
 
-					// call child object's step function
-					if (this->objects[i]->step_callb) {
-						ret |= uv_uiobject_step(this->objects[i], step_ms);
-					}
-					if (ret & UIOBJECT_RETURN_KILLED) {
-						break;
-					}
-
+				// call child object's step function
+				if (this->objects[i]->step_callb) {
+					ret |= uv_uiobject_step(this->objects[i], step_ms);
 				}
-			}
+				if (ret & UIOBJECT_RETURN_KILLED) {
+					break;
+				}
 
+			}
 		}
 	}
 	return ret;
