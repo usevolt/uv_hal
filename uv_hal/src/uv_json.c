@@ -510,7 +510,6 @@ unsigned int uv_jsonreader_array_get_size(char *array) {
 	}
 
 	for (char *ptr = next(array); *ptr != '\0'; ptr = next(ptr)) {
-
 		// check for children
 		if ((*ptr == ',') && (*(ptr + 1) != ']')) {
 			ret++;
@@ -520,21 +519,14 @@ unsigned int uv_jsonreader_array_get_size(char *array) {
 			if ((*ptr == '{') || (*ptr == '[')) {
 				ptr = objarray_to_end(ptr);
 			}
-//			// jump over strings
-//			else if (*ptr == '"') {
-//				ptr++;
-//				while ((*ptr != '\0') && (*ptr != '"')) {
-//					ptr++;
-//				}
-//			}
+			// check for array to end
+			else if ((*ptr == ']') || (*ptr == '\0')) {
+				break;
+			}
 			else {
 
 			}
 
-			// check for array to end
-			if ((*ptr == ']') || (*ptr == '\0')) {
-				break;
-			}
 		}
 	}
 
