@@ -36,14 +36,22 @@
 
 
 static void touch(void *me, uv_touch_st* touch);
+static uv_uiobject_ret_e step(void *me, uint16_t step_ms);
 
 void uv_uitoucharea_init(void *me) {
 	uv_uiobject_init(this);
 	uv_uiobject_set_touch_callb(this, &touch);
+	uv_uiobject_set_step_callb(this, &step);
 	this->touch.action = TOUCH_NONE;
 	this->transparent = false;
 }
 
+
+static uv_uiobject_ret_e step(void *me, uint16_t step_ms) {
+	this->touch.action = TOUCH_NONE;
+
+	return UIOBJECT_RETURN_ALIVE;
+}
 
 
 static void touch(void *me, uv_touch_st* touch) {

@@ -38,7 +38,7 @@
 #define PID_MULTIPLIER		0x10
 #define ACC_MIN				10
 #define DEC_MIN				60
-#define TOGGLE_HYSTERESIS_DEFAULT		100
+#define TOGGLE_HYSTERESIS_DEFAULT		10
 
 
 void uv_prop_output_conf_reset(uv_prop_output_conf_st *this,
@@ -134,7 +134,11 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 				uv_delay_init(&this->pre_enable_delay, this->enable_pre_delay_ms);
 			}
 
-			bool hyston = uv_hysteresis_step(&this->toggle_hyst, abs(target_req));
+			// scale the toggle point to -1000 ... 1000
+			;uv_hysteresis_step(&this->toggle_hyst,
+				((int32_t) abs(target_req) * PROP_VALUE_MAX + PROP_OUTPUT_TARGET_MAX / 2) /
+				PROP_OUTPUT_TARGET_MAX);
+			bool hyston = uv_hysteresis_get_output(&this->toggle_hyst);
 
 			bool on = (this->mode == PROP_OUTPUT_MODE_PROP_NORMAL) ?
 					(!!target_req) : hyston;

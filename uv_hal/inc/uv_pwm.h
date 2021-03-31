@@ -56,43 +56,43 @@
 #if !defined(CONFIG_PWM0_0_IO)
 #error "CONFIG_PWM0_0_IO should define the GPIO pin used as the PWM output"
 #endif
-#define PWM0_0		0
+#define PWM0_0		1
 #endif
 #if CONFIG_PWM0_1
 #if !defined(CONFIG_PWM0_1_IO)
 #error "CONFIG_PWM0_1_IO should define the GPIO pin used as the PWM output"
 #endif
-#define PWM0_1		1
+#define PWM0_1		2
 #endif
 #if CONFIG_PWM0_2
 #if !defined(CONFIG_PWM0_2_IO)
 #error "CONFIG_PWM0_2_IO should define the GPIO pin used as the PWM output"
 #endif
-#define PWM0_2		2
+#define PWM0_2		3
 #endif
 #if CONFIG_PWM0_3
 #if CONFIG_PWM0_3_IO
 #error "PWM0_3 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM0_3_IO undefined or set to 0"
 #endif
-#define PWM0_3		3
+#define PWM0_3		4
 #endif
 #if CONFIG_PWM0_4
 #if CONFIG_PWM0_4_IO
 #error "PWM0_4 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM0_4_IO undefined or set to 0"
 #endif
-#define PWM0_4		4
+#define PWM0_4		5
 #endif
 #if CONFIG_PWM0_5
 #if CONFIG_PWM0_5_IO
 #error "PWM0_5 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM0_5_IO undefined or set to 0"
 #endif
-#define PWM0_5		5
+#define PWM0_5		6
 #endif
 #if CONFIG_PWM0_6
 #if CONFIG_PWM0_6_IO
 #error "PWM0_6 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM0_6_IO undefined or set to 0"
 #endif
-#define PWM0_6		6
+#define PWM0_6		7
 #endif
 #endif
 #if CONFIG_PWM1
@@ -103,43 +103,43 @@
 #if !defined(CONFIG_PWM1_0_IO)
 #error "CONFIG_PWM1_0_IO should define the GPIO pin used as the PWM output"
 #endif
-#define PWM1_0		8
+#define PWM1_0		9
 #endif
 #if CONFIG_PWM1_1
 #if !defined(CONFIG_PWM1_1_IO)
 #error "CONFIG_PWM1_1_IO should define the GPIO pin used as the PWM output"
 #endif
-#define PWM1_1		9
+#define PWM1_1		10
 #endif
 #if CONFIG_PWM1_2
 #if !defined(CONFIG_PWM1_2_IO)
 #error "CONFIG_PWM1_2_IO should define the GPIO pin used as the PWM output"
 #endif
-#define PWM1_2		10
+#define PWM1_2		11
 #endif
 #if CONFIG_PWM1_3
 #if CONFIG_PWM1_3_IO
 #error "PWM1_3 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM1_3_IO undefined or set to 0"
 #endif
-#define PWM1_3		11
+#define PWM1_3		12
 #endif
 #if CONFIG_PWM1_4
 #if CONFIG_PWM1_4_IO
 #error "PWM1_4 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM1_4_IO undefined or set to 0"
 #endif
-#define PWM1_4		12
+#define PWM1_4		13
 #endif
 #if CONFIG_PWM1_5
 #if CONFIG_PWM1_5_IO
 #error "PWM1_5 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM1_5_IO undefined or set to 0"
 #endif
-#define PWM1_5		13
+#define PWM1_5		14
 #endif
 #if CONFIG_PWM1_6
 #if CONFIG_PWM1_6_IO
 #error "PWM1_6 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM1_6_IO undefined or set to 0"
 #endif
-#define PWM1_6		14
+#define PWM1_6		15
 #endif
 #endif
 #if CONFIG_PWM2
@@ -150,31 +150,31 @@
 #if !defined(CONFIG_PWM2_0_IO)
 #error "CONFIG_PWM2_0_IO should define the GPIO pin used as the PWM output"
 #endif
-#define PWM2_0		16
+#define PWM2_0		17
 #endif
 #if CONFIG_PWM2_1
 #if !defined(CONFIG_PWM2_1_IO)
 #error "CONFIG_PWM2_1_IO should define the GPIO pin used as the PWM output"
 #endif
-#define PWM2_1		17
+#define PWM2_1		18
 #endif
 #if CONFIG_PWM2_2
 #if !defined(CONFIG_PWM2_2_IO)
 #error "CONFIG_PWM2_2_IO should define the GPIO pin used as the PWM output"
 #endif
-#define PWM2_2		18
+#define PWM2_2		19
 #endif
 #if CONFIG_PWM2_3
 #if CONFIG_PWM2_3_IO
 #error "PWM2_3 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM2_3_IO undefined or set to 0"
 #endif
-#define PWM2_3		19
+#define PWM2_3		20
 #endif
 #if CONFIG_PWM2_4
 #if CONFIG_PWM2_4_IO
 #error "PWM2_4 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM2_4_IO undefined or set to 0"
 #endif
-#define PWM2_4		20
+#define PWM2_4		21
 #endif
 #endif
 #if CONFIG_PWM3
@@ -185,38 +185,38 @@
 #if !defined(CONFIG_PWM3_0_IO)
 #error "CONFIG_PWM3_0_IO should define the GPIO pin used as the PWM output"
 #endif
-#define PWM3_0		24
+#define PWM3_0		25
 #endif
 #if CONFIG_PWM3_1
 #if !defined(CONFIG_PWM3_1_IO)
 #error "CONFIG_PWM3_1_IO should define the GPIO pin used as the PWM output"
 #endif
-#define PWM3_1		25
+#define PWM3_1		26
 #endif
 #if CONFIG_PWM3_2
 #if !defined(CONFIG_PWM3_2_IO)
 #error "CONFIG_PWM3_2_IO should define the GPIO pin used as the PWM output"
 #endif
-#define PWM3_2		26
+#define PWM3_2		27
 #endif
 #if CONFIG_PWM3_3
 #if CONFIG_PWM3_3_IO
 #error "PWM3_3 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM3_3_IO undefined or set to 0"
 #endif
-#define PWM3_3		27
+#define PWM3_3		28
 #endif
 #if CONFIG_PWM3_4
 #if CONFIG_PWM3_4_IO
 #error "PWM3_4 GPIO pin is fixed and cannot be changed. Leave CONFIG_PWM3_4_IO undefined or set to 0"
 #endif
-#define PWM3_4		28
+#define PWM3_4		29
 #endif
 #endif
 
 /// @brief: Returns the module number of pwm channel.
-#define PWM_GET_MODULE(pwm)		(pwm / 8)
+#define PWM_GET_MODULE(pwm)		(((pwm) - 1) / 8)
 /// @brief: Returns the channel number from the module (0-7).
-#define PWM_GET_CHANNEL(pwm)	(pwm % 8)
+#define PWM_GET_CHANNEL(pwm)	(((pwm) - 1) % 8)
 
 
 #elif CONFIG_TARGET_LPC1785

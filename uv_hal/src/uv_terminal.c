@@ -50,7 +50,9 @@
 #if CONFIG_RTOS
 #include "uv_rtos.h"
 #endif
-
+#if CONFIG_TERMINAL_USBDVCOM
+#include "cdc_vcom.h"
+#endif
 
 
 uint8_t uv_terminal_enabled = 0;
@@ -201,11 +203,17 @@ uv_errors_e uv_terminal_step() {
 #endif
 
 			// No more data is available on uart. Try CAN
-	#if CONFIG_TERMINAL_CAN
+#if CONFIG_TERMINAL_CAN
 			if (!data) {
 				e = uv_can_get_char(&data);
 			}
-	#endif
+#endif
+			// no more data is available on can. Try USB VCOM
+#if CONFIG_TERMINAL_USBDVCOM
+			if (!data) {
+				e = (vcom_bread((uint8_t*) &data, 1) != 0) ? ERR_NONE : ERR_BUFFER_EMPTY;
+			}
+#endif
 			if (e != ERR_NONE) {
 				break;
 			}

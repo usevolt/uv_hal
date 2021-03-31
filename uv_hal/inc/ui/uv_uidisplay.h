@@ -87,10 +87,15 @@ typedef struct __attribute__((packed)) {
 void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *style);
 
 
+#if !defined(this)
+#define this ((uv_uidisplay_st*) me)
+#endif
+
 /// @brief: For uidisplay, uiobejct's virtual touch function is used as a user touch callback
 static inline void uv_uidisplay_set_touch_callb(void *me, void (*touch_callb)(void *, uv_touch_st *)) {
 	uv_uiobject_set_touch_callb(me, touch_callb);
 }
+
 
 /// @brief: Adds an object to the screen
 static inline void uv_uidisplay_addxy(void *me, void *obj,
@@ -121,6 +126,8 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms);
 /// be called anytime inside the gui step task.
 void uv_uidisplay_draw(void *me);
 
+
+#undef this
 
 #endif
 

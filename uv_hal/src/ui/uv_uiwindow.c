@@ -192,7 +192,6 @@ void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array, const uv_ui
 
 
 void uv_uiwindow_add(void *me, void *object, uv_bounding_box_st *bb) {
-
 	uv_bounding_box_init(&((uv_uiobject_st*) object)->bb, bb->x, bb->y, bb->width, bb->height);
 	((uv_uiobject_st*) object)->parent = this;
 	uv_ui_refresh(object);
@@ -204,6 +203,18 @@ void uv_uiwindow_add(void *me, void *object, uv_bounding_box_st *bb) {
 		this->content_bb.height = uv_uibb(this)->height;
 	}
 }
+
+
+void uv_uiwindow_addxy(void *me, void *object,
+		int16_t x, int16_t y, uint16_t width, uint16_t height) {
+	uv_bounding_box_st bb;
+	bb.x = x;
+	bb.y = y;
+	bb.width = width;
+	bb.height = height;
+	uv_uiwindow_add(me, object, &bb);
+}
+
 
 
 void uv_uiwindow_remove(void *me, void *object) {
@@ -223,6 +234,19 @@ void uv_uiwindow_remove(void *me, void *object) {
 		uv_ui_refresh(this);
 	}
 }
+
+
+void uv_uiwindow_send_to_back(void *me, void *object) {
+	for (uint16_t i = 0; i < this->objects_count; i++) {
+		if (this->objects[i] == object) {
+			memmove(&this->objects[1], this->objects, sizeof(this->objects[0]) * i);
+			this->objects[0] = object;
+			uv_ui_refresh(this);
+			break;
+		}
+	}
+}
+
 
 
 uv_bounding_box_st uv_uiwindow_get_contentbb(const void *me) {
@@ -297,21 +321,18 @@ uv_uiobject_ret_e uv_uiwindow_step(void *me, uint16_t step_ms) {
 
 	if (!(ret & UIOBJECT_RETURN_KILLED)) {
 		// call step functions for all children which are visible
-		if (((uv_uiobject_st*) this)->visible) {
-			for (int16_t i = 0; i < this->objects_count; i++) {
-				if (this->objects[i]->visible) {
+		for (int16_t i = 0; i < this->objects_count; i++) {
+			if (this->objects[i]->visible) {
 
-					// call child object's step function
-					if (this->objects[i]->step_callb) {
-						ret |= uv_uiobject_step(this->objects[i], step_ms);
-					}
-					if (ret & UIOBJECT_RETURN_KILLED) {
-						break;
-					}
-
+				// call child object's step function
+				if (this->objects[i]->step_callb) {
+					ret |= uv_uiobject_step(this->objects[i], step_ms);
 				}
-			}
+				if (ret & UIOBJECT_RETURN_KILLED) {
+					break;
+				}
 
+			}
 		}
 	}
 	return ret;

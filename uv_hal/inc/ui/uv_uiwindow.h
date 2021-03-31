@@ -139,19 +139,19 @@ static inline void uv_uiwindow_content_move_to(const void *me,
 void uv_uiwindow_add(void *me, void *object, uv_bounding_box_st *bb);
 
 /// @brief: Same as **uv_uiwindow_add* but with x, y, width and height instead of a boundign box
-static inline void uv_uiwindow_addxy(void *me, void *object,
-		int16_t x, int16_t y, uint16_t width, uint16_t height) {
-	uv_bounding_box_st bb;
-	bb.x = x;
-	bb.y = y;
-	bb.width = width;
-	bb.height = height;
-	uv_uiwindow_add(me, object, &bb);
-}
+void uv_uiwindow_addxy(void *me, void *object,
+		int16_t x, int16_t y, uint16_t width, uint16_t height);
 
 
 /// @brief: Removes **object** from the window.
 void uv_uiwindow_remove(void *me, void *object);
+
+
+/// @brief: Sends the given **object** to the backmost in the drawing order.
+///
+/// @param object: The object that has to be this uiwindow's child added with *uv_uiwindow_add*.
+void uv_uiwindow_send_to_back(void *me, void *object);
+
 
 /// @brief: Adds a user application step callback function to this window.
 /// The step function is called on every update step and should be used for

@@ -150,7 +150,6 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 		// solenoid is current driven
 		if (this->mode == SOLENOID_OUTPUT_MODE_CURRENT) {
 			// set the target current for the pid
-
 			int16_t target_ma = 0;
 			// clamp the output current to min & max current limits
 			if (this->target) {
@@ -193,15 +192,14 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 		// solenoid is PWM driven
 		else if (this->mode == SOLENOID_OUTPUT_MODE_PWM) {
 			if (this->target) {
-				int32_t rel = uv_reli(this->conf->min, 0, UINT8_MAX);
+				// min and max are 0 ... 1000
+				int32_t min = uv_reli(this->conf->min, 0, UINT8_MAX);
+				int32_t max = uv_reli(this->conf->max, 0, UINT8_MAX);
 				output = uv_lerpi(this->target,
-						uv_lerpi(rel, 0, this->limitconf->max),
+						uv_lerpi(min, 0, this->limitconf->max),
 						uv_lerpi(
-								uv_lerpi(
-										this->maxspeed_scaler,
-										this->conf->min,
-										this->conf->max),
-								0,
+								uv_lerpi(this->maxspeed_scaler, min, max),
+								uv_lerpi(min, 0, this->limitconf->max),
 								this->limitconf->max));
 			}
 			this->out = output;

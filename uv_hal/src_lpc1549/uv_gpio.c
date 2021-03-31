@@ -39,13 +39,15 @@
 
 // callback function
 static void (*callback)(uv_gpios_e) = 0;
-static uint8_t int_count = 0;
-static uv_gpios_e int_pins[8] = {};
+#define INT_COUNT	8
+static uv_gpios_e int_pins[INT_COUNT] = { };
+
 
 
 
 
 void uv_gpio_interrupt_init(void (*callback_function)(uv_gpios_e)) {
+	memset(int_pins, 0, sizeof(int_pins));
 	callback = callback_function;
 	Chip_PININT_Init(LPC_GPIO_PIN_INT);
 }
@@ -62,22 +64,53 @@ uint8_t uv_gpio_get_pin(uv_gpios_e gpio) {
 
 
 
-void uv_gpio_init_int(uv_gpios_e gpio, uv_gpio_interrupt_config_e confs) {
-	if (int_count < 8) {
-		NVIC_EnableIRQ(PIN_INT0_IRQn + int_count);
-		NVIC_SetPriority(PIN_INT0_IRQn + int_count, 1);
+uv_errors_e uv_gpio_enable_int(uv_gpios_e gpio, uv_gpio_interrupt_config_e confs) {
+	uv_errors_e ret = ERR_HARDWARE_NOT_SUPPORTED;
+	uint8_t index = INT_COUNT;
+	for (uint8_t i = 0; i < INT_COUNT; i++) {
+		if (int_pins[i] == gpio) {
+			ret = ERR_NO_NEW_VALUES;
+			break;
+		}
+		else if (int_pins[i] == 0) {
+			index = i;
+			ret = ERR_NONE;
+		}
+		else {
 
-		Chip_INMUX_PinIntSel(int_count, uv_gpio_get_port(gpio), uv_gpio_get_pin(gpio));
+		}
+	}
+	if (ret == ERR_NONE) {
+		NVIC_SetPriority(PIN_INT0_IRQn + index, 1);
 
-		Chip_PININT_SetPinModeEdge(LPC_GPIO_PIN_INT, PININTCH(int_count));
+		Chip_INMUX_PinIntSel(index, uv_gpio_get_port(gpio), uv_gpio_get_pin(gpio));
+
+		Chip_PININT_SetPinModeEdge(LPC_GPIO_PIN_INT, PININTCH(index));
 		if (confs & INT_RISING_EDGE) {
-			Chip_PININT_EnableIntHigh(LPC_GPIO_PIN_INT, PININTCH(int_count));
+			Chip_PININT_EnableIntHigh(LPC_GPIO_PIN_INT, PININTCH(index));
 		}
 		if (confs & INT_FALLING_EDGE) {
-			Chip_PININT_EnableIntLow(LPC_GPIO_PIN_INT, PININTCH(int_count));
+			Chip_PININT_EnableIntLow(LPC_GPIO_PIN_INT, PININTCH(index));
 		}
-		int_pins[int_count] = gpio;
-		int_count++;
+		int_pins[index] = gpio;
+		NVIC_EnableIRQ(PIN_INT0_IRQn + index);
+	}
+
+	return ret;
+}
+
+void uv_gpio_disable_int(uv_gpios_e gpio) {
+	uint8_t index = INT_COUNT;
+	for (uint8_t i = 0; i < INT_COUNT; i++) {
+		if (int_pins[i] == gpio) {
+			index = i;
+			break;
+		}
+	}
+	if (index < INT_COUNT) {
+		// disable the interrupt on the given pin
+		NVIC_DisableIRQ(PIN_INT0_IRQn + index);
+		int_pins[index] = 0;
 	}
 }
 

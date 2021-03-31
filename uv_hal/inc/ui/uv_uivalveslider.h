@@ -41,6 +41,12 @@
 #define this ((uv_uivalveslider_st*) me)
 
 
+#ifndef CONFIG_UIVALVESLIDER_HANDLE_WIDTH
+// Defines the uivalveslider handle width in pixels
+#define CONFIG_UIVALVESLIDER_HANDLE_WIDTH	40
+#endif
+
+
 typedef enum {
 	UIVALVESLIDER_HANDLE_POS_MIN = 0,
 	UIVALVESLIDER_HANDLE_POS_MAX,
@@ -49,6 +55,8 @@ typedef enum {
 	UIVALVESLIDER_HANDLE_COUNT
 } uv_uivalveslider_handles_e;
 
+
+
 /// @brief: uivalveslider is a multihandle slider that is used for setting
 /// the min & max currents for a unidir or dual dir solenoid output
 typedef struct __attribute__((packed)) {
@@ -56,18 +64,31 @@ typedef struct __attribute__((packed)) {
 
 	int16_t min_val;
 	int16_t max_val;
+	int16_t inc_step;
 	uv_uivalveslider_handles_e selected_handle;
 	bool value_changed;
+	bool unidir;
+	uint8_t horiz_padding;
+	int16_t drag_start_val;
+	int16_t drag_x;
 
 	uv_uimedia_st *leftarrow_media;
 	uv_uimedia_st *rightarrow_media;
 	char *handle_strs[UIVALVESLIDER_HANDLE_COUNT];
 	int16_t handle_values[UIVALVESLIDER_HANDLE_COUNT];
+	int16_t cursor_position;
+	char *cursor_text;
+	char *title;
 
 	color_t negative_c;
 	color_t positive_c;
+	color_t outbounds_c;
 	uv_font_st *font;
 	color_t handle_c;
+	color_t selected_handle_c;
+	color_t text_c;
+	uv_delay_st inc_delay;
+	bool inc;
 
 } uv_uivalveslider_st;
 
@@ -84,7 +105,7 @@ typedef struct __attribute__((packed)) {
 /// @param handle_values: Array of int16_t containing the initial values for
 /// the handles
 void uv_uivalveslider_init(void *me, int16_t min_val, int16_t max_val,
-		uv_uimedia_st *leftarrow_media, uv_uimedia_st *rightarrowmedia,
+		uv_uimedia_st *leftarrow_media, uv_uimedia_st *rightarrow_media,
 		char *handle_strs[], int16_t handle_values[],
 		const uv_uistyle_st *style);
 
@@ -97,12 +118,45 @@ static inline bool uv_uivalveslider_value_changed(void *me) {
 }
 
 
+static inline void uv_uivalveslider_set_title(void *me, char *title) {
+	this->title = title;
+}
+
 /// @brief: Returns the index of the currently selected handle. Only 1 slider can be active
 /// at the given time. If no slider is active, returns UIVALVESLIDER_HANDLE_COUNT.
 static inline uv_uivalveslider_handles_e uv_uivalveslider_get_selected_handle(void *me) {
 	return this->selected_handle;
 }
 
+
+/// @brief: Sets the cursor position and the shown text. The text has to point to a volatile
+/// memory address.
+void uv_uivalveslider_set_cursor(void *me, int16_t position, char *text);
+
+
+/// @brief: If set as unidir, the negative side is disabled and it will correspond
+/// to the positive side.
+static inline void uv_uivalveslider_set_unidir(void *me, bool value) {
+	this->unidir = value;
+}
+
+
+static inline bool uv_uivalveslider_get_unidir(void *me) {
+	return this->unidir;
+}
+
+
+/// @brief: Sets the horizontal padding. Horizontal padding is free space on left and right
+/// edges that is still considered as touch area, but where the sliders do not extend.
+static inline void uv_uivalveslider_set_horiz_padding(void *me, uint8_t value) {
+	this->horiz_padding = value;
+}
+
+
+/// @brief: Getter for the horizontal padding
+static inline uint8_t uv_uivalveslider_get_horiz_padding(void *me) {
+	return this->horiz_padding;
+}
 
 /// @brief: Sets the currently active handle
 static inline void uv_uivalveslider_set_selected_handle(void *me,
@@ -118,6 +172,11 @@ static inline int16_t uv_uivalveslider_get_handle_value(void *me,
 		uv_uivalveslider_handles_e handle) {
 	return ((uv_uivalveslider_st*) me)->handle_values[handle];
 }
+
+
+/// @brief: Returns the selected handle's value or 0 if no handle is selected
+int16_t uv_uivalveslider_get_selected_handle_value(void *me);
+
 
 
 /// @brief: Sets the color for the negative side of the slider
@@ -152,6 +211,15 @@ static inline void uv_uivalveslider_set_font(void *me, uv_font_st *font) {
 /// @brief: Getter for the font
 static inline uv_font_st *uv_uivalveslider_get_font(void *me) {
 	return this->font;
+}
+
+
+static inline void uv_uivalveslider_set_inc_step(void *me, uint16_t value) {
+	this->inc_step = value;
+}
+
+static inline uint16_t uv_uivalveslider_get_inc_step(void *me) {
+	return this->inc_step;
 }
 
 
