@@ -92,7 +92,8 @@ void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *
 #endif
 
 /// @brief: For uidisplay, uiobejct's virtual touch function is used as a user touch callback
-static inline void uv_uidisplay_set_touch_callb(void *me, void (*touch_callb)(void *, uv_touch_st *)) {
+static inline void uv_uidisplay_set_touch_callb(void *me,
+		void (*touch_callb)(void *, uv_touch_st *)) {
 	uv_uiobject_set_touch_callb(me, touch_callb);
 }
 
