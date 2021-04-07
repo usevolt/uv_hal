@@ -176,6 +176,7 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 		((uv_uiobject_st*) this)->vrtl_touch(this, &t);
 	}
 
+
 	// call uiwindow's touch callback to
 	// propagate touches to all objects in reverse order
 	_uv_uiwindow_touch(this, &t);
