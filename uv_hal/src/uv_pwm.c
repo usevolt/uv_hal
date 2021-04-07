@@ -29,6 +29,8 @@
 
 #include "uv_pwm.h"
 
+#if CONFIG_TARGET_LPC1549
+
 #include "chip.h"
 #include "sct_pwm_15xx.h"
 #include "uv_gpio.h"
@@ -274,5 +276,7 @@ void uv_pwm_set_freq(uv_pwm_channel_t chn, uint32_t value) {
 	}
 }
 
+
+#endif
 
 #endif

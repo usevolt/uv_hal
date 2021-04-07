@@ -31,11 +31,6 @@
 
 
 #include <stdio.h>
-#if CONFIG_TARGET_LPC11C14
-#include "LPC11xx.h"
-#elif CONFIG_TARGET_LPC1785
-#include "LPC177x_8x.h"
-#endif
 #include "uv_utilities.h"
 
 
@@ -51,8 +46,6 @@ static void (*callback)(uv_gpios_e) = 0;
 void uv_gpio_add_interrupt_callback(void (*callback_function)(uv_gpios_e)) {
 
 	callback = callback_function;
-	NVIC_EnableIRQ(GINT0_IRQn);
-	NVIC_EnableIRQ(GINT1_IRQn);
 }
 
 uint8_t uv_gpio_get_port(uv_gpios_e gpio) {
