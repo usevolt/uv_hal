@@ -53,7 +53,9 @@
 #include <unistd.h>
 #include <errno.h>
 #include <time.h>
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE     /* To get defns of NI_MAXSERV and NI_MAXHOST */
+#endif
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netdb.h>
