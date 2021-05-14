@@ -86,7 +86,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t y = this->horizontal ?
 			uv_ui_get_yglobal(this) + uv_uibb(this)->height / 2 - CONFIG_UI_PROGRESSBAR_HEIGHT / 2 :
 			uv_ui_get_yglobal(this) + uv_uibb(this)->height -
-			(this->title ? (uv_ft81x_get_string_height(this->title, this->font) + 3) : 0) -
+			(this->title ? (uv_ui_get_string_height(this->title, this->font) + 3) : 0) -
 			CONFIG_UI_PROGRESSBAR_WIDTH;
 	int16_t rel = uv_reli(this->value, this->min_val, this->max_val);
 	if (rel < 0) { rel = 0; }
@@ -106,15 +106,15 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 		barh = CONFIG_UI_RADIUS + 4;
 	}
 
-	uv_ft81x_draw_rrect(x, y, w - 4, h - 4, CONFIG_UI_RADIUS, uv_uic_brighten(this->bg_c, -30));
-	uv_ft81x_draw_rrect(x + 4, y + 4, w - 4, h - 4, CONFIG_UI_RADIUS, uv_uic_brighten(this->bg_c, 30));
-	uv_ft81x_draw_rrect(x + 2, y + 2, w - 4, h - 4, CONFIG_UI_RADIUS, this->bg_c);
+	uv_ui_draw_rrect(x, y, w - 4, h - 4, CONFIG_UI_RADIUS, uv_uic_brighten(this->bg_c, -30));
+	uv_ui_draw_rrect(x + 4, y + 4, w - 4, h - 4, CONFIG_UI_RADIUS, uv_uic_brighten(this->bg_c, 30));
+	uv_ui_draw_rrect(x + 2, y + 2, w - 4, h - 4, CONFIG_UI_RADIUS, this->bg_c);
 
 	// draw handle
-	uv_ft81x_draw_rrect(x + 2, y + 2, barw - 4, barh - 4, CONFIG_UI_RADIUS, c);
+	uv_ui_draw_rrect(x + 2, y + 2, barw - 4, barh - 4, CONFIG_UI_RADIUS, c);
 
 	if (this->title) {
-		uv_ft81x_draw_string(this->title, this->font,
+		uv_ui_draw_string(this->title, this->font,
 				x + w / 2, y + h, ALIGN_TOP_CENTER,
 				this->text_c);
 	}

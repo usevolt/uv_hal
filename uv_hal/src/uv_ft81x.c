@@ -488,7 +488,7 @@ static void init_values(void) {
 
 
 
-bool uv_ft81x_init(void) {
+bool uv_ui_init(void) {
 	bool ret = false;
 
 	this->dl_index = 0;
@@ -538,21 +538,21 @@ bool uv_ft81x_init(void) {
 		write16(REG_HSIZE, CONFIG_FT81X_HSIZE);
 		write16(REG_VSIZE, CONFIG_FT81X_VSIZE);
 
-		uv_ft81x_clear(C(0xFFFFFFFF));
-		uv_ft81x_dlswap();
+		uv_ui_clear(C(0xFFFFFFFF));
+		uv_ui_dlswap();
 
 		uint8_t pclk = (60000000 / CONFIG_FT81X_PCLK_HZ) % 0x7F;
 		write8(REG_PCLK, pclk);
 
 		// set backlight PWM to half brightness
 		write16(REG_PWM_HZ, CONFIG_FT81X_BACKLIGHT_PWM_FREQ_HZ);
-		uv_ft81x_set_backlight(this->backlight);
+		uv_ui_set_backlight(this->backlight);
 
 		// enable DISPLAY pin
 		write8(REG_GPIO_DIR, 0x80  | read8(REG_GPIO_DIR));
 		write8(REG_GPIO, 0x80 | read8(REG_GPIO));
 
-		uv_ft81x_dlswap();
+		uv_ui_dlswap();
 
 
 
@@ -576,7 +576,7 @@ bool uv_ft81x_init(void) {
 		// calibration
 		uv_delay_st d;
 		uv_delay_init(&d, 100);
-		while (uv_ft81x_get_touch(NULL, NULL)) {
+		while (uv_ui_get_touch(NULL, NULL)) {
 			uv_delay(&d, 20);
 			uv_rtos_task_delay(20);
 		}
@@ -925,7 +925,7 @@ bool visible(const int16_t x, const int16_t y,
 
 
 
-void uv_ft81x_dlswap(void) {
+void uv_ui_dlswap(void) {
 	writedl(DISPLAY());
 	write8(REG_DLSWAP, 0x2);
 	DEBUG("ramdl index: 0x%x\n", (unsigned int) this->dl_index);
@@ -951,7 +951,7 @@ void uv_ft81x_dlswap(void) {
 
 
 
-void uv_ft81x_set_backlight(uint8_t percent) {
+void uv_ui_set_backlight(uint8_t percent) {
 	if (percent > 100) {
 		percent = 100;
 	}
@@ -972,13 +972,13 @@ void uv_ft81x_set_backlight(uint8_t percent) {
 
 
 
-uint8_t uv_ft81x_get_backlight(void) {
+uint8_t uv_ui_get_backlight(void) {
 	return this->backlight;
 }
 
 
 
-void uv_ft81x_clear(color_t c) {
+void uv_ui_clear(color_t c) {
 	if ((!this->clear_color_init) ||
 			(((color_st*) &c)->a != this->clear_color.a)) {
 		DEBUG("set clear alpha\n");
@@ -1184,7 +1184,7 @@ uint32_t uv_ft81x_loadbitmapexmem(uv_uimedia_st *bitmap,
 	return size;
 }
 
-void uv_ft81x_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
+void uv_ui_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 		int16_t w, int16_t h, uint32_t wrap, color_t c) {
 
 	if (visible(x, y, bitmap->width, bitmap->height)) {
@@ -1223,7 +1223,7 @@ void uv_ft81x_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 
 
 
-void uv_ft81x_draw_point(int16_t x, int16_t y, color_t color, uint16_t diameter) {
+void uv_ui_draw_point(int16_t x, int16_t y, color_t color, uint16_t diameter) {
 	if (visible(x - diameter / 2, y - diameter / 2, diameter, diameter)) {
 		set_color(color);
 		set_begin(BEGIN_POINTS);
@@ -1237,15 +1237,15 @@ void uv_ft81x_draw_point(int16_t x, int16_t y, color_t color, uint16_t diameter)
 }
 
 
-void uv_ft81x_draw_shadowpoint(int16_t x, int16_t y,
+void uv_ui_draw_shadowpoint(int16_t x, int16_t y,
 		color_t color, color_t highlight_c, color_t shadow_c, uint16_t diameter) {
-	uv_ft81x_draw_point(x - 2, y - 2, shadow_c, diameter);
-	uv_ft81x_draw_point(x + 2, y + 2, highlight_c, diameter);
-	uv_ft81x_draw_point(x, y, color, diameter);
+	uv_ui_draw_point(x - 2, y - 2, shadow_c, diameter);
+	uv_ui_draw_point(x + 2, y + 2, highlight_c, diameter);
+	uv_ui_draw_point(x, y, color, diameter);
 }
 
 
-void uv_ft81x_draw_rrect(const int16_t x, const int16_t y,
+void uv_ui_draw_rrect(const int16_t x, const int16_t y,
 		const uint16_t width, const uint16_t height,
 		const uint16_t radius, const color_t color) {
 	if (visible(x, y, width, height)) {
@@ -1269,17 +1269,17 @@ void uv_ft81x_draw_rrect(const int16_t x, const int16_t y,
 	}
 }
 
-void uv_ft81x_draw_shadowrrect(const int16_t x, const int16_t y,
+void uv_ui_draw_shadowrrect(const int16_t x, const int16_t y,
 		const uint16_t width, const uint16_t height,
 		const uint16_t radius, const color_t color,
 		const color_t highlight_c, const color_t shadow_c) {
-	uv_ft81x_draw_rrect(x, y, width - 4, height - 4, radius, shadow_c);
-	uv_ft81x_draw_rrect(x + 4, y + 4, width - 4, height - 4, radius, highlight_c);
-	uv_ft81x_draw_rrect(x + 2, y + 2, width - 4, height - 4, radius, color);
+	uv_ui_draw_rrect(x, y, width - 4, height - 4, radius, shadow_c);
+	uv_ui_draw_rrect(x + 4, y + 4, width - 4, height - 4, radius, highlight_c);
+	uv_ui_draw_rrect(x + 2, y + 2, width - 4, height - 4, radius, color);
 }
 
 
-void uv_ft81x_draw_line(const int16_t start_x, const int16_t start_y,
+void uv_ui_draw_line(const int16_t start_x, const int16_t start_y,
 		const int16_t end_x, const int16_t end_y,
 		const uint16_t width, const color_t color) {
 	if (visible(start_x, start_y, end_x, end_y)) {
@@ -1299,15 +1299,15 @@ void uv_ft81x_draw_line(const int16_t start_x, const int16_t start_y,
 
 
 
-void uv_ft81x_draw_linestrip(const uv_ft81x_linestrip_point_st *points,
+void uv_ui_draw_linestrip(const uv_ui_linestrip_point_st *points,
 		const uint16_t point_count, const uint16_t line_width, const color_t color,
-		const uv_ft81x_strip_type_e type) {
+		const uv_ui_strip_type_e type) {
 	set_color(color);
 	set_begin(BEGIN_LINE_STRIP + type);
 	set_line_diameter(line_width);
 	DEBUG("Drawing line strip\n");
 	for (uint16_t i = 0; i < point_count; i++) {
-		const uv_ft81x_linestrip_point_st *p = &points[i];
+		const uv_ui_linestrip_point_st *p = &points[i];
 		vertex2f_st v;
 		v.sx = p->x;
 		v.sy = p->y;
@@ -1319,19 +1319,19 @@ void uv_ft81x_draw_linestrip(const uv_ft81x_linestrip_point_st *points,
 
 
 
-void uv_ft81x_touchscreen_calibrate(ft81x_transfmat_st *transform_matrix) {
+void uv_ui_touchscreen_calibrate(ft81x_transfmat_st *transform_matrix) {
 	DEBUG("Starting the screen calibration\n");
 
-	uv_ft81x_dlswap();
-	uv_ft81x_set_mask(0, 0, LCD_W_PX, LCD_H_PX);
-	uv_ft81x_clear(C(0xFF002040));
-	uv_ft81x_draw_string("Calibrate the touchscreen\nby touching the flashing points", &font28,
+	uv_ui_dlswap();
+	uv_ui_set_mask(0, 0, LCD_W_PX, LCD_H_PX);
+	uv_ui_clear(C(0xFF002040));
+	uv_ui_draw_string("Calibrate the touchscreen\nby touching the flashing points", &font28,
 			LCD_W(0.5f), LCD_H(0.1f), FT81X_ALIGN_CENTER_TOP, C(0xFFFFFFFF));
 	write16(REG_CMD_DL, this->dl_index);
 
 	while (true) {
 		// wait until the screen is not pressed
-		while (uv_ft81x_get_touch(NULL, NULL));
+		while (uv_ui_get_touch(NULL, NULL));
 
 		write32(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, CMD_CALIBRATE);
 		this->cmdwriteaddr += 8;
@@ -1355,9 +1355,9 @@ void uv_ft81x_touchscreen_calibrate(ft81x_transfmat_st *transform_matrix) {
 	}
 	this->dl_index = read16(REG_CMD_DL);
 	DEBUG("screen calibration done\n");
-	uv_ft81x_dlswap();
-	uv_ft81x_clear(CONFIG_FT81X_SCREEN_COLOR);
-	uv_ft81x_dlswap();
+	uv_ui_dlswap();
+	uv_ui_clear(CONFIG_FT81X_SCREEN_COLOR);
+	uv_ui_dlswap();
 
 	if (transform_matrix) {
 		transform_matrix->mat[0] = read32(REG_TOUCH_TRANSFORM_A);
@@ -1371,7 +1371,7 @@ void uv_ft81x_touchscreen_calibrate(ft81x_transfmat_st *transform_matrix) {
 
 
 
-void uv_ft81x_touchscreen_set_transform_matrix(ft81x_transfmat_st *transform_matrix) {
+void uv_ui_touchscreen_set_transform_matrix(ft81x_transfmat_st *transform_matrix) {
 	write32(REG_TOUCH_TRANSFORM_A, transform_matrix->mat[0]);
 	write32(REG_TOUCH_TRANSFORM_B, transform_matrix->mat[1]);
 	write32(REG_TOUCH_TRANSFORM_C, transform_matrix->mat[2]);
@@ -1382,7 +1382,7 @@ void uv_ft81x_touchscreen_set_transform_matrix(ft81x_transfmat_st *transform_mat
 
 
 
-bool uv_ft81x_get_touch(int16_t *x, int16_t *y) {
+bool uv_ui_get_touch(int16_t *x, int16_t *y) {
 	uint32_t t = read32(REG_TOUCH_SCREEN_XY);
 	int16_t tx = t >> 16;
 	int16_t ty = t & 0xFFFF;
@@ -1399,7 +1399,7 @@ bool uv_ft81x_get_touch(int16_t *x, int16_t *y) {
 }
 
 
-void uv_ft81x_draw_char(const char c, const uint16_t font,
+void uv_ui_draw_char(const char c, const uint16_t font,
 		int16_t x, int16_t y, color_t color) {
 	set_color(color);
 	set_begin(BEGIN_BITMAPS);
@@ -1420,7 +1420,7 @@ void uv_ft81x_draw_char(const char c, const uint16_t font,
 }
 
 
-int16_t uv_ft81x_get_string_height(char *str, ft81x_font_st *font) {
+int16_t uv_ui_get_string_height(char *str, ft81x_font_st *font) {
 	int16_t ret = 0;
 	uint16_t line_count = (*str == '\0') ? 0 : 1;
 	while (*str != '\0') {
@@ -1428,14 +1428,14 @@ int16_t uv_ft81x_get_string_height(char *str, ft81x_font_st *font) {
 			line_count++;
 		}
 	}
-	ret = uv_ft81x_get_font_height(font) * line_count;
+	ret = uv_ui_get_font_height(font) * line_count;
 
 	return ret;
 }
 
 
 
-int16_t uv_ft81x_get_string_width(char *str, ft81x_font_st *font) {
+int16_t uv_ui_get_string_width(char *str, ft81x_font_st *font) {
 	int16_t ret = 0;
 	int16_t line_len = 0;
 
@@ -1460,7 +1460,7 @@ int16_t uv_ft81x_get_string_width(char *str, ft81x_font_st *font) {
 
 
 
-void uv_ft81x_draw_string(char *str, ft81x_font_st *font,
+void uv_ui_draw_string(char *str, ft81x_font_st *font,
 		int16_t x, int16_t y, ft81x_align_e align, color_t color) {
 	char *str_ptr = str;
 	int16_t len = 0;
@@ -1475,7 +1475,7 @@ void uv_ft81x_draw_string(char *str, ft81x_font_st *font,
 				line_count++;
 			}
 		}
-		y -= uv_ft81x_get_font_height(font) * line_count / 2;
+		y -= uv_ui_get_font_height(font) * line_count / 2;
 		str_ptr = str;
 	}
 
@@ -1486,7 +1486,7 @@ void uv_ft81x_draw_string(char *str, ft81x_font_st *font,
 		}
 		else if (*str_ptr == '\n') {
 			draw_line(str, font, x, y, align, color, len);
-			y += uv_ft81x_get_font_height(font);
+			y += uv_ui_get_font_height(font);
 			str = str_ptr + 1;
 			len = -1;
 		}
@@ -1504,7 +1504,7 @@ void uv_ft81x_draw_string(char *str, ft81x_font_st *font,
 
 
 
-void uv_ft81x_set_mask(int16_t x, int16_t y, int16_t width, int16_t height) {
+void uv_ui_set_mask(int16_t x, int16_t y, int16_t width, int16_t height) {
 	if (x < 0) {
 		width += x;
 		x = 0;
@@ -1603,12 +1603,12 @@ color_t uv_uic_lerpi(int32_t t, color_t ca, color_t cb) {
 
 
 
-void uv_ft81x_set_color_mode(ft81x_color_modes_e value) {
+void uv_ui_set_color_mode(ft81x_color_modes_e value) {
 	this->color_mode = value;
 }
 
 
-void uv_ft81x_set_grayscale_luminosity(int8_t value) {
+void uv_ui_set_grayscale_luminosity(int8_t value) {
 	this->grayscale_luminosity = value;
 }
 

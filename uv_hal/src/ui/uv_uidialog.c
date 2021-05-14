@@ -43,7 +43,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	_uv_uiwindow_draw_children(this, pbb);
 
 	// all UI components should now be updated, swap display list buffers
-	uv_ft81x_dlswap();
+	uv_ui_dlswap();
 }
 
 

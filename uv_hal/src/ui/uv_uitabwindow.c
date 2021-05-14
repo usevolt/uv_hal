@@ -94,16 +94,16 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 
 	for (int16_t i = 0; i < this->tab_count; i++) {
-		tab_w = uv_ft81x_get_string_width(get_tab_name(this, i), this->font) + 10;
+		tab_w = uv_ui_get_string_width(get_tab_name(this, i), this->font) + 10;
 		if (tab_w < CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH) {
 			tab_w = CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH;
 		}
 		if (this->active_tab != i) {
-			uv_ft81x_draw_shadowrrect(x, y, tab_w, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
+			uv_ui_draw_shadowrrect(x, y, tab_w, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
 					CONFIG_UI_RADIUS, ((uv_uiwindow_st*) this)->bg_c,
 					uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, 30),
 					uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, -30));
-			uv_ft81x_draw_string(get_tab_name(this, i), this->font,
+			uv_ui_draw_string(get_tab_name(this, i), this->font,
 					x + 4, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, ALIGN_CENTER_LEFT,
 					this->text_c);
 		}
@@ -114,16 +114,16 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 		x += tab_w;
 	}
 	// draw horizontal line
-	uv_ft81x_draw_line(thisx, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT - 1,
+	uv_ui_draw_line(thisx, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT - 1,
 			thisx + uv_uibb(this)->width,
 			y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT- 1, 1,
 			uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, 30));
 	// draw active tab
-	uv_ft81x_draw_shadowrrect(active_tab_x, y, active_tab_w, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
+	uv_ui_draw_shadowrrect(active_tab_x, y, active_tab_w, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
 			CONFIG_UI_RADIUS, uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, 20),
 			uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, 30),
 			uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, -30));
-	uv_ft81x_draw_string(get_tab_name(this, this->active_tab),
+	uv_ui_draw_string(get_tab_name(this, this->active_tab),
 			this->font, active_tab_x + 5,
 			y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, ALIGN_CENTER_LEFT,
 			this->text_c);
@@ -158,7 +158,7 @@ static void touch(void *me, uv_touch_st *touch) {
 			int16_t total_w = 0;
 			for (int16_t i = 0; i < this->tab_count; i++) {
 				int16_t tab_w =
-						uv_ft81x_get_string_height(get_tab_name(this, i), this->font) + 10;
+						uv_ui_get_string_height(get_tab_name(this, i), this->font) + 10;
 				if (tab_w < CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH) {
 					tab_w = CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH;
 				}

@@ -65,9 +65,9 @@ void uv_uibutton_draw(void *me, const uv_bounding_box_st *pbb) {
 	color_t fontc = this->text_c;
 
 
-	uv_ft81x_draw_shadowrrect(x, y, w, h, CONFIG_UI_RADIUS,
+	uv_ui_draw_shadowrrect(x, y, w, h, CONFIG_UI_RADIUS,
 			 bgc, lightc, shadowc);
-	uv_ft81x_draw_string(this->text, this->font, x + w / 2,
+	uv_ui_draw_string(this->text, this->font, x + w / 2,
 			y + h / 2, ALIGN_CENTER, fontc);
 }
 

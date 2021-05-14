@@ -55,17 +55,17 @@ void uv_uidisplay_draw(void *me) {
 
 
 static void _uv_uidisplay_draw(void *me, const uv_bounding_box_st *pbb) {
-	uv_ft81x_set_mask(uv_ui_get_xglobal(this), uv_ui_get_yglobal(this),
+	uv_ui_set_mask(uv_ui_get_xglobal(this), uv_ui_get_yglobal(this),
 			uv_uibb(this)->width, uv_uibb(this)->height);
 
-	uv_ft81x_clear(this->display_c);
-	uv_ft81x_draw_point(LCD_W(0.5f), -400, uv_uic_brighten(this->display_c, 20), 1000);
+	uv_ui_clear(this->display_c);
+	uv_ui_draw_point(LCD_W(0.5f), -400, uv_uic_brighten(this->display_c, 20), 1000);
 
 	// draw all the objects added to the screen
 	_uv_uiwindow_draw_children(this, pbb);
 
 	// all UI components should now be updated, swap display list buffers
-	uv_ft81x_dlswap();
+	uv_ui_dlswap();
 
 }
 
@@ -103,7 +103,7 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 	// get touch data from the LCD
 #if CONFIG_UI_TOUCHSCREEN
 	bool touch;
-	touch = uv_ft81x_get_touch(&t.x, &t.y);
+	touch = uv_ui_get_touch(&t.x, &t.y);
 
 	uv_delay(&this->press_delay, step_ms);
 
