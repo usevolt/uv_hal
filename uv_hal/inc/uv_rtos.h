@@ -310,9 +310,7 @@ static inline uint32_t uv_rtos_get_tick_rate_hz(void) {
 /// @brief: Starts the RTOS scheduler. After calling this, the
 /// RTOS kernel has control over which tasks are executed and when.
 /// In normal operation this function never returns.
-static inline void uv_rtos_start_scheduler(void) {
-	vTaskStartScheduler();
-}
+void uv_rtos_start_scheduler(void);
 
 /// @brief: Stops the RTOS scheduler. After calling this,
 /// the RTOS stops functioning.

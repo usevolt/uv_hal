@@ -260,8 +260,6 @@ bool uv_can_set_baudrate(uv_can_channels_e channel, unsigned int baudrate) {
 	}
 	if_freenameindex(indd);
 
-
-
 	return ret;
 }
 

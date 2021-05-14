@@ -72,10 +72,6 @@ typedef struct {
 	void (*idle_task)(void *user_ptr);
 	void (*tick_task)(void *user_ptr, unsigned int step_ms);
 
-	// pointers to threads
-	thread_st threads_buffer[64];
-	uv_vector_st threads;
-
 } this_st;
 bool rtos_init = false;
 static bool initialized = false;
@@ -115,55 +111,14 @@ bool uv_rtos_idle_task_set(void) {
 void hal_task(void *);
 
 
-int32_t uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
-		unsigned int stack_depth, void *this_ptr,
-		unsigned int task_priority, uv_rtos_task_ptr* handle) {
-
-	if (!initialized) {
-		uv_vector_init(&this->threads, this->threads_buffer,
-				sizeof(this->threads_buffer) / sizeof(this->threads_buffer[0]),
-				sizeof(this->threads_buffer[0]));
-		initialized = true;
-	}
-
-	thread_st thread;
-	thread.param = this_ptr;
-	thread.function_ptr = task_function;
-	strcpy(thread.name, task_name);
-	uv_vector_push_back(&this->threads, &thread);
-	if (scheduler_running) {
-		thread_st *t = uv_vector_at(&this->threads, uv_vector_size(&this->threads) - 1);
-		pthread_create(&t->thread, NULL, &thread_func, t);
-	}
-
-	return 1;
-}
-
-
 
 
 void uv_rtos_start_scheduler(void) {
-
-
-	// start all threads
-	for (unsigned int i = 0; i < uv_vector_size(&this->threads); i++) {
-		thread_st *thread = uv_vector_at(&this->threads, i);
-		pthread_create(&thread->thread, NULL, &thread_func, thread);
-	}
-	scheduler_running = true;
-
-	// if idle hook is set, call it
-	if (this->idle_task) {
-		this->idle_task(__uv_get_user_ptr());
-	}
-
-	// wait until all threads have finished
-	for (unsigned int i = 0; i < uv_vector_size(&this->threads); i++) {
-		pthread_join(((thread_st*) uv_vector_at(&this->threads, i))->thread, NULL);
-	}
-	printf("finished\n");
-
+	printf("The FreeRTOS scheduler started\n");
+	vTaskStartScheduler();
+	printf("The FreeRTOS scheduler stopped\n");
 }
+
 
 
 

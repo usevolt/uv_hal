@@ -180,6 +180,7 @@ void vApplicationMallocFailedHook(void)
 /* FreeRTOS application idle hook */
 void vApplicationIdleHook(void)
 {
+	printf("idle hook!\n");
 	if (this->idle_task) {
 		this->idle_task(__uv_get_user_ptr());
 	}
@@ -207,6 +208,13 @@ void vApplicationTickHook(void) {
 }
 
 
+
+
+void uv_rtos_start_scheduler(void) {
+	printf("The FreeRTOS scheduler started\n");
+	vTaskStartScheduler();
+	printf("The FreeRTOS scheduler stopped\n");
+}
 
 
 
