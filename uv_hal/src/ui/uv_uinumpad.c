@@ -105,12 +105,12 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	color_t highlight_c = uv_uic_brighten(this->style->bg_c, 30);
 	color_t shadow_c = uv_uic_brighten(this->style->bg_c, -30);
 
-	uv_ft81x_draw_string((char*) this->title, this->style->font,
+	uv_ui_draw_string((char*) this->title, this->style->font,
 			globx + uv_uibb(this)->width / 2, globy, ALIGN_TOP_CENTER, this->style->text_color);
 
 	if (strlen(this->value_str)) {
-		int32_t strl = uv_ft81x_get_string_height((char*) this->title, this->style->font);
-		uv_ft81x_draw_string(this->value_str, this->style->font,
+		int32_t strl = uv_ui_get_string_height((char*) this->title, this->style->font);
+		uv_ui_draw_string(this->value_str, this->style->font,
 				globx + uv_uibb(this)->width / 2, globy + strl + (buth - strl) / 2,
 				ALIGN_CENTER, this->style->text_color);
 	}
@@ -121,13 +121,13 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 			if (this->limit_min < 0 && y == 4 && x == 0) {
 				// draw background for back & sign buttons in case if the numpad is signed
-				uv_ft81x_draw_shadowrrect(globx + x * butw, globy + y * buth,
+				uv_ui_draw_shadowrrect(globx + x * butw, globy + y * buth,
 						butw / 2, buth, CONFIG_UI_RADIUS,
 						(this->pressed_index == ((y - 1) * 3 + x)) ?
 								highlight_c : this->style->bg_c,
 						highlight_c, shadow_c);
 
-				uv_ft81x_draw_shadowrrect(globx + x * butw + butw / 2, globy + y * buth,
+				uv_ui_draw_shadowrrect(globx + x * butw + butw / 2, globy + y * buth,
 						butw / 2, buth, CONFIG_UI_RADIUS,
 						(this->sign == -1) ?
 								highlight_c : this->style->bg_c,
@@ -135,7 +135,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 			}
 			else {
 				// draw background for all other buttons except sign button
-				uv_ft81x_draw_shadowrrect(globx + x * butw, globy + y * buth,
+				uv_ui_draw_shadowrrect(globx + x * butw, globy + y * buth,
 						butw, buth, CONFIG_UI_RADIUS,
 						(this->pressed_index == ((y - 1) * 3 + x)) ?
 								highlight_c : this->style->bg_c,
@@ -143,26 +143,26 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 			}
 			if (y == 4 && x == 0) {
 				if (this->limit_min < 0) {
-					uv_ft81x_draw_string("Back", this->style->font,
+					uv_ui_draw_string("Back", this->style->font,
 							globx + x * butw + butw / 4, globy + y * buth + buth / 2,
 							ALIGN_CENTER, this->style->text_color);
-					uv_ft81x_draw_string("+/-", this->style->font,
+					uv_ui_draw_string("+/-", this->style->font,
 							globx + x * butw  + butw * 3 / 4, globy + y * buth + buth / 2,
 							ALIGN_CENTER, this->style->text_color);
 				}
 				else {
-					uv_ft81x_draw_string("Back", this->style->font,
+					uv_ui_draw_string("Back", this->style->font,
 							globx + x * butw + butw / 2, globy + y * buth + buth / 2,
 							ALIGN_CENTER, this->style->text_color);
 				}
 			}
 			else if (y == 4 && x == 2) {
-				uv_ft81x_draw_string("OK", this->style->font,
+				uv_ui_draw_string("OK", this->style->font,
 						globx + x * butw + butw / 2, globy + y * buth + buth / 2,
 						ALIGN_CENTER, this->style->text_color);
 			}
 			else {
-				uv_ft81x_draw_string((char*) labels[index], this->style->font,
+				uv_ui_draw_string((char*) labels[index], this->style->font,
 						globx + x * butw + butw / 2, globy + y * buth + buth / 2,
 						ALIGN_CENTER, this->style->text_color);
 				index++;

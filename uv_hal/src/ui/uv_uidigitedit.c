@@ -119,16 +119,16 @@ void uv_uidigitedit_draw(void *me, const uv_bounding_box_st *pbb) {
 			y = uv_ui_get_yglobal(this);
 
 	uint16_t height = (this->mode == UIDIGITEDIT_MODE_NORMAL) ?
-			(uv_ft81x_get_string_height(((uv_uilabel_st*) this)->str,
+			(uv_ui_get_string_height(((uv_uilabel_st*) this)->str,
 			((uv_uilabel_st*) this)->font) +
-					uv_ft81x_get_font_height(((uv_uilabel_st*) this)->font)) :
+					uv_ui_get_font_height(((uv_uilabel_st*) this)->font)) :
 					CONFIG_UI_DIGITEDIT_INCDEC_BUTTON_WIDTH;
 
 	int16_t inc_w = (this->mode == UIDIGITEDIT_MODE_INCDEC) ?
 			CONFIG_UI_DIGITEDIT_INCDEC_BUTTON_WIDTH : 0;
 
 	if (this->mode == UIDIGITEDIT_MODE_NORMAL) {
-		uv_ft81x_draw_shadowrrect(x, y, uv_uibb(this)->width, height, 0,
+		uv_ui_draw_shadowrrect(x, y, uv_uibb(this)->width, height, 0,
 				this->bg_color, uv_uic_brighten(this->bg_color, -30),
 				uv_uic_brighten(this->bg_color, 30));
 	}
@@ -137,29 +137,29 @@ void uv_uidigitedit_draw(void *me, const uv_bounding_box_st *pbb) {
 		// draw the increment and decrement buttons
 		color_t c = (this->value == this->limit_min) ?
 				uv_uic_grayscale(this->bg_color) : this->bg_color;
-		uv_ft81x_draw_shadowrrect(x, y, inc_w, height, CONFIG_UI_RADIUS, c,
+		uv_ui_draw_shadowrrect(x, y, inc_w, height, CONFIG_UI_RADIUS, c,
 				uv_uic_brighten(c, 30 * ((this->incdec.pressed_button == -1) ? -1 : 1)),
 				uv_uic_brighten(c, -30 * ((this->incdec.pressed_button == -1) ? -1 : 1)));
-		uv_ft81x_draw_string("-", ((uv_uilabel_st*) this)->font, x + inc_w / 2, y + height / 2,
+		uv_ui_draw_string("-", ((uv_uilabel_st*) this)->font, x + inc_w / 2, y + height / 2,
 				ALIGN_CENTER, ((uv_uilabel_st*) this)->color);
 
 		c = (this->value == this->limit_max) ?
 				uv_uic_grayscale(this->bg_color) : this->bg_color;
-		uv_ft81x_draw_shadowrrect(x + uv_uibb(this)->width - inc_w, y, inc_w, height,
+		uv_ui_draw_shadowrrect(x + uv_uibb(this)->width - inc_w, y, inc_w, height,
 				CONFIG_UI_RADIUS, c,
 				uv_uic_brighten(c, 30 * ((this->incdec.pressed_button == 1) ? -1 : 1)),
 				uv_uic_brighten(c, -30 * ((this->incdec.pressed_button == 1) ? -1 : 1)));
-		uv_ft81x_draw_string("+", ((uv_uilabel_st*) this)->font,
+		uv_ui_draw_string("+", ((uv_uilabel_st*) this)->font,
 				x + uv_uibb(this)->width - inc_w / 2, y + height / 2,
 				ALIGN_CENTER, ((uv_uilabel_st*) this)->color);
 	}
 
-	uv_ft81x_draw_string(((uv_uilabel_st*) this)->str, ((uv_uilabel_st*) this)->font,
+	uv_ui_draw_string(((uv_uilabel_st*) this)->str, ((uv_uilabel_st*) this)->font,
 			x + uv_uibb(this)->width / 2, y + height / 2,
-			FT81X_ALIGN_CENTER, ((uv_uilabel_st*)this)->color);
+			UI_ALIGN_CENTER, ((uv_uilabel_st*)this)->color);
 
 	if (this->title) {
-		uv_ft81x_draw_string(this->title, ((uv_uilabel_st*) this)->font,
+		uv_ui_draw_string(this->title, ((uv_uilabel_st*) this)->font,
 				x + uv_uibb(this)->width / 2, y + height + TITLE_OFFSET,
 				ALIGN_TOP_CENTER, ((uv_uilabel_st*) this)->color);
 	}

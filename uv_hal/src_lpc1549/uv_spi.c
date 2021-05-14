@@ -31,12 +31,12 @@
 
 #if CONFIG_SPI
 
+#if CONFIG_TARGET_LPC1549
+
+
 #include "chip.h"
 #include "spi_15xx.h"
 #include "uv_rtos.h"
-
-#if CONFIG_TARGET_LPC1549
-
 
 
 void _uv_spi_init(void) {

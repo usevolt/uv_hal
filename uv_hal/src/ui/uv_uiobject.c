@@ -51,11 +51,11 @@ bool _uv_uiobject_draw(void *me, const uv_bounding_box_st *pbb) {
 	bool ret = false;
 	if (this->refresh && this->vrtl_draw && this->visible) {
 		if (!this->enabled) {
-			uv_ft81x_set_color_mode(COLOR_MODE_GRAYSCALE);
-			uv_ft81x_set_grayscale_luminosity(CONFIG_UI_DISABLED_OBJECT_BRIGHTNESS);
+			uv_ui_set_color_mode(COLOR_MODE_GRAYSCALE);
+			uv_ui_set_grayscale_luminosity(CONFIG_UI_DISABLED_OBJECT_BRIGHTNESS);
 		}
 		else {
-			uv_ft81x_set_color_mode(COLOR_MODE_RGB);
+			uv_ui_set_color_mode(COLOR_MODE_RGB);
 		}
 		this->vrtl_draw(me, pbb);
 		ret = true;

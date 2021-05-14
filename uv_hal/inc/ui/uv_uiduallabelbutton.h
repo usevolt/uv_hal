@@ -119,11 +119,11 @@ static inline color_t uv_uiduallabelbutton_get_dual_color(void *me) {
 }
 
 
-static inline void uv_uiduallabelbutton_set_dual_font(void *me, ft81x_font_st *font) {
+static inline void uv_uiduallabelbutton_set_dual_font(void *me, uv_font_st *font) {
 	this->dualfont = font;
 }
 
-static inline ft81x_font_st *uv_uiduallabelbutton_get_dual_font(void *me, ft81x_font_st *font) {
+static inline uv_font_st *uv_uiduallabelbutton_get_dual_font(void *me, uv_font_st *font) {
 	return this->dualfont;
 }
 

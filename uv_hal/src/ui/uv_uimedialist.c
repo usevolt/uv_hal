@@ -55,7 +55,7 @@ static void draw_entry(void *me, void *entry, bool selected, uv_bounding_box_st 
 	color_t c = uv_uic_brighten(((uv_uilist_st*) this)->bg_c, selected ? 30 : 0);
 	uv_uimedialist_entry_st *uilist_entry = entry;
 
-	uv_ft81x_draw_shadowrrect(bb->x, bb->y, bb->width, bb->height, CONFIG_UI_RADIUS,
+	uv_ui_draw_shadowrrect(bb->x, bb->y, bb->width, bb->height, CONFIG_UI_RADIUS,
 			c, highlight_c, shadow_c);
 
 	int16_t offset = 10;
@@ -63,9 +63,9 @@ static void draw_entry(void *me, void *entry, bool selected, uv_bounding_box_st 
 	if (uilist_entry->bitmap != NULL) {
 		imgw = uv_uimedia_get_bitmapwidth(uilist_entry->bitmap);
 		imgh = uv_uimedia_get_bitmapheight(uilist_entry->bitmap);
-		uv_ft81x_draw_bitmap(uilist_entry->bitmap, bb->x + offset, bb->y + imgh / 2);
+		uv_ui_draw_bitmap(uilist_entry->bitmap, bb->x + offset, bb->y + imgh / 2);
 	}
-	uv_ft81x_draw_string(((uv_uilist_entry_st*) uilist_entry)->str, ((uv_uilist_st*) this)->font,
+	uv_ui_draw_string(((uv_uilist_entry_st*) uilist_entry)->str, ((uv_uilist_st*) this)->font,
 			bb->x + offset * 2 + imgw, bb->y + bb->height / 2, ALIGN_CENTER_LEFT,
 			((uv_uilist_st*) this)->text_c);
 

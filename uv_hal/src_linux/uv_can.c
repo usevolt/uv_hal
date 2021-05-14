@@ -86,6 +86,13 @@ typedef struct {
 	// count of CAN devs
 	int32_t dev_count;
 
+	bool (*rx_callback)(void *user_ptr, uv_can_msg_st *msg);
+
+#if CONFIG_TERMINAL_CAN
+	uv_ring_buffer_st char_buffer;
+	char char_buffer_data[CONFIG_TERMINAL_BUFFER_SIZE];
+#endif
+
 } can_st;
 
 
@@ -290,6 +297,16 @@ uv_errors_e _uv_can_init() {
 			sizeof(this->rx_buffer_data) / sizeof(this->rx_buffer_data[0]),
 			sizeof(this->rx_buffer_data[0]));
 
+#if CONFIG_TERMINAL_CAN
+	uv_ring_buffer_init(&this->char_buffer, this->char_buffer_data,
+			CONFIG_TERMINAL_BUFFER_SIZE, sizeof(char));
+#if !CONFIG_CANOPEN
+	uv_can_config_rx_message(CAN0, UV_TERMINAL_CAN_RX_ID + uv_get_id(),
+			CAN_ID_MASK_DEFAULT, CAN_STD);
+#endif
+#endif
+	this->rx_callback = NULL;
+
 	return ret;
 }
 
@@ -300,6 +317,14 @@ uv_errors_e uv_can_get_char(char *dest) {
 	return uv_ring_buffer_pop(&this->char_buffer, dest);
 }
 #endif
+
+
+uv_errors_e uv_can_add_rx_callback(uv_can_channels_e channel,
+		bool (*callback_function)(void *user_ptr, uv_can_msg_st *msg)) {
+	this->rx_callback = callback_function;
+
+	return ERR_NONE;
+}
 
 
 
@@ -397,9 +422,37 @@ void _uv_can_hal_step(unsigned int step_ms) {
 						}
 						msg.data_length = frame_rd.can_dlc;
 						memcpy(msg.data_8bit, frame_rd.data, msg.data_length);
-						if (uv_ring_buffer_push(&this->rx_buffer, &msg) != ERR_NONE) {
-							printf("** CAN RX buffer full**\n");
+
+						if (this->rx_callback != NULL &&
+								!this->rx_callback(__uv_get_user_ptr(), &msg)) {
+
 						}
+						else {
+#if CONFIG_TERMINAL_CAN
+							// terminal characters are sent to their specific buffer
+							if (msg.id == UV_TERMINAL_CAN_RX_ID + uv_canopen_get_our_nodeid() &&
+									msg.type == CAN_STD &&
+									msg.data_8bit[0] == 0x22 &&
+									msg.data_8bit[1] == (UV_TERMINAL_CAN_INDEX & 0xFF) &&
+									msg.data_8bit[2] == UV_TERMINAL_CAN_INDEX >> 8 &&
+									msg.data_8bit[3] == UV_TERMINAL_CAN_SUBINDEX &&
+									msg.data_length > 4) {
+								uint8_t i;
+								for (i = 0; i < msg.data_length - 4; i++) {
+									uv_ring_buffer_push(&this->char_buffer,
+											(char*) &msg.data_8bit[4 + i]);
+								}
+							}
+							else {
+#endif
+								if (uv_ring_buffer_push(&this->rx_buffer, &msg) != ERR_NONE) {
+									printf("** CAN RX buffer full**\n");
+								}
+#if CONFIG_TERMINAL_CAN
+							}
+#endif
+						}
+
 
 						go = true;
 
@@ -426,6 +479,22 @@ void _uv_can_hal_step(unsigned int step_ms) {
 
 void uv_can_clear_rx_buffer(uv_can_channels_e channel) {
 	uv_ring_buffer_clear(&this->rx_buffer);
+}
+
+
+
+uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
+	if (channel) {};
+	uv_can_errors_e e = CAN_ERROR_ACTIVE;
+
+	if (!this->connection) {
+		e = CAN_ERROR_BUS_OFF;
+	}
+	return e;
+}
+
+
+void uv_can_clear_rx_messages(void) {
 }
 
 

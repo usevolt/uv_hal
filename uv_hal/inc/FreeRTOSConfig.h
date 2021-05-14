@@ -181,7 +181,7 @@ standard names - or at least those used in the unmodified vector table. */
 #define configUSE_DAEMON_TASK_STARTUP_HOOK		0
 #define configTICK_RATE_HZ						( 1000 )
 #define configMINIMAL_STACK_SIZE				( ( unsigned short ) 1024 )
-#define configTOTAL_HEAP_SIZE					(  CONFIG_RTOS_HEAP_SIZE )
+#define configTOTAL_HEAP_SIZE					(  CONFIG_RTOS_HEAP_SIZE * 10)
 #define configMAX_TASK_NAME_LEN					( 12 )
 #define configUSE_TRACE_FACILITY				1
 #define configUSE_16_BIT_TICKS					0

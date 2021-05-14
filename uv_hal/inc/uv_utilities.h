@@ -64,6 +64,14 @@
 extern CONFIG_APP_ST;
 
 
+#if !defined(MAX)
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#endif
+#if !defined(MIN)
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#endif
+
+
 /// @brief: Program version should be defined in compile time
 #if !defined(__UV_PROGRAM_VERSION)
 #define __UV_PROGRAM_VERSION	0

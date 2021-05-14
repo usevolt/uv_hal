@@ -40,6 +40,7 @@
 #include "uv_ft81x.h"
 #endif
 #include "ui/uv_uifont.h"
+#include "uv_ui_common.h"
 
 #if CONFIG_UI
 

@@ -218,10 +218,18 @@ line should have a pull up resistor or pull down resistor enabled."
 #error "CONFIG_SPI1_MISO_PULL_UP and CONFIG_SPI1_MISO_PULL_DOWN cannot be noth enabled."
 #endif
 #endif
+
 /// @brief: SPI modules
+#if CONFIG_TARGET_LPC1549
 #define SPI0	LPC_SPI0
 #define SPI1	LPC_SPI1
+
 typedef LPC_SPI_T* spi_e;
+#else
+typedef void* spi_e;
+#define SPI0	NULL
+#define SPI1	NULL
+#endif
 
 
 /// 2brief: Defines the slave selection values

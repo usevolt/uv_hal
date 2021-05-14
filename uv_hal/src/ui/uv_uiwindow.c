@@ -77,11 +77,11 @@ static void draw_scrollbar(void *me, bool horizontal, const uv_bounding_box_st *
 	}
 
 	// draw background
-	uv_ft81x_draw_rrect(bar_x, bar_y, bar_w, bar_h,
+	uv_ui_draw_rrect(bar_x, bar_y, bar_w, bar_h,
 			CONFIG_UI_WINDOW_SCROLLBAR_WIDTH / 2, this->bg_c);
 
 	// draw handle
-	uv_ft81x_draw_rrect(handle_x, handle_y, handle_w, handle_h,
+	uv_ui_draw_rrect(handle_x, handle_y, handle_w, handle_h,
 			CONFIG_UI_WINDOW_SCROLLBAR_WIDTH / 2, this->handle_c);
 }
 
@@ -106,13 +106,13 @@ void uv_uiwindow_draw(void *me, const uv_bounding_box_st *pbb) {
 		bb.height -= (bb.y + bb.height) - (pbb->y + pbb->height);
 	}
 
-	uv_ft81x_set_mask(bb.x, bb.y, bb.width, bb.height);
+	uv_ui_set_mask(bb.x, bb.y, bb.width, bb.height);
 	if (!this->transparent) {
 		if (((color_st*) &this->bg_c)->a == 0xFF) {
-			uv_ft81x_clear(this->bg_c);
+			uv_ui_clear(this->bg_c);
 		}
 		else {
-			uv_ft81x_draw_rrect(bb.x, bb.y, bb.width, bb.height, 0, this->bg_c);
+			uv_ui_draw_rrect(bb.x, bb.y, bb.width, bb.height, 0, this->bg_c);
 		}
 	}
 
@@ -150,7 +150,7 @@ void _uv_uiwindow_draw_children(void *me, const uv_bounding_box_st *pbb) {
 
 		// ensure that scissors mask is not changed by child object
 		if (ret) {
-			uv_ft81x_set_mask(globx, globy,
+			uv_ui_set_mask(globx, globy,
 					uv_uibb(this)->width, uv_uibb(this)->height);
 		}
 	}

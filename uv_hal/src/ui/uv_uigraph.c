@@ -81,15 +81,15 @@ void uv_uigraph_draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t w = uv_uibb(this)->width;
 	int16_t h = uv_uibb(this)->height;
 	int16_t title_h = (this->title == NULL) ? 0 :
-			uv_ft81x_get_string_height(this->title, this->style->font);
+			uv_ui_get_string_height(this->title, this->style->font);
 	int16_t ch = h - title_h;
 	int16_t cw = w;
 	int16_t value_height = CONFIG_UI_GRAPH_LINE_WIDTH + this->style->font->char_height;
 	char str[20];
 	sprintf(str, "%i", this->max_y);
-	int16_t maxy_value_width = uv_ft81x_get_string_width(str, this->style->font);
+	int16_t maxy_value_width = uv_ui_get_string_width(str, this->style->font);
 	sprintf(str, "%i", this->min_y);
-	int16_t miny_value_width = uv_ft81x_get_string_width(str, this->style->font);
+	int16_t miny_value_width = uv_ui_get_string_width(str, this->style->font);
 	int16_t value_width = MAX(maxy_value_width, miny_value_width) + CONFIG_UI_GRAPH_LINE_WIDTH;
 
 	this->content_x = 0;
@@ -124,36 +124,36 @@ void uv_uigraph_draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t cy = uv_lerpi(uv_reli(this->current_val_y, this->min_y, this->max_y), y + ch, y);
 	if (this->current_val_x >= this->min_x &&
 			this->current_val_x <= this->max_x) {
-		uv_ft81x_draw_line(cx, y, cx, y + ch, CONFIG_UI_GRAPH_LINE_WIDTH, this->style->bg_c);
+		uv_ui_draw_line(cx, y, cx, y + ch, CONFIG_UI_GRAPH_LINE_WIDTH, this->style->bg_c);
 	}
 	if (this->current_val_y >= this->min_y &&
 			this->current_val_y <= this->max_y) {
-		uv_ft81x_draw_line(x, cy, x + cw, cy, CONFIG_UI_GRAPH_LINE_WIDTH, this->style->bg_c);
+		uv_ui_draw_line(x, cy, x + cw, cy, CONFIG_UI_GRAPH_LINE_WIDTH, this->style->bg_c);
 	}
 
 	// draw x axis
-	uv_ft81x_draw_line(x, rely, x + cw, rely, CONFIG_UI_GRAPH_LINE_WIDTH, this->coordinate_c);
+	uv_ui_draw_line(x, rely, x + cw, rely, CONFIG_UI_GRAPH_LINE_WIDTH, this->coordinate_c);
 	sprintf(str, "%i", this->min_x);
-	uv_ft81x_draw_string(str, this->style->font, x, rely + CONFIG_UI_GRAPH_LINE_WIDTH,
+	uv_ui_draw_string(str, this->style->font, x, rely + CONFIG_UI_GRAPH_LINE_WIDTH,
 			ALIGN_TOP_LEFT, this->coordinate_c);
 	sprintf(str, "%i", this->max_x);
-	uv_ft81x_draw_string(str, this->style->font, x + cw, rely + CONFIG_UI_GRAPH_LINE_WIDTH,
+	uv_ui_draw_string(str, this->style->font, x + cw, rely + CONFIG_UI_GRAPH_LINE_WIDTH,
 			ALIGN_TOP_RIGHT, this->coordinate_c);
 
 	// draw y axis
-	uv_ft81x_draw_line(relx, y, relx, y + ch, CONFIG_UI_GRAPH_LINE_WIDTH, this->coordinate_c);
+	uv_ui_draw_line(relx, y, relx, y + ch, CONFIG_UI_GRAPH_LINE_WIDTH, this->coordinate_c);
 	sprintf(str, "%i", this->max_y);
-	uv_ft81x_draw_string(str, this->style->font, relx - CONFIG_UI_GRAPH_LINE_WIDTH, y,
+	uv_ui_draw_string(str, this->style->font, relx - CONFIG_UI_GRAPH_LINE_WIDTH, y,
 			ALIGN_TOP_RIGHT, this->coordinate_c);
 	sprintf(str, "%i", this->min_y);
-	uv_ft81x_draw_string(str, this->style->font, relx - CONFIG_UI_GRAPH_LINE_WIDTH,
-			y + ch - uv_ft81x_get_string_height(str, this->style->font),
+	uv_ui_draw_string(str, this->style->font, relx - CONFIG_UI_GRAPH_LINE_WIDTH,
+			y + ch - uv_ui_get_string_height(str, this->style->font),
 			ALIGN_TOP_RIGHT, this->coordinate_c);
 
 
 	// draw the title text if assigned
 	if (this->title != NULL) {
-		uv_ft81x_draw_string(this->title, this->style->font,
+		uv_ui_draw_string(this->title, this->style->font,
 				x + w / 2, y + h - title_h, ALIGN_TOP_CENTER, this->style->text_color);
 	}
 
@@ -161,14 +161,14 @@ void uv_uigraph_draw(void *me, const uv_bounding_box_st *pbb) {
 	// draw the lines between the points
 	int16_t last_px = 0;
 	int16_t last_py = 0;
-	uv_ft81x_set_mask(x, y, cw, ch);
+	uv_ui_set_mask(x, y, cw, ch);
 	for (uint16_t i = 0; i < this->points_count; i++) {
 		uv_uigraph_point_st *p = &this->points[i];
 		int16_t px = uv_lerpi(uv_reli(p->x, this->min_x, this->max_x), x, x + cw);
 		int16_t py = uv_lerpi(uv_reli(p->y, this->min_y, this->max_y), y + ch, y);
 		// draw the line connecting the points
 		if (i != 0) {
-			uv_ft81x_draw_line(last_px, last_py, px, py,
+			uv_ui_draw_line(last_px, last_py, px, py,
 					CONFIG_UI_GRAPH_LINE_WIDTH, this->graph_c);
 		}
 		last_px = px;
@@ -182,12 +182,12 @@ void uv_uigraph_draw(void *me, const uv_bounding_box_st *pbb) {
 			int16_t py = uv_lerpi(uv_reli(p->y, this->min_y, this->max_y), y + ch, y);
 			color_t c = this->graph_c;
 			if (i == this->active_point) {
-				uv_ft81x_draw_shadowpoint(px, py, c,
+				uv_ui_draw_shadowpoint(px, py, c,
 						uv_uic_brighten(c, 30), uv_uic_brighten(c, -30),
 						this->style->font->char_height * 3 / 2);
 			}
 			else {
-				uv_ft81x_draw_point(px, py, c, this->style->font->char_height);
+				uv_ui_draw_point(px, py, c, this->style->font->char_height);
 			}
 		}
 	}

@@ -33,6 +33,7 @@
 #include "uv_spi.h"
 #include "uv_w25q128.h"
 #include "ui/uv_uimedia.h"
+#include "uv_ui_common.h"
 
 #if CONFIG_FT81X
 
@@ -131,129 +132,9 @@
 
 
 
-/// @brief: Wrapper for font data for UI library
-typedef struct {
-	uint16_t char_height;
-	// defines the font index. Index 26-34 are anti-aliased fonts which are supported by this library
-	uint8_t index;
-	// handle defines the bitmap handle to be used for this font
-	uint8_t handle;
-} ft81x_font_st;
-
-
-/// @brief: FT81x library supports only anti-aliased fonts with index 26 - 34
-#define FT81X_MAX_FONT_COUNT				9
-extern ft81x_font_st ft81x_fonts[FT81X_MAX_FONT_COUNT];
 
 
 
-typedef enum {
-	FT81X_VALIGN_TOP = 0,
-	FT81X_VALIGN_CENTER = 0x400
-} ft81x_valign_e;
-#define FT81X_VALIGN_MASK 		0x400
-
-typedef enum {
-	FT81X_HALIGN_LEFT = 0,
-	FT81X_HALIGN_CENTER = 0x200,
-	FT81X_HALIGN_RIGHT = 0x800
-} ft81x_halign_e;
-#define FT81X_HALIGN_MASK 		(0x200 | 0x800)
-
-
-typedef enum {
-	FT81X_ALIGN_LEFT_TOP = FT81X_HALIGN_LEFT | FT81X_VALIGN_TOP,
-	FT81X_ALIGN_LEFT_CENTER = FT81X_HALIGN_LEFT | FT81X_VALIGN_CENTER,
-	FT81X_ALIGN_RIGHT_TOP = FT81X_HALIGN_RIGHT | FT81X_VALIGN_TOP,
-	FT81X_ALIGN_RIGHT_CENTER = FT81X_HALIGN_RIGHT | FT81X_VALIGN_CENTER,
-	FT81X_ALIGN_CENTER = FT81X_HALIGN_CENTER | FT81X_VALIGN_CENTER,
-	FT81X_ALIGN_CENTER_TOP = FT81X_HALIGN_CENTER | FT81X_VALIGN_TOP
-} ft81x_align_e;
-
-
-typedef enum {
-	COLOR_MODE_RGB = 0,
-	COLOR_MODE_GRAYSCALE
-} ft81x_color_modes_e;
-
-
-
-/// @brief: Width of the LCD in pixels
-#define LCD_W_PX		CONFIG_FT81X_HSIZE
-
-
-/// @brief: Height of the LCD in pixels
-#define LCD_H_PX		CONFIG_FT81X_VSIZE
-
-
-/// @brief: Converts from relative 0.0f - 1.0f width to actual pixel width
-#define LCD_W(rel_w)	(LCD_W_PX * (rel_w))
-#define LCD_WPPT(w_ppt) (LCD_W_PX * w_ppt / 1000)
-
-
-/// @brief: Converts from relative 0.0f - 1.0f height to actual pixel height
-#define LCD_H(rel_h)	(LCD_H_PX * (rel_h))
-#define LCD_HPPT(h_ppt)	(LCD_H_PX * h_ppt / 1000)
-
-
-
-/// @brief: Color typedef
-typedef struct {
-	uint8_t b;
-	uint8_t g;
-	uint8_t r;
-	uint8_t a;
-} color_st;
-typedef uint32_t color_t;
-// Macro which should be used when colors are assigned. This is to keep
-// UI libraries compatible with different color spaces than ARGB8888.
-// Give the color as C(0xAARRGGBB)
-#define C(x)		(x)
-
-/// @brief: Returns a color which is brightened by removing *value* amount of 8-bit color
-/// from all R, G and B color channels
-color_t uv_uic_brighten(color_t c, int8_t value);
-
-
-/// @brief: Returns a color by adding *value* amount of alpha to the given color *c*
-color_t uv_uic_alpha(color_t c, int8_t value);
-
-/// @brief: Converts *c* to grayscale and returns it
-color_t uv_uic_grayscale(color_t c);
-
-/// @brief: Returns a color which is linearily interpolated between colors ca and cb.
-/// t = 0 returns ca, t = 1000 returns cb. No boundary checks are done in the calculations.
-color_t uv_uic_lerpi(int32_t t, color_t ca, color_t cb);
-
-/// @brief: Copies the alpha channel from *dest* color to *src* color
-static inline void uv_uic_copy_alpha(color_t *dest, color_t *src) {
-	((color_st*) dest)->a = ((color_st *)src)->a;
-}
-
-/// @brief: Struct for individual object's bounding box.
-typedef struct {
-	/// @brief: local left-most x coordinate relative to the parent
-	int16_t x;
-	/// @brief: Local top-most y-coordinate relative to the parent
-	int16_t y;
-	union {
-		/// @brief: Width, growing to right
-		int16_t width;
-		int16_t w;
-	};
-	union {
-		/// @brief: Height, growing to bottom
-		int16_t height;
-		int16_t h;
-	};
-} uv_bounding_box_st;
-
-static inline bool uv_bb_is_null(uv_bounding_box_st *bb) {
-	return bb->x == 0 &&
-			bb->y == 0 &&
-			bb->width == 0 &&
-			bb->height == 0;
-}
 
 
 /// @brief: Bitmap formats for custom fonts
@@ -295,17 +176,16 @@ extern volatile uint8_t ft81x_buffer[FT81X_PREPROCESSOR_SIZE];
 
 
 
-/// @brief: Initializes the FT81X LCD driver module. Will be called from
-/// the HAL task
+/// @brief: Initializes the FT81X LCD driver module
 ///
 /// @return: True if touchscreen calibration was requested,
 /// otherwise false.
-bool uv_ft81x_init(void);
+bool uv_ui_init(void);
 
 
 /// @brief: Swaps the display list buffers and makes all latest UI modifications visible
 /// on the LCD display.
-void uv_ft81x_dlswap(void);
+void uv_ui_dlswap(void);
 
 #define FT81X_BACKLIGHT_MAX	100
 
@@ -313,16 +193,16 @@ void uv_ft81x_dlswap(void);
 /// @brief: Sets the backlight brightness
 ///
 /// @param percent: The percen tof the backlight. 0 = minimum, 100 = maximum
-void uv_ft81x_set_backlight(uint8_t percent);
+void uv_ui_set_backlight(uint8_t percent);
 
 
 
 /// brief: Returns the current backlight brightness
-uint8_t uv_ft81x_get_backlight(void);
+uint8_t uv_ui_get_backlight(void);
 
 
 /// @brief: Clears the whole screen to color **c**
-void uv_ft81x_clear(color_t c);
+void uv_ui_clear(color_t c);
 
 
 #define FT81X_RAMDL_SIZE		0x2000
@@ -360,18 +240,12 @@ uint32_t uv_ft81x_get_ramdl_usage(void);
 /// @param dest_addr: The destination address where the data is loaded in FT81X memory
 /// @param exmem: The external non-volatile memory module to be used for data download
 /// @param filename: The filename of the image. The file should be found from *exmem*.
-uint32_t uv_ft81x_loadbitmapexmem(uv_uimedia_st *bitmap,
+uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
 		uint32_t dest_addr, uv_w25q128_st *exmem, char *filename);
-
-/// @brief: Redefinition of *uv_ft81x_loadjpgexmem* for ui-library namespace
-static inline uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
-		uint32_t dest_addr, uv_w25q128_st *exmem, char *filename) {
-	return uv_ft81x_loadbitmapexmem(bitmap, dest_addr, exmem, filename);
-}
 
 
 /// @brief: Extended function to draw bitmaps
-void uv_ft81x_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
+void uv_ui_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 		int16_t w, int16_t h, uint32_t wrap, color_t c);
 
 
@@ -380,8 +254,8 @@ void uv_ft81x_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 ///
 /// @param align: Specifies which part of the image is located on (*x*, *y*) coordinates
 /// @param c: Blend color. If the bitmap should be drawn withouth any blend color, give C(0xFFFFFFFF)
-static inline void uv_ft81x_draw_bitmap(uv_uimedia_st *bitmap, int16_t x, int16_t y) {
-	uv_ft81x_draw_bitmap_ext(bitmap, x, y, bitmap->width, bitmap->height, 0, C(0xFFFFFFFF));
+static inline void uv_ui_draw_bitmap(uv_uimedia_st *bitmap, int16_t x, int16_t y) {
+	uv_ui_draw_bitmap_ext(bitmap, x, y, bitmap->width, bitmap->height, 0, C(0xFFFFFFFF));
 }
 
 
@@ -391,11 +265,11 @@ static inline void uv_ft81x_draw_bitmap(uv_uimedia_st *bitmap, int16_t x, int16_
 /// @param y: The Y coordinate of the point's center
 /// @param color: The color of the point
 /// @param diameter: The point diameter in pixels
-void uv_ft81x_draw_point(int16_t x, int16_t y, color_t color, uint16_t diameter);
+void uv_ui_draw_point(int16_t x, int16_t y, color_t color, uint16_t diameter);
 
 
 /// @brief: Helper function for drawing shadow points
-void uv_ft81x_draw_shadowpoint(int16_t x, int16_t y,
+void uv_ui_draw_shadowpoint(int16_t x, int16_t y,
 		color_t color, color_t highlight_c, color_t shadow_c, uint16_t diameter);
 
 
@@ -407,20 +281,20 @@ void uv_ft81x_draw_shadowpoint(int16_t x, int16_t y,
 /// @param height: Height of the rectangle in pixels
 /// @param radius: The rounding radius in the corners
 /// @param color: The fill color
-void uv_ft81x_draw_rrect(const int16_t x, const int16_t y,
+void uv_ui_draw_rrect(const int16_t x, const int16_t y,
 		const uint16_t width, const uint16_t height,
 		const uint16_t radius, const color_t color);
 
 
 /// @brief: helper function to draw a shadowed rounded rectangle
-void uv_ft81x_draw_shadowrrect(const int16_t x, const int16_t y,
+void uv_ui_draw_shadowrrect(const int16_t x, const int16_t y,
 		const uint16_t width, const uint16_t height,
 		const uint16_t radius, const color_t color,
 		const color_t highlight_c, const color_t shadow_c);
 
 
 /// @brief: Draws a single line on the screen
-void uv_ft81x_draw_line(const int16_t start_x, const int16_t start_y,
+void uv_ui_draw_line(const int16_t start_x, const int16_t start_y,
 		const int16_t end_x, const int16_t end_y,
 		const uint16_t width, const color_t color);
 
@@ -428,23 +302,23 @@ void uv_ft81x_draw_line(const int16_t start_x, const int16_t start_y,
 typedef struct {
 	int16_t x;
 	int16_t y;
-} uv_ft81x_linestrip_point_st;
+} uv_ui_linestrip_point_st;
 
 typedef enum {
-	FT81X_STRIP_TYPE_LINE = 0,
-	FT81X_STRIP_TYPE_RIGHT,
-	FT81X_STRIP_TYPE_LEFT,
-	FT81X_STRIP_TYPE_ABOVE,
-	FT81X_STRIP_TYPE_BELOW
-} uv_ft81x_strip_type_e;
+	UI_STRIP_TYPE_LINE = 0,
+	UI_STRIP_TYPE_RIGHT,
+	UI_STRIP_TYPE_LEFT,
+	UI_STRIP_TYPE_ABOVE,
+	UI_STRIP_TYPE_BELOW
+} uv_ui_strip_type_e;
 
 /// @brief: draws a line strip on the screen
 ///
 /// @param points: Buffer of the point coordinates
 /// @param type: The type of the strip. Refer to FT81X manual for different types.
-void uv_ft81x_draw_linestrip(const uv_ft81x_linestrip_point_st *points,
+void uv_ui_draw_linestrip(const uv_ui_linestrip_point_st *points,
 		const uint16_t point_count, const uint16_t line_width, const color_t color,
-		const uv_ft81x_strip_type_e type);
+		const uv_ui_strip_type_e type);
 
 
 /// @brief: Structure for the touchscreen transform matrix
@@ -458,12 +332,12 @@ typedef struct {
 /// @param transform_matrix: If given, function will write the transform matrix information
 /// to the address pointed by this parameter. Note that 6 words (6*4 bytes) should be
 /// reserved for the transform matrix.
-void uv_ft81x_touchscreen_calibrate(ft81x_transfmat_st *transform_matrix);
+void uv_ui_touchscreen_calibrate(ft81x_transfmat_st *transform_matrix);
 
 
 /// @brief: Sets the transform matrix data. This should be called by the user application
 /// if such transform matrix data already exists in the non-volatile memory
-void uv_ft81x_touchscreen_set_transform_matrix(ft81x_transfmat_st *transform_matrix);
+void uv_ui_touchscreen_set_transform_matrix(ft81x_transfmat_st *transform_matrix);
 
 
 /// @brief: Gets the touch from the FT81X touchpanel
@@ -472,16 +346,16 @@ void uv_ft81x_touchscreen_set_transform_matrix(ft81x_transfmat_st *transform_mat
 ///
 /// @param x: Pointer to where the x px coordinate will be written (or NULL)
 /// @param y: Pointer to where the y px coordinate will be written (or NULL)
-bool uv_ft81x_get_touch(int16_t *x, int16_t *y);
+bool uv_ui_get_touch(int16_t *x, int16_t *y);
 
 
 /// @brief: Sets the color mode for the ft81x. The mode affects  how different colors
 /// are drawn on the screen.
-void uv_ft81x_set_color_mode(ft81x_color_modes_e value);
+void uv_ui_set_color_mode(ui_color_modes_e value);
 
 /// @brief: Sets the grayscale luminosity correction. value should be INT8_MIN + 1 ... INT8_MAX,
 /// 0 is the default value. Can be used to finetune the grayscale color luminosity.
-void uv_ft81x_set_grayscale_luminosity(int8_t value);
+void uv_ui_set_grayscale_luminosity(int8_t value);
 
 
 
@@ -492,31 +366,31 @@ void uv_ft81x_set_grayscale_luminosity(int8_t value);
 /// @param x: The top-left X coordinate
 /// @param y: The top-left Y coordinate
 /// @param color: The drawing color
-void uv_ft81x_draw_char(const char c, const uint16_t font, int16_t x, int16_t y, color_t color);
+void uv_ui_draw_char(const char c, const uint16_t font, int16_t x, int16_t y, color_t color);
 
 
 /// @brief: uses the FT81X co-processor to draw a text string to the display.
-void uv_ft81x_draw_string(char *str, ft81x_font_st *font,
-		int16_t x, int16_t y, ft81x_align_e align, color_t color);
+void uv_ui_draw_string(char *str, ui_font_st *font,
+		int16_t x, int16_t y, ui_align_e align, color_t color);
 
 
 /// @brief: Returns the font height in pixels
-static inline uint8_t uv_ft81x_get_font_height(ft81x_font_st *font) {
+static inline uint8_t uv_ui_get_font_height(ui_font_st *font) {
 	return font->char_height;
 }
 
 /// @brief: Returns the height of string. Takes account the font height and the line count
-int16_t uv_ft81x_get_string_height(char *str, ft81x_font_st *font);
+int16_t uv_ui_get_string_height(char *str, ui_font_st *font);
 
 
 /// @brief: Returns the width of the string in pixels. Note that since characters are different
 /// widths, the width of every character has to be read from the FT81X and this takes
 /// relatively long time.
-int16_t uv_ft81x_get_string_width(char *str, ft81x_font_st *font);
+int16_t uv_ui_get_string_width(char *str, ui_font_st *font);
 
 
 /// @brief: Sets the drawing mask which masks all drawing functions to the masked area
-void uv_ft81x_set_mask(int16_t x, int16_t y, int16_t width, int16_t height);
+void uv_ui_set_mask(int16_t x, int16_t y, int16_t width, int16_t height);
 
 
 #endif

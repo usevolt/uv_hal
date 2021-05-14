@@ -116,9 +116,9 @@ static void draw_entry(void *me, void *entry, bool selected, uv_bounding_box_st 
 	color_t c = uv_uic_brighten(this->bg_c, selected ? 30 : 0);
 	uv_uilist_entry_st *uilist_entry = entry;
 
-	uv_ft81x_draw_shadowrrect(bb->x, bb->y, bb->width, bb->height, CONFIG_UI_RADIUS,
+	uv_ui_draw_shadowrrect(bb->x, bb->y, bb->width, bb->height, CONFIG_UI_RADIUS,
 			c, highlight_c, shadow_c);
-	uv_ft81x_draw_string(uilist_entry->str, this->font,
+	uv_ui_draw_string(uilist_entry->str, this->font,
 			bb->x + bb->width / 2, bb->y + bb->height / 2, ALIGN_CENTER,
 			this->text_c);
 }

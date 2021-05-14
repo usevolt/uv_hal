@@ -77,23 +77,23 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 		x = uv_ui_get_xglobal(this);
 		y = uv_ui_get_yglobal(this) + uv_uibb(this)->height / 2 - CONFIG_UI_SLIDER_WIDTH / 2 -
-				((this->title) ? uv_ft81x_get_font_height(this->font) / 2 : 0);
+				((this->title) ? uv_ui_get_font_height(this->font) / 2 : 0);
 		w = uv_uibb(this)->width;
 		h = CONFIG_UI_SLIDER_WIDTH;
 		// handle relative position
 		int16_t hpx = uv_reli(this->cur_val, this->min_val, this->max_val);
 		int16_t hx = uv_lerpi(hpx, 0, uv_uibb(this)->width - CONFIG_UI_SLIDER_WIDTH - 1);
 
-		uv_ft81x_draw_shadowrrect(x, y + h / 2 - 5, w, 10, CONFIG_UI_RADIUS,
+		uv_ui_draw_shadowrrect(x, y + h / 2 - 5, w, 10, CONFIG_UI_RADIUS,
 				this->bg_c, uv_uic_brighten(this->bg_c, 30), uv_uic_brighten(this->bg_c, -30));
 		// handle
-		uv_ft81x_draw_shadowrrect(x + hx, y, CONFIG_UI_SLIDER_WIDTH, h, CONFIG_UI_RADIUS,
+		uv_ui_draw_shadowrrect(x + hx, y, CONFIG_UI_SLIDER_WIDTH, h, CONFIG_UI_RADIUS,
 				this->handle_c, uv_uic_brighten(this->handle_c, 30), uv_uic_brighten(this->handle_c, -30));
 		// handle text
 		if (this->show_value) {
-			char str[10];
-			itoa(this->cur_val, str, 10);
-			uv_ft81x_draw_string(str, this->font,
+			char str[10] = {};
+			snprintf(str, sizeof(str) - 1, "%i", this->cur_val);
+			uv_ui_draw_string(str, this->font,
 					x + hx + CONFIG_UI_SLIDER_WIDTH / 2, y + (h / 2),
 					ALIGN_CENTER, this->text_c);
 		}
@@ -107,38 +107,38 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 		y = uv_ui_get_yglobal(this);
 		w = CONFIG_UI_SLIDER_WIDTH;
 		h = uv_uibb(this)->height - (this->title ?
-				(uv_ft81x_get_string_height(this->title, this->font) + 5) : 0);
+				(uv_ui_get_string_height(this->title, this->font) + 5) : 0);
 		// draw slider handle
 		// handle relative position
 		int16_t hpy = uv_reli(this->cur_val, this->min_val, this->max_val);
 		int16_t hy = uv_lerpi(hpy, uv_uibb(this)->height -
 				CONFIG_UI_SLIDER_WIDTH - 1 - (this->title ?
-						(uv_ft81x_get_string_height(this->title, this->font) + 5) : 0), 0);
+						(uv_ui_get_string_height(this->title, this->font) + 5) : 0), 0);
 
-		uv_ft81x_draw_rrect(x + w / 2 - 7, y, 10, h - 5,
+		uv_ui_draw_rrect(x + w / 2 - 7, y, 10, h - 5,
 				CONFIG_UI_RADIUS, uv_uic_brighten(this->bg_c, -30));
-		uv_ft81x_draw_rrect(x + 4 + w / 2 - 7, y + 4, 10, h - 5,
+		uv_ui_draw_rrect(x + 4 + w / 2 - 7, y + 4, 10, h - 5,
 				CONFIG_UI_RADIUS, uv_uic_brighten(this->bg_c, 30));
-		uv_ft81x_draw_rrect(x + 2 + w / 2 - 7, y + 2, 10, h - 5,
+		uv_ui_draw_rrect(x + 2 + w / 2 - 7, y + 2, 10, h - 5,
 				CONFIG_UI_RADIUS, this->bg_c);
 		// handle
-		uv_ft81x_draw_rrect(x, y + hy, w - 4, CONFIG_UI_SLIDER_WIDTH - 4,
+		uv_ui_draw_rrect(x, y + hy, w - 4, CONFIG_UI_SLIDER_WIDTH - 4,
 				CONFIG_UI_RADIUS, uv_uic_brighten(this->handle_c, -30));
-		uv_ft81x_draw_rrect(x + 4, y + hy + 4, w - 4, CONFIG_UI_SLIDER_WIDTH - 4,
+		uv_ui_draw_rrect(x + 4, y + hy + 4, w - 4, CONFIG_UI_SLIDER_WIDTH - 4,
 				CONFIG_UI_RADIUS, uv_uic_brighten(this->handle_c, 30));
-		uv_ft81x_draw_rrect(x + 2, y + hy + 2, w - 4, CONFIG_UI_SLIDER_WIDTH - 4,
+		uv_ui_draw_rrect(x + 2, y + hy + 2, w - 4, CONFIG_UI_SLIDER_WIDTH - 4,
 				CONFIG_UI_RADIUS, this->handle_c);
 		// handle text
 		if (this->show_value) {
-			char str[10];
-			itoa(this->cur_val, str, 10);
-			uv_ft81x_draw_string(str, this->font,
+			char str[10] = {};
+			snprintf(str, sizeof(str) - 1, "%i", this->cur_val);
+			uv_ui_draw_string(str, this->font,
 					x + (w / 2), y + hy + CONFIG_UI_SLIDER_WIDTH / 2,
 					ALIGN_CENTER, this->text_c);
 		}
 	}
 
-	uv_ft81x_draw_string(this->title, this->font, x + w / 2, y + h + 5,
+	uv_ui_draw_string(this->title, this->font, x + w / 2, y + h + 5,
 			ALIGN_TOP_CENTER, this->text_c);
 
 

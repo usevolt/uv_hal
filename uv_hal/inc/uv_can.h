@@ -180,6 +180,7 @@ typedef enum {
 #if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 /// @brief: On Linux CAN channels are separated by the netdev name
 typedef char * uv_can_channels_e;
+#define CAN_CHANNEL_MAX_COUNT	10
 #else
 typedef enum {
 #if CONFIG_TARGET_LPC11C14

@@ -74,7 +74,7 @@ static inline void draw(void *me, const uv_bounding_box_st *pbb) {
 		y += h / 2 - mh / 2;
 	}
 
-	uv_ft81x_draw_bitmap_ext(this->media, x, y, mw, mh, this->wrap, this->blend_c);
+	uv_ui_draw_bitmap_ext(this->media, x, y, mw, mh, this->wrap, this->blend_c);
 }
 
 

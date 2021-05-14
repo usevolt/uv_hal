@@ -62,21 +62,21 @@ void uv_uilistbutton_draw(void *me, const uv_bounding_box_st *pbb) {
 	color_t fontc = ((uv_uibutton_st*) this)->text_c;
 
 
-	uv_ft81x_draw_shadowrrect(x, y, w, h, CONFIG_UI_RADIUS,
+	uv_ui_draw_shadowrrect(x, y, w, h, CONFIG_UI_RADIUS,
 			 bgc, lightc, shadowc);
 	uint16_t ty = h / 2;
 	if (this->title) {
-		uint16_t th = uv_ft81x_get_string_height(this->title,
+		uint16_t th = uv_ui_get_string_height(this->title,
 				((uv_uibutton_st*) this)->font);
-		uint16_t ch = uv_ft81x_get_string_height(content,
+		uint16_t ch = uv_ui_get_string_height(content,
 				((uv_uibutton_st*) this)->font);
 
-		uv_ft81x_draw_string(this->title, ((uv_uibutton_st*) this)->font, x + w / 2,
+		uv_ui_draw_string(this->title, ((uv_uibutton_st*) this)->font, x + w / 2,
 				y + ty - (th + ch) / 2 + th / 2, ALIGN_CENTER, fontc);
 
 		ty += (th + ch) / 2 - ch / 2;
 	}
-	uv_ft81x_draw_string(content, ((uv_uibutton_st*) this)->font,
+	uv_ui_draw_string(content, ((uv_uibutton_st*) this)->font,
 			x + w / 2, y + ty, ALIGN_CENTER, fontc);
 
 
@@ -84,10 +84,10 @@ void uv_uilistbutton_draw(void *me, const uv_bounding_box_st *pbb) {
 	if (this->content_len) {
 		int16_t barw = (w - offset * 2) / (this->content_len);
 
-		uv_ft81x_draw_rrect(x + offset, y + h - offset - CONFIG_UI_LISTBUTTON_BAR_HEIGHT,
+		uv_ui_draw_rrect(x + offset, y + h - offset - CONFIG_UI_LISTBUTTON_BAR_HEIGHT,
 				w - offset * 2, CONFIG_UI_LISTBUTTON_BAR_HEIGHT, 0, this->bar_c);
 
-		uv_ft81x_draw_rrect(x + offset +
+		uv_ui_draw_rrect(x + offset +
 				(this->current_index * (w - offset * 2)) / this->content_len,
 				y + h - offset - CONFIG_UI_LISTBUTTON_BAR_HEIGHT,
 				barw, CONFIG_UI_LISTBUTTON_BAR_HEIGHT, 0, this->activebar_c);

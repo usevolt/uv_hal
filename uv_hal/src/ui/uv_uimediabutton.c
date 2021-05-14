@@ -66,34 +66,34 @@ static void draw_common(void *me, bool pressed, const uv_bounding_box_st *pbb) {
 	int16_t h = uv_uibb(this)->height;
 
 	uint8_t offset = 10;
-	uv_ft81x_draw_shadowrrect(x, y, w, h, CONFIG_UI_RADIUS, bgc, lightc, shadowc);
+	uv_ui_draw_shadowrrect(x, y, w, h, CONFIG_UI_RADIUS, bgc, lightc, shadowc);
 	if (this->align == UIMEDIABUTTON_ALIGN_HORIZONTAL) {
 		int16_t imgw = 0;
 		if (this->media != NULL) {
 			imgw = uv_uimedia_get_bitmapwidth(this->media);
-			uv_ft81x_draw_bitmap(this->media, x + ((strlen(((uv_uibutton_st*) this)->text) == 0) ?
+			uv_ui_draw_bitmap(this->media, x + ((strlen(((uv_uibutton_st*) this)->text) == 0) ?
 						((w - uv_uimedia_get_bitmapwidth(this->media)) / 2) : offset),
 					y + h / 2 - uv_uimedia_get_bitmapheight(this->media) / 2);
 		}
-		uv_ft81x_draw_string(((uv_uibutton_st*) this)->text,
+		uv_ui_draw_string(((uv_uibutton_st*) this)->text,
 				((uv_uibutton_st*) this)->font, x + imgw + (w - imgw) / 2,
 				y + h / 2, ALIGN_CENTER, fontc);
 	}
 	else {
 		int16_t contenth = uv_uimedia_get_bitmapheight(this->media) +
-				uv_ft81x_get_string_height(((uv_uibutton_st*) this)->text,
+				uv_ui_get_string_height(((uv_uibutton_st*) this)->text,
 						((uv_uibutton_st*)this)->font);
 		int16_t space = (uv_uibb(me)->height - contenth) /
 				((*((uv_uibutton_st*) this)->text == '\0') ? 2 : 3);
 		if (this->media != NULL) {
-			uv_ft81x_draw_bitmap(this->media,
+			uv_ui_draw_bitmap(this->media,
 					x + w / 2 - uv_uimedia_get_bitmapwidth(this->media) / 2,
 					MAX(y + space, y));
 		}
-		uv_ft81x_draw_string(((uv_uibutton_st*) this)->text,
+		uv_ui_draw_string(((uv_uibutton_st*) this)->text,
 				((uv_uibutton_st*) this)->font, x + w / 2,
 				MIN((y + space * 2 + uv_uimedia_get_bitmapheight(this->media)),
-						y + h - uv_ft81x_get_string_height(
+						y + h - uv_ui_get_string_height(
 								((uv_uibutton_st*) this)->text,
 								((uv_uibutton_st*) this)->font)),
 						ALIGN_TOP_CENTER, fontc);

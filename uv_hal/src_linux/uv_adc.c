@@ -1,7 +1,7 @@
-/*
+/* 
  * This file is part of the uv_hal distribution (www.usevolt.fi).
  * Copyright (c) 2017 Usevolt Oy.
- *
+ * 
  *
  * MIT License
  *
@@ -26,43 +26,59 @@
  * SOFTWARE.
  */
 
+#include "uv_adc.h"
+
+#include <stdio.h>
+#include "uv_uart.h"
+#include "uv_rtos.h"
 
 
-#include "ui/uv_uicheckbox.h"
-
-
-#if CONFIG_UI
-
-#define this ((uv_uicheckbox_st*)me)
+#if CONFIG_ADC || CONFIG_ADC0 || CONFIG_ADC1
 
 
 
-static inline void draw(void *me, const uv_bounding_box_st *pbb) {
-	color_t fontc = ((uv_uibutton_st *) this)->text_c;
-	color_t shadowc = uv_uic_brighten(((uv_uibutton_st*) this)->main_c, -30);
-	color_t lightc = uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 30);
-	int16_t x = uv_ui_get_xglobal(this);
-	int16_t y = uv_ui_get_yglobal(this);
-	int16_t bh = uv_ui_get_font_height(((uv_uibutton_st*) this)->font) * 2;
+uv_errors_e _uv_adc_init() {
 
-	uv_ui_draw_shadowrrect(x, y + uv_uibb(this)->height / 2 - bh / 2, bh, bh, CONFIG_UI_RADIUS,
-			((uv_uibutton_st*) this)->main_c, lightc, shadowc);
-	if (uv_uicheckbox_get_state(this)) {
-		const uint8_t offset = 6;
-		uv_ui_draw_rrect(x + offset, y + uv_uibb(this)->height / 2 - bh / 2 + offset,
-				bh - offset * 2, bh - offset * 2, CONFIG_UI_RADIUS, this->fillc);
-	}
-	uv_ui_draw_string(((uv_uibutton_st*) this)->text, ((uv_uibutton_st*) this)->font, x + bh * 3 / 2,
-			y + uv_uibb(this)->height / 2, ALIGN_CENTER_LEFT, fontc);
-}
-
-void uv_uicheckbox_init(void *me, bool state, char *text, const uv_uistyle_st *style) {
-	uv_uitogglebutton_init(me, state, text, style);
-	uv_uiobject_set_draw_callb(this, &draw);
-	this->fillc = style->fg_c;
+	return ERR_NONE;
 }
 
 
+
+int16_t uv_adc_read(uv_adc_channels_e channel) {
+	int16_t ret = -1;
+
+	return ret;
+}
+
+
+
+
+
+
+int16_t uv_adc_read_average(uv_adc_channels_e channel, uint32_t conversion_count) {
+	int32_t value = 0;
+
+	return (int16_t) value;
+}
+
+
+
+
+void uv_adc_enable_ain(uv_adc_channels_e channel) {
+}
+
+
+
+void uv_adc_disable_ain(uv_adc_channels_e channel) {
+}
+
+
+
+uv_gpios_e uv_adc_get_gpio_pin(uv_adc_channels_e channel) {
+	uv_gpios_e ret = 0;
+
+	return ret;
+}
 
 
 

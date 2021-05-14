@@ -70,6 +70,58 @@ static volatile this_st _this = {
 uv_mutex_st halmutex;
 
 
+uv_errors_e uv_queue_peek(uv_queue_st *this, void *dest, int32_t wait_ms) {
+	uv_errors_e ret = ERR_NONE;
+	if (xQueuePeek(*this, dest, wait_ms / portTICK_PERIOD_MS) == pdFALSE) {
+		ret = ERR_BUFFER_EMPTY;
+	}
+	return ret;
+}
+
+
+uv_errors_e uv_queue_push(uv_queue_st *this, void *src, int32_t wait_ms) {
+	uv_errors_e ret = ERR_NONE;
+	if (xQueueSend(*this, src, wait_ms / portTICK_PERIOD_MS) == pdFALSE) {
+		ret = ERR_BUFFER_OVERFLOW;
+	}
+	return ret;
+}
+
+
+uv_errors_e uv_queue_pop(uv_queue_st *this, void *dest, int32_t wait_ms) {
+	uv_errors_e ret = ERR_NONE;
+	if (xQueueReceive(*this, dest, wait_ms / portTICK_PERIOD_MS) == pdFALSE) {
+		ret = ERR_BUFFER_EMPTY;
+	}
+	return ret;
+}
+
+
+uv_errors_e uv_queue_pop_isr(uv_queue_st *this, void *dest) {
+	uv_errors_e ret = ERR_NONE;
+
+	if (!xQueueReceiveFromISR(*this, dest, NULL)) {
+		ret = ERR_BUFFER_EMPTY;
+	}
+
+	return ret;
+}
+
+
+uv_errors_e uv_queue_push_isr(uv_queue_st *this, void *src) {
+	uv_errors_e ret = ERR_NONE;
+	if (!xQueueSendFromISR(*this, src, NULL)) {
+		ret = ERR_BUFFER_OVERFLOW;
+	}
+	return ret;
+}
+
+
+void uv_mutex_unlock_isr(uv_mutex_st *mutex) {
+	BaseType_t woken;
+	xSemaphoreGiveFromISR(*mutex, &woken);
+	portEND_SWITCHING_ISR(woken);
+}
 
 
 

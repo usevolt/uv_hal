@@ -32,7 +32,6 @@
 
 #if CONFIG_EEPROM
 
-#include "chip.h"
 #include "eeprom.h"
 #include "iap.h"
 
@@ -327,6 +326,8 @@ void uv_eeprom_clear(void) {
 
 
 
+
 #endif
+
 
 

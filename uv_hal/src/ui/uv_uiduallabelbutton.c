@@ -65,14 +65,14 @@ static void uv_uiduallabelbutton_draw(void *me, const uv_bounding_box_st *pbb) {
 
 
 	uint8_t text_offset = 0;
-	uv_ft81x_draw_shadowrrect(x, y, w, h, CONFIG_UI_RADIUS,
+	uv_ui_draw_shadowrrect(x, y, w, h, CONFIG_UI_RADIUS,
 			 bgc, lightc, shadowc);
-	uv_ft81x_draw_string(((uv_uibutton_st*) this)->text,
+	uv_ui_draw_string(((uv_uibutton_st*) this)->text,
 			((uv_uibutton_st*) this)->font, x + w / 2,
-			y + h / 2 - text_offset - uv_ft81x_get_string_height(((uv_uibutton_st*) this)->text,
+			y + h / 2 - text_offset - uv_ui_get_string_height(((uv_uibutton_st*) this)->text,
 													((uv_uibutton_st*) this)->font),
 			ALIGN_TOP_CENTER, fontc);
-	uv_ft81x_draw_string(this->dualtext, this->dualfont,
+	uv_ui_draw_string(this->dualtext, this->dualfont,
 			x + w / 2,
 			y + h / 2 + text_offset, ALIGN_TOP_CENTER, this->dualtext_c);
 }
