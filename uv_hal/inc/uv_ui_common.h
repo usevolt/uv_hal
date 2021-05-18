@@ -125,6 +125,12 @@ typedef struct {
 	uint8_t a;
 } color_st;
 typedef uint32_t color_t;
+
+/// @brief: Conerts *color_t* type to *color_st* struture. Also applies
+/// the grayscale and other global modification sin uv_ui_common.
+color_st uv_uic(color_t c);
+
+
 // Macro which should be used when colors are assigned. This is to keep
 // UI libraries compatible with different color spaces than ARGB8888.
 // Give the color as C(0xAARRGGBB)
@@ -195,6 +201,11 @@ static inline bool uv_bb_is_null(uv_bounding_box_st *bb) {
 /// @return: True if touchscreen calibration was requested,
 /// otherwise false.
 bool uv_ui_init(void);
+
+
+
+/// @brief: Destroys the GUI
+void uv_ui_destroy(void);
 
 
 
@@ -424,23 +435,6 @@ void uv_ui_set_mask(int16_t x, int16_t y, int16_t width, int16_t height);
 bool uv_ui_is_visible(const int16_t x, const int16_t y,
 		const int16_t width, const int16_t height);
 
-
-
-
-#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
-
-
-/// @brief: Starts the GTK UI in the main thread and RTOS scheduler in another thread.
-/// The function returns when the whole system is terminated. Call this instead of
-/// *uv_rtos_start_scheduler* in UI applications.
-///
-/// @param ui_step_function: Function pointer to the step function that will be called
-/// every *step_ms* ms. This task should be the one updating the GUI in the system,
-/// since GTK requires all drawing functions to be executed in the main thread.
-void uv_ui_rtos_start_scheduler(void);
-
-
-#endif
 
 
 #endif /* UV_UI_COMMON_H_ */

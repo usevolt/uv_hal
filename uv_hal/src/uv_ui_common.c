@@ -96,6 +96,18 @@ color_t uv_uic_grayscale(color_t c) {
 }
 
 
+color_st uv_uic(color_t c) {
+	color_st ret;
+	if (this->color_mode == COLOR_MODE_GRAYSCALE) {
+		c = uv_uic_grayscale(c);
+	}
+	ret = *((color_st*) &c);
+
+	return ret;
+}
+
+
+
 color_t uv_uic_lerpi(int32_t t, color_t ca, color_t cb) {
 	uint32_t ret = 0;
 	for (uint8_t i = 0; i < 4; i++) {
