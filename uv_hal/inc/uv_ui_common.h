@@ -32,6 +32,10 @@
 
 #include "uv_utilities.h"
 #include <uv_hal_config.h>
+
+#if CONFIG_UI
+
+
 #include "ui/uv_uimedia.h"
 #include "uv_spi.h"
 #include "uv_w25q128.h"

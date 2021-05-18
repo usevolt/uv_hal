@@ -185,7 +185,6 @@ uint32_t uv_ft81x_get_ramdl_usage(void);
 
 
 
-
 #endif
 
 
