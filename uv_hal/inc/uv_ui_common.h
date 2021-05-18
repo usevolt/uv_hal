@@ -32,6 +32,10 @@
 
 #include "uv_utilities.h"
 #include <uv_hal_config.h>
+
+#if CONFIG_UI
+
+
 #include "ui/uv_uimedia.h"
 #include "uv_spi.h"
 #include "uv_w25q128.h"
@@ -442,5 +446,6 @@ void uv_ui_rtos_start_scheduler(void);
 
 #endif
 
+#endif
 
 #endif /* UV_UI_COMMON_H_ */

@@ -28,6 +28,11 @@
 
 
 #include "uv_ui_common.h"
+
+
+
+#if CONFIG_UI
+
 #include "uv_utilities.h"
 #include "uv_rtos.h"
 #include "uv_uifont.h"
@@ -36,7 +41,6 @@
 #include <math.h>
 
 
-#if CONFIG_UI
 
 
 

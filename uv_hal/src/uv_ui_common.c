@@ -29,6 +29,7 @@
 
 #include "uv_ui_common.h"
 
+#if CONFIG_UI
 
 
 static struct {
@@ -161,3 +162,4 @@ ui_color_modes_e uv_ui_get_color_mode(void) {
 }
 
 
+#endif
