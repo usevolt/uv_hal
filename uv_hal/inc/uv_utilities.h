@@ -292,7 +292,7 @@ typedef struct {
 	/// @brief: Keeps the track of how many elements there are in the buffer
 	uint16_t element_count;
 	/// @brief: The element size in bytes
-	uint8_t element_size;
+	uint16_t element_size;
 	/// @brief: Pointer to the head of the data
 	char *head;
 	/// @brief: Pointer to the tail of the data
@@ -305,7 +305,7 @@ typedef struct {
 /// @param buffer_size: The size of the buffer in elements
 /// @param element_size: The size of the individual element in bytes
 uv_errors_e uv_ring_buffer_init(uv_ring_buffer_st *buffer_ptr, void *buffer,
-		uint16_t buffer_size, uint8_t element_size);
+		uint16_t buffer_size, uint16_t element_size);
 
 /// @brief: Adds a new element into the ring buffer
 uv_errors_e uv_ring_buffer_push(uv_ring_buffer_st *buffer, void *element);

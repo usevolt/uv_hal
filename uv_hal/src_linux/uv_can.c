@@ -69,8 +69,14 @@ extern bool can_log;
 
 #define DEV_COUNT_MAX			30
 
+typedef enum {
+	CAN_STATE_INIT = 0,
+	CAN_STATE_OPEN,
+	CAN_STATE_FAULT
+} can_state_e;
+
 typedef struct {
-	bool connection;
+	can_state_e state;
 	unsigned int baudrate;
 	// can dev socket
 	int soc;
@@ -97,8 +103,8 @@ typedef struct {
 
 
 static can_st _can = {
-		.connection = false,
-		.baudrate = CONFIG_CAN0_BAUDRATE,
+		.state = CAN_STATE_INIT,
+		.baudrate = 0,
 		.dev = "can0",
 		.dev_count = 0,
 		.soc = -1
@@ -131,7 +137,7 @@ static bool copen(void) {
 	struct ifreq ifr;
 	struct sockaddr_can addr;
 
-	if (this->connection) {
+	if (this->state != CAN_STATE_OPEN) {
 		cclose();
 	}
 
@@ -163,7 +169,7 @@ static bool copen(void) {
 
 
 				printf("CAN socket opened to device %s, fd: %i\n", this->dev, this->soc);
-				this->connection = true;
+				this->state = CAN_STATE_OPEN;
 			}
 		}
 	}
@@ -176,12 +182,12 @@ static bool copen(void) {
 static bool cclose(void) {
 	bool ret = true;
 
-	if (this->connection) {
+	if (this->state == CAN_STATE_OPEN) {
 		close(this->soc);
 		printf("Socket closed.\n");
 	}
 
-	this->connection = false;
+	this->state = CAN_STATE_INIT;
 	return ret;
 }
 
@@ -215,7 +221,7 @@ char *uv_can_set_up(void) {
 	pclose(fp);
 
 	if (this->baudrate != current_baud) {
-		if (this->connection) {
+		if (this->state == CAN_STATE_OPEN) {
 			// close the socket if one is open
 			cclose();
 		}
@@ -239,6 +245,8 @@ char *uv_can_set_up(void) {
 	/* open socket */
 	if (!copen()) {
 		ret = "Couldn't open the connection to the CAN network.";
+		printf("%s\n", ret);
+		this->state = CAN_STATE_FAULT;
 	}
 
 	return ret;
@@ -269,7 +277,7 @@ struct timeval uv_can_get_rx_time(void) {
 }
 
 bool uv_can_is_connected(void) {
-	return this->connection;
+	return (this->state == CAN_STATE_OPEN);
 }
 
 
@@ -305,6 +313,11 @@ uv_errors_e _uv_can_init() {
 #endif
 	this->rx_callback = NULL;
 
+	if (this->baudrate == 0) {
+		// if the baudrate was not yet set, set it. This causes the SocketCAN to be opened
+		uv_can_set_baudrate(this->dev, this->baudrate);
+	}
+
 	return ret;
 }
 
@@ -329,39 +342,41 @@ uv_errors_e uv_can_add_rx_callback(uv_can_channels_e channel,
 uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message) {
 	uv_errors_e ret = ERR_NONE;
 
-	if (!this->connection) {
+	if (this->state == CAN_STATE_INIT) {
 		uv_can_set_up();
 	}
 
-	int retval;
-	struct can_frame frame;
-	frame.can_id = message->id | ((message->type == CAN_EXT) ? CAN_EFF_FLAG : 0);
-	frame.can_dlc = message->data_length;
-	memcpy(frame.data, message->data_8bit, message->data_length);
+	if (this->state == CAN_STATE_OPEN) {
+		int retval;
+		struct can_frame frame;
+		frame.can_id = message->id | ((message->type == CAN_EXT) ? CAN_EFF_FLAG : 0);
+		frame.can_dlc = message->data_length;
+		memcpy(frame.data, message->data_8bit, message->data_length);
 
-	retval = write(this->soc, &frame, sizeof(struct can_frame));
-	if (retval != sizeof(struct can_frame) && errno == ENETDOWN) {
-		// try to set the net dev up
-		uv_can_set_up();
 		retval = write(this->soc, &frame, sizeof(struct can_frame));
-	}
-	if (retval != sizeof(struct can_frame)) {
-		printf("Sending a message with ID of 0x%x resulted in a CAN error: %u , %s***\n",
-				message->id, errno, strerror(errno));
-		if (errno == ENETDOWN) {
-			printf("The network is down. Initialize the network with command:\n\n"
-					"sudo ip link set CHANNEL type can bitrate BAUDRATE txqueuelen 1000\n\n"
-					"And open the network with command:\n\n"
-					"sudo ip link set dev CHANNEL up\n\n"
-					"After that you can communicate with the device.\n");
-			// exit the program to prevent further error messages
-			exit(0);
+		if (retval != sizeof(struct can_frame) && errno == ENETDOWN) {
+			// try to set the net dev up
+			uv_can_set_up();
+			retval = write(this->soc, &frame, sizeof(struct can_frame));
 		}
-		printf("Failed to send message with id 0f 0x%x to CAN channel %s\n",
-				message->id, channel);
-		ret = ERR_HARDWARE_NOT_SUPPORTED;
-	}
-	else {
+		if (retval != sizeof(struct can_frame)) {
+			printf("Sending a message with ID of 0x%x resulted in a CAN error: %u , %s***\n",
+					message->id, errno, strerror(errno));
+			if (errno == ENETDOWN) {
+				printf("The network is down. Initialize the network with command:\n\n"
+						"sudo ip link set CHANNEL type can bitrate BAUDRATE txqueuelen 1000\n\n"
+						"And open the network with command:\n\n"
+						"sudo ip link set dev CHANNEL up\n\n"
+						"After that you can communicate with the device.\n");
+				// exit the program to prevent further error messages
+				exit(0);
+			}
+			printf("Failed to send message with id 0f 0x%x to CAN channel %s\n",
+					message->id, channel);
+			ret = ERR_HARDWARE_NOT_SUPPORTED;
+		}
+		else {
+		}
 	}
 
 	return ret;
@@ -384,7 +399,7 @@ uv_errors_e uv_can_reset(uv_can_channels_e channel) {
 
 /// @brief: Inner hal step function which is called in rtos hal task
 void _uv_can_hal_step(unsigned int step_ms) {
-	if (this->connection) {
+	if (this->state == CAN_STATE_OPEN) {
 		bool go = true;
 		while (go) {
 			struct can_frame frame_rd;
@@ -485,7 +500,8 @@ uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
 	if (channel) {};
 	uv_can_errors_e e = CAN_ERROR_ACTIVE;
 
-	if (!this->connection) {
+	if (this->state == CAN_STATE_INIT ||
+			this->state == CAN_STATE_FAULT) {
 		e = CAN_ERROR_BUS_OFF;
 	}
 	return e;

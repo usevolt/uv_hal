@@ -180,7 +180,6 @@ void vApplicationMallocFailedHook(void)
 /* FreeRTOS application idle hook */
 void vApplicationIdleHook(void)
 {
-	printf("idle hook!\n");
 	if (this->idle_task) {
 		this->idle_task(__uv_get_user_ptr());
 	}

@@ -127,6 +127,11 @@ void uv_mutex_unlock_isr(uv_mutex_st *mutex) {
 #define this (&_this)
 
 
+void uv_rtos_start_scheduler(void) {
+	vTaskStartScheduler();
+}
+
+
 /// @brief: Task function which takes care of calling several hal librarys module
 /// hal step functions
 void hal_task(void *);

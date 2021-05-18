@@ -67,6 +67,7 @@ static void _uv_uidisplay_draw(void *me, const uv_bounding_box_st *pbb) {
 	// all UI components should now be updated, swap display list buffers
 	uv_ui_dlswap();
 
+
 }
 
 
@@ -183,6 +184,7 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 
 	// call the step function and let it propagate through all objects in order
 	ret = uv_uiwindow_step(me, step_ms);
+
 
 	if (ret & UIOBJECT_RETURN_KILLED) {
 		// if UIOBJECT_RETURN_KILLED was returned, the children of objects might

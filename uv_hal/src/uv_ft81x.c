@@ -29,6 +29,7 @@
 
 
 #include "uv_ft81x.h"
+#include "uv_ui_common.h"
 #include "uv_gpio.h"
 #include "uv_rtos.h"
 #include "uv_w25q128.h"
@@ -38,6 +39,9 @@
 
 
 #if CONFIG_FT81X
+
+
+#if !CONFIG_TARGET_LINUX && !CONFIG_TARGET_WIN
 
 
 
@@ -410,7 +414,6 @@ static bool cmd_wait(void);
 static void cmd_romfont(uint8_t bitmap_handle, uint8_t font_number);
 static void draw_line(char *str, ui_font_st *font,
 		int16_t x, int16_t y, ui_align_e align, color_t color, uint16_t len);
-bool visible(const int16_t x, const int16_t y, const int16_t w, const int16_t height);
 
 
 
@@ -437,8 +440,6 @@ typedef struct {
 	uint32_t dl_index_max;
 	color_st color;
 	color_st clear_color;
-	ui_color_modes_e color_mode;
-	int8_t grayscale_luminosity;
 	bool color_init;
 	bool clear_color_init;
 	uint8_t backlight;
@@ -498,8 +499,6 @@ bool uv_ui_init(void) {
 	this->mask.y = 0;
 	this->mask.width = LCD_W_PX;
 	this->mask.height = LCD_H_PX;
-	this->grayscale_luminosity = 0;
-	this->color_mode = COLOR_MODE_RGB;
 	init_values();
 
 	// toggle PD pin to reset the FT81X
@@ -735,7 +734,7 @@ static void writehostcmd(const ft81x_hostcmds_e hostcmd, uint8_t parameter) {
 
 
 static void set_color(color_t c) {
-	if (this->color_mode == COLOR_MODE_GRAYSCALE) {
+	if (uv_ui_get_color_mode() == COLOR_MODE_GRAYSCALE) {
 		c = uv_uic_grayscale(c);
 	}
 	if ((!this->color_init) ||
@@ -902,20 +901,6 @@ static void draw_line(char *str, ui_font_st *font,
 	cmd_wait();
 	this->dl_index = read16(REG_CMD_DL);
 
-}
-
-
-bool visible(const int16_t x, const int16_t y,
-		const int16_t width, const int16_t height) {
-	bool ret = true;
-	if (((x + width) < this->mask.x) ||
-			(x > (this->mask.x + this->mask.width)) ||
-			((y + height) < this->mask.y) ||
-			(y > (this->mask.y + this->mask.height))) {
-		return false;
-	}
-
-	return ret;
 }
 
 
@@ -1187,7 +1172,7 @@ uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
 void uv_ui_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 		int16_t w, int16_t h, uint32_t wrap, color_t c) {
 
-	if (visible(x, y, bitmap->width, bitmap->height)) {
+	if (uv_ui_is_visible(x, y, bitmap->width, bitmap->height)) {
 		// set the blend color
 		set_color(c);
 
@@ -1224,7 +1209,7 @@ void uv_ui_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 
 
 void uv_ui_draw_point(int16_t x, int16_t y, color_t color, uint16_t diameter) {
-	if (visible(x - diameter / 2, y - diameter / 2, diameter, diameter)) {
+	if (uv_ui_is_visible(x - diameter / 2, y - diameter / 2, diameter, diameter)) {
 		set_color(color);
 		set_begin(BEGIN_POINTS);
 		set_point_size(diameter);
@@ -1237,18 +1222,10 @@ void uv_ui_draw_point(int16_t x, int16_t y, color_t color, uint16_t diameter) {
 }
 
 
-void uv_ui_draw_shadowpoint(int16_t x, int16_t y,
-		color_t color, color_t highlight_c, color_t shadow_c, uint16_t diameter) {
-	uv_ui_draw_point(x - 2, y - 2, shadow_c, diameter);
-	uv_ui_draw_point(x + 2, y + 2, highlight_c, diameter);
-	uv_ui_draw_point(x, y, color, diameter);
-}
-
-
 void uv_ui_draw_rrect(const int16_t x, const int16_t y,
 		const uint16_t width, const uint16_t height,
 		const uint16_t radius, const color_t color) {
-	if (visible(x, y, width, height)) {
+	if (uv_ui_is_visible(x, y, width, height)) {
 		set_color(color);
 		set_begin(BEGIN_RECTS);
 		set_line_diameter(radius);
@@ -1269,20 +1246,11 @@ void uv_ui_draw_rrect(const int16_t x, const int16_t y,
 	}
 }
 
-void uv_ui_draw_shadowrrect(const int16_t x, const int16_t y,
-		const uint16_t width, const uint16_t height,
-		const uint16_t radius, const color_t color,
-		const color_t highlight_c, const color_t shadow_c) {
-	uv_ui_draw_rrect(x, y, width - 4, height - 4, radius, shadow_c);
-	uv_ui_draw_rrect(x + 4, y + 4, width - 4, height - 4, radius, highlight_c);
-	uv_ui_draw_rrect(x + 2, y + 2, width - 4, height - 4, radius, color);
-}
-
 
 void uv_ui_draw_line(const int16_t start_x, const int16_t start_y,
 		const int16_t end_x, const int16_t end_y,
 		const uint16_t width, const color_t color) {
-	if (visible(start_x, start_y, end_x, end_y)) {
+	if (uv_ui_is_visible(start_x, start_y, end_x, end_y)) {
 		set_color(color);
 		set_begin(BEGIN_LINES);
 		set_line_diameter(width);
@@ -1319,7 +1287,7 @@ void uv_ui_draw_linestrip(const uv_ui_linestrip_point_st *points,
 
 
 
-void uv_ui_touchscreen_calibrate(ft81x_transfmat_st *transform_matrix) {
+void uv_ui_touchscreen_calibrate(ui_transfmat_st *transform_matrix) {
 	DEBUG("Starting the screen calibration\n");
 
 	uv_ui_dlswap();
@@ -1371,7 +1339,7 @@ void uv_ui_touchscreen_calibrate(ft81x_transfmat_st *transform_matrix) {
 
 
 
-void uv_ui_touchscreen_set_transform_matrix(ft81x_transfmat_st *transform_matrix) {
+void uv_ui_touchscreen_set_transform_matrix(ui_transfmat_st *transform_matrix) {
 	write32(REG_TOUCH_TRANSFORM_A, transform_matrix->mat[0]);
 	write32(REG_TOUCH_TRANSFORM_B, transform_matrix->mat[1]);
 	write32(REG_TOUCH_TRANSFORM_C, transform_matrix->mat[2]);
@@ -1398,26 +1366,6 @@ bool uv_ui_get_touch(int16_t *x, int16_t *y) {
 	return ret;
 }
 
-
-void uv_ui_draw_char(const char c, const uint16_t font,
-		int16_t x, int16_t y, color_t color) {
-	set_color(color);
-	set_begin(BEGIN_BITMAPS);
-	if ((x > 0) && (y > 0)) {
-		DEBUG("Drawing char\n");
-		writedl(VERTEX2II(x, y, font, c));
-	}
-	else {
-		set_font(font);
-		set_cell(c);
-		vertex2f_st v;
-		v.sx = x;
-		v.sy = y;
-		DEBUG("Drawing char\n");
-		writedl(VERTEX2F(v.ux, v.uy));
-	}
-
-}
 
 
 int16_t uv_ui_get_string_height(char *str, ui_font_st *font) {
@@ -1537,82 +1485,9 @@ void uv_ui_set_mask(int16_t x, int16_t y, int16_t width, int16_t height) {
 
 
 
-color_t uv_uic_brighten(color_t c, int8_t value) {
-	color_t ret = (c & 0xFF000000);
-	for (uint8_t i = 0; i < 3; i++) {
-		int32_t col = (c >> (i * 8)) & 0xFF;
-		col += value;
-		if (col < 0) {
-			col = 0;
-		}
-		else if (col > 0xFF) {
-			col = 0xFF;
-		}
-		else {
-
-		}
-		ret += (col << (i * 8));
-	}
-	return ret;
-}
 
 
-color_t uv_uic_alpha(color_t c, int8_t value) {
-	color_t ret = c & ~(0xFF000000);
-	int16_t alpha = (c & 0xFF000000) >> 24;
-	alpha += value;
-	LIMITS(alpha, 0, 0xFF);
-	ret += (alpha << 24);
-
-	return ret;
-}
-
-
-color_t uv_uic_grayscale(color_t c) {
-	color_st *cst = (void*) &c;
-	uint32_t shade = ((uint32_t) cst->r + cst->g + cst->b) / 3;
-	if (shade > UINT8_MAX) {
-		shade = UINT8_MAX;
-	}
-	if (this->grayscale_luminosity) {
-		int32_t reli = uv_reli(this->grayscale_luminosity, INT8_MIN + 1, INT8_MAX);
-		LIMITS(reli, 0, 1000);
-		shade = shade * reli / 500;
-	}
-	cst->r = shade;
-	cst->g = shade;
-	cst->b = shade;
-	memcpy(&c, cst, sizeof(c));
-
-	return c;
-}
-
-
-color_t uv_uic_lerpi(int32_t t, color_t ca, color_t cb) {
-	uint32_t ret = 0;
-	for (uint8_t i = 0; i < 4; i++) {
-		int16_t val, start_val, end_val;
-		start_val = (ca >> (i * 8)) & 0xFF;
-		end_val = (cb >> (i * 8)) & 0xFF;
-
-		val = uv_lerpi(t, start_val, end_val);
-		ret += ((val & 0xFF) << (i * 8));
-	}
-	return (color_t) ret;
-}
-
-
-
-void uv_ui_set_color_mode(ui_color_modes_e value) {
-	this->color_mode = value;
-}
-
-
-void uv_ui_set_grayscale_luminosity(int8_t value) {
-	this->grayscale_luminosity = value;
-}
-
-
+#endif
 
 
 #endif

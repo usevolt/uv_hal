@@ -86,7 +86,7 @@ char *uv_get_hardware_name() {
 
 
 uv_errors_e uv_ring_buffer_init(uv_ring_buffer_st *buffer_ptr, void *buffer,
-		uint16_t buffer_size, uint8_t element_size) {
+		uint16_t buffer_size, uint16_t element_size) {
 	buffer_ptr->buffer = buffer;
 	buffer_ptr->buffer_size = buffer_size;
 	buffer_ptr->element_count = 0;
@@ -106,7 +106,7 @@ uv_errors_e uv_ring_buffer_push(uv_ring_buffer_st *buffer, void *element) {
 		ret = ERR_BUFFER_OVERFLOW;
 	}
 	else {
-		uint8_t i;
+		uint16_t i;
 		for (i = 0; i < buffer->element_size; i++) {
 			*(buffer->head) = *((char*) element + i);
 			buffer->head++;
@@ -149,7 +149,7 @@ uv_errors_e uv_ring_buffer_pop(uv_ring_buffer_st *buffer, void *dest) {
 		ret = ERR_BUFFER_EMPTY;
 	}
 	else {
-		uint8_t i;
+		uint16_t i;
 			for (i = 0; i < buffer->element_size; i++) {
 				if (dest) {
 					*((char*)dest + i) = *(buffer->tail);
