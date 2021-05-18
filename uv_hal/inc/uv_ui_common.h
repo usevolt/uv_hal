@@ -440,5 +440,6 @@ bool uv_ui_is_visible(const int16_t x, const int16_t y,
 		const int16_t width, const int16_t height);
 
 
+#endif
 
 #endif /* UV_UI_COMMON_H_ */
