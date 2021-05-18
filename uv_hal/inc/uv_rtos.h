@@ -131,6 +131,7 @@ static inline void uv_mutex_init(uv_mutex_st *mutex) {
 	xSemaphoreGive(*mutex);
 }
 
+#include <stdio.h>
 /// @brief: Locks the mutex. No one else can lock the mutex before it is unlocked.
 static inline void uv_mutex_lock(uv_mutex_st *mutex) {
 	xSemaphoreTake(*mutex, portMAX_DELAY);

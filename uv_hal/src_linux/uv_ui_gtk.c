@@ -36,6 +36,12 @@
 #include <math.h>
 
 
+#include <X11/Xlib.h>
+#include <X11/Xatom.h>
+#include <X11/Xutil.h>
+#include <cairo.h>
+#include <cairo-xlib.h>
+
 #if CONFIG_UI
 
 
@@ -339,8 +345,10 @@ void uv_ui_touchscreen_set_transform_matrix(ui_transfmat_st *transform_matrix) {
 
 void uv_ui_dlswap(void) {
 	if (this->window != NULL) {
-		printf("queue draw\n");
+		printf("queue ");
+		fflush(stdout);
 		gtk_widget_queue_draw(this->window);
+		printf("draw\n");
 	}
 }
 
@@ -392,7 +400,6 @@ static cairo_surface_t *surface = NULL;
 
 
 static void clear(cairo_t *cr, color_t c) {
-	printf("clear\n");
 	cairo_set_source_rgba(cr,
 			CAIRO_CR(c), CAIRO_CG(c), CAIRO_CB(c), CAIRO_CA(c));
 	cairo_paint(cr);
@@ -410,7 +417,6 @@ static void draw_bitmap_ext(cairo_t *cr, uv_uimedia_st *bitmap,
 
 static void draw_point(cairo_t *cr, int16_t x, int16_t y,
 		color_t c, uint16_t diameter) {
-	printf("Drawing point %i %i %i\n", x, y, diameter);
 	cairo_set_source_rgba(cr,
 			CAIRO_CR(c), CAIRO_CG(c), CAIRO_CB(c), CAIRO_CA(c));
 	cairo_arc(cr, (double) x, (double) y, diameter / 2, 0, 2 * M_PI);
@@ -422,7 +428,6 @@ static void draw_point(cairo_t *cr, int16_t x, int16_t y,
 static void draw_rrect(cairo_t *cr, int16_t x, int16_t y,
 		uint16_t w, uint16_t h,
 		uint16_t radius, color_t c) {
-	printf("drawing rrect %i %i %i %i\n", x, y, w, h);
 
 	/* a custom shape that could be wrapped in a function */
 	double dx         = (double) x,        /* parameters like cairo_rectangle */
@@ -475,7 +480,6 @@ static void draw_string(cairo_t *cr, char *str, ui_font_st *font,
 
 
 static void set_mask(cairo_t *cr, int16_t x, int16_t y, int16_t width, int16_t height) {
-	printf("setting mask to %i %i %i %i\n", x, y, width, height);
 	cairo_reset_clip(cr);
 	cairo_rectangle(cr, (double) x, (double) y, (double) width, (double) height);
 	cairo_clip(cr);
@@ -486,6 +490,8 @@ static bool first = true;
 static gboolean draw_cb(GtkWidget *widget, cairo_t *cr, gpointer data) {
 	gboolean ret = FALSE;
 
+	printf("drew ");
+	fflush(stdout);
 	if (first) {
 		// start the FreeRTOS scheduler in a different thread, because GTK
 		// has to be run in this main thread
@@ -497,7 +503,6 @@ static gboolean draw_cb(GtkWidget *widget, cairo_t *cr, gpointer data) {
 		first = false;
 	}
 
-	printf("draw callback\n");
 
 	uv_mutex_lock(&this->mutex);
 
@@ -505,6 +510,7 @@ static gboolean draw_cb(GtkWidget *widget, cairo_t *cr, gpointer data) {
 	uint16_t i = 0;
 	while (uv_ring_buffer_pop(&this->draw_cmds, &cmd) == ERR_NONE) {
 		i++;
+		continue;
 		switch(cmd.type) {
 		case CMD_CLEAR:
 			clear(cr, cmd.clear.c);
@@ -547,10 +553,10 @@ static gboolean draw_cb(GtkWidget *widget, cairo_t *cr, gpointer data) {
 		}
 
 	}
-	printf("Drew %u objects\n", i);
 
 	uv_mutex_unlock(&this->mutex);
 
+	printf("%u objects\n", i);
 	return ret;
 }
 
@@ -708,8 +714,104 @@ static void *start_scheduler(void *ptr) {
 
 
 
+int cairo_check_event(cairo_surface_t *sfc, int block)
+{
+   char keybuf[8];
+   KeySym key;
+   XEvent e;
+
+   for (;;)
+   {
+      if (block || XPending(cairo_xlib_surface_get_display(sfc)))
+         XNextEvent(cairo_xlib_surface_get_display(sfc), &e);
+      else
+         return 0;
+
+      switch (e.type)
+      {
+         case ButtonPress:
+            return -e.xbutton.button;
+         case KeyPress:
+            XLookupString(&e.xkey, keybuf, sizeof(keybuf), &key, NULL);
+            return key;
+         default:
+            fprintf(stderr, "Dropping unhandled XEevent.type = %d.\n", e.type);
+      }
+   }
+}
+
+
+/*! Open an X11 window and create a cairo surface base on that window.
+ * @param x Width of window.
+ * @param y Height of window.
+ * @return Returns a pointer to a valid Xlib cairo surface. The function does
+ * not return on error (exit(3)).
+ */
+cairo_surface_t *cairo_create_x11_surface0(int x, int y)
+{
+   Display *dsp;
+   Drawable da;
+   int screen;
+   cairo_surface_t *sfc;
+
+   if ((dsp = XOpenDisplay(NULL)) == NULL)
+      exit(1);
+   screen = DefaultScreen(dsp);
+   da = XCreateSimpleWindow(dsp, DefaultRootWindow(dsp), 0, 0, x, y, 0, 0, 0);
+   XSelectInput(dsp, da, ButtonPressMask | KeyPressMask);
+   XMapWindow(dsp, da);
+
+   sfc = cairo_xlib_surface_create(dsp, da, DefaultVisual(dsp, screen), x, y);
+   cairo_xlib_surface_set_size(sfc, x, y);
+
+   return sfc;
+}
+
+
+/*! Destroy cairo Xlib surface and close X connection.
+ */
+void cairo_close_x11_surface(cairo_surface_t *sfc)
+{
+   Display *dsp = cairo_xlib_surface_get_display(sfc);
+
+   cairo_surface_destroy(sfc);
+   XCloseDisplay(dsp);
+}
+
+
 /// @brief: Starts the scheduler with the GTK UI in the main thread.
 void uv_ui_rtos_start_scheduler(void) {
+
+	pthread_t scheduler;
+	pthread_create(&scheduler, NULL,  &start_scheduler, NULL);
+
+	cairo_surface_t *sfc;
+	cairo_t *ctx;
+
+	sfc = cairo_create_x11_surface0(500, 500);
+
+	ctx = cairo_create(sfc);
+	cairo_set_source_rgb(ctx, 1, 1, 1);
+	cairo_paint(ctx);
+	cairo_move_to(ctx, 20, 20);
+	cairo_line_to(ctx, 200, 400);
+	cairo_line_to(ctx, 450, 100);
+	cairo_line_to(ctx, 20, 20);
+	cairo_set_source_rgb(ctx, 0, 0, 1);
+	cairo_fill_preserve(ctx);
+	cairo_set_line_width(ctx, 5);
+	cairo_set_source_rgb(ctx, 1, 1, 0);
+	cairo_stroke(ctx);
+	cairo_destroy(ctx);
+
+	cairo_check_event(sfc, 1);
+
+	cairo_close_x11_surface(sfc);
+
+
+	exit(0);
+
+
 
 	printf("GTK starting\n");
 

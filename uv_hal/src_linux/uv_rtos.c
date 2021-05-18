@@ -48,6 +48,7 @@
 
 
 void vAssertCalled( const char * const pcFileName,  unsigned long ulLine ) {
+	printf("Assert in '%s', line %u\n", pcFileName, ulLine);
 	exit(0);
 }
 
@@ -171,33 +172,30 @@ void uv_rtos_task_delay(unsigned int ms) {
 }
 
 
-void vApplicationMallocFailedHook(void)
-{
+void vApplicationMallocFailedHook(void) {
 	uv_disable_int();
 	for (;; ) {}
 }
 
 /* FreeRTOS application idle hook */
-void vApplicationIdleHook(void)
-{
+void vApplicationIdleHook(void) {
 	if (this->idle_task) {
 		this->idle_task(__uv_get_user_ptr());
 	}
 }
 
 /* FreeRTOS stack overflow hook */
-//void vApplicationStackOverflowHook(xTaskHandle pxTask, signed char *pcTaskName)
-//{
-//	(void) pxTask;
-//	(void) pcTaskName;
-//
-//	printf("stack overflow from task: %s\n", pcTaskName);
-//	/* Run time stack overflow checking is performed if
-//	   configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2.  This hook
-//	   function is called if a stack overflow is detected. */
-//	taskDISABLE_INTERRUPTS();
-//	for (;; ) {}
-//}
+void vApplicationStackOverflowHook(TaskHandle_t xTask, char * pcTaskName) {
+	(void) xTask;
+	(void) pcTaskName;
+
+	printf("stack overflow from task: %s\n", pcTaskName);
+	/* Run time stack overflow checking is performed if
+	   configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2.  This hook
+	   function is called if a stack overflow is detected. */
+	taskDISABLE_INTERRUPTS();
+	for (;; ) {}
+}
 
 /* FreeRTOS application tick hook */
 void vApplicationTickHook(void) {
@@ -262,7 +260,6 @@ void hal_task(void *nullptr) {
 	rtos_init = true;
 
 	while (true) {
-
 		_uv_rtos_halmutex_lock();
 
 #if CONFIG_CAN

@@ -177,6 +177,7 @@ void vApplicationIdleHook(void)
 {
 	if (this->idle_task) {
 		this->idle_task(__uv_get_user_ptr());
+
 	}
 }
 
