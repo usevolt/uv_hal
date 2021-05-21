@@ -49,7 +49,11 @@
 /// @brief: Wrapper for font data for UI library
 typedef struct {
 	uint16_t char_height;
-	// defines the font index. Index 26-34 are anti-aliased fonts which are supported by this library
+
+	// For FT81X:
+	//
+	// defines the font index. Index 26-34 are anti-aliased
+	// fonts which are supported by this library
 	uint8_t index;
 	// handle defines the bitmap handle to be used for this font
 	uint8_t handle;

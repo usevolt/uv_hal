@@ -151,15 +151,15 @@ static ui_st _ui = {
 
 ui_font_st ui_fonts[UI_MAX_FONT_COUNT];
 static const uint8_t font_sizes[UI_MAX_FONT_COUNT] = {
-		16,
-		20,
-		25,
+		14,
+		18,
+		21,
+		23,
 		28,
-		36,
-		49,
-		63,
-		83,
-		108
+		35,
+		47,
+		68,
+		90
 };
 
 
@@ -301,6 +301,57 @@ void uv_ui_touchscreen_calibrate(ui_transfmat_st *transform_matrix) {
 
 void uv_ui_draw_string(char *str, ui_font_st *font,
 		int16_t x, int16_t y, ui_align_e align, color_t color) {
+
+	color_st c = uv_uic(color);
+	cairo_set_font_size(this->cairo, font->char_height);
+	cairo_set_source_rgba(this->cairo, CAIRO_C(c.r), CAIRO_C(c.g),
+			CAIRO_C(c.b), CAIRO_C(c.a));
+	char *s = malloc(strlen(str) + 2);
+	strcpy(s, str);
+	char *last_s = s;
+	// calculate the number of lines
+	uint16_t line_count = 0;
+	for (uint32_t i = 0; i < strlen(str) + 1; i++) {
+		if (str[i] == '\n' || str[i] == '\0') {
+			line_count++;
+		}
+	}
+	cairo_font_extents_t fontex;
+	cairo_font_extents(this->cairo, &fontex);
+	if (align & VALIGN_CENTER) {
+		// reduce the y by the number of line counts
+		y -= line_count * fontex.height / 2;
+	}
+	y -= 3;
+	for (uint32_t i = 0; i < strlen(str) + 1; i++) {
+		if (s[i] == '\r' || s[i] == '\n' || s[i] == '\0') {
+			s[i] = '\0';
+			int16_t lx = x, ly = y;
+
+			// draw one line of text
+			cairo_text_extents_t ex;
+			cairo_text_extents(this->cairo, last_s, &ex);
+			if (align & HALIGN_CENTER) {
+				lx -= ex.width / 2;
+			}
+			else if (align & HALIGN_RIGHT) {
+				lx -= ex.width / 2;
+			}
+			else {
+
+			}
+			ly += fontex.height;
+			cairo_move_to(this->cairo, (double) lx, (double) ly);
+			if (strlen(last_s)) {
+				cairo_show_text(this->cairo, last_s);
+
+				y += fontex.height;
+			}
+			last_s = &s[i + 1];
+		}
+	}
+	free(s);
+	cairo_move_to(this->cairo, 0.0, 0.0);
 }
 
 
@@ -316,6 +367,11 @@ void uv_ui_set_mask(int16_t x, int16_t y, int16_t width, int16_t height) {
 int16_t uv_ui_get_string_height(char *str, ui_font_st *font) {
 	int16_t ret = 0;
 
+	cairo_set_font_size(this->cairo, font->char_height);
+	cairo_text_extents_t ex;
+	cairo_text_extents(this->cairo, str, &ex);
+	ret = ex.height;
+
 	return ret;
 }
 
@@ -323,6 +379,11 @@ int16_t uv_ui_get_string_height(char *str, ui_font_st *font) {
 
 int16_t uv_ui_get_string_width(char *str, ui_font_st *font) {
 	int16_t ret = 0;
+
+	cairo_set_font_size(this->cairo, font->char_height);
+	cairo_text_extents_t ex;
+	cairo_text_extents(this->cairo, str, &ex);
+	ret = ex.width;
 
 	return ret;
 }
@@ -343,7 +404,11 @@ void uv_ui_touchscreen_set_transform_matrix(ui_transfmat_st *transform_matrix) {
 
 
 void uv_ui_dlswap(void) {
-
+	if (this->cairo) {
+		cairo_pop_group_to_source(this->cairo);
+		cairo_paint(this->cairo);
+		cairo_push_group(this->cairo);
+	}
 }
 
 
@@ -354,7 +419,6 @@ void uv_ui_dlswap(void) {
 
 bool uv_ui_init(void) {
 
-	printf("X11 Started\n");
 	Display *dsp;
 	Drawable da;
 	int screen;
@@ -367,6 +431,7 @@ bool uv_ui_init(void) {
 		printf("Failed to open X11 display\n");
 		exit(1);
 	}
+	printf("X11 Started\n");
 	screen = DefaultScreen(dsp);
 	da = XCreateSimpleWindow(dsp, DefaultRootWindow(dsp), 0, 0,
 			CONFIG_FT81X_HSIZE, CONFIG_FT81X_VSIZE, 0, 0, 0);
@@ -378,6 +443,13 @@ bool uv_ui_init(void) {
 			CONFIG_FT81X_HSIZE, CONFIG_FT81X_VSIZE);
 	cairo_xlib_surface_set_size(this->surface, CONFIG_FT81X_HSIZE, CONFIG_FT81X_VSIZE);
 	this->cairo = cairo_create(this->surface);
+	// create new group that will be popped in dlswap function
+	cairo_push_group(this->cairo);
+
+	// initialize the font sizes
+	for (uint32_t i = 0; i < UI_MAX_FONT_COUNT; i++) {
+		ui_fonts[i].char_height = font_sizes[i];
+	}
 
 	return false;
 }
