@@ -125,6 +125,14 @@ typedef struct {
 
 #define DRAW_CMD_BUFFER_LEN			500
 
+/// @brief: A linked list member for the uimedia files that are loaded with
+/// *uv_uimedia_load* functions
+typedef struct {
+	char filename[128];
+	// pointer to the next uimedia_ll_st
+	void *next_ptr;
+	cairo_surface_t *surface;
+} uimedia_ll_st;
 
 /// @brief: The main uv_ui structure that holds the state of the ui drawn
 typedef struct {
@@ -133,11 +141,13 @@ typedef struct {
 	bool pressed;
 	int32_t x;
 	int32_t y;
+	uimedia_ll_st *uimediall;
 } ui_st;
 
 static ui_st _ui = {
 		.surface = NULL,
-		.cairo = NULL
+		.cairo = NULL,
+		.uimediall = NULL
 };
 #ifdef this
 #undef this
@@ -146,6 +156,8 @@ static ui_st _ui = {
 
 
 #define CAIRO_C(color_st)	(((double) (color_st)) / 255.0)
+
+
 
 
 
@@ -205,6 +217,9 @@ bool uv_ui_get_touch(int16_t *x, int16_t *y) {
 			this->x = (int16_t) e.xmotion.x;
 			this->y = (int16_t) e.xmotion.y;
 			break;
+			// unknown event 65
+		case 65:
+			break;
 		default:
 			fprintf(stderr, "Dropping unhandled XEevent.type = %d.\n", e.type);
 			break;
@@ -231,6 +246,8 @@ void uv_ui_clear(color_t col) {
 
 void uv_ui_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 		int16_t w, int16_t h, uint32_t wrap, color_t c) {
+	cairo_set_source_surface(this->cairo, bitmap->surface_ptr, x, y);
+	cairo_paint(this->cairo);
 }
 
 
@@ -393,6 +410,55 @@ uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
 		uint32_t dest_addr, uv_w25q128_st *exmem, char *filename) {
 	uint32_t ret = 0;
 
+	bool match = false;
+	uimedia_ll_st *m = this->uimediall;
+	uimedia_ll_st *last = NULL;
+	// try to find the uimedia file if it's already loaded
+	while (m != NULL) {
+		if (strcmp(filename, m->filename) == 0) {
+			match = true;
+			ret = 1;
+			break;
+		}
+		last = m;
+		m = m->next_ptr;
+	}
+	if (match) {
+		// match already found
+		printf("Bitmap '%s' already existed\n", filename);
+		bitmap->surface_ptr = m->surface;
+		bitmap->height = cairo_image_surface_get_height(bitmap->surface_ptr);
+		bitmap->width = cairo_image_surface_get_width(bitmap->surface_ptr);
+		bitmap->type = UV_UIMEDIA_IMAGE;
+		ret = 1;
+	}
+	else {
+		m = malloc(sizeof(uimedia_ll_st));
+		strcpy(m->filename, filename);
+		m->next_ptr = NULL;
+		// create link to the new uimedia linked list entry
+		if (last) {
+			last->next_ptr = m;
+		}
+		else {
+			this->uimediall = m;
+		}
+		// load new file
+		m->surface = cairo_image_surface_create_from_png(filename);
+		if (m->surface != NULL) {
+			bitmap->height = cairo_image_surface_get_height(m->surface);
+			bitmap->width = cairo_image_surface_get_width(m->surface);
+			bitmap->surface_ptr = m->surface;
+			bitmap->type = UV_UIMEDIA_IMAGE;
+			ret = 1;
+			printf("Bitmap '%s' loaded\n", filename);
+		}
+		else {
+			fprintf(stderr, "Could not create surface from png file '%'s\n", filename);
+			ret = 0;
+		}
+	}
+
 
 	return ret;
 }
@@ -465,6 +531,16 @@ void uv_ui_destroy(void) {
 		XCloseDisplay(dsp);
 
 		printf("X11 closed\n");
+	}
+	if (this->uimediall != NULL) {
+		uimedia_ll_st *m = this->uimediall;
+		while (m != NULL) {
+			printf("Freeing bitmap '%s'\n", m->filename);
+			uimedia_ll_st *t = m;
+			m = m->next_ptr;
+			cairo_surface_destroy(t->surface);
+			free(t);
+		}
 	}
 }
 

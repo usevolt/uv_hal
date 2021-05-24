@@ -268,7 +268,7 @@ static void update_input(char *input, const uv_uistyle_st *style) {
 
 bool uv_uikeyboard_show(const char *title, char *buffer,
 		uint16_t buf_len, const uv_uistyle_st *style) {
-
+	bool ret;
 	uv_touch_st t;
 	shift = true;
 	bool pressed = uv_ui_get_touch(&t.x, &t.y);
@@ -304,17 +304,18 @@ bool uv_uikeyboard_show(const char *title, char *buffer,
 
 		char c = get_press(&t, style);
 		if (c) {
-			if (c == SHIFT) {
+			if ((uint8_t) c == SHIFT) {
 				shift = !shift;
 			}
-			else if (c == ENTER) {
+			else if ((uint8_t) c == ENTER) {
 				// replace added new lines with spaces
 				for (int16_t i = 0; i < strlen(buffer); i++) {
 					if (buffer[i] == '\n') buffer[i] = ' ';
 				}
-				return input_len ? true : false;
+				ret = input_len ? true : false;
+				break;
 			}
-			else if (c == BACKSPACE) {
+			else if ((uint8_t) c == BACKSPACE) {
 				if (input_len) {
 					input_len--;
 				}
@@ -346,6 +347,7 @@ bool uv_uikeyboard_show(const char *title, char *buffer,
 		uv_rtos_task_delay(20);
 	}
 
+	return ret;
 }
 
 
