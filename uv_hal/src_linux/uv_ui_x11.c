@@ -38,124 +38,11 @@
 #include <X11/Xutil.h>
 #include <cairo.h>
 #include <cairo-xlib.h>
+#include <unistd.h>
+#include "uv_ui.h"
+#include "uv_can.h"
 
 #if CONFIG_UI
-
-
-
-typedef enum {
-	CMD_DLSWAP = 0,
-	CMD_CLEAR,
-	CMD_DRAW_BITMAP_EXT,
-	CMD_DRAW_POINT,
-	CMD_DRAW_RRECT,
-	CMD_DRAW_LINE,
-	CMD_DRAW_LINESTRIP,
-	CMD_DRAW_STRING,
-	CMD_SET_MASK,
-	CMD_COUNT
-} draw_cmd_e;
-
-/// @brief: Defines a struct that is used to pass the drawing command to the DTK
-/// thread. When calling the *uv_ui_common* drawing functions, they append these
-/// *ui_draw_cmd_st* structs to the drawing queue, and after call to *uv_ui_dlswap*,
-/// the GTK thread actually draws these.
-typedef struct {
-	// the type of this draw command
-	draw_cmd_e type;
-	struct {
-
-	} dlswap;
-	struct {
-		color_t c;
-	} clear;
-	struct {
-		uv_uimedia_st *bitmap;
-		int32_t x;
-		int32_t y;
-		int16_t w;
-		int16_t h;
-		uint32_t wrap;
-		color_t c;
-	} draw_bitmap_ext;
-	struct {
-		int32_t x;
-		int32_t y;
-		color_t c;
-		uint16_t diameter;
-	} draw_point;
-	struct {
-		int32_t x;
-		int32_t y;
-		uint16_t w;
-		uint16_t h;
-		uint16_t radius;
-		color_t c;
-	} draw_rrect;
-	struct {
-		int32_t x_start;
-		int32_t y_start;
-		int32_t x_end;
-		int32_t y_end;
-		uint16_t w;
-		color_t c;
-	} draw_line;
-	struct {
-		uv_ui_linestrip_point_st points[64];
-		uint16_t point_count;
-		uint16_t line_w;
-		color_t c;
-		uv_ui_strip_type_e type;
-	} draw_linestrip;
-	struct {
-		int32_t x;
-		int32_t y;
-		color_t c;
-		alignment_e align;
-		char str[1024];
-		uv_font_st *font;
-	} draw_string;
-	struct {
-		int32_t x;
-		int32_t y;
-		int32_t w;
-		int32_t h;
-	} set_mask;
-} ui_draw_cmd_st;
-
-#define DRAW_CMD_BUFFER_LEN			500
-
-/// @brief: A linked list member for the uimedia files that are loaded with
-/// *uv_uimedia_load* functions
-typedef struct {
-	char filename[128];
-	// pointer to the next uimedia_ll_st
-	void *next_ptr;
-	cairo_surface_t *surface;
-} uimedia_ll_st;
-
-/// @brief: The main uv_ui structure that holds the state of the ui drawn
-typedef struct {
-	cairo_surface_t *surface;
-	cairo_t *cairo;
-	bool pressed;
-	int32_t x;
-	int32_t y;
-	uimedia_ll_st *uimediall;
-} ui_st;
-
-static ui_st _ui = {
-		.surface = NULL,
-		.cairo = NULL,
-		.uimediall = NULL
-};
-#ifdef this
-#undef this
-#endif
-#define this (&_ui)
-
-
-#define CAIRO_C(color_st)	(((double) (color_st)) / 255.0)
 
 
 
@@ -173,6 +60,149 @@ static const uint8_t font_sizes[UI_MAX_FONT_COUNT] = {
 		68,
 		90
 };
+
+static const uv_uistyle_st uistyle  = {
+		.bg_c = C(0xFFCCCCCC),
+		.fg_c = C(0xFFAAAAAA),
+		.window_c = C(0xFFFFFFFF),
+		.display_c = C(0xFFFFFFFF),
+		.font = &font16,
+		.text_color = C(0xFF000000)
+};
+
+
+/// @brief: A linked list member for the uimedia files that are loaded with
+/// *uv_uimedia_load* functions
+typedef struct {
+	char filename[128];
+	// pointer to the next uimedia_ll_st
+	void *next_ptr;
+	cairo_surface_t *surface;
+} uimedia_ll_st;
+
+
+
+/// @brief: The main uv_ui structure that holds the state of the ui drawn
+typedef struct {
+	XIC ic;
+	cairo_surface_t *surface;
+	cairo_t *cairo;
+	bool pressed;
+	int32_t x;
+	int32_t y;
+	double scalex;
+	double scaley;
+	uimedia_ll_st *uimediall;
+	uv_ring_buffer_st key_press;
+	char key_press_buffer[20];
+
+	// configuration window that is shown when setting the settings
+	struct {
+		bool terminate;
+		uv_uidisplay_st display;
+		uv_uiobject_st *display_buffer[10];
+
+		uv_uilistbutton_st can_listbutton;
+		char *can_listbutton_content[10];
+
+		uv_uibutton_st ok_button;
+	} confwindow;
+} ui_st;
+
+static ui_st _ui = {
+		.surface = NULL,
+		.cairo = NULL,
+		.uimediall = NULL
+};
+
+#ifdef this
+#undef this
+#endif
+#define this (&_ui)
+
+
+#define CAIRO_C(color_st)	(((double) (color_st)) / 255.0)
+
+
+
+
+
+static uv_uiobject_ret_e confwindow_step(void *, uint16_t);
+
+
+
+void ui_x11_confwindow_exec(void) {
+	uv_ui_init();
+
+	this->confwindow.terminate = false;
+	uv_uidisplay_init(&this->confwindow.display, this->confwindow.display_buffer, &uistyle);
+	uv_uiwindow_set_stepcallback(&this->confwindow.display, &confwindow_step, NULL);
+
+	uv_uistrlayout_st layout;
+	uv_uistrlayout_init(&layout,
+			"#4can|nc\n"
+			"nc|nc|nc\n"
+			"#4nc|close",
+			0, 0, uv_uibb(&this->confwindow.display)->w, uv_uibb(&this->confwindow.display)->h,
+			5, 5);
+	uv_bounding_box_st bb;
+
+	bb = uv_uistrlayout_find(&layout, "can");
+	uint32_t index = 0;
+	// load the list of CAN devices
+	uv_can_set_baudrate(uv_can_get_dev(), 250000);
+	this->confwindow.can_listbutton_content[0] = "NONE";
+	for (uint32_t i = 0; i < uv_can_get_device_count(); i++) {
+		printf("%s\n", uv_can_get_device_name(i));
+		this->confwindow.can_listbutton_content[i] = uv_can_get_device_name(i);
+		if (strcmp(this->confwindow.can_listbutton_content[i], uv_can_get_dev()) == 0) {
+			index = i;
+		}
+	}
+	uv_uilistbutton_init(&this->confwindow.can_listbutton, this->confwindow.can_listbutton_content,
+			MAX(uv_can_get_device_count(), 1),
+			index, &uistyle);
+	uv_uilistbutton_set_content_type_arrayofpointers(&this->confwindow.can_listbutton);
+	uv_uilistbutton_set_title(&this->confwindow.can_listbutton, "CAN dev:");
+	uv_uidialog_add(&this->confwindow.display, &this->confwindow.can_listbutton, &bb);
+
+	bb = uv_uistrlayout_find(&layout, "close");
+	uv_uibutton_init(&this->confwindow.ok_button, "OK", &uistyle);
+	uv_uidisplay_add(&this->confwindow.display, &this->confwindow.ok_button, &bb);
+
+	while (true) {
+		uint16_t step_ms = 20;
+
+		uv_uidisplay_step(&this->confwindow.display, step_ms);
+
+		if (this->confwindow.terminate) {
+			break;
+		}
+
+		usleep(step_ms * 1000);
+	}
+	uv_ui_destroy();
+	printf("Closed the configuration UI\n");
+}
+
+
+static uv_uiobject_ret_e confwindow_step(void *me, uint16_t step_ms) {
+	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
+
+
+	if (uv_uilistbutton_clicked(&this->confwindow.can_listbutton)) {
+		uv_can_set_dev(this->confwindow.can_listbutton_content[
+		   uv_uilistbutton_get_current_index(&this->confwindow.can_listbutton)]);
+	}
+	else if (uv_uibutton_clicked(&this->confwindow.ok_button)) {
+		this->confwindow.terminate = true;
+	}
+	else {
+
+	}
+
+	return ret;
+}
 
 
 
@@ -203,6 +233,7 @@ bool uv_ui_get_touch(int16_t *x, int16_t *y) {
 				this->pressed = true;
 				this->x = (int16_t) e.xbutton.x;
 				this->y = (int16_t) e.xbutton.y;
+				printf("%i %i\n", this->x, this->y);
 			}
 			break;
 		case ButtonRelease:
@@ -217,8 +248,35 @@ bool uv_ui_get_touch(int16_t *x, int16_t *y) {
 			this->x = (int16_t) e.xmotion.x;
 			this->y = (int16_t) e.xmotion.y;
 			break;
-			// unknown event 65
+		case KeyPress: {
+			int count = 0;
+			KeySym keysym = 0;
+			char buf[20];
+			Status status = 0;
+			count = Xutf8LookupString(this->ic,
+					(XKeyPressedEvent*)&e, buf, 20, &keysym, &status);
+			if (status == XBufferOverflow) {
+				printf("BufferOverflow\n");
+			}
+			for (uint32_t i = 0; i < count; i++) {
+				uv_ring_buffer_push(&this->key_press, &buf[i]);
+			}
+
+			break;
+		}
+		case KeyRelease:
+			break;
+		case ResizeRequest: {
+			uint32_t ww = e.xresizerequest.width,
+			wh = e.xresizerequest.height,
+			cw = CONFIG_FT81X_HSIZE,
+			ch = CONFIG_FT81X_VSIZE;
+			this->scalex = (double) ww / (double) cw,
+			this->scaley = (double) wh / (double) ch;
+			break;
+		}
 		case 65:
+			// unknown event 65
 			break;
 		default:
 			fprintf(stderr, "Dropping unhandled XEevent.type = %d.\n", e.type);
@@ -230,6 +288,13 @@ bool uv_ui_get_touch(int16_t *x, int16_t *y) {
 	*x = this->x;
 	*y = this->y;
 
+	return ret;
+}
+
+
+char uv_ui_get_key_press(void) {
+	char ret = '\0';
+	uv_ring_buffer_pop(&this->key_press, &ret);
 	return ret;
 }
 
@@ -297,7 +362,6 @@ void uv_ui_draw_rrect(const int16_t x, const int16_t y,
 void uv_ui_draw_line(const int16_t start_x, const int16_t start_y,
 		const int16_t end_x, const int16_t end_y,
 		const uint16_t width, const color_t col) {
-	color_st c = uv_uic(col);
 }
 
 
@@ -473,7 +537,13 @@ void uv_ui_dlswap(void) {
 	if (this->cairo) {
 		cairo_pop_group_to_source(this->cairo);
 		cairo_paint(this->cairo);
+		cairo_xlib_surface_set_size(this->surface,
+				(int) ((double) CONFIG_FT81X_HSIZE * this->scalex),
+				(int) ((double) CONFIG_FT81X_VSIZE * this->scaley));
 		cairo_push_group(this->cairo);
+		// apply the window resize scale. This has to be set right after creating the group,
+		// so that all drawing is affected
+		cairo_scale(this->cairo, this->scalex, this->scaley);
 	}
 }
 
@@ -492,6 +562,8 @@ bool uv_ui_init(void) {
 	this->pressed = false;
 	this->x = 0;
 	this->y = 0;
+	this->scalex = 1.0;
+	this->scaley = 1.0;
 
 	if ((dsp = XOpenDisplay(NULL)) == NULL) {
 		printf("Failed to open X11 display\n");
@@ -501,9 +573,26 @@ bool uv_ui_init(void) {
 	screen = DefaultScreen(dsp);
 	da = XCreateSimpleWindow(dsp, DefaultRootWindow(dsp), 0, 0,
 			CONFIG_FT81X_HSIZE, CONFIG_FT81X_VSIZE, 0, 0, 0);
-	XSelectInput(dsp, da, ButtonPressMask | ButtonReleaseMask | Button1MotionMask);
+	XSelectInput(dsp, da, ButtonPressMask | ButtonReleaseMask |
+			Button1MotionMask | KeyPressMask | ResizeRedirectMask);
 	XStoreName(dsp, da, uv_projname);
 	XMapWindow(dsp, da);
+
+    XIM im;
+    im = XOpenIM(dsp, NULL, NULL, NULL);
+	if (im == NULL) {
+		fputs("Could not open input method\n", stdout);
+		exit(1);
+	}
+
+	this->ic = XCreateIC(im, XNInputStyle,
+    		XIMPreeditNothing | XIMStatusNothing, XNClientWindow, da, NULL);
+    if (this->ic == NULL) {
+        printf("Could not open IC\n");
+        exit(1);
+    }
+
+    XSetICFocus(this->ic);
 
 	this->surface = cairo_xlib_surface_create(dsp, da, DefaultVisual(dsp, screen),
 			CONFIG_FT81X_HSIZE, CONFIG_FT81X_VSIZE);
@@ -516,6 +605,10 @@ bool uv_ui_init(void) {
 	for (uint32_t i = 0; i < UI_MAX_FONT_COUNT; i++) {
 		ui_fonts[i].char_height = font_sizes[i];
 	}
+	// initialize the key press buffer
+	uv_ring_buffer_init(&this->key_press, this->key_press_buffer,
+			sizeof(this->key_press_buffer) / sizeof(this->key_press_buffer[0]),
+			sizeof(this->key_press_buffer[0]));
 
 	return false;
 }
@@ -528,6 +621,7 @@ void uv_ui_destroy(void) {
 
 		cairo_destroy(this->cairo);
 		cairo_surface_destroy(this->surface);
+		XDestroyIC(this->ic);
 		XCloseDisplay(dsp);
 
 		printf("X11 closed\n");

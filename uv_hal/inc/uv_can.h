@@ -303,6 +303,15 @@ uv_errors_e uv_can_reset(uv_can_channels_e channel);
 void uv_can_clear_rx_buffer(uv_can_channels_e channel);
 
 #if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
+/// @brief: Sets the active can dev. The *can_dev* should be found by the ifconfig
+///
+/// @note: Should be called prior to _uv_can_init function.
+void uv_can_set_dev(uv_can_channels_e can_dev);
+
+
+/// @brief: Returns the currently selected can dev
+uv_can_channels_e uv_can_get_dev(void);
+
 /// @brief: Baudrate setting only possible on Linux systems. Otherwise baudrate is
 /// specified via CONFIG_CAN_BAUDRATE symbol.
 ///

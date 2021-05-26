@@ -131,6 +131,17 @@ int32_t uv_can_get_device_count(void) {
 }
 
 
+void uv_can_set_dev(uv_can_channels_e can_dev) {
+	strcpy(this->dev, can_dev);
+}
+
+
+uv_can_channels_e uv_can_get_dev(void) {
+	return (uv_can_channels_e) this->dev;
+}
+
+
+
 /// @brief: Opens a socket to a SocketCAN device
 static bool copen(void) {
 	bool ret = true;

@@ -43,6 +43,8 @@
 #include <string.h>
 #include <time.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <getopt.h>
 
 
 
@@ -182,6 +184,10 @@ void vApplicationIdleHook(void) {
 	if (this->idle_task) {
 		this->idle_task(__uv_get_user_ptr());
 	}
+	else {
+		// wait for 1 tick step time to reduce the processor power consumption of the idle task
+		usleep(1000000 / configTICK_RATE_HZ);
+	}
 }
 
 /* FreeRTOS stack overflow hook */
@@ -213,6 +219,61 @@ void uv_rtos_start_scheduler(void) {
 	printf("The FreeRTOS scheduler stopped\n");
 }
 
+
+// Sets the default CAN dev
+#define OPT_CAN		'c'
+// displays the configuration UI that can be used to setup all file paths etc
+#define OPT_UI		'w'
+static struct option long_opts[] =
+{
+    {"can", required_argument, NULL, 'c'},
+    {"ui", no_argument, NULL, 'w'},
+    {NULL, 0, NULL, 0}
+};
+
+
+void uv_init_arg(void *device, int argc, char *argv[]) {
+
+	char opts[128] = { };
+	for (uint16_t i = 0; i < sizeof(long_opts) / sizeof(long_opts[0]); i++) {
+		char str[4] = {};
+		str[0] = long_opts[i].val;
+		if (long_opts[i].has_arg == required_argument) {
+			strcat(str, ":");
+		}
+		else if (long_opts[i].has_arg == optional_argument) {
+			strcat(str, "::");
+		}
+		else {
+
+		}
+		strcat(opts, str);
+	}
+	int ch;
+	// loop over all of the options
+	while ((ch = getopt_long(argc, argv, opts, long_opts, NULL)) != -1)
+	{
+	    // check to see if a single character or long option came through
+	    switch (ch)
+	    {
+	         case OPT_CAN:
+	        	 printf("Can dev set '%s'\n", optarg);
+	        	 uv_can_set_dev(optarg);
+	             break;
+	         case OPT_UI:
+	        	 printf("Showing the configuration UI\n");
+	        	 ui_x11_confwindow_exec();
+	        	 break;
+	         case '?':
+	        	 exit(0);
+	             break;
+	         default:
+	        	 break;
+	    }
+	}
+
+	uv_init(device);
+}
 
 
 void uv_init(void *device) {

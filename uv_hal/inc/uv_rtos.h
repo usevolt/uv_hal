@@ -206,7 +206,14 @@ uv_errors_e uv_queue_pop_isr(uv_queue_st *this, void *dest);
 void uv_init(void *device);
 
 
+
 #if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
+/// @brief: Initializes the real time OS with argc and argv. This is implemented only
+/// on computer targets
+void uv_init_arg(void *device, int argc, char *argv[]);
+
+
+
 /// @brief: Deinitializes all modules and closes open sockets.
 void uv_deinit(void);
 #endif

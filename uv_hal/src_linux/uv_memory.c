@@ -45,6 +45,9 @@
 const char uv_projname[] = STRINGIFY(__UV_PROJECT_NAME);
 const char uv_datetime[] = __DATE__ " " __TIME__;
 const uint32_t uv_prog_version = __UV_PROGRAM_VERSION;
+#if defined(CONFIG_SAVE_CALLBACK)
+extern void CONFIG_SAVE_CALLBACK (void);
+#endif
 
 
 
@@ -54,6 +57,10 @@ void uv_get_device_serial(unsigned int dest[4]) {
 
 uv_errors_e uv_memory_save(void) {
 	uv_errors_e ret = ERR_NONE;
+
+#if defined(CONFIG_SAVE_CALLBACK)
+	CONFIG_SAVE_CALLBACK ();
+#endif
 
 	int32_t length = ((unsigned long) &CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
 			(unsigned long) &CONFIG_NON_VOLATILE_START;
@@ -66,6 +73,7 @@ uv_errors_e uv_memory_save(void) {
 	else {
 		printf("Flashing %u bytes\n", length);
 	}
+
 	return ret;
 }
 

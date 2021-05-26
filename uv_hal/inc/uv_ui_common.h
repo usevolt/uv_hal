@@ -395,6 +395,11 @@ bool uv_ui_get_touch(int16_t *x, int16_t *y);
 
 
 
+/// @brief: Returns the key pressed. If no keys were pressed,
+/// returns '\0'. This is implemented only on targets with a physical keyboard.
+char uv_ui_get_key_press(void);
+
+
 /// @brief: Sets the color mode for the ft81x. The mode affects  how different colors
 /// are drawn on the screen.
 void uv_ui_set_color_mode(ui_color_modes_e value);
@@ -442,6 +447,13 @@ void uv_ui_set_mask(int16_t x, int16_t y, int16_t width, int16_t height);
 
 bool uv_ui_is_visible(const int16_t x, const int16_t y,
 		const int16_t width, const int16_t height);
+
+
+
+/// @brief: Shows the X11 configuration window that is triggered on start up to
+/// define all the configuration settings for the hardware, such as the CAN device and
+/// non-volatile memory storage path
+void ui_x11_confwindow_exec(void);
 
 
 #endif
