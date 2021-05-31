@@ -343,3 +343,9 @@ void hal_task(void *nullptr) {
 
 
 
+void _uv_rtos_hal_reset(void) {
+	// reset all modules which depend on non-volatile settings
+#if CONFIG_CANOPEN
+		_uv_canopen_reset();
+#endif
+}

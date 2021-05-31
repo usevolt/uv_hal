@@ -40,13 +40,18 @@
 #ifdef CONFIG_RTOS
 #include "uv_rtos.h"
 #endif
-
+#include<stdio.h>
+#include<fcntl.h>
+#include<errno.h>
 
 const char uv_projname[] = STRINGIFY(__UV_PROJECT_NAME);
 const char uv_datetime[] = __DATE__ " " __TIME__;
 const uint32_t uv_prog_version = __UV_PROGRAM_VERSION;
 #if defined(CONFIG_SAVE_CALLBACK)
 extern void CONFIG_SAVE_CALLBACK (void);
+#endif
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
+const char *nonvol_filepath = "./" STRINGIFY(__UV_PROJECT_NAME) ".nvconf";
 #endif
 
 
@@ -59,19 +64,42 @@ uv_errors_e uv_memory_save(void) {
 	uv_errors_e ret = ERR_NONE;
 
 #if defined(CONFIG_SAVE_CALLBACK)
-	CONFIG_SAVE_CALLBACK ();
+		CONFIG_SAVE_CALLBACK ();
 #endif
 
-	int32_t length = ((unsigned long) &CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
-			(unsigned long) &CONFIG_NON_VOLATILE_START;
 
-	bool match = true;
-	// todo: check if old data doesnt match with new data
-	if (match) {
-		ret = ERR_NONE;
+	uint32_t len = (unsigned long int) &CONFIG_NON_VOLATILE_END -
+			(unsigned long int) &CONFIG_NON_VOLATILE_START - sizeof(uv_data_start_t);
+	uint16_t crc = uv_memory_calc_crc(((uint8_t*) &CONFIG_NON_VOLATILE_START) +
+			sizeof(uv_data_start_t), len);
+	uint16_t hal_crc = uv_memory_calc_crc(&CONFIG_NON_VOLATILE_START, sizeof(uv_data_start_t));
+
+
+	int32_t length = (((unsigned long int) &CONFIG_NON_VOLATILE_END) + sizeof(uv_data_end_t)) -
+			((unsigned long int) &CONFIG_NON_VOLATILE_START);
+
+	printf("Flashing %u bytes\n", (int) length);
+	if (length < 0) {
+		ret = ERR_END_ADDR_LESS_THAN_START_ADDR;
 	}
-	else {
-		printf("Flashing %u bytes\n", length);
+	if (ret == ERR_NONE) {
+
+		// add the right value to data checksum
+		CONFIG_NON_VOLATILE_START.project_name = uv_projname;
+		CONFIG_NON_VOLATILE_START.build_date = uv_datetime;
+		CONFIG_NON_VOLATILE_END.hal_crc = hal_crc;
+		CONFIG_NON_VOLATILE_END.crc = crc;
+
+		// open the file and write
+		FILE *file = fopen(nonvol_filepath, "wb");
+		if (file == NULL) {
+			printf("Creating the non-volatile memory file '%s' failed\n", nonvol_filepath);
+			ret = ERR_INTERNAL;
+		}
+		else {
+			fwrite(& CONFIG_NON_VOLATILE_START, 1, length, file);
+			fclose(file);
+		}
 	}
 
 	return ret;
@@ -80,11 +108,68 @@ uv_errors_e uv_memory_save(void) {
 
 uv_errors_e uv_memory_load(memory_scope_e scope) {
 	// on linux memory cannot be saved for now
-	uv_errors_e ret = ERR_HARDWARE_NOT_SUPPORTED;
+	uv_errors_e ret = ERR_NOT_INITIALIZED;
 
-	//todo: load the data
 
-	//todo: check crc
+	// try to open the nonvolatile file
+	FILE* file = fopen(nonvol_filepath, "r");
+	if (file != NULL) {
+		void* d;
+		int32_t length;
+
+		if (scope & MEMORY_COM_PARAMS) {
+			d = (uint8_t*) & CONFIG_NON_VOLATILE_START;
+			// source is the start of the file
+		}
+		else {
+			d = ((uint8_t*) & CONFIG_NON_VOLATILE_START) + sizeof(uv_data_start_t);
+			// source is the start of application data
+			fseek(file, sizeof(uv_data_start_t), SEEK_SET);
+		}
+
+		if (scope & MEMORY_APP_PARAMS) {
+			length = ((unsigned long int) & CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
+					(unsigned long int) d;
+		}
+		else {
+			length = sizeof(uv_data_start_t);
+		}
+
+		// copy the data
+		int size = fread(d, 1, length, file);
+
+		if (size >= length) {
+			// copy the end structure if it was not copied yet
+			if (!(scope & MEMORY_APP_PARAMS)) {
+				size = fread(d + length, 1, sizeof(uv_data_end_t), file);
+			}
+			ret = ERR_NONE;
+		}
+	}
+
+	if (ret == ERR_NONE) {
+		//check crc
+		if (scope & MEMORY_APP_PARAMS) {
+			uint32_t len = (unsigned long int) & CONFIG_NON_VOLATILE_END -
+					(unsigned long int) & CONFIG_NON_VOLATILE_START - sizeof(uv_data_start_t);
+			uint16_t crc = uv_memory_calc_crc(((uint8_t*) & CONFIG_NON_VOLATILE_START) +
+					sizeof(uv_data_start_t), len);
+
+			if (CONFIG_NON_VOLATILE_END.crc != crc) {
+				ret = ERR_END_CHECKSUM_NOT_MATCH;
+			}
+		}
+		if (scope & MEMORY_COM_PARAMS) {
+			// calculate the HAL checksum and compare it to the loaded value
+			uint16_t crc = uv_memory_calc_crc(& CONFIG_NON_VOLATILE_START, sizeof(uv_data_start_t));
+			if (crc != CONFIG_NON_VOLATILE_END.hal_crc) {
+				// hal crc didn't match, which means that we have loaded invalid settings.
+				// Revert the HAL system defaults
+				_uv_rtos_hal_reset();
+				ret = ERR_START_CHECKSUM_NOT_MATCH;
+			}
+		}
+	}
 
 	return ret;
 }
@@ -148,5 +233,15 @@ const char *uv_memory_get_project_date(uv_data_start_t *start_ptr) {
 	return uv_datetime;
 }
 
+
+
+void uv_memory_set_nonvol_filepath(const char *filepath) {
+	nonvol_filepath = filepath;
+}
+
+
+const char *uv_memory_get_nonvol_filepath(void) {
+	return nonvol_filepath;
+}
 
 

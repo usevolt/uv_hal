@@ -95,6 +95,7 @@ typedef struct {
 	uimedia_ll_st *uimediall;
 	uv_ring_buffer_st key_press;
 	char key_press_buffer[20];
+	uint8_t brightness;
 
 	// configuration window that is shown when setting the settings
 	struct {
@@ -112,7 +113,8 @@ typedef struct {
 static ui_st _ui = {
 		.surface = NULL,
 		.cairo = NULL,
-		.uimediall = NULL
+		.uimediall = NULL,
+		.brightness = 50
 };
 
 #ifdef this
@@ -208,13 +210,13 @@ static uv_uiobject_ret_e confwindow_step(void *me, uint16_t step_ms) {
 
 
 void uv_ui_set_backlight(uint8_t percent) {
-
+	this->brightness = percent;
 }
 
 
 
 uint8_t uv_ui_get_backlight(void) {
-	return 100;
+	return this->brightness;
 }
 
 
