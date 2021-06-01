@@ -41,6 +41,15 @@
 
 #if CONFIG_PWM
 
+
+#if CONFIG_TARGET_LPC1549
+#define PWM_CHN(_pwm_chn)	_pwm_chn
+#else
+// PWM channels are disableb for Linux & Win targets
+#define PWM_CHN(_pwm_chn)	0
+#endif
+
+
 #if CONFIG_TARGET_LPC1549
 
 
@@ -415,11 +424,7 @@
 
 /// @brief: Variable to separate different PWM channels from each other
 /// Possible values are PWM channel macros defined upper.
-#if CONFIG_TARGET_LPC1549
 typedef volatile uint8_t uv_pwm_channel_t;
-#elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
-typedef void* uv_pwm_channel_t;
-#endif
 
 
 #define PWM_MAX_VALUE		1000U

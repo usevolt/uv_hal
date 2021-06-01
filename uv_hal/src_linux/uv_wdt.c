@@ -30,46 +30,44 @@
 #include "uv_wdt.h"
 
 #if CONFIG_WDT
-#include "chip.h"
-#include "wwdt_15xx.h"
-#include <stdio.h>
 
+#include <stdio.h>
+#include <pthread.h>
+#include <unistd.h>
+#include "uv_rtos.h"
+
+
+
+struct {
+	int32_t counter;
+} _this;
+#define this (&_this)
+
+
+static void *wdt_task(void *ptr) {
+	while (true) {
+		usleep(1000000);
+
+		this->counter--;
+		if (this->counter < 0) {
+			fprintf(stderr, "Watchdog timer triggered\n");
+			break;
+		}
+	}
+	return NULL;
+}
 
 
 void _uv_wdt_init(void) {
-	SystemCoreClockUpdate();
-
-	__disable_irq();
-
-	/* Enable the WDT oscillator */
-	Chip_SYSCTL_PowerUp(SYSCTL_POWERDOWN_WDTOSC_PD);
-
-	/* The WDT divides the input frequency into it by 4 */
-	int32_t wdtFreq = Chip_Clock_GetWDTOSCRate() / 4;
-
-	/* Initialize WWDT (also enables WWDT clock) */
-	Chip_WWDT_Init(LPC_WWDT);
-
-	Chip_WWDT_SetTimeOut(LPC_WWDT, wdtFreq * CONFIG_WDT_CYCLE_S);
-	Chip_WWDT_SetOption(LPC_WWDT, WWDT_WDMOD_WDRESET);
-
-	Chip_WWDT_Start(LPC_WWDT);
-
-	__enable_irq();
+	pthread_t thread;
+	pthread_create(&thread, NULL, &wdt_task, NULL);
+	printf("watchdog timer started\n");
 }
 
 void uv_wdt_update(void) {
-	__disable_irq();
-	Chip_WWDT_Feed(LPC_WWDT);
-	__enable_irq();
+	this->counter++;
 }
 
 
-
-#else
-
-void uv_wdt_update(void) {
-
-}
 
 #endif

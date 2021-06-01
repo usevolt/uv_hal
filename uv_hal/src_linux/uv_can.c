@@ -212,7 +212,7 @@ void uv_can_close(void) {
 char *uv_can_set_up(void) {
 	char *ret = NULL;
 	char cmd[128];
-	int current_baud = 0;
+	int current_baud = this->baudrate;
 
 	// get the net dev baudrate. If dev was not available, baudrate will be 0.
 	sprintf(cmd, "ip -det link show %s | grep bitrate | awk '{print $2}'", this->dev);
