@@ -279,6 +279,15 @@ uint16_t uv_memory_calc_crc(void *data, int32_t len);
 
 
 
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
+/// @nrief: Sets the filepath for the non-volatile memory location.
+/// Defaults to *./$(PROJECT_NAME).nvconf
+void uv_memory_set_nonvol_filepath(const char *filepath);
+
+
+/// @brief: Returns the nonvolatile memory file name
+const char *uv_memory_get_nonvol_filepath(void);
+#endif
 
 
 
