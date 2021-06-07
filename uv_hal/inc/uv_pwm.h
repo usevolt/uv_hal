@@ -45,8 +45,10 @@
 #if CONFIG_TARGET_LPC1549
 #define PWM_CHN(_pwm_chn)	_pwm_chn
 #else
-// PWM channels are disableb for Linux & Win targets
-#define PWM_CHN(_pwm_chn)	0
+// PWM channels are disabled for Linux & Win targets
+// This is defined as 1 instead of 0 since 0 can mean an undefined or uninitialized
+// pwm channel
+#define PWM_CHN(_pwm_chn)	1
 #endif
 
 

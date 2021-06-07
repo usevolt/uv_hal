@@ -100,9 +100,9 @@ enum {
 typedef uint16_t halsensor_progression_e;
 
 typedef struct {
-	uint16_t min;
-	uint16_t max;
-	uint16_t middle;
+	int16_t min;
+	int16_t max;
+	int16_t middle;
 	// tolerance around the middle value
 	uint16_t middle_tolerance;
 	// The value progression
