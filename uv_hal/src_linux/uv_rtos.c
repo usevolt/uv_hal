@@ -260,10 +260,12 @@ void uv_init_arg(void *device, int argc, char *argv[]) {
 	        	 printf("Can dev set '%s'\n", optarg);
 	        	 uv_can_set_dev(optarg);
 	             break;
+#if CONFIG_UI
 	         case OPT_UI:
 	        	 printf("Showing the configuration UI\n");
 	        	 ui_x11_confwindow_exec();
 	        	 break;
+#endif
 	         case '?':
 	        	 exit(0);
 	             break;

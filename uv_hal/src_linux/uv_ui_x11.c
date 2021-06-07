@@ -30,7 +30,7 @@
 #include "uv_ui_common.h"
 #include "uv_utilities.h"
 #include "uv_rtos.h"
-#include "uv_uifont.h"
+#include "ui/uv_uifont.h"
 #include "uv_memory.h"
 #include <math.h>
 #include <X11/Xlib.h>
