@@ -225,7 +225,16 @@ char *uv_can_set_up(void) {
 	sprintf(cmd, "ip link show %s | grep state | awk '{print $9}'", this->dev);
 	fp = popen(cmd, "r");
 	if (fgets(cmd, sizeof(cmd), fp)) {
-		if (!strstr(cmd, "UP")) {
+		if (strstr(cmd, "UP") == 0) {
+			current_baud = this->baudrate;
+		}
+		else if (strstr(cmd, "UNKNOWN") == 0) {
+			// virtual CAN bus can be in UNKNOWN state. Baudrate settings don't apply
+			// on virtual busses, thus keep the netdev open
+			this->baudrate = current_baud;
+		}
+		else {
+			// Mark the baudrate to be set by closing and reopening the netdev connection
 			current_baud = -1;
 		}
 	}
@@ -280,6 +289,11 @@ bool uv_can_set_baudrate(uv_can_channels_e channel, unsigned int baudrate) {
 	if_freenameindex(indd);
 
 	return ret;
+}
+
+
+unsigned int uv_can_get_baudrate(uv_can_channels_e channel) {
+	return this->baudrate;
 }
 
 

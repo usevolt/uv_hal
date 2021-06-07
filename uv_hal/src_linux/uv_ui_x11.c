@@ -106,6 +106,8 @@ typedef struct {
 		uv_uilistbutton_st can_listbutton;
 		char *can_listbutton_content[10];
 
+		uv_uidigitedit_st baud_digiedit;
+
 		uv_uibutton_st ok_button;
 	} confwindow;
 } ui_st;
@@ -142,7 +144,8 @@ void ui_x11_confwindow_exec(void) {
 
 	uv_uistrlayout_st layout;
 	uv_uistrlayout_init(&layout,
-			"#4can|nc\n"
+			"#3can|#2baud\n"
+			"nc\n"
 			"nc|nc|nc\n"
 			"#4nc|close",
 			0, 0, uv_uibb(&this->confwindow.display)->w, uv_uibb(&this->confwindow.display)->h,
@@ -167,6 +170,16 @@ void ui_x11_confwindow_exec(void) {
 	uv_uilistbutton_set_content_type_arrayofpointers(&this->confwindow.can_listbutton);
 	uv_uilistbutton_set_title(&this->confwindow.can_listbutton, "CAN dev:");
 	uv_uidialog_add(&this->confwindow.display, &this->confwindow.can_listbutton, &bb);
+
+	bb = uv_uistrlayout_find(&layout, "baud");
+	uv_uidigitedit_init(&this->confwindow.baud_digiedit,
+			uv_can_get_baudrate(uv_can_get_dev()) / 1000,
+			&uistyle);
+	uv_uidigitedit_set_title(&this->confwindow.baud_digiedit, "CAN baudrate (kBaud)");
+	uv_uidigitedit_set_limits(&this->confwindow.baud_digiedit, 0, 1000);
+	uv_uidigitedit_set_mode(&this->confwindow.baud_digiedit, UIDIGITEDIT_MODE_INCDEC);
+	uv_uidigitedit_set_inc_step(&this->confwindow.baud_digiedit, 50);
+	uv_uidisplay_add(&this->confwindow.display, &this->confwindow.baud_digiedit, &bb);
 
 	bb = uv_uistrlayout_find(&layout, "close");
 	uv_uibutton_init(&this->confwindow.ok_button, "OK", &uistyle);
@@ -195,6 +208,12 @@ static uv_uiobject_ret_e confwindow_step(void *me, uint16_t step_ms) {
 	if (uv_uilistbutton_clicked(&this->confwindow.can_listbutton)) {
 		uv_can_set_dev(this->confwindow.can_listbutton_content[
 		   uv_uilistbutton_get_current_index(&this->confwindow.can_listbutton)]);
+		uv_can_set_baudrate(uv_can_get_dev(),
+				uv_uidigitedit_get_value(&this->confwindow.baud_digiedit) * 1000);
+	}
+	else if (uv_uidigitedit_value_changed(&this->confwindow.baud_digiedit)) {
+		uv_can_set_baudrate(uv_can_get_dev(),
+				uv_uidigitedit_get_value(&this->confwindow.baud_digiedit) * 1000);
 	}
 	else if (uv_uibutton_clicked(&this->confwindow.ok_button)) {
 		this->confwindow.terminate = true;
@@ -363,7 +382,17 @@ void uv_ui_draw_rrect(const int16_t x, const int16_t y,
 
 void uv_ui_draw_line(const int16_t start_x, const int16_t start_y,
 		const int16_t end_x, const int16_t end_y,
-		const uint16_t width, const color_t col) {
+		const uint16_t width, const color_t color) {
+	color_st c = uv_uic(color);
+
+	cairo_set_source_rgba(this->cairo, CAIRO_C(c.r), CAIRO_C(c.g),
+			CAIRO_C(c.b), CAIRO_C(c.a));
+	cairo_set_line_width(this->cairo, width);
+	cairo_set_line_cap(this->cairo, CAIRO_LINE_CAP_ROUND);
+	cairo_move_to(this->cairo, (double) start_x, (double) start_y);
+    cairo_line_to(this->cairo, (double) end_x, (double) end_y);
+    cairo_stroke(this->cairo);
+    cairo_move_to(this->cairo, 0, 0);
 }
 
 
@@ -386,6 +415,7 @@ void uv_ui_draw_string(char *str, ui_font_st *font,
 		int16_t x, int16_t y, ui_align_e align, color_t color) {
 
 	color_st c = uv_uic(color);
+
 	cairo_set_font_size(this->cairo, font->char_height);
 	cairo_set_source_rgba(this->cairo, CAIRO_C(c.r), CAIRO_C(c.g),
 			CAIRO_C(c.b), CAIRO_C(c.a));
@@ -399,13 +429,20 @@ void uv_ui_draw_string(char *str, ui_font_st *font,
 			line_count++;
 		}
 	}
+
+//	// Debug drawing
+//	cairo_set_source_rgba(this->cairo,
+//			CAIRO_C(0xFF), CAIRO_C(0), CAIRO_C(0), CAIRO_C(c.a / 2));
+//	cairo_rectangle(this->cairo, (double) x, (double) y, 2, 2);
+//	cairo_set_line_width(this->cairo, 0.5);
+//	cairo_fill(this->cairo);
+
 	cairo_font_extents_t fontex;
 	cairo_font_extents(this->cairo, &fontex);
 	if (align & VALIGN_CENTER) {
 		// reduce the y by the number of line counts
 		y -= line_count * fontex.height / 2;
 	}
-	y -= 3;
 	for (uint32_t i = 0; i < strlen(str) + 1; i++) {
 		if (s[i] == '\r' || s[i] == '\n' || s[i] == '\0') {
 			s[i] = '\0';
@@ -414,16 +451,24 @@ void uv_ui_draw_string(char *str, ui_font_st *font,
 			// draw one line of text
 			cairo_text_extents_t ex;
 			cairo_text_extents(this->cairo, last_s, &ex);
+
+//			// Debug drawing
+//			cairo_set_source_rgba(this->cairo,
+//					CAIRO_C(c.r), CAIRO_C(c.g), CAIRO_C(c.b), CAIRO_C(c.a / 2));
+//			cairo_rectangle(this->cairo, (double) x, (double) y, ex.width, fontex.height);
+//			cairo_set_line_width(this->cairo, 0.5);
+//			cairo_fill(this->cairo);
+
 			if (align & HALIGN_CENTER) {
 				lx -= ex.width / 2;
 			}
 			else if (align & HALIGN_RIGHT) {
-				lx -= ex.width / 2;
+				lx -= ex.width;
 			}
 			else {
 
 			}
-			ly += fontex.height;
+			ly += ex.height + ((fontex.height - ex.height) / 2);
 			cairo_move_to(this->cairo, (double) lx, (double) ly);
 			if (strlen(last_s)) {
 				cairo_show_text(this->cairo, last_s);
@@ -447,26 +492,27 @@ void uv_ui_set_mask(int16_t x, int16_t y, int16_t width, int16_t height) {
 
 
 
-int16_t uv_ui_get_string_height(char *str, ui_font_st *font) {
-	int16_t ret = 0;
-
-	cairo_set_font_size(this->cairo, font->char_height);
-	cairo_text_extents_t ex;
-	cairo_text_extents(this->cairo, str, &ex);
-	ret = ex.height;
-
-	return ret;
-}
-
-
 
 int16_t uv_ui_get_string_width(char *str, ui_font_st *font) {
+	fflush(stdout);
 	int16_t ret = 0;
-
 	cairo_set_font_size(this->cairo, font->char_height);
-	cairo_text_extents_t ex;
-	cairo_text_extents(this->cairo, str, &ex);
-	ret = ex.width;
+
+	char *string = malloc(strlen(str) + 1);
+	char *s = string;
+	char *last_s = s;
+	strcpy(s, str);
+	while (*s != '\0') {
+		if (*s == '\n') {
+			*s = '\0';
+			cairo_text_extents_t ex;
+			cairo_text_extents(this->cairo, last_s, &ex);
+			ret = MAX(ret, (unsigned int) ex.width);
+			last_s = s + 1;
+		}
+		s++;
+	}
+	free(string);
 
 	return ret;
 }

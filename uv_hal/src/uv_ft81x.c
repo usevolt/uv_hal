@@ -1368,20 +1368,6 @@ bool uv_ui_get_touch(int16_t *x, int16_t *y) {
 
 
 
-int16_t uv_ui_get_string_height(char *str, ui_font_st *font) {
-	int16_t ret = 0;
-	uint16_t line_count = (*str == '\0') ? 0 : 1;
-	while (*str != '\0') {
-		if (*str++ == '\n') {
-			line_count++;
-		}
-	}
-	ret = uv_ui_get_font_height(font) * line_count;
-
-	return ret;
-}
-
-
 
 int16_t uv_ui_get_string_width(char *str, ui_font_st *font) {
 	int16_t ret = 0;
