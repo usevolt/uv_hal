@@ -318,6 +318,8 @@ uv_can_channels_e uv_can_get_dev(void);
 /// @note: Should be called prior to _uv_can_init function.
 bool uv_can_set_baudrate(uv_can_channels_e channel, unsigned int baudrate);
 
+unsigned int uv_can_get_baudrate(uv_can_channels_e channel);
+
 struct timeval uv_can_get_rx_time(void);
 
 /// @brief: Returns the name of *i*'th CAN interface device found
