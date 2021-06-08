@@ -50,6 +50,9 @@ const uint32_t uv_prog_version = __UV_PROGRAM_VERSION;
 #if defined(CONFIG_SAVE_CALLBACK)
 extern void CONFIG_SAVE_CALLBACK (void);
 #endif
+#if defined(CONFIG_LOAD_CALLBACK)
+extern void CONFIG_LOAD_CALLBACK (void);
+#endif
 #if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 const char *nonvol_filepath = "./" STRINGIFY(__UV_PROJECT_NAME) ".nvconf";
 #endif
@@ -169,6 +172,12 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 				ret = ERR_START_CHECKSUM_NOT_MATCH;
 			}
 		}
+	}
+
+	if (ret == ERR_NONE) {
+#if defined(CONFIG_LOAD_CALLBACK)
+		CONFIG_LOAD_CALLBACK ();
+#endif
 	}
 
 	return ret;
