@@ -56,15 +56,13 @@ void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 	this->out_type = SOLENOID_OUTPUT_MODE_CURRENT;
 
 	uv_solenoid_output_init(&this->solenoid[DUAL_OUTPUT_SOLENOID_A],
-			&conf->solenoid_conf[DUAL_OUTPUT_SOLENOID_A],
-			&limitconf->solenoid_limitconf[DUAL_OUTPUT_SOLENOID_A],
+			&conf->solenoid_conf[DUAL_OUTPUT_SOLENOID_A], limitconf,
 			pwm_a, dither_freq, dither_ampl,
 			adc_common, sense_ampl, max_current, fault_current,
 			emcy_overload_a, emcy_fault_a);
 
 	uv_solenoid_output_init(&this->solenoid[DUAL_OUTPUT_SOLENOID_B],
-			&conf->solenoid_conf[DUAL_OUTPUT_SOLENOID_B],
-			&limitconf->solenoid_limitconf[DUAL_OUTPUT_SOLENOID_B],
+			&conf->solenoid_conf[DUAL_OUTPUT_SOLENOID_B], limitconf,
 			pwm_b, dither_freq, dither_ampl,
 			adc_common, sense_ampl, max_current, fault_current,
 			emcy_overload_b, emcy_fault_b);

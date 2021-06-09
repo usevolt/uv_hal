@@ -78,7 +78,7 @@ typedef enum {
 #define PROP_OUTPUT_ENABLE_DELAY_MS_DEFAULT		0
 
 /// @brief: Configuration structure for the dual solenoid module
-typedef struct {
+typedef struct __attribute__((packed)) {
 	//NOTE: All of these variables should
 	uv_solenoid_output_conf_st solenoid_conf[2];
 	/// @brief: Control value acceleration factor, from 0 ... 100
@@ -89,9 +89,7 @@ typedef struct {
 
 
 
-typedef struct {
-	uv_solenoid_output_limitconf_st solenoid_limitconf[2];
-} uv_prop_output_limitconf_st;
+typedef uv_solenoid_output_limitconf_st uv_prop_output_limitconf_st;
 
 
 

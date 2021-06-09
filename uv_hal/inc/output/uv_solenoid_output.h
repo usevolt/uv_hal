@@ -94,6 +94,8 @@ typedef struct {
 typedef struct {
 	// maximum milliamps / ppt depending on the mode
 	uint16_t max;
+	// minimum milliamps / ptt depending on the mode
+	uint16_t min;
 } uv_solenoid_output_limitconf_st;
 
 /// @brief: Resets the output values to defaults

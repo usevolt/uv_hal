@@ -59,6 +59,7 @@ void uv_solenoid_output_conf_reset(uv_solenoid_output_conf_st *conf,
 	conf->min = 0;
 	conf->max = SOLENOID_OUTPUT_CONF_MAX;
 	limitconf->max = CONFIG_SOLENOID_MAX_CURRENT_DEF;
+	limitconf->min = 0;
 }
 
 
@@ -109,6 +110,7 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 	LIMIT_MAX(this->conf->min, this->conf->max);
 	LIMIT_MAX(this->limitconf->max, this->mode == SOLENOID_OUTPUT_MODE_PWM ?
 			1000 : CONFIG_SOLENOID_MAX_CURRENT_DEF);
+	LIMIT_MAX(this->limitconf->min, this->limitconf->max);
 
 	// set output to OFF state when target is zero and either PWM or ADC value is zero.
 	// This disables the ADC current measuring, even when there's open load.
@@ -160,8 +162,8 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 						this->conf->max);
 				// convert maxspeed to 0...1000 scale
 				maxspeed = uv_reli(maxspeed, 0, SOLENOID_OUTPUT_CONF_MAX);
-				int32_t min_ma = uv_lerpi(rel, 0, this->limitconf->max),
-						max_ma = uv_lerpi(maxspeed, 0, this->limitconf->max);
+				int32_t min_ma = uv_lerpi(rel, this->limitconf->min, this->limitconf->max),
+						max_ma = uv_lerpi(maxspeed, this->limitconf->min, this->limitconf->max);
 				target_ma = uv_lerpi(this->target, min_ma, max_ma);
 				LIMIT_MAX(target_ma, this->limitconf->max);
 			}
@@ -196,10 +198,10 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 				int32_t min = uv_reli(this->conf->min, 0, UINT8_MAX);
 				int32_t max = uv_reli(this->conf->max, 0, UINT8_MAX);
 				output = uv_lerpi(this->target,
-						uv_lerpi(min, 0, this->limitconf->max),
+						uv_lerpi(min, this->limitconf->min, this->limitconf->max),
 						uv_lerpi(
 								uv_lerpi(this->maxspeed_scaler, min, max),
-								uv_lerpi(min, 0, this->limitconf->max),
+								uv_lerpi(min, this->limitconf->min, this->limitconf->max),
 								this->limitconf->max));
 			}
 			this->out = output;
