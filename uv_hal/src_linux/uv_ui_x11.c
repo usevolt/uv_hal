@@ -50,15 +50,15 @@
 
 ui_font_st ui_fonts[UI_MAX_FONT_COUNT];
 static const uint8_t font_sizes[UI_MAX_FONT_COUNT] = {
-		14,
-		18,
+		13,
+		16,
+		19,
 		21,
-		23,
-		28,
-		35,
-		47,
-		68,
-		90
+		25,
+		30,
+		40,
+		58,
+		70
 };
 
 static const uv_uistyle_st uistyle  = {
@@ -432,7 +432,7 @@ void uv_ui_draw_string(char *str, ui_font_st *font,
 
 //	// Debug drawing
 //	cairo_set_source_rgba(this->cairo,
-//			CAIRO_C(0xFF), CAIRO_C(0), CAIRO_C(0), CAIRO_C(c.a / 2));
+//			CAIRO_C(0xFF), CAIRO_C(0), CAIRO_C(0), CAIRO_C(0xFF));
 //	cairo_rectangle(this->cairo, (double) x, (double) y, 2, 2);
 //	cairo_set_line_width(this->cairo, 0.5);
 //	cairo_fill(this->cairo);
@@ -446,15 +446,21 @@ void uv_ui_draw_string(char *str, ui_font_st *font,
 	for (uint32_t i = 0; i < strlen(str) + 1; i++) {
 		if (s[i] == '\r' || s[i] == '\n' || s[i] == '\0') {
 			s[i] = '\0';
+			cairo_text_extents_t ex;
 			int16_t lx = x, ly = y;
 
-			// draw one line of text
-			cairo_text_extents_t ex;
+			// draw one line of text at the time
+
+			// get the baseline from "Ay" string. It gives the maximum height in up and down
+			// directions
+			cairo_text_extents(this->cairo, "Ay", &ex);
+			ly += ex.height;
+
 			cairo_text_extents(this->cairo, last_s, &ex);
 
 //			// Debug drawing
 //			cairo_set_source_rgba(this->cairo,
-//					CAIRO_C(c.r), CAIRO_C(c.g), CAIRO_C(c.b), CAIRO_C(c.a / 2));
+//					CAIRO_C(c.r), CAIRO_C(c.g), CAIRO_C(c.b), CAIRO_C(0x80));
 //			cairo_rectangle(this->cairo, (double) x, (double) y, ex.width, fontex.height);
 //			cairo_set_line_width(this->cairo, 0.5);
 //			cairo_fill(this->cairo);
@@ -468,7 +474,6 @@ void uv_ui_draw_string(char *str, ui_font_st *font,
 			else {
 
 			}
-			ly += ex.height + ((fontex.height - ex.height) / 2);
 			cairo_move_to(this->cairo, (double) lx, (double) ly);
 			if (strlen(last_s)) {
 				cairo_show_text(this->cairo, last_s);

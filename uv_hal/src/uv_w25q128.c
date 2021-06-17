@@ -34,6 +34,7 @@
 
 #if CONFIG_W25Q128
 
+#include <uv_terminal.h>
 
 #define CMD_WRITE_ENABLE				0x06
 #define CMD_READ_STATUS_REGISTER_1		0x05
@@ -102,6 +103,7 @@ uv_errors_e uv_w25q128_init(uv_w25q128_st *this, spi_e spi, spi_slaves_e ssel) {
 			(read[5] != 0x17)) {
 		// cannot connect to the device
 		ret = ERR_NOT_RESPONDING;
+		uv_terminal_enable();
 	}
 	printf("w25q128 manufacturer id 0x%x, device id: 0x%x\n", read[4], read[5]);
 
