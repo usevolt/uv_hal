@@ -279,7 +279,12 @@ void _uv_canopen_pdo_step(uint16_t step_ms) {
 								}
 								// all other types are easy
 								else {
-									memcpy(&msg.data_8bit[byte_count], obj->data_ptr, mapping->length);
+									if (obj->data_ptr != NULL) {
+										memcpy(&msg.data_8bit[byte_count], obj->data_ptr, mapping->length);
+									}
+									else {
+										memset(&msg.data_8bit[byte_count], 0, mapping->length);
+									}
 								}
 							}
 							// increase byte mapping counter
