@@ -145,15 +145,6 @@ const canopen_object_st com_params[] = {
 				.data_ptr = (void*) &uv_prog_version
 		},
 #endif
-#if CONFIG_TERMINAL
-		{
-				.main_index = CONFIG_CANOPEN_TERMINAL_INDEX,
-				.sub_index = 0,
-				.permissions = CANOPEN_RW,
-				.type = CANOPEN_UNSIGNED8,
-				.data_ptr = (void*) &uv_terminal_enabled
-		},
-#endif
 #if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
 		{
 				.main_index = CONFIG_CANOPEN_CONSUMER_HEARTBEAT_INDEX,

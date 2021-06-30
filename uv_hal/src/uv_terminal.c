@@ -55,7 +55,6 @@
 #endif
 
 
-uint8_t uv_terminal_enabled = 0;
 
 typedef struct {
 	const uv_command_st *commands_ptr;
@@ -63,19 +62,24 @@ typedef struct {
 	uint8_t buffer_index;
 	char buffer[CONFIG_TERMINAL_BUFFER_SIZE];
 	argument_st args[CONFIG_TERMINAL_ARG_COUNT];
+	uv_active_terminal_e active_terminal;
 } this_st;
 
-this_st _terminal;
+this_st _terminal = { };
 #define this (&_terminal)
 
 
 
-void uv_terminal_enable(void) {
-	uv_terminal_enabled = 1;
+uv_active_terminal_e uv_active_terminal(void) {
+	return this->active_terminal;
+}
+
+void uv_terminal_enable(uv_active_terminal_e dest) {
+	this->active_terminal = dest;
 }
 
 void uv_terminal_disable(void) {
-	uv_terminal_enabled = 0;
+	this->active_terminal = TERMINAL_NONE;
 }
 
 
@@ -167,6 +171,7 @@ void uv_terminal_init(const uv_command_st* commands, unsigned int count) {
 	this->commands_count = count;
 	this->buffer_index = 0;
 	this->buffer[0] = '\0';
+	this->active_terminal = TERMINAL_NONE;
 
 	// print device name and build date
 	printf("%s\nBuild on %s\n>", uv_projname, uv_datetime);
@@ -200,26 +205,31 @@ uv_errors_e uv_terminal_step() {
 #if CONFIG_TERMINAL_UART
 			// redirect printf to the source where message was received
 			e = uv_uart_get_char(UART0, &data);
+			if (data != '\0') {
+				uv_terminal_enable(TERMINAL_UART);
+			}
 #endif
 
 			// No more data is available on uart. Try CAN
 #if CONFIG_TERMINAL_CAN
 			if (!data) {
 				e = uv_can_get_char(&data);
+				if (data != '\0') {
+					uv_terminal_enable(TERMINAL_CAN);
+				}
 			}
 #endif
 			// no more data is available on can. Try USB VCOM
 #if CONFIG_TERMINAL_USBDVCOM
 			if (!data) {
 				e = (vcom_bread((uint8_t*) &data, 1) != 0) ? ERR_NONE : ERR_BUFFER_EMPTY;
+				if (data != '\0') {
+					uv_terminal_enable(TERMINAL_USB);
+				}
 			}
 #endif
 			if (e != ERR_NONE) {
 				break;
-			}
-			else {
-				// character received, terminal is enabled
-				uv_terminal_enabled = true;
 			}
 
 			// check for buffer overflows

@@ -79,6 +79,10 @@ typedef struct {
 #define L6470_DEC_PWM_DEFAULT_DC		0x29
 #define L6470_RUN_PWM_DEFAULT_DC		0x29
 #define L6470_HOLD_PWM_DEFAULT_DC		0x29
+#define L6470_ACC_PWM_MAX				0xFF
+#define L6470_DEC_PWM_MAX				0xFF
+#define L6470_RUN_PWM_MAX				0xFF
+#define L6470_HOLD_PWM_MAX				0xFF
 
 #define L6470_OVERCURRENT_DEFAULT_MA	3380
 #define L6470_OVERCURRENT_MAX_MA		6000
@@ -148,8 +152,11 @@ void uv_l6470_set_home(uv_l6470_st *this);
 /// @brief: Returns the current position
 int32_t uv_l6470_get_pos(uv_l6470_st *this);
 
-/// @brief: Goes to absolute position **pos**.
-void uv_l6470_goto(uv_l6470_st *this, int32_t pos);
+
+/// @brief: Goes to absolute position **pos**. The position has to be known before calling this
+///
+/// @return: ERR_NONE if the position was known, otherwise ERR_ABORTED.
+uv_errors_e uv_l6470_goto(uv_l6470_st *this, int32_t pos);
 
 
 /// @brief: Travels **value** steps relative to the current position.
@@ -163,7 +170,6 @@ void uv_l6470_stop(uv_l6470_st *this);
 
 /// @brief: Waits until the last command has been executed
 void uv_l6470_wait(uv_l6470_st *this);
-
 
 
 /// @brief: Returns true if the L6470 is not busy
