@@ -159,6 +159,12 @@ int32_t uv_l6470_get_pos(uv_l6470_st *this);
 uv_errors_e uv_l6470_goto(uv_l6470_st *this, int32_t pos);
 
 
+
+/// @brief: Runs in *direction* with a constant speed *speed*
+uv_errors_e uv_l6470_run(uv_l6470_st *this, l6470_dir_e direction, int32_t speed);
+
+
+
 /// @brief: Travels **value** steps relative to the current position.
 static inline void uv_l6470_travel(uv_l6470_st *this, int32_t value) {
 	uv_l6470_goto(this, this->current_pos + value);

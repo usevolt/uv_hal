@@ -39,6 +39,8 @@
 #define CMD_GETPARAM			0b00100000
 #define CMD_GOTODIR				0b01101000
 #define CMD_GOTODIR_LEN			4
+#define CMD_RUN					0b01010000
+#define CMD_RUN_LEN				4
 #define CMD_RESETPOS			0b11011000
 #define CMD_RELEASESW			0b10010010
 #define CMD_SOFTSTOP			0b10110000
@@ -287,6 +289,20 @@ uv_errors_e uv_l6470_goto(uv_l6470_st *this, int32_t pos) {
 	return ret;
 }
 
+
+
+uv_errors_e uv_l6470_run(uv_l6470_st *this, l6470_dir_e direction, int32_t speed) {
+	uv_errors_e ret = ERR_NONE;
+	uint8_t write[CMD_RUN_LEN] = {};
+	write[0] = CMD_RUN | ((direction == L6470_DIR_FORWARD) ? FORWARD : REVERSE);
+	write[1] = ((speed >> 16) & 0xFF);
+	write[2] = ((speed >> 8) & 0xFF);
+	write[3] = (speed & 0xFF);
+	readwrite(this, write, NULL, sizeof(write));
+	uv_rtos_task_delay(1);
+
+	return ret;
+}
 
 
 void uv_l6470_stop(uv_l6470_st *this) {
