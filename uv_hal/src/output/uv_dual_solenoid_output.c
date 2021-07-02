@@ -142,7 +142,13 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 			else {
 
 			}
-			this->target = this->target_mult / PID_MULTIPLIER;
+			if (this->conf->acc == 100 &&
+					this->conf->dec == 100) {
+				this->target = this->target_req;
+			}
+			else {
+				this->target = this->target_mult / PID_MULTIPLIER;
+			}
 
 			// clamp output to target value when we're close enough
 			if (uv_pid_get_output(&this->target_pid) == 0) {
