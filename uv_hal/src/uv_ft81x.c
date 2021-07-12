@@ -1019,7 +1019,7 @@ uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
 		uint8_t ctype = ((uint8_t*) buffer)[25];
 
 		if (bitdepth != 8) {
-			uv_terminal_enable();
+			uv_terminal_enable(TERMINAL_CAN);
 			printf("Error parsing PNG bitmap %s: Bit depth has to be 8, but was %u\n",
 					bitmap->filename, bitdepth);
 		}
