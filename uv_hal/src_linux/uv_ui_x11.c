@@ -400,6 +400,65 @@ void uv_ui_draw_line(const int16_t start_x, const int16_t start_y,
 void uv_ui_draw_linestrip(const uv_ui_linestrip_point_st *points,
 		const uint16_t point_count, const uint16_t line_width, const color_t color,
 		const uv_ui_strip_type_e type) {
+	color_st c = uv_uic(color);
+
+	if (point_count) {
+		cairo_set_source_rgba(this->cairo, CAIRO_C(c.r), CAIRO_C(c.g),
+				CAIRO_C(c.b), CAIRO_C(c.a));
+		cairo_set_line_width(this->cairo, line_width);
+		cairo_set_line_cap(this->cairo, CAIRO_LINE_CAP_ROUND);
+
+		if (type ==  UI_STRIP_TYPE_ABOVE) {
+			cairo_move_to(this->cairo, (double) points[0].x, 0);
+		}
+		else if (type == UI_STRIP_TYPE_BELOW) {
+			cairo_move_to(this->cairo, (double) points[0].x, CONFIG_FT81X_VSIZE);
+		}
+		else if (type == UI_STRIP_TYPE_LEFT) {
+			cairo_move_to(this->cairo, 0, (double) points[0].y);
+		}
+		else if (type == UI_STRIP_TYPE_RIGHT) {
+			cairo_move_to(this->cairo, CONFIG_FT81X_HSIZE, (double) points[0].y);
+		}
+		else {
+			cairo_move_to(this->cairo, (double) points[0].x, (double) points[0].y);
+		}
+
+		for (uint16_t i = 0; i < point_count; i++) {
+			cairo_line_to(this->cairo, (double) points[i].x, (double) points[i].y);
+		}
+
+		if (type ==  UI_STRIP_TYPE_ABOVE) {
+			cairo_move_to(this->cairo, (double) points[point_count - 1].x, 0);
+			cairo_close_path(this->cairo);
+		}
+		else if (type == UI_STRIP_TYPE_BELOW) {
+			cairo_move_to(this->cairo, (double) points[point_count - 1].x, CONFIG_FT81X_VSIZE);
+			cairo_close_path(this->cairo);
+		}
+		else if (type == UI_STRIP_TYPE_LEFT) {
+			cairo_move_to(this->cairo, 0, (double) points[point_count - 1].y);
+			cairo_close_path(this->cairo);
+		}
+		else if (type == UI_STRIP_TYPE_RIGHT) {
+			cairo_move_to(this->cairo, CONFIG_FT81X_HSIZE, (double) points[point_count - 1].y);
+			cairo_close_path(this->cairo);
+		}
+		else {
+
+		}
+
+
+		if (type != UI_STRIP_TYPE_LINE) {
+			cairo_stroke_preserve(this->cairo);
+			cairo_fill(this->cairo);
+		}
+		else {
+			cairo_stroke(this->cairo);
+		}
+
+		cairo_move_to(this->cairo, 0, 0);
+	}
 }
 
 
