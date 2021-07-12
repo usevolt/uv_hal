@@ -39,6 +39,8 @@
 #define CMD_GETPARAM			0b00100000
 #define CMD_GOTODIR				0b01101000
 #define CMD_GOTODIR_LEN			4
+#define CMD_RUN					0b01010000
+#define CMD_RUN_LEN				4
 #define CMD_RESETPOS			0b11011000
 #define CMD_RELEASESW			0b10010010
 #define CMD_SOFTSTOP			0b10110000
@@ -134,7 +136,6 @@ void uv_l6470_init(uv_l6470_st *this, spi_e spi, spi_slaves_e ssel,
 
 void uv_l6470_set_speeds(uv_l6470_st *this, uint16_t acc, uint16_t dec,
 		uint16_t minspeed, uint32_t maxspeed) {
-	uv_l6470_wait(this);
 	if (acc > L6470_ACC_MAX) {
 		acc = L6470_ACC_MAX;
 	}
@@ -149,42 +150,37 @@ void uv_l6470_set_speeds(uv_l6470_st *this, uint16_t acc, uint16_t dec,
 	}
 	maxspeed /= 10000;
 
-	if (this->pos_known) {
-		uv_l6470_release(this);
-		uv_l6470_wait(this);
-	}
 	uint8_t write[REG_ACC_LEN + 1];
 	// acc
 	write[0] = CMD_SETPARAM | REG_ACC;
 	write[1] = (acc >> 8) & 0xFF;
 	write[2] = acc & 0xFF;
 	readwrite(this, write, NULL, sizeof(write));
-	uv_l6470_wait(this);
+	uv_rtos_task_delay(1);
 	// dec
 	write[0] = CMD_SETPARAM | REG_DEC;
 	write[1] = (dec >> 8) & 0xFF;
 	write[2] = dec & 0xFF;
 	readwrite(this, write, NULL, sizeof(write));
-	uv_l6470_wait(this);
+	uv_rtos_task_delay(1);
 	// minspeed
 	write[0] = CMD_SETPARAM | REG_MIN_SPEED;
 	write[1] = ((minspeed >> 8) & 0xFF);
 	write[2] = minspeed & 0xFF;
 	readwrite(this, write, NULL, sizeof(write));
-	uv_l6470_wait(this);
+	uv_rtos_task_delay(1);
 	// maxspeed
 	write[0] = CMD_SETPARAM | REG_MAX_SPEED;
 	write[1] = (maxspeed >> 8) & 0xFF;
 	write[2] = maxspeed & 0xFF;
 	readwrite(this, write, NULL, sizeof(write));
-	uv_l6470_wait(this);
+	uv_rtos_task_delay(1);
 
 }
 
 
 void uv_l6470_set_pwm(uv_l6470_st *this, uint8_t acc_duty_cycle, uint8_t dec_duty_cycle,
 		uint8_t run_duty_cycle, uint8_t hold_duty_cycle) {
-	uv_l6470_wait(this);
 	uint8_t write[REG_KVAL_ACC_LEN + 1];
 	// acceleration kval
 	write[0] = CMD_SETPARAM | REG_KVAL_ACC;
@@ -207,7 +203,6 @@ void uv_l6470_set_pwm(uv_l6470_st *this, uint8_t acc_duty_cycle, uint8_t dec_dut
 
 
 void uv_l6470_set_overcurrent(uv_l6470_st *this, uint16_t value_ma) {
-	uv_l6470_wait(this);
 	uint8_t write[REG_OCD_TH_LEN + 1];
 	uint8_t value = (value_ma / 375);
 	if (value > 0) {
@@ -216,22 +211,24 @@ void uv_l6470_set_overcurrent(uv_l6470_st *this, uint16_t value_ma) {
 	write[0] = CMD_SETPARAM | REG_OCD_TH;
 	write[1] = value;
 	readwrite(this, write, NULL, sizeof(write));
+	uv_rtos_task_delay(1);
 }
 
 
 
 void uv_l6470_find_home(uv_l6470_st *this, l6470_dir_e dir) {
+	uv_l6470_stop(this);
 	uv_l6470_wait(this);
 	uint8_t write[4] = {};
 	uint8_t read[4] = {};
 
 	write[0] = CMD_RELEASESW | (dir == L6470_DIR_FORWARD);
 	readwrite(this, write, NULL, 1);
+	uv_l6470_wait(this);
+	uv_l6470_set_home(this);
 	this->pos_known = true;
 	this->current_pos = 0;
 
-	uv_l6470_set_home(this);
-	uv_l6470_wait(this);
 	write[0] = CMD_GETSTATUS;
 	readwrite(this, write, read, 4);
 	uv_l6470_wait(this);
@@ -239,15 +236,14 @@ void uv_l6470_find_home(uv_l6470_st *this, l6470_dir_e dir) {
 
 
 void uv_l6470_set_home(uv_l6470_st *this) {
-	uv_l6470_wait(this);
 	uint8_t write = CMD_RESETPOS;
 	readwrite(this, &write, NULL, 1);
 	this->current_pos = 0;
+	this->pos_known = true;
 }
 
 
 int32_t uv_l6470_get_pos(uv_l6470_st *this) {
-	uv_l6470_wait(this);
 	// read absolute position register value
 	uint8_t write[REG_ABS_POS_LEN + 1] = {};
 	uint8_t read[sizeof(write)];
@@ -257,7 +253,6 @@ int32_t uv_l6470_get_pos(uv_l6470_st *this) {
 	// it is set to move in the wrong directions
 	write[0] = CMD_GETSTATUS;
 	readwrite(this, write, read, 3);
-	uv_l6470_wait(this);
 
 	write[0] = CMD_GETPARAM | REG_ABS_POS;
 	readwrite(this, write, read, sizeof(write));
@@ -267,45 +262,57 @@ int32_t uv_l6470_get_pos(uv_l6470_st *this) {
 	result = (int32_t) (result << (32 - 22));
 	result /= (1 << (32 - 22));
 	this->current_pos = result;
+	this->pos_known = true;
 	return result;
 }
 
 
 
-void uv_l6470_goto(uv_l6470_st *this, int32_t pos) {
-	uv_l6470_wait(this);
-	if (!this->pos_known) {
-		uv_l6470_get_pos(this);
-		this->pos_known = true;
+uv_errors_e uv_l6470_goto(uv_l6470_st *this, int32_t pos) {
+	uv_errors_e ret = ERR_NONE;
+	if (this->pos_known) {
+		uint8_t dir = (this->current_pos < pos) ? FORWARD : REVERSE;
+		uint8_t write[CMD_GOTODIR_LEN] = {};
+		uint32_t value = ((int32_t) (pos * (1 << (32 - 22))) >> (32 - 22));
+		write[0] = CMD_GOTODIR | dir;
+		write[1] = (value >> 16) & 0xFF;
+		write[2] = (value >> 8) & 0xFF;
+		write[3] = value & 0xFF;
+		readwrite(this, write, NULL, sizeof(write));
+		this->current_pos = pos;
+		// small delay so that L6470 has enough time to process the command
+		uv_rtos_task_delay(1);
 	}
-	uint8_t dir = (this->current_pos < pos) ? FORWARD : REVERSE;
-	uint8_t write[CMD_GOTODIR_LEN] = {};
-	uint32_t value = ((int32_t) (pos * (1 << (32 - 22))) >> (32 - 22));
-	write[0] = CMD_GOTODIR | dir;
-	write[1] = (value >> 16) & 0xFF;
-	write[2] = (value >> 8) & 0xFF;
-	write[3] = value & 0xFF;
-	readwrite(this, write, NULL, sizeof(write));
-	this->current_pos = pos;
-	// small delay so that L6470 has enough time to process the command
-	uv_rtos_task_delay(1);
+	else {
+		ret = ERR_ABORTED;
+	}
+	return ret;
 }
 
 
 
+uv_errors_e uv_l6470_run(uv_l6470_st *this, l6470_dir_e direction, int32_t speed) {
+	uv_errors_e ret = ERR_NONE;
+	uint8_t write[CMD_RUN_LEN] = {};
+	write[0] = CMD_RUN | ((direction == L6470_DIR_FORWARD) ? FORWARD : REVERSE);
+	write[1] = ((speed >> 16) & 0xFF);
+	write[2] = ((speed >> 8) & 0xFF);
+	write[3] = (speed & 0xFF);
+	readwrite(this, write, NULL, sizeof(write));
+	uv_rtos_task_delay(1);
+
+	return ret;
+}
+
+
 void uv_l6470_stop(uv_l6470_st *this) {
-//	printf("stop\n");
 	uint8_t write = CMD_SOFTSTOP;
 	readwrite(this, &write, NULL, sizeof(write));
 	uv_rtos_task_delay(1);
-	uv_l6470_wait(this);
-	uv_l6470_get_pos(this);
-	this->pos_known = true;
 }
 
 
 void uv_l6470_release(uv_l6470_st *this) {
-	uv_l6470_wait(this);
 	this->pos_known = false;
 	uint8_t write = CMD_SOFTHIZ;
 	readwrite(this, &write, NULL, sizeof(write));
@@ -319,6 +326,8 @@ void uv_l6470_wait(uv_l6470_st *this) {
 		uv_rtos_task_yield();
 	};
 }
+
+
 
 
 

@@ -31,6 +31,7 @@
 #include <string.h>
 #include <uv_utilities.h>
 #include "cdc_vcom.h"
+#include "uv_rtos.h"
 
 #if CONFIG_TERMINAL_USBDVCOM
 
@@ -298,13 +299,17 @@ uint32_t vcom_read_cnt(void)
 	return ret;
 }
 
+
 /* Virtual com port write routine*/
 uint32_t vcom_write(char *pBuf, uint32_t len)
 {
 	VCOM_DATA_T *pVcom = &g_vCOM;
 	uint32_t ret = 0;
 
-	if ( (pVcom->tx_flags & VCOM_TX_CONNECTED) && ((pVcom->tx_flags & VCOM_TX_BUSY) == 0) ) {
+	if (pVcom->tx_flags & VCOM_TX_CONNECTED) {
+		while (pVcom->tx_flags & VCOM_TX_BUSY) {
+			uv_rtos_task_yield();
+		}
 		pVcom->tx_flags |= VCOM_TX_BUSY;
 
 		/* enter critical section */

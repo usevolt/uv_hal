@@ -104,7 +104,7 @@ static INLINE uint32_t vcom_connected(void) {
 }
 
 /**
- * @brief	Virtual com port write routine
+ * @brief	Virtual com port write routine. Waits until the port is not busy and transmits
  * @param	pBuf	: Pointer to buffer to be written
  * @param	buf_len	: Length of the buffer passed
  * @return	Number of bytes written

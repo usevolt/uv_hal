@@ -46,6 +46,7 @@
 
 
 
+
 #if CONFIG_TERMINAL_CAN
 #define CAN_DELAY_MS		4
 static uint8_t can_buffer[4];
@@ -94,33 +95,37 @@ static void send_can_msg(void) {
 
 int outbyte(int c) {
 #if CONFIG_TERMINAL
-	if (uv_rtos_initialized() && uv_terminal_enabled) {
-#else
 	if (uv_rtos_initialized()) {
-#endif
 #if CONFIG_TERMINAL_UART
 
-		uv_uart_send_char(UART0, c);
+		if (uv_active_terminal() == TERMINAL_UART) {
+			uv_uart_send_char(UART0, c);
+		}
 
 #endif
 #if CONFIG_TERMINAL_CAN
-		uint8_t ch = c;
-		uv_vector_push_back(&can_vec, &ch);
+		if (uv_active_terminal() == TERMINAL_CAN) {
+			uint8_t ch = c;
+			uv_vector_push_back(&can_vec, &ch);
 #if !CONFIG_TARGET_LPC1549
-		if (uv_vector_size(&can_vec) == uv_vector_max_size(&can_vec)) {
-			send_can_msg();
-		}
+			if (uv_vector_size(&can_vec) == uv_vector_max_size(&can_vec)) {
+				send_can_msg();
+			}
 #else
-		send_can_msg();
+			send_can_msg();
+#endif
+		}
 #endif
 #if CONFIG_TERMINAL_USBDVCOM
-		if (vcom_connected()) {
-			vcom_write((char*) &c, 1);
+		if (uv_active_terminal() == TERMINAL_USB) {
+			if (vcom_connected()) {
+				vcom_write((char*) &c, 1);
+			}
 		}
 #endif
 
-#endif
 	}
+#endif
 	return 1;
 }
 
