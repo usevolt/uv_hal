@@ -429,19 +429,19 @@ void uv_ui_draw_linestrip(const uv_ui_linestrip_point_st *points,
 		}
 
 		if (type ==  UI_STRIP_TYPE_ABOVE) {
-			cairo_move_to(this->cairo, (double) points[point_count - 1].x, 0);
+			cairo_line_to(this->cairo, (double) points[point_count - 1].x, 0);
 			cairo_close_path(this->cairo);
 		}
 		else if (type == UI_STRIP_TYPE_BELOW) {
-			cairo_move_to(this->cairo, (double) points[point_count - 1].x, CONFIG_FT81X_VSIZE);
+			cairo_line_to(this->cairo, (double) points[point_count - 1].x, CONFIG_FT81X_VSIZE);
 			cairo_close_path(this->cairo);
 		}
 		else if (type == UI_STRIP_TYPE_LEFT) {
-			cairo_move_to(this->cairo, 0, (double) points[point_count - 1].y);
+			cairo_line_to(this->cairo, 0, (double) points[point_count - 1].y);
 			cairo_close_path(this->cairo);
 		}
 		else if (type == UI_STRIP_TYPE_RIGHT) {
-			cairo_move_to(this->cairo, CONFIG_FT81X_HSIZE, (double) points[point_count - 1].y);
+			cairo_line_to(this->cairo, CONFIG_FT81X_HSIZE, (double) points[point_count - 1].y);
 			cairo_close_path(this->cairo);
 		}
 		else {
