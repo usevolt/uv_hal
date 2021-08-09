@@ -494,7 +494,7 @@ void _uv_can_hal_step(unsigned int step_ms) {
 
 						go = true;
 
-						ioctl(this->soc, SIOCGSTAMP, &this->lastrxtime);
+						ioctl(this->soc, SIOCGSTAMP_OLD, &this->lastrxtime);
 					}
 					else if (recvbytes == -1) {
 						printf("*** CAN RX error: %u , %s***\n", errno, strerror(errno));
