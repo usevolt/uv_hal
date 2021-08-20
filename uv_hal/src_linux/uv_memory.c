@@ -53,9 +53,8 @@ extern void CONFIG_SAVE_CALLBACK (void);
 #if defined(CONFIG_LOAD_CALLBACK)
 extern void CONFIG_LOAD_CALLBACK (void);
 #endif
-#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
-const char *nonvol_filepath = "./" STRINGIFY(__UV_PROJECT_NAME) ".nvconf";
-#endif
+
+char nonvol_filepath[128] = "./" STRINGIFY(__UV_PROJECT_NAME) ".nvconf";
 
 
 
@@ -88,8 +87,6 @@ uv_errors_e uv_memory_save(void) {
 	if (ret == ERR_NONE) {
 
 		// add the right value to data checksum
-		CONFIG_NON_VOLATILE_START.project_name = uv_projname;
-		CONFIG_NON_VOLATILE_START.build_date = uv_datetime;
 		CONFIG_NON_VOLATILE_END.hal_crc = hal_crc;
 		CONFIG_NON_VOLATILE_END.crc = crc;
 
@@ -113,6 +110,18 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 	// on linux memory cannot be saved for now
 	uv_errors_e ret = ERR_NOT_INITIALIZED;
 
+	char *scope_str;
+	if (scope == MEMORY_ALL_PARAMS) {
+		scope_str = "ALL_PARAMS";
+	}
+	else if (scope == MEMORY_APP_PARAMS) {
+		scope_str = "APP_PARAMS";
+	}
+	else {
+		scope_str = "COM_PARAMS";
+	}
+	printf("Loading non-volatile %s data from '%s'\n",
+			scope_str, nonvol_filepath);
 
 	// try to open the nonvolatile file
 	FILE* file = fopen(nonvol_filepath, "r");
@@ -144,11 +153,18 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 		if (size >= length) {
 			// copy the end structure if it was not copied yet
 			if (!(scope & MEMORY_APP_PARAMS)) {
-				size = fread(d + length, 1, sizeof(uv_data_end_t), file);
+				fseek(file,
+						(unsigned long int) & CONFIG_NON_VOLATILE_END -
+						(unsigned long int) & CONFIG_NON_VOLATILE_START, SEEK_SET);
+				size = fread(& CONFIG_NON_VOLATILE_END, 1, sizeof(uv_data_end_t), file);
 			}
 			ret = ERR_NONE;
 		}
 	}
+	else {
+		printf("Failed to open the non-volatile data file.\n");
+	}
+
 
 	if (ret == ERR_NONE) {
 		//check crc
@@ -166,6 +182,9 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 			// calculate the HAL checksum and compare it to the loaded value
 			uint16_t crc = uv_memory_calc_crc(& CONFIG_NON_VOLATILE_START, sizeof(uv_data_start_t));
 			if (crc != CONFIG_NON_VOLATILE_END.hal_crc) {
+				printf("calculated crc 0x%x don't match with 0x%x\n",
+						crc,
+						CONFIG_NON_VOLATILE_END.hal_crc);
 				// hal crc didn't match, which means that we have loaded invalid settings.
 				// Revert the HAL system defaults
 				_uv_rtos_hal_reset();
@@ -244,12 +263,12 @@ const char *uv_memory_get_project_date(uv_data_start_t *start_ptr) {
 
 
 
-void uv_memory_set_nonvol_filepath(const char *filepath) {
-	nonvol_filepath = filepath;
+void uv_memory_set_nonvol_filepath(char *filepath) {
+	strcpy(nonvol_filepath, filepath);
 }
 
 
-const char *uv_memory_get_nonvol_filepath(void) {
+char *uv_memory_get_nonvol_filepath(void) {
 	return nonvol_filepath;
 }
 

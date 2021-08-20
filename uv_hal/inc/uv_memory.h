@@ -105,13 +105,6 @@ typedef uint32_t uv_bootloader_wait_t;
 /// non-volatile data section. Define a variable of this type as the
 /// first variable in the data section.
 typedef struct {
-	/// @brief: Project name pointer. Points to the flash memory location which
-	/// contains the project name. Project name is configured with the __UV_PROJECT_NAME preprocessor symbol.
-	/// With Eclipse projects the easiest way is to define __UV_PROJECT_NAME in project include paths and symbols
-	/// with the ${projname} variable.
-	const char *project_name;
-	/// @brief: Pointer to the build date and time string. This comes from the gcc __DATE__ and __TIME__ symbols.
-	const char *build_date;
 	/// @brief: Project unique ID. Usually the same as a CANopen node-id
 	uint16_t id;
 	// @brief: CAN baudrate. Defaults to 250000. UV bootloader uses this when booting.
@@ -280,13 +273,13 @@ uint16_t uv_memory_calc_crc(void *data, int32_t len);
 
 
 #if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
-/// @nrief: Sets the filepath for the non-volatile memory location.
+/// @brief: Sets the filepath for the non-volatile memory location.
 /// Defaults to *./$(PROJECT_NAME).nvconf
-void uv_memory_set_nonvol_filepath(const char *filepath);
+void uv_memory_set_nonvol_filepath(char *filepath);
 
 
 /// @brief: Returns the nonvolatile memory file name
-const char *uv_memory_get_nonvol_filepath(void);
+char *uv_memory_get_nonvol_filepath(void);
 #endif
 
 

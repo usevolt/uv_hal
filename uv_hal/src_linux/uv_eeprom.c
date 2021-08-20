@@ -40,7 +40,7 @@ static struct {
 	int16_t front_addr;
 	// size of the entry in bytes plus 2 bytes (index field)
 	uint16_t entry_len;
-	const char *filepath;
+	char filepath[128];
 } _this = {
 		.filepath = "./" STRINGIFY(__UV_PROJECT_NAME) ".eeprom"
 };
@@ -130,6 +130,17 @@ uv_errors_e uv_eeprom_read(void *dest, uint16_t len, uint16_t eeprom_addr) {
 	}
 
 	return ret;
+}
+
+
+void uv_eeprom_set_filepath(char *filepath) {
+	strcpy(this->filepath, filepath);
+}
+
+
+/// @brief: Returns the nonvolatile memory file name
+char *uv_eeprom_get_filepath(void) {
+	return this->filepath;
 }
 
 
