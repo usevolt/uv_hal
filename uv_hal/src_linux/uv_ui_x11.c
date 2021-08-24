@@ -359,7 +359,7 @@ void uv_ui_draw_rrect(const int16_t x, const int16_t y,
 	       width         = (double) w,
 	       height        = (double) h,
 	       aspect        = 1.0,     /* aspect ratio */
-	       corner_radius = height / 10.0;   /* and corner curvature radius */
+	       corner_radius = radius;   /* and corner curvature radius */
 
 	double r = corner_radius / aspect;
 	double degrees = M_PI / 180.0;
@@ -475,6 +475,9 @@ void uv_ui_draw_string(char *str, ui_font_st *font,
 
 	color_st c = uv_uic(color);
 
+	cairo_select_font_face(this->cairo, "Arial",
+			CAIRO_FONT_SLANT_NORMAL,
+			CAIRO_FONT_WEIGHT_NORMAL);
 	cairo_set_font_size(this->cairo, font->char_height);
 	cairo_set_source_rgba(this->cairo, CAIRO_C(c.r), CAIRO_C(c.g),
 			CAIRO_C(c.b), CAIRO_C(c.a));
