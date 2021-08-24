@@ -415,7 +415,7 @@ uint16_t uv_memory_calc_crc(void *data, int32_t len) {
 
 /// @brief: Returns the project name saved in the non-volatile memory
 const char *uv_memory_get_project_name() {
-	return CONFIG_NON_VOLATILE_START.project_name;
+	return uv_projname;
 }
 
 /// @brief: Returns the project name crc value saved in the non-volatile memory
@@ -425,7 +425,7 @@ uint16_t uv_memory_get_project_id(uv_data_start_t *start_ptr) {
 
 /// @brief: Returns the project building date saved in the non-volatile memory
 const char *uv_memory_get_project_date(uv_data_start_t *start_ptr) {
-	return CONFIG_NON_VOLATILE_START.build_date;
+	return uv_datetime;
 }
 
 

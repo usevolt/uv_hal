@@ -85,6 +85,17 @@ uv_errors_e uv_eeprom_write(const void *data, uint16_t len, uint16_t eeprom_addr
 uv_errors_e uv_eeprom_read(void *dest, uint16_t len, uint16_t eeprom_addr);
 
 
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
+/// @brief: Sets the filepath for the eeprom memory location.
+/// Defaults to *./$(PROJECT_NAME).nvconf
+void uv_eeprom_set_filepath(char *filepath);
+
+
+/// @brief: Returns the nonvolatile memory file name
+char *uv_eeprom_get_filepath(void);
+
+
+#endif
 
 
 

@@ -223,11 +223,17 @@ void uv_rtos_start_scheduler(void) {
 // Sets the default CAN dev
 #define OPT_CAN		'c'
 // displays the configuration UI that can be used to setup all file paths etc
-#define OPT_UI		'w'
+#define OPT_UI		'u'
+// sets the non-volatile memory file path. Default is set in uv_memory.c
+#define OPT_NONVOL	'v'
+// sets the eeprom memory file path. Default is set in uv_eeprom.c
+#define OPT_EEPROM	'e'
 static struct option long_opts[] =
 {
-    {"can", required_argument, NULL, 'c'},
-    {"ui", no_argument, NULL, 'w'},
+    {"can", required_argument, NULL, OPT_CAN},
+    {"ui", no_argument, NULL, OPT_UI},
+	{"nonvol", required_argument, NULL, OPT_NONVOL},
+	{"eeprom", required_argument, NULL, OPT_EEPROM},
     {NULL, 0, NULL, 0}
 };
 
@@ -266,6 +272,14 @@ void uv_init_arg(void *device, int argc, char *argv[]) {
 	        	 ui_x11_confwindow_exec();
 	        	 break;
 #endif
+	         case OPT_NONVOL:
+	        	 printf("Setting the non-volatile memory file path to '%s'\n", optarg);
+	        	 uv_memory_set_nonvol_filepath(optarg);
+	        	 break;
+	         case OPT_EEPROM:
+	        	 printf("Setting the non-volatile memory file path to '%s'\n", optarg);
+	        	 uv_eeprom_set_filepath(optarg);
+	        	 break;
 	         case '?':
 	        	 exit(0);
 	             break;
