@@ -33,7 +33,7 @@
 #if CONFIG_MAX3421
 
 #include "uv_rtos.h"
-
+#include "uv_terminal.h"
 
 
 typedef enum {
@@ -143,7 +143,7 @@ uv_errors_e uv_max3421_init(uv_max3421_st *this,
 
 	// read the device revision
 	uint8_t revision = reg_read(this, REG_HOST_REVISION);
-	uv_terminal_enable();
+	uv_terminal_enable(TERMINAL_CAN);
 	printf("revision: 0%x\n", revision);
 
 	return ret;
