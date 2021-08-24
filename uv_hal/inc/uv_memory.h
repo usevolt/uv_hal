@@ -104,9 +104,18 @@ typedef uint32_t uv_bootloader_wait_t;
 /// @brief: Data type which should be used to mark the start of
 /// non-volatile data section. Define a variable of this type as the
 /// first variable in the data section.
-typedef struct {
+typedef struct __attribute__((packed)) {
+	// *****************************************************************************
+	// NOTE: THE BYTE ORDER OF THIS IS HARDCODED IN UV_BOOTLOADER. DO NOT CHANGE IT!
+	//	****************************************************************************
+
+	// deprecated proj name field. Memory allocation required for uv_bootloader.
+	uint32_t _reserved;
+	// Deprecated proj build date field. Memory allocation required for uv_bootloader.
+	uint32_t _reserved2;
 	/// @brief: Project unique ID. Usually the same as a CANopen node-id
 	uint16_t id;
+	uint16_t _reserved3;
 	// @brief: CAN baudrate. Defaults to 250000. UV bootloader uses this when booting.
 	uint32_t can_baudrate;
 	/// @brief: UV bootloader wait time in processor loops
