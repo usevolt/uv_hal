@@ -161,8 +161,6 @@ uv_errors_e uv_memory_save(void) {
 		if (ret == ERR_NONE) {
 
 			// add the right value to data checksum
-			CONFIG_NON_VOLATILE_START.project_name = uv_projname;
-			CONFIG_NON_VOLATILE_START.build_date = uv_datetime;
 			CONFIG_NON_VOLATILE_END.hal_crc = hal_crc;
 			CONFIG_NON_VOLATILE_END.crc = crc;
 
