@@ -343,9 +343,6 @@ int32_t uv_uinumpaddialog_exec(const char *title,
 	uv_uidialog_exec(&d);
 
 	int32_t value = uv_uinumpad_get_value(&numpad);
-	if (value == -1) {
-		value = def_value;
-	}
 	return value;
 }
 
