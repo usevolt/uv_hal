@@ -269,7 +269,7 @@ void uv_init_arg(void *device, int argc, char *argv[]) {
 #if CONFIG_UI
 	         case OPT_UI:
 	        	 printf("Showing the configuration UI\n");
-	        	 ui_x11_confwindow_exec();
+	        	 ui_confwindow_exec();
 	        	 break;
 #endif
 	         case OPT_NONVOL:

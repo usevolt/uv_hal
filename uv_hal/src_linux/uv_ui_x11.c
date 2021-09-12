@@ -42,7 +42,7 @@
 #include "uv_ui.h"
 #include "uv_can.h"
 
-#if CONFIG_UI
+#if CONFIG_UI && CONFIG_UI_X11
 
 
 
@@ -135,7 +135,7 @@ static uv_uiobject_ret_e confwindow_step(void *, uint16_t);
 
 
 
-void ui_x11_confwindow_exec(void) {
+void uv_ui_confwindow_exec(void) {
 	uv_ui_init();
 
 	this->confwindow.terminate = false;

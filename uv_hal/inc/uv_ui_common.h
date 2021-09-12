@@ -450,10 +450,12 @@ bool uv_ui_is_visible(const int16_t x, const int16_t y,
 
 
 
+
 /// @brief: Shows the X11 configuration window that is triggered on start up to
 /// define all the configuration settings for the hardware, such as the CAN device and
 /// non-volatile memory storage path
-void ui_x11_confwindow_exec(void);
+void uv_ui_confwindow_exec(void);
+
 
 
 #endif
