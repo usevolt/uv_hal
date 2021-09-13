@@ -240,6 +240,11 @@ void uv_ui_clear(color_t c);
 
 
 
+
+#if !CONFIG_W25Q128
+/// @brief: Declaration of unused types for external memories that are not used
+typedef void uv_w25q128_st;
+#endif
 /// @brief: Loads and decompresses a jpg image to the media RAM of FT81x from external memory module.
 ///
 /// @return: The number of bytes that the image took from the memory. Since

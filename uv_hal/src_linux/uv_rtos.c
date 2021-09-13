@@ -262,24 +262,28 @@ void uv_init_arg(void *device, int argc, char *argv[]) {
 	    // check to see if a single character or long option came through
 	    switch (ch)
 	    {
+#if CONFIG_CAN
 	         case OPT_CAN:
 	        	 printf("Can dev set '%s'\n", optarg);
 	        	 uv_can_set_dev(optarg);
 	             break;
+#endif
 #if CONFIG_UI
 	         case OPT_UI:
 	        	 printf("Showing the configuration UI\n");
-	        	 ui_confwindow_exec();
+	        	 uv_ui_confwindow_exec();
 	        	 break;
 #endif
 	         case OPT_NONVOL:
 	        	 printf("Setting the non-volatile memory file path to '%s'\n", optarg);
 	        	 uv_memory_set_nonvol_filepath(optarg);
 	        	 break;
+#if CONFIG_EEPROM
 	         case OPT_EEPROM:
 	        	 printf("Setting the non-volatile memory file path to '%s'\n", optarg);
 	        	 uv_eeprom_set_filepath(optarg);
 	        	 break;
+#endif
 	         case '?':
 	        	 exit(0);
 	             break;

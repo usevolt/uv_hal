@@ -152,6 +152,7 @@ void uv_ui_confwindow_exec(void) {
 			5, 5);
 	uv_bounding_box_st bb;
 
+#if CONFIG_CAN
 	bb = uv_uistrlayout_find(&layout, "can");
 	uint32_t index = 0;
 	// load the list of CAN devices
@@ -180,6 +181,7 @@ void uv_ui_confwindow_exec(void) {
 	uv_uidigitedit_set_mode(&this->confwindow.baud_digiedit, UIDIGITEDIT_MODE_INCDEC);
 	uv_uidigitedit_set_inc_step(&this->confwindow.baud_digiedit, 50);
 	uv_uidisplay_add(&this->confwindow.display, &this->confwindow.baud_digiedit, &bb);
+#endif
 
 	bb = uv_uistrlayout_find(&layout, "close");
 	uv_uibutton_init(&this->confwindow.ok_button, "OK", &uistyle);
@@ -205,17 +207,19 @@ static uv_uiobject_ret_e confwindow_step(void *me, uint16_t step_ms) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
 
+#if CONFIG_CAN
 	if (uv_uilistbutton_clicked(&this->confwindow.can_listbutton)) {
 		uv_can_set_dev(this->confwindow.can_listbutton_content[
 		   uv_uilistbutton_get_current_index(&this->confwindow.can_listbutton)]);
 		uv_can_set_baudrate(uv_can_get_dev(),
 				uv_uidigitedit_get_value(&this->confwindow.baud_digiedit) * 1000);
 	}
-	else if (uv_uidigitedit_value_changed(&this->confwindow.baud_digiedit)) {
+	if (uv_uidigitedit_value_changed(&this->confwindow.baud_digiedit)) {
 		uv_can_set_baudrate(uv_can_get_dev(),
 				uv_uidigitedit_get_value(&this->confwindow.baud_digiedit) * 1000);
 	}
-	else if (uv_uibutton_clicked(&this->confwindow.ok_button)) {
+#endif
+	if (uv_uibutton_clicked(&this->confwindow.ok_button)) {
 		this->confwindow.terminate = true;
 	}
 	else {

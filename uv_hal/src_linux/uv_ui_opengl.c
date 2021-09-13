@@ -36,11 +36,19 @@
 #include <unistd.h>
 #include "uv_ui.h"
 #include "uv_can.h"
+#include <GLFW/glfw3.h>
 
 #if CONFIG_UI && CONFIG_UI_OPENGL
 
 
-
+static void key_callback(GLFWwindow* window,
+		int key, int scancode, int action, int mods);
+static void cursor_position_callback(GLFWwindow* window,
+		double xpos, double ypos);
+static void mouse_button_callback(GLFWwindow* window,
+		int button, int action, int mods);
+static void resize_callback(GLFWwindow* window,
+		int width, int height);
 
 
 ui_font_st ui_fonts[UI_MAX_FONT_COUNT];
@@ -84,10 +92,15 @@ typedef struct {
 	int32_t y;
 	double scalex;
 	double scaley;
+	double scale;
+	int32_t xoffset;
+	int32_t yoffset;
 	uimedia_ll_st *uimediall;
 	uv_ring_buffer_st key_press;
 	char key_press_buffer[20];
 	uint8_t brightness;
+
+	GLFWwindow* window;
 
 	// configuration window that is shown when setting the settings
 	struct {
@@ -105,6 +118,7 @@ typedef struct {
 } ui_st;
 
 static ui_st _ui = {
+		.window = NULL,
 		.uimediall = NULL,
 		.brightness = 50
 };
@@ -123,7 +137,7 @@ static uv_uiobject_ret_e confwindow_step(void *, uint16_t);
 
 
 
-void ui_confwindow_exec(void) {
+void uv_ui_confwindow_exec(void) {
 	uv_ui_init();
 
 	this->confwindow.terminate = false;
@@ -143,6 +157,7 @@ void ui_confwindow_exec(void) {
 	bb = uv_uistrlayout_find(&layout, "can");
 	uint32_t index = 0;
 	// load the list of CAN devices
+#if CONFIG_CAN
 	uv_can_set_baudrate(uv_can_get_dev(), 250000);
 	this->confwindow.can_listbutton_content[0] = "NONE";
 	for (uint32_t i = 0; i < uv_can_get_device_count(); i++) {
@@ -168,6 +183,7 @@ void ui_confwindow_exec(void) {
 	uv_uidigitedit_set_mode(&this->confwindow.baud_digiedit, UIDIGITEDIT_MODE_INCDEC);
 	uv_uidigitedit_set_inc_step(&this->confwindow.baud_digiedit, 50);
 	uv_uidisplay_add(&this->confwindow.display, &this->confwindow.baud_digiedit, &bb);
+#endif
 
 	bb = uv_uistrlayout_find(&layout, "close");
 	uv_uibutton_init(&this->confwindow.ok_button, "OK", &uistyle);
@@ -193,21 +209,20 @@ static uv_uiobject_ret_e confwindow_step(void *me, uint16_t step_ms) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
 
+#if CONFIG_CAN
 	if (uv_uilistbutton_clicked(&this->confwindow.can_listbutton)) {
 		uv_can_set_dev(this->confwindow.can_listbutton_content[
 		   uv_uilistbutton_get_current_index(&this->confwindow.can_listbutton)]);
 		uv_can_set_baudrate(uv_can_get_dev(),
 				uv_uidigitedit_get_value(&this->confwindow.baud_digiedit) * 1000);
 	}
-	else if (uv_uidigitedit_value_changed(&this->confwindow.baud_digiedit)) {
+	if (uv_uidigitedit_value_changed(&this->confwindow.baud_digiedit)) {
 		uv_can_set_baudrate(uv_can_get_dev(),
 				uv_uidigitedit_get_value(&this->confwindow.baud_digiedit) * 1000);
 	}
-	else if (uv_uibutton_clicked(&this->confwindow.ok_button)) {
+#endif
+	if (uv_uibutton_clicked(&this->confwindow.ok_button)) {
 		this->confwindow.terminate = true;
-	}
-	else {
-
 	}
 
 	return ret;
@@ -232,9 +247,13 @@ uint8_t uv_ui_get_backlight(void) {
 bool uv_ui_get_touch(int16_t *x, int16_t *y) {
 	bool ret;
 
+	// Poll for and process events
+	glfwPollEvents();
+
 	ret = this->pressed;
 	*x = this->x;
 	*y = this->y;
+
 
 	return ret;
 }
@@ -247,8 +266,27 @@ char uv_ui_get_key_press(void) {
 }
 
 
+typedef struct {
+	double r;
+	double g;
+	double b;
+	double a;
+} glc_st;
+
+static glc_st c_to_glc(color_t color) {
+	glc_st ret;
+	color_st c = uv_uic(color);
+	ret.r = (double) c.r / 255;
+	ret.g = (double) c.g / 255;
+	ret.b = (double) c.b / 255;
+	ret.a = (double) c.a / 255;
+	return ret;
+}
+
 
 void uv_ui_clear(color_t col) {
+	glc_st c = c_to_glc(col);
+    glClearColor(c.r, c.g, c.b, c.a); //clear background screen to black
 }
 
 
@@ -259,7 +297,19 @@ void uv_ui_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 
 
 
+
 void uv_ui_draw_point(int16_t x, int16_t y, color_t col, uint16_t diameter) {
+
+	color_st c = uv_uic(col);
+    glColor4ub(c.r, c.g, c.b, c.a);
+    glBegin(GL_TRIANGLE_FAN);
+
+    double r = diameter / 2;
+    glVertex2i(x, y); // Center
+    for(int i = 0; i <= 360; i += 2)
+            glVertex2f(r * cosf(M_PI * i / 180.0) + (double) x,
+            		r * sinf(M_PI * i / 180.0) + (double) y);
+    glEnd();
 }
 
 
@@ -327,21 +377,67 @@ void uv_ui_touchscreen_set_transform_matrix(ui_transfmat_st *transform_matrix) {
 
 
 void uv_ui_dlswap(void) {
+	if (this->window) {
+		if (!glfwWindowShouldClose(this->window)) {
+
+			// Swap front and back buffers
+			glfwSwapBuffers(this->window);
+
+		    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		}
+		else {
+			glfwTerminate();
+			this->window = NULL;
+		}
+	}
+}
+
+;
+
+
+
+static void key_callback(GLFWwindow* window,
+		int key, int scancode, int action, int mods) {
+	if (action == GLFW_PRESS) {
+		char c = (char) key;
+		uv_ring_buffer_push(&this->key_press, &c);
+	}
+}
+
+static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
+	this->x = (int) xpos;
+	this->y = (int) ypos;
+}
+
+static void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+	this->pressed = (action == GLFW_PRESS);
+}
+
+
+static void resize_callback(GLFWwindow* window, int width, int height) {
+	this->scalex = (double) width / CONFIG_FT81X_HSIZE;
+	this->scaley  = (double) height / CONFIG_FT81X_VSIZE;
+	this->scale = MIN(this->scalex, this->scaley);
+	this->xoffset = (width - this->scale * CONFIG_FT81X_HSIZE) / 2;
+	this->yoffset = (height - this->scale * CONFIG_FT81X_VSIZE) / 2;
+
+
+    //Tell OpenGL how to convert from coordinates to pixel values
+    glViewport( 0, 0, width, height );
 }
 
 
 
-
-
-
-
 bool uv_ui_init(void) {
-
+	bool ret = true;
 	this->pressed = false;
 	this->x = 0;
 	this->y = 0;
 	this->scalex = 1.0;
 	this->scaley = 1.0;
+	this->scale = 1.0;
+	this->xoffset = 0;
+	this->yoffset = 0;
 
 	// initialize the font sizes
 	for (uint32_t i = 0; i < UI_MAX_FONT_COUNT; i++) {
@@ -352,7 +448,57 @@ bool uv_ui_init(void) {
 			sizeof(this->key_press_buffer) / sizeof(this->key_press_buffer[0]),
 			sizeof(this->key_press_buffer[0]));
 
-	return false;
+	printf("Initializing GLFW\n");
+	fflush(stdout);
+	if (!glfwInit()) {
+		ret = false;
+	}
+	else {
+	    //Makes 3D drawing work when something is in front of something else
+	    glEnable(GL_DEPTH_TEST);
+
+		printf("Creating GLFW window\n");
+
+		// 4x multisampling for anti-aliasing
+		glfwWindowHint(GLFW_SAMPLES, 8);
+		/* Create a windowed mode window and its OpenGL context */
+		this->window = glfwCreateWindow(CONFIG_FT81X_HSIZE, CONFIG_FT81X_VSIZE,
+				"Hello World", NULL, NULL);
+		if (!this->window) {
+			printf("GLFW terminated\n");
+			glfwTerminate();
+			ret = false;
+		}
+		else {
+			// Make the window's context current
+			glfwMakeContextCurrent(this->window);
+			// add key listener
+			glfwSetKeyCallback(this->window, &key_callback);
+			// add cursor position listener
+			glfwSetCursorPosCallback(this->window, &cursor_position_callback);
+			// add mouse button listener
+			glfwSetMouseButtonCallback(this->window, &mouse_button_callback);
+			glfwSetWindowSizeCallback(this->window, &resize_callback);
+			printf("GLFW running\n");
+
+			//This sets up the viewport so that the coordinates (0, 0) are at the top left of the window
+			glViewport(0, 0, CONFIG_FT81X_HSIZE, CONFIG_FT81X_VSIZE);
+			glMatrixMode(GL_PROJECTION);
+			glLoadIdentity();
+			glOrtho(0, CONFIG_FT81X_HSIZE, CONFIG_FT81X_VSIZE, 0, -10, 10);
+
+			//Back to the modelview so we can draw stuff
+			glMatrixMode(GL_MODELVIEW);
+			glLoadIdentity();
+
+			glEnable(GL_MULTISAMPLE);
+
+			//Clear the screen and depth buffer
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+	}
+
+	return ret;
 }
 
 
@@ -366,6 +512,10 @@ void uv_ui_destroy(void) {
 			m = m->next_ptr;
 			free(t);
 		}
+	}
+	if (this->window) {
+		printf("Terminating GLFW window\n");
+		glfwTerminate();
 	}
 }
 
