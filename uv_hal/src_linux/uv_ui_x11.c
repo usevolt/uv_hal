@@ -33,17 +33,17 @@
 #include "ui/uv_uifont.h"
 #include "uv_memory.h"
 #include <math.h>
-#include <X11/Xlib.h>
-#include <X11/Xatom.h>
-#include <X11/Xutil.h>
-#include <cairo.h>
-#include <cairo-xlib.h>
 #include <unistd.h>
 #include "uv_ui.h"
 #include "uv_can.h"
 
 #if CONFIG_UI && CONFIG_UI_X11
 
+#include <X11/Xlib.h>
+#include <X11/Xatom.h>
+#include <X11/Xutil.h>
+#include <cairo.h>
+#include <cairo-xlib.h>
 
 
 
