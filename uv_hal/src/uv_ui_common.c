@@ -28,6 +28,7 @@
 
 
 #include "uv_ui_common.h"
+#include <string.h>
 
 #if CONFIG_UI
 

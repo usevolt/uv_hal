@@ -161,14 +161,8 @@ void uv_bounding_box_init(uv_bounding_box_st *bb,
 /// dimensions doesn't change, this is enough to update the screen.
 ///
 /// @param this: Pointer to uv_uiobject_st casted to void*.
-#if CONFIG_LCD
-static inline void uv_ui_refresh(void *me) {
-	this->refresh = true;
-}
 
-#elif CONFIG_FT81X
 void uv_ui_refresh(void *me);
-#endif
 
 
 /// @brief: Refreshes the object's parent. With this it is guaranteed that

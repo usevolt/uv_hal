@@ -37,8 +37,12 @@
 #include "uv_ui.h"
 #include "uv_can.h"
 #include <GLFW/glfw3.h>
+#include <ft2build.h>
+#include FT_FREETYPE_H
 
 #if CONFIG_UI && CONFIG_UI_OPENGL
+
+#define DEFAULT_FONT	"LiberationSans-Regular.ttf"
 
 
 static void key_callback(GLFWwindow* window,
@@ -49,9 +53,11 @@ static void mouse_button_callback(GLFWwindow* window,
 		int button, int action, int mods);
 static void resize_callback(GLFWwindow* window,
 		int width, int height);
+static void load_fonts(void);
+static void free_fonts(void);
 
 
-ui_font_st ui_fonts[UI_MAX_FONT_COUNT];
+ui_font_st ui_fonts[UI_MAX_FONT_COUNT] = {};
 static const uint8_t font_sizes[UI_MAX_FONT_COUNT] = {
 		13,
 		16,
@@ -84,15 +90,29 @@ typedef struct {
 } uimedia_ll_st;
 
 
+typedef struct {
+    uint32_t TextureID;  // ID handle of the glyph texture
+    uint16_t size_x;
+    uint16_t size_y;
+    uint16_t bearing_x;
+    uint16_t bearing_y;
+    uint16_t advance;
+} ft_char_st;
+
+
 
 /// @brief: The main uv_ui structure that holds the state of the ui drawn
 typedef struct {
+	bool refresh;
+	bool resized;
 	bool pressed;
 	int32_t x;
 	int32_t y;
 	double scalex;
 	double scaley;
 	double scale;
+	int32_t width;
+	int32_t height;
 	int32_t xoffset;
 	int32_t yoffset;
 	uimedia_ll_st *uimediall;
@@ -155,9 +175,9 @@ void uv_ui_confwindow_exec(void) {
 	uv_bounding_box_st bb;
 
 	bb = uv_uistrlayout_find(&layout, "can");
-	uint32_t index = 0;
 	// load the list of CAN devices
 #if CONFIG_CAN
+	uint32_t index = 0;
 	uv_can_set_baudrate(uv_can_get_dev(), 250000);
 	this->confwindow.can_listbutton_content[0] = "NONE";
 	for (uint32_t i = 0; i < uv_can_get_device_count(); i++) {
@@ -229,6 +249,14 @@ static uv_uiobject_ret_e confwindow_step(void *me, uint16_t step_ms) {
 }
 
 
+
+bool uv_ui_get_refresh_request(void) {
+	if (glfwWindowShouldClose(this->window)) {
+		this->refresh = true;
+	}
+
+	return this->refresh;
+}
 
 
 void uv_ui_set_backlight(uint8_t percent) {
@@ -306,7 +334,8 @@ void uv_ui_draw_point(int16_t x, int16_t y, color_t col, uint16_t diameter) {
 
     double r = diameter / 2;
     glVertex2i(x, y); // Center
-    for(int i = 0; i <= 360; i += 2)
+	int resolution = MAX(this->height / 50 * diameter / 100, 4);
+    for(int i = 0; i <= 360; i += MAX(360 / resolution, 1))
             glVertex2f(r * cosf(M_PI * i / 180.0) + (double) x,
             		r * sinf(M_PI * i / 180.0) + (double) y);
     glEnd();
@@ -314,9 +343,45 @@ void uv_ui_draw_point(int16_t x, int16_t y, color_t col, uint16_t diameter) {
 
 
 
+
+
+
 void uv_ui_draw_rrect(const int16_t x, const int16_t y,
 		const uint16_t w, const uint16_t h,
 		const uint16_t radius, const color_t col) {
+	color_st c = uv_uic(col);
+	glColor4ub(c.r, c.g, c.b, c.a);
+
+	if (radius == 0) {
+		glBegin(GL_TRIANGLE_FAN);
+		glVertex2i(x, y);
+		glVertex2i(x + w, y);
+		glVertex2i(x + w, y + h);
+		glVertex2i(x, y + h);
+		glEnd();
+	}
+	else {
+		glBegin(GL_TRIANGLE_FAN);
+		glVertex2i(x + w, y + radius);
+		int resolution = MAX(this->height / 50, 3);
+		for (int i = 0; i < 90; i += MAX(90 / resolution, 1)) {
+			glVertex2f((float) x + w - radius + radius * cosf(M_PI * i / 180),
+					(float) y + radius - radius * sinf(M_PI * i / 180));
+		}
+		for (int i = 0; i < 90; i += MAX(90 / resolution, 1)) {
+			glVertex2f((float) x + radius + radius * cosf(M_PI / 2 + M_PI * i / 180),
+					(float) y + radius - radius * sinf(M_PI / 2 + M_PI * i / 180));
+		}
+		for (int i = 0; i < 90; i += MAX(90 / resolution, 1)) {
+			glVertex2f((float) x + radius + radius * cosf(M_PI + M_PI * i / 180),
+					(float) y + h - radius - radius * sinf(M_PI + M_PI * i / 180));
+		}
+		for (int i = 0; i < 90; i += MAX(90 / resolution, 1)) {
+			glVertex2f((float) x + w - radius + radius * cosf(M_PI / 2 * 3 + M_PI * i / 180),
+					(float) y + h - radius - radius * sinf(M_PI / 2  *3 + M_PI * i / 180));
+		}
+		glEnd();
+	}
 }
 
 
@@ -324,6 +389,13 @@ void uv_ui_draw_rrect(const int16_t x, const int16_t y,
 void uv_ui_draw_line(const int16_t start_x, const int16_t start_y,
 		const int16_t end_x, const int16_t end_y,
 		const uint16_t width, const color_t color) {
+	color_st c = uv_uic(color);
+	glColor4ub(c.r, c.g, c.b, c.a);
+	glLineWidth(width);
+	glBegin(GL_LINE);
+	glVertex2i(start_x, start_y);
+	glVertex2i(end_x, end_y);
+	glEnd();
 }
 
 
@@ -331,6 +403,54 @@ void uv_ui_draw_line(const int16_t start_x, const int16_t start_y,
 void uv_ui_draw_linestrip(const uv_ui_linestrip_point_st *points,
 		const uint16_t point_count, const uint16_t line_width, const color_t color,
 		const uv_ui_strip_type_e type) {
+	if (point_count) {
+		color_st c = uv_uic(color);
+		glColor4ub(c.r, c.g, c.b, c.a);
+		glLineWidth(line_width);
+
+		if (type ==  UI_STRIP_TYPE_ABOVE) {
+			glBegin(GL_POLYGON);
+			glVertex2i(points[0].x, 0);
+		}
+		else if (type == UI_STRIP_TYPE_BELOW) {
+			glBegin(GL_POLYGON);
+			glVertex2i(points[0].x, CONFIG_FT81X_VSIZE);
+		}
+		else if (type == UI_STRIP_TYPE_LEFT) {
+			glBegin(GL_POLYGON);
+			glVertex2i(0, points[0].y);
+		}
+		else if (type == UI_STRIP_TYPE_RIGHT) {
+			glBegin(GL_POLYGON);
+			glVertex2i(CONFIG_FT81X_HSIZE, points[0].y);
+		}
+		else {
+			glBegin(GL_LINE_LOOP);
+			glVertex2i(points[0].x, points[0].y);
+		}
+
+		for (uint16_t i = 0; i < point_count; i++) {
+			glVertex2i(points[i].x, points[i].y);
+		}
+
+		if (type ==  UI_STRIP_TYPE_ABOVE) {
+			glVertex2i(points[point_count - 1].x, 0);
+		}
+		else if (type == UI_STRIP_TYPE_BELOW) {
+			glVertex2i(points[point_count - 1].x, CONFIG_FT81X_VSIZE);
+		}
+		else if (type == UI_STRIP_TYPE_LEFT) {
+			glVertex2i(0, points[point_count - 1].y);
+		}
+		else if (type == UI_STRIP_TYPE_RIGHT) {
+			glVertex2i(CONFIG_FT81X_HSIZE, points[point_count - 1].y);
+		}
+		else {
+
+		}
+
+		glEnd();
+	}
 }
 
 
@@ -350,6 +470,29 @@ void uv_ui_draw_string(char *str, ui_font_st *font,
 
 
 void uv_ui_set_mask(int16_t x, int16_t y, int16_t width, int16_t height) {
+	// stencil test is used for masking objects
+	glEnable(GL_STENCIL_TEST);
+	glClearStencil(0);
+	glStencilMask(0xFF);
+	// clear the old stencil to zero
+	glClear(GL_STENCIL_BUFFER_BIT);
+
+	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	glStencilFunc(GL_ALWAYS, 1, 0xFF);
+	glStencilMask(0xFF);
+	glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
+
+	glBegin(GL_POLYGON);
+	glVertex2i(x, y);
+	glVertex2i(x + width, y);
+	glVertex2i(x + width, y + height);
+	glVertex2i(x, y + height);
+	glEnd();
+
+	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	glStencilFunc(GL_EQUAL, 1, 0xFF);
+
 }
 
 
@@ -383,11 +526,23 @@ void uv_ui_dlswap(void) {
 			// Swap front and back buffers
 			glfwSwapBuffers(this->window);
 
-		    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glClearStencil(1);
+		    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+		    this->refresh = false;
+
+		    printf("dlswap\n");
+		    if (this->resized) {
+		    	load_fonts();
+		    	this->refresh = true;
+		    	this->resized = false;
+		    }
 		}
 		else {
+			printf("Terminating GLFW\n");
 			glfwTerminate();
 			this->window = NULL;
+			uv_ui_destroy();
+			exit(0);
 		}
 	}
 }
@@ -400,13 +555,15 @@ static void key_callback(GLFWwindow* window,
 		int key, int scancode, int action, int mods) {
 	if (action == GLFW_PRESS) {
 		char c = (char) key;
+		taskENTER_CRITICAL();
 		uv_ring_buffer_push(&this->key_press, &c);
+		taskEXIT_CRITICAL();
 	}
 }
 
 static void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
-	this->x = (int) xpos;
-	this->y = (int) ypos;
+	this->x = (int) xpos / this->scalex;
+	this->y = (int) ypos / this->scaley;
 }
 
 static void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
@@ -415,21 +572,115 @@ static void mouse_button_callback(GLFWwindow* window, int button, int action, in
 
 
 static void resize_callback(GLFWwindow* window, int width, int height) {
+    taskENTER_CRITICAL();
 	this->scalex = (double) width / CONFIG_FT81X_HSIZE;
 	this->scaley  = (double) height / CONFIG_FT81X_VSIZE;
 	this->scale = MIN(this->scalex, this->scaley);
 	this->xoffset = (width - this->scale * CONFIG_FT81X_HSIZE) / 2;
 	this->yoffset = (height - this->scale * CONFIG_FT81X_VSIZE) / 2;
-
+	this->width = width;
+	this->height = height;
 
     //Tell OpenGL how to convert from coordinates to pixel values
     glViewport( 0, 0, width, height );
+
+    this->refresh = true;
+    this->resized = true;
+    taskEXIT_CRITICAL();
+
 }
 
 
 
+static void load_fonts(void) {
+	// free the previously loaded fonts
+	free_fonts();
+	// install the font
+	FT_Library ft;
+	if (FT_Init_FreeType(&ft)) {
+		printf("Could not init Freetype\n");
+	}
+	else {
+		FT_Face face;
+		if (FT_New_Face(ft, "fonts/LiberationSans-Regular.ttf", 0, &face)) {
+			printf("Could not load font '%s'\n", DEFAULT_FONT);
+		}
+		else {
+			printf("Loaded font '%s'\n", DEFAULT_FONT);
+
+			// fetch the character dimensions from font sizes
+			glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // disable byte-alignment restriction
+			for (uint32_t i = 0; i < UI_MAX_FONT_COUNT; i++) {
+				int32_t font_size = font_sizes[i] * this->scale;
+				printf("Loading font size %i... ", font_size);
+				fflush(stdout);
+				FT_Set_Pixel_Sizes(face, 0, font_size);
+				ui_font_st *font = &ui_fonts[i];
+
+				font->char_height = font_size;
+
+				for (unsigned char c = 0; c < 128; c++) {
+					// load character glyph
+					if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
+						printf("Failed to load glyph '%c' from font '%s'\n", c, DEFAULT_FONT);
+						fflush(stdout);
+						memset(&font->ft_char[c], 0, sizeof(font->ft_char[c]));
+					}
+					else {
+						// generate texture
+						unsigned int texture;
+						glGenTextures(1, &texture);
+						glBindTexture(GL_TEXTURE_2D, texture);
+						glTexImage2D(
+							GL_TEXTURE_2D,
+							0,
+							GL_RED,
+							face->glyph->bitmap.width,
+							face->glyph->bitmap.rows,
+							0,
+							GL_RED,
+							GL_UNSIGNED_BYTE,
+							face->glyph->bitmap.buffer
+						);
+						// set texture options
+						glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+						glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+						glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+						glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+						// now store character for later use
+						font->ft_char[c].TextureID = texture;
+						font->ft_char[c].advance = face->glyph->advance.x;
+						font->ft_char[c].bearing_x = face->glyph->bitmap_left;
+						font->ft_char[c].bearing_y = face->glyph->bitmap_top;
+						font->ft_char[c].size_x = face->glyph->bitmap.width;
+						font->ft_char[c].size_y = face->glyph->bitmap.rows;
+					}
+				}
+				printf("done\n");
+				fflush(stdout);
+			}
+			FT_Done_Face(face);
+		}
+		FT_Done_FreeType(ft);
+	}
+}
+
+static void free_fonts(void) {
+	for (uint32_t i = 0; i < UI_MAX_FONT_COUNT; i++) {
+		if (ui_fonts[i].char_height != 0) {
+			for (unsigned char c = 0; c < 128; c++) {
+				glDeleteTextures(1, &ui_fonts[i].ft_char[c].TextureID);
+			}
+		}
+		ui_fonts[i].char_height = 0;
+	}
+}
+
+
 bool uv_ui_init(void) {
 	bool ret = true;
+	this->refresh = false;
+	this->resized = false;
 	this->pressed = false;
 	this->x = 0;
 	this->y = 0;
@@ -438,6 +689,8 @@ bool uv_ui_init(void) {
 	this->scale = 1.0;
 	this->xoffset = 0;
 	this->yoffset = 0;
+	this->width = CONFIG_FT81X_HSIZE;
+	this->height = CONFIG_FT81X_VSIZE;
 
 	// initialize the font sizes
 	for (uint32_t i = 0; i < UI_MAX_FONT_COUNT; i++) {
@@ -495,7 +748,9 @@ bool uv_ui_init(void) {
 
 			//Clear the screen and depth buffer
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-}
+
+			load_fonts();
+		}
 	}
 
 	return ret;
@@ -504,6 +759,8 @@ bool uv_ui_init(void) {
 
 
 void uv_ui_destroy(void) {
+	free_fonts();
+
 	if (this->uimediall != NULL) {
 		uimedia_ll_st *m = this->uimediall;
 		while (m != NULL) {

@@ -50,6 +50,7 @@
 typedef struct {
 	uint16_t char_height;
 
+#if CONFIG_FT81X
 	// For FT81X:
 	//
 	// defines the font index. Index 26-34 are anti-aliased
@@ -57,6 +58,18 @@ typedef struct {
 	uint8_t index;
 	// handle defines the bitmap handle to be used for this font
 	uint8_t handle;
+#elif CONFIG_UI_OPENGL
+	struct {
+	    uint32_t TextureID;  // ID handle of the glyph texture
+	    uint16_t size_x;
+	    uint16_t size_y;
+	    uint16_t bearing_x;
+	    uint16_t bearing_y;
+	    uint16_t advance;
+	} ft_char[128];
+
+
+#endif
 } ui_font_st;
 typedef ui_font_st uv_font_st;
 
@@ -238,6 +251,11 @@ uint8_t uv_ui_get_backlight(void);
 /// @brief: Clears the whole screen to color **c**
 void uv_ui_clear(color_t c);
 
+
+
+/// @brief: Returns true if the low level UI requests for the GUI display to be refreshed.
+/// This can happen for example if the window was resized
+bool uv_ui_get_refresh_request(void);
 
 
 

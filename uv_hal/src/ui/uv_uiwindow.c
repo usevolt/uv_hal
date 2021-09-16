@@ -219,19 +219,21 @@ void uv_uiwindow_addxy(void *me, void *object,
 
 void uv_uiwindow_remove(void *me, void *object) {
 	bool found = false;
-	for (uint16_t i = 0; i < this->objects_count; i++) {
-		// move all objects after the found object one slot higher
+	if (me) {
+		for (uint16_t i = 0; i < this->objects_count; i++) {
+			// move all objects after the found object one slot higher
+			if (found) {
+				this->objects[i - 1] = this->objects[i];
+			}
+			if (((void*) this->objects[i]) == object) {
+				found = true;
+			}
+		}
+		// lastly reduce object count by 1
 		if (found) {
-			this->objects[i - 1] = this->objects[i];
+			this->objects_count--;
+			uv_ui_refresh(this);
 		}
-		if (((void*) this->objects[i]) == object) {
-			found = true;
-		}
-	}
-	// lastly reduce object count by 1
-	if (found) {
-		this->objects_count--;
-		uv_ui_refresh(this);
 	}
 }
 

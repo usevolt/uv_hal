@@ -161,8 +161,6 @@ void uv_uiobject_set_visible(void *me, bool value) {
 
 
 
-#if CONFIG_FT81X
-
 void uv_ui_refresh(void *me) {
 	// refreshing sets only the furthest parent's refresh flag
 	// e.g. uidisplay is refreshed first. Each uiwindow is responsible
@@ -173,8 +171,6 @@ void uv_ui_refresh(void *me) {
 	}
 	t->refresh = true;
 }
-
-#endif
 
 
 
