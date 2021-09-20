@@ -34,6 +34,7 @@
 #include "uv_memory.h"
 #include "uv_ui.h"
 #include "uv_can.h"
+#include "lodepng.h"
 #include <math.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -93,11 +94,25 @@ static const uv_uistyle_st uistyle  = {
 /// *uv_uimedia_load* functions
 typedef struct {
 	char filename[128];
+	unsigned int texture;
+	GLuint vao;
+	GLuint vbo;
+	GLuint ebo;
+	uint8_t *data;
+	uint32_t data_len;
+	uint32_t width;
+	uint32_t height;
 	// pointer to the next uimedia_ll_st
 	void *next_ptr;
-	void *surface;
 } uimedia_ll_st;
 
+/// @brief: Creates new uimedia_ll_st module and adds it into the linked list
+uimedia_ll_st *uimedia_ll_st_create(char *filename, uint8_t* data,
+		uint32_t width, uint32_t height, uint32_t data_len);
+
+/// @brief: Finds the already existing uimedia_ll struct and returns it.
+/// Returns NULL if not found.
+uimedia_ll_st *uimedia_ll_st_find(char *filename);
 
 typedef struct {
     uint32_t TextureID;  // ID handle of the glyph texture
@@ -133,6 +148,8 @@ typedef struct {
 	unsigned int text_shader_program;
 	unsigned int text_vbo;
 
+	unsigned int bitmap_shader_program;
+
 	// configuration window that is shown when setting the settings
 	struct {
 		bool terminate;
@@ -165,6 +182,78 @@ static ui_st _ui = {
 
 
 static uv_uiobject_ret_e confwindow_step(void *, uint16_t);
+
+
+
+uimedia_ll_st *uimedia_ll_st_create(char *filename, uint8_t* data,
+		uint32_t width, uint32_t height, uint32_t data_len) {
+	uimedia_ll_st *ret = this->uimediall;
+	uimedia_ll_st *parent = NULL;
+	while (ret != NULL) {
+		parent = ret;
+		ret = ret->next_ptr;
+	}
+	ret = malloc(sizeof(uimedia_ll_st));
+	if (parent != NULL) {
+		parent->next_ptr = ret;
+	}
+	else {
+		this->uimediall = ret;
+	}
+
+	strcpy(ret->filename, filename);
+	ret->data = data;
+	ret->data_len = data_len;
+	ret->width = width;
+	ret->height = height;
+	ret->next_ptr = NULL;
+
+	// generate texture
+	unsigned int texture;
+	glActiveTexture(GL_TEXTURE0);
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	// set texture options
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	// upload bitmap
+	glTexImage2D(
+			GL_TEXTURE_2D,
+			0,
+			GL_RGBA,
+			ret->width,
+			ret->height,
+			0,
+			GL_RGBA,
+			GL_UNSIGNED_BYTE,
+			ret->data);
+	ret->texture = texture;
+
+	// the image data can be freed since the texture has been created
+	free(ret->data);
+
+	glGenVertexArrays(1, &ret->vao);
+	glGenBuffers(1, &ret->vbo);
+	glGenBuffers(1, &ret->ebo);
+
+	return ret;
+}
+
+uimedia_ll_st *uimedia_ll_st_find(char *filename) {
+	uimedia_ll_st *ret = this->uimediall;
+
+	while (ret != NULL) {
+		if (strcmp(ret->filename, filename) == 0) {
+			break;
+		}
+		else {
+			ret = ret->next_ptr;
+		}
+	}
+	return ret;
+}
 
 
 
@@ -332,6 +421,59 @@ void uv_ui_clear(color_t col) {
 
 void uv_ui_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 		int16_t w, int16_t h, uint32_t wrap, color_t c) {
+	uimedia_ll_st *media = uimedia_ll_st_find(bitmap->filename);
+
+	if (media == NULL) {
+		printf("ERROR: load bitmap with uv_ui_media_loadbitmapexmem before drawing it.\n");
+	}
+	else {
+		glUseProgram(this->bitmap_shader_program);
+		glBindTexture(GL_TEXTURE_2D, media->texture);
+
+		float sx = 2.0f / (this->width / this->scalex);
+		float sy = 2.0f / (this->height / this->scaley);
+		float x2 = x * sx - 1.0f;
+		float y2 = -y * sy + 1.0f - bitmap->height * sy;
+		float w2 = w * sx;
+		float h2 = h * sy;
+		// configure VAO/VBO
+		float vertices[] = {
+			// positions                // colors           // texture coords
+			x2 + w2,  y2 + h2, 0.0f,    1.0f, 0.0f, 0.0f,   1.0f, 1.0f, // top right
+			x2 + w2, y2, 0.0f,          0.0f, 1.0f, 0.0f,   1.0f, 0.0f, // bottom right
+			x2, y2, 0.0f,               0.0f, 0.0f, 1.0f,   0.0f, 0.0f, // bottom left
+			x2,  y2 + h2, 0.0f,         1.0f, 1.0f, 0.0f,   0.0f, 1.0f  // top left
+		};
+		unsigned int indices[] = {
+			0, 1, 3, // first triangle
+			1, 2, 3  // second triangle
+		};
+
+		glBindVertexArray(media->vao);
+
+		glBindBuffer(GL_ARRAY_BUFFER, media->vbo);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, media->ebo);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+		// position attribute
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+		glEnableVertexAttribArray(0);
+		// color attribute
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+		glEnableVertexAttribArray(1);
+		// texture coord attribute
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+		glEnableVertexAttribArray(2);
+
+		glBindVertexArray(media->vao);
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+
+		glUseProgram(0);
+	}
+
 }
 
 
@@ -644,16 +786,33 @@ int16_t uv_ui_get_string_width(char *str, ui_font_st *font) {
 		}
 	}
 
-	return ret / this->scalex;
+	return (ret / this->scalex);
 }
 
 
 uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
 		uint32_t dest_addr, uv_w25q128_st *exmem, char *filename) {
-	uint32_t ret = 0;
+	uimedia_ll_st *media = uimedia_ll_st_find(filename);
+	if (media == NULL) {
+		// load the pixel data
+		unsigned error;
+		unsigned char* image = NULL;
+		unsigned width, height;
+		printf("Loading bitmap '%s'\n", filename);
+		error = lodepng_decode32_file(&image, &width, &height, filename);
+		if (error) {
+			printf("Loading bitmap '%s' failed\n", filename);
+		}
+		media = uimedia_ll_st_create(filename, image,
+				width, height, width * height * 4);
+	}
+	bitmap->filename = media->filename;
+	bitmap->width = media->width;
+	bitmap->height = media->height;
+	bitmap->type = UV_UIMEDIA_IMAGE;
+	bitmap->size = media->data_len;
 
-
-	return ret;
+	return media->data_len;
 }
 
 
@@ -869,6 +1028,30 @@ static GLuint load_shader(GLenum shader_type, const char* source) {
 	return shader;
 }
 
+
+static unsigned int load_shader_program(const char *vertex_shader, const char *fragment_shader) {
+	unsigned int ret = 0;
+	GLuint vertex, fragment;
+	vertex = load_shader(GL_VERTEX_SHADER, vertex_shader);
+	fragment = load_shader(GL_FRAGMENT_SHADER, fragment_shader);
+	if (vertex != 0 && fragment != 0) {
+		ret = glCreateProgram();
+		glAttachShader(ret, vertex);
+		glAttachShader(ret, fragment);
+		glLinkProgram(ret);
+		GLint link_ok = GL_FALSE;
+		glGetProgramiv(ret, GL_LINK_STATUS, &link_ok);
+		if (!link_ok) {
+			printf("ERROR linking shader program\n");
+			glDeleteProgram(ret);
+		}
+	}
+	else {
+		printf("ERROR loading vertez & fragment shaders\n");
+	}
+	return ret;
+}
+
 static GLint get_uniform(GLuint shader_program, const char *name) {
 	GLint uniform = glGetUniformLocation(shader_program, name);
 	if (uniform == -1) {
@@ -967,31 +1150,13 @@ bool uv_ui_init(void) {
 
 				load_fonts();
 
-				GLuint vertex_shader, gradient_shader;
-				vertex_shader = load_shader(GL_VERTEX_SHADER, "shaders/text_shader.vs");
-				gradient_shader = load_shader(GL_FRAGMENT_SHADER, "shaders/text_shader.ts");
-				if (vertex_shader != 0 && gradient_shader != 0) {
-					this->text_shader_program = glCreateProgram();
-					glAttachShader(this->text_shader_program, vertex_shader);
-					glAttachShader(this->text_shader_program, gradient_shader);
-					glLinkProgram(this->text_shader_program);
-					GLint link_ok = GL_FALSE;
-					glGetProgramiv(this->text_shader_program, GL_LINK_STATUS, &link_ok);
-					if (!link_ok) {
-						printf("ERROR linking shader program\n");
-						glDeleteProgram(this->text_shader_program);
-					}
+				this->text_shader_program = load_shader_program(
+						"shaders/text_shader.vs", "shaders/text_shader.ts");
+				// Create the vertex buffer object
+				glGenBuffers(1, &this->text_vbo);
 
-					// Create the vertex buffer object
-					glGenBuffers(1, &this->text_vbo);
-				}
-				else {
-					printf("ERROR loading vertez & fragment shaders\n");
-				}
-
-
-
-
+				this->bitmap_shader_program = load_shader_program(
+						"shaders/bitmap_shader.vs", "shaders/bitmap_shader.ts");
 
 				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			}
