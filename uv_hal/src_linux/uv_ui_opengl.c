@@ -32,15 +32,23 @@
 #include "uv_rtos.h"
 #include "ui/uv_uifont.h"
 #include "uv_memory.h"
-#include <math.h>
-#include <unistd.h>
 #include "uv_ui.h"
 #include "uv_can.h"
+#include <math.h>
+#include <stdio.h>
+#include <unistd.h>
+#include "GL/glew.h"
 #include <GLFW/glfw3.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
 #if CONFIG_UI && CONFIG_UI_OPENGL
+
+
+#if !defined(CONFIG_UI_NAME)
+#warning "CONFIG_UI_NAME not defined. The name of the window defaults to 'Window'"
+#define CONFIG_UI_NAME		"Window"
+#endif
 
 #define DEFAULT_FONT	"LiberationSans-Regular.ttf"
 
@@ -121,6 +129,9 @@ typedef struct {
 	uint8_t brightness;
 
 	GLFWwindow* window;
+	unsigned int text_shader_program;
+	unsigned int text_vao;
+	unsigned int text_vbo;
 
 	// configuration window that is shown when setting the settings
 	struct {
@@ -464,7 +475,52 @@ void uv_ui_touchscreen_calibrate(ui_transfmat_st *transform_matrix) {
 
 void uv_ui_draw_string(char *str, ui_font_st *font,
 		int16_t x, int16_t y, ui_align_e align, color_t color) {
+	color_st c = uv_uic(color);
 
+	// activate corresponding render state
+	glUseProgram(this->text_shader_program);
+
+	glUniform3f(glGetUniformLocation(this->text_shader_program, "textColor"),
+			c.r / 255.0f, c.g / 255.0f, c.b / 255.0f);
+	glActiveTexture(GL_TEXTURE0);
+	glBindVertexArray(this->text_vao);
+
+	// iterate through all characters
+	printf("Drawing text '%s'\n", str);
+	for (uint32_t i = 0; i < strlen(str); i++) {
+		unsigned char c = str[i];
+
+
+		float xpos = x + font->ft_char[c].bearing_x * this->scale;
+		float ypos = y - (font->ft_char[c].size_y - font->ft_char[c].bearing_y) * this->scale;
+
+		float w = font->ft_char[c].size_x * this->scale;
+		float h = font->ft_char[c].size_y * this->scale;
+		// update VBO for each character
+		float vertices[6][4] = {
+			{ xpos,     ypos + h,   0.0f, 0.0f },
+			{ xpos,     ypos,       0.0f, 1.0f },
+			{ xpos + w, ypos,       1.0f, 1.0f },
+
+			{ xpos,     ypos + h,   0.0f, 0.0f },
+			{ xpos + w, ypos,       1.0f, 1.0f },
+			{ xpos + w, ypos + h,   1.0f, 0.0f }
+		};
+		// render glyph texture over quad
+		glBindTexture(GL_TEXTURE_2D, font->ft_char[c].TextureID);
+		// update content of VBO memory
+		glBindBuffer(GL_ARRAY_BUFFER, this->text_vbo);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		// render quad
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+		// now advance cursors for next glyph (note that advance is number of 1/64 pixels)
+		// bitshift by 6 to get value in pixels (2^6 = 64)
+		x += ((float) font->ft_char[c].advance / 64) * this->scale;
+	}
+	glBindVertexArray(0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glUseProgram(0);
 }
 
 
@@ -530,7 +586,6 @@ void uv_ui_dlswap(void) {
 		    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 		    this->refresh = false;
 
-		    printf("dlswap\n");
 		    if (this->resized) {
 		    	load_fonts();
 		    	this->refresh = true;
@@ -677,6 +732,56 @@ static void free_fonts(void) {
 }
 
 
+static GLuint load_shader(GLenum shader_type, const char* source) {
+	// Create the shader
+	GLuint shader = 0;
+	printf("Loading shader '%s'\n", source);
+	FILE *f = fopen(source, "r");
+	if (f != NULL) {
+		fseek(f, 0, SEEK_END);
+		int32_t size = ftell(f);
+		fseek(f, 0, SEEK_SET);
+		char *s = malloc(size + 1);
+		memset(s, 0, size + 1);
+		if (fread(s, 1, size, f)) {};
+
+		shader = glCreateShader(shader_type);
+		if ( shader ) {
+			// Pass the shader source code
+			glShaderSource(shader, 1, (const GLchar* const*) &s, NULL);
+
+			// Compile the shader source code
+			glCompileShader(shader);
+
+			// Check the status of compilation
+			GLint compiled = 0;
+			glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+			if (!compiled) {
+
+				// Get the info log for compilation failure
+				GLint infoLen = 0;
+				glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLen);
+				if (infoLen) {
+					char* buf = (char*) malloc(infoLen);
+					glGetShaderInfoLog(shader, infoLen, NULL, buf);
+					printf("%s: %s\n", source, buf);
+					free(buf);
+
+					// Delete the shader program
+					glDeleteShader(shader);
+					shader = 0;
+				}
+			}
+		}
+		free(s);
+	}
+	else {
+		printf("Failed to open file '%s'\n", source);
+	}
+	return shader;
+}
+
+
 bool uv_ui_init(void) {
 	bool ret = true;
 	this->refresh = false;
@@ -691,6 +796,9 @@ bool uv_ui_init(void) {
 	this->yoffset = 0;
 	this->width = CONFIG_FT81X_HSIZE;
 	this->height = CONFIG_FT81X_VSIZE;
+	this->text_shader_program = 0;
+	this->text_vao = 0;
+	this->text_vbo = 0;
 
 	// initialize the font sizes
 	for (uint32_t i = 0; i < UI_MAX_FONT_COUNT; i++) {
@@ -710,16 +818,14 @@ bool uv_ui_init(void) {
 	    //Makes 3D drawing work when something is in front of something else
 	    glEnable(GL_DEPTH_TEST);
 
-		printf("Creating GLFW window\n");
-
+		printf("Creating GLFW window, version %s\n", glfwGetVersionString());
 		// 4x multisampling for anti-aliasing
 		glfwWindowHint(GLFW_SAMPLES, 8);
 		/* Create a windowed mode window and its OpenGL context */
 		this->window = glfwCreateWindow(CONFIG_FT81X_HSIZE, CONFIG_FT81X_VSIZE,
-				"Hello World", NULL, NULL);
+				CONFIG_UI_NAME, NULL, NULL);
 		if (!this->window) {
 			printf("GLFW terminated\n");
-			glfwTerminate();
 			ret = false;
 		}
 		else {
@@ -732,24 +838,64 @@ bool uv_ui_init(void) {
 			// add mouse button listener
 			glfwSetMouseButtonCallback(this->window, &mouse_button_callback);
 			glfwSetWindowSizeCallback(this->window, &resize_callback);
-			printf("GLFW running\n");
 
-			//This sets up the viewport so that the coordinates (0, 0) are at the top left of the window
-			glViewport(0, 0, CONFIG_FT81X_HSIZE, CONFIG_FT81X_VSIZE);
-			glMatrixMode(GL_PROJECTION);
-			glLoadIdentity();
-			glOrtho(0, CONFIG_FT81X_HSIZE, CONFIG_FT81X_VSIZE, 0, -10, 10);
+			// initialize GLEW
+			if (glewInit() == GLEW_OK) {
+				printf("OPENGL version %s\n", glGetString(GL_VERSION));
 
-			//Back to the modelview so we can draw stuff
-			glMatrixMode(GL_MODELVIEW);
-			glLoadIdentity();
+				//This sets up the viewport so that the coordinates (0, 0) are at the top left of the window
+				glViewport(0, 0, CONFIG_FT81X_HSIZE, CONFIG_FT81X_VSIZE);
+				glMatrixMode(GL_PROJECTION);
+				glLoadIdentity();
+				glOrtho(0, CONFIG_FT81X_HSIZE, CONFIG_FT81X_VSIZE, 0, -10, 10);
 
-			glEnable(GL_MULTISAMPLE);
+				//Back to the modelview so we can draw stuff
+				glMatrixMode(GL_MODELVIEW);
+				glLoadIdentity();
 
-			//Clear the screen and depth buffer
-			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+				// enable multisampling for anti-aliasing
+				glEnable(GL_MULTISAMPLE);
 
-			load_fonts();
+				// enable blend for text rendering
+//				glEnable(GL_BLEND);
+//				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+				//Clear the screen and depth buffer
+				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+				load_fonts();
+
+				GLuint vertex_shader, gradient_shader;
+				vertex_shader = load_shader(GL_VERTEX_SHADER, "shaders/text_shader.vs");
+				gradient_shader = load_shader(GL_FRAGMENT_SHADER, "shaders/text_shader.ts");
+				if (vertex_shader != 0 && gradient_shader != 0) {
+					this->text_shader_program = glCreateProgram();
+					glAttachShader(this->text_shader_program, vertex_shader);
+					glAttachShader(this->text_shader_program, gradient_shader);
+					glLinkProgram(this->text_shader_program);
+					glDeleteShader(vertex_shader);
+					glDeleteShader(gradient_shader);
+
+
+					glGenVertexArrays(1, &this->text_vao);
+					glGenBuffers(1, &this->text_vbo);
+					glBindVertexArray(this->text_vao);
+					glBindBuffer(GL_ARRAY_BUFFER, this->text_vbo);
+					glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
+					glEnableVertexAttribArray(0);
+					glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
+					glBindBuffer(GL_ARRAY_BUFFER, 0);
+					glBindVertexArray(0);
+				}
+			}
+			else {
+				printf("GLEW init failed\n");
+				ret = false;
+			}
+		}
+
+		if (!ret) {
+			glfwTerminate();
 		}
 	}
 
@@ -773,6 +919,11 @@ void uv_ui_destroy(void) {
 	if (this->window) {
 		printf("Terminating GLFW window\n");
 		glfwTerminate();
+		if (this->text_shader_program) {
+			glDeleteProgram(this->text_shader_program);
+			glDeleteBuffers(1, &this->text_vbo);
+			glDeleteVertexArrays(1, &this->text_vao);
+		}
 	}
 }
 
