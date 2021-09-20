@@ -63,7 +63,8 @@ static void resize_callback(GLFWwindow* window,
 		int width, int height);
 static void load_fonts(void);
 static void free_fonts(void);
-
+static GLint get_uniform(GLuint shader_program, const char *name);
+static GLint get_attrib(GLuint program, const char *name);
 
 ui_font_st ui_fonts[UI_MAX_FONT_COUNT] = {};
 static const uint8_t font_sizes[UI_MAX_FONT_COUNT] = {
@@ -130,7 +131,6 @@ typedef struct {
 
 	GLFWwindow* window;
 	unsigned int text_shader_program;
-	unsigned int text_vao;
 	unsigned int text_vbo;
 
 	// configuration window that is shown when setting the settings
@@ -345,7 +345,7 @@ void uv_ui_draw_point(int16_t x, int16_t y, color_t col, uint16_t diameter) {
 
     double r = diameter / 2;
     glVertex2i(x, y); // Center
-	int resolution = MAX(this->height / 50 * diameter / 100, 4);
+	int resolution = MAX(this->height / 50 * diameter / 100, 30);
     for(int i = 0; i <= 360; i += MAX(360 / resolution, 1))
             glVertex2f(r * cosf(M_PI * i / 180.0) + (double) x,
             		r * sinf(M_PI * i / 180.0) + (double) y);
@@ -472,55 +472,127 @@ void uv_ui_touchscreen_calibrate(ui_transfmat_st *transform_matrix) {
 
 
 
-
-void uv_ui_draw_string(char *str, ui_font_st *font,
-		int16_t x, int16_t y, ui_align_e align, color_t color) {
-	color_st c = uv_uic(color);
+static void render_line(char *str, ui_font_st *font,
+		int16_t x, int16_t y, color_t color) {
+	// coordinates are in application space, and since uv_ui uses fixed window size,
+	// we resize these accordingly
+	x *= this->scalex;
+	y *= this->scaley;
 
 	// activate corresponding render state
 	glUseProgram(this->text_shader_program);
 
-	glUniform3f(glGetUniformLocation(this->text_shader_program, "textColor"),
-			c.r / 255.0f, c.g / 255.0f, c.b / 255.0f);
-	glActiveTexture(GL_TEXTURE0);
-	glBindVertexArray(this->text_vao);
+	color_st col = uv_uic(color);
+	GLfloat c[4] = { col.r / 255.0f, col.g / 255.0f, col.b / 255.0f, col.a / 255.0f };
 
-	// iterate through all characters
-	printf("Drawing text '%s'\n", str);
-	for (uint32_t i = 0; i < strlen(str); i++) {
-		unsigned char c = str[i];
-
-
-		float xpos = x + font->ft_char[c].bearing_x * this->scale;
-		float ypos = y - (font->ft_char[c].size_y - font->ft_char[c].bearing_y) * this->scale;
-
-		float w = font->ft_char[c].size_x * this->scale;
-		float h = font->ft_char[c].size_y * this->scale;
-		// update VBO for each character
-		float vertices[6][4] = {
-			{ xpos,     ypos + h,   0.0f, 0.0f },
-			{ xpos,     ypos,       0.0f, 1.0f },
-			{ xpos + w, ypos,       1.0f, 1.0f },
-
-			{ xpos,     ypos + h,   0.0f, 0.0f },
-			{ xpos + w, ypos,       1.0f, 1.0f },
-			{ xpos + w, ypos + h,   1.0f, 0.0f }
-		};
-		// render glyph texture over quad
-		glBindTexture(GL_TEXTURE_2D, font->ft_char[c].TextureID);
-		// update content of VBO memory
-		glBindBuffer(GL_ARRAY_BUFFER, this->text_vbo);
-		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		// render quad
-		glDrawArrays(GL_TRIANGLES, 0, 6);
-		// now advance cursors for next glyph (note that advance is number of 1/64 pixels)
-		// bitshift by 6 to get value in pixels (2^6 = 64)
-		x += ((float) font->ft_char[c].advance / 64) * this->scale;
+	GLint uniform_color;
+	GLint uniform_tex;
+	GLint attribute_coord;
+	uniform_tex = get_uniform(this->text_shader_program, "tex");
+	uniform_color = get_uniform(this->text_shader_program, "color");
+	attribute_coord = get_attrib(this->text_shader_program, "coord");
+	if (uniform_tex == -1 ||
+			uniform_color == -1 ||
+			attribute_coord == -1) {
+		printf("ERROR loading OPENGL text shader program\n");
 	}
-	glBindVertexArray(0);
-	glBindTexture(GL_TEXTURE_2D, 0);
+
+	glUniform4fv(uniform_color, 1, c);
+
+	glActiveTexture(GL_TEXTURE0);
+	glUniform1i(uniform_tex, 0);
+
+	/* We require 1 byte alignment when uploading texture data */
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+
+	/* Set up the VBO for our vertex data */
+	glEnableVertexAttribArray(attribute_coord);
+	glBindBuffer(GL_ARRAY_BUFFER, this->text_vbo);
+	glVertexAttribPointer(attribute_coord, 4, GL_FLOAT, GL_FALSE, 0, 0);
+
+	/* Loop through all characters */
+	for (char *p = str; *p; p++) {
+		glBindTexture(GL_TEXTURE_2D, font->ft_char[(unsigned char) *p].TextureID);
+
+		float sx = 2.0f / this->width;
+		float sy = 2.0f / this->height;
+
+		/* Calculate the vertex and texture coordinates */
+		float x2 = (x + font->ft_char[(unsigned char) *p].bearing_x) * sx - 1.0f;
+		float y2 = (y - font->ft_char[(unsigned char) *p].bearing_y) * sy - 1.0f +
+				(font->ft_char['H'].size_y * sy);
+		float w = (font->ft_char[(unsigned char) *p].size_x) * sx;
+		float h = (font->ft_char[(unsigned char) *p].size_y) * sy;
+
+		struct point {
+			GLfloat x;
+			GLfloat y;
+			GLfloat s;
+			GLfloat t;
+		} box[4] = {
+				{x2, -y2, 0, 0},
+				{x2 + w, -y2, 1, 0},
+				{x2, -y2 - h, 0, 1},
+				{x2 + w, -y2 - h, 1, 1},
+		};
+
+
+		/* Draw the character on the screen */
+		glBufferData(GL_ARRAY_BUFFER, sizeof box, box, GL_DYNAMIC_DRAW);
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+		/* Advance the cursor to the start of the next character */
+		x += (font->ft_char[(unsigned char) *p].advance / 64);
+	}
+
+	glDisableVertexAttribArray(attribute_coord);
+
 	glUseProgram(0);
+}
+
+void uv_ui_draw_string(char *str, ui_font_st *font,
+		int16_t x, int16_t y, ui_align_e align, color_t color) {
+
+	char *s = malloc(strlen(str) + 2);
+	strcpy(s, str);
+	char *last_s = s;
+
+	// calculate the number of lines
+	uint16_t line_count = 0;
+	for (uint32_t i = 0; i < strlen(str) + 1; i++) {
+		if (str[i] == '\n' || str[i] == '\0') {
+			line_count++;
+		}
+	}
+	if (align & VALIGN_CENTER) {
+		// reduce the y by the number of line counts
+		y -= (line_count * font->char_height / 2) / this->scaley;
+	}
+
+	for (uint32_t i = 0; i < strlen(str) + 1; i++) {
+		if (s[i] == '\r' || s[i] == '\n' || s[i] == '\0') {
+			s[i] = '\0';
+			int16_t lx = x, ly = y;
+			int32_t str_width = uv_ui_get_string_width(last_s, font);
+
+			// draw one line of text at the time
+			if (align & HALIGN_CENTER) {
+				lx -= str_width / 2;
+			}
+			else if (align & HALIGN_RIGHT) {
+				lx -= str_width;
+			}
+			else {
+
+			}
+			if (strlen(last_s)) {
+				render_line(last_s, font, lx, ly, color);
+				y += font->char_height;
+			}
+			last_s = &s[i + 1];
+		}
+	}
+	free(s);
 }
 
 
@@ -556,8 +628,23 @@ void uv_ui_set_mask(int16_t x, int16_t y, int16_t width, int16_t height) {
 
 int16_t uv_ui_get_string_width(char *str, ui_font_st *font) {
 	int16_t ret = 0;
+	int line_width = 0;
+	for (int i = 0; i < strlen(str); i++) {
+		if (str[i] == '\n' ||
+				str[i] == '\r') {
+			if (line_width > ret) {
+				line_width = 0;
+			}
+		}
+		else {
+			line_width += font->ft_char[(unsigned char) str[i]].advance / 64;
+			if (line_width > ret) {
+				ret = line_width;
+			}
+		}
+	}
 
-	return ret;
+	return ret / this->scalex;
 }
 
 
@@ -573,6 +660,7 @@ uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
 void uv_ui_touchscreen_set_transform_matrix(ui_transfmat_st *transform_matrix) {
 
 }
+
 
 
 void uv_ui_dlswap(void) {
@@ -601,8 +689,6 @@ void uv_ui_dlswap(void) {
 		}
 	}
 }
-
-;
 
 
 
@@ -647,8 +733,8 @@ static void resize_callback(GLFWwindow* window, int width, int height) {
 
 
 
-static void load_fonts(void) {
 	// free the previously loaded fonts
+static void load_fonts(void) {
 	free_fonts();
 	// install the font
 	FT_Library ft;
@@ -684,24 +770,26 @@ static void load_fonts(void) {
 					else {
 						// generate texture
 						unsigned int texture;
+						glActiveTexture(GL_TEXTURE0);
 						glGenTextures(1, &texture);
 						glBindTexture(GL_TEXTURE_2D, texture);
-						glTexImage2D(
-							GL_TEXTURE_2D,
-							0,
-							GL_RED,
-							face->glyph->bitmap.width,
-							face->glyph->bitmap.rows,
-							0,
-							GL_RED,
-							GL_UNSIGNED_BYTE,
-							face->glyph->bitmap.buffer
-						);
 						// set texture options
 						glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 						glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 						glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 						glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+						/* Upload the "bitmap", which contains an 8-bit grayscale image,
+						 * as an alpha texture */
+						glTexImage2D(
+								GL_TEXTURE_2D,
+								0,
+								GL_ALPHA,
+								face->glyph->bitmap.width,
+								face->glyph->bitmap.rows,
+								0,
+								GL_ALPHA,
+								GL_UNSIGNED_BYTE,
+								face->glyph->bitmap.buffer);
 						// now store character for later use
 						font->ft_char[c].TextureID = texture;
 						font->ft_char[c].advance = face->glyph->advance.x;
@@ -781,6 +869,23 @@ static GLuint load_shader(GLenum shader_type, const char* source) {
 	return shader;
 }
 
+static GLint get_uniform(GLuint shader_program, const char *name) {
+	GLint uniform = glGetUniformLocation(shader_program, name);
+	if (uniform == -1) {
+		printf("ERROR: Could not bind uniform %s\n", name);
+	}
+	return uniform;
+}
+
+
+static GLint get_attrib(GLuint shader_program, const char *name) {
+	GLint attribute = glGetAttribLocation(shader_program, name);
+	if (attribute == -1) {
+		printf("ERROR: Could not bind attribute %s\n", name);
+	}
+	return attribute;
+}
+
 
 bool uv_ui_init(void) {
 	bool ret = true;
@@ -797,7 +902,6 @@ bool uv_ui_init(void) {
 	this->width = CONFIG_FT81X_HSIZE;
 	this->height = CONFIG_FT81X_VSIZE;
 	this->text_shader_program = 0;
-	this->text_vao = 0;
 	this->text_vbo = 0;
 
 	// initialize the font sizes
@@ -843,7 +947,8 @@ bool uv_ui_init(void) {
 			if (glewInit() == GLEW_OK) {
 				printf("OPENGL version %s\n", glGetString(GL_VERSION));
 
-				//This sets up the viewport so that the coordinates (0, 0) are at the top left of the window
+				//This sets up the viewport so that the coordinates (0, 0)
+				// are at the top left of the window
 				glViewport(0, 0, CONFIG_FT81X_HSIZE, CONFIG_FT81X_VSIZE);
 				glMatrixMode(GL_PROJECTION);
 				glLoadIdentity();
@@ -857,11 +962,8 @@ bool uv_ui_init(void) {
 				glEnable(GL_MULTISAMPLE);
 
 				// enable blend for text rendering
-//				glEnable(GL_BLEND);
-//				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-				//Clear the screen and depth buffer
-				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+				glEnable(GL_BLEND);
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 				load_fonts();
 
@@ -873,20 +975,25 @@ bool uv_ui_init(void) {
 					glAttachShader(this->text_shader_program, vertex_shader);
 					glAttachShader(this->text_shader_program, gradient_shader);
 					glLinkProgram(this->text_shader_program);
-					glDeleteShader(vertex_shader);
-					glDeleteShader(gradient_shader);
+					GLint link_ok = GL_FALSE;
+					glGetProgramiv(this->text_shader_program, GL_LINK_STATUS, &link_ok);
+					if (!link_ok) {
+						printf("ERROR linking shader program\n");
+						glDeleteProgram(this->text_shader_program);
+					}
 
-
-					glGenVertexArrays(1, &this->text_vao);
+					// Create the vertex buffer object
 					glGenBuffers(1, &this->text_vbo);
-					glBindVertexArray(this->text_vao);
-					glBindBuffer(GL_ARRAY_BUFFER, this->text_vbo);
-					glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
-					glEnableVertexAttribArray(0);
-					glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
-					glBindBuffer(GL_ARRAY_BUFFER, 0);
-					glBindVertexArray(0);
 				}
+				else {
+					printf("ERROR loading vertez & fragment shaders\n");
+				}
+
+
+
+
+
+				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			}
 			else {
 				printf("GLEW init failed\n");
@@ -919,11 +1026,6 @@ void uv_ui_destroy(void) {
 	if (this->window) {
 		printf("Terminating GLFW window\n");
 		glfwTerminate();
-		if (this->text_shader_program) {
-			glDeleteProgram(this->text_shader_program);
-			glDeleteBuffers(1, &this->text_vbo);
-			glDeleteVertexArrays(1, &this->text_vao);
-		}
 	}
 }
 

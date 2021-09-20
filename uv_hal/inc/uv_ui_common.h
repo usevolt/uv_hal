@@ -61,11 +61,11 @@ typedef struct {
 #elif CONFIG_UI_OPENGL
 	struct {
 	    uint32_t TextureID;  // ID handle of the glyph texture
-	    uint16_t size_x;
-	    uint16_t size_y;
-	    uint16_t bearing_x;
-	    uint16_t bearing_y;
-	    uint16_t advance;
+	    int16_t size_x;
+	    int16_t size_y;
+	    int16_t bearing_x;
+	    int16_t bearing_y;
+	    int16_t advance;
 	} ft_char[128];
 
 
