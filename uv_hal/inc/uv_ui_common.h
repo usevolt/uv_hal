@@ -46,6 +46,12 @@
 
 
 
+#if CONFIG_UI_OPENGL && CONFIG_UI_FT81X
+#warning "Both CONFIG_UI_OPENGL and CONFIG_UI_FT81X defined.\
+ This causes unnecessary memory consumption on embeded targets"
+#endif
+
+
 /// @brief: Wrapper for font data for UI library
 typedef struct {
 	uint16_t char_height;
