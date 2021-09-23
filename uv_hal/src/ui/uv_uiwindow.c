@@ -168,7 +168,7 @@ void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array, const uv_ui
 	this->bg_c = style->window_c;
 	this->handle_c = style->bg_c;
 	this->dragging = false;
-	this->transparent = false;
+	this->transparent = true;
 	this->app_step_callb = NULL;
 	this->user_ptr = NULL;
 	uv_uiobject_set_draw_callb(this, &_uv_uiwindow_draw);

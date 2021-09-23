@@ -50,15 +50,7 @@
 typedef struct {
 	uint16_t char_height;
 
-#if CONFIG_FT81X
-	// For FT81X:
-	//
-	// defines the font index. Index 26-34 are anti-aliased
-	// fonts which are supported by this library
-	uint8_t index;
-	// handle defines the bitmap handle to be used for this font
-	uint8_t handle;
-#elif CONFIG_UI_OPENGL
+#if CONFIG_UI_OPENGL
 	struct {
 	    uint32_t TextureID;  // ID handle of the glyph texture
 	    int16_t size_x;
@@ -67,8 +59,15 @@ typedef struct {
 	    int16_t bearing_y;
 	    int16_t advance;
 	} ft_char[128];
-
-
+#endif
+#if CONFIG_FT81X
+	// For FT81X:
+	//
+	// defines the font index. Index 26-34 are anti-aliased
+	// fonts which are supported by this library
+	uint8_t index;
+	// handle defines the bitmap handle to be used for this font
+	uint8_t handle;
 #endif
 } ui_font_st;
 typedef ui_font_st uv_font_st;
