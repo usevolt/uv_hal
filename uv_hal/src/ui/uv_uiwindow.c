@@ -108,12 +108,7 @@ void uv_uiwindow_draw(void *me, const uv_bounding_box_st *pbb) {
 
 	uv_ui_set_mask(bb.x, bb.y, bb.width, bb.height);
 	if (!this->transparent) {
-		if (((color_st*) &this->bg_c)->a == 0xFF) {
-			uv_ui_clear(this->bg_c);
-		}
-		else {
-			uv_ui_draw_rrect(bb.x, bb.y, bb.width, bb.height, 0, this->bg_c);
-		}
+		uv_ui_draw_rrect(bb.x, bb.y, bb.width, bb.height, 0, this->bg_c);
 	}
 
 	if (this->content_bb.height > uv_uibb(this)->height) {
@@ -173,15 +168,7 @@ void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array, const uv_ui
 	this->bg_c = style->window_c;
 	this->handle_c = style->bg_c;
 	this->dragging = false;
-#if CONFIG_LCD
-	// on LCD module transparent is by default false since
-	// only part of the screen is updated
 	this->transparent = false;
-#elif CONFIG_FT81X
-	// on FT81x transparent is by default true since whole screen
-	// is always updated
-	this->transparent = true;
-#endif
 	this->app_step_callb = NULL;
 	this->user_ptr = NULL;
 	uv_uiobject_set_draw_callb(this, &_uv_uiwindow_draw);
