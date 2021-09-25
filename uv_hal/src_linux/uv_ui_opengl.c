@@ -439,10 +439,10 @@ void uv_ui_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 		// configure VAO/VBO
 		float vertices[] = {
 			// positions                // colors           // texture coords
-			x2 + w2,  y2 + h2, 0.0f,    1.0f, 0.0f, 0.0f,   1.0f, 1.0f, // top right
-			x2 + w2, y2, 0.0f,          0.0f, 1.0f, 0.0f,   1.0f, 0.0f, // bottom right
-			x2, y2, 0.0f,               0.0f, 0.0f, 1.0f,   0.0f, 0.0f, // bottom left
-			x2,  y2 + h2, 0.0f,         1.0f, 1.0f, 0.0f,   0.0f, 1.0f  // top left
+			x2 + w2,  y2 + h2, 0.0f,    1.0f, 0.0f, 0.0f,   1.0f, 0.0f, // bottom right
+			x2 + w2, y2, 0.0f,          0.0f, 1.0f, 0.0f,   1.0f, 1.0f, // top right
+			x2, y2, 0.0f,               0.0f, 0.0f, 1.0f,   0.0f, 1.0f, // top left
+			x2,  y2 + h2, 0.0f,         1.0f, 1.0f, 0.0f,   0.0f, 0.0f  // bottom left
 		};
 		unsigned int indices[] = {
 			0, 1, 3, // first triangle
@@ -1143,6 +1143,9 @@ bool uv_ui_init(void) {
 
 				// enable multisampling for anti-aliasing
 				glEnable(GL_MULTISAMPLE);
+
+				// enable stencil testing to masking
+				glEnable(GL_STENCIL_TEST);
 
 				// enable blend for text rendering
 				glEnable(GL_BLEND);
