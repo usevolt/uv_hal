@@ -106,7 +106,13 @@ void uv_uimediabutton_init(void *me, char *text,
 	uv_uibutton_init(me, text, style);
 	uv_uitogglebutton_set_active_c(me,
 			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 30));
-	this->media = media;
+	if (media != NULL &&
+			media->size == 0) {
+		this->media = NULL;
+	}
+	else {
+		this->media = media;
+	}
 	this->align = UIMEDIABUTTON_ALIGN_HORIZONTAL;
 	uv_uiobject_set_step_callb(this, &uv_uibutton_step);
 	uv_uiobject_set_draw_callb(this, &draw_mediabutton);

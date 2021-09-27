@@ -792,6 +792,7 @@ int16_t uv_ui_get_string_width(char *str, ui_font_st *font) {
 
 uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
 		uint32_t dest_addr, uv_w25q128_st *exmem, char *filename) {
+	uint32_t ret = 0;
 	uimedia_ll_st *media = uimedia_ll_st_find(filename);
 	if (media == NULL) {
 		// load the pixel data
@@ -803,16 +804,24 @@ uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
 		if (error) {
 			printf("Loading bitmap '%s' failed\n", filename);
 		}
-		media = uimedia_ll_st_create(filename, image,
-				width, height, width * height * 4);
+		else {
+			media = uimedia_ll_st_create(filename, image,
+					width, height, width * height * 4);
+		}
 	}
-	bitmap->filename = media->filename;
-	bitmap->width = media->width;
-	bitmap->height = media->height;
-	bitmap->type = UV_UIMEDIA_IMAGE;
-	bitmap->size = media->data_len;
+	if (media != NULL) {
+		bitmap->filename = media->filename;
+		bitmap->width = media->width;
+		bitmap->height = media->height;
+		bitmap->type = UV_UIMEDIA_IMAGE;
+		bitmap->size = media->data_len;
+		ret = media->data_len;
+	}
+	else {
+		bitmap->size = 0;
+	}
 
-	return media->data_len;
+	return ret;
 }
 
 

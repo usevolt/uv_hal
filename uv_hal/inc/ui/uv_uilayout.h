@@ -149,6 +149,10 @@ void uv_uistrlayout_init(uv_uistrlayout_st *this, const char *str,
 		int16_t x, int16_t y, int16_t width, int16_t height,
 		int16_t h_padding, int16_t v_padding);
 
+/// @brief: Sets the layout margin. Margin is free space aorund the borders of the layout,
+/// not between individual cells.
+void uv_uistrlayout_set_margin(uv_uistrlayout_st *this,
+		int16_t margin_x, int16_t margin_y);
 
 /// @brief: Sets the layout in down-to-up, left-to-right laying order.
 ///

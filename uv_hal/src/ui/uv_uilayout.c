@@ -109,9 +109,16 @@ void uv_uistrlayout_init(uv_uistrlayout_st *this, const char *str,
 			this->row_count++;
 		}
 	}
-
-
 }
+
+void uv_uistrlayout_set_margin(uv_uistrlayout_st *this,
+		int16_t margin_x, int16_t margin_y) {
+	this->bb.x += margin_x;
+	this->bb.w -= margin_x * 2;
+	this->bb.y += margin_y;
+	this->bb.h -= margin_y * 2;
+}
+
 
 static const char *uistrlayout_get_cell_ptr(uv_uistrlayout_st *this, int16_t index) {
 	const char *ret = this->str;
