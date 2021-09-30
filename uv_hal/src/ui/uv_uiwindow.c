@@ -45,7 +45,7 @@ static void draw_scrollbar(void *me, bool horizontal, const uv_bounding_box_st *
 	int16_t w = uv_uibb(this)->width;
 	int16_t h = uv_uibb(this)->height;
 	int16_t bar_x = (horizontal) ? (x + SCROLLBAR_PADDING) :
-			(x + w - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH - SCROLLBAR_PADDING);
+			(x + w - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH);
 	int16_t bar_y = (horizontal) ? (y + h - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH - SCROLLBAR_PADDING) :
 			(y + SCROLLBAR_PADDING);
 	int16_t bar_w = (horizontal) ? (w - SCROLLBAR_PADDING * 2) : CONFIG_UI_WINDOW_SCROLLBAR_WIDTH;
@@ -250,10 +250,10 @@ uv_bounding_box_st uv_uiwindow_get_contentbb(const void *me) {
 
 	uv_bounding_box_st bb = this->content_bb;
 	if (this->content_bb.width > uv_uibb(this)->width) {
-		bb.height -= CONFIG_UI_WINDOW_SCROLLBAR_WIDTH;
+		bb.height -= CONFIG_UI_WINDOW_SCROLLBAR_WIDTH + SCROLLBAR_PADDING;
 	}
 	if (this->content_bb.height > uv_uibb(this)->height) {
-		bb.width -= CONFIG_UI_WINDOW_SCROLLBAR_WIDTH;
+		bb.width -= CONFIG_UI_WINDOW_SCROLLBAR_WIDTH + SCROLLBAR_PADDING;
 	}
 
 	return bb;
