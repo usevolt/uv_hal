@@ -85,11 +85,18 @@ uv_errors_e uv_gpio_enable_int(uv_gpios_e gpio, uv_gpio_interrupt_config_e confs
 
 		Chip_INMUX_PinIntSel(index, uv_gpio_get_port(gpio), uv_gpio_get_pin(gpio));
 
-		Chip_PININT_SetPinModeEdge(LPC_GPIO_PIN_INT, PININTCH(index));
-		if (confs & INT_RISING_EDGE) {
+		if (confs & INT_BOTH_EDGES) {
+			Chip_PININT_SetPinModeEdge(LPC_GPIO_PIN_INT, PININTCH(index));
+		}
+		else {
+			Chip_PININT_SetPinModeLevel(LPC_GPIO_PIN_INT, PININTCH(index));
+		}
+		if ((confs & INT_RISING_EDGE) ||
+				(confs & INT_LEVEL_HIGH)) {
 			Chip_PININT_EnableIntHigh(LPC_GPIO_PIN_INT, PININTCH(index));
 		}
-		if (confs & INT_FALLING_EDGE) {
+		if ((confs & INT_FALLING_EDGE) ||
+				(confs & INT_LEVEL_LOW)) {
 			Chip_PININT_EnableIntLow(LPC_GPIO_PIN_INT, PININTCH(index));
 		}
 		int_pins[index] = gpio;
