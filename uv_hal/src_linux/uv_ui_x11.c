@@ -135,6 +135,8 @@ static uv_uiobject_ret_e confwindow_step(void *, uint16_t);
 
 
 
+
+
 void uv_ui_confwindow_exec(void) {
 	uv_ui_init();
 
@@ -243,6 +245,9 @@ uint8_t uv_ui_get_backlight(void) {
 }
 
 
+bool uv_ui_get_refresh_request(void) {
+	return false;
+}
 
 
 bool uv_ui_get_touch(int16_t *x, int16_t *y) {
