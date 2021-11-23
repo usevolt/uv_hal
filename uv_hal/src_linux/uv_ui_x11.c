@@ -263,7 +263,7 @@ bool uv_ui_get_touch(int16_t *x, int16_t *y) {
 				this->pressed = true;
 				this->x = (int16_t) e.xbutton.x;
 				this->y = (int16_t) e.xbutton.y;
-				printf("%i %i\n", this->x, this->y);
+//				printf("%i %i\n", this->x, this->y);
 			}
 			break;
 		case ButtonRelease:
@@ -482,80 +482,82 @@ void uv_ui_touchscreen_calibrate(ui_transfmat_st *transform_matrix) {
 void uv_ui_draw_string(char *str, ui_font_st *font,
 		int16_t x, int16_t y, ui_align_e align, color_t color) {
 
-	color_st c = uv_uic(color);
+	if (str) {
+		color_st c = uv_uic(color);
 
-	cairo_select_font_face(this->cairo, "Arial",
-			CAIRO_FONT_SLANT_NORMAL,
-			CAIRO_FONT_WEIGHT_NORMAL);
-	cairo_set_font_size(this->cairo, font->char_height);
-	cairo_set_source_rgba(this->cairo, CAIRO_C(c.r), CAIRO_C(c.g),
-			CAIRO_C(c.b), CAIRO_C(c.a));
-	char *s = malloc(strlen(str) + 2);
-	strcpy(s, str);
-	char *last_s = s;
-	// calculate the number of lines
-	uint16_t line_count = 0;
-	for (uint32_t i = 0; i < strlen(str) + 1; i++) {
-		if (str[i] == '\n' || str[i] == '\0') {
-			line_count++;
+		cairo_select_font_face(this->cairo, "Arial",
+				CAIRO_FONT_SLANT_NORMAL,
+				CAIRO_FONT_WEIGHT_NORMAL);
+		cairo_set_font_size(this->cairo, font->char_height);
+		cairo_set_source_rgba(this->cairo, CAIRO_C(c.r), CAIRO_C(c.g),
+				CAIRO_C(c.b), CAIRO_C(c.a));
+		char *s = malloc(strlen(str) + 2);
+		strcpy(s, str);
+		char *last_s = s;
+		// calculate the number of lines
+		uint16_t line_count = 0;
+		for (uint32_t i = 0; i < strlen(str) + 1; i++) {
+			if (str[i] == '\n' || str[i] == '\0') {
+				line_count++;
+			}
 		}
-	}
 
-//	// Debug drawing
-//	cairo_set_source_rgba(this->cairo,
-//			CAIRO_C(0xFF), CAIRO_C(0), CAIRO_C(0), CAIRO_C(0xFF));
-//	cairo_rectangle(this->cairo, (double) x, (double) y, 2, 2);
-//	cairo_set_line_width(this->cairo, 0.5);
-//	cairo_fill(this->cairo);
+	//	// Debug drawing
+	//	cairo_set_source_rgba(this->cairo,
+	//			CAIRO_C(0xFF), CAIRO_C(0), CAIRO_C(0), CAIRO_C(0xFF));
+	//	cairo_rectangle(this->cairo, (double) x, (double) y, 2, 2);
+	//	cairo_set_line_width(this->cairo, 0.5);
+	//	cairo_fill(this->cairo);
 
-	cairo_font_extents_t fontex;
-	cairo_font_extents(this->cairo, &fontex);
-	if (align & VALIGN_CENTER) {
-		// reduce the y by the number of line counts
-		y -= line_count * fontex.height / 2;
-	}
-	for (uint32_t i = 0; i < strlen(str) + 1; i++) {
-		if (s[i] == '\r' || s[i] == '\n' || s[i] == '\0') {
-			s[i] = '\0';
-			cairo_text_extents_t ex;
-			int16_t lx = x, ly = y;
-
-			// draw one line of text at the time
-
-			// get the baseline from "Ay" string. It gives the maximum height in up and down
-			// directions
-			cairo_text_extents(this->cairo, "Ay", &ex);
-			ly += ex.height;
-
-			cairo_text_extents(this->cairo, last_s, &ex);
-
-//			// Debug drawing
-//			cairo_set_source_rgba(this->cairo,
-//					CAIRO_C(c.r), CAIRO_C(c.g), CAIRO_C(c.b), CAIRO_C(0x80));
-//			cairo_rectangle(this->cairo, (double) x, (double) y, ex.width, fontex.height);
-//			cairo_set_line_width(this->cairo, 0.5);
-//			cairo_fill(this->cairo);
-
-			if (align & HALIGN_CENTER) {
-				lx -= ex.width / 2;
-			}
-			else if (align & HALIGN_RIGHT) {
-				lx -= ex.width;
-			}
-			else {
-
-			}
-			cairo_move_to(this->cairo, (double) lx, (double) ly);
-			if (strlen(last_s)) {
-				cairo_show_text(this->cairo, last_s);
-
-				y += fontex.height;
-			}
-			last_s = &s[i + 1];
+		cairo_font_extents_t fontex;
+		cairo_font_extents(this->cairo, &fontex);
+		if (align & VALIGN_CENTER) {
+			// reduce the y by the number of line counts
+			y -= line_count * fontex.height / 2;
 		}
+		for (uint32_t i = 0; i < strlen(str) + 1; i++) {
+			if (s[i] == '\r' || s[i] == '\n' || s[i] == '\0') {
+				s[i] = '\0';
+				cairo_text_extents_t ex;
+				int16_t lx = x, ly = y;
+
+				// draw one line of text at the time
+
+				// get the baseline from "Ay" string. It gives the maximum height in up and down
+				// directions
+				cairo_text_extents(this->cairo, "Ay", &ex);
+				ly += ex.height;
+
+				cairo_text_extents(this->cairo, last_s, &ex);
+
+	//			// Debug drawing
+	//			cairo_set_source_rgba(this->cairo,
+	//					CAIRO_C(c.r), CAIRO_C(c.g), CAIRO_C(c.b), CAIRO_C(0x80));
+	//			cairo_rectangle(this->cairo, (double) x, (double) y, ex.width, fontex.height);
+	//			cairo_set_line_width(this->cairo, 0.5);
+	//			cairo_fill(this->cairo);
+
+				if (align & HALIGN_CENTER) {
+					lx -= ex.width / 2;
+				}
+				else if (align & HALIGN_RIGHT) {
+					lx -= ex.width;
+				}
+				else {
+
+				}
+				cairo_move_to(this->cairo, (double) lx, (double) ly);
+				if (strlen(last_s)) {
+					cairo_show_text(this->cairo, last_s);
+
+					y += fontex.height;
+				}
+				last_s = &s[i + 1];
+			}
+		}
+		free(s);
+		cairo_move_to(this->cairo, 0.0, 0.0);
 	}
-	free(s);
-	cairo_move_to(this->cairo, 0.0, 0.0);
 }
 
 

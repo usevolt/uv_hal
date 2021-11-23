@@ -694,47 +694,49 @@ static void render_line(char *str, ui_font_st *font,
 
 void uv_ui_draw_string(char *str, ui_font_st *font,
 		int16_t x, int16_t y, ui_align_e align, color_t color) {
+	if (str) {
 
-	char *s = malloc(strlen(str) + 2);
-	strcpy(s, str);
-	char *last_s = s;
+		char *s = malloc(strlen(str) + 2);
+		strcpy(s, str);
+		char *last_s = s;
 
-	// calculate the number of lines
-	uint16_t line_count = 0;
-	for (uint32_t i = 0; i < strlen(str) + 1; i++) {
-		if (str[i] == '\n' || str[i] == '\0') {
-			line_count++;
+		// calculate the number of lines
+		uint16_t line_count = 0;
+		for (uint32_t i = 0; i < strlen(str) + 1; i++) {
+			if (str[i] == '\n' || str[i] == '\0') {
+				line_count++;
+			}
 		}
-	}
-	if (align & VALIGN_CENTER) {
-		// reduce the y by the number of line counts
-		y -= (line_count * font->char_height / 2) / this->scaley;
-	}
-
-	for (uint32_t i = 0; i < strlen(str) + 1; i++) {
-		if (s[i] == '\r' || s[i] == '\n' || s[i] == '\0') {
-			s[i] = '\0';
-			int16_t lx = x, ly = y;
-			int32_t str_width = uv_ui_get_string_width(last_s, font);
-
-			// draw one line of text at the time
-			if (align & HALIGN_CENTER) {
-				lx -= str_width / 2;
-			}
-			else if (align & HALIGN_RIGHT) {
-				lx -= str_width;
-			}
-			else {
-
-			}
-			if (strlen(last_s)) {
-				render_line(last_s, font, lx, ly, color);
-				y += font->char_height;
-			}
-			last_s = &s[i + 1];
+		if (align & VALIGN_CENTER) {
+			// reduce the y by the number of line counts
+			y -= (line_count * font->char_height / 2) / this->scaley;
 		}
+
+		for (uint32_t i = 0; i < strlen(str) + 1; i++) {
+			if (s[i] == '\r' || s[i] == '\n' || s[i] == '\0') {
+				s[i] = '\0';
+				int16_t lx = x, ly = y;
+				int32_t str_width = uv_ui_get_string_width(last_s, font);
+
+				// draw one line of text at the time
+				if (align & HALIGN_CENTER) {
+					lx -= str_width / 2;
+				}
+				else if (align & HALIGN_RIGHT) {
+					lx -= str_width;
+				}
+				else {
+
+				}
+				if (strlen(last_s)) {
+					render_line(last_s, font, lx, ly, color);
+					y += font->char_height;
+				}
+				last_s = &s[i + 1];
+			}
+		}
+		free(s);
 	}
-	free(s);
 }
 
 
@@ -771,17 +773,19 @@ void uv_ui_set_mask(int16_t x, int16_t y, int16_t width, int16_t height) {
 int16_t uv_ui_get_string_width(char *str, ui_font_st *font) {
 	int16_t ret = 0;
 	int line_width = 0;
-	for (int i = 0; i < strlen(str); i++) {
-		if (str[i] == '\n' ||
-				str[i] == '\r') {
-			if (line_width > ret) {
-				line_width = 0;
+	if (str) {
+		for (int i = 0; i < strlen(str); i++) {
+			if (str[i] == '\n' ||
+					str[i] == '\r') {
+				if (line_width > ret) {
+					line_width = 0;
+				}
 			}
-		}
-		else {
-			line_width += font->ft_char[(unsigned char) str[i]].advance / 64;
-			if (line_width > ret) {
-				ret = line_width;
+			else {
+				line_width += font->ft_char[(unsigned char) str[i]].advance / 64;
+				if (line_width > ret) {
+					ret = line_width;
+				}
 			}
 		}
 	}
