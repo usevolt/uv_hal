@@ -45,6 +45,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <getopt.h>
+#include <signal.h>
 
 
 
@@ -147,6 +148,8 @@ bool uv_rtos_idle_task_set(void) {
 /// @brief: Task function which takes care of calling several hal librarys module
 /// hal step functions
 void hal_task(void *);
+/// @brief: C signal callback
+void signal_callb(int signum);
 
 
 
@@ -288,6 +291,7 @@ void uv_init_arg(void *device, int argc, char *argv[]) {
 	        	 exit(0);
 	             break;
 	         default:
+				 printf("Defined but not used argument '%c'\n", ch);
 	        	 break;
 	    }
 	}
@@ -318,11 +322,25 @@ void uv_init(void *device) {
 #endif
 
 	uv_rtos_task_create(hal_task, "uv_hal", UV_RTOS_MIN_STACK_SIZE, NULL, 0xFFFF, NULL);
+
+	// Register signal and signal handleru
+	signal(SIGINT, signal_callb);
 }
 
 
 
+void signal_callb(int signum) {
+	printf("Caught signal %u\n", signum);
+
+	uv_deinit();
+   // Terminate program
+   exit(signum);
+}
+
 void uv_deinit(void) {
+#if CONFIG_UI
+	uv_ui_destroy();
+#endif
 }
 
 
