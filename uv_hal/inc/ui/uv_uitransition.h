@@ -97,6 +97,9 @@ void uv_uitransition_reverseplay(void *me);
 /// @brief: Pauses the uitransition
 void uv_uitransition_pause(void *me);
 
+/// @brief: Stops the transition and sets it in INIT state
+void uv_uitransition_stop(void *me);
+
 
 /// @brief: Adds a parallel transition
 static inline void uv_uitransition_add_parallel(void *me,
@@ -132,6 +135,13 @@ static inline bool uv_uitransition_is_finished(void *me) {
 static inline uv_uitransition_state_e uv_uitransition_get_state(const void *me) {
 	return this->state;
 }
+
+/// @brief: Returns true if the transition is playing in normal or reverse direction
+static inline bool uv_uitransition_is_playing(const void *me) {
+	return (this->state == UITRANSITION_PLAY ||
+			this->state == UITRANSITION_REVERSEPLAY);
+}
+
 
 /// @brief: Sets the easing for the transition
 static inline void uv_uitransition_set_easing(void *me, uv_uitransition_easing_e easing) {
@@ -195,8 +205,9 @@ void _uv_uitransition_init(void *me, uv_uitransition_easing_e easing,
 /// @bief: Step function is called automatically from the uiobject where
 /// the transition is attached. This function shouldn't be called by the user application.
 ///
-/// @param parent: The parent object to which this uitransition is attached
-void _uv_uitransition_step(void *me, void *parent, uint16_t step_ms);
+/// @param parent: The parent object to which this uitransition is attached. Will be
+/// refreshed automatically when transition plays. Can also be set to NULL.
+void uv_uitransition_step(void *me, void *parent, uint16_t step_ms);
 
 
 #undef this

@@ -63,7 +63,7 @@ void _uv_uitransition_init(void *me, uv_uitransition_easing_e easing,
 }
 
 
-void _uv_uitransition_step(void *me, void *parent, uint16_t step_ms) {
+void uv_uitransition_step(void *me, void *parent, uint16_t step_ms) {
 	if (this->state == UITRANSITION_PLAY) {
 		// call virtual function to calculate changes in the variables
 		this->calc_callb(this);
@@ -103,12 +103,12 @@ void _uv_uitransition_step(void *me, void *parent, uint16_t step_ms) {
 		// only call next transition if this one is finished
 		// to prevent infinite step-function recursion
 		if (this->series) {
-			_uv_uitransition_step(this->series, parent, step_ms);
+			uv_uitransition_step(this->series, parent, step_ms);
 		}
 	}
 	// always call parallel transition
 	if (this->parallel) {
-		_uv_uitransition_step(this->parallel, parent, step_ms);
+		uv_uitransition_step(this->parallel, parent, step_ms);
 	}
 }
 
@@ -160,6 +160,14 @@ void uv_uitransition_pause(void *me) {
 		uv_uitransition_pause(this->parallel);
 	}
 }
+
+void uv_uitransition_stop(void *me) {
+	this->state = UITRANSITION_INIT;
+	if (this->parallel) {
+		uv_uitransition_stop(this->parallel);
+	}
+}
+
 
 
 void uv_uitransition_set_position(uv_uitransition_st *me, uint16_t value) {

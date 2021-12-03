@@ -153,6 +153,8 @@ void uv_bounding_box_init(uv_bounding_box_st *bb,
 		int16_t x, int16_t y, uint16_t width, uint16_t height);
 
 
+void uv_bb_set_marging(uv_bb_st *bb, uint16_t hmargin, uint16_t vmargin);
+
 
 #define this ((uv_uiobject_st*) me)
 
@@ -238,6 +240,9 @@ static inline void uv_uiobject_set_enabled(void *me, bool value) {
 static inline bool uv_ui_get_enabled(const void *me) {
 	return this->enabled;
 }
+static inline bool uv_uiobject_get_enabled(const void *me) {
+	return uv_ui_get_enabled(me);
+}
 
 void uv_uiobject_set_visible(void *me, bool value);
 
@@ -263,21 +268,6 @@ static inline uv_bounding_box_st *uv_uibb(const void *me) {
 	return &this->bb;
 }
 
-
-/// @brief: Sets the transition to *me* uiobject
-static inline void uv_ui_add_transition(void *me, void *transition) {
-	this->transition = transition;
-}
-
-/// @brief: Sets the transition to *me* uiobject
-static inline void uv_uiobject_set_transition(void *me, void *transition) {
-	uv_ui_add_transition(me, transition);
-}
-
-/// @brief: Returns the transition attached to this uiobject
-static inline void *uv_uiobject_get_transition(void *me) {
-	return this->transition;
-}
 
 
 /// @brief: Returns the X coordinate as global

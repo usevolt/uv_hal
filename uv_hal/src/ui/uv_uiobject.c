@@ -32,7 +32,6 @@
 #if CONFIG_UI
 
 #include "ui/uv_uiwindow.h"
-#include "ui/uv_uitransition.h"
 #include "uv_utilities.h"
 #include <stddef.h>
 
@@ -46,6 +45,14 @@ void uv_bounding_box_init(uv_bounding_box_st *bb,
 	bb->width = width;
 	bb->height = height;
 }
+
+void uv_bb_set_marging(uv_bb_st *bb, uint16_t hmargin, uint16_t vmargin) {
+	bb->x += hmargin;
+	bb->width -= hmargin * 2;
+	bb->y += vmargin;
+	bb->h -= vmargin * 2;
+}
+
 
 bool _uv_uiobject_draw(void *me, const uv_bounding_box_st *pbb) {
 	bool ret = false;
@@ -81,9 +88,6 @@ void uv_uiobject_init(void *me) {
 
 uv_uiobject_ret_e uv_uiobject_step(void *me, uint16_t step_ms) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
-	if (this->transition) {
-		_uv_uitransition_step(this->transition, this, step_ms);
-	}
 	if (this->step_callb) {
 		ret = this->step_callb(this, step_ms);
 	}
@@ -92,10 +96,12 @@ uv_uiobject_ret_e uv_uiobject_step(void *me, uint16_t step_ms) {
 
 
 void uv_ui_hide(void *me) {
-	if (this->visible) {
-		uv_ui_refresh_parent(this);
+	if (this) {
+		if (this->visible) {
+			uv_ui_refresh_parent(this);
+		}
+		this->visible = false;
 	}
-	this->visible = false;
 }
 
 
@@ -115,25 +121,30 @@ void uv_ui_refresh_parent(void *me) {
 
 
 void uv_ui_set_enabled(void *me, bool enabled) {
-	if (this->enabled != enabled) {
-		if (this->enabled) {
-			uv_ui_refresh_parent(this);
+	if (this) {
+		if (this->enabled != enabled) {
+			if (this->enabled) {
+				uv_ui_refresh_parent(this);
+			}
+			else {
+				uv_ui_refresh(this);
+			}
 		}
-		else {
-			uv_ui_refresh(this);
-		}
+		this->enabled = enabled;
 	}
-	this->enabled = enabled;
 }
 
 /// @brief: Returns the X coordinate as global
 ///
 /// @param this: Pointer to uv_uiobject_st casted to void*.
 int16_t uv_ui_get_xglobal(const void *me) {
-	int16_t x = this->bb.x;
-	if (this->parent) {
-		x += uv_ui_get_xglobal(this->parent);
-		x += this->parent->content_bb.x;
+	int16_t x = 0;
+	if (this != NULL) {
+		x = this->bb.x;
+		if (this->parent) {
+			x += uv_ui_get_xglobal(this->parent);
+			x += this->parent->content_bb.x;
+		}
 	}
 	return x;
 }
@@ -143,33 +154,40 @@ int16_t uv_ui_get_xglobal(const void *me) {
 ///
 /// @param this: Pointer to uv_uiobject_st casted to void*.
 int16_t uv_ui_get_yglobal(const void *me) {
-	int16_t y = this->bb.y;
-	if (this->parent) {
-		y += uv_ui_get_yglobal(this->parent);
-		y += this->parent->content_bb.y;
+	int16_t y = 0;
+	if (this != NULL) {
+		y = this->bb.y;
+		if (this->parent) {
+			y += uv_ui_get_yglobal(this->parent);
+			y += this->parent->content_bb.y;
+		}
 	}
 	return y;
 }
 
 
 void uv_uiobject_set_visible(void *me, bool value) {
-	if (this->visible != value) {
-		uv_ui_refresh(this);
+	if (this != NULL) {
+		if (this->visible != value) {
+			uv_ui_refresh(this);
+		}
+		this->visible = value;
 	}
-	this->visible = value;
 }
 
 
 
 void uv_ui_refresh(void *me) {
-	// refreshing sets only the furthest parent's refresh flag
-	// e.g. uidisplay is refreshed first. Each uiwindow is responsible
-	// for refreshing their children afterwards
-	uv_uiobject_st *t = me;
-	while (t->parent != NULL) {
-		t = (uv_uiobject_st*) t->parent;
+	if (me != NULL) {
+		// refreshing sets only the furthest parent's refresh flag
+		// e.g. uidisplay is refreshed first. Each uiwindow is responsible
+		// for refreshing their children afterwards
+		uv_uiobject_st *t = me;
+		while (t->parent != NULL) {
+			t = (uv_uiobject_st*) t->parent;
+		}
+		t->refresh = true;
 	}
-	t->refresh = true;
 }
 
 

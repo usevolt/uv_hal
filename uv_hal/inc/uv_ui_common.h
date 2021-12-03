@@ -210,6 +210,7 @@ typedef struct {
 		int16_t h;
 	};
 } uv_bounding_box_st;
+typedef uv_bounding_box_st uv_bb_st;
 
 
 
