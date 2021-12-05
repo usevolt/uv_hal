@@ -1471,6 +1471,11 @@ void uv_ui_set_mask(int16_t x, int16_t y, int16_t width, int16_t height) {
 
 
 
+// Returns true if the hardware requestes the UI to refresh. On FT81X this never happens
+bool uv_ui_get_refresh_request(void) {
+	return false;
+}
+
 
 
 #endif

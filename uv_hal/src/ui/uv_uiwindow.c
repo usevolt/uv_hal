@@ -45,7 +45,7 @@ static void draw_scrollbar(void *me, bool horizontal, const uv_bounding_box_st *
 	int16_t w = uv_uibb(this)->width;
 	int16_t h = uv_uibb(this)->height;
 	int16_t bar_x = (horizontal) ? (x + SCROLLBAR_PADDING) :
-			(x + w - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH - SCROLLBAR_PADDING);
+			(x + w - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH);
 	int16_t bar_y = (horizontal) ? (y + h - CONFIG_UI_WINDOW_SCROLLBAR_WIDTH - SCROLLBAR_PADDING) :
 			(y + SCROLLBAR_PADDING);
 	int16_t bar_w = (horizontal) ? (w - SCROLLBAR_PADDING * 2) : CONFIG_UI_WINDOW_SCROLLBAR_WIDTH;
@@ -108,12 +108,7 @@ void uv_uiwindow_draw(void *me, const uv_bounding_box_st *pbb) {
 
 	uv_ui_set_mask(bb.x, bb.y, bb.width, bb.height);
 	if (!this->transparent) {
-		if (((color_st*) &this->bg_c)->a == 0xFF) {
-			uv_ui_clear(this->bg_c);
-		}
-		else {
-			uv_ui_draw_rrect(bb.x, bb.y, bb.width, bb.height, 0, this->bg_c);
-		}
+		uv_ui_draw_rrect(bb.x, bb.y, bb.width, bb.height, 0, this->bg_c);
 	}
 
 	if (this->content_bb.height > uv_uibb(this)->height) {
@@ -173,15 +168,7 @@ void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array, const uv_ui
 	this->bg_c = style->window_c;
 	this->handle_c = style->bg_c;
 	this->dragging = false;
-#if CONFIG_LCD
-	// on LCD module transparent is by default false since
-	// only part of the screen is updated
-	this->transparent = false;
-#elif CONFIG_FT81X
-	// on FT81x transparent is by default true since whole screen
-	// is always updated
 	this->transparent = true;
-#endif
 	this->app_step_callb = NULL;
 	this->user_ptr = NULL;
 	uv_uiobject_set_draw_callb(this, &_uv_uiwindow_draw);
@@ -219,19 +206,21 @@ void uv_uiwindow_addxy(void *me, void *object,
 
 void uv_uiwindow_remove(void *me, void *object) {
 	bool found = false;
-	for (uint16_t i = 0; i < this->objects_count; i++) {
-		// move all objects after the found object one slot higher
+	if (me) {
+		for (uint16_t i = 0; i < this->objects_count; i++) {
+			// move all objects after the found object one slot higher
+			if (found) {
+				this->objects[i - 1] = this->objects[i];
+			}
+			if (((void*) this->objects[i]) == object) {
+				found = true;
+			}
+		}
+		// lastly reduce object count by 1
 		if (found) {
-			this->objects[i - 1] = this->objects[i];
+			this->objects_count--;
+			uv_ui_refresh(this);
 		}
-		if (((void*) this->objects[i]) == object) {
-			found = true;
-		}
-	}
-	// lastly reduce object count by 1
-	if (found) {
-		this->objects_count--;
-		uv_ui_refresh(this);
 	}
 }
 
@@ -261,10 +250,10 @@ uv_bounding_box_st uv_uiwindow_get_contentbb(const void *me) {
 
 	uv_bounding_box_st bb = this->content_bb;
 	if (this->content_bb.width > uv_uibb(this)->width) {
-		bb.height -= CONFIG_UI_WINDOW_SCROLLBAR_WIDTH;
+		bb.height -= CONFIG_UI_WINDOW_SCROLLBAR_WIDTH + SCROLLBAR_PADDING;
 	}
 	if (this->content_bb.height > uv_uibb(this)->height) {
-		bb.width -= CONFIG_UI_WINDOW_SCROLLBAR_WIDTH;
+		bb.width -= CONFIG_UI_WINDOW_SCROLLBAR_WIDTH + SCROLLBAR_PADDING;
 	}
 
 	return bb;

@@ -72,10 +72,13 @@ void _uv_uilabel_draw(void *me, const uv_bounding_box_st *pbb) {
 
 
 void uv_uilabel_set_text(void *me, char *str) {
-	if (strcmp(this->str, str) != 0) {
-		this->str = str;
-		uv_ui_refresh(me);
+	if (this->str != NULL &&
+			str != NULL) {
+		if (strcmp(this->str, str) != 0) {
+			uv_ui_refresh(me);
+		}
 	}
+	this->str = str;
 }
 
 

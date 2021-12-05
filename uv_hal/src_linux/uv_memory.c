@@ -40,10 +40,15 @@
 #ifdef CONFIG_RTOS
 #include "uv_rtos.h"
 #endif
-#include<stdio.h>
-#include<fcntl.h>
-#include<errno.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <errno.h>
 
+
+#if defined(__UV_PROGRAM_VERSION)
+#undef __UV_PROGRAM_VERSION
+#define __UV_PROGRAM_VERSION 1
+#endif
 const char uv_projname[] = STRINGIFY(__UV_PROJECT_NAME);
 const char uv_datetime[] = __DATE__ " " __TIME__;
 const uint32_t uv_prog_version = __UV_PROGRAM_VERSION;

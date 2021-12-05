@@ -66,10 +66,10 @@ typedef enum {
 	INT_RISING_EDGE = (0x1 << 0),
 	INT_FALLING_EDGE = (0x1 << 1),
 	INT_BOTH_EDGES = INT_RISING_EDGE | INT_FALLING_EDGE,
+	INT_LEVEL_HIGH = (0x1 << 2),
+	INT_LEVEL_LOW = (0x1 << 3),
 	INT_DISABLE = 0
 } uv_gpio_interrupt_config_e;
-
-
 
 
 

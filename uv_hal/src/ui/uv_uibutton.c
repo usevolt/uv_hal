@@ -74,6 +74,11 @@ void uv_uibutton_draw(void *me, const uv_bounding_box_st *pbb) {
 uv_uiobject_ret_e uv_uibutton_step(void *me, uint16_t step_ms) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
+	// state is cleared if the button is disabled
+	if (((uv_uiobject_st*) this)->enabled == false) {
+		this->state = UIBUTTON_UP;
+	}
+
 	if ((this->state == UIBUTTON_PRESSED)) {
 		if (uv_delay(&this->delay, step_ms)) {
 			this->state = UIBUTTON_LONGPRESSED;

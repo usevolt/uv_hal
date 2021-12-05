@@ -46,10 +46,27 @@
 
 
 
+#if CONFIG_UI_OPENGL && CONFIG_UI_FT81X
+#warning "Both CONFIG_UI_OPENGL and CONFIG_UI_FT81X defined.\
+ This causes unnecessary memory consumption on embeded targets"
+#endif
+
+
 /// @brief: Wrapper for font data for UI library
 typedef struct {
 	uint16_t char_height;
 
+#if CONFIG_UI_OPENGL
+	struct {
+	    uint32_t TextureID;  // ID handle of the glyph texture
+	    int16_t size_x;
+	    int16_t size_y;
+	    int16_t bearing_x;
+	    int16_t bearing_y;
+	    int16_t advance;
+	} ft_char[128];
+#endif
+#if CONFIG_FT81X
 	// For FT81X:
 	//
 	// defines the font index. Index 26-34 are anti-aliased
@@ -57,6 +74,7 @@ typedef struct {
 	uint8_t index;
 	// handle defines the bitmap handle to be used for this font
 	uint8_t handle;
+#endif
 } ui_font_st;
 typedef ui_font_st uv_font_st;
 
@@ -192,6 +210,7 @@ typedef struct {
 		int16_t h;
 	};
 } uv_bounding_box_st;
+typedef uv_bounding_box_st uv_bb_st;
 
 
 
@@ -240,6 +259,16 @@ void uv_ui_clear(color_t c);
 
 
 
+/// @brief: Returns true if the low level UI requests for the GUI display to be refreshed.
+/// This can happen for example if the window was resized
+bool uv_ui_get_refresh_request(void);
+
+
+
+#if !CONFIG_W25Q128
+/// @brief: Declaration of unused types for external memories that are not used
+typedef void uv_w25q128_st;
+#endif
 /// @brief: Loads and decompresses a jpg image to the media RAM of FT81x from external memory module.
 ///
 /// @return: The number of bytes that the image took from the memory. Since
@@ -450,10 +479,12 @@ bool uv_ui_is_visible(const int16_t x, const int16_t y,
 
 
 
+
 /// @brief: Shows the X11 configuration window that is triggered on start up to
 /// define all the configuration settings for the hardware, such as the CAN device and
 /// non-volatile memory storage path
-void ui_x11_confwindow_exec(void);
+void uv_ui_confwindow_exec(void);
+
 
 
 #endif

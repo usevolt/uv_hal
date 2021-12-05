@@ -72,10 +72,10 @@ typedef struct {
 
 	};
 	union {
-		/// @brief: The address of the image in FT81X media RAM
+		/// @brief: The address of the image in FT81X media RAM. For CONFIG_UI_FT81X only
 		uint32_t addr;
 		/// @brief: The pointer to the address of the image in FT81X media RAM,
-		/// or a pointer to cairo_surface_t on simulator target.
+		/// or a pointer to cairo_surface_t on simulator target. For CONFIG_UI_X11 only
 		void *surface_ptr;
 	};
 } uv_uimedia_st;

@@ -434,7 +434,7 @@ typedef volatile uint8_t uv_pwm_channel_t;
 /// @brief: Can be used to adjust the PWM duty cycle regardless of the MAX value
 #define DUTY_CYCLE(x_float)	(uint16_t)((float) PWM_MAX_VALUE * ((float) x_float))
 
-#define DUTY_CYCLEPPT(ppt)	((uint32_t) PWM_MAX_VALUE * ppt / 1000)
+#define DUTY_CYCLEPPT(ppt)	((uint32_t) PWM_MAX_VALUE * (ppt) / 1000)
 
 
 /// @brief: Initializes the PWM modules

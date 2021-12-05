@@ -309,7 +309,7 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 				this->target = this->target_mult / PID_MULTIPLIER;
 
 				// clamp output to target value when we're close enough
-				if (uv_pid_get_output(&this->target_pid) == 0) {
+				if (abs(uv_pid_get_output(&this->target_pid)) <= 2) {
 					this->target = target_req;
 					this->target_mult = target_req * PID_MULTIPLIER;
 				}

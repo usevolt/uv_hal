@@ -45,6 +45,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <getopt.h>
+#include <signal.h>
 
 
 
@@ -147,6 +148,8 @@ bool uv_rtos_idle_task_set(void) {
 /// @brief: Task function which takes care of calling several hal librarys module
 /// hal step functions
 void hal_task(void *);
+/// @brief: C signal callback
+void signal_callb(int signum);
 
 
 
@@ -262,28 +265,33 @@ void uv_init_arg(void *device, int argc, char *argv[]) {
 	    // check to see if a single character or long option came through
 	    switch (ch)
 	    {
+#if CONFIG_CAN
 	         case OPT_CAN:
 	        	 printf("Can dev set '%s'\n", optarg);
 	        	 uv_can_set_dev(optarg);
 	             break;
+#endif
 #if CONFIG_UI
 	         case OPT_UI:
 	        	 printf("Showing the configuration UI\n");
-	        	 ui_x11_confwindow_exec();
+	        	 uv_ui_confwindow_exec();
 	        	 break;
 #endif
 	         case OPT_NONVOL:
 	        	 printf("Setting the non-volatile memory file path to '%s'\n", optarg);
 	        	 uv_memory_set_nonvol_filepath(optarg);
 	        	 break;
+#if CONFIG_EEPROM
 	         case OPT_EEPROM:
 	        	 printf("Setting the non-volatile memory file path to '%s'\n", optarg);
 	        	 uv_eeprom_set_filepath(optarg);
 	        	 break;
+#endif
 	         case '?':
 	        	 exit(0);
 	             break;
 	         default:
+				 printf("Defined but not used argument '%c'\n", ch);
 	        	 break;
 	    }
 	}
@@ -314,11 +322,25 @@ void uv_init(void *device) {
 #endif
 
 	uv_rtos_task_create(hal_task, "uv_hal", UV_RTOS_MIN_STACK_SIZE, NULL, 0xFFFF, NULL);
+
+	// Register signal and signal handleru
+	signal(SIGINT, signal_callb);
 }
 
 
 
+void signal_callb(int signum) {
+	printf("Caught signal %u\n", signum);
+
+	uv_deinit();
+   // Terminate program
+   exit(signum);
+}
+
 void uv_deinit(void) {
+#if CONFIG_UI
+	uv_ui_destroy();
+#endif
 }
 
 
