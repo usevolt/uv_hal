@@ -39,9 +39,17 @@
 #include "uv_rtos.h"
 #endif
 
+// UV bootloader should define the amount of non-volatile memory in CONFIG_NVKB symbol.
+// This is usually done in makefile. If no such symbol is defined, the default is 1 sector,
+// i.e. 4 kB.
+#if !defined(CONFIG_NVKB)
+#define CONFIG_NVKB		4
+#endif
+
 #define FLASH_SECTOR_SIZE					0x1000
 #define FLASH_START_ADDRESS 				0x00000000
-#define NON_VOLATILE_MEMORY_START_ADDRESS	0x3F000
+#define NV_LEN								(0x400 * CONFIG_NVKB)
+#define NON_VOLATILE_MEMORY_START_ADDRESS	(0x40000 - NV_LEN)
 
 
 
@@ -135,40 +143,34 @@ uv_errors_e uv_memory_save(void) {
 	}
 
 	if (match) {
+		printf("CRC matched (0x%x, hal 0x%x), no new data to save\n", crc, hal_crc);
 		ret = ERR_NONE;
 	}
 	else {
-		printf("Flashing %u bytes\n", (int) length);
+		printf("Flashing %u bytes to address 0x%x\n",
+				(int) length,
+				NON_VOLATILE_MEMORY_START_ADDRESS);
 		if (length < 0) {
 			ret = ERR_END_ADDR_LESS_THAN_START_ADDR;
 		}
-		//calculate the right length
-		else if (length > IAP_BYTES_4096) {
+		else if (length > NV_LEN) {
 			ret = ERR_NOT_ENOUGH_MEMORY;
 		}
-		else if (length > IAP_BYTES_1024) {
-			length = IAP_BYTES_4096;
-		}
-		else if (length > IAP_BYTES_512) {
-			length = IAP_BYTES_1024;
-		}
-		else if (length > IAP_BYTES_256) {
-			length = IAP_BYTES_512;
-		}
 		else {
-			length = IAP_BYTES_256;
-		}
-		if (ret == ERR_NONE) {
-
 			// add the right value to data checksum
 			CONFIG_NON_VOLATILE_END.hal_crc = hal_crc;
 			CONFIG_NON_VOLATILE_END.crc = crc;
 
-			uv_iap_status_e status = uv_erase_and_write_to_flash((uint32_t) &CONFIG_NON_VOLATILE_START,
-					length, NON_VOLATILE_MEMORY_START_ADDRESS);
-			if (status != IAP_CMD_SUCCESS) {
-				ret = ERR_INTERNAL| HAL_MODULE_MEMORY;
+			for (uint32_t i = 0; i < length; i += FLASH_SECTOR_SIZE) {
+				uv_iap_status_e status = uv_erase_and_write_to_flash(
+						(uint32_t) &CONFIG_NON_VOLATILE_START + i,
+						FLASH_SECTOR_SIZE, NON_VOLATILE_MEMORY_START_ADDRESS + i);
+				if (status != IAP_CMD_SUCCESS) {
+					ret = ERR_INTERNAL;
+					break;
+				}
 			}
+
 		}
 	}
 	return ret;
@@ -183,36 +185,30 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 	uint8_t* source;
 	int32_t length;
 
-	if (scope & MEMORY_COM_PARAMS) {
-		d = (uint8_t*) & CONFIG_NON_VOLATILE_START;
-		source = (uint8_t*) NON_VOLATILE_MEMORY_START_ADDRESS;
-	}
-	else {
-		d = ((uint8_t*) & CONFIG_NON_VOLATILE_START) + sizeof(uv_data_start_t);
-		source = ((uint8_t*) NON_VOLATILE_MEMORY_START_ADDRESS) + sizeof(uv_data_start_t);
-	}
+	if ((uint32_t) &CONFIG_NON_VOLATILE_END +
+			sizeof(uv_data_end_t) -
+			(uint32_t) &CONFIG_NON_VOLATILE_START <= NV_LEN) {
 
-	if (scope & MEMORY_APP_PARAMS) {
-		length = ((uint32_t) & CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
-				(uint32_t) d;
-	}
-	else {
-		length = sizeof(uv_data_start_t);
-	}
+		if (scope & MEMORY_COM_PARAMS) {
+			d = (uint8_t*) & CONFIG_NON_VOLATILE_START;
+			source = (uint8_t*) NON_VOLATILE_MEMORY_START_ADDRESS;
+		}
+		else {
+			d = ((uint8_t*) & CONFIG_NON_VOLATILE_START) + sizeof(uv_data_start_t);
+			source = ((uint8_t*) NON_VOLATILE_MEMORY_START_ADDRESS) + sizeof(uv_data_start_t);
+		}
 
-	// copy values from flash to destination
-	memcpy(d, source, length);
+		if (scope & MEMORY_APP_PARAMS) {
+			length = ((uint32_t) & CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
+					(uint32_t) d;
+		}
+		else {
+			length = sizeof(uv_data_start_t);
+		}
 
-	source = (uint8_t *) NON_VOLATILE_MEMORY_START_ADDRESS +
-			((uint32_t) & CONFIG_NON_VOLATILE_END - (uint32_t) & CONFIG_NON_VOLATILE_START);
+		// copy values from flash to destination
+		memcpy(d, source, length);
 
-	if ((unsigned int) source + sizeof(uv_data_end_t) >
-			NON_VOLATILE_MEMORY_START_ADDRESS + FLASH_SECTOR_SIZE) {
-		// the non-volatile data was greater than Flash sector size.
-		// This is not allowed
-		ret = ERR_NOT_ENOUGH_MEMORY;
-	}
-	else {
 		// make sure to copy the end structure, since it contains the crc checksums
 		memcpy(& CONFIG_NON_VOLATILE_END, (uint8_t *) NON_VOLATILE_MEMORY_START_ADDRESS +
 				((uint32_t) & CONFIG_NON_VOLATILE_END - (uint32_t) & CONFIG_NON_VOLATILE_START),
@@ -239,6 +235,9 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 				ret = ERR_START_CHECKSUM_NOT_MATCH;
 			}
 		}
+	}
+	else {
+		ret = ERR_NOT_ENOUGH_MEMORY;
 	}
 
 	if (ret == ERR_NONE) {
@@ -353,28 +352,18 @@ uv_errors_e uv_memory_clear(memory_scope_e scope) {
 	if (length < 0) {
 		ret = ERR_END_ADDR_LESS_THAN_START_ADDR;
 	}
-	//calculate the right length
-	else if (length > IAP_BYTES_4096) {
+	else if (length > NV_LEN) {
 		ret = ERR_NOT_ENOUGH_MEMORY;
 	}
-	else if (length > IAP_BYTES_1024) {
-		length = IAP_BYTES_4096;
-	}
-	else if (length > IAP_BYTES_512) {
-		length = IAP_BYTES_1024;
-	}
-	else if (length > IAP_BYTES_256) {
-		length = IAP_BYTES_512;
-	}
 	else {
-		length = IAP_BYTES_256;
-	}
-
-	if (ret == ERR_NONE) {
-		uv_iap_status_e status = uv_erase_and_write_to_flash((uint32_t) &CONFIG_NON_VOLATILE_START,
-				length, NON_VOLATILE_MEMORY_START_ADDRESS);
-		if (status != IAP_CMD_SUCCESS) {
-			ret = ERR_INTERNAL;
+		for (uint32_t i = 0; i < length; i += FLASH_SECTOR_SIZE) {
+			uv_iap_status_e status = uv_erase_and_write_to_flash(
+					(uint32_t) &CONFIG_NON_VOLATILE_START + i,
+					FLASH_SECTOR_SIZE, NON_VOLATILE_MEMORY_START_ADDRESS + i);
+			if (status != IAP_CMD_SUCCESS) {
+				ret = ERR_INTERNAL;
+				break;
+			}
 		}
 	}
 

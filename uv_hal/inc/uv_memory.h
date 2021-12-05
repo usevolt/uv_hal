@@ -174,7 +174,6 @@ typedef int uv_iap_status_e;
 #endif
 
 
-/// @brief: Defines the possible amount of bytes to be written
 typedef enum {
 	IAP_BYTES_256 = 256,
 	IAP_BYTES_512 = 512,
