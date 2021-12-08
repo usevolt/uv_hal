@@ -260,6 +260,10 @@ uv_errors_e uv_terminal_step() {
 					// do nothing if receive buffer was empty
 					if (this->buffer_index == 0) {
 						printf(">");
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
+						printf("\n");
+						fflush(stdout);
+#endif
 					}
 					else {
 						//replace carriage return with a terminating mark
@@ -330,6 +334,10 @@ uv_errors_e uv_terminal_step() {
 							}
 						}
 						printf(">");
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
+						printf("\n");
+						fflush(stdout);
+#endif
 					}
 				}
 				else {

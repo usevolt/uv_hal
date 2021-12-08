@@ -485,6 +485,7 @@ void _uv_can_hal_step(unsigned int step_ms) {
 #endif
 								if (uv_ring_buffer_push(&this->rx_buffer, &msg) != ERR_NONE) {
 									printf("** CAN RX buffer full**\n");
+									fflush(stdout);
 								}
 #if CONFIG_TERMINAL_CAN
 							}
