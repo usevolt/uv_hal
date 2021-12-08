@@ -1197,7 +1197,7 @@ void uv_ui_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 		if ((w >= 512) || (h >= 512)) {
 			writedl(BITMAP_SIZE_H(w / 512, h / 512));
 		}
-		writedl(BEGIN(BEGIN_BITMAPS));
+		set_begin(BEGIN_BITMAPS);
 		vertex2f_st v;
 		v.sx = x;
 		v.sy = y;
