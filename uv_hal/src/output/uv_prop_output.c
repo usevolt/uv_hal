@@ -128,6 +128,9 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 			int32_t target_req = this->target_req;
 			LIMITS(target_req, PROP_OUTPUT_TARGET_MIN, PROP_OUTPUT_TARGET_MAX);
 
+			// apply the maxspeed scaler to the target value
+			target_req = uv_lerpi(this->maxspeed_scaler, 0, target_req);
+
 			if ((int32_t) target_req * this->last_target_req < 0) {
 				this->toggle_hyst.result = 0;
 				this->last_hyst = 0;
