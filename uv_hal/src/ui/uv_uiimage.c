@@ -57,24 +57,26 @@ static inline void draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t w = uv_uibb(this)->width;
 	int16_t h = uv_uibb(this)->height;
 
-	int16_t mw = this->media->width;
-	int16_t mh = this->media->height;
+	if (this->media != NULL) {
+		int16_t mw = this->media->width;
+		int16_t mh = this->media->height;
 
-	if (this->align == ALIGN_CENTER ||
-			this->align == ALIGN_TOP_CENTER) {
-		x += w / 2 - mw / 2;
-	}
-	if (this->align == ALIGN_CENTER_RIGHT ||
-			this->align == ALIGN_TOP_RIGHT) {
-		x += w - mw;
-	}
-	if (this->align == ALIGN_CENTER ||
-			this->align == ALIGN_CENTER_LEFT ||
-			this->align == ALIGN_CENTER_RIGHT) {
-		y += h / 2 - mh / 2;
-	}
+		if (this->align == ALIGN_CENTER ||
+				this->align == ALIGN_TOP_CENTER) {
+			x += w / 2 - mw / 2;
+		}
+		if (this->align == ALIGN_CENTER_RIGHT ||
+				this->align == ALIGN_TOP_RIGHT) {
+			x += w - mw;
+		}
+		if (this->align == ALIGN_CENTER ||
+				this->align == ALIGN_CENTER_LEFT ||
+				this->align == ALIGN_CENTER_RIGHT) {
+			y += h / 2 - mh / 2;
+		}
 
-	uv_ui_draw_bitmap_ext(this->media, x, y, mw, mh, this->wrap, this->blend_c);
+		uv_ui_draw_bitmap_ext(this->media, x, y, mw, mh, this->wrap, this->blend_c);
+	}
 }
 
 
@@ -84,6 +86,15 @@ void uv_uiimage_set_blendc(void *me, color_t c) {
 	}
 	this->blend_c = c;
 }
+
+
+void uv_uiimage_set_media(void *me, uv_uimedia_st *media) {
+	if (this->media != media) {
+		uv_ui_refresh(this);
+		this->media = media;
+	}
+}
+
 
 
 #endif

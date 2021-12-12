@@ -96,6 +96,8 @@ static inline color_t uv_uiimage_get_blendc(void *me) {
 }
 
 
+void uv_uiimage_set_media(void *me, uv_uimedia_st *media);
+
 
 #undef this
 

@@ -114,6 +114,16 @@ extern CONFIG_APP_ST;
 #define M_REPEAT18_(X) M_REPEAT17_(X) X(17)
 #define M_REPEAT19_(X) M_REPEAT18_(X) X(18)
 #define M_REPEAT20_(X) M_REPEAT19_(X) X(19)
+#define M_REPEAT21_(X) M_REPEAT20_(X) X(20)
+#define M_REPEAT22_(X) M_REPEAT21_(X) X(21)
+#define M_REPEAT23_(X) M_REPEAT22_(X) X(22)
+#define M_REPEAT24_(X) M_REPEAT23_(X) X(23)
+#define M_REPEAT25_(X) M_REPEAT24_(X) X(24)
+#define M_REPEAT26_(X) M_REPEAT25_(X) X(25)
+#define M_REPEAT27_(X) M_REPEAT26_(X) X(26)
+#define M_REPEAT28_(X) M_REPEAT27_(X) X(27)
+#define M_REPEAT29_(X) M_REPEAT28_(X) X(28)
+#define M_REPEAT30_(X) M_REPEAT29_(X) X(29)
 
 /// @brief: Repeat macro. Can be used to repeat a function call multiple times.
 ///
@@ -149,7 +159,17 @@ extern CONFIG_APP_ST;
 #define M_REPEAT17_ARG(X, ARG) M_REPEAT16_ARG(X, ARG) X(16, ARG)
 #define M_REPEAT18_ARG(X, ARG) M_REPEAT17_ARG(X, ARG) X(17, ARG)
 #define M_REPEAT19_ARG(X, ARG) M_REPEAT18_ARG(X, ARG) X(18, ARG)
-#define M_REPEAT20_ARG(X, ARG) M_REPEAT19_ARG X(19, ARG)
+#define M_REPEAT20_ARG(X, ARG) M_REPEAT19_ARG(X, ARG) X(19, ARG)
+#define M_REPEAT21_ARG(X, ARG) M_REPEAT20_ARG(X, ARG) X(20, ARG)
+#define M_REPEAT22_ARG(X, ARG) M_REPEAT21_ARG(X, ARG) X(21, ARG)
+#define M_REPEAT23_ARG(X, ARG) M_REPEAT22_ARG(X, ARG) X(22, ARG)
+#define M_REPEAT24_ARG(X, ARG) M_REPEAT23_ARG(X, ARG) X(23, ARG)
+#define M_REPEAT25_ARG(X, ARG) M_REPEAT24_ARG(X, ARG) X(24, ARG)
+#define M_REPEAT26_ARG(X, ARG) M_REPEAT25_ARG(X, ARG) X(25, ARG)
+#define M_REPEAT27_ARG(X, ARG) M_REPEAT26_ARG(X, ARG) X(26, ARG)
+#define M_REPEAT28_ARG(X, ARG) M_REPEAT27_ARG(X, ARG) X(27, ARG)
+#define M_REPEAT29_ARG(X, ARG) M_REPEAT28_ARG(X, ARG) X(28, ARG)
+#define M_REPEAT30_ARG(X, ARG) M_REPEAT29_ARG X(29, ARG)
 
 /// @brief: Repeat macro with an argument. The argument is given to the
 /// repeated function. The function should take two arguments, first the index and next the argument.
