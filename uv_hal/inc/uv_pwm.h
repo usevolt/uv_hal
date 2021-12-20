@@ -50,7 +50,9 @@
 // pwm channel
 #define PWM_CHN(_pwm_chn)	1
 #endif
-
+#if !defined(CONFIG_PWMEXT_MODULE_COUNT)
+#define CONFIG_PWMEXT_MODULE_COUNT			0
+#endif
 
 #if CONFIG_TARGET_LPC1549
 
@@ -426,7 +428,7 @@
 
 /// @brief: Variable to separate different PWM channels from each other
 /// Possible values are PWM channel macros defined upper.
-typedef volatile uint8_t uv_pwm_channel_t;
+typedef volatile uint32_t uv_pwm_channel_t;
 
 
 #define PWM_MAX_VALUE		1000U
@@ -436,9 +438,20 @@ typedef volatile uint8_t uv_pwm_channel_t;
 
 #define DUTY_CYCLEPPT(ppt)	((uint32_t) PWM_MAX_VALUE * (ppt) / 1000)
 
+/// @brief: This device as PWM module, if modules are deifned with uv_pwm_init_module
+#define PWMEXT_MODULE_THIS			0
+
+#define PWMEXT_GET_MODULE(chn)		((chn) >> 24)
+
+#define PWMEXT_GET_CHN(chn)		((chn) & 0xFF000000)
+
+#define PWMEXT_CHN(module, chn)	(((module) << 24) | (chn))
+
 
 /// @brief: Initializes the PWM modules
 uv_errors_e _uv_pwm_init();
+
+
 
 /// @brief: Sets the PWM channels output.
 ///
@@ -447,13 +460,32 @@ uv_errors_e _uv_pwm_init();
 uv_errors_e uv_pwm_set(uv_pwm_channel_t chn, uint16_t value);
 
 
+
 /// @brief: Sets the PWM frequency. Note that all pwm channels from the same pwm module
 /// share the same frequency. (PWM0_0, PWM0_1, PWM0_2, etc)
 void uv_pwm_set_freq(uv_pwm_channel_t chn, uint32_t value);
 
+
+
 /// @brief: Returns the current PWM value
 uint16_t uv_pwm_get(uv_pwm_channel_t chn);
 
+
+
+/// @brief: Initializes an external PWM module. This allows the PWM module to control
+/// external PWM'sother than the device's own channels. The external PWM channels are
+/// selected by using the PWMEXT_CHN() macro with the *module_index* in the module parameter.
+///
+/// @param module_index: Index of this module that is used pointing to this module when
+/// selecting the PWM channel with PWMEXT_CHN macro. Has to be smaller than CONFIG_PWMEXT_MODULE_COUNT.
+///
+/// @return: ERR_HARDWARE_NOT_SUPPORTED if the module_index is out of bounds
+uv_errors_e uv_pwmext_module_init(
+		uint8_t module_index,
+		void *module_ptr,
+		void (*set_callb)(void *module_ptr, uint32_t chn, uint16_t value),
+		uint16_t (*get_callb)(void *module_ptr, uint32_t chn),
+		void (*freq_callb)(void *module_ptr, uint32_t chn, uint32_t freq));
 
 #endif
 

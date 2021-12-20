@@ -41,6 +41,18 @@ uv_errors_e _uv_pwm_init() {
 }
 
 
+uv_errors_e uv_pwmext_module_init(
+		uint8_t module_index,
+		void *module_ptr,
+		void (*set_callb)(void *module_ptr, uint32_t chn, uint16_t value),
+		uint16_t (*get_callb)(void *module_ptr, uint32_t chn),
+		void (*freq_callb)(void *module_ptr, uint32_t chn, uint32_t freq)) {
+	uv_errors_e ret = ERR_NONE;
+
+	return ret;
+}
+
+
 
 uv_errors_e uv_pwm_set(uv_pwm_channel_t chn, uint16_t value) {
 	uv_errors_e ret = ERR_NONE;

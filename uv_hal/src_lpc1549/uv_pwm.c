@@ -38,12 +38,27 @@
 #if CONFIG_PWM
 
 
+
+// definition of external module interface
+struct pwm_module {
+	void (*set_callb)(void *module_ptr, uint32_t chn, uint16_t value);
+	uint16_t (*get_callb)(void *module_ptr, uint32_t chn);
+	void (*freq_callb)(void *module_ptr, uint32_t chn, uint32_t freq);
+	void *module_ptr;
+};
+
+
 typedef struct {
 	LPC_SCT_T *modules[4];
 	uint32_t pwm_freq[4];
+#if CONFIG_PWMEXT_MODULE_COUNT
+	struct pwm_module ext_module[CONFIG_PWMEXT_MODULE_COUNT];
+#endif
 } pwm_st;
 static pwm_st pwm;
 #define this (&pwm)
+
+
 
 
 uv_errors_e _uv_pwm_init() {
@@ -237,12 +252,18 @@ uv_errors_e _uv_pwm_init() {
 
 uv_errors_e uv_pwm_set(uv_pwm_channel_t chn, uint16_t value) {
 	uv_errors_e ret = ERR_NONE;
-	if (chn != 0) {
-		if (value > PWM_MAX_VALUE) {
-			value = PWM_MAX_VALUE;
-		}
+	if (value > PWM_MAX_VALUE) {
+		value = PWM_MAX_VALUE;
+	}
+	uint8_t module = PWMEXT_GET_MODULE(chn);
+	if (module == PWMEXT_MODULE_THIS &&
+			PWMEXT_GET_CHN(chn) != 0) {
 		Chip_SCTPWM_SetDutyCycle(this->modules[PWM_GET_MODULE(chn)], PWM_GET_CHANNEL(chn) + 1,
 				Chip_SCTPWM_GetTicksPerCycle(this->modules[PWM_GET_MODULE(chn)]) * value / PWM_MAX_VALUE);
+	}
+	else if (module < CONFIG_PWMEXT_MODULE_COUNT) {
+		this->ext_module[module].set_callb(
+				this->ext_module[module].module_ptr, PWMEXT_GET_CHN(chn), value);
 	}
 	else {
 		ret = ERR_UNSUPPORTED_PARAM1_VALUE;
@@ -254,10 +275,18 @@ uv_errors_e uv_pwm_set(uv_pwm_channel_t chn, uint16_t value) {
 
 uint16_t uv_pwm_get(uv_pwm_channel_t chn) {
 	uint16_t ret = 0;
-	if (chn != 0) {
+	uint8_t module = PWMEXT_GET_MODULE(chn);
+	if (module == PWMEXT_MODULE_THIS &&
+			PWMEXT_GET_CHN(chn) != 0) {
 		ret = PWM_MAX_VALUE * Chip_SCTPWM_GetDutyCycle(this->modules[PWM_GET_MODULE(chn)],
 				PWM_GET_CHANNEL(chn) + 1) /
 				Chip_SCTPWM_GetTicksPerCycle(this->modules[PWM_GET_MODULE(chn)]);
+	}
+	else if (module < CONFIG_PWMEXT_MODULE_COUNT) {
+		ret = this->ext_module[module].get_callb(
+				this->ext_module[module].module_ptr, PWMEXT_GET_CHN(chn));
+	}
+	else {
 	}
 
 	return ret;
@@ -266,7 +295,9 @@ uint16_t uv_pwm_get(uv_pwm_channel_t chn) {
 
 
 void uv_pwm_set_freq(uv_pwm_channel_t chn, uint32_t value) {
-	if (chn != 0) {
+	uint8_t module = PWMEXT_GET_MODULE(chn);
+	if (module == PWMEXT_MODULE_THIS &&
+			PWMEXT_GET_CHN(chn) != 0) {
 		if (this->pwm_freq[PWM_GET_MODULE(chn)] != value) {
 			Chip_SCTPWM_Stop(this->modules[PWM_GET_MODULE(chn)]);
 			Chip_SCTPWM_SetRate(this->modules[PWM_GET_MODULE(chn)], value);
@@ -274,6 +305,38 @@ void uv_pwm_set_freq(uv_pwm_channel_t chn, uint32_t value) {
 			this->pwm_freq[PWM_GET_MODULE(chn)] = value;
 		}
 	}
+	else if (module < CONFIG_PWMEXT_MODULE_COUNT) {
+		this->ext_module[module].freq_callb(
+				this->ext_module[module].module_ptr, PWMEXT_GET_CHN(chn), value);
+	}
+	else {
+
+	}
+}
+
+
+
+uv_errors_e uv_pwmext_module_init(
+		uint8_t module_index,
+		void *module_ptr,
+		void (*set_callb)(void *module_ptr, uint32_t chn, uint16_t value),
+		uint16_t (*get_callb)(void *module_ptr, uint32_t chn),
+		void (*freq_callb)(void *module_ptr, uint32_t chn, uint32_t freq)) {
+	uv_errors_e ret = ERR_NONE;
+
+	if (module_index < CONFIG_PWMEXT_MODULE_COUNT) {
+		this->ext_module[module_index].module_ptr = module_ptr;
+		this->ext_module[module_index].freq_callb = freq_callb;
+		this->ext_module[module_index].get_callb = get_callb;
+		this->ext_module[module_index].set_callb = set_callb;
+	}
+	else {
+		printf("uv_pwm.c | uv_pwm_init_module: Tried to initialize PWM module with higer\n"
+				"module index than supported. Define CONFIG_PWM_MODULE_COUNT with a value\n"
+				"of at least %i\n", module_index + 1);
+		ret = ERR_HARDWARE_NOT_SUPPORTED;
+	}
+	return ret;
 }
 
 
