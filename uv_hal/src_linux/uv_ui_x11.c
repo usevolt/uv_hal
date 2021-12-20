@@ -615,10 +615,11 @@ uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
 	}
 	if (match) {
 		// match already found
-		printf("Bitmap '%s' already existed\n", filename);
+		// printf("Bitmap '%s' already existed\n", filename);
 		bitmap->surface_ptr = m->surface;
 		bitmap->height = cairo_image_surface_get_height(bitmap->surface_ptr);
 		bitmap->width = cairo_image_surface_get_width(bitmap->surface_ptr);
+		bitmap->size = 1;
 		bitmap->type = UV_UIMEDIA_IMAGE;
 		ret = 1;
 	}
@@ -626,29 +627,33 @@ uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
 		m = malloc(sizeof(uimedia_ll_st));
 		strcpy(m->filename, filename);
 		m->next_ptr = NULL;
-		// create link to the new uimedia linked list entry
-		if (last) {
-			last->next_ptr = m;
-		}
-		else {
-			this->uimediall = m;
-		}
 		// load new file
 		m->surface = cairo_image_surface_create_from_png(filename);
-		if (m->surface != NULL) {
+		if (cairo_surface_status(m->surface) == CAIRO_STATUS_SUCCESS) {
 			bitmap->height = cairo_image_surface_get_height(m->surface);
 			bitmap->width = cairo_image_surface_get_width(m->surface);
+			bitmap->size = 1;
 			bitmap->surface_ptr = m->surface;
 			bitmap->type = UV_UIMEDIA_IMAGE;
 			ret = 1;
-			printf("Bitmap '%s' loaded\n", filename);
+
+			// create link to the new uimedia linked list entry
+			if (last) {
+				last->next_ptr = m;
+			}
+			else {
+				this->uimediall = m;
+			}
+
+			printf("Bitmap '%s' (%ix%i) loaded\n", filename, bitmap->width, bitmap->height);
 		}
 		else {
+			cairo_surface_destroy(m->surface);
+			free(m);
 			fprintf(stderr, "Could not create surface from png file '%'s\n", filename);
 			ret = 0;
 		}
 	}
-
 
 	return ret;
 }
