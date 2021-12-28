@@ -40,7 +40,7 @@
 
 
 // definition of external module interface
-struct pwm_module {
+struct ext_module {
 	void (*set_callb)(void *module_ptr, uint32_t chn, uint16_t value);
 	uint16_t (*get_callb)(void *module_ptr, uint32_t chn);
 	void (*freq_callb)(void *module_ptr, uint32_t chn, uint32_t freq);
@@ -52,7 +52,7 @@ typedef struct {
 	LPC_SCT_T *modules[4];
 	uint32_t pwm_freq[4];
 #if CONFIG_PWMEXT_MODULE_COUNT
-	struct pwm_module ext_module[CONFIG_PWMEXT_MODULE_COUNT];
+	struct ext_module ext_module[CONFIG_PWMEXT_MODULE_COUNT];
 #endif
 } pwm_st;
 static pwm_st pwm;
@@ -261,10 +261,12 @@ uv_errors_e uv_pwm_set(uv_pwm_channel_t chn, uint16_t value) {
 		Chip_SCTPWM_SetDutyCycle(this->modules[PWM_GET_MODULE(chn)], PWM_GET_CHANNEL(chn) + 1,
 				Chip_SCTPWM_GetTicksPerCycle(this->modules[PWM_GET_MODULE(chn)]) * value / PWM_MAX_VALUE);
 	}
+#if CONFIG_PWMEXT_MODULE_COUNT
 	else if (module < CONFIG_PWMEXT_MODULE_COUNT) {
 		this->ext_module[module].set_callb(
 				this->ext_module[module].module_ptr, PWMEXT_GET_CHN(chn), value);
 	}
+#endif
 	else {
 		ret = ERR_UNSUPPORTED_PARAM1_VALUE;
 	}
@@ -282,10 +284,12 @@ uint16_t uv_pwm_get(uv_pwm_channel_t chn) {
 				PWM_GET_CHANNEL(chn) + 1) /
 				Chip_SCTPWM_GetTicksPerCycle(this->modules[PWM_GET_MODULE(chn)]);
 	}
+#if CONFIG_PWMEXT_MODULE_COUNT
 	else if (module < CONFIG_PWMEXT_MODULE_COUNT) {
 		ret = this->ext_module[module].get_callb(
 				this->ext_module[module].module_ptr, PWMEXT_GET_CHN(chn));
 	}
+#endif
 	else {
 	}
 
@@ -305,10 +309,12 @@ void uv_pwm_set_freq(uv_pwm_channel_t chn, uint32_t value) {
 			this->pwm_freq[PWM_GET_MODULE(chn)] = value;
 		}
 	}
+#if CONFIG_PWMEXT_MODULE_COUNT
 	else if (module < CONFIG_PWMEXT_MODULE_COUNT) {
 		this->ext_module[module].freq_callb(
 				this->ext_module[module].module_ptr, PWMEXT_GET_CHN(chn), value);
 	}
+#endif
 	else {
 
 	}
@@ -316,6 +322,7 @@ void uv_pwm_set_freq(uv_pwm_channel_t chn, uint32_t value) {
 
 
 
+#if CONFIG_PWMEXT_MODULE_COUNT
 uv_errors_e uv_pwmext_module_init(
 		uint8_t module_index,
 		void *module_ptr,
@@ -338,6 +345,7 @@ uv_errors_e uv_pwmext_module_init(
 	}
 	return ret;
 }
+#endif
 
 
 #endif
