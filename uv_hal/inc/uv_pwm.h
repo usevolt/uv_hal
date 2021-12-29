@@ -443,7 +443,7 @@ typedef volatile uint32_t uv_pwm_channel_t;
 
 #define PWMEXT_GET_MODULE(chn)		((chn) >> 24)
 
-#define PWMEXT_GET_CHN(chn)		((chn) & 0xFF000000)
+#define PWMEXT_GET_CHN(chn)		((chn) & ~(0xFF << 24))
 
 #define PWMEXT_CHN(module, chn)	(((module) << 24) | (chn))
 
