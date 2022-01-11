@@ -394,6 +394,18 @@ uint32_t uv_isqrt(uint32_t value) {
 
 
 
+uint32_t uv_countofbit(uint32_t a, uint8_t bit) {
+	uint32_t ret = 0;
+
+	for (uint32_t i = 0; i < 32; i++) {
+		if (!!(a & (1 << i)) == !!bit) {
+			ret++;
+		}
+	}
+	return ret;
+}
+
+
 
 
 void *__uv_get_user_ptr() {

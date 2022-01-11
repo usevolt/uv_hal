@@ -494,6 +494,11 @@ uint32_t uv_ctz(uint32_t a);
 uint32_t uv_isqrt(uint32_t value);
 
 
+/// @brief: Calculates the number of *bit* bits in *a*. If *bit* is true, calculates the count of 1's.
+/// Otherwise calculates the count of zeroes.
+uint32_t uv_countofbit(uint32_t a, uint8_t bit);
+
+
 
 /// @bref: Set's the interrupt sources priority. If the priority is not available on
 /// the hardware, an error is returned and logged to stdout.
