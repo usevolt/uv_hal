@@ -8,7 +8,10 @@
 
 #include <uv_pca9685.h>
 #include "uv_pwm.h"
+#include "uv_terminal.h"
 
+
+#if CONFIG_I2C
 
 enum {
 	REG_MODE1 = 0,
@@ -98,63 +101,74 @@ enum {
 
 
 
-uv_errors_e pca9685_init(pca9685_st *this, i2c_e i2c_chn, uint8_t address,
+uv_errors_e uv_pca9685_init(uv_pca9685_st *this, i2c_e i2c_chn, uint8_t address,
 		uv_gpios_e oe_gpio, uint32_t pwm_freq) {
 	uv_errors_e ret = ERR_NONE;
 
 	this->i2c = i2c_chn;
+	// check that the given address had the fixed 1 bit set
+	address |= (1 << 6);
 	this->address = address;
 	this->oe_gpio = oe_gpio;
 
-	// read MODE register
-	{
-		uint8_t r[2] = {
-				REG_MODE1
-		};
-		uv_i2cm_readwrite(this->i2c, this->address, NULL, 0, r, sizeof(r));
-		printf("read: 0x%x\n", r[1]);
-	}
-
+	// write MODE register
 	// enable register auto increment and enable normal mode
 	{
 		uint8_t w[2] = {
 				REG_MODE1,
-				(1 << 5)
+				(1 << 5), // register auto update enabled
+
 		};
-		uv_i2cm_readwrite(this->i2c, this->address, w, sizeof(w), NULL, 0);
+		uint8_t r[3] = {};
+		uv_i2cm_readwrite(this->i2c, this->address, w, sizeof(w), r, sizeof(r));
 	}
 
-	// write the pwm frequency
+	// read MODE register
 	{
-		pwm_freq = 25000000 / (4096 * pwm_freq);
-		uint8_t w[2] = {
-				REG_PRESCALE,
-				pwm_freq
+		uint8_t w[1] = {
+				REG_MODE1
 		};
-		uv_i2cm_readwrite(this->i2c, this->address, w, sizeof(w), NULL, 0);
+		uint8_t r[1] = {};
+		uv_i2cm_readwrite(this->i2c, this->address, w, sizeof(w), r, sizeof(r));
+		if (r[0] != (1 << 5)) {
+			uv_terminal_enable(TERMINAL_CAN);
+			printf("*** PCA9685 INIT ERROR ***\n");
+			ret = ERR_NOT_RESPONDING;
+		}
 	}
+	if (ret == ERR_NONE) {
+		// write the pwm frequency
+		{
+			pwm_freq = 25000000 / (4096 * pwm_freq);
+			uint8_t w[2] = {
+					REG_PRESCALE,
+					pwm_freq
+			};
+			uv_i2cm_readwrite(this->i2c, this->address, w, sizeof(w), NULL, 0);
+		}
 
-	// set all PWM's to zero
-	for (uint16_t i = 0; i < 16; i++) {
-		uint8_t w[5] = {
-				REG_LED0_ON_L + i * 4,
-				0,
-				0,
-				0,
-				0
-		};
-		uv_i2cm_readwrite(this->i2c, this->address, w, sizeof(w), NULL, 0);
+		// set all PWM's to zero
+		for (uint16_t i = 0; i < 16; i++) {
+			uint8_t w[5] = {
+					REG_LED0_ON_L + i * 4,
+					0,
+					0,
+					0,
+					0
+			};
+			uv_i2cm_readwrite(this->i2c, this->address, w, sizeof(w), NULL, 0);
+		}
+
+		// enable the OE pin
+		uv_gpio_init_output(this->oe_gpio, false);
 	}
-
-	// enable the OE pin
-	uv_gpio_init_output(this->oe_gpio, false);
 
 	return ret;
 }
 
 
-void pca9685_set(void *me, uint32_t chn, uint16_t value) {
-	pca9685_st *this = me;
+void uv_pca9685_set(void *me, uint32_t chn, uint16_t value) {
+	uv_pca9685_st *this = me;
 
 	LIMIT_MAX(value, PWM_MAX_VALUE);
 	value = value * LED_MAX_VAL / PWM_MAX_VALUE;
@@ -168,13 +182,14 @@ void pca9685_set(void *me, uint32_t chn, uint16_t value) {
 
 
 
-uint16_t pca9685_get(void *me, uint32_t chn) {
+uint16_t uv_pca9685_get(void *me, uint32_t chn) {
 	uint16_t ret = 0;
-	pca9685_st *this = me;
-	uint8_t r[3] = {
+	uv_pca9685_st *this = me;
+	uint8_t w[1] = {
 			REG_LED0_OFF_L + chn
 	};
-	uv_i2cm_readwrite(this->i2c, this->address, NULL, 0, r, sizeof(r));
+	uint8_t r[2] = {};
+	uv_i2cm_readwrite(this->i2c, this->address, w, sizeof(w), r, sizeof(r));
 	uint16_t dc = r[0] + (r[1] << 8);
 	ret = dc * PWM_MAX_VALUE / LED_MAX_VAL;
 	LIMIT_MAX(ret, PWM_MAX_VALUE);
@@ -183,8 +198,8 @@ uint16_t pca9685_get(void *me, uint32_t chn) {
 }
 
 
-void pca9685_set_freq(void *me, uint32_t chn, uint32_t freq) {
-	pca9685_st *this = me;
+void uv_pca9685_set_freq(void *me, uint32_t chn, uint32_t freq) {
+	uv_pca9685_st *this = me;
 	// write the pwm frequency
 	uint32_t pwm_freq = 25000000 / (4096 * freq);
 	uint8_t w[2] = {
@@ -195,3 +210,4 @@ void pca9685_set_freq(void *me, uint32_t chn, uint32_t freq) {
 }
 
 
+#endif

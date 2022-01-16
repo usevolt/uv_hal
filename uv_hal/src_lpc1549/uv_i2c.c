@@ -39,7 +39,7 @@
 
 
 
-static LPC_I2C_T *p[i2C_COUNT] = {
+static LPC_I2C_T *p[I2C_COUNT] = {
 		LPC_I2C
 };
 
