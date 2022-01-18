@@ -256,7 +256,6 @@ uv_errors_e uv_pwm_set(uv_pwm_channel_t chn, uint16_t value) {
 		value = PWM_MAX_VALUE;
 	}
 	uint8_t module = PWMEXT_GET_MODULE(chn);
-	printf("%i %i %i\n", module, PWMEXT_GET_CHN(chn), value);
 	if (module == PWMEXT_MODULE_THIS &&
 			PWMEXT_GET_CHN(chn) != 0) {
 		Chip_SCTPWM_SetDutyCycle(this->modules[PWM_GET_MODULE(chn)], PWM_GET_CHANNEL(chn) + 1,

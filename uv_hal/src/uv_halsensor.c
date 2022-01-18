@@ -92,7 +92,7 @@ static int sort(const void *val1, const void *val2) {
 }
 
 int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
-	uint16_t adc_buf[ADC_COUNT];
+	uint16_t adc_buf[ADC_COUNT] = {};
 	for (uint8_t i = 0; i < ADC_COUNT; i++) {
 		adc_buf[i] = uv_adc_read(this->adc_chn);
 	}
