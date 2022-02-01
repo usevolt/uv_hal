@@ -212,6 +212,7 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 			if (this->target) {
 				output = PWM_MAX_VALUE;
 			}
+
 			// logic invertion inverts when the output is ON and when OFF
 			if (this->logicinv) {
 				if (output == 0) {
