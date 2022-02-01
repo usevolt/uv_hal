@@ -271,6 +271,18 @@ static inline int16_t uv_dual_solenoid_output_get_maxspeed_scaler(
 }
 
 
+static inline void uv_dual_solenoid_output_set_logicinv(
+		uv_dual_solenoid_output_st *this, bool value) {
+	uv_solenoid_output_set_logicinv(&this->solenoid[0], value);
+	uv_solenoid_output_set_logicinv(&this->solenoid[1], value);
+}
+
+static inline bool uv_dual_solenoid_output_get_logicinv(
+		uv_dual_solenoid_output_st *this) {
+	return uv_solenoid_output_get_logicinv(&this->solenoid[0]);
+}
+
+
 
 #endif
 
