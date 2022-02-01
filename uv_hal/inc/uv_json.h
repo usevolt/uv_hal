@@ -275,6 +275,10 @@ char *uv_jsonreader_array_at(char *object, unsigned int index);
 unsigned int uv_jsonreader_array_get_size(char *array);
 
 
+/// @brief: Returns the type of the array value at index *index*
+uv_json_types_e uv_jsonreader_array_get_type(char *array, unsigned int index);
+
+
 #endif
 
 #endif /* UW_JSON_H_ */

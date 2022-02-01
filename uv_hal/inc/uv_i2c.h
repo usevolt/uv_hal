@@ -44,7 +44,7 @@
 
 typedef enum {
 	I2C0 = 0,
-	i2C_COUNT
+	I2C_COUNT
 } i2c_e;
 
 

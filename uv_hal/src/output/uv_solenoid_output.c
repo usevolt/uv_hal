@@ -225,6 +225,7 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 		}
 		LIMITS(output, 0, PWM_MAX_VALUE);
 
+
 		// set the output value
 		this->pwm = output;
 		// set output state depending if the output is active

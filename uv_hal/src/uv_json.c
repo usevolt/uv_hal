@@ -534,6 +534,8 @@ unsigned int uv_jsonreader_array_get_size(char *array) {
 	return ret;
 }
 
+
+
 /// @brief: Returns the pointer to the array's 'inedex'th child
 static char *array_index(char *array, unsigned int index) {
 	if (array != NULL) {
@@ -699,6 +701,39 @@ char *uv_jsonreader_array_at(char *object, unsigned int index) {
 	if (object != NULL) {
 		if (index < uv_jsonreader_array_get_size(object)) {
 			ret = array_index(object, index);
+		}
+	}
+
+	return ret;
+}
+
+
+
+uv_json_types_e uv_jsonreader_array_get_type(char *array, unsigned int index) {
+	uv_json_types_e ret = JSON_UNSUPPORTED;
+
+	if (array != NULL) {
+		char *obj = uv_jsonreader_array_at(array, index);
+		if (obj != NULL) {
+			// object now points to the first character of the value
+			switch (*obj) {
+			case '{':
+				ret = JSON_OBJECT;
+				break;
+			case '[':
+				ret = JSON_ARRAY;
+				break;
+			case '"':
+				ret = JSON_STRING;
+				break;
+			case 't':
+			case 'f':
+				ret = JSON_BOOL;
+				break;
+			default:
+				ret = JSON_INT;
+				break;
+			}
 		}
 	}
 

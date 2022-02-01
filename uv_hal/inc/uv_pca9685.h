@@ -54,7 +54,9 @@ typedef struct {
 
 	uv_gpios_e oe_gpio;
 
-} pca9685_st;
+} uv_pca9685_st;
+
+
 
 
 
@@ -64,7 +66,7 @@ typedef struct {
 /// @brief: Initializes the PCA9685 module
 ///
 /// @return: ERR_NONE if init succesfully
-uv_errors_e pca9685_init(pca9685_st *this, i2c_e i2c_chn, uint8_t address,
+uv_errors_e uv_pca9685_init(uv_pca9685_st *this, i2c_e i2c_chn, uint8_t address,
 		uv_gpios_e oe_gpio, uint32_t pwm_freq);
 
 
@@ -72,18 +74,18 @@ uv_errors_e pca9685_init(pca9685_st *this, i2c_e i2c_chn, uint8_t address,
 /// @brief: Sets the output duty cycle to *value*. Value should be 0 ... PWM_MAX_VALUE
 ///
 /// @note: applies to funciton pointer interface on uv_pwm.h
-void pca9685_set(void *this, uint32_t chn, uint16_t value);
+void uv_pca9685_set(void *this, uint32_t chn, uint16_t value);
 
 
 
 /// @brief: Gets the output duty cycle from the given channel
 ///
 /// @note: Applies to function pointer interface on uv_pwm.h
-uint16_t pca9685_get(void *this, uint32_t chn);
+uint16_t uv_pca9685_get(void *this, uint32_t chn);
 
 
 /// @brief: Sets the PWM of the channel. On PCA9685 it will set the global PWM freq to all channels
-void pca9685_set_freq(void *this, uint32_t chn, uint32_t freq);
+void uv_pca9685_set_freq(void *this, uint32_t chn, uint32_t freq);
 
 
 #endif
