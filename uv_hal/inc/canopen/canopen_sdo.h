@@ -109,6 +109,11 @@ typedef enum {
 
 
 
+typedef enum {
+	SDO_ABORT_OUT_OF_MEMORY = 0x05030005
+} sdo_abort_codes_e;
+
+
 void _uv_canopen_sdo_init(void);
 
 

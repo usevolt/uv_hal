@@ -243,8 +243,20 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 					}
 				}
 				// check if the transfer is finished
-				if ((GET_CMD_BYTE(msg) & (1 << 0)) || finished) {
+				if (GET_CMD_BYTE(msg) & (1 << 0)) {
 					this->state = CANOPEN_SDO_STATE_READY;
+				}
+				else if (finished) {
+					this->state = CANOPEN_SDO_STATE_READY;
+					// byte count was smaller than the server string len.
+					// Send an abort message to the server
+					SET_CMD_BYTE(&reply_msg, ABORT_DOMAIN_TRANSFER);
+					reply_msg.data_length = 8;
+					reply_msg.data_8bit[1] = this->mindex & 0xFF;
+					reply_msg.data_8bit[2] = this->mindex >> 8;
+					reply_msg.data_8bit[3] = this->sindex;
+					reply_msg.data_32bit[1] = SDO_ABORT_OUT_OF_MEMORY;
+					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 				}
 				else {
 					// ask for more data
