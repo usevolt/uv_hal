@@ -292,6 +292,9 @@ static inline void uv_delay_trigger(uv_delay_st *p) {
 	*p = 0;
 }
 
+
+bool uv_isdigit(char c);
+
 /// @brief: Set's the user's application pointer.
 /// User can set a pointer to any variable which will be passed to all this library's
 /// callback functions. This makes it easier to write object oriented code, since
