@@ -444,5 +444,5 @@ void IntDefaultHandler(void) {
 #endif
 
 bool uv_isdigit(char c) {
-	return (c >= 0) && (c <= 9);
+	return (c >= '0') && (c <= '9');
 }
