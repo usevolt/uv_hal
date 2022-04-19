@@ -139,6 +139,16 @@ uv_bounding_box_st uv_uitabwindow_get_contentbb(void *me);
 uv_uiobject_ret_e uv_uitabwindow_step(void *me, uint16_t step_ms);
 
 
+static inline uint16_t uv_uitabwindow_get_tab_count(void *me) {
+	return this->tab_count;
+}
+
+/// @brief: Sets the tab count. Note that the tab name buffer has to have at least *tab_count* members.
+static inline void uv_uitabwindow_set_tab_count(void *me, uint16_t tab_count) {
+	this->tab_count = tab_count;
+}
+
+
 #undef this
 
 #endif
