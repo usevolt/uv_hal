@@ -67,6 +67,9 @@ void uv_uigraph_init(void *me, uv_uigraph_point_st *points_buffer,
 	this->current_val_y = this->min_y - 1;
 	this->coordinate_c = this->style->text_color;
 	this->graph_c = this->style->fg_c;
+	this->x_unit = NULL;
+	this->y_unit = NULL;
+	this->point_moved_callb = NULL;
 
 	uv_uiobject_set_draw_callb(this, &uv_uigraph_draw);
 	uv_uiobject_set_touch_callb(this, &uv_uigraph_touch);
@@ -86,9 +89,19 @@ void uv_uigraph_draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t cw = w;
 	int16_t value_height = CONFIG_UI_GRAPH_LINE_WIDTH + this->style->font->char_height;
 	char str[20];
-	sprintf(str, "%i", this->max_y);
+	if (this->y_unit != NULL) {
+		sprintf(str, "%i %s", this->max_y, this->y_unit);
+	}
+	else {
+		sprintf(str, "%i", this->max_y);
+	}
 	int16_t maxy_value_width = uv_ui_get_string_width(str, this->style->font);
-	sprintf(str, "%i", this->min_y);
+	if (this->y_unit != NULL) {
+		sprintf(str, "%i %s", this->min_y, this->y_unit);
+	}
+	else {
+		sprintf(str, "%i", this->min_y);
+	}
 	int16_t miny_value_width = uv_ui_get_string_width(str, this->style->font);
 	int16_t value_width = MAX(maxy_value_width, miny_value_width) + CONFIG_UI_GRAPH_LINE_WIDTH;
 
@@ -133,19 +146,39 @@ void uv_uigraph_draw(void *me, const uv_bounding_box_st *pbb) {
 
 	// draw x axis
 	uv_ui_draw_line(x, rely, x + cw, rely, CONFIG_UI_GRAPH_LINE_WIDTH, this->coordinate_c);
-	sprintf(str, "%i", this->min_x);
+	if (this->x_unit != NULL) {
+		sprintf(str, "%i %s", this->min_x, this->x_unit);
+	}
+	else {
+		sprintf(str, "%i", this->min_x);
+	}
 	uv_ui_draw_string(str, this->style->font, x, rely + CONFIG_UI_GRAPH_LINE_WIDTH,
 			ALIGN_TOP_LEFT, this->coordinate_c);
-	sprintf(str, "%i", this->max_x);
+	if (this->x_unit != NULL) {
+		sprintf(str, "%i %s", this->max_x, this->x_unit);
+	}
+	else {
+		sprintf(str, "%i", this->max_x);
+	}
 	uv_ui_draw_string(str, this->style->font, x + cw, rely + CONFIG_UI_GRAPH_LINE_WIDTH,
 			ALIGN_TOP_RIGHT, this->coordinate_c);
 
 	// draw y axis
 	uv_ui_draw_line(relx, y, relx, y + ch, CONFIG_UI_GRAPH_LINE_WIDTH, this->coordinate_c);
-	sprintf(str, "%i", this->max_y);
+	if (this->y_unit != NULL) {
+		sprintf(str, "%i %s", this->max_y, this->y_unit);
+	}
+	else {
+		sprintf(str, "%i", this->max_y);
+	}
 	uv_ui_draw_string(str, this->style->font, relx - CONFIG_UI_GRAPH_LINE_WIDTH, y,
 			ALIGN_TOP_RIGHT, this->coordinate_c);
-	sprintf(str, "%i", this->min_y);
+	if (this->y_unit != NULL) {
+		sprintf(str, "%i %s", this->min_y, this->y_unit);
+	}
+	else {
+		sprintf(str, "%i", this->min_y);
+	}
 	uv_ui_draw_string(str, this->style->font, relx - CONFIG_UI_GRAPH_LINE_WIDTH,
 			y + ch - uv_ui_get_string_height(str, this->style->font),
 			ALIGN_TOP_RIGHT, this->coordinate_c);
@@ -192,6 +225,41 @@ void uv_uigraph_draw(void *me, const uv_bounding_box_st *pbb) {
 		}
 	}
 
+	// draw the active point's coordinates
+	if (this->active_point != -1) {
+		uv_uigraph_point_st *p = &this->points[this->active_point];
+		char str[40];
+		if (this->x_unit != NULL) {
+			sprintf(str, "(%i %s, ", p->x, this->x_unit);
+		}
+		else {
+			sprintf(str, "(%i, ", p->x);
+		}
+		if (this->y_unit != NULL) {
+			sprintf(str + strlen(str), "%i %s)", p->y, this->y_unit);
+		}
+		else {
+			sprintf(str + strlen(str), "%i)", p->y);
+		}
+		int16_t w = uv_ui_get_string_width(str, this->style->font),
+				h = uv_ui_get_string_height(str, this->style->font);
+		int16_t px = uv_lerpi(uv_reli(p->x, this->min_x, this->max_x), x, x + cw);
+		int16_t py = uv_lerpi(uv_reli(p->y, this->min_y, this->max_y), y + ch, y);
+		int16_t offset = this->style->font->char_height;
+		int16_t tx = px + offset,
+				ty = py - offset - h;
+		if (p->x > this->max_x - (this->max_x - this->min_x) / 2) {
+			// draw the text on the left side of the point
+			tx = px - offset - w;
+		}
+		if (p->y > this->max_y - (this->max_y - this->min_y) / 2) {
+			ty = py + offset;
+		}
+		printf("drawing %s on (%i %i)\n", str, tx, ty);
+		uv_ui_draw_string(str, this->style->font, tx, ty,
+				ALIGN_TOP_LEFT, this->style->text_color);
+	}
+
 
 	this->content_w = cw;
 	this->content_h = ch;
@@ -202,34 +270,36 @@ void uv_uigraph_draw(void *me, const uv_bounding_box_st *pbb) {
 
 void uv_uigraph_touch(void *me, uv_touch_st *touch) {
 	if (touch->action == TOUCH_CLICKED) {
-		bool found = false;
-		for (uint16_t i = 0; i < this->points_count; i++) {
-			uv_uigraph_point_st *p = &this->points[i];
-			int16_t px = uv_lerpi(uv_reli(p->x, this->min_x, this->max_x),
-					this->content_x, this->content_x + this->content_w);
-			int16_t py = uv_lerpi(uv_reli(p->y, this->min_y, this->max_y),
-					this->content_h, 0);
+		for (uint16_t i = MAX(0, this->active_point); i < this->points_count; i++) {
+			if (this->points[i].interactive) {
+				uv_uigraph_point_st *p = &this->points[i];
+				int16_t px = uv_lerpi(uv_reli(p->x, this->min_x, this->max_x),
+						this->content_x, this->content_x + this->content_w);
+				int16_t py = uv_lerpi(uv_reli(p->y, this->min_y, this->max_y),
+						this->content_h, 0);
 
-			if (touch->x > px - this->style->font->char_height * 2 &&
-					touch->x < px + this->style->font->char_height * 2 &&
-					touch->y > py - this->style->font->char_height * 2 &&
-					touch->y < py + this->style->font->char_height * 2) {
-				if (this->active_point != i && this->points[i].interactive) {
-					// only select this if it was not yet selected.
-					// This logic makes it possible to cycle through
-					// multiple points that are on top of each others
-					this->active_point = i;
-					// prevent the touch to propagate any further
-					touch->action = TOUCH_NONE;
-					found = true;
-					break;
+				if (this->active_point == -1 ||
+						this->active_point == i) {
+					if (touch->x > px - this->style->font->char_height * 2 &&
+							touch->x < px + this->style->font->char_height * 2 &&
+							touch->y > py - this->style->font->char_height * 2 &&
+							touch->y < py + this->style->font->char_height * 2) {
+						if (this->active_point == -1) {
+							// new point selected
+							this->active_point = i;
+							// prevent the touch to propagate any further
+							touch->action = TOUCH_NONE;
+							break;
+						}
+						else {
+							// deselect this point
+							this->active_point = -1;
+							// but continue looping through other points as they
+							// can be selected
+						}
+					}
 				}
 			}
-		}
-		if (found == false) {
-			// no point clicked
-			this->active_point = -1;
-			touch->action = TOUCH_NONE;
 		}
 		this->clicked = true;
 		uv_ui_refresh(this);

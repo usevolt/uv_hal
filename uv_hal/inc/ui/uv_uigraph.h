@@ -72,6 +72,7 @@ typedef struct __attribute__((packed)) {
 	int16_t current_val_x;
 	int16_t current_val_y;
 	bool clicked;
+	bool (*point_moved_callb)(int16_t, int16_t, int16_t);
 	// helper variables that define the content width and height. These are
 	// calculated in the draw function and stored here, so that they can be used
 	// in touch function.
@@ -79,6 +80,8 @@ typedef struct __attribute__((packed)) {
 	int16_t content_x;
 	int16_t content_h;
 	char *title;
+	const char *x_unit;
+	const char *y_unit;
 	const uv_uistyle_st *style;
 } uv_uigraph_st;
 
@@ -160,11 +163,45 @@ static inline color_t uv_uigraph_get_graph_color(void *me) {
 
 
 
+/// @brief: Sets the x axis unit
+static inline void uv_uigraph_set_xunit(void *me, const char *str) {
+	this->x_unit = str;
+}
+
+
+static inline const char *uv_uigraph_get_xunit(void *me) {
+	return this->x_unit;
+}
+
+/// @brief: Sets the y axis unit
+static inline void uv_uigraph_set_yunit(void *me, const char *str) {
+	this->y_unit = str;
+}
+
+static inline const char *uv_uigraph_get_yunit(void *me) {
+	return this->y_unit;
+}
+
+
 /// @brief: Sets the current value on the graph. The *val_x* is shown
 /// as a vertical line, and *val_y* is shown as a horizontal line.
 // To disable any one of these, enter a value smaller than the minimum or bigger than
 /// the maximum.
 void uv_uigraph_set_current_val(void *me, int16_t val_x, int16_t val_y);
+
+
+
+/// @brief: Sets the uigraph as editable. Defaults to false. When editable,
+/// Interactive points can be clicked and moved around like in uivalveslider.
+///
+/// @param *point_moved_callb callback function that has to return true if the
+/// new coordinates for the *point* specified in *y_new* and *x_new* are accepted.
+/// The point array is updated automatically if accepted.
+/// If false is returned, the point is not moved.
+static inline void uv_uigraph_set_editable(void *me,
+		bool (*point_moved_callb)(int16_t point, int16_t x_new, int16_t y_new)) {
+	this->point_moved_callb = point_moved_callb;
+}
 
 
 
