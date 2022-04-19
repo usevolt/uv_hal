@@ -143,6 +143,13 @@ typedef struct {
 	// scales the maximum speed of the solenoid. 0 ... 1000
 	int16_t maxspeed_scaler;
 
+	// preheat applies small current on solenoid *before* activating it with the given control value
+	struct {
+		int16_t time_ms;
+		int16_t current_ma;
+		uv_delay_st delay;
+	} preheat;
+
 } uv_solenoid_output_st;
 
 
@@ -307,6 +314,14 @@ static inline void uv_solenoid_output_set_logicinv(uv_solenoid_output_st *this, 
 static inline bool uv_solenoid_output_get_logicinv(uv_solenoid_output_st *this) {
 	return this->logicinv;
 }
+
+
+static inline void uv_solenoid_output_set_preheat(uv_solenoid_output_st *this,
+		int16_t time_ms, int16_t current_ma) {
+	this->preheat.time_ms = time_ms;
+	this->preheat.current_ma = current_ma;
+}
+
 
 
 #endif
