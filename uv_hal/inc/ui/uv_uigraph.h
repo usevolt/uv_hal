@@ -56,6 +56,15 @@ void uv_uigraph_point_init(uv_uigraph_point_st *this,
 
 
 
+typedef enum {
+	UIGRAPH_POINT_DIR_X_NEG = 0,
+	UIGRAPH_POINT_DIR_X_POS,
+	UIGRAPH_POINT_DIR_Y_NEG,
+	UIGRAPH_POINT_DIR_Y_POS,
+	UIGRAPH_POINT_DRAG
+} uv_uigraph_point_dir_e;
+
+
 typedef struct __attribute__((packed)) {
 	EXTENDS(uv_uiobject_st);
 
@@ -65,14 +74,22 @@ typedef struct __attribute__((packed)) {
 	uv_uigraph_point_st *points;
 	uint16_t points_count;
 	int16_t active_point;
+	bool point_selected;
+	bool point_changed;
 	int16_t min_x;
 	int16_t min_y;
 	int16_t max_x;
 	int16_t max_y;
 	int16_t current_val_x;
 	int16_t current_val_y;
-	bool clicked;
 	bool (*point_moved_callb)(int16_t, int16_t, int16_t);
+	uv_delay_st press_delay;
+	int16_t drag_start_x;
+	int16_t drag_start_y;
+	int16_t drag_x;
+	int16_t drag_y;
+	uv_uigraph_point_dir_e point_dir;
+
 	// helper variables that define the content width and height. These are
 	// calculated in the draw function and stored here, so that they can be used
 	// in touch function.
@@ -110,11 +127,6 @@ void uv_uigraph_init(void *me, uv_uigraph_point_st *points_buffer,
 
 
 
-/// @brief: True for one step cycle when the user presses the uigraph
-static inline bool uv_uigraph_clicked(void *me) {
-	return this->clicked;
-}
-
 
 
 /// @brief: Returns the index number of the selected point. If no points are
@@ -149,6 +161,17 @@ static inline color_t uv_uigraph_get_coordinate_color(void *me) {
 }
 
 
+
+/// @brief: Returns true for 1 step cycle when a point was selected
+static inline bool uv_uigraph_point_selected(void *me) {
+	return this->point_selected;
+}
+
+
+/// @brief: Returns true for 1 step cycle if the active point's value was changed
+static inline bool uv_uigraph_point_value_changed(void *me) {
+	return this->point_changed;
+}
 
 /// @brief: Sets the main color of the uibutton. The button should be refreshed after
 /// calling this.

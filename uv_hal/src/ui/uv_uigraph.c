@@ -33,6 +33,8 @@
 #if CONFIG_UI
 
 
+#define POINT_MOVE_DELAY_MS				50
+
 
 void uv_uigraph_point_init(uv_uigraph_point_st *this,
 		int16_t x, int16_t y, bool interactive) {
@@ -54,7 +56,6 @@ void uv_uigraph_init(void *me, uv_uigraph_point_st *points_buffer,
 	this->points_count = points_count;
 	this->style = style;
 	this->title = NULL;
-	this->clicked = false;
 	this->active_point = -1;
 	this->min_x = min_x;
 	this->max_x = max_x;
@@ -63,6 +64,8 @@ void uv_uigraph_init(void *me, uv_uigraph_point_st *points_buffer,
 	this->content_w = 0;
 	this->content_x = 0;
 	this->content_h = 0;
+	this->point_selected = false;
+	this->point_changed = false;
 	this->current_val_x = this->min_x - 1;
 	this->current_val_y = this->min_y - 1;
 	this->coordinate_c = this->style->text_color;
@@ -70,6 +73,7 @@ void uv_uigraph_init(void *me, uv_uigraph_point_st *points_buffer,
 	this->x_unit = NULL;
 	this->y_unit = NULL;
 	this->point_moved_callb = NULL;
+	uv_delay_end(&this->press_delay);
 
 	uv_uiobject_set_draw_callb(this, &uv_uigraph_draw);
 	uv_uiobject_set_touch_callb(this, &uv_uigraph_touch);
@@ -255,7 +259,6 @@ void uv_uigraph_draw(void *me, const uv_bounding_box_st *pbb) {
 		if (p->y > this->max_y - (this->max_y - this->min_y) / 2) {
 			ty = py + offset;
 		}
-		printf("drawing %s on (%i %i)\n", str, tx, ty);
 		uv_ui_draw_string(str, this->style->font, tx, ty,
 				ALIGN_TOP_LEFT, this->style->text_color);
 	}
@@ -269,7 +272,11 @@ void uv_uigraph_draw(void *me, const uv_bounding_box_st *pbb) {
 
 
 void uv_uigraph_touch(void *me, uv_touch_st *touch) {
-	if (touch->action == TOUCH_CLICKED) {
+	this->point_selected = false;
+	this->point_changed = false;
+
+	// selecting the point
+	if (touch->action == TOUCH_PRESSED) {
 		for (uint16_t i = MAX(0, this->active_point); i < this->points_count; i++) {
 			if (this->points[i].interactive) {
 				uv_uigraph_point_st *p = &this->points[i];
@@ -287,6 +294,12 @@ void uv_uigraph_touch(void *me, uv_touch_st *touch) {
 						if (this->active_point == -1) {
 							// new point selected
 							this->active_point = i;
+							this->point_selected = true;
+							// update drag start coordinates
+							this->drag_start_x = px;
+							this->drag_start_y = py;
+							this->drag_x = 0;
+							this->drag_y = 0;
 							// prevent the touch to propagate any further
 							touch->action = TOUCH_NONE;
 							break;
@@ -301,18 +314,114 @@ void uv_uigraph_touch(void *me, uv_touch_st *touch) {
 				}
 			}
 		}
-		this->clicked = true;
 		uv_ui_refresh(this);
 	}
 
+
+	// moving the point
+	if (touch->action == TOUCH_PRESSED ||
+			touch->action == TOUCH_IS_DOWN ||
+			touch->action == TOUCH_DRAG) {
+		if (this->active_point != -1 &&
+				this->point_moved_callb != NULL) {
+			uv_uigraph_point_st *p = &this->points[this->active_point];
+			int16_t px = uv_lerpi(uv_reli(p->x, this->min_x, this->max_x),
+					this->content_x, this->content_x + this->content_w);
+			int16_t py = uv_lerpi(uv_reli(p->y, this->min_y, this->max_y),
+					this->content_h, 0);
+
+			if (touch->action == TOUCH_PRESSED ||
+					touch->action == TOUCH_IS_DOWN) {
+				// update drag start coordinates
+				this->drag_start_x = px;
+				this->drag_start_y = py;
+				this->drag_x = 0;
+				this->drag_y = 0;
+			}
+			if (touch->action == TOUCH_PRESSED) {
+				// somewhere was clicked, move the active point to that direction
+				int16_t dx = touch->x - px,
+						dy = py - touch->y;
+				if (abs(dx) > abs(dy)) {
+					// move point in X axis
+					this->point_dir = ((dx > 0) ?
+							UIGRAPH_POINT_DIR_X_POS : UIGRAPH_POINT_DIR_X_NEG);
+				}
+				else {
+					// move point in Y axis
+					this->point_dir = ((dy > 0) ?
+							UIGRAPH_POINT_DIR_Y_POS : UIGRAPH_POINT_DIR_Y_NEG);
+				}
+			}
+			else if (touch->action == TOUCH_DRAG) {
+				this->point_dir = UIGRAPH_POINT_DRAG;
+			}
+			else {
+
+			}
+
+			if (uv_delay(&this->press_delay, 20) ||
+					touch->action == TOUCH_PRESSED ||
+					touch->action == TOUCH_DRAG) {
+				uv_delay_init(&this->press_delay, POINT_MOVE_DELAY_MS *
+						((touch->action == TOUCH_PRESSED) ? 3 : 1));
+				int16_t dx = 0, dy = 0;
+				switch(this->point_dir) {
+				case UIGRAPH_POINT_DIR_X_NEG:
+					dx = -1;
+					break;
+				case UIGRAPH_POINT_DIR_X_POS:
+					dx = 1;
+					break;
+				case UIGRAPH_POINT_DIR_Y_NEG:
+					dy = -1;
+					break;
+				case UIGRAPH_POINT_DIR_Y_POS:
+					dy = 1;
+					break;
+				// UIGRAPH_POINT_DRAG
+				default: {
+					this->drag_x += touch->x;
+					this->drag_y += touch->y;
+					int16_t relx = this->drag_start_x + this->drag_x,
+							rely = this->drag_start_y + this->drag_y;
+					// convert the pixel values to uigraph coordinates
+					int16_t x = uv_lerpi(uv_reli(relx, this->content_x, this->content_w),
+									this->min_x, this->max_x),
+							y = uv_lerpi(uv_reli(rely, this->content_h, 0),
+									this->min_y, this->max_y);
+					dx = x - p->x;
+					dy = y - p->y;
+					break;
+				}
+				}
+
+				if (this->point_moved_callb(this->active_point,
+						p->x + dx, p->y + dy)) {
+					p->x += dx;
+					p->y += dy;
+					this->point_changed = true;
+					uv_ui_refresh(this);
+					touch = TOUCH_NONE;
+				}
+			}
+			else {
+
+			}
+		}
+	}
+	else if (touch->action != TOUCH_NONE) {
+		uv_delay_end(&this->press_delay);
+	}
+	else {
+
+	}
 }
 
 
 
 uv_uiobject_ret_e uv_uigraph_step(void *me, uint16_t step_ms) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
-
-	this->clicked = false;
 
 	return ret;
 }
