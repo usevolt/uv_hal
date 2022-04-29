@@ -383,10 +383,10 @@ void uv_uigraph_touch(void *me, uv_touch_st *touch) {
 				default: {
 					this->drag_x += touch->x;
 					this->drag_y += touch->y;
-					int16_t relx = this->drag_start_x + this->drag_x,
+					int16_t relx = this->drag_start_x + this->drag_x - this->content_x,
 							rely = this->drag_start_y + this->drag_y;
 					// convert the pixel values to uigraph coordinates
-					int16_t x = uv_lerpi(uv_reli(relx, this->content_x, this->content_w),
+					int16_t x = uv_lerpi(uv_reli(relx, 0, this->content_w),
 									this->min_x, this->max_x),
 							y = uv_lerpi(uv_reli(rely, this->content_h, 0),
 									this->min_y, this->max_y);
@@ -424,6 +424,12 @@ uv_uiobject_ret_e uv_uigraph_step(void *me, uint16_t step_ms) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
 	return ret;
+}
+
+
+void uv_uigraph_set_point_count(void *me, uint16_t value) {
+	this->points_count = value;
+	uv_ui_refresh(this);
 }
 
 

@@ -206,6 +206,14 @@ static inline const char *uv_uigraph_get_yunit(void *me) {
 }
 
 
+void uv_uigraph_set_point_count(void *me, uint16_t value);
+
+
+static inline uint16_t uv_uigraph_get_point_count(void *me) {
+	return this->points_count;
+}
+
+
 /// @brief: Sets the current value on the graph. The *val_x* is shown
 /// as a vertical line, and *val_y* is shown as a horizontal line.
 // To disable any one of these, enter a value smaller than the minimum or bigger than
