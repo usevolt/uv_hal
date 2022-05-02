@@ -47,7 +47,6 @@
 
 
 #if !defined(CONFIG_UI_NAME)
-#warning "CONFIG_UI_NAME not defined. The name of the window defaults to 'Window'"
 #define CONFIG_UI_NAME		"Window"
 #endif
 
@@ -545,7 +544,7 @@ void uv_ui_draw_line(const int16_t start_x, const int16_t start_y,
 	color_st c = uv_uic(color);
 	glColor4ub(c.r, c.g, c.b, c.a);
 	glLineWidth(width);
-	glBegin(GL_LINE);
+	glBegin(GL_LINES);
 	glVertex2i(start_x, start_y);
 	glVertex2i(end_x, end_y);
 	glEnd();
@@ -577,8 +576,8 @@ void uv_ui_draw_linestrip(const uv_ui_linestrip_point_st *points,
 			glBegin(GL_POLYGON);
 			glVertex2i(CONFIG_FT81X_HSIZE, points[0].y);
 		}
-		else {
-			glBegin(GL_LINE_LOOP);
+		else { // UI_STRIP_TYPE_LINE
+			glBegin(GL_LINE_STRIP);
 			glVertex2i(points[0].x, points[0].y);
 		}
 

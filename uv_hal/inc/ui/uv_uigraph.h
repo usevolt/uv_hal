@@ -76,10 +76,10 @@ typedef struct __attribute__((packed)) {
 	int16_t active_point;
 	bool point_selected;
 	bool point_changed;
-	int16_t min_x;
-	int16_t min_y;
-	int16_t max_x;
-	int16_t max_y;
+	int32_t min_x;
+	int32_t min_y;
+	int32_t max_x;
+	int32_t max_y;
 	int16_t current_val_x;
 	int16_t current_val_y;
 	bool (*point_moved_callb)(int16_t, int16_t, int16_t);
@@ -122,8 +122,8 @@ typedef struct __attribute__((packed)) {
 /// @param max_y: The maximum value for the Y axis, i.e. the top edge
 /// @param style: Pointer to the ui style used
 void uv_uigraph_init(void *me, uv_uigraph_point_st *points_buffer,
-		uint16_t points_count, int16_t min_x, int16_t max_x,
-		int16_t min_y, int16_t max_y, const uv_uistyle_st *style);
+		uint16_t points_count, int32_t min_x, int32_t max_x,
+		int32_t min_y, int32_t max_y, const uv_uistyle_st *style);
 
 
 
@@ -149,6 +149,33 @@ static inline char *uv_uigraph_get_title(void *me) {
 }
 
 
+static inline int32_t uv_uigraph_get_x_min(void *me) {
+	return this->min_x;
+}
+
+static inline int32_t uv_uigraph_get_x_max(void *me) {
+	return this->max_x;
+}
+
+static inline int32_t uv_uigraph_get_y_min(void *me) {
+	return this->min_y;
+}
+
+static inline int32_t uv_uigraph_get_y_max(void *me) {
+	return this->max_y;
+}
+
+static inline void uv_uigraph_set_min(void *me, int32_t x, int32_t y) {
+	this->min_x = x;
+	this->min_y = y;
+	uv_ui_refresh(this);
+}
+
+static inline void uv_uigraph_set_max(void *me, int32_t x, int32_t y) {
+	this->max_x = x;
+	this->max_y = y;
+	uv_ui_refresh(this);
+}
 
 /// @brief: Sets the coordinate color of the uigraph
 static inline void uv_uigraph_set_coordinate_color(void *me, color_t c) {

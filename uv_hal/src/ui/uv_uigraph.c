@@ -49,8 +49,8 @@ void uv_uigraph_point_init(uv_uigraph_point_st *this,
 
 
 void uv_uigraph_init(void *me, uv_uigraph_point_st *points_buffer,
-		uint16_t points_count, int16_t min_x, int16_t max_x,
-		int16_t min_y, int16_t max_y, const uv_uistyle_st *style) {
+		uint16_t points_count, int32_t min_x, int32_t max_x,
+		int32_t min_y, int32_t max_y, const uv_uistyle_st *style) {
 	uv_uiobject_init(this);
 	this->points = points_buffer;
 	this->points_count = points_count;
@@ -394,6 +394,25 @@ void uv_uigraph_touch(void *me, uv_touch_st *touch) {
 					dy = y - p->y;
 					break;
 				}
+				}
+
+				if ((int32_t) p->x + dx > INT16_MAX) {
+					dx = (int32_t) INT16_MAX - p->x;
+				}
+				else if ((int32_t) p->x + dx < INT16_MIN) {
+					dx = (int32_t) INT16_MIN + p->x;
+				}
+				else {
+
+				}
+				if ((int32_t) p->y + dy > INT16_MAX) {
+					dy = (int32_t) INT16_MAX - p->y;
+				}
+				else if ((int32_t) p->y + dy < INT16_MIN) {
+					dy = (int32_t) INT16_MIN + p->y;
+				}
+				else {
+
 				}
 
 				if (this->point_moved_callb(this->active_point,
