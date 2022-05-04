@@ -694,7 +694,6 @@ static void render_line(char *str, ui_font_st *font,
 void uv_ui_draw_string(char *str, ui_font_st *font,
 		int16_t x, int16_t y, ui_align_e align, color_t color) {
 	if (str) {
-
 		char *s = malloc(strlen(str) + 2);
 		strcpy(s, str);
 		char *last_s = s;
@@ -708,7 +707,7 @@ void uv_ui_draw_string(char *str, ui_font_st *font,
 		}
 		if (align & VALIGN_CENTER) {
 			// reduce the y by the number of line counts
-			y -= (line_count * font->char_height / 2) / this->scaley;
+			y -= (line_count * font->char_height / 2);
 		}
 
 		for (uint32_t i = 0; i < strlen(str) + 1; i++) {
@@ -739,30 +738,30 @@ void uv_ui_draw_string(char *str, ui_font_st *font,
 }
 
 
-
 void uv_ui_set_mask(int16_t x, int16_t y, int16_t width, int16_t height) {
-	// stencil test is used for masking objects
-	glEnable(GL_STENCIL_TEST);
-	glClearStencil(0);
-	glStencilMask(0xFF);
-	// clear the old stencil to zero
-	glClear(GL_STENCIL_BUFFER_BIT);
-
-	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-	glStencilFunc(GL_ALWAYS, 1, 0xFF);
-	glStencilMask(0xFF);
-	glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
-
-	glBegin(GL_POLYGON);
-	glVertex2i(x, y);
-	glVertex2i(x + width, y);
-	glVertex2i(x + width, y + height);
-	glVertex2i(x, y + height);
-	glEnd();
-
-	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-	glStencilFunc(GL_EQUAL, 1, 0xFF);
+// NOTE: Mask implementation commented as it seems to take forever to render
+	//	// stencil test is used for masking objects
+//	glEnable(GL_STENCIL_TEST);
+//	glClearStencil(0);
+//	glStencilMask(0xFF);
+//	// clear the old stencil to zero
+//	glClear(GL_STENCIL_BUFFER_BIT);
+//
+//	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+//	glStencilFunc(GL_ALWAYS, 1, 0xFF);
+//	glStencilMask(0xFF);
+//	glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
+//
+//	glBegin(GL_POLYGON);
+//	glVertex2i(x, y);
+//	glVertex2i(x + width, y);
+//	glVertex2i(x + width, y + height);
+//	glVertex2i(x, y + height);
+//	glEnd();
+//
+//	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+//	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+//	glStencilFunc(GL_EQUAL, 1, 0xFF);
 
 }
 
@@ -838,8 +837,16 @@ void uv_ui_dlswap(void) {
 	if (this->window) {
 		if (!glfwWindowShouldClose(this->window)) {
 
+
+		    double time1 = glfwGetTime();
 			// Swap front and back buffers
 			glfwSwapBuffers(this->window);
+		    double time2 = glfwGetTime();
+		    double fps = (time2 - time1);
+		    if (fps != 0) {
+		    	fps = 1 / fps;
+		    }
+//		    printf("fps %f\n", fps);
 
 			glClearStencil(1);
 		    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -929,7 +936,7 @@ static void load_fonts(void) {
 				FT_Set_Pixel_Sizes(face, 0, font_size);
 				ui_font_st *font = &ui_fonts[i];
 
-				font->char_height = font_size;
+				font->char_height = face->size->metrics.height / 64 / this->scale;
 
 				for (unsigned char c = 0; c < 128; c++) {
 					// load character glyph
