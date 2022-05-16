@@ -42,7 +42,7 @@
 #if CONFIG_PWM
 
 
-#if CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC15XX
 #define PWM_CHN(_pwm_chn)	_pwm_chn
 #else
 // PWM channels are disabled for Linux & Win targets
@@ -54,7 +54,7 @@
 #define CONFIG_PWMEXT_MODULE_COUNT			0
 #endif
 
-#if CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC15XX
 
 
 #if (!defined(CONFIG_PWM0) && !defined(CONFIG_PWM1) &&  \

@@ -220,7 +220,7 @@ line should have a pull up resistor or pull down resistor enabled."
 #endif
 
 /// @brief: SPI modules
-#if CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC15XX
 #define SPI0	LPC_SPI0
 #define SPI1	LPC_SPI1
 

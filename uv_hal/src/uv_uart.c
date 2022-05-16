@@ -39,7 +39,7 @@
 #include "uv_gpio.h"
 #elif CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
-#elif CONFIG_TARGET_LPC1549
+#elif CONFIG_TARGET_LPC15XX
 #include "chip.h"
 #include "uart_15xx.h"
 #include "swm_15xx.h"
@@ -168,7 +168,7 @@ void UART4_IRQHandler(void) {
 	isr(UART4);
 }
 #endif
-#elif CONFIG_TARGET_LPC1549
+#elif CONFIG_TARGET_LPC15XX
 #if CONFIG_UART0 || CONFIG_UART1 || CONFIG_UART2
 static void isr(uv_uarts_e uart) {
 	char c;
@@ -216,7 +216,7 @@ void UART2_IRQHandler(void) {
 
 void uv_uart_add_callback(uv_uarts_e uart,
 		void (*callback_function)(void* user_ptr, uv_uarts_e uart)) {
-#if CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC15XX
 #if CONFIG_UART0
 	if (uart == UART0) { uart = 0; }
 #endif
@@ -640,7 +640,7 @@ uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 
 	return ret;
 }
-#elif CONFIG_TARGET_LPC1549
+#elif CONFIG_TARGET_LPC15XX
 uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 	uv_errors_e ret = ERR_NONE;
 
@@ -747,7 +747,7 @@ uv_errors_e uv_uart_send_char(uv_uarts_e uart, char buffer) {
 			this->uart[uart]->THR = buffer;
 		break;
 	}
-#elif CONFIG_TARGET_LPC1549
+#elif CONFIG_TARGET_LPC15XX
 	Chip_UART_SendBlocking((void *) uart, &buffer, 1);
 #endif
 
@@ -784,7 +784,7 @@ uv_errors_e uv_uart_get_char(uv_uarts_e uart, char *dest) {
 
 	uv_disable_int();
 	uint32_t i = uart;
-#if CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC15XX
 #if CONFIG_UART0
 	if (uart == UART0) { i = 0; }
 #endif

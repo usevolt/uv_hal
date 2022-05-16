@@ -86,7 +86,7 @@
 
 /// @brief: Disables all interrupt. This shouldn't be called from
 /// interrupt routines, use uv_disable_int_ISR instead!
-#if (CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LPC1785)
+#if (CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC15XX || CONFIG_TARGET_LPC1785)
 #define uv_disable_int()		__disable_irq()
 #elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 #define uv_disable_int()
@@ -96,7 +96,7 @@
 #define uv_disable_int_ISR()	taskENTER_CRITICAL_FROM_ISR()
 /// @brief: Enables all interrupts. This shouldn't be called from
 /// interrupt routines, use uv_enable_int_ISR instead!
-#if (CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LPC1785)
+#if (CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC15XX || CONFIG_TARGET_LPC1785)
 #define uv_enable_int()			__enable_irq()
 #elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 #define uv_enable_int()

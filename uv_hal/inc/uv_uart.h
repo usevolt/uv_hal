@@ -37,7 +37,7 @@
 #include <stdint.h>
 #include "uv_stdout.h"
 #include "uv_errors.h"
-#if CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC15XX
 #include "chip.h"
 #endif
 
@@ -48,7 +48,7 @@
 #if CONFIG_UART
 
 
-#if CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC15XX
 #if CONFIG_UART0
 #if !defined(CONFIG_UART0_TX_PIN)
 #error "CONFIG_UART0_TX_PIN should be defined as uv_gpio_e value for which pin UART transmit will be assigned"
@@ -100,7 +100,7 @@ typedef enum {
 	UART4 		= 4,
 #endif
 	UART_COUNT 	= 5
-#elif CONFIG_TARGET_LPC1549
+#elif CONFIG_TARGET_LPC15XX
 #if CONFIG_UART0
 	UART0 = (uint32_t) LPC_USART0,
 #endif

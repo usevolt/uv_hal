@@ -79,7 +79,7 @@
 /// @brief: Defines the RAM size in bytes on this controller
 #define RAM_SIZE_BYTES	64000
 #define RAM_BASE_ADDRESS 0x10000000
-#elif CONFIG_TARGET_LPC1549
+#elif CONFIG_TARGET_LPC15XX
 /// @brief: Defines the RAM size in bytes on this controller
 #define RAM_SIZE_BYTES	0x9000
 #define RAM_BASE_ADDRESS 0x2000000

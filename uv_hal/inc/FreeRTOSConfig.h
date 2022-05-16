@@ -61,12 +61,12 @@
 
 #ifndef __IASMARM__
 /* For SystemCoreClock */
-#if CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC15XX
 #include "chip.h"
 #endif
 #endif
 
-#if CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC15XX
 /*-----------------------------------------------------------
  * Application specific definitions.
  *

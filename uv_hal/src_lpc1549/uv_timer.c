@@ -33,7 +33,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "uv_utilities.h"
-#if CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC15XX
 #include "chip.h"
 #include "sct_15xx.h"
 #endif
@@ -48,7 +48,7 @@ timers_st _timers;
 
 
 
-#if CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC15XX
 LPC_SCT_T *timers[TIMER_COUNT] = {
 		LPC_SCT0,
 		LPC_SCT1,

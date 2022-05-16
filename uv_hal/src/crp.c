@@ -31,7 +31,7 @@
 
 #include <uv_hal_config.h>
 
-#if (CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LPC1785)
+#if (CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC15XX || CONFIG_TARGET_LPC1785)
 #include <crp.h>
 // Variable to store CRP value in. Will be placed automatically
 // by the linker when "Enable Code Read Protect" selected.

@@ -31,7 +31,7 @@
 #include <stdio.h>
 #include "uv_uart.h"
 #include "uv_rtos.h"
-#if CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC15XX
 #include "chip.h"
 #include "adc_15xx.h"
 #include "uv_gpio.h"

@@ -33,7 +33,7 @@
 #include <uv_utilities.h>
 
 
-#if CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC15XX
 
 typedef uint32_t uv_gpios_e;
 

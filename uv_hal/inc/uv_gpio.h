@@ -40,7 +40,7 @@
 
 
 
-#if CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC15XX
 #include "chip.h"
 #include "gpio_15xx.h"
 #include "uv_gpio_lpc1549.h"
@@ -89,7 +89,7 @@ typedef enum {
 #define UV_GPIO_SET(gpio, value)  \
 	(port(CAT(CAT(GPIO_, gpio), _port))->DATA = (port(CAT(CAT(GPIO_, gpio), _port))->DATA \
 			& ~(1 << CAT(CAT(GPIO_, gpio), _pin))) | (value << CAT(CAT(GPIO_, gpio), _pin)))
-#elif CONFIG_TARGET_LPC1549
+#elif CONFIG_TARGET_LPC15XX
 #define UV_GPIO_SET(gpio, value)  Chip_GPIO_SetPinState(LPC_GPIO, UV_GPIO_PORT(gpio), UV_GPIO_PIN(gpio), value)
 #elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 #define UV_GPIO_SET(gpio, value)
@@ -106,7 +106,7 @@ typedef enum {
 #elif CONFIG_TARGET_LPC11C14
 #define UV_GPIO_TOGGLE(gpio) \
 	(port(CAT(CAT(GPIO_, gpio), _port))->DATA ^= (1 << CAT(CAT(GPIO_, gpio), _pin)))
-#elif CONFIG_TARGET_LPC1549
+#elif CONFIG_TARGET_LPC15XX
 #define UV_GPIO_TOGGLE(gpio) Chip_GPIO_SetPinToggle(LPC_GPIO, UV_GPIO_PORT(gpio), UV_GPIO_PIN(gpio))
 #elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 #define UV_GPIO_TOGGLE(gpio)
@@ -124,7 +124,7 @@ typedef enum {
 #elif CONFIG_TARGET_LPC11C14
 #define UV_GPIO_GET(gpio) \
 	((port(CAT(CAT(GPIO_, gpio), _port))->DATA & (1 << UV_GPIO_PIN(gpio))) >> UV_GPIO_PIN(gpio))
-#elif CONFIG_TARGET_LPC1549
+#elif CONFIG_TARGET_LPC15XX
 #define UV_GPIO_GET(gpio)		Chip_GPIO_GetPinState(LPC_GPIO, UV_GPIO_PORT(gpio), UV_GPIO_PIN(gpio))
 #elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 #define UV_GPIO_GET(gpio)
@@ -140,7 +140,7 @@ typedef enum {
 /// @brief: Configures the IOCONFIG register with gpio_input_configurations_e values
 ///
 /// @note: Only to be used inside this HAL library!
-#if CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC15XX
 #define UV_GPIO_CONFIGURE(gpio, input_config)\
 	LPC_IOCON->PIO[uv_gpio_get_port(gpio)][uv_gpio_get_pin(gpio)] = input_config
 #else
@@ -164,7 +164,7 @@ uint8_t uv_gpio_get_port(uv_gpios_e gpio);
 
 uint8_t uv_gpio_get_pin(uv_gpios_e gpio);
 
-#if CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC15XX
 
 static inline bool uv_gpio_get(uv_gpios_e gpio) {
 	return Chip_GPIO_GetPinState(LPC_GPIO, uv_gpio_get_port(gpio), uv_gpio_get_pin(gpio));
