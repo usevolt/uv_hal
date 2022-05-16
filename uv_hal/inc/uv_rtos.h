@@ -284,7 +284,7 @@ static inline void uv_rtos_task_yield(void) {
 /// @param task_function: The function which will be executed as a task
 /// @param task_name: A name for the task. The maximum length for the name is
 /// defined in the FreeRTOSConfig.h file.
-/// @param stack_depth: The maximum size for the task's stack, defined in words
+/// @param stack_depth: The maximum size for the task's stack, defined in WORDS
 /// @param this_ptr: A user definable pointer which will be passed to the task function.
 /// @param task_priority: The priority of the task. Bigger value means higher priority.
 /// @param handle: A optional return handle for the created task. Will be set to NULL
