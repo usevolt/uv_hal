@@ -66,6 +66,7 @@ static volatile this_st _this = {
 
 
 uv_mutex_st halmutex;
+uv_rtos_task_ptr hal_task_ptr;
 
 
 uv_errors_e uv_queue_peek(uv_queue_st *this, void *dest, int32_t wait_ms) {
@@ -300,7 +301,7 @@ void uv_init(void *device) {
 
 
 	uv_rtos_task_create(hal_task, "uv_hal",
-			UV_RTOS_MIN_STACK_SIZE, NULL, CONFIG_HAL_TASK_PRIORITY, NULL);
+			UV_RTOS_MIN_STACK_SIZE, NULL, CONFIG_HAL_TASK_PRIORITY, &hal_task_ptr);
 }
 
 
