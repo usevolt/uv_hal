@@ -64,6 +64,8 @@ void uv_uigraph_init(void *me, uv_uigraph_point_st *points_buffer,
 	this->content_w = 0;
 	this->content_x = 0;
 	this->content_h = 0;
+	this->grid_size_x = 0;
+	this->grid_size_y = 0;
 	this->point_selected = false;
 	this->point_changed = false;
 	this->current_val_x = this->min_x - 1;
@@ -136,9 +138,29 @@ void uv_uigraph_draw(void *me, const uv_bounding_box_st *pbb) {
 	}
 	LIMITS(relx, x, x + cw);
 
-	// draw the current value lines
+	// content x & y coordinates
 	int16_t cx = uv_lerpi(uv_reli(this->current_val_x, this->min_x, this->max_x), x, x + cw);
 	int16_t cy = uv_lerpi(uv_reli(this->current_val_y, this->min_y, this->max_y), y + ch, y);
+
+	// draw grid
+	if (this->grid_size_x != 0 && this->grid_size_y != 0) {
+		int16_t x_spacing = this->grid_size_x * cw / abs(this->max_x - this->min_x);
+		if (x_spacing > 2) {
+			for (int16_t i = cx + x_spacing; i < cx + cw; i += x_spacing) {
+				uv_ui_draw_line(i, cy, i, cy - ch, 1,
+						uv_uic_alpha(this->coordinate_c, -UINT8_MAX / 2));
+			}
+		}
+		int16_t y_spacing = this->grid_size_y * ch / abs(this->max_y - this->min_y);
+		if (y_spacing > 2) {
+			for (int16_t i = cy + y_spacing; i > cy - ch; i -= y_spacing) {
+				uv_ui_draw_line(cx, i, cx + cw, i, 1,
+						uv_uic_alpha(this->coordinate_c, -UINT8_MAX / 2));
+			}
+		}
+	}
+
+	// draw the current value lines
 	if (this->current_val_x >= this->min_x &&
 			this->current_val_x <= this->max_x) {
 		uv_ui_draw_line(cx, y, cx, y + ch, CONFIG_UI_GRAPH_LINE_WIDTH, this->style->bg_c);
@@ -448,6 +470,9 @@ uv_uiobject_ret_e uv_uigraph_step(void *me, uint16_t step_ms) {
 
 void uv_uigraph_set_point_count(void *me, uint16_t value) {
 	this->points_count = value;
+	if (this->active_point >= value) {
+		this->active_point = value - 1;
+	}
 	uv_ui_refresh(this);
 }
 

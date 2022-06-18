@@ -88,6 +88,8 @@ typedef struct __attribute__((packed)) {
 	int16_t drag_start_y;
 	int16_t drag_x;
 	int16_t drag_y;
+	int16_t grid_size_x;
+	int16_t grid_size_y;
 	uv_uigraph_point_dir_e point_dir;
 
 	// helper variables that define the content width and height. These are
@@ -259,6 +261,14 @@ void uv_uigraph_set_current_val(void *me, int16_t val_x, int16_t val_y);
 static inline void uv_uigraph_set_editable(void *me,
 		bool (*point_moved_callb)(int16_t point, int16_t x_new, int16_t y_new)) {
 	this->point_moved_callb = point_moved_callb;
+}
+
+
+
+/// @brief: Sets the grid. Disable grid by setting these to zeroes. Defaults to disabled.
+static inline void uv_uigraph_set_grid(void *me, int16_t size_x, int16_t size_y) {
+	this->grid_size_x = size_x;
+	this->grid_size_y = size_y;
 }
 
 

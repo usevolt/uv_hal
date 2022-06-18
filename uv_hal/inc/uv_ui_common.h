@@ -171,7 +171,7 @@ color_t uv_uic_brighten(color_t c, int8_t value);
 
 
 /// @brief: Returns a color by adding *value* amount of alpha to the given color *c*
-color_t uv_uic_alpha(color_t c, int8_t value);
+color_t uv_uic_alpha(color_t c, int16_t value);
 
 
 
