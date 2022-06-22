@@ -767,6 +767,34 @@ void uv_ui_set_mask(int16_t x, int16_t y, int16_t width, int16_t height) {
 
 
 
+void uv_ui_force_mask(int16_t x, int16_t y, int16_t width, int16_t height) {
+	// stencil test is used for masking objects
+	glEnable(GL_STENCIL_TEST);
+	glClearStencil(0);
+	glStencilMask(0xFF);
+	// clear the old stencil to zero
+	glClear(GL_STENCIL_BUFFER_BIT);
+
+	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	glStencilFunc(GL_ALWAYS, 1, 0xFF);
+	glStencilMask(0xFF);
+	glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
+
+	glBegin(GL_POLYGON);
+	glVertex2i(x, y);
+	glVertex2i(x + width, y);
+	glVertex2i(x + width, y + height);
+	glVertex2i(x, y + height);
+	glEnd();
+
+	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	glStencilFunc(GL_EQUAL, 1, 0xFF);
+
+}
+
+
+
 
 int16_t uv_ui_get_string_width(char *str, ui_font_st *font) {
 	int16_t ret = 0;

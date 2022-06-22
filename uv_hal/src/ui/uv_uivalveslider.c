@@ -141,12 +141,12 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	uint8_t linestrip_len = sizeof(p) / sizeof(p[0]);
 	uint8_t h_off = 2;
 
-	uv_ui_set_mask(x + w / 2, y, handle_x[UIVALVESLIDER_HANDLE_POS_MIN] - (x + w / 2),
+	uv_ui_force_mask(x + w / 2, y, handle_x[UIVALVESLIDER_HANDLE_POS_MIN] - (x + w / 2),
 			h - h_off);
 	uv_ui_draw_linestrip(p, linestrip_len, 1,
 			this->outbounds_c, UI_STRIP_TYPE_BELOW);
 
-	uv_ui_set_mask(handle_x[UIVALVESLIDER_HANDLE_POS_MIN], y,
+	uv_ui_force_mask(handle_x[UIVALVESLIDER_HANDLE_POS_MIN], y,
 			handle_x[UIVALVESLIDER_HANDLE_POS_MAX] - handle_x[UIVALVESLIDER_HANDLE_POS_MIN],
 			h - h_off);
 	uv_ui_draw_linestrip(p, linestrip_len, 1,
@@ -157,7 +157,7 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 									this->positive_c : uv_uic_grayscale(this->positive_c),
 									UI_STRIP_TYPE_BELOW);
 
-	uv_ui_set_mask(handle_x[UIVALVESLIDER_HANDLE_POS_MAX], y + 2,
+	uv_ui_force_mask(handle_x[UIVALVESLIDER_HANDLE_POS_MAX], y + 2,
 			w - (handle_x[UIVALVESLIDER_HANDLE_POS_MAX] - x),
 			h - h_off * 2);
 	uv_ui_draw_linestrip(p, linestrip_len, 1,
@@ -166,11 +166,11 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	p[1].x = x + this->horiz_padding - (w / 2 - this->horiz_padding);
 	p[1].y = y - h;
 
-	uv_ui_set_mask(handle_x[UIVALVESLIDER_HANDLE_NEG_MIN], y, w, h - h_off);
+	uv_ui_force_mask(handle_x[UIVALVESLIDER_HANDLE_NEG_MIN], y, w, h - h_off);
 	uv_ui_draw_linestrip(p, linestrip_len, 1,
 			this->outbounds_c, UI_STRIP_TYPE_BELOW);
 
-	uv_ui_set_mask(handle_x[UIVALVESLIDER_HANDLE_NEG_MAX], y,
+	uv_ui_force_mask(handle_x[UIVALVESLIDER_HANDLE_NEG_MAX], y,
 			handle_x[UIVALVESLIDER_HANDLE_NEG_MIN] - handle_x[UIVALVESLIDER_HANDLE_NEG_MAX],
 			h - h_off);
 	uv_ui_draw_linestrip(p, linestrip_len, 1,
@@ -182,12 +182,12 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 									this->negative_c : uv_uic_grayscale(this->negative_c)),
 									UI_STRIP_TYPE_BELOW);
 
-	uv_ui_set_mask(x, y,
+	uv_ui_force_mask(x, y,
 			handle_x[UIVALVESLIDER_HANDLE_NEG_MAX] - x, h - h_off * 2);
 	uv_ui_draw_linestrip(p, linestrip_len, 1,
 			this->outbounds_c, UI_STRIP_TYPE_BELOW);
 
-	uv_ui_set_mask(x, y, w, globh);
+	uv_ui_force_mask(x, y, w, globh);
 
 	// draw the arrows
 	int16_t handle_w = CONFIG_UIVALVESLIDER_HANDLE_WIDTH;
@@ -246,6 +246,8 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 				ALIGN_TOP_CENTER, this->text_c);
 	}
 
+	// force mask to full window
+	uv_ui_force_mask(0, 0, CONFIG_FT81X_HSIZE, CONFIG_FT81X_VSIZE);
 }
 
 
