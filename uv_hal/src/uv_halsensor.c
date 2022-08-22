@@ -64,7 +64,7 @@ static uint32_t get_progression_value(uint32_t input,
 		ret = input;
 		break;
 	case HALSENSOR_PROG_1:
-		ret = uv_isqrt(input * input * input) / uv_isqrt(numberspace);
+		ret = uv_isqrt((uint64_t) input * input * input) / uv_isqrt(numberspace);
 		break;
 	default:
 		ret = input * input / numberspace;
@@ -111,6 +111,7 @@ int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 	// voltage output is always calculated
 	this->out_mv = adc * 3300 / ADC_MAX_VALUE;
 
+
 	if (state == HALSENSOR_STATE_ON) {
 		// check if the config values are valid. If not, set the sensor state
 		// to not calibrated.
@@ -153,6 +154,7 @@ int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 						adc -= offset;
 						// apply the progression
 						adc = get_progression_value(adc, scale, this->config->progression);
+//	printf("%i %i %i\n", adc, scale, this->config->progression);
 						// linearily interpolate output value
 						int32_t rel = uv_reli(adc, 0, scale);
 						int32_t result = uv_lerpi(rel, 0, INT16_MAX);

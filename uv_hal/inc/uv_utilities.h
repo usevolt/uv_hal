@@ -494,7 +494,7 @@ uint32_t uv_ctz(uint32_t a);
 /// @note: This algorithm is based on an example given in
 /// https://stackoverflow.com/questions/1100090/looking-
 /// for-an-efficient-integer-square-root-algorithm-for-arm-thumb2
-uint32_t uv_isqrt(uint32_t value);
+uint64_t uv_isqrt(uint64_t value);
 
 
 /// @brief: Calculates the number of *bit* bits in *a*. If *bit* is true, calculates the count of 1's.

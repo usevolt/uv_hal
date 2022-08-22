@@ -359,12 +359,11 @@ uint32_t uv_ctz(uint32_t a) {
 }
 
 
-uint32_t uv_isqrt(uint32_t value) {
-    uint32_t op  = value;
-    uint32_t res = 0;
-    uint32_t one = 1uL << 30; // The second-to-top bit is set:
+uint64_t uv_isqrt(uint64_t value) {
+    uint64_t op  = value;
+    uint64_t res = 0;
+    uint64_t one = (1uLL << 62); // The second-to-top bit is set:
     // use 1u << 14 for uint16_t type; use 1uL<<30 for uint32_t type
-
 
     // "one" starts at the highest power of four <= than the argument.
     while (one > op)
