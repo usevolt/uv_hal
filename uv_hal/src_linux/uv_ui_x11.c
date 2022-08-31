@@ -562,6 +562,11 @@ void uv_ui_draw_string(char *str, ui_font_st *font,
 
 
 
+void uv_ui_force_mask(int16_t x, int16_t y, int16_t width, int16_t height) {
+	uv_ui_set_mask(x, y, width, height);
+}
+
+
 void uv_ui_set_mask(int16_t x, int16_t y, int16_t width, int16_t height) {
 	cairo_reset_clip(this->cairo);
 	cairo_rectangle(this->cairo, (double) x, (double) y, (double) width, (double) height);
