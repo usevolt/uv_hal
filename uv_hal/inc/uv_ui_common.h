@@ -171,7 +171,7 @@ color_t uv_uic_brighten(color_t c, int8_t value);
 
 
 /// @brief: Returns a color by adding *value* amount of alpha to the given color *c*
-color_t uv_uic_alpha(color_t c, int8_t value);
+color_t uv_uic_alpha(color_t c, int16_t value);
 
 
 
@@ -471,6 +471,16 @@ int16_t uv_ui_get_string_width(char *str, ui_font_st *font);
 
 /// @brief: Sets the drawing mask which masks all drawing functions to the masked area
 void uv_ui_set_mask(int16_t x, int16_t y, int16_t width, int16_t height);
+
+/// @brief: OpenGL impelemtetaion of mask is commented since it takes long time to render the screen.
+/// This forces the mask
+#if CONFIG_TARGET_LINUX
+void uv_ui_force_mask(int16_t x, int16_t y, int16_t width, int16_t height);
+#else
+static inline void uv_ui_force_mask(int16_t x, int16_t y, int16_t width, int16_t height) {
+	uv_ui_set_mask(x, y, width, height);
+}
+#endif
 
 
 

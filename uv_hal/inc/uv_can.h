@@ -51,7 +51,7 @@
 #error "CONFIG_CAN_ERROR_LOG not defined. When CONFIG_CAN_LOG is set as 0,\
  CONFIG_CAN_ERROR_LOG should be definded as 0 or 1, to disable or enable error logging."
 #endif
-#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC15XX
 #if !CONFIG_CAN0
 #error "At least one CAN channel should be defined"
 #endif
@@ -70,7 +70,7 @@
 #if !defined(CONFIG_CAN0_TX_BUFFER_SIZE)
 #error "CONFIG_CAN0_TX_BUFFER_SIZE not defined. It should define the buffer size used for transmit messages."
 #endif
-#if CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC15XX
 #if !defined(CONFIG_CAN0_RX_PIN)
 #error "CONFIG_CAN0_RX_PIN should define the pin to be used as CAN RX pin"
 #endif
@@ -194,7 +194,7 @@ typedef enum {
 	CAN1,
 #endif
 	CAN_COUNT
-#elif CONFIG_TARGET_LPC1549
+#elif CONFIG_TARGET_LPC15XX
 	CAN0 = 0,
 	CAN_COUNT
 #else

@@ -35,6 +35,7 @@
 
 static uv_uiobject_ret_e uv_uidigitedit_step(void *me, uint16_t step_ms);
 static void touch(void *me, uv_touch_st *touch);
+static void set_value(void *me, int32_t value, bool forced_update);
 
 
 #define TITLE_OFFSET	4
@@ -73,6 +74,12 @@ void uv_uidigitedit_set_mode(void *me, uv_uidigitedit_mode_e value) {
 		this->incdec.pressed_button = 0;
 		uv_delay_end(&this->incdec.delay);
 	}
+}
+
+
+void uv_uidigitedit_set_unit(void *me, char *value) {
+	this->unit = value;
+	set_value(this, this->value, true);
 }
 
 

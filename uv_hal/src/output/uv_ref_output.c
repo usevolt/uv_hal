@@ -119,7 +119,12 @@ void uv_ref_output_step(uv_ref_output_st *this, uint16_t step_ms) {
 	uv_output_state_e state = uv_prop_output_get_state((uv_prop_output_st*) this);
 	if (state != OUTPUT_STATE_ON) {
 		// put the state to the middle value
-		pwm_set(this, 500);
+		// since limits are given in uv_prop_output format, limitmin is 0 ... 1000
+		// which should represent the output value between 500 ... 0.
+		uint16_t limit_max = 500 + (limitconf->max / 2),
+				limit_min = (limitconf->min / 2);
+		// middle value is always the middle value between limit_max and limit_min
+		pwm_set(this, (limit_max - limit_min) / 2 + limit_min);
 	}
 	else {
 
@@ -128,9 +133,7 @@ void uv_ref_output_step(uv_ref_output_st *this, uint16_t step_ms) {
 		// since limits are given in uv_prop_output format, limitmin is 0 ... 1000
 		// which should represent the output value between 500 ... 0.
 		uint16_t limit_max = 500 + (limitconf->max / 2),
-				limit_min = 500 - (limitconf->max / 2);
-		// middle value is always the middle value between limit_max and limit_min
-		rel_value = (limit_max - limit_min) / 2 + limit_min;
+				limit_min = limitconf->min / 2;
 
 		if (target > 0) {
 			int32_t rel = uv_lerpi(abs(target),

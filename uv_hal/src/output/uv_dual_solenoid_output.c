@@ -113,7 +113,9 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 					OUTPUT_FAULT_FREEZE_MS);
 
 			// only set output active if the other direction has gone to zero
-			if (uv_solenoid_output_get_pwm_dc(&this->solenoid[sb]) == 0) {
+			// or logic invertion is set
+			if (uv_solenoid_output_get_pwm_dc(&this->solenoid[sb]) == 0 ||
+					uv_solenoid_output_get_logicinv(&this->solenoid[DUAL_OUTPUT_SOLENOID_A])) {
 				uv_solenoid_output_set(&this->solenoid[sa], abs(target));
 			}
 		}
@@ -122,8 +124,10 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 			uv_solenoid_output_freeze_fault_detection(&this->solenoid[sa],
 					OUTPUT_FAULT_FREEZE_MS);
 
-			// only set output active if the other direction has gone to zero
-			if (uv_solenoid_output_get_pwm_dc(&this->solenoid[sa]) == 0) {
+			// only set output active if the other direction has gone to zero or
+			// logic invertion is set
+			if (uv_solenoid_output_get_pwm_dc(&this->solenoid[sa]) == 0 ||
+					uv_solenoid_output_get_logicinv(&this->solenoid[DUAL_OUTPUT_SOLENOID_A])) {
 				uv_solenoid_output_set(&this->solenoid[sb], abs(target));
 			}
 		}
@@ -142,6 +146,10 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 		// control solenoid B with the same value as solenoid A
 		uv_pwm_set(this->solenoid[DUAL_OUTPUT_SOLENOID_B].pwm_chn,
 				uv_solenoid_output_get_pwm_dc(&this->solenoid[DUAL_OUTPUT_SOLENOID_A]));
+		this->solenoid[DUAL_OUTPUT_SOLENOID_B].pwm =
+				uv_solenoid_output_get_pwm_dc(&this->solenoid[DUAL_OUTPUT_SOLENOID_A]);
+		this->solenoid[DUAL_OUTPUT_SOLENOID_B].out =
+				uv_solenoid_output_get_out(&this->solenoid[DUAL_OUTPUT_SOLENOID_A]);
 	}
 	else {
 		uv_solenoid_output_step(&this->solenoid[DUAL_OUTPUT_SOLENOID_B], step_ms);
@@ -154,7 +162,6 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 	this->current_ma = (ca) ? uv_solenoid_output_get_current(&this->solenoid[0]) :
 			-uv_solenoid_output_get_current(&this->solenoid[1]);
 	this->out = (ca) ? ca : -cb;
-
 
 }
 

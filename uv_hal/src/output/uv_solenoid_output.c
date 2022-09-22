@@ -81,8 +81,12 @@ void uv_solenoid_output_init(uv_solenoid_output_st *this,
 	uv_moving_aver_init(&this->pwmaver, SOLENOID_OUTPUT_PWMAVG_COUNT);
 
 	this->mode = SOLENOID_OUTPUT_MODE_CURRENT;
+	this->logicinv = false;
 
 	this->maxspeed_scaler = 1000;
+
+	memset(&this->preheat, 0, sizeof(this->preheat));
+	uv_delay_end(&this->preheat.delay);
 
 	this->dither_ampl = dither_ampl;
 	if (dither_freq) {
@@ -114,7 +118,7 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 
 	// set output to OFF state when target is zero and either PWM or ADC value is zero.
 	// This disables the ADC current measuring, even when there's open load.
-	if ((this->target == 0) &&
+	if ((!!this->target == this->logicinv) &&
 			((this->pwm == 0) || (uv_solenoid_output_get_current(this) == 0))) {
 		uv_solenoid_output_set_state(this, OUTPUT_STATE_OFF);
 	}
@@ -169,6 +173,19 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 			}
 			uv_pid_set_target(&this->ma_pid, target_ma);
 
+			// preheat
+			if (this->target) {
+				uv_delay(&this->preheat.delay, step_ms);
+
+				if (!uv_delay_has_ended(&this->preheat.delay)) {
+					// preheat active, override the current PID target value
+					uv_pid_set_target(&this->ma_pid, this->preheat.current_ma);
+				}
+			}
+			else {
+				uv_delay_init(&this->preheat.delay, this->preheat.time_ms);
+			}
+
 			// milliamp PID controller
 			// we calculate current by ourselves because uv_output_st adds averaging
 			// which we dont need here. Average value should only be shown to the end user
@@ -207,13 +224,24 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 			this->out = output;
 		}
 		// solenoid is on/off
-		else {
+		else { // SOLENOID_OUTPUT_MODE_ONOFF
 			if (this->target) {
-				output = 1000;
+				output = PWM_MAX_VALUE;
+			}
+
+			// logic invertion inverts when the output is ON and when OFF
+			if (this->logicinv) {
+				if (output == 0) {
+					output = PWM_MAX_VALUE;
+				}
+				else {
+					output = 0;
+				}
 			}
 			this->out = uv_output_get_current((uv_output_st*) this);
 		}
 		LIMITS(output, 0, PWM_MAX_VALUE);
+
 
 		// set the output value
 		this->pwm = output;

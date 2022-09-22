@@ -49,7 +49,15 @@
 #define FLASH_SECTOR_SIZE					0x1000
 #define FLASH_START_ADDRESS 				0x00000000
 #define NV_LEN								(0x400 * CONFIG_NVKB)
+#if CONFIG_TARGET_LPC15X9
 #define NON_VOLATILE_MEMORY_START_ADDRESS	(0x40000 - NV_LEN)
+#elif CONFIG_TARGET_LPC15X8
+#define NON_VOLATILE_MEMORY_START_ADDRESS	(0x20000 - NV_LEN)
+#elif CONFIG_TARGET_LPC15X7
+#define NON_VOLATILE_MEMORY_START_ADDRESS	(0x10000 - NV_LEN)
+#else
+#error "NV memory start address not defined or target MCU not defined."
+#endif
 
 
 

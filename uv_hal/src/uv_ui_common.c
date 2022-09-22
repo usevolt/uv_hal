@@ -67,7 +67,7 @@ color_t uv_uic_brighten(color_t c, int8_t value) {
 }
 
 
-color_t uv_uic_alpha(color_t c, int8_t value) {
+color_t uv_uic_alpha(color_t c, int16_t value) {
 	color_t ret = c & ~(0xFF000000);
 	int16_t alpha = (c & 0xFF000000) >> 24;
 	alpha += value;

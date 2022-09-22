@@ -36,7 +36,7 @@
 #include "LPC11xx.h"
 #elif CONFIG_TARGET_LPC1785
 #include "LPC177x_8x.h"
-#elif CONFIG_TARGET_LPC1549
+#elif CONFIG_TARGET_LPC15XX
 #include "chip.h"
 #endif
 #include "uv_wdt.h"

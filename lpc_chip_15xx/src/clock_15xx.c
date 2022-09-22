@@ -27,7 +27,7 @@
  */
 #include <uv_hal_config.h>
 
-#if CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC15XX
 
 
 #include "chip.h"

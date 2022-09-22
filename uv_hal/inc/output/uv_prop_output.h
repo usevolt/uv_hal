@@ -64,8 +64,9 @@ typedef enum {
 #define PROP_ACC_MIN							20
 #define PROP_DEC_MAX							UINT8_MAX
 #define PROP_DEC_MIN							20
-#define PROP_VALUE_MAX							INT8_MAX
-#define PROP_VALUE_MIN							(INT8_MIN + 1)
+
+#define PROP_OUTPUT_TARGET_MAX			1000
+#define PROP_OUTPUT_TARGET_MIN			-1000
 
 #define PROP_OUTPUT_A_MIN_PPT_SUBINDEX			SOLENOID_OUTPUT_MIN_PPT_SUBINDEX
 #define PROP_OUTPUT_A_MAX_PPT_SUBINDEX			SOLENOID_OUTPUT_MAX_PPT_SUBINDEX
@@ -73,7 +74,7 @@ typedef enum {
 #define PROP_OUTPUT_B_MAX_PPT_SUBINDEX			(SOLENOID_OUTPUT_CONF_SUBINDEX_COUNT + SOLENOID_OUTPUT_MAX_PPT_SUBINDEX)
 #define PROP_OUTPUT_ACC_SUBINDEX				(SOLENOID_OUTPUT_CONF_SUBINDEX_COUNT * 2 + 1)
 #define PROP_OUTPUT_DEC_SUBINDEX				(SOLENOID_OUTPUT_CONF_SUBINDEX_COUNT * 2 + 2)
-#define PROP_OUTPUT_TOGGLE_THRESHOLD_DEFAULT		(INT8_MAX / 2)
+#define PROP_OUTPUT_TOGGLE_THRESHOLD_DEFAULT		(PROP_OUTPUT_TARGET_MAX / 2)
 #define PROP_OUTPUT_TOGGLE_LIMIT_MS_DEFAULT		0
 #define PROP_OUTPUT_ENABLE_DELAY_MS_DEFAULT		0
 
@@ -123,8 +124,8 @@ typedef struct {
 	uv_prop_output_modes_e mode;
 
 	uv_hysteresis_st toggle_hyst;
-	uint8_t last_hyst;
-	uint8_t toggle_threshold;
+	uint16_t last_hyst;
+	uint16_t toggle_threshold;
 	// tells the output state on ONOFFTOGGLE modes
 	int8_t toggle_on;
 	uv_delay_st toggle_delay;
@@ -168,9 +169,6 @@ static inline void uv_prop_output_disable(uv_prop_output_st *this) {
 	this->state = OUTPUT_STATE_DISABLED;
 }
 
-
-#define PROP_OUTPUT_TARGET_MAX			1000
-#define PROP_OUTPUT_TARGET_MIN			-1000
 /// @brief: Sets the output current.
 ///
 /// @param value: current in -1000 ... 1000 which is set to the actual solenoid output modules
@@ -229,7 +227,7 @@ static inline int16_t uv_prop_output_get_maxspeed_scaler(
 
 
 static inline void uv_prop_output_set_toggle_threshold(
-		uv_prop_output_st *this, int8_t value) {
+		uv_prop_output_st *this, int16_t value) {
 	this->toggle_threshold = abs(value);
 }
 

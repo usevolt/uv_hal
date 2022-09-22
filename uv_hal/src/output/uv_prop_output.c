@@ -112,8 +112,8 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 			// update hysteresis parameters
 			// because of uv_hysteresis module compares greater-than, and not greater-or-equal,
 			// maximum value is not valid threshold as that would never trigger the output.
-			this->toggle_hyst.trigger_value = (this->toggle_threshold < PROP_VALUE_MAX) ?
-					this->toggle_threshold : PROP_VALUE_MAX - 1;
+			this->toggle_hyst.trigger_value = (this->toggle_threshold < PROP_OUTPUT_TARGET_MAX) ?
+					this->toggle_threshold : PROP_OUTPUT_TARGET_MAX - 1;
 			LIMIT_MIN(this->toggle_hyst.trigger_value, 1);
 			// hysteresis can never be greater or equal to trigger value. This
 			// makes sure that the output is triggered with small trigger values
@@ -137,10 +137,7 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 				uv_delay_init(&this->pre_enable_delay, this->enable_pre_delay_ms);
 			}
 
-			// scale the toggle point to -1000 ... 1000
-			;uv_hysteresis_step(&this->toggle_hyst,
-				((int32_t) abs(target_req) * PROP_VALUE_MAX + PROP_OUTPUT_TARGET_MAX / 2) /
-				PROP_OUTPUT_TARGET_MAX);
+			uv_hysteresis_step(&this->toggle_hyst, (int32_t) abs(target_req));
 			bool hyston = uv_hysteresis_get_output(&this->toggle_hyst);
 
 			bool on = (this->mode == PROP_OUTPUT_MODE_PROP_NORMAL) ?
@@ -246,17 +243,18 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 					}
 				}
 				target_req = (this->toggle_on) ?
-						((this->toggle_on > 0) ? PROP_VALUE_MAX : PROP_VALUE_MIN) : 0;
+						((this->toggle_on > 0) ?
+								PROP_OUTPUT_TARGET_MAX : PROP_OUTPUT_TARGET_MIN) : 0;
 			}
 			else {
 				this->toggle_on = 0;
 				if (this->mode == PROP_OUTPUT_MODE_ONOFF_NORMAL) {
 					if (hyston) {
 						if (target_req > 0) {
-							target_req = PROP_VALUE_MAX;
+							target_req = PROP_OUTPUT_TARGET_MAX;
 						}
 						else if (target_req < 0) {
-							target_req = PROP_VALUE_MIN;
+							target_req = PROP_OUTPUT_TARGET_MIN;
 						}
 						else {
 							target_req = 0;

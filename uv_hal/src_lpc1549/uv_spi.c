@@ -31,7 +31,7 @@
 
 #if CONFIG_SPI
 
-#if CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC15XX
 
 
 #include "chip.h"

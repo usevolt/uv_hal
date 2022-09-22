@@ -56,6 +56,15 @@ void uv_uigraph_point_init(uv_uigraph_point_st *this,
 
 
 
+typedef enum {
+	UIGRAPH_POINT_DIR_X_NEG = 0,
+	UIGRAPH_POINT_DIR_X_POS,
+	UIGRAPH_POINT_DIR_Y_NEG,
+	UIGRAPH_POINT_DIR_Y_POS,
+	UIGRAPH_POINT_DRAG
+} uv_uigraph_point_dir_e;
+
+
 typedef struct __attribute__((packed)) {
 	EXTENDS(uv_uiobject_st);
 
@@ -65,13 +74,24 @@ typedef struct __attribute__((packed)) {
 	uv_uigraph_point_st *points;
 	uint16_t points_count;
 	int16_t active_point;
-	int16_t min_x;
-	int16_t min_y;
-	int16_t max_x;
-	int16_t max_y;
+	bool point_selected;
+	bool point_changed;
+	int32_t min_x;
+	int32_t min_y;
+	int32_t max_x;
+	int32_t max_y;
 	int16_t current_val_x;
 	int16_t current_val_y;
-	bool clicked;
+	bool (*point_moved_callb)(int16_t, int16_t, int16_t);
+	uv_delay_st press_delay;
+	int16_t drag_start_x;
+	int16_t drag_start_y;
+	int16_t drag_x;
+	int16_t drag_y;
+	int16_t grid_size_x;
+	int16_t grid_size_y;
+	uv_uigraph_point_dir_e point_dir;
+
 	// helper variables that define the content width and height. These are
 	// calculated in the draw function and stored here, so that they can be used
 	// in touch function.
@@ -79,6 +99,8 @@ typedef struct __attribute__((packed)) {
 	int16_t content_x;
 	int16_t content_h;
 	char *title;
+	const char *x_unit;
+	const char *y_unit;
 	const uv_uistyle_st *style;
 } uv_uigraph_st;
 
@@ -102,15 +124,10 @@ typedef struct __attribute__((packed)) {
 /// @param max_y: The maximum value for the Y axis, i.e. the top edge
 /// @param style: Pointer to the ui style used
 void uv_uigraph_init(void *me, uv_uigraph_point_st *points_buffer,
-		uint16_t points_count, int16_t min_x, int16_t max_x,
-		int16_t min_y, int16_t max_y, const uv_uistyle_st *style);
+		uint16_t points_count, int32_t min_x, int32_t max_x,
+		int32_t min_y, int32_t max_y, const uv_uistyle_st *style);
 
 
-
-/// @brief: True for one step cycle when the user presses the uigraph
-static inline bool uv_uigraph_clicked(void *me) {
-	return this->clicked;
-}
 
 
 
@@ -134,6 +151,33 @@ static inline char *uv_uigraph_get_title(void *me) {
 }
 
 
+static inline int32_t uv_uigraph_get_x_min(void *me) {
+	return this->min_x;
+}
+
+static inline int32_t uv_uigraph_get_x_max(void *me) {
+	return this->max_x;
+}
+
+static inline int32_t uv_uigraph_get_y_min(void *me) {
+	return this->min_y;
+}
+
+static inline int32_t uv_uigraph_get_y_max(void *me) {
+	return this->max_y;
+}
+
+static inline void uv_uigraph_set_min(void *me, int32_t x, int32_t y) {
+	this->min_x = x;
+	this->min_y = y;
+	uv_ui_refresh(this);
+}
+
+static inline void uv_uigraph_set_max(void *me, int32_t x, int32_t y) {
+	this->max_x = x;
+	this->max_y = y;
+	uv_ui_refresh(this);
+}
 
 /// @brief: Sets the coordinate color of the uigraph
 static inline void uv_uigraph_set_coordinate_color(void *me, color_t c) {
@@ -146,6 +190,17 @@ static inline color_t uv_uigraph_get_coordinate_color(void *me) {
 }
 
 
+
+/// @brief: Returns true for 1 step cycle when a point was selected
+static inline bool uv_uigraph_point_selected(void *me) {
+	return this->point_selected;
+}
+
+
+/// @brief: Returns true for 1 step cycle if the active point's value was changed
+static inline bool uv_uigraph_point_value_changed(void *me) {
+	return this->point_changed;
+}
 
 /// @brief: Sets the main color of the uibutton. The button should be refreshed after
 /// calling this.
@@ -160,11 +215,61 @@ static inline color_t uv_uigraph_get_graph_color(void *me) {
 
 
 
+/// @brief: Sets the x axis unit
+static inline void uv_uigraph_set_xunit(void *me, const char *str) {
+	this->x_unit = str;
+}
+
+
+static inline const char *uv_uigraph_get_xunit(void *me) {
+	return this->x_unit;
+}
+
+/// @brief: Sets the y axis unit
+static inline void uv_uigraph_set_yunit(void *me, const char *str) {
+	this->y_unit = str;
+}
+
+static inline const char *uv_uigraph_get_yunit(void *me) {
+	return this->y_unit;
+}
+
+
+void uv_uigraph_set_point_count(void *me, uint16_t value);
+
+
+static inline uint16_t uv_uigraph_get_point_count(void *me) {
+	return this->points_count;
+}
+
+
 /// @brief: Sets the current value on the graph. The *val_x* is shown
 /// as a vertical line, and *val_y* is shown as a horizontal line.
 // To disable any one of these, enter a value smaller than the minimum or bigger than
 /// the maximum.
 void uv_uigraph_set_current_val(void *me, int16_t val_x, int16_t val_y);
+
+
+
+/// @brief: Sets the uigraph as editable. Defaults to false. When editable,
+/// Interactive points can be clicked and moved around like in uivalveslider.
+///
+/// @param *point_moved_callb callback function that has to return true if the
+/// new coordinates for the *point* specified in *y_new* and *x_new* are accepted.
+/// The point array is updated automatically if accepted.
+/// If false is returned, the point is not moved.
+static inline void uv_uigraph_set_editable(void *me,
+		bool (*point_moved_callb)(int16_t point, int16_t x_new, int16_t y_new)) {
+	this->point_moved_callb = point_moved_callb;
+}
+
+
+
+/// @brief: Sets the grid. Disable grid by setting these to zeroes. Defaults to disabled.
+static inline void uv_uigraph_set_grid(void *me, int16_t size_x, int16_t size_y) {
+	this->grid_size_x = size_x;
+	this->grid_size_y = size_y;
+}
 
 
 

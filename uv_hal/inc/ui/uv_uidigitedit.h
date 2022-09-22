@@ -107,9 +107,7 @@ static inline uint16_t uv_uidigitedit_get_divider(void *me) {
 }
 
 
-static inline void uv_uidigitedit_set_unit(void *me, char *value) {
-	this->unit = value;
-}
+void uv_uidigitedit_set_unit(void *me, char *value);
 
 static inline char *uv_uidigitedit_get_unit(void *me) {
 	return this->unit;

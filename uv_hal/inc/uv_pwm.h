@@ -42,7 +42,7 @@
 #if CONFIG_PWM
 
 
-#if CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC15XX
 #define PWM_CHN(_pwm_chn)	_pwm_chn
 #else
 // PWM channels are disabled for Linux & Win targets
@@ -54,7 +54,7 @@
 #define CONFIG_PWMEXT_MODULE_COUNT			0
 #endif
 
-#if CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC15XX
 
 
 #if (!defined(CONFIG_PWM0) && !defined(CONFIG_PWM1) &&  \
@@ -477,7 +477,8 @@ uint16_t uv_pwm_get(uv_pwm_channel_t chn);
 /// selected by using the PWMEXT_CHN() macro with the *module_index* in the module parameter.
 ///
 /// @param module_index: Index of this module that is used pointing to this module when
-/// selecting the PWM channel with PWMEXT_CHN macro. Has to be smaller than CONFIG_PWMEXT_MODULE_COUNT.
+/// selecting the PWM channel with PWMEXT_CHN macro. Has to be <= CONFIG_PWMEXT_MODULE_COUNT.
+/// NOTE: The indexing starts from 1, since 0 equals to local PWM outputs.
 ///
 /// @return: ERR_HARDWARE_NOT_SUPPORTED if the module_index is out of bounds
 uv_errors_e uv_pwmext_module_init(

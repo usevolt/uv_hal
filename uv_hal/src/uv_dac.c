@@ -30,14 +30,14 @@
 
 #include "uv_dac.h"
 
-#if CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC15XX
 #include "chip.h"
 #include "dac_15xx.h"
 #endif
 
 #if CONFIG_DAC
 
-#if CONFIG_TARGET_LPC1549
+#if CONFIG_TARGET_LPC15XX
 
 void _uv_dac_init(void) {
 	Chip_DAC_Init(LPC_DAC);

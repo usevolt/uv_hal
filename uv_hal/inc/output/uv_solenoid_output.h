@@ -137,8 +137,18 @@ typedef struct {
 	/// @brief: PWM channel configured for this output
 	uv_pwm_channel_t pwm_chn;
 
+	// if true, in ONOFF mode this module works as active-low output
+	bool logicinv;
+
 	// scales the maximum speed of the solenoid. 0 ... 1000
 	int16_t maxspeed_scaler;
+
+	// preheat applies small current on solenoid *before* activating it with the given control value
+	struct {
+		int16_t time_ms;
+		int16_t current_ma;
+		uv_delay_st delay;
+	} preheat;
 
 } uv_solenoid_output_st;
 
@@ -292,6 +302,27 @@ void uv_solenoid_output_set_dither_ampl(
 static inline uint16_t uv_solenoid_output_get_pwm_dc(uv_solenoid_output_st *this) {
 	return this->pwm;
 }
+
+
+/// @brief: The logicinv inverts the output logic to active-low mode. This works only
+/// in SOLENOID_OUTPUT_MODE_ONOFF.
+static inline void uv_solenoid_output_set_logicinv(uv_solenoid_output_st *this, bool value) {
+	this->logicinv = value;
+}
+
+
+static inline bool uv_solenoid_output_get_logicinv(uv_solenoid_output_st *this) {
+	return this->logicinv;
+}
+
+
+static inline void uv_solenoid_output_set_preheat(uv_solenoid_output_st *this,
+		int16_t time_ms, int16_t current_ma) {
+	this->preheat.time_ms = time_ms;
+	this->preheat.current_ma = current_ma;
+}
+
+
 
 #endif
 

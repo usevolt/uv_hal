@@ -71,21 +71,19 @@
 #error "CONFIG_MAIN_H should define the name of the application main header file as a string"
 #endif
 
-#if CONFIG_TARGET_LPC11C14
-/// @brief: Defines the RAM size in bytes on this controller
-#define RAM_SIZE_BYTES	0x2000
-#define RAM_BASE_ADDRESS 0x10000000
-#elif CONFIG_TARGET_LPC1785
-/// @brief: Defines the RAM size in bytes on this controller
-#define RAM_SIZE_BYTES	64000
-#define RAM_BASE_ADDRESS 0x10000000
-#elif CONFIG_TARGET_LPC1549
-/// @brief: Defines the RAM size in bytes on this controller
-#define RAM_SIZE_BYTES	0x9000
-#define RAM_BASE_ADDRESS 0x2000000
-#elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
+/// @brief: Defines the RAM size in bytes on this target MCU
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 #define RAM_SIZE_BYTES	1
 #define RAM_BASE_ADDRESS 1
+#elif CONFIG_TARGET_LPC15X9
+#define RAM_SIZE_BYTES	0x9000
+#define RAM_BASE_ADDRESS 0x2000000
+#elif CONFIG_TARGET_LPC15X8
+#define RAM_SIZE_BYTES	0x5000
+#define RAM_BASE_ADDRESS 0x2000000
+#elif CONFIG_TARGET_LPC15X7
+#define RAM_SIZE_BYTES	0x3000
+#define RAM_BASE_ADDRESS 0x2000000
 #else
 #warning "Controller not defined"
 #endif

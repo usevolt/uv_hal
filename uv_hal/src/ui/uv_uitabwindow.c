@@ -50,6 +50,10 @@ char *get_tab_name(void *me, uint16_t tab_i) {
 		ret = (char*) this->tab_names;
 		for (uint8_t  i = 0; i < tab_i; i++) {
 			ret += strlen(ret) + 1;
+			// jump over additional termination characters if there are multiple ones
+			while (*ret == '\0') {
+				ret++;
+			}
 		}
 	}
 	return ret;

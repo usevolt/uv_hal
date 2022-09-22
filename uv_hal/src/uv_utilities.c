@@ -73,8 +73,8 @@ char *uv_get_hardware_name() {
 	return "CONFIG_TARGET_LPC11C14";
 #elif CONFIG_TARGET_LPC1785
 	return "CONFIG_TARGET_LPC1785";
-#elif CONFIG_TARGET_LPC1549
-	return "CONFIG_TARGET_LPC1549";
+#elif CONFIG_TARGET_LPC15XX
+	return "CONFIG_TARGET_LPC15XX";
 #elif CONFIG_TARGET_LINUX
 	return "CONFIG_TARGET_LINUX";
 #elif CONFIG_TARGET_WIN
@@ -359,12 +359,11 @@ uint32_t uv_ctz(uint32_t a) {
 }
 
 
-uint32_t uv_isqrt(uint32_t value) {
-    uint32_t op  = value;
-    uint32_t res = 0;
-    uint32_t one = 1uL << 30; // The second-to-top bit is set:
+uint64_t uv_isqrt(uint64_t value) {
+    uint64_t op  = value;
+    uint64_t res = 0;
+    uint64_t one = (1uLL << 62); // The second-to-top bit is set:
     // use 1u << 14 for uint16_t type; use 1uL<<30 for uint32_t type
-
 
     // "one" starts at the highest power of four <= than the argument.
     while (one > op)
@@ -412,7 +411,7 @@ void *__uv_get_user_ptr() {
 	return user_ptr;
 }
 
-#if (CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1549 || CONFIG_TARGET_LPC1785)
+#if (CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC15XX || CONFIG_TARGET_LPC1785)
 
 void NMI_Handler(void) {
 	printf("NMI\r");
@@ -443,3 +442,6 @@ void IntDefaultHandler(void) {
 
 #endif
 
+bool uv_isdigit(char c) {
+	return (c >= '0') && (c <= '9');
+}
