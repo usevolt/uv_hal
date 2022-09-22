@@ -38,12 +38,13 @@
 #include <math.h>
 #include <stdio.h>
 #include <unistd.h>
+
+#if CONFIG_UI && CONFIG_UI_OPENGL
+
 #include "GL/glew.h"
 #include <GLFW/glfw3.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
-
-#if CONFIG_UI && CONFIG_UI_OPENGL
 
 
 #if !defined(CONFIG_UI_NAME)
