@@ -1,7 +1,7 @@
-/* 
+/*
  * This file is part of the uv_hal distribution (www.usevolt.fi).
  * Copyright (c) 2017 Usevolt Oy.
- * 
+ *
  *
  * MIT License
  *
@@ -128,7 +128,8 @@ void _uv_canopen_step(unsigned int step_ms) {
 		_uv_canopen_pdo_rx(&msg);
 		_uv_canopen_sdo_rx(&msg);
 		_uv_canopen_emcy_rx(&msg);
-		if (this->can_callback) {
+		if (uv_canopen_get_state() != CANOPEN_STOPPED &&
+			this->can_callback) {
 			this->can_callback(__uv_get_user_ptr(), &msg);
 		}
 	}

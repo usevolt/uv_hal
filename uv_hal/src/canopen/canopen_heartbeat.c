@@ -72,45 +72,48 @@ void _uv_canopen_heartbeat_reset(void) {
 }
 
 void _uv_canopen_heartbeat_step(uint16_t step_ms) {
-
-	if (uv_delay(&this->heartbeat_time, step_ms)) {
-		uv_delay_init(&this->heartbeat_time, this_nonvol->producer_heartbeat_time_ms);
+	if (uv_canopen_get_state() != CANOPEN_STOPPED) {
+		if (uv_delay(&this->heartbeat_time, step_ms)) {
+			uv_delay_init(&this->heartbeat_time, this_nonvol->producer_heartbeat_time_ms);
 #if CONFIG_CANOPEN_HEARTBEAT_PRODUCER
-		uv_can_message_st msg;
-		msg.type = CAN_STD;
-		msg.id = CANOPEN_HEARTBEAT_ID + NODEID;
-		msg.data_8bit[0] = _uv_canopen_nmt_get_state();
-		msg.data_length = 1;
-		uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
+			uv_can_message_st msg;
+			msg.type = CAN_STD;
+			msg.id = CANOPEN_HEARTBEAT_ID + NODEID;
+			msg.data_8bit[0] = _uv_canopen_nmt_get_state();
+			msg.data_length = 1;
+			uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
 #endif
-	}
+		}
 
 #if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
-	// increase time counters for all heartbeat producers which are followed
-	for (uint16_t i = 0; i < CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT; i++) {
-		if (this->consumer_heartbeat_times[i] <
-				this_nonvol->consumer_heartbeats[i].cycle_time) {
-			this->consumer_heartbeat_times[i] += step_ms;
+		// increase time counters for all heartbeat producers which are followed
+		for (uint16_t i = 0; i < CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT; i++) {
+			if (this->consumer_heartbeat_times[i] <
+					this_nonvol->consumer_heartbeats[i].cycle_time) {
+				this->consumer_heartbeat_times[i] += step_ms;
+			}
 		}
-	}
 #endif
+	}
 
 }
 
 
 void _uv_canopen_heartbeat_rx(const uv_can_message_st *msg) {
 #if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
-	// filter off all else than heartbeat messages
-	if ((msg->type == CAN_STD) &&
-			((msg->id & ~0x7F) == CANOPEN_HEARTBEAT_ID) &&
-			(msg->data_length == 1)) {
+	if (uv_canopen_get_state() != CANOPEN_STOPPED) {
+		// filter off all else than heartbeat messages
+		if ((msg->type == CAN_STD) &&
+		((msg->id & ~0x7F) == CANOPEN_HEARTBEAT_ID) &&
+		(msg->data_length == 1)) {
 
-		uint8_t node_id = msg->id & 0x7F;
-		for (uint16_t i = 0; i < CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT; i++) {
-			if (this_nonvol->consumer_heartbeats[i].node_id == node_id) {
-				this->consumer_heartbeat_times[i] = 0;
-				this->consumer_heartbeat_states[i] = msg->data_8bit[0];
-				break;
+			uint8_t node_id = msg->id & 0x7F;
+			for (uint16_t i = 0; i < CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT; i++) {
+				if (this_nonvol->consumer_heartbeats[i].node_id == node_id) {
+					this->consumer_heartbeat_times[i] = 0;
+					this->consumer_heartbeat_states[i] = msg->data_8bit[0];
+					break;
+				}
 			}
 		}
 	}

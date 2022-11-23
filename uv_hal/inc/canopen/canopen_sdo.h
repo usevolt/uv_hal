@@ -130,12 +130,7 @@ static inline void _uv_canopen_sdo_reset(void) {
 void _uv_canopen_sdo_client_step(uint16_t step_ms);
 void _uv_canopen_sdo_server_step(uint16_t step_ms);
 
-static inline void _uv_canopen_sdo_step(uint16_t step_ms) {
-	_uv_canopen_sdo_client_step(step_ms);
-#if CONFIG_CANOPEN_SDO_SERVER
-	_uv_canopen_sdo_server_step(step_ms);
-#endif
-}
+void _uv_canopen_sdo_step(uint16_t step_ms);
 
 
 

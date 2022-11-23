@@ -127,26 +127,37 @@ void _uv_canopen_sdo_init(void) {
 }
 
 
+void _uv_canopen_sdo_step(uint16_t step_ms) {
+	if (uv_canopen_get_state() != CANOPEN_STOPPED) {
+		_uv_canopen_sdo_client_step(step_ms);
+#if CONFIG_CANOPEN_SDO_SERVER
+		_uv_canopen_sdo_server_step(step_ms);
+#endif
+	}
+}
+
+
 
 void _uv_canopen_sdo_rx(const uv_can_message_st *msg) {
-
-	// parse received message and filter only SDO reponses and requests
-	sdo_request_type_e msg_type = _canopen_sdo_get_request_type(msg);
-	if (msg_type != INVALID_MSG) {
-		// SDO Server receives only SDO requested dedicated to this device
-		if ((GET_NODEID(msg) == NODEID) &&
-				IS_SDO_REQUEST(msg)) {
-#if CONFIG_CANOPEN_SDO_SERVER
-			_uv_canopen_sdo_server_rx(msg, msg_type);
-#endif
-		}
-		// SDO Client receives only SDO responses from other nodes than this device
-		else if ((GET_NODEID(msg) != NODEID) &&
-				(IS_SDO_RESPONSE(msg) ||
-						msg_type == ABORT_DOMAIN_TRANSFER)) {
-			_uv_canopen_sdo_client_rx(msg, msg_type, GET_NODEID(msg));
-		}
-		else {
+	if (uv_canopen_get_state() != CANOPEN_STOPPED) {
+		// parse received message and filter only SDO reponses and requests
+		sdo_request_type_e msg_type = _canopen_sdo_get_request_type(msg);
+		if (msg_type != INVALID_MSG) {
+			// SDO Server receives only SDO requested dedicated to this device
+			if ((GET_NODEID(msg) == NODEID) &&
+					IS_SDO_REQUEST(msg)) {
+	#if CONFIG_CANOPEN_SDO_SERVER
+				_uv_canopen_sdo_server_rx(msg, msg_type);
+	#endif
+			}
+			// SDO Client receives only SDO responses from other nodes than this device
+			else if ((GET_NODEID(msg) != NODEID) &&
+					(IS_SDO_RESPONSE(msg) ||
+							msg_type == ABORT_DOMAIN_TRANSFER)) {
+				_uv_canopen_sdo_client_rx(msg, msg_type, GET_NODEID(msg));
+			}
+			else {
+			}
 		}
 	}
 }

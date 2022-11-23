@@ -351,7 +351,9 @@ void _uv_canopen_pdo_rx(const uv_can_message_st *msg) {
 	if (msg->type != CAN_STD) {
 		valid = false;
 	}
-	if (!valid) { return; }
+	if (!valid) {
+		return;
+	}
 
 	/*
 	 * RXPDO

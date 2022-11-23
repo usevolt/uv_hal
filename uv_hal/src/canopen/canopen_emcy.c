@@ -53,15 +53,17 @@ void _uv_canopen_emcy_reset(void) {
 
 
 void _uv_canopen_emcy_rx(const uv_can_message_st *msg) {
-	if (((msg->id & (~CANOPEN_NODE_ID_MASK)) == CANOPEN_EMCY_ID) &&
-			(msg->type == CAN_STD)) {
-		canopen_emcy_msg_st emcy;
-		emcy.node_id = msg->id & CANOPEN_NODE_ID_MASK;
-		emcy.error_code = msg->data_16bit[3];
-		emcy.data = msg->data_32bit[0];
-		uv_disable_int();
-		uv_ring_buffer_push(&this->emcy_rx, &emcy);
-		uv_enable_int();
+	if (uv_canopen_get_state() != CANOPEN_STOPPED) {
+		if (((msg->id & (~CANOPEN_NODE_ID_MASK)) == CANOPEN_EMCY_ID) &&
+				(msg->type == CAN_STD)) {
+			canopen_emcy_msg_st emcy;
+			emcy.node_id = msg->id & CANOPEN_NODE_ID_MASK;
+			emcy.error_code = msg->data_16bit[3];
+			emcy.data = msg->data_32bit[0];
+			uv_disable_int();
+			uv_ring_buffer_push(&this->emcy_rx, &emcy);
+			uv_enable_int();
+		}
 	}
 }
 
@@ -75,28 +77,29 @@ uv_errors_e uv_canopen_emcy_get(canopen_emcy_msg_st *dest) {
 
 void uv_canopen_emcy_send(const uv_emcy_codes_e err_code, uint32_t data) {
 
-	if (uv_delay_has_ended(&this->emcy_inihbit_delay)) {
-		uv_can_message_st msg = { };
-		msg.id = CANOPEN_EMCY_ID + NODEID;
-		msg.type = CAN_STD;
-		msg.data_length = 8;
-		msg.data_16bit[3] = err_code;
-		msg.data_32bit[0] = data;
-		uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
+	if (uv_canopen_get_state() != CANOPEN_STOPPED) {
+		if (uv_delay_has_ended(&this->emcy_inihbit_delay)) {
+			uv_can_message_st msg = { };
+			msg.id = CANOPEN_EMCY_ID + NODEID;
+			msg.type = CAN_STD;
+			msg.data_length = 8;
+			msg.data_16bit[3] = err_code;
+			msg.data_32bit[0] = data;
+			uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
 
-		// call the emcy callback if one has been assigned
-		if (this->emcy_callb != NULL) {
-			this->emcy_callb(err_code, data);
+			// call the emcy callback if one has been assigned
+			if (this->emcy_callb != NULL) {
+				this->emcy_callb(err_code, data);
+			}
 		}
+		// todo: add error code to [1003]
 	}
-
-	// todo: add error code to [1003]
 }
 
 
 
 void _uv_canopen_emcy_step(uint16_t step_ms) {
-	uv_delay(&_canopen.emcy_inihbit_delay, step_ms);
+	if (uv_canopen_get_state() != CANOPEN_STOPPED) {
+		uv_delay(&_canopen.emcy_inihbit_delay, step_ms);
+	}
 }
-
-
