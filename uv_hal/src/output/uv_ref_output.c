@@ -1,7 +1,7 @@
-/* 
+/*
  * This file is part of the uv_hal distribution (www.usevolt.fi).
  * Copyright (c) 2017 Usevolt Oy.
- * 
+ *
  *
  * MIT License
  *
@@ -106,7 +106,6 @@ void uv_ref_output_init(uv_ref_output_st *this,
 void uv_ref_output_step(uv_ref_output_st *this, uint16_t step_ms) {
 	uv_prop_output_step((uv_prop_output_st *) this, step_ms);
 
-	int32_t rel_value = 500;
 
 	uv_prop_output_conf_st *conf = uv_prop_output_get_conf((uv_prop_output_st*) this);
 	uv_prop_output_limitconf_st *limitconf =
@@ -117,23 +116,17 @@ void uv_ref_output_step(uv_ref_output_st *this, uint16_t step_ms) {
 
 	// in disabled state target is always zero
 	uv_output_state_e state = uv_prop_output_get_state((uv_prop_output_st*) this);
+	uint16_t limit_max = limitconf->max,
+			 limit_min = limitconf->min;
+	 int32_t rel_value = (limit_max - limit_min) / 2 + limit_min;
 	if (state != OUTPUT_STATE_ON) {
 		// put the state to the middle value
-		// since limits are given in uv_prop_output format, limitmin is 0 ... 1000
-		// which should represent the output value between 500 ... 0.
-		uint16_t limit_max = 500 + (limitconf->max / 2),
-				limit_min = (limitconf->min / 2);
 		// middle value is always the middle value between limit_max and limit_min
 		pwm_set(this, (limit_max - limit_min) / 2 + limit_min);
 	}
 	else {
 
 		int16_t target = uv_prop_output_get_target((uv_prop_output_st *) this);
-
-		// since limits are given in uv_prop_output format, limitmin is 0 ... 1000
-		// which should represent the output value between 500 ... 0.
-		uint16_t limit_max = 500 + (limitconf->max / 2),
-				limit_min = limitconf->min / 2;
 
 		if (target > 0) {
 			int32_t rel = uv_lerpi(abs(target),
@@ -173,4 +166,3 @@ void uv_ref_output_step(uv_ref_output_st *this, uint16_t step_ms) {
 
 
 #endif
-
