@@ -28,6 +28,9 @@
 
 
 #include "uv_ui_common.h"
+
+#if CONFIG_UI && CONFIG_UI_OPENGL
+
 #include "uv_utilities.h"
 #include "uv_rtos.h"
 #include "ui/uv_uifont.h"
@@ -38,8 +41,6 @@
 #include <math.h>
 #include <stdio.h>
 #include <unistd.h>
-
-#if CONFIG_UI && CONFIG_UI_OPENGL
 
 #include "GL/glew.h"
 #include <GLFW/glfw3.h>
