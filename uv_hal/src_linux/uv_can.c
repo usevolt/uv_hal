@@ -494,11 +494,10 @@ void _uv_can_hal_step(unsigned int step_ms) {
 
 
 						go = true;
-
-#if defined(SIOCGSTAMP_OLD)
-						ioctl(this->soc, SIOCGSTAMP_OLD, &this->lastrxtime);
-#else
+#if defined(SIOCGSTAMP)
 						ioctl(this->soc, SIOCGSTAMP, &this->lastrxtime);
+#else
+						ioctl(this->soc, SIOCGSTAMP_OLD, &this->lastrxtime);
 #endif
 					}
 					else if (recvbytes == -1) {

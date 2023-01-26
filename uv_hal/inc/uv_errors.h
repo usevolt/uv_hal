@@ -148,6 +148,7 @@ typedef enum {
 	ERR_NOT_UNIQUE 						= 47,
 	/// @brief: Count exceeded
 	ERR_COUNT_EXCEEDED					= 48,
+	ERR_SKIPPED							= 49,
 	ERR_COUNT
 } _uv_errors_e;
 typedef unsigned int uv_errors_e;
