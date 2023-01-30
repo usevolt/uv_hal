@@ -110,6 +110,7 @@ uv_errors_e uv_pca9685_init(uv_pca9685_st *this, i2c_e i2c_chn, uint8_t address,
 	address |= (1 << 6);
 	this->address = address;
 	this->oe_gpio = oe_gpio;
+	memset(this->pwm_dc, 0, sizeof(this->pwm_dc));
 
 	// write MODE register
 	// enable register auto increment and enable normal mode
@@ -170,14 +171,25 @@ uv_errors_e uv_pca9685_init(uv_pca9685_st *this, i2c_e i2c_chn, uint8_t address,
 void uv_pca9685_set(void *me, uint32_t chn, uint16_t value) {
 	uv_pca9685_st *this = me;
 
-	LIMIT_MAX(value, PWM_MAX_VALUE);
-	value = value * LED_MAX_VAL / PWM_MAX_VALUE;
-	uint8_t w[5] = {
-			REG_LED0_ON_L + chn,
-			value & 0xFF,
-			(value >> 8)
-	};
-	uv_i2cm_readwrite(this->i2c, this->address, w, sizeof(w), NULL, 0);
+	if (chn < PCA9685_PWM_COUNT) {
+		LIMIT_MAX(value, PWM_MAX_VALUE);
+		value = value * LED_MAX_VAL / PWM_MAX_VALUE;
+		uint8_t w[5] = {
+				REG_LED0_ON_L + chn,
+				0, 	// ON_L
+				0,	// ON_H
+				value & 0xFF,	// OFF_L
+				(value >> 8)	// OFF_H
+		};
+		this->pwm_dc[chn] = value;
+		uv_i2cm_readwrite(this->i2c, this->address,
+				w, sizeof(w), NULL, 0);
+//		uv_errors_e e = uv_i2cm_write_async(
+//				this->i2c, this->address, w, sizeof(w));
+//		if (e != ERR_NONE) {
+//			printf("I2C err %u\n", e);
+//		}
+	}
 }
 
 
@@ -185,14 +197,9 @@ void uv_pca9685_set(void *me, uint32_t chn, uint16_t value) {
 uint16_t uv_pca9685_get(void *me, uint32_t chn) {
 	uint16_t ret = 0;
 	uv_pca9685_st *this = me;
-	uint8_t w[1] = {
-			REG_LED0_OFF_L + chn
-	};
-	uint8_t r[2] = {};
-	uv_i2cm_readwrite(this->i2c, this->address, w, sizeof(w), r, sizeof(r));
-	uint16_t dc = r[0] + (r[1] << 8);
-	ret = dc * PWM_MAX_VALUE / LED_MAX_VAL;
-	LIMIT_MAX(ret, PWM_MAX_VALUE);
+	if (chn < PCA9685_PWM_COUNT) {
+		ret = this->pwm_dc[chn];
+	}
 
 	return ret;
 }

@@ -41,6 +41,16 @@
 #elif (CONFIG_I2C_BAUDRATE > 100000)
 #error "CONFIG_I2C_BAUDRATE maximum value is 100000. uv_hal library doesn't support higher baudrates."
 #endif
+#if CONFIG_I2C_ASYNC
+#if !CONFIG_I2C_ASYNC_MAX_BYTE_LEN
+#error "CONFIG_I2C_ASYNC_MAX_BYTE_LEN has to define the maximum amount\
+ of bytes in I2C asynchronous transmission"
+#endif
+#if !CONFIG_I2C_ASYNC_BUFFER_LEN
+#error "CONFIG_I2C_ASYN_BUFFER_LEN has to define the maximum number of\
+ I2C messages in the transmit buffer."
+#endif
+#endif
 
 typedef enum {
 	I2C0 = 0,
@@ -76,6 +86,12 @@ uv_errors_e uv_i2cm_readwrite(i2c_e i2c, uint8_t dev_addr, uint8_t *tx_buffer, u
 
 
 
+#if CONFIG_I2C_ASYNC
+/// @brief Writes data asynchronously to *dev_addr*. The written data
+/// is copied to TX buffer and transmitted once the I2C bus is idle.
+uv_errors_e uv_i2cm_write_async(i2c_e i2c, uint8_t dev_addr,
+		uint8_t *tx_buffer, uint16_t tx_len);
+#endif
 
 
 #endif

@@ -41,7 +41,8 @@ typedef enum {
 	PCA9685_PWM12,
 	PCA9685_PWM13,
 	PCA9685_PWM14,
-	PCA9685_PWM15
+	PCA9685_PWM15,
+	PCA9685_PWM_COUNT
 } pca9685_chn_e;
 
 
@@ -51,6 +52,10 @@ typedef struct {
 	i2c_e i2c;
 	// the address of the device
 	uint8_t address;
+
+	// stores the duty cycles of all pwm channels for
+	// faster access to them
+	int16_t pwm_dc[PCA9685_PWM_COUNT];
 
 	uv_gpios_e oe_gpio;
 

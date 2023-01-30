@@ -61,7 +61,7 @@ void Chip_I2CM_SetBusSpeed(LPC_I2C_T *pI2C, uint32_t busSpeed)
 /* Master transfer state change handler handler */
 uint32_t Chip_I2CM_XferHandler(LPC_I2C_T *pI2C, I2CM_XFER_T *xfer)
 {
-	uint32_t status = Chip_I2CM_GetStatus(pI2C);
+	volatile uint32_t status = Chip_I2CM_GetStatus(pI2C);
 	/* Master Lost Arbitration */
 	if (status & I2C_STAT_MSTRARBLOSS) {
 		/* Set transfer status as Arbitration Lost */
