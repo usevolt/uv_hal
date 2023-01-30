@@ -182,13 +182,13 @@ void uv_pca9685_set(void *me, uint32_t chn, uint16_t value) {
 				(value >> 8)	// OFF_H
 		};
 		this->pwm_dc[chn] = value;
-		uv_i2cm_readwrite(this->i2c, this->address,
-				w, sizeof(w), NULL, 0);
-//		uv_errors_e e = uv_i2cm_write_async(
-//				this->i2c, this->address, w, sizeof(w));
-//		if (e != ERR_NONE) {
-//			printf("I2C err %u\n", e);
-//		}
+//		uv_i2cm_readwrite(this->i2c, this->address,
+//				w, sizeof(w), NULL, 0);
+		uv_errors_e e = uv_i2cm_write_async(
+				this->i2c, this->address, w, sizeof(w));
+		if (e != ERR_NONE) {
+			printf("I2C err %u\n", e);
+		}
 	}
 }
 
