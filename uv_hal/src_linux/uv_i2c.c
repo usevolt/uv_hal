@@ -53,7 +53,7 @@ uv_errors_e uv_i2cm_readwrite(i2c_e i2c, uint8_t dev_addr, uint8_t *tx_buffer, u
 
 uv_errors_e uv_i2cm_write_async(i2c_e i2c, uint8_t dev_addr,
 		uint8_t *tx_buffer, uint16_t tx_len) {
-	uv_erros_e ret = ERR_NONE;
+	uv_errors_e ret = ERR_NONE;
 
 	return ret;
 }
