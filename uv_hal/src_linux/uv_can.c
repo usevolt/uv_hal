@@ -104,7 +104,7 @@ typedef struct {
 
 static can_st _can = {
 		.state = CAN_STATE_INIT,
-		.baudrate = 0,
+		.baudrate = 250000,
 		.dev = "can0",
 		.dev_count = 0,
 		.soc = -1
