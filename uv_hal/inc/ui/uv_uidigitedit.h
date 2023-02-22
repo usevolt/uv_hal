@@ -46,7 +46,10 @@ the + and - buttons in pixels"
 
 typedef enum {
 	UIDIGITEDIT_MODE_NORMAL = 0,
+	// INCDEC mode with plus & minus buttons
 	UIDIGITEDIT_MODE_INCDEC,
+	// RODIGIT mode with bare digit shown without frames or other graphic
+	UIDIGITEDIT_MODE_RODIGIT,
 	UIDIGITEDIT_MODE_COUNT
 } uv_uidigitedit_mode_e;
 
@@ -76,7 +79,10 @@ typedef struct __attribute__((packed)) {
 			int16_t inc_step;
 			uv_delay_st delay;
 		} incdec;
-	};
+		struct {
+			uv_font_st *title_font;
+		} rodigit;
+	} modedata;
 } uv_uidigitedit_st;
 
 
@@ -135,11 +141,11 @@ static inline uv_uidigitedit_mode_e uv_uidigitedit_get_mode(void *me) {
 
 /// @brief: Inc step is used in UIDIGITEDIT_MODE_INCDEC
 static inline void uv_uidigitedit_set_inc_step(void *me, int16_t value) {
-	this->incdec.inc_step = value;
+	this->modedata.incdec.inc_step = value;
 }
 
 static inline int16_t uv_uidigitedit_get_inc_step(void *me) {
-	return this->incdec.inc_step;
+	return this->modedata.incdec.inc_step;
 }
 
 /// @brief: Sets the title for the digitedit. The title text is shown below the digitedit fiel
@@ -153,7 +159,7 @@ static inline char *uv_uidigitedit_get_title(void *me) {
 
 /// @brief: Sets the string for the numpad dialog which opens when the uidigitedit is clicked
 static inline void uv_uidigitedit_set_numpad_title(void *me, char *value) {
-	this->normal.numpaddialog_title = value;
+	this->modedata.normal.numpaddialog_title = value;
 }
 
 /// @brief: Returns true on the step cycle when the value was changed
@@ -188,6 +194,24 @@ static inline void uv_uidigitedit_set_limits(void *me, int32_t min_value, int32_
 	this->limit_max = max_value;
 }
 
+
+static inline void uv_uidigitedit_set_font(void *me, uv_font_st *font) {
+	uv_uilabel_set_font(me, font);
+}
+
+static inline uv_font_st *uv_uidigitedit_get_font(void *me) {
+	return uv_uilabel_get_font(me);
+}
+
+
+/// @brief Sets the title font. Only available for type RODIGIT
+static inline void uv_uidigitedit_rodigit_set_title_font(void *me, uv_font_st *font) {
+	this->modedata.rodigit.title_font = font;
+}
+
+static inline uv_font_st *uv_uidigitedit_rodigit_get_title_font(void *me) {
+	return this->modedata.rodigit.title_font;
+}
 
 void uv_uidigitedit_draw(void *me, const uv_bounding_box_st *pbb);
 

@@ -82,7 +82,6 @@ void uv_uilabel_set_text(void *me, char *str) {
 }
 
 
-/// @brief: Sets the color of the label text
 void uv_uilabel_set_color(void *me, color_t c) {
 	if (this->color != c) {
 		this->color = c;
@@ -98,7 +97,6 @@ void uv_uilabel_set_color(void *me, color_t c) {
 #define this ((uv_uidigit_st*)me)
 
 
-/// @brief: Initializes the digit label.
 	void uv_uidigit_init(void *me, uv_font_st *font,
 			alignment_e alignment, color_t color, char *format, int value) {
 		uv_uilabel_init(me, font, alignment, color, "");

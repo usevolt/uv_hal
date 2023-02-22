@@ -111,7 +111,9 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	uv_ui_draw_rrect(x + 2, y + 2, w - 4, h - 4, CONFIG_UI_RADIUS, this->bg_c);
 
 	// draw handle
-	uv_ui_draw_rrect(x + 2, y + 2, barw - 4, barh - 4, CONFIG_UI_RADIUS, c);
+	if (rel != 0) {
+		uv_ui_draw_rrect(x + 2, y + 2, barw - 4, barh - 4, CONFIG_UI_RADIUS, c);
+	}
 
 	if (this->title) {
 		uv_ui_draw_string(this->title, this->font,

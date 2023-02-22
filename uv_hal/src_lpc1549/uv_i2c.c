@@ -40,9 +40,6 @@
 #include "uv_terminal.h"
 
 
-static LPC_I2C_T *p[I2C_COUNT] = {
-		LPC_I2C
-};
 
 #if CONFIG_I2C_ASYNC
 
@@ -59,20 +56,21 @@ typedef struct {
 } i2c_st;
 
 static i2c_st i2c[I2C_COUNT];
+
+static i2c_tx_msg_st msg;
+static I2C_RESULT_T res;
+
+
+
+static void transmit_next(i2c_e channel);
+static void i2c_transfer_int_callb(uint32_t err_code, uint32_t n);
 #endif
 
 /* Use a buffer size larger than the expected return value of
    i2c_get_mem_size() for the static I2C handle type */
 static uint32_t i2c_master_handle_mem[0x20];
 static I2C_HANDLE_T *i2c_handle_master;
-static i2c_tx_msg_st msg;
-static I2C_RESULT_T res;
 static I2C_PARAM_T param;
-
-
-
-static void transmit_next(i2c_e channel);
-static void i2c_transfer_int_callb(uint32_t err_code, uint32_t n);
 
 
 
@@ -143,16 +141,22 @@ uv_errors_e uv_i2cm_readwrite(i2c_e channel, uint8_t dev_addr, uint8_t *tx_buffe
 #endif
 
 	param.stop_flag = 1;
+#if CONFIG_I2C_ASYNC
 	param.func_pt = &i2c_transfer_int_callb;
+#endif
 	param.num_bytes_rec = rx_len;
 	param.buffer_ptr_rec = rx_buffer;
 	param.num_bytes_send = tx_len;
 	param.buffer_ptr_send = tx_buffer;
 
+#if CONFIG_I2C_ASYNC
 	if (LPC_I2CD_API->i2c_master_tx_rx_poll(
 			i2c_handle_master, &param, &res) != LPC_OK) {
 		ret = ERR_ABORTED;
 	}
+#else
+
+#endif
 
 
 	return ret;
