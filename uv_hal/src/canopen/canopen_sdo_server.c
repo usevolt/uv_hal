@@ -143,10 +143,14 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 				// segmented transfer
 				if (!(GET_CMD_BYTE(msg) & (1 << 1))) {
 #if CONFIG_CANOPEN_SDO_SEGMENTED
-					// segmented transfer can be started only on string type objects
-					if (uv_canopen_is_string(obj)) {
+					// segmented transfer can be started only on string or array type objects
+					if (uv_canopen_is_string(obj) ||
+							uv_canopen_is_array(obj)) {
 						this->obj = obj;
 						this->state = CANOPEN_SDO_STATE_SEGMENTED_DOWNLOAD;
+						this->data_index = uv_canopen_is_string(obj) ?
+								GET_SINDEX(msg) :
+								((GET_SINDEX(msg) - 1) * CANOPEN_SIZEOF(obj->type));
 						SET_CMD_BYTE(&reply_msg,
 								INITIATE_DOMAIN_DOWNLOAD_REPLY);
 						// data bytes indicate data index which starts from 0
@@ -184,16 +188,22 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 		// initiate upload (read request)
 		else if (sdo_type == INITIATE_DOMAIN_UPLOAD) {
 			if ((obj = _canopen_find_object(msg, CANOPEN_RO))) {
-				// segmented transfer
-				if (obj->type == CANOPEN_STRING) {
+				// segmented transfer for strings or arrays
+				if (uv_canopen_is_string(obj) ||
+						uv_canopen_is_array(obj)) {
 #if CONFIG_CANOPEN_SDO_SEGMENTED
 					this->state = CANOPEN_SDO_STATE_SEGMENTED_UPLOAD;
+					this->data_index = uv_canopen_is_string(obj) ?
+							GET_SINDEX(msg) :
+							((GET_SINDEX(msg) - 1) * CANOPEN_SIZEOF(obj->type));
 					this->obj = obj;
 					// initiate segmented domain upload with data size indicated
 					SET_CMD_BYTE(&reply_msg,
 							INITIATE_DOMAIN_UPLOAD | (1 << 0));
 					// data bytes contain the total byte count
-					reply_msg.data_32bit[1] = obj->string_len;
+					reply_msg.data_32bit[1] = uv_canopen_is_string(obj) ?
+							(obj->string_len - this->data_index) :
+							(obj->array_max_size * CANOPEN_SIZEOF(obj->type) - this->data_index);
 					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
 #else
 					sdo_server_abort(GET_MINDEX(msg), GET_SINDEX(msg),
@@ -274,9 +284,12 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 		SET_SINDEX(&reply_msg, this->sindex);
 		// check toggle bit
 		if (((GET_CMD_BYTE(msg) & (1 << 4)) >> 4) == this->toggle) {
-			uint8_t data_count = uv_mini(this->obj->string_len - this->data_index, 7);
+			uint16_t len = uv_canopen_is_string(this->obj) ?
+					this->obj->string_len :
+					(this->obj->array_max_size * CANOPEN_SIZEOF(this->obj->type));
+			uint8_t data_count = uv_mini(len - this->data_index, 7);
 			// transmission continues
-			if (this->obj->string_len - this->data_index > 7) {
+			if (len - this->data_index > 7) {
 				SET_CMD_BYTE(&reply_msg, UPLOAD_DOMAIN_SEGMENT_REPLY |
 						(this->toggle << 4));
 			}
@@ -318,7 +331,10 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 				this->state = CANOPEN_SDO_STATE_READY;
 			}
 			uint8_t data_count = 7 - ((GET_CMD_BYTE(msg) & 0b1110) >> 1);
-			if ((this->data_index + data_count) <= this->obj->string_len) {
+			uint16_t len = (uv_canopen_is_string(this->obj)) ?
+					this->obj->string_len :
+					this->obj->array_max_size * CANOPEN_SIZEOF(this->obj->type);
+			if ((this->data_index + data_count) <= len) {
 				// copy data to destination. Bits 1-4 in command byte indicate
 				// how much data is copied
 				if (this->obj->data_ptr) {
@@ -496,6 +512,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 	}
 #endif
 	else {
+		printf("unknown sdo 0x%x, 0x%x\n", sdo_type, this->state);
 		sdo_server_abort(GET_MINDEX(msg), GET_SINDEX(msg),
 				CANOPEN_SDO_ERROR_OBJECT_ACCESS_FAILED_DUE_TO_HARDWARE);
 	}

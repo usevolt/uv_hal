@@ -36,18 +36,16 @@
 #include <swm_15xx.h>
 #include <iocon_15xx.h>
 #include <uv_rtos.h>
-
 #include "uv_terminal.h"
-
 
 
 #if CONFIG_I2C_ASYNC
 
 
 typedef struct {
-	uint8_t dev_addr;
 	uint8_t data_len;
-	uint8_t data[CONFIG_I2C_ASYNC_MAX_BYTE_LEN];
+	// data[0] is the device address, shifted left 1 bit for RW bit
+	uint8_t data[CONFIG_I2C_ASYNC_MAX_BYTE_LEN + 1];
 } i2c_tx_msg_st;
 
 typedef struct {
@@ -121,7 +119,7 @@ uv_errors_e _uv_i2c_init(void) {
 
 
 
-uv_errors_e uv_i2cm_readwrite(i2c_e channel, uint8_t dev_addr, uint8_t *tx_buffer, uint16_t tx_len,
+uv_errors_e uv_i2cm_read(i2c_e channel, uint8_t *tx_buffer, uint16_t tx_len,
 		uint8_t *rx_buffer, uint16_t rx_len) {
 	uv_errors_e ret = ERR_NONE;
 
@@ -149,24 +147,52 @@ uv_errors_e uv_i2cm_readwrite(i2c_e channel, uint8_t dev_addr, uint8_t *tx_buffe
 	param.num_bytes_send = tx_len;
 	param.buffer_ptr_send = tx_buffer;
 
-#if CONFIG_I2C_ASYNC
-	if (LPC_I2CD_API->i2c_master_tx_rx_poll(
-			i2c_handle_master, &param, &res) != LPC_OK) {
+	uint32_t err = LPC_I2CD_API->i2c_master_receive_poll(
+			i2c_handle_master, &param, &res);
+	if (err != LPC_OK) {
+		printf("I2C error %u\n", (unsigned int) err);
 		ret = ERR_ABORTED;
 	}
-#else
+	return ret;
+}
 
+
+
+uv_errors_e uv_i2cm_write(i2c_e channel, uint8_t *tx_buffer, uint16_t tx_len) {
+	uv_errors_e ret = ERR_NONE;
+
+	while (LPC_I2CD_API->i2c_get_status(i2c_handle_master) != IDLE) {
+		uv_rtos_task_yield();
+	}
+#if CONFIG_I2C_ASYNC
+	while (true) {
+		uv_disable_int();
+		if (uv_ring_buffer_empty(&i2c[channel].tx)) {
+			uv_enable_int();
+			break;
+		}
+		uv_enable_int();
+		uv_rtos_task_yield();
+	}
 #endif
 
+	param.stop_flag = 1;
+	param.func_pt = &i2c_transfer_int_callb;
+	param.num_bytes_send = tx_len;
+	param.buffer_ptr_send = tx_buffer;
 
+	uint32_t err = LPC_I2CD_API->i2c_master_transmit_poll(
+			i2c_handle_master, &param, &res);
+	if (err != LPC_OK) {
+		printf("I2C error %u\n", (unsigned int) err);
+		ret = ERR_ABORTED;
+	}
 	return ret;
 }
 
 
 
 #if CONFIG_I2C_ASYNC
-
-
 
 
 static void transmit_next(i2c_e channel) {
@@ -194,18 +220,20 @@ void I2C0_IRQHandler(void) {
 }
 
 
-
 static void i2c_transfer_int_callb(uint32_t err_code, uint32_t n) {
+	if (err_code) {
+		uv_terminal_enable(TERMINAL_CAN);
+		printf("I2C error 0x%x\n", err_code);
+	}
 	transmit_next(I2C0);
 }
 
 
 
-uv_errors_e uv_i2cm_write_async(i2c_e channel, uint8_t dev_addr,
+uv_errors_e uv_i2cm_write_async(i2c_e channel,
 		uint8_t *tx_buffer, uint16_t tx_len) {
 	uv_can_errors_e ret = ERR_NONE;
 	i2c_tx_msg_st msg;
-	msg.dev_addr = dev_addr;
 	msg.data_len = tx_len;
 	memcpy(msg.data, tx_buffer, tx_len);
 

@@ -63,6 +63,10 @@ typedef enum {
 #define I2C_SLAVE	0
 
 
+#define I2C_WRITE	0
+#define I2C_READ	1
+
+
 
 
 /// @brief: Initializes the I2C module
@@ -72,24 +76,40 @@ uv_errors_e _uv_i2c_init(void);
 
 
 
+/// @brief: Reads reads data to/from i2c device synchronously.
+/// The data transmission is started with a START condition
+/// and ended with STOP condition.
+///
+/// @param tx_buffer: Pointer to the buffer which holds the write data. Note
+/// that 1st byte is used for device address and R/W bit.
+/// R/W bit should be set (1) for this function.
+/// @param tx_len: The length of the tx buffer in bytes
+/// @param rx_buffer: Pointer to the buffer which holds the read data
+/// @param rx_len: The length of the rx buffer in bytes
+uv_errors_e uv_i2cm_read(i2c_e channel, uint8_t *tx_buffer, uint16_t tx_len,
+		uint8_t *rx_buffer, uint16_t rx_len);
+
+
+
 /// @brief: Sends or reads data to/from i2c device synchronously.
 /// The data transmission is started with a START condition
 /// and ended with STOP condition.
 ///
-/// @param dev_addr: The 7-bit addres of the device which should be read or written
-/// @param tx_buffer: Pointer to the buffer which holds the write data
+/// @param tx_buffer: Pointer to the buffer which holds the write data. Note
+/// that 1st byte is used for device address and R/W bit.
+/// R/W bit should be cleared (0) for this function.
 /// @param tx_len: The length of the tx buffer in bytes
-/// @param rx_buffer: Pointer to the buffer which holds the read data
-/// @param rx_len: The length of the rx buffer in bytes
-uv_errors_e uv_i2cm_readwrite(i2c_e i2c, uint8_t dev_addr, uint8_t *tx_buffer, uint16_t tx_len,
-		uint8_t *rx_buffer, uint16_t rx_len);
+uv_errors_e uv_i2cm_write(i2c_e channel, uint8_t *tx_buffer, uint16_t tx_len);
 
 
 
 #if CONFIG_I2C_ASYNC
 /// @brief Writes data asynchronously to *dev_addr*. The written data
 /// is copied to TX buffer and transmitted once the I2C bus is idle.
-uv_errors_e uv_i2cm_write_async(i2c_e i2c, uint8_t dev_addr,
+///
+/// @param tx_buffer: Pointer to the buffer which holds the write data. Note
+/// that 1st byte is used for device address and R/W bit.
+uv_errors_e uv_i2cm_write_async(i2c_e channel,
 		uint8_t *tx_buffer, uint16_t tx_len);
 #endif
 

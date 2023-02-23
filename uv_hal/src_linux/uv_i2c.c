@@ -40,9 +40,15 @@ uv_errors_e _uv_i2c_init(void) {
 }
 
 
-
-uv_errors_e uv_i2cm_readwrite(i2c_e i2c, uint8_t dev_addr, uint8_t *tx_buffer, uint16_t tx_len,
+uv_errors_e uv_i2cm_read(i2c_e channel, uint8_t *tx_buffer, uint16_t tx_len,
 		uint8_t *rx_buffer, uint16_t rx_len) {
+	uv_errors_e ret = ERR_NONE;
+
+	return ret;
+}
+
+
+uv_errors_e uv_i2cm_write(i2c_e channel, uint8_t *tx_buffer, uint16_t tx_len) {
 	uv_errors_e ret = ERR_NONE;
 
 	return ret;
@@ -51,7 +57,7 @@ uv_errors_e uv_i2cm_readwrite(i2c_e i2c, uint8_t dev_addr, uint8_t *tx_buffer, u
 
 
 
-uv_errors_e uv_i2cm_write_async(i2c_e i2c, uint8_t dev_addr,
+uv_errors_e uv_i2cm_write_async(i2c_e i2c,
 		uint8_t *tx_buffer, uint16_t tx_len) {
 	uv_errors_e ret = ERR_NONE;
 

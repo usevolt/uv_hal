@@ -29,7 +29,6 @@
 
 #include "uv_wdt.h"
 
-#if CONFIG_WDT
 
 #include "chip.h"
 #include "wwdt_15xx.h"
@@ -38,6 +37,7 @@
 
 
 void _uv_wdt_init(void) {
+#if CONFIG_WDT
 	SystemCoreClockUpdate();
 
 	__disable_irq();
@@ -57,20 +57,18 @@ void _uv_wdt_init(void) {
 	Chip_WWDT_Start(LPC_WWDT);
 
 	__enable_irq();
+#else
 }
 
 void uv_wdt_update(void) {
+#if CONFIG_WDT
 	__disable_irq();
 	Chip_WWDT_Feed(LPC_WWDT);
 	__enable_irq();
+#endif
 }
 
 
 
-#else
-
-void uv_wdt_update(void) {
-
-}
 
 #endif

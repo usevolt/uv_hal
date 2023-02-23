@@ -243,12 +243,10 @@ static inline unsigned int com_params_count() {
 bool check(const canopen_object_st *src, uint8_t subindex) {
 	bool ret;
 	if (uv_canopen_is_array(src)) {
-		if (subindex > src->array_max_size) {
-			ret = false;
-		}
-		else {
-			ret = true;
-		}
+		ret = (subindex > src->array_max_size) ? false : true;
+	}
+	else if (uv_canopen_is_string(src)) {
+		ret = (subindex > src->string_len) ? false : true;
 	}
 	else if (subindex != src->sub_index) {
 		ret = false;
