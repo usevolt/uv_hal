@@ -131,20 +131,6 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 			// transfer done
 			this->state = CANOPEN_SDO_STATE_READY;
 		}
-		// expedited read requests
-		else if ((this->state == CANOPEN_SDO_STATE_EXPEDITED_UPLOAD) &&
-				(sdo_type == INITIATE_DOMAIN_UPLOAD)) {
-			if (this->data_ptr) {
-				// copy data to destination
-				memcpy(this->data_ptr, &msg->data_32bit[1],
-						4 - ((GET_CMD_BYTE(msg) & 0xC) >> 2));
-			}
-			else {
-				sdo_client_abort(this->mindex, this->sindex, CANOPEN_SDO_ERROR_GENERAL);
-			}
-			// transfer done
-			this->state = CANOPEN_SDO_STATE_READY;
-		}
 #if CONFIG_CANOPEN_SDO_SEGMENTED
 		// start of segmented download
 		else if ((this->state == CANOPEN_SDO_STATE_SEGMENTED_DOWNLOAD) &&
@@ -237,7 +223,8 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 						((uint8_t*) this->data_ptr)[this->data_index++] = msg->data_8bit[1 + i];
 					}
 					else {
-						// segmented transfer is finished
+						// segmented transfer is finished since we
+						// uploaded enough bytes from server
 						finished = true;
 						break;
 					}
@@ -248,8 +235,8 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 				}
 				else if (finished) {
 					this->state = CANOPEN_SDO_STATE_READY;
-					// byte count was smaller than the server string len.
-					// Send an abort message to the server
+					// Send an abort message to the server to notify that
+					// we ended the transfer
 					SET_CMD_BYTE(&reply_msg, ABORT_DOMAIN_TRANSFER);
 					reply_msg.data_length = 8;
 					reply_msg.data_8bit[1] = this->mindex & 0xFF;
@@ -545,6 +532,9 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 	this->mindex = mindex;
 	this->sindex = sindex;
 	this->data_ptr = data;
+	this->data_index = 0;
+	this->data_count = data_len;
+	this->toggle = 0;
 
 	if (this->state != CANOPEN_SDO_STATE_READY) {
 		ret = ERR_HW_BUSY;
@@ -552,24 +542,11 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 	else {
 		uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 
-		if (data_len <= 4) {
-			// expedited read
-			this->state = CANOPEN_SDO_STATE_EXPEDITED_UPLOAD;
-			SET_CMD_BYTE(&msg, INITIATE_DOMAIN_UPLOAD);
-			uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
-
-		}
-		else {
-#if CONFIG_CANOPEN_SDO_SEGMENTED
-			// segmented read
-			this->state = CANOPEN_SDO_STATE_SEGMENTED_UPLOAD;
-			this->data_index = 0;
-			this->data_count = data_len;
-			this->toggle = 0;
-			SET_CMD_BYTE(&msg, INITIATE_DOMAIN_UPLOAD);
-			uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
-#endif
-		}
+		// just in case put us to segmented upload state.
+		// expedited answers from server are handled as well
+		this->state = CANOPEN_SDO_STATE_SEGMENTED_UPLOAD;
+		SET_CMD_BYTE(&msg, INITIATE_DOMAIN_UPLOAD);
+		uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
 
 		// wait for reply
 		while ((this->state != CANOPEN_SDO_STATE_READY) &&
