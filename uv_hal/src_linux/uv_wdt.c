@@ -29,7 +29,6 @@
 
 #include "uv_wdt.h"
 
-#if CONFIG_WDT
 
 #include <stdio.h>
 #include <pthread.h>
@@ -37,6 +36,7 @@
 #include "uv_rtos.h"
 
 
+#if CONFIG_WDT
 
 struct {
 	int32_t counter;
@@ -57,17 +57,21 @@ static void *wdt_task(void *ptr) {
 	return NULL;
 }
 
+#endif
 
 void _uv_wdt_init(void) {
+#if CONFIG_WDT
 	pthread_t thread;
 	pthread_create(&thread, NULL, &wdt_task, NULL);
 	printf("watchdog timer started\n");
+#endif
 }
 
 void uv_wdt_update(void) {
+#if CONFIG_WDT
 	this->counter++;
+#endif
 }
 
 
 
-#endif
