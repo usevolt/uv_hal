@@ -98,7 +98,7 @@ static inline char *uv_uimediabutton_get_text(void *me) {
 }
 
 
-/// @brief: Sets the button alignment
+/// @brief: Sets the button alignment. Defaults to UIMEDIABUTTON_ALIGN_HORIZONTAL
 static inline void uv_uimediabutton_set_align(void *me, uimediabutton_alignment_e value) {
 	this->align = value;
 }

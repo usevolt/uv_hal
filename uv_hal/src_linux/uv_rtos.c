@@ -288,7 +288,6 @@ void uv_init_arg(void *device, int argc, char *argv[]) {
 	        	 break;
 #endif
 	         case '?':
-	        	 exit(0);
 	             break;
 	         default:
 				 printf("Defined but not used argument '%c'\n", ch);

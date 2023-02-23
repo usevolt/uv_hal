@@ -57,7 +57,7 @@ uint8_t bitswap(uint8_t b) {
 bool uv_rtc_get_low_power_flag(void) {
 	uint8_t addr = S35390A_CMD(S35390A_STATUS_REG1);
 	uint8_t read[1] = { };
-	uv_i2cm_readwrite(I2C0, addr, NULL, 0, read, sizeof(read));
+//	uv_i2cm_read(I2C0, addr, NULL, 0, read, sizeof(read));
 	return (read[0] & (1 << 1));
 }
 
@@ -66,7 +66,7 @@ bool uv_rtc_get_low_power_flag(void) {
 void uv_rtc_get_time(uv_time_st *dest) {
 	uint8_t addr = S35390A_CMD(S35390A_REALTIME_DATA1);
 	uint8_t read[7] = { };
-	uv_i2cm_readwrite(I2C0, addr, NULL, 0, read, sizeof(read));
+//	uv_i2cm_readwrite(I2C0, addr, NULL, 0, read, sizeof(read));
 
 	dest->year = 2000 + bitswap(read[0] << 4) * 10 + bitswap(read[0] & 0xF0);
 	dest->month = bitswap((read[1] << 4)) * 10 + bitswap(read[1] & 0xF0);
@@ -118,7 +118,7 @@ void uv_rtc_set_time(uv_time_st *src) {
 	// start by setting the hour mode to 24h
 	uint8_t addr = S35390A_CMD(S35390A_STATUS_REG1);
 	write[0] = 0x40;
-	uv_i2cm_readwrite(I2C0, addr, write, 1, NULL, 0);
+//	uv_i2cm_readwrite(I2C0, addr, write, 1, NULL, 0);
 
 	addr = S35390A_CMD(S35390A_REALTIME_DATA1);
 	// get the base year from the build date
@@ -134,7 +134,7 @@ void uv_rtc_set_time(uv_time_st *src) {
 	write[5] = (bitswap(src->min / 10) >> 4) + bitswap(src->min % 10);
 	write[6] = (bitswap(src->sec / 10) >> 4) + bitswap(src->sec % 10);
 
-	uv_i2cm_readwrite(I2C0, addr, write, sizeof(write), NULL, 0);
+//	uv_i2cm_readwrite(I2C0, addr, write, sizeof(write), NULL, 0);
 }
 
 
