@@ -54,20 +54,21 @@ typedef struct {
 } i2c_st;
 
 static i2c_st i2c[I2C_COUNT];
+
+static i2c_tx_msg_st msg;
+static I2C_RESULT_T res;
+
+
+
+static void transmit_next(i2c_e channel);
+static void i2c_transfer_int_callb(uint32_t err_code, uint32_t n);
 #endif
 
 /* Use a buffer size larger than the expected return value of
    i2c_get_mem_size() for the static I2C handle type */
 static uint32_t i2c_master_handle_mem[0x20];
 static I2C_HANDLE_T *i2c_handle_master;
-static i2c_tx_msg_st msg;
-static I2C_RESULT_T res;
 static I2C_PARAM_T param;
-
-
-
-static void transmit_next(i2c_e channel);
-static void i2c_transfer_int_callb(uint32_t err_code, uint32_t n);
 
 
 
@@ -138,7 +139,9 @@ uv_errors_e uv_i2cm_read(i2c_e channel, uint8_t *tx_buffer, uint16_t tx_len,
 #endif
 
 	param.stop_flag = 1;
+#if CONFIG_I2C_ASYNC
 	param.func_pt = &i2c_transfer_int_callb;
+#endif
 	param.num_bytes_rec = rx_len;
 	param.buffer_ptr_rec = rx_buffer;
 	param.num_bytes_send = tx_len;

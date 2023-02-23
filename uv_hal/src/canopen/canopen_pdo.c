@@ -430,17 +430,30 @@ void _uv_canopen_pdo_rx(const uv_can_message_st *msg) {
 					}
 
 					// mapped object found. Prevent over indexing the mapped object
-					if (mapping->length > uv_canopen_get_object_data_size(obj)) {
-						_uv_canopen_sdo_abort(CANOPEN_SDO_REQUEST_ID, mapping->main_index,
-								mapping->sub_index, CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
-						byte_count += mapping->length;
-						valid = false;
+					if (uv_canopen_is_array(obj)) {
+						// in arrays multiple subindexes can be mapped in a same pdo,
+						// but overindexing the whole array is not valid
+						if (mapping->sub_index > 0 &&
+								mapping->length > (obj->array_max_size -
+										(mapping->sub_index - 1)) *
+										CANOPEN_SIZEOF(obj->type)) {
+							byte_count += mapping->length;
+							valid = false;
+						}
+					}
+					else {
+						if (mapping->length > uv_canopen_get_object_data_size(obj)) {
+							_uv_canopen_sdo_abort(CANOPEN_SDO_REQUEST_ID, mapping->main_index,
+									mapping->sub_index, CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
+							byte_count += mapping->length;
+							valid = false;
+						}
 					}
 
 					if (valid) {
 						// copy the actual data if the object was array
 						if (uv_canopen_is_array(obj)) {
-							if (!mapping->sub_index) {
+							if (mapping->sub_index == 0) {
 								// writing to array sub index 0 is illegal since subindex 0
 								// determines the array max length
 								_uv_canopen_sdo_abort(CANOPEN_SDO_REQUEST_ID, mapping->main_index,
