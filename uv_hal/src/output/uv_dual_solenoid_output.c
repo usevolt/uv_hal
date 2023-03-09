@@ -91,46 +91,62 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 		uv_solenoid_output_set_mode(&this->solenoid[0], SOLENOID_OUTPUT_MODE_ONOFF);
 		uv_solenoid_output_set_mode(&this->solenoid[1], SOLENOID_OUTPUT_MODE_ONOFF);
 	}
-	else if (mode == PROP_OUTPUT_MODE_PROP_NORMAL ||
-			mode == PROP_OUTPUT_MODE_PROP_TOGGLE) {
-		uv_solenoid_output_set_mode(&this->solenoid[0], this->out_type);
-		uv_solenoid_output_set_mode(&this->solenoid[1], this->out_type);
-	}
 	else {
-
+		if (this->out_type == SOLENOID_OUTPUT_MODE_PVG) {
+			uv_solenoid_output_set_mode(&this->solenoid[0], SOLENOID_OUTPUT_MODE_PWM);
+			uv_solenoid_output_set_mode(&this->solenoid[1], SOLENOID_OUTPUT_MODE_ONOFF);
+		}
+		else {
+			uv_solenoid_output_set_mode(&this->solenoid[0], this->out_type);
+			uv_solenoid_output_set_mode(&this->solenoid[1], this->out_type);
+		}
 	}
 
 
 	int16_t target = uv_prop_output_get_target((uv_prop_output_st *) this);
-	if (this->unidir) {
-		uv_solenoid_output_set(&this->solenoid[DUAL_OUTPUT_SOLENOID_A], abs(target));
-		uv_solenoid_output_set(&this->solenoid[DUAL_OUTPUT_SOLENOID_B], 0);
-	}
-	else {
-		if (target > 0) {
-			uv_solenoid_output_set(&this->solenoid[sb], 0);
-			uv_solenoid_output_freeze_fault_detection(&this->solenoid[sb],
-					OUTPUT_FAULT_FREEZE_MS);
-
-			// only set output active if the other direction has gone to zero
-			// or logic invertion is set
-			if (uv_solenoid_output_get_pwm_dc(&this->solenoid[sb]) == 0 ||
-					uv_solenoid_output_get_logicinv(&this->solenoid[DUAL_OUTPUT_SOLENOID_A])) {
-				uv_solenoid_output_set(&this->solenoid[sa], abs(target));
-			}
+	if (this->out_type != SOLENOID_OUTPUT_MODE_PVG) {
+		if (this->unidir) {
+			uv_solenoid_output_set(&this->solenoid[DUAL_OUTPUT_SOLENOID_A], abs(target));
+			uv_solenoid_output_set(&this->solenoid[DUAL_OUTPUT_SOLENOID_B], 0);
 		}
 		else {
-			uv_solenoid_output_set(&this->solenoid[sa], 0);
-			uv_solenoid_output_freeze_fault_detection(&this->solenoid[sa],
-					OUTPUT_FAULT_FREEZE_MS);
+			if (target > 0) {
+				uv_solenoid_output_set(&this->solenoid[sb], 0);
+				uv_solenoid_output_freeze_fault_detection(&this->solenoid[sb],
+						OUTPUT_FAULT_FREEZE_MS);
 
-			// only set output active if the other direction has gone to zero or
-			// logic invertion is set
-			if (uv_solenoid_output_get_pwm_dc(&this->solenoid[sa]) == 0 ||
-					uv_solenoid_output_get_logicinv(&this->solenoid[DUAL_OUTPUT_SOLENOID_A])) {
-				uv_solenoid_output_set(&this->solenoid[sb], abs(target));
+				// only set output active if the other direction has gone to zero
+				// or logic invertion is set
+				if (uv_solenoid_output_get_pwm_dc(&this->solenoid[sb]) == 0) {
+					uv_solenoid_output_set(&this->solenoid[sa], abs(target));
+				}
+			}
+			else {
+				uv_solenoid_output_set(&this->solenoid[sa], 0);
+				uv_solenoid_output_freeze_fault_detection(&this->solenoid[sa],
+						OUTPUT_FAULT_FREEZE_MS);
+
+				// only set output active if the other direction has gone to zero or
+				// logic invertion is set
+				if (uv_solenoid_output_get_pwm_dc(&this->solenoid[sa]) == 0) {
+					uv_solenoid_output_set(&this->solenoid[sb], abs(target));
+				}
 			}
 		}
+	}
+	else {
+		// SOLENOID_OUTPUT_MODE_PVG
+
+		// Solenoid A is in PWM single-ended mode
+		int16_t t = target;
+		t = target / 2 + 500;
+		if (this->unidir) {
+			t = 500 + abs(t - 500);
+		}
+		uv_solenoid_output_set(&this->solenoid[sa], t);
+		// Solenoid B is ON/OFF
+		uv_solenoid_output_set(&this->solenoid[sb], target);
+
 	}
 
 	int16_t maxspeed_scaler = uv_dual_solenoid_output_get_maxspeed_scaler(this);
@@ -142,17 +158,20 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 			&this->solenoid[DUAL_OUTPUT_SOLENOID_B], maxspeed_scaler);
 
 	uv_solenoid_output_step(&this->solenoid[DUAL_OUTPUT_SOLENOID_A], step_ms);
-	if (this->unidir) {
-		// control solenoid B with the same value as solenoid A
-		uv_pwm_set(this->solenoid[DUAL_OUTPUT_SOLENOID_B].pwm_chn,
-				uv_solenoid_output_get_pwm_dc(&this->solenoid[DUAL_OUTPUT_SOLENOID_A]));
-		this->solenoid[DUAL_OUTPUT_SOLENOID_B].pwm =
-				uv_solenoid_output_get_pwm_dc(&this->solenoid[DUAL_OUTPUT_SOLENOID_A]);
-		this->solenoid[DUAL_OUTPUT_SOLENOID_B].out =
-				uv_solenoid_output_get_out(&this->solenoid[DUAL_OUTPUT_SOLENOID_A]);
-	}
-	else {
-		uv_solenoid_output_step(&this->solenoid[DUAL_OUTPUT_SOLENOID_B], step_ms);
+
+	if (this->out_type != SOLENOID_OUTPUT_MODE_PVG) {
+		if (this->unidir) {
+				// control solenoid B with the same value as solenoid A
+				uv_pwm_set(this->solenoid[DUAL_OUTPUT_SOLENOID_B].pwm_chn,
+						uv_solenoid_output_get_pwm_dc(&this->solenoid[DUAL_OUTPUT_SOLENOID_A]));
+				this->solenoid[DUAL_OUTPUT_SOLENOID_B].pwm =
+						uv_solenoid_output_get_pwm_dc(&this->solenoid[DUAL_OUTPUT_SOLENOID_A]);
+				this->solenoid[DUAL_OUTPUT_SOLENOID_B].out =
+						uv_solenoid_output_get_out(&this->solenoid[DUAL_OUTPUT_SOLENOID_A]);
+		}
+		else {
+			uv_solenoid_output_step(&this->solenoid[DUAL_OUTPUT_SOLENOID_B], step_ms);
+		}
 	}
 
 

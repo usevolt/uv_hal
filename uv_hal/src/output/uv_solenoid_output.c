@@ -81,7 +81,6 @@ void uv_solenoid_output_init(uv_solenoid_output_st *this,
 	uv_moving_aver_init(&this->pwmaver, SOLENOID_OUTPUT_PWMAVG_COUNT);
 
 	this->mode = SOLENOID_OUTPUT_MODE_CURRENT;
-	this->logicinv = false;
 
 	this->maxspeed_scaler = 1000;
 
@@ -118,7 +117,7 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 
 	// set output to OFF state when target is zero and either PWM or ADC value is zero.
 	// This disables the ADC current measuring, even when there's open load.
-	if ((!!this->target == this->logicinv) &&
+	if ((!!this->target == 0) &&
 			((this->pwm == 0) || (uv_solenoid_output_get_current(this) == 0))) {
 		uv_solenoid_output_set_state(this, OUTPUT_STATE_OFF);
 	}
@@ -229,15 +228,6 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 				output = PWM_MAX_VALUE;
 			}
 
-			// logic invertion inverts when the output is ON and when OFF
-			if (this->logicinv) {
-				if (output == 0) {
-					output = PWM_MAX_VALUE;
-				}
-				else {
-					output = 0;
-				}
-			}
 			this->out = uv_output_get_current((uv_output_st*) this);
 		}
 		LIMITS(output, 0, PWM_MAX_VALUE);

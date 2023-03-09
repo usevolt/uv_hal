@@ -72,6 +72,11 @@ typedef enum {
 	SOLENOID_OUTPUT_MODE_PWM,
 	/// @brief: The output is on/off digital output, without any proportional functionality.
 	SOLENOID_OUTPUT_MODE_ONOFF,
+	/// @brief: Output A is PWM single-ended output with middle value in 50% duty cycle,
+	/// output B is on/off output for supplying power to Danfoss PVG valve. Note
+	/// that uv_solenoid_output is never in this mode, rather uv_dual_solenoid_output is.
+	/// Internally uv_dual_solenoid_output sets solenoid outputs to MODE_PWM and MODE_ONOFF modes.
+	SOLENOID_OUTPUT_MODE_PVG,
 	SOLENOID_OUTPUT_MODE_COUNT
 } uv_solenoid_output_mode_e;
 
@@ -136,9 +141,6 @@ typedef struct {
 	uv_moving_aver_st pwmaver;
 	/// @brief: PWM channel configured for this output
 	uv_pwm_channel_t pwm_chn;
-
-	// if true, in ONOFF mode this module works as active-low output
-	bool logicinv;
 
 	// scales the maximum speed of the solenoid. 0 ... 1000
 	int16_t maxspeed_scaler;
@@ -304,16 +306,6 @@ static inline uint16_t uv_solenoid_output_get_pwm_dc(uv_solenoid_output_st *this
 }
 
 
-/// @brief: The logicinv inverts the output logic to active-low mode. This works only
-/// in SOLENOID_OUTPUT_MODE_ONOFF.
-static inline void uv_solenoid_output_set_logicinv(uv_solenoid_output_st *this, bool value) {
-	this->logicinv = value;
-}
-
-
-static inline bool uv_solenoid_output_get_logicinv(uv_solenoid_output_st *this) {
-	return this->logicinv;
-}
 
 
 static inline void uv_solenoid_output_set_preheat(uv_solenoid_output_st *this,
