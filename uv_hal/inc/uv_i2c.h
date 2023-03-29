@@ -78,7 +78,12 @@ uv_errors_e _uv_i2c_init(void);
 
 /// @brief: Reads reads data to/from i2c device synchronously.
 /// The data transmission is started with a START condition
-/// and ended with STOP condition.
+/// and ended with STOP condition. First data in the *tx_buffer* is sent
+/// to the device, following a RESTART condition and then data is read
+/// to *rx_buffer*.
+///
+/// @note: First byte of *rx_buffer* always contains slave address and read bit!,
+/// otherwise the function fails with NACK.
 ///
 /// @param tx_buffer: Pointer to the buffer which holds the write data. Note
 /// that 1st byte is used for device address and R/W bit.

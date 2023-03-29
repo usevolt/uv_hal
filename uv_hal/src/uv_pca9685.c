@@ -9,6 +9,7 @@
 #include <uv_pca9685.h>
 #include "uv_pwm.h"
 #include "uv_terminal.h"
+#include "uv_rtos.h"
 
 
 #if CONFIG_I2C
@@ -108,9 +109,17 @@ uv_errors_e uv_pca9685_init(uv_pca9685_st *this, i2c_e i2c_chn, uint8_t address,
 	this->i2c = i2c_chn;
 	// check that the given address had the fixed 1 bit set
 	address |= (1 << 6);
-	this->address = (address << 1);
+	// MSB is fied as 1, LSB is read/write flag
+	this->address = (address << 1) | (1 << 7);
 	this->oe_gpio = oe_gpio;
+	// reset and enable the OE pin
+	uv_gpio_init_output(this->oe_gpio, true);
+	uv_rtos_task_delay(2);
+	uv_gpio_set(this->oe_gpio, false);
+
 	memset(this->pwm_dc, 0, sizeof(this->pwm_dc));
+
+	uint32_t err = ERR_NONE;
 
 	// write MODE register
 	// enable register auto increment and enable normal mode
@@ -121,8 +130,7 @@ uv_errors_e uv_pca9685_init(uv_pca9685_st *this, i2c_e i2c_chn, uint8_t address,
 				(1 << 5), // register auto update enabled
 
 		};
-		uint8_t r[3] = {};
-		uv_i2cm_write(this->i2c, w, sizeof(w));
+		err = uv_i2cm_write(this->i2c, w, sizeof(w));
 	}
 
 	// read MODE register
@@ -131,9 +139,10 @@ uv_errors_e uv_pca9685_init(uv_pca9685_st *this, i2c_e i2c_chn, uint8_t address,
 				this->address | I2C_READ,
 				REG_MODE1
 		};
-		uint8_t r[2] = {};
-		uv_i2cm_read(this->i2c, w, sizeof(w), r, sizeof(r));
-		if (r[1] != (1 << 5)) {
+		uint8_t r[2] = { w[0] };
+		err |= uv_i2cm_read(this->i2c, w, sizeof(w), r, sizeof(r));
+		if (r[1] != (1 << 5) ||
+				(err != ERR_NONE)) {
 			uv_terminal_enable(TERMINAL_CAN);
 			printf("*** PCA9685 INIT ERROR 0x%x 0x%x***\n", r[0], r[1]);
 			ret = ERR_NOT_RESPONDING;
@@ -163,9 +172,6 @@ uv_errors_e uv_pca9685_init(uv_pca9685_st *this, i2c_e i2c_chn, uint8_t address,
 			};
 			uv_i2cm_write(this->i2c, w, sizeof(w));
 		}
-
-		// enable the OE pin
-		uv_gpio_init_output(this->oe_gpio, false);
 	}
 
 	return ret;
@@ -175,29 +181,23 @@ uv_errors_e uv_pca9685_init(uv_pca9685_st *this, i2c_e i2c_chn, uint8_t address,
 void uv_pca9685_set(void *me, uint32_t chn, uint16_t value) {
 	uv_pca9685_st *this = me;
 
+//	printf("%u %u\n", chn, value);
 	if (chn < PCA9685_PWM_COUNT) {
 		LIMIT_MAX(value, PWM_MAX_VALUE);
 		value = value * LED_MAX_VAL / PWM_MAX_VALUE;
-		uint8_t w[6] = {
+		uint8_t w[4] = {
 				this->address | I2C_WRITE,
-				REG_LED0_ON_L + chn,
-				0, 	// ON_L
-				0,	// ON_H
+				REG_LED0_OFF_L + chn,
 				value & 0xFF,	// OFF_L
 				(value >> 8)	// OFF_H
 		};
 //		if (this->pwm_dc[chn] != value) {
 			this->pwm_dc[chn] = value;
-			uint8_t wr[3] = {
-					this->address | I2C_READ,
-					REG_MODE2 },
-					r[3] = {};
-			uv_i2cm_read(this->i2c, wr, sizeof(wr), r, sizeof(r));
-			printf("read: 0x%x 0x%x 0x%x\n", r[0], r[1], r[2]);
-//			uv_errors_e e = uv_i2cm_write_async(this->i2c, w, sizeof(w));
-//			if (e != ERR_NONE) {
-//				printf("I2C tx buffer full (%u)\n", e);
-//			}
+			uv_errors_e e = uv_i2cm_write_async(this->i2c, w, sizeof(w));
+			if (e != ERR_NONE) {
+				uv_terminal_enable(TERMINAL_CAN);
+				printf("I2C tx buffer full (%u)\n", e);
+			}
 //		}
 	}
 }

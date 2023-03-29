@@ -269,10 +269,6 @@ uv_errors_e uv_pwm_set(uv_pwm_channel_t chn, uint16_t value) {
 			this->ext_module[module - 1].set_callb(
 					this->ext_module[module - 1].module_ptr, PWMEXT_GET_CHN(chn), value);
 		}
-		else {
-			uv_terminal_enable(TERMINAL_CAN);
-			printf("** ERROR *** PWMEXT module %i not assigned\n", module);
-		}
 	}
 #endif
 	else {

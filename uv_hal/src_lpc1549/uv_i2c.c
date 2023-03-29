@@ -147,10 +147,24 @@ uv_errors_e uv_i2cm_read(i2c_e channel, uint8_t *tx_buffer, uint16_t tx_len,
 	param.num_bytes_send = tx_len;
 	param.buffer_ptr_send = tx_buffer;
 
-	uint32_t err = LPC_I2CD_API->i2c_master_receive_poll(
-			i2c_handle_master, &param, &res);
+	uint32_t err = LPC_OK;
+	if (tx_len == 0 ||
+			tx_buffer == NULL) {
+		err = LPC_I2CD_API->i2c_master_receive_poll(
+				i2c_handle_master, &param, &res);
+	}
+	else {
+		err = LPC_I2CD_API->i2c_master_tx_rx_poll(
+				i2c_handle_master, &param, &res);
+	}
 	if (err != LPC_OK) {
-		printf("I2C error %u\n", (unsigned int) err);
+		printf("I2C error 0x%x when reading %u bytes: \n",
+				(unsigned int) err,
+				(unsigned int) param.num_bytes_rec);
+		for (uint8_t i = 0; i < param.num_bytes_rec; i++) {
+			printf(" 0x%x ", param.buffer_ptr_rec[i]);
+		}
+		printf("\n\n");
 		ret = ERR_ABORTED;
 	}
 	return ret;
@@ -184,7 +198,7 @@ uv_errors_e uv_i2cm_write(i2c_e channel, uint8_t *tx_buffer, uint16_t tx_len) {
 	uint32_t err = LPC_I2CD_API->i2c_master_transmit_poll(
 			i2c_handle_master, &param, &res);
 	if (err != LPC_OK) {
-		printf("I2C error %u\n", (unsigned int) err);
+		printf("I2C error 0x%x\n", (unsigned int) err);
 		ret = ERR_ABORTED;
 	}
 	return ret;
