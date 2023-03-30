@@ -57,7 +57,7 @@ void _uv_wdt_init(void) {
 	Chip_WWDT_Start(LPC_WWDT);
 
 	__enable_irq();
-#else
+#endif
 }
 
 void uv_wdt_update(void) {
@@ -70,5 +70,3 @@ void uv_wdt_update(void) {
 
 
 
-
-#endif
