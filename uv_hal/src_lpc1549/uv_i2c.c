@@ -43,26 +43,19 @@
 
 
 typedef struct {
-	uint8_t data_len;
-	// data[0] is the device address, shifted left 1 bit for RW bit
-	uint8_t data[CONFIG_I2C_ASYNC_MAX_BYTE_LEN + 1];
-} i2c_tx_msg_st;
-
-typedef struct {
 	uv_ring_buffer_st tx;
 	i2c_tx_msg_st tx_buffer[CONFIG_I2C_ASYNC_BUFFER_LEN];
 } i2c_st;
 
 static i2c_st i2c[I2C_COUNT];
 
-static i2c_tx_msg_st msg;
-static I2C_RESULT_T res;
-
 
 
 static void transmit_next(i2c_e channel);
-static void i2c_transfer_int_callb(uint32_t err_code, uint32_t n);
 #endif
+static void i2c_transfer_int_callb(uint32_t err_code, uint32_t n);
+
+static I2C_RESULT_T res;
 
 /* Use a buffer size larger than the expected return value of
    i2c_get_mem_size() for the static I2C handle type */
@@ -73,6 +66,7 @@ static I2C_PARAM_T param;
 
 
 uv_errors_e _uv_i2c_init(void) {
+	uv_errors_e ret = ERR_NONE;
 	// Enable I2C clock and reset I2C peripheral - the boot ROM does not do this
 	Chip_I2C_Init(LPC_I2C0);
 
@@ -85,21 +79,21 @@ uv_errors_e _uv_i2c_init(void) {
 	sizeof(i2c_master_handle_mem)) {
 		/* Example only: this should never happen and probably isn't needed for
 		   most I2C code. */
-		printf("error\n");
+		ret = ERR_NOT_ENOUGH_MEMORY;
 	}
 
 	/* Setup the I2C handle */
 	i2c_handle_master = LPC_I2CD_API->i2c_setup(
 			LPC_I2C_BASE, i2c_master_handle_mem);
 	if (i2c_handle_master == NULL) {
-		printf("i2c_setup error\n");
+		ret = ERR_INTERNAL;
 	}
 
 	/* Set I2C bitrate */
 	if (LPC_I2CD_API->i2c_set_bitrate(
 			i2c_handle_master, Chip_Clock_GetSystemClockRate(),
 									  CONFIG_I2C_BAUDRATE) != LPC_OK) {
-		printf("speed error\n");
+		ret = ERR_INTERNAL;
 	}
 
 	NVIC_SetPriority(I2C0_IRQn, 1);
@@ -113,7 +107,7 @@ uv_errors_e _uv_i2c_init(void) {
 #endif
 
 
-	return ERR_NONE;
+	return ret;
 }
 
 
@@ -138,9 +132,7 @@ uv_errors_e uv_i2cm_read(i2c_e channel, uint8_t *tx_buffer, uint16_t tx_len,
 #endif
 
 	param.stop_flag = 1;
-#if CONFIG_I2C_ASYNC
 	param.func_pt = &i2c_transfer_int_callb;
-#endif
 	param.num_bytes_rec = rx_len;
 	param.buffer_ptr_rec = rx_buffer;
 	param.num_bytes_send = tx_len;
@@ -190,7 +182,9 @@ uv_errors_e uv_i2cm_write(i2c_e channel, uint8_t *tx_buffer, uint16_t tx_len) {
 #endif
 
 	param.stop_flag = 1;
+#if CONFIG_I2C_ASYNC
 	param.func_pt = &i2c_transfer_int_callb;
+#endif
 	param.num_bytes_send = tx_len;
 	param.buffer_ptr_send = tx_buffer;
 
@@ -201,6 +195,19 @@ uv_errors_e uv_i2cm_write(i2c_e channel, uint8_t *tx_buffer, uint16_t tx_len) {
 		ret = ERR_ABORTED;
 	}
 	return ret;
+}
+
+
+
+void I2C0_IRQHandler(void) {
+	LPC_I2CD_API->i2c_isr_handler(i2c_handle_master);
+}
+
+
+static void i2c_transfer_int_callb(uint32_t err_code, uint32_t n) {
+#if CONFIG_I2C_ASYNC
+	transmit_next(I2C0);
+#endif
 }
 
 
@@ -224,21 +231,6 @@ static void transmit_next(i2c_e channel) {
 		}
 		uv_enable_int();
 	}
-}
-
-
-
-void I2C0_IRQHandler(void) {
-	LPC_I2CD_API->i2c_isr_handler(i2c_handle_master);
-}
-
-
-static void i2c_transfer_int_callb(uint32_t err_code, uint32_t n) {
-	if (err_code) {
-		uv_terminal_enable(TERMINAL_CAN);
-		printf("I2C error 0x%x\n", err_code);
-	}
-	transmit_next(I2C0);
 }
 
 
