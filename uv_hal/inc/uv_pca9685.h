@@ -48,14 +48,24 @@ typedef enum {
 
 
 /// @brief: The main pca9625 module
-typedef struct {
+typedef struct __attribute__((packed)) {
 	i2c_e i2c;
 	// the address of the device
 	uint8_t address;
 
-	// stores the duty cycles of all pwm channels for
-	// faster access to them
-	int16_t pwm_dc[PCA9685_PWM_COUNT];
+	struct __attribute__((packed)) {
+		uint8_t addrbyte;
+		uint8_t regbyte;
+		struct __attribute__((packed)) {
+			// reserved bits should be written as 0.
+			// this is needed for delayed_mode when all pwm values are written with
+			// one big transfer.
+			int16_t reserved;
+			// stores the duty cycles of all pwm channels for
+			// faster access to them
+			int16_t dc;
+		} pwm[PCA9685_PWM_COUNT];
+	} tx;
 
 	uv_gpios_e oe_gpio;
 
@@ -74,6 +84,11 @@ typedef struct {
 uv_errors_e uv_pca9685_init(uv_pca9685_st *this, i2c_e i2c_chn, uint8_t address,
 		uv_gpios_e oe_gpio, uint32_t pwm_freq);
 
+
+
+
+/// @brief Function that writes all pwm values to pca9685
+uv_errors_e uv_pca9685_update(uv_pca9685_st *this);
 
 
 /// @brief: Sets the output duty cycle to *value*. Value should be 0 ... PWM_MAX_VALUE

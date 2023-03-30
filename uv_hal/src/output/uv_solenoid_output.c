@@ -84,9 +84,6 @@ void uv_solenoid_output_init(uv_solenoid_output_st *this,
 
 	this->maxspeed_scaler = 1000;
 
-	memset(&this->preheat, 0, sizeof(this->preheat));
-	uv_delay_end(&this->preheat.delay);
-
 	this->dither_ampl = dither_ampl;
 	if (dither_freq) {
 		this->dither_ms = 1000 / (dither_freq * 2);
@@ -172,18 +169,6 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 			}
 			uv_pid_set_target(&this->ma_pid, target_ma);
 
-			// preheat
-			if (this->target) {
-				uv_delay(&this->preheat.delay, step_ms);
-
-				if (!uv_delay_has_ended(&this->preheat.delay)) {
-					// preheat active, override the current PID target value
-					uv_pid_set_target(&this->ma_pid, this->preheat.current_ma);
-				}
-			}
-			else {
-				uv_delay_init(&this->preheat.delay, this->preheat.time_ms);
-			}
 
 			// milliamp PID controller
 			// we calculate current by ourselves because uv_output_st adds averaging

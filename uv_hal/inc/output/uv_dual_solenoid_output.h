@@ -272,12 +272,6 @@ static inline int16_t uv_dual_solenoid_output_get_maxspeed_scaler(
 
 
 
-static inline void uv_dual_solenoid_output_set_preheat(
-		uv_dual_solenoid_output_st *this, int16_t time_ms, int16_t current_ma) {
-	uv_solenoid_output_set_preheat(&this->solenoid[0], time_ms, current_ma);
-	uv_solenoid_output_set_preheat(&this->solenoid[1], time_ms, current_ma);
-}
-
 
 #endif
 

@@ -76,12 +76,11 @@ uv_errors_e _uv_i2c_init(void) {
 	// Enable I2C clock and reset I2C peripheral - the boot ROM does not do this
 	Chip_I2C_Init(LPC_I2C0);
 
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 22, IOCON_STDI2C_EN);
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 23, IOCON_STDI2C_EN);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 22, IOCON_SFI2C_EN);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 23, IOCON_SFI2C_EN);
 	Chip_SWM_EnableFixedPin(SWM_FIXED_I2C0_SCL);
 	Chip_SWM_EnableFixedPin(SWM_FIXED_I2C0_SDA);
 
-	uv_terminal_enable(TERMINAL_CAN);
 	if (LPC_I2CD_API->i2c_get_mem_size() >
 	sizeof(i2c_master_handle_mem)) {
 		/* Example only: this should never happen and probably isn't needed for

@@ -114,12 +114,34 @@ uv_errors_e uv_pca9685_init(uv_pca9685_st *this, i2c_e i2c_chn, uint8_t address,
 	this->oe_gpio = oe_gpio;
 	// reset and enable the OE pin
 	uv_gpio_init_output(this->oe_gpio, true);
-	uv_rtos_task_delay(2);
-	uv_gpio_set(this->oe_gpio, false);
-
-	memset(this->pwm_dc, 0, sizeof(this->pwm_dc));
+	this->tx.addrbyte = this->address | I2C_WRITE;
+	this->tx.regbyte = REG_LED0_ON_L;
+	memset(this->tx.pwm, 0, sizeof(this->tx.pwm));
 
 	uint32_t err = ERR_NONE;
+	// Reset PCA9685
+	{
+		uint8_t w[2] = {
+				0,
+				0x6
+
+		};
+		err = uv_i2cm_write(this->i2c, w, sizeof(w));
+	}
+
+	uv_rtos_task_delay(2);
+
+	// write the pwm frequency
+	{
+		int32_t prescale = 25000000 / (4096 * pwm_freq);
+		LIMITS(prescale, 3, 0xFF);
+		uint8_t w[3] = {
+				this->address | I2C_WRITE,
+				REG_PRESCALE,
+				prescale
+		};
+		err = uv_i2cm_write(this->i2c, w, sizeof(w));
+	}
 
 	// write MODE register
 	// enable register auto increment and enable normal mode
@@ -130,9 +152,10 @@ uv_errors_e uv_pca9685_init(uv_pca9685_st *this, i2c_e i2c_chn, uint8_t address,
 				(1 << 5), // register auto update enabled
 
 		};
-		err = uv_i2cm_write(this->i2c, w, sizeof(w));
+		err |= uv_i2cm_write(this->i2c, w, sizeof(w));
 	}
 
+	uv_rtos_task_delay(1);
 	// read MODE register
 	{
 		uint8_t w[2] = {
@@ -148,40 +171,27 @@ uv_errors_e uv_pca9685_init(uv_pca9685_st *this, i2c_e i2c_chn, uint8_t address,
 			ret = ERR_NOT_RESPONDING;
 		}
 	}
-	if (ret == ERR_NONE) {
-		// write the pwm frequency
-		{
-			pwm_freq = 25000000 / (4096 * pwm_freq);
-			uint8_t w[3] = {
-					this->address | I2C_WRITE,
-					REG_PRESCALE,
-					pwm_freq
-			};
-			uv_i2cm_write(this->i2c, w, sizeof(w));
-		}
+	// set all PWM's to zero
+	uv_pca9685_update(this);
 
-		// set all PWM's to zero
-		for (uint16_t i = 0; i < 16; i++) {
-			uint8_t w[6] = {
-					this->address | I2C_WRITE,
-					REG_LED0_ON_L + i * 4,
-					0,
-					0,
-					0,
-					0
-			};
-			uv_i2cm_write(this->i2c, w, sizeof(w));
-		}
-	}
+	uv_gpio_set(this->oe_gpio, false);
 
 	return ret;
 }
 
 
+uv_errors_e uv_pca9685_update(uv_pca9685_st *this) {
+	uv_errors_e ret = uv_i2cm_write_async(this->i2c,
+		(uint8_t*) &this->tx, sizeof(this->tx));
+
+	return ret;
+}
+
+
+
 void uv_pca9685_set(void *me, uint32_t chn, uint16_t value) {
 	uv_pca9685_st *this = me;
 
-//	printf("%u %u\n", chn, value);
 	if (chn < PCA9685_PWM_COUNT) {
 		LIMIT_MAX(value, PWM_MAX_VALUE);
 		value = value * LED_MAX_VAL / PWM_MAX_VALUE;
@@ -191,14 +201,7 @@ void uv_pca9685_set(void *me, uint32_t chn, uint16_t value) {
 				value & 0xFF,	// OFF_L
 				(value >> 8)	// OFF_H
 		};
-//		if (this->pwm_dc[chn] != value) {
-			this->pwm_dc[chn] = value;
-			uv_errors_e e = uv_i2cm_write_async(this->i2c, w, sizeof(w));
-			if (e != ERR_NONE) {
-				uv_terminal_enable(TERMINAL_CAN);
-				printf("I2C tx buffer full (%u)\n", e);
-			}
-//		}
+		this->tx.pwm[chn].dc = value;
 	}
 }
 
@@ -208,7 +211,7 @@ uint16_t uv_pca9685_get(void *me, uint32_t chn) {
 	uint16_t ret = 0;
 	uv_pca9685_st *this = me;
 	if (chn < PCA9685_PWM_COUNT) {
-		ret = this->pwm_dc[chn];
+		ret = this->tx.pwm[chn].dc;
 	}
 
 	return ret;
