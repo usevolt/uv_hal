@@ -190,7 +190,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 			if ((obj = _canopen_find_object(msg, CANOPEN_RO))) {
 				// segmented transfer for strings or arrays
 				if (uv_canopen_is_string(obj) ||
-						uv_canopen_is_array(obj)) {
+						(uv_canopen_is_array(obj) && GET_SINDEX(msg) != 0)) {
 #if CONFIG_CANOPEN_SDO_SEGMENTED
 					this->state = CANOPEN_SDO_STATE_SEGMENTED_UPLOAD;
 					this->data_index = uv_canopen_is_string(obj) ?
