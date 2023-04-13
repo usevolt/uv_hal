@@ -50,15 +50,15 @@ static const uint8_t line_lengths[] = {10, 10, 9, 7};
 #define LINE_COUNT			5
 
 /// @brief: Defines the height of the keyboard relative to the full display height
-#define KEYBOARD_HEIGHT		0.75
+#define KEYBOARD_HEIGHT_PPT		750
 
 /// @brief: Defines the button height
-#define BUTTON_H			(LCD_H(KEYBOARD_HEIGHT) / LINE_COUNT)
+#define BUTTON_H			(LCD_HPPT(KEYBOARD_HEIGHT_PPT) / LINE_COUNT)
 /// @brief: Defines the button width
 /// @note: This is relative to the maximum line lengths!
 #define BUTTON_W			(LCD_W_PX / 12)
 
-#define BUTTONS_START		(LCD_H(1 - KEYBOARD_HEIGHT) - 1)
+#define BUTTONS_START		(LCD_HPPT((int32_t) 1000 - KEYBOARD_HEIGHT_PPT) - 1)
 
 
 
@@ -78,7 +78,7 @@ static void draw(const char *title, char *buffer, const uv_uistyle_st *style) {
 	uv_ui_clear(style->window_c);
 
 	uv_ui_draw_string((char*) title, style->font,
-			LCD_W(0.5), 0, ALIGN_TOP_CENTER, style->text_color);
+			LCD_WPPT(500), 0, ALIGN_TOP_CENTER, style->text_color);
 
 	// draw current text
 	update_input(buffer, style);
@@ -136,9 +136,9 @@ static void draw(const char *title, char *buffer, const uv_uistyle_st *style) {
 		}
 	}
 	// draw space bar
-	uv_ui_draw_shadowrrect(LCD_W(0.1), y, LCD_W(0.8), BUTTON_H, CONFIG_UI_RADIUS,
+	uv_ui_draw_shadowrrect(LCD_WPPT(100), y, LCD_WPPT(800), BUTTON_H, CONFIG_UI_RADIUS,
 			style->bg_c, highlight_c, shadow_c);
-	uv_ui_draw_string("Space", style->font, LCD_W(0.5), y + BUTTON_H / 2,
+	uv_ui_draw_string("Space", style->font, LCD_WPPT(500), y + BUTTON_H / 2,
 			ALIGN_CENTER, style->text_color);
 
 	// update the ft81x display
@@ -206,7 +206,8 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 								BUTTON_H * 2, CONFIG_UI_RADIUS, highlight_c,
 								highlight_c, shadow_c);
 						uv_ui_draw_string("Enter", style->font,
-								x + BUTTON_W * 1.75, y + BUTTON_H, ALIGN_CENTER, style->text_color);
+								x + BUTTON_W * 1.75, y + BUTTON_H,
+								ALIGN_CENTER, style->text_color);
 					}
 					else if (touch->action == TOUCH_RELEASED) {
 						refresh = true;
@@ -218,10 +219,12 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 				if (touch->x >= x &&
 						touch->y >= y && touch->y <= y + BUTTON_H) {
 					if (touch->action == TOUCH_PRESSED) {
-						uv_ui_draw_shadowrrect(x + BUTTON_W, y, BUTTON_W * 2, BUTTON_H, CONFIG_UI_RADIUS,
+						uv_ui_draw_shadowrrect(x + BUTTON_W, y, BUTTON_W * 2,
+								BUTTON_H, CONFIG_UI_RADIUS,
 								highlight_c, highlight_c, shadow_c);
 						uv_ui_draw_string("Shift", style->font,
-								x + BUTTON_W * 2, y + BUTTON_H / 2, ALIGN_CENTER, style->text_color);
+								x + BUTTON_W * 2, y + BUTTON_H / 2,
+								ALIGN_CENTER, style->text_color);
 					}
 					else if (touch->action == TOUCH_RELEASED) {
 						refresh = true;
@@ -240,12 +243,13 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 		}
 	}
 
-	if (touch->x >= LCD_W(0.1f) && touch->x <= LCD_W(0.9f) &&
+	if (touch->x >= LCD_WPPT(100) && touch->x <= LCD_WPPT(900) &&
 			touch->y >= y) {
 		if (touch->action == TOUCH_PRESSED) {
-			uv_ui_draw_shadowrrect(LCD_W(0.1), y, LCD_W(0.8), BUTTON_H, CONFIG_UI_RADIUS,
+			uv_ui_draw_shadowrrect(LCD_WPPT(100), y, LCD_WPPT(800),
+					BUTTON_H, CONFIG_UI_RADIUS,
 					highlight_c, highlight_c, shadow_c);
-			uv_ui_draw_string("Space", style->font, LCD_W(0.5), y + BUTTON_H / 2,
+			uv_ui_draw_string("Space", style->font, LCD_WPPT(500), y + BUTTON_H / 2,
 					ALIGN_CENTER, style->text_color);
 		}
 		else if (touch->action == TOUCH_RELEASED) {

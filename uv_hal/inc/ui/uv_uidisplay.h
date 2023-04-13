@@ -97,6 +97,15 @@ static inline void uv_uidisplay_set_touch_callb(void *me,
 	uv_uiobject_set_touch_callb(me, touch_callb);
 }
 
+/// @brief Sets the display background color
+static inline void uv_uidisplay_set_color(void *me, color_t c) {
+	this->display_c = c;
+}
+
+static inline color_t uv_uidisplay_get_color(void *me) {
+	return this->display_c;
+}
+
 
 /// @brief: Adds an object to the screen
 static inline void uv_uidisplay_addxy(void *me, void *obj,
