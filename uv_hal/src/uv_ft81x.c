@@ -1294,7 +1294,7 @@ void uv_ui_touchscreen_calibrate(ui_transfmat_st *transform_matrix) {
 	uv_ui_set_mask(0, 0, LCD_W_PX, LCD_H_PX);
 	uv_ui_clear(C(0xFF002040));
 	uv_ui_draw_string("Calibrate the touchscreen\nby touching the flashing points", &font28,
-			LCD_W(0.5f), LCD_H(0.1f), UI_ALIGN_CENTER_TOP, C(0xFFFFFFFF));
+			LCD_WPPT(500), LCD_HPPT(100), UI_ALIGN_CENTER_TOP, C(0xFFFFFFFF));
 	write16(REG_CMD_DL, this->dl_index);
 
 	while (true) {
