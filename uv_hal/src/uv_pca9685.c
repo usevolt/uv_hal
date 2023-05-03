@@ -194,7 +194,7 @@ void uv_pca9685_set(void *me, uint32_t chn, uint16_t value) {
 
 	if (chn < PCA9685_PWM_COUNT) {
 		LIMIT_MAX(value, PWM_MAX_VALUE);
-		value = value * LED_MAX_VAL / PWM_MAX_VALUE;
+		value = (value * LED_MAX_VAL + (PWM_MAX_VALUE / 2)) / PWM_MAX_VALUE;
 		uint8_t w[4] = {
 				this->address | I2C_WRITE,
 				REG_LED0_OFF_L + chn,
@@ -212,6 +212,7 @@ uint16_t uv_pca9685_get(void *me, uint32_t chn) {
 	uv_pca9685_st *this = me;
 	if (chn < PCA9685_PWM_COUNT) {
 		ret = this->tx.pwm[chn].dc;
+		ret = ((int32_t) ret * PWM_MAX_VALUE + (LED_MAX_VAL / 2)) / LED_MAX_VAL;
 	}
 
 	return ret;

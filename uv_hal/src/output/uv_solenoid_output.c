@@ -170,6 +170,7 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 			uv_pid_set_target(&this->ma_pid, target_ma);
 
 
+
 			// milliamp PID controller
 			// we calculate current by ourselves because uv_output_st adds averaging
 			// which we dont need here. Average value should only be shown to the end user

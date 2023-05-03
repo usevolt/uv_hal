@@ -59,7 +59,7 @@ static void _uv_uidisplay_draw(void *me, const uv_bounding_box_st *pbb) {
 			uv_uibb(this)->width, uv_uibb(this)->height);
 
 	uv_ui_clear(this->display_c);
-	uv_ui_draw_point(LCD_W(0.5f), -400, uv_uic_brighten(this->display_c, 20), 1000);
+	uv_ui_draw_point(LCD_WPPT(500), -400, uv_uic_brighten(this->display_c, 20), 1000);
 
 	// draw all the objects added to the screen
 	_uv_uiwindow_draw_children(this, pbb);

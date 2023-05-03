@@ -122,24 +122,17 @@ typedef enum {
 
 
 /// @brief: Width of the LCD in pixels
-#define LCD_W_PX		CONFIG_FT81X_HSIZE
+#define LCD_W_PX		(CONFIG_FT81X_HSIZE)
 
 
 
 /// @brief: Height of the LCD in pixels
-#define LCD_H_PX		CONFIG_FT81X_VSIZE
+#define LCD_H_PX		(CONFIG_FT81X_VSIZE)
 
 
 
-/// @brief: Converts from relative 0.0f - 1.0f width to actual pixel width
-#define LCD_W(rel_w)	(LCD_W_PX * (rel_w))
-#define LCD_WPPT(w_ppt) (LCD_W_PX * w_ppt / 1000)
-
-
-
-/// @brief: Converts from relative 0.0f - 1.0f height to actual pixel height
-#define LCD_H(rel_h)	(LCD_H_PX * (rel_h))
-#define LCD_HPPT(h_ppt)	(LCD_H_PX * h_ppt / 1000)
+#define LCD_WPPT(w_ppt) ((int32_t) LCD_W_PX * (w_ppt) / 1000)
+#define LCD_HPPT(h_ppt)	((int32_t) LCD_H_PX * (h_ppt) / 1000)
 
 
 
