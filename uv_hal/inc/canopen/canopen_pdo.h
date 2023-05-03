@@ -53,7 +53,8 @@ typedef enum {
 	CANOPEN_PDO_ENABLED = 0,
 	/// @brief: PDO transmission is disabled. This should be OR'red with the PDO
 	/// communication parameter's COB-ID field.
-	CANOPEN_PDO_DISABLED = 0x80000000
+	CANOPEN_PDO_DISABLED = 0x80000000,
+	CANOPEN_PDO_EXT = (1 << 29)
 } canopen_pdo_cob_id_mapping_e;
 
 

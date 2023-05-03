@@ -348,9 +348,6 @@ void _uv_canopen_pdo_rx(const uv_can_message_st *msg) {
 	if (_uv_canopen_nmt_get_state() != CANOPEN_OPERATIONAL) {
 		valid = false;
 	}
-	if (msg->type != CAN_STD) {
-		valid = false;
-	}
 	if (!valid) {
 		return;
 	}
@@ -374,8 +371,19 @@ void _uv_canopen_pdo_rx(const uv_can_message_st *msg) {
 
 		if (valid) {
 			com = obj->data_ptr;
-			if (com->cob_id != msg->id) {
+			if (com->cob_id & CANOPEN_PDO_DISABLED) {
 				valid = false;
+			}
+			// CAN frame type check
+			else if (!!(com->cob_id & CANOPEN_PDO_EXT) == (msg->type == CAN_STD)) {
+				valid = false;
+			}
+			// CAN ID check
+			else if ((com->cob_id & 0x1FFFFFFF) != msg->id) {
+				valid = false;
+			}
+			else {
+
 			}
 
 		}
