@@ -183,6 +183,13 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 				uv_pid_get_output(&this->ma_pid) +
 				this->dither_ampl / 2;
 
+			if (abs(uv_pid_get_output(&this->ma_pid)) > 400 &&
+					current < 10) {
+				// pid seems to be unable to drive to the target value.
+				// This indicates open loop
+				uv_output_set_state((uv_output_st*) this, OUTPUT_STATE_OPENLOOP);
+			}
+
 			// since current_func applies PWM correction, it can lead
 			// to a situation where pwm dc is non-zero but target is zero.
 			// Here we prevent that from happening.
@@ -217,7 +224,6 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 			this->out = uv_output_get_current((uv_output_st*) this);
 		}
 		LIMITS(output, 0, PWM_MAX_VALUE);
-
 
 		// set the output value
 		this->pwm = output;

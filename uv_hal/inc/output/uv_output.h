@@ -54,8 +54,8 @@ enum {
 	OUTPUT_STATE_OFF = 0,
 	// output is on
 	OUTPUT_STATE_ON,
-	// overload detected in the current sense
-	OUTPUT_STATE_OVERLOAD,
+	// openloop detected in the current sense
+	OUTPUT_STATE_OPENLOOP,
 	// fault value detected in the current sense
 	OUTPUT_STATE_FAULT,
 	// output is disabled and can be set to ON only after enabling it
@@ -101,7 +101,7 @@ typedef struct {
 	uint16_t (*current_func)(void *this_ptr, uint16_t adc);
 
 	/// @brief: EMCY messages to be triggered in overcurrent / undercurrent situations
-	uint32_t emcy_overload;
+	uint32_t emcy_openloop;
 	uint32_t emcy_fault;
 } uv_output_st;
 
@@ -114,7 +114,7 @@ typedef struct {
 /// @param io_pwm: MOSFET gate IO or PWM channel, depending on which mode the output is on.
 void uv_output_init(uv_output_st *this,  uv_adc_channels_e adc_chn, uv_gpios_e gate_io,
 		uint16_t sense_ampl, uint16_t max_val_ma, uint16_t fault_val_ma,
-		uint16_t moving_avg_count, uint32_t emcy_overload, uint32_t emcy_fault);
+		uint16_t moving_avg_count, uint32_t emcy_openloop, uint32_t emcy_fault);
 
 
 /// @brief: Sets the current calculation function

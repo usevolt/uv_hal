@@ -93,7 +93,7 @@ void uv_prop_output_clear(uv_prop_output_st *this) {
 void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 
 	if (this->state == OUTPUT_STATE_DISABLED ||
-			this->state == OUTPUT_STATE_OVERLOAD ||
+			this->state == OUTPUT_STATE_OPENLOOP ||
 			this->state == OUTPUT_STATE_FAULT) {
 		this->target = 0;
 		this->target_req = 0;

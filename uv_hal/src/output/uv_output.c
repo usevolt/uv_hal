@@ -55,7 +55,7 @@ static inline void set_out(uv_output_st *this, uint16_t value) {
 
 void uv_output_init(uv_output_st *this,  uv_adc_channels_e adc_chn, uv_gpios_e gate_io,
 		uint16_t sense_ampl, uint16_t max_val_ma, uint16_t fault_val_ma,
-		uint16_t moving_avg_count, uint32_t emcy_overload, uint32_t emcy_fault) {
+		uint16_t moving_avg_count, uint32_t emcy_openloop, uint32_t emcy_fault) {
 	this->current_func = &current_func;
 	this->adc_chn = adc_chn;
 	uv_adc_enable_ain(this->adc_chn);
@@ -70,7 +70,7 @@ void uv_output_init(uv_output_st *this,  uv_adc_channels_e adc_chn, uv_gpios_e g
 	this->limit_fault_ma = fault_val_ma;
 	uv_moving_aver_init(&this->moving_avg, moving_avg_count);
 	uv_delay_end(&this->fault_freeze_delay);
-	this->emcy_overload = emcy_overload;
+	this->emcy_openloop = emcy_openloop;
 	this->emcy_fault = emcy_fault;
 	this->state = OUTPUT_STATE_OFF;
 	this->current = 0;
@@ -82,15 +82,15 @@ void uv_output_set_state(uv_output_st *this, const uv_output_state_e state) {
 	// stat can be changed only if output is not disabled
 	if (this->state != OUTPUT_STATE_DISABLED) {
 		if ((this->state != OUTPUT_STATE_FAULT) &&
-				(this->state != OUTPUT_STATE_OVERLOAD)) {
+				(this->state != OUTPUT_STATE_OPENLOOP)) {
 #if CONFIG_CANOPEN
 			if ((state == OUTPUT_STATE_FAULT) &&
 					(this->emcy_fault)) {
 				uv_canopen_emcy_send(CANOPEN_EMCY_DEVICE_SPECIFIC, this->emcy_fault);
 			}
-			else if ((state == OUTPUT_STATE_OVERLOAD) &&
-					(this->emcy_overload)) {
-				uv_canopen_emcy_send(CANOPEN_EMCY_DEVICE_SPECIFIC, this->emcy_overload);
+			else if ((state == OUTPUT_STATE_OPENLOOP) &&
+					(this->emcy_openloop)) {
+				uv_canopen_emcy_send(CANOPEN_EMCY_DEVICE_SPECIFIC, this->emcy_openloop);
 			}
 			else {
 
@@ -147,19 +147,8 @@ void uv_output_step(uv_output_st *this, uint16_t step_ms) {
 			set_out(this, false);
 			uv_output_set_state(this, OUTPUT_STATE_FAULT);
 		}
-		// overcurrent detection is disabled for a short time during power on
-		else if (uv_moving_aver_is_full(&this->moving_avg)) {
-			if ((this->current > this->limit_max_ma)) {
-				set_out(this, false);
-				uv_output_set_state(this, OUTPUT_STATE_OVERLOAD);
-			}
-			else {
-				set_out(this, true);
-			}
-		}
-		else {
-			set_out(this, true);
-		}
+		// overcurrent detection is not implemented here since this module
+		// can be used with PWM control.
 	}
 	else {
 		this->current = 0;
