@@ -118,7 +118,9 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 		// reset the device
 		uv_bootloader_start();
 	}
-
+#endif
+#if (CONFIG_CANOPEN_UPDATE_PDO_MAPPINGS_ON_NODEID_WRITE == 1)
+	uint8_t last_nodeid = uv_canopen_get_our_nodeid();
 #endif
 
 	// receiving an abort message returns the node to default state
@@ -517,6 +519,36 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 		sdo_server_abort(GET_MINDEX(msg), GET_SINDEX(msg),
 				CANOPEN_SDO_ERROR_OBJECT_ACCESS_FAILED_DUE_TO_HARDWARE);
 	}
+
+#if (CONFIG_CANOPEN_UPDATE_PDO_MAPPINGS_ON_NODEID_WRITE == 1)
+	if (GET_MINDEX(msg) == CONFIG_CANOPEN_NODEID_INDEX) {
+		uint8_t new_nodeid = CONFIG_NON_VOLATILE_START.id;
+
+
+		// copy new nodeid to all PDO's that had our nodeid in them
+		for (uint8_t i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
+			canopen_txpdo_com_parameter_st *txcom = uv_canopen_txpdo_get_com(i);
+			if (!(txcom->cob_id & CANOPEN_PDO_EXT) &&
+					!(txcom->cob_id & CANOPEN_PDO_DISABLED)) {
+				if ((txcom->cob_id & 0x7F) == last_nodeid) {
+					txcom->cob_id &= ~(0x7F);
+					txcom->cob_id |= new_nodeid;
+				}
+			}
+		}
+		for (uint8_t i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
+			canopen_rxpdo_com_parameter_st *rxcom = uv_canopen_rxpdo_get_com(i);
+			if (!(rxcom->cob_id & CANOPEN_PDO_EXT) &&
+					!(rxcom->cob_id & CANOPEN_PDO_DISABLED)) {
+				if ((rxcom->cob_id & 0x7F) == last_nodeid) {
+					rxcom->cob_id &= ~(0x7F);
+					rxcom->cob_id |= new_nodeid;
+				}
+			}
+		}
+	}
+#endif
+
 }
 
 

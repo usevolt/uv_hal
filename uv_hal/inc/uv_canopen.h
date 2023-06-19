@@ -293,7 +293,11 @@ CONFIG_CANOPEN_EMCY_MSG_ID_x symbol should define the message ID, starting from 
 #error "CONFIG_CANOPEN_SDO_BLOCK_SIZE should define the size of SDO block transfers in bytes."
 #endif
 #endif
-
+#if !defined(CONFIG_CANOPEN_UPDATE_PDO_MAPPINGS_ON_NODEID_WRITE)
+#warning "CONFIG_CANOPEN_UPDATE_PDO_MAPPINGS_ON_NODEID_WRITE should be defined as 1 if\
+ it's necessary to update the matching RX and TX PDO's when nodeid is changed by writing\
+ to object dictionary."
+#endif
 
 
 typedef struct {
