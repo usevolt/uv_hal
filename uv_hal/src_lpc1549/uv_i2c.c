@@ -43,6 +43,12 @@
 
 
 typedef struct {
+	uint8_t data[CONFIG_I2C_ASYNC_MAX_BYTE_LEN];
+	uint16_t data_len;
+} i2c_tx_msg_st;
+
+
+typedef struct {
 	uv_ring_buffer_st tx;
 	i2c_tx_msg_st tx_buffer[CONFIG_I2C_ASYNC_BUFFER_LEN];
 } i2c_st;
@@ -218,6 +224,7 @@ static void i2c_transfer_int_callb(uint32_t err_code, uint32_t n) {
 static void transmit_next(i2c_e channel) {
 	if (LPC_I2CD_API->i2c_get_status(i2c_handle_master) == IDLE) {
 		uv_disable_int();
+		i2c_tx_msg_st msg;
 		if (uv_ring_buffer_pop(&i2c[channel].tx, &msg) == ERR_NONE) {
 			param.stop_flag = 1;
 			param.func_pt = &i2c_transfer_int_callb;
