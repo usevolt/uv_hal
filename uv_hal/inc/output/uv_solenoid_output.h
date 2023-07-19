@@ -145,6 +145,8 @@ typedef struct {
 	// scales the maximum speed of the solenoid. 0 ... 1000
 	int16_t maxspeed_scaler;
 
+	uv_delay_st openloop_delay;
+
 } uv_solenoid_output_st;
 
 

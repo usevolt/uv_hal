@@ -33,6 +33,8 @@
 
 #if CONFIG_SOLENOID_OUTPUT
 
+#define OPENLOOP_DELAY_MS		500
+
 
 static uint16_t current_func(void *this_ptr, uint16_t adc) {
 	int32_t current = (int32_t) adc * ((uv_output_st*) this_ptr)->sense_ampl / 1000;
@@ -97,6 +99,8 @@ void uv_solenoid_output_init(uv_solenoid_output_st *this,
 	this->pwm = 0;
 	this->pwm_chn = pwm_chn;
 	uv_pwm_set(this->pwm_chn, this->pwm);
+
+	uv_delay_init(&this->openloop_delay, OPENLOOP_DELAY_MS);
 
 	uv_pid_init(&this->ma_pid, CONFIG_SOLENOID_MA_P, CONFIG_SOLENOID_MA_I, 0);
 
@@ -185,9 +189,14 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 
 			if (abs(uv_pid_get_output(&this->ma_pid)) > 400 &&
 					current < 10) {
-				// pid seems to be unable to drive to the target value.
-				// This indicates open loop
-				uv_output_set_state((uv_output_st*) this, OUTPUT_STATE_OPENLOOP);
+				if (uv_delay(&this->openloop_delay, step_ms)) {
+					// pid seems to be unable to drive to the target value.
+					// This indicates open loop
+					uv_output_set_state((uv_output_st*) this, OUTPUT_STATE_OPENLOOP);
+				}
+			}
+			else {
+				uv_delay_init(&this->openloop_delay, OPENLOOP_DELAY_MS);
 			}
 
 			// since current_func applies PWM correction, it can lead
