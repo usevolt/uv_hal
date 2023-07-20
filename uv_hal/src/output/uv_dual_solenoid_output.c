@@ -45,7 +45,7 @@ void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 		uv_adc_channels_e adc_common,
 		uint16_t dither_freq, int16_t dither_ampl,
 		uint16_t sense_ampl, uint16_t max_current, uint16_t fault_current,
-		uint32_t emcy_overload_a, uint32_t emcy_overload_b,
+		uint32_t emcy_openloop_a, uint32_t emcy_openloop_b,
 		uint32_t emcy_fault_a, uint32_t emcy_fault_b) {
 
 	uv_prop_output_init((uv_prop_output_st*) this, conf, limitconf);
@@ -59,13 +59,13 @@ void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 			&conf->solenoid_conf[DUAL_OUTPUT_SOLENOID_A], limitconf,
 			pwm_a, dither_freq, dither_ampl,
 			adc_common, sense_ampl, max_current, fault_current,
-			emcy_overload_a, emcy_fault_a);
+			emcy_openloop_a, emcy_fault_a);
 
 	uv_solenoid_output_init(&this->solenoid[DUAL_OUTPUT_SOLENOID_B],
 			&conf->solenoid_conf[DUAL_OUTPUT_SOLENOID_B], limitconf,
 			pwm_b, dither_freq, dither_ampl,
 			adc_common, sense_ampl, max_current, fault_current,
-			emcy_overload_b, emcy_fault_b);
+			emcy_openloop_b, emcy_fault_b);
 }
 
 

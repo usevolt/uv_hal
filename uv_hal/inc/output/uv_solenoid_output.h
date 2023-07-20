@@ -168,7 +168,7 @@ void uv_solenoid_output_init(uv_solenoid_output_st *this,
 		uv_pwm_channel_t pwm_chn, uint16_t dither_freq, int16_t dither_ampl,
 		uv_adc_channels_e adc_chn, uint16_t sense_ampl,
 		uint16_t max_current, uint16_t fault_current,
-		uint32_t emcy_overload, uint32_t emcy_fault);
+		uint32_t emcy_openloop, uint32_t emcy_fault);
 
 
 /// @brief: Sets the output mode. Defaults to current controlled.

@@ -83,7 +83,7 @@ void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 		uv_adc_channels_e adc_common,
 		uint16_t dither_freq, int16_t dither_ampl,
 		uint16_t sense_ampl, uint16_t max_current, uint16_t fault_current,
-		uint32_t emcy_overload_a, uint32_t emcy_overload_b,
+		uint32_t emcy_openloop_a, uint32_t emcy_openloop_b,
 		uint32_t emcy_fault_a, uint32_t emcy_fault_b);
 
 

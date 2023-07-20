@@ -71,13 +71,13 @@ void uv_solenoid_output_init(uv_solenoid_output_st *this,
 		uv_pwm_channel_t pwm_chn, uint16_t dither_freq, int16_t dither_ampl,
 		uv_adc_channels_e adc_chn, uint16_t sense_ampl,
 		uint16_t max_current, uint16_t fault_current,
-		uint32_t emcy_overload, uint32_t emcy_fault) {
+		uint32_t emcy_openloop, uint32_t emcy_fault) {
 
 	this->conf = conf_ptr;
 	this->limitconf = limitconf;
 
 	uv_output_init(((uv_output_st*) this), adc_chn, 0, sense_ampl, max_current,
-			fault_current, SOLENOID_OUTPUT_MAAVG_COUNT, emcy_overload, emcy_fault);
+			fault_current, SOLENOID_OUTPUT_MAAVG_COUNT, emcy_openloop, emcy_fault);
 	uv_output_set_current_func(((uv_output_st*) this), &current_func);
 
 	uv_moving_aver_init(&this->pwmaver, SOLENOID_OUTPUT_PWMAVG_COUNT);
