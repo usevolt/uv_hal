@@ -134,8 +134,7 @@ void uv_output_step(uv_output_st *this, uint16_t step_ms) {
 		else {
 			// stat io mode
 			if (!uv_gpio_get(this->stat_io)) {
-				printf("fault!! %i %i\n", this->stat_io, uv_gpio_get(this->stat_io));
-//				current = this->limit_fault_ma + 1;
+				current = this->limit_fault_ma + 1;
 			}
 		}
 		uv_moving_aver_step(&this->moving_avg, current);
