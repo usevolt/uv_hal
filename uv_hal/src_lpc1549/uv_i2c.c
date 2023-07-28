@@ -76,8 +76,14 @@ uv_errors_e _uv_i2c_init(void) {
 	// Enable I2C clock and reset I2C peripheral - the boot ROM does not do this
 	Chip_I2C_Init(LPC_I2C0);
 
+#if CONFIG_I2C_BAUDRATE <= 40000
 	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 22, IOCON_SFI2C_EN);
 	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 23, IOCON_SFI2C_EN);
+#else
+	// I2C Fast mode plus
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 22, IOCON_FASTI2C_EN);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 23, IOCON_FASTI2C_EN);
+#endif
 	Chip_SWM_EnableFixedPin(SWM_FIXED_I2C0_SCL);
 	Chip_SWM_EnableFixedPin(SWM_FIXED_I2C0_SDA);
 
@@ -221,17 +227,17 @@ static void i2c_transfer_int_callb(uint32_t err_code, uint32_t n) {
 #if CONFIG_I2C_ASYNC
 
 
+static i2c_tx_msg_st txmsg;
 static void transmit_next(i2c_e channel) {
 	if (LPC_I2CD_API->i2c_get_status(i2c_handle_master) == IDLE) {
 		uv_disable_int();
-		i2c_tx_msg_st msg;
-		if (uv_ring_buffer_pop(&i2c[channel].tx, &msg) == ERR_NONE) {
+		if (uv_ring_buffer_pop(&i2c[channel].tx, &txmsg) == ERR_NONE) {
 			param.stop_flag = 1;
 			param.func_pt = &i2c_transfer_int_callb;
 			param.num_bytes_rec = 0;
-			param.num_bytes_send = msg.data_len;
+			param.num_bytes_send = txmsg.data_len;
 			param.buffer_ptr_rec = NULL;
-			param.buffer_ptr_send = msg.data;
+			param.buffer_ptr_send = txmsg.data;
 
 			LPC_I2CD_API->i2c_master_transmit_intr(
 					i2c_handle_master, &param, &res);
@@ -246,6 +252,7 @@ uv_errors_e uv_i2cm_write_async(i2c_e channel,
 		uint8_t *tx_buffer, uint16_t tx_len) {
 	uv_can_errors_e ret = ERR_NONE;
 	i2c_tx_msg_st msg;
+
 	msg.data_len = tx_len;
 	memcpy(msg.data, tx_buffer, tx_len);
 

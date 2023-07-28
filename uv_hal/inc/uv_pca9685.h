@@ -60,10 +60,10 @@ typedef struct __attribute__((packed)) {
 			// reserved bits should be written as 0.
 			// this is needed for delayed_mode when all pwm values are written with
 			// one big transfer.
-			int16_t reserved;
+			uint16_t reserved;
 			// stores the duty cycles of all pwm channels for
 			// faster access to them
-			int16_t dc;
+			uint16_t dc;
 		} pwm[PCA9685_PWM_COUNT];
 	} tx;
 

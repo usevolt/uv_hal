@@ -154,6 +154,15 @@ uv_errors_e uv_pca9685_init(uv_pca9685_st *this, i2c_e i2c_chn, uint8_t address,
 		};
 		err |= uv_i2cm_write(this->i2c, w, sizeof(w));
 	}
+	{
+		uint8_t w[3] = {
+				this->address | I2C_WRITE,
+				REG_MODE2,
+				(1 << 2) |// push-pull outputs
+				(1 << 3) // update on ACK
+		};
+		err |= uv_i2cm_write(this->i2c, w, sizeof(w));
+	}
 
 	uv_rtos_task_delay(1);
 	// read MODE register
@@ -195,12 +204,6 @@ void uv_pca9685_set(void *me, uint32_t chn, uint16_t value) {
 	if (chn < PCA9685_PWM_COUNT) {
 		LIMIT_MAX(value, PWM_MAX_VALUE);
 		value = (value * LED_MAX_VAL + (PWM_MAX_VALUE / 2)) / PWM_MAX_VALUE;
-		uint8_t w[4] = {
-				this->address | I2C_WRITE,
-				REG_LED0_OFF_L + chn,
-				value & 0xFF,	// OFF_L
-				(value >> 8)	// OFF_H
-		};
 		this->tx.pwm[chn].dc = value;
 	}
 }

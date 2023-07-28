@@ -38,8 +38,8 @@
 #endif
 #if !defined(CONFIG_I2C_BAUDRATE)
 #error "CONFIG_I2C_BAUDRATE should be defined as the desired baudrate for the I2C module."
-#elif (CONFIG_I2C_BAUDRATE > 400000)
-#error "CONFIG_I2C_BAUDRATE maximum value is 400000. uv_hal library doesn't support higher baudrates."
+#elif (CONFIG_I2C_BAUDRATE > 1000000)
+#error "CONFIG_I2C_BAUDRATE maximum value is 1000000. uv_hal library doesn't support higher baudrates."
 #endif
 #if CONFIG_I2C_ASYNC
 #if !CONFIG_I2C_ASYNC_MAX_BYTE_LEN
