@@ -134,7 +134,8 @@ void uv_output_step(uv_output_st *this, uint16_t step_ms) {
 		else {
 			// stat io mode
 			if (!uv_gpio_get(this->stat_io)) {
-				current = this->limit_fault_ma + 1;
+				printf("fault!! %i %i\n", this->stat_io, uv_gpio_get(this->stat_io));
+//				current = this->limit_fault_ma + 1;
 			}
 		}
 		uv_moving_aver_step(&this->moving_avg, current);
@@ -146,6 +147,9 @@ void uv_output_step(uv_output_st *this, uint16_t step_ms) {
 				(current > this->limit_fault_ma)) {
 			set_out(this, false);
 			uv_output_set_state(this, OUTPUT_STATE_FAULT);
+		}
+		else {
+			set_out(this, true);
 		}
 		// overcurrent detection is not implemented here since this module
 		// can be used with PWM control.
