@@ -37,6 +37,32 @@
 #include <stdint.h>
 
 
+
+const char *uv_json_type_to_str(uv_json_types_e type) {
+	const char *ret = "UNDEFINED";
+	switch(type) {
+	case JSON_ARRAY:
+		ret = "ARRAY";
+		break;
+	case JSON_BOOL:
+		ret = "BOOL";
+		break;
+	case JSON_INT:
+		ret = "INT";
+		break;
+	case JSON_OBJECT:
+		ret = "OBJECT";
+		break;
+	case JSON_UNSUPPORTED:
+		ret = "UNSUPPORTED";
+		break;
+	default:
+		break;
+	}
+	return ret;
+}
+
+
 /// @brief: Returns ERR_BUFFER_OVERFLOW if requested length overflows from JSON buffer
 static uv_errors_e check_overflow(uv_json_st *json, unsigned int length_req) {
 	uv_errors_e ret = ERR_NONE;

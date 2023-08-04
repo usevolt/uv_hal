@@ -71,6 +71,8 @@ typedef enum {
 	JSON_STRING
 } uv_json_types_e;
 
+const char *uv_json_type_to_str(uv_json_types_e type);
+
 static inline bool uv_json_is_objarray(uv_json_types_e type) {
 	return (type < JSON_UNSUPPORTED);
 }
