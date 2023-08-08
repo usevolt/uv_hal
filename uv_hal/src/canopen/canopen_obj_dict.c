@@ -261,23 +261,28 @@ bool check(const canopen_object_st *src, uint8_t subindex) {
 
 const canopen_object_st *_uv_canopen_obj_dict_get(uint16_t main_index, uint8_t subindex) {
 	const canopen_object_st *ret = NULL;
-	bool match = false;
-	for (uint16_t i = 0; i < com_params_count(); i++) {
-		if (com_params[i].main_index == main_index) {
-			if (check(&com_params[i], subindex)) {
-				ret = &com_params[i];
+	if (main_index < 0x2000 ||
+			main_index >= 0x3000) {
+		for (uint16_t i = 0; i < com_params_count(); i++) {
+			if (com_params[i].main_index == main_index) {
+				if (check(&com_params[i], subindex)) {
+					ret = &com_params[i];
+				}
+				break;
 			}
-			match = true;
 		}
 	}
-	if (!match) {
-		for (int i = 0; i < CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS_COUNT(); i++) {
+	else {
+		int i;
+		for (i = 0; i < CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS_COUNT(); i++) {
 			if (CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS [i].main_index == main_index) {
 				if (check(& CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS [i], subindex)) {
 					ret = & CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS [i];
 				}
+				break;
 			}
 		}
+//		printf("%i 0x%x %i\n", i, main_index, subindex);
 	}
 	return ret;
 }
