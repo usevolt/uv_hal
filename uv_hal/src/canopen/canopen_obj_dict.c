@@ -258,7 +258,6 @@ bool check(const canopen_object_st *src, uint8_t subindex) {
 }
 
 
-
 const canopen_object_st *_uv_canopen_obj_dict_get(uint16_t main_index, uint8_t subindex) {
 	const canopen_object_st *ret = NULL;
 	if (main_index < 0x2000 ||
@@ -267,8 +266,8 @@ const canopen_object_st *_uv_canopen_obj_dict_get(uint16_t main_index, uint8_t s
 			if (com_params[i].main_index == main_index) {
 				if (check(&com_params[i], subindex)) {
 					ret = &com_params[i];
+					break;
 				}
-				break;
 			}
 		}
 	}
@@ -278,11 +277,10 @@ const canopen_object_st *_uv_canopen_obj_dict_get(uint16_t main_index, uint8_t s
 			if (CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS [i].main_index == main_index) {
 				if (check(& CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS [i], subindex)) {
 					ret = & CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS [i];
+					break;
 				}
-				break;
 			}
 		}
-//		printf("%i 0x%x %i\n", i, main_index, subindex);
 	}
 	return ret;
 }
