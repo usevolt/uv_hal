@@ -154,7 +154,6 @@ int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 						adc -= offset;
 						// apply the progression
 						adc = get_progression_value(adc, scale, this->config->progression);
-//	printf("%i %i %i\n", adc, scale, this->config->progression);
 						// linearily interpolate output value
 						int32_t rel = uv_reli(adc, 0, scale);
 						int32_t result = uv_lerpi(rel, 0, INT16_MAX);
