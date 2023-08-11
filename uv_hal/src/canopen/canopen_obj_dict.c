@@ -273,7 +273,7 @@ const canopen_object_st *_uv_canopen_obj_dict_get(uint16_t main_index, uint8_t s
 	}
 	else {
 #if CONFIG_CANOPEN_OBJ_DICT_IN_RISING_ORDER
-		int32_t limit_l = 0, limit_h = CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS_COUNT() - 1,
+		int32_t limit_l = 0, limit_h = CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS_COUNT(),
 				last_i = 0;
 		bool found = false;
 		while (true) {
