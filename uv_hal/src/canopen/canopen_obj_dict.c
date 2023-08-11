@@ -272,8 +272,45 @@ const canopen_object_st *_uv_canopen_obj_dict_get(uint16_t main_index, uint8_t s
 		}
 	}
 	else {
-		int i;
-		for (i = 0; i < CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS_COUNT(); i++) {
+#if CONFIG_CANOPEN_OBJ_DICT_IN_RISING_ORDER
+		int32_t limit_l = 0, limit_h = CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS_COUNT() - 1,
+				last_i = 0;
+		bool found = false;
+		while (true) {
+			// index from middle of limits
+			int32_t i = limit_l + (limit_h - limit_l) / 2;
+			uint16_t mindex = CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS[i].main_index;
+			uint8_t sindex = CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS[i].sub_index;
+			if (mindex == main_index) {
+				if(check(& CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS [i], subindex)) {
+					ret = & CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS [i];
+					found = true;
+					last_i = i;
+				}
+			}
+			if (i == last_i) {
+				// one round cycled without change, this means the requested index
+				// cannot be found.
+				break;
+			}
+			if (!found) {
+				last_i = i;
+				if ((mindex < main_index) ||
+						(mindex == main_index && sindex < subindex)) {
+					limit_l = i;
+				}
+				else if ((mindex > main_index) ||
+						(mindex == main_index && sindex > subindex)) {
+					limit_h = i;
+				}
+				else {
+					printf("CANOPEN OBJ DICT: Unexpected situation when finding param with\n"
+							"main index: 0x%x, subindex: %u\n", main_index, subindex);
+				}
+			}
+		}
+#else
+		for (int i = 0; i < CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS_COUNT(); i++) {
 			if (CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS [i].main_index == main_index) {
 				if (check(& CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS [i], subindex)) {
 					ret = & CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS [i];
@@ -281,6 +318,7 @@ const canopen_object_st *_uv_canopen_obj_dict_get(uint16_t main_index, uint8_t s
 				}
 			}
 		}
+#endif
 	}
 	return ret;
 }

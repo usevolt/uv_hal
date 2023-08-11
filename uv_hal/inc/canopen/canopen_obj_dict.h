@@ -36,6 +36,12 @@
 #if CONFIG_CANOPEN
 
 
+#if !defined(CONFIG_CANOPEN_OBJ_DICT_IN_RISING_ORDER)
+#warning "CONFIG_CANOPEN_OBJ_DICT_IN_RISING_ORDER should be defined as 1 or 0 depending if\
+ object dictionary main indexes are all in rising order. This makes indexing obj dict faster."
+#endif
+
+
 
 /// @brief: Returns the CANopen object dictionary object pointed by **main_index**.
 /// Subindexes are not supported, since they are assumed to be array indexes. However,

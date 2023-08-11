@@ -216,6 +216,7 @@ uv_errors_e uv_canopen_sdo_write32(uint8_t node_id, uint16_t mindex, uint8_t sin
 }
 
 
+
 void uv_canopen_config_rx_msgs(void) {
 #if CONFIG_CANOPEN_HEARTBEAT_CONSUMER
 	// Heartbeat consumer
@@ -234,18 +235,37 @@ void uv_canopen_config_rx_msgs(void) {
 	for (int i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
 		if ((obj = _uv_canopen_obj_dict_get(CONFIG_CANOPEN_RXPDO_COM_INDEX + i, 0))) {
 			canopen_rxpdo_com_parameter_st* com = obj->data_ptr;
-			if (!(com->cob_id & CANOPEN_PDO_DISABLED)) {
-				// only config the receive msg object if the pdo is enabled
-				uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
-						com->cob_id,
-						CAN_ID_MASK_DEFAULT, (com->cob_id & CANOPEN_PDO_EXT) ?
-								CAN_EXT : CAN_STD);
+			if (uv_canopen_is_array(obj)) {
+				this->rxpdo[i].com_ptr = com;
+				if (!(com->cob_id & CANOPEN_PDO_DISABLED)) {
+					// only config the receive msg object if the pdo is enabled
+					uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
+							com->cob_id,
+							CAN_ID_MASK_DEFAULT, (com->cob_id & CANOPEN_PDO_EXT) ?
+									CAN_EXT : CAN_STD);
+				}
 			}
+			// configure mapping pointers
+			_uv_canopen_pdo_mapping_ptr_conf(&this_nonvol->rxpdo_maps[i],
+					this->rxpdo[i].mapping_ptr, CANOPEN_WO);
 		}
 		else {
 			// something went wrong, PDO communication parameter couldn't be found
 		}
 	}
+	// TXPDO
+	for (int i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
+		if ((obj = _uv_canopen_obj_dict_get(CONFIG_CANOPEN_TXPDO_COM_INDEX + i, 0))) {
+			canopen_txpdo_com_parameter_st *com = obj->data_ptr;
+			if (uv_canopen_is_array(obj)) {
+				this->txpdo[i].com_ptr = com;
+			}
+		}
+		// configure mapping pointers
+		_uv_canopen_pdo_mapping_ptr_conf(&this_nonvol->txpdo_maps[i],
+				this->txpdo[i].mapping_ptr, CANOPEN_RO);
+	}
+
 
 	// SDO Client
 	// configure to receive all SDO response messages

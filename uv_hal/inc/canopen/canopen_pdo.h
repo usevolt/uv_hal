@@ -151,6 +151,14 @@ canopen_rxpdo_com_parameter_st *uv_canopen_rxpdo_get_com(uint16_t rxpdo);
 
 canopen_txpdo_com_parameter_st *uv_canopen_txpdo_get_com(uint16_t txpdo);
 
+/// @brief Configures the internal pdo mapping pointers according to obj dict mapping parameter
+///
+/// @param mapping_param_index Obj dict main index of the pdo mapping parameter
+/// @param ptr_bfr Pointer to mapping pointer array of CONFIG_CANOPEN_PDO_MAPPING_COUNT len
+/// @param permissions: CANOPEN_RO for TXPDO, CANOPEN_WO for RXPDO
+void _uv_canopen_pdo_mapping_ptr_conf(canopen_pdo_mapping_parameter_st *mapping_param,
+		uint8_t **ptr_bfr, canopen_permissions_e permissions);
+
 
 #endif
 

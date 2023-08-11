@@ -32,7 +32,17 @@
 #include <uv_hal_config.h>
 #include "uv_utilities.h"
 
+
+
 #if CONFIG_CANOPEN
+
+// This library supports only per-byte mapping of PDOs
+#if defined(CONFIG_CANOPEN_PDO_MAPPING_COUNT)
+#warning "CONFIG_CANOPEN_PDO_MAPPING_COUNT is deprecated and should be removed from config file."
+#undef CONFIG_CANOPEN_PDO_MAPPING_COUNT
+#endif
+#define CONFIG_CANOPEN_PDO_MAPPING_COUNT	8
+
 
 
 enum {

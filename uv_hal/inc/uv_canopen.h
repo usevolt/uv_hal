@@ -208,9 +208,6 @@ initialization structure."
 #define CONFIG_CANOPEN_TERMINAL_INDEX		0x5FFE
 #endif
 #endif
-#if !defined(CONFIG_CANOPEN_PDO_MAPPING_COUNT)
-#define CONFIG_CANOPEN_PDO_MAPPING_COUNT	8
-#endif
 #if !defined(CONFIG_CANOPEN_SDO_SEGMENTED)
 #error "CONFIG_CANOPEN_SDO_SEGMENTED should be defined as 1 if SDO segmented transfers \
 should be enabled. Defaults to 0. Segmented parth takes roughly 1k4 bytes of flash space."
@@ -363,11 +360,19 @@ typedef struct {
 	struct {
 		int32_t time;
 		int16_t inhibit_time;
+		// 1-byte pointers pointing to memory locations to make fetching the data
+		// from object dictionary faster
+		uint8_t *mapping_ptr[CONFIG_CANOPEN_PDO_MAPPING_COUNT];
+		const canopen_txpdo_com_parameter_st *com_ptr;
 	} txpdo[CONFIG_CANOPEN_TXPDO_COUNT];
 
 	// RXPDO member variables
 	struct {
 		uv_delay_st def_delay;
+		// 1-byte pointers pointing to memory locations to make fetching the data
+		// from object dictionary faster
+		uint8_t *mapping_ptr[CONFIG_CANOPEN_PDO_MAPPING_COUNT];
+		const canopen_rxpdo_com_parameter_st *com_ptr;
 	} rxpdo[CONFIG_CANOPEN_RXPDO_COUNT];
 
 	void (*can_callback)(void *user_ptr, uv_can_message_st* msg);
