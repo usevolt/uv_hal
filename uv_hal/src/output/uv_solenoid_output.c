@@ -188,7 +188,7 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 				this->dither_ampl / 2;
 
 			if (abs(uv_pid_get_output(&this->ma_pid)) > 400 &&
-					current < 10) {
+					uv_output_get_current((uv_output_st*) this) < 20) {
 				if (uv_delay(&this->openloop_delay, step_ms)) {
 					// pid seems to be unable to drive to the target value.
 					// This indicates open loop
