@@ -376,8 +376,9 @@ void _uv_canopen_pdo_mapping_ptr_conf(canopen_pdo_mapping_parameter_st *mapping_
 			if ((obj->permissions & permissions)) {
 				uint8_t *ptr = NULL;
 				if (uv_canopen_is_array(obj)) {
-					if ((map->sub_index != 0) &&
-							(map->sub_index - 1) + map->length <= obj->array_max_size) {
+					if (((map->sub_index != 0) &&
+							(map->sub_index - 1) + map->length) <=
+							(obj->array_max_size + CANOPEN_SIZEOF(obj->type))) {
 						ptr = (uint8_t*) obj->data_ptr + (map->sub_index - 1) *
 								uv_canopen_get_object_data_size(obj);
 					}
