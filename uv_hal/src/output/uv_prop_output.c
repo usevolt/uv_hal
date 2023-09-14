@@ -59,18 +59,11 @@ void uv_prop_output_init(uv_prop_output_st *this,
 	this->last_target_req = 0;
 	this->target = 0;
 	this->target_mult = 0;
-	this->mode = PROP_OUTPUT_MODE_PROP_NORMAL;
+	this->mode = PROP_OUTPUT_MODE_PROP;
 	this->state = OUTPUT_STATE_OFF;
 	uv_pid_init(&this->target_pid, PID_P_MAX, 0, 0);
 	uv_delay_init(&this->target_delay, TARGET_DELAY_MS);
 
-	this->toggle_threshold = PROP_OUTPUT_TOGGLE_THRESHOLD_DEFAULT;
-	this->last_hyst = 0;
-	this->toggle_limit_ms_pos = PROP_OUTPUT_TOGGLE_LIMIT_MS_DEFAULT;
-	this->toggle_limit_ms_neg = PROP_OUTPUT_TOGGLE_LIMIT_MS_DEFAULT;
-	uv_hysteresis_init(&this->toggle_hyst,
-			this->toggle_threshold, TOGGLE_HYSTERESIS_DEFAULT, false);
-	uv_delay_init(&this->toggle_delay, this->toggle_limit_ms_pos);
 	this->enable_pre_delay_ms = 0;
 	this->enable_post_delay_ms = 0;
 	this->pre_enable_dir = 0;
@@ -85,7 +78,6 @@ void uv_prop_output_init(uv_prop_output_st *this,
 
 
 void uv_prop_output_clear(uv_prop_output_st *this) {
-	this->toggle_on = 0;
 }
 
 
@@ -109,21 +101,6 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 			LIMITS(this->maxspeed_scaler, 0, 1000);
 			LIMITS(this->target, PROP_OUTPUT_TARGET_MIN, PROP_OUTPUT_TARGET_MAX);
 
-			// update hysteresis parameters
-			// because of uv_hysteresis module compares greater-than, and not greater-or-equal,
-			// maximum value is not valid threshold as that would never trigger the output.
-			this->toggle_hyst.trigger_value = (this->toggle_threshold < PROP_OUTPUT_TARGET_MAX) ?
-					this->toggle_threshold : PROP_OUTPUT_TARGET_MAX - 1;
-			LIMIT_MIN(this->toggle_hyst.trigger_value, 1);
-			// hysteresis can never be greater or equal to trigger value. This
-			// makes sure that the output is triggered with small trigger values
-			if (abs(this->toggle_hyst.trigger_value) <= this->toggle_hyst.hysteresis) {
-				this->toggle_hyst.hysteresis = abs(this->toggle_hyst.trigger_value) - 1;
-			}
-			else {
-				this->toggle_hyst.hysteresis = TOGGLE_HYSTERESIS_DEFAULT;
-			}
-
 
 			int32_t target_req = this->target_req;
 			LIMITS(target_req, PROP_OUTPUT_TARGET_MIN, PROP_OUTPUT_TARGET_MAX);
@@ -132,39 +109,19 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 			target_req = uv_lerpi(this->maxspeed_scaler, 0, target_req);
 
 			if ((int32_t) target_req * this->last_target_req < 0) {
-				this->toggle_hyst.result = 0;
-				this->last_hyst = 0;
 				uv_delay_init(&this->pre_enable_delay, this->enable_pre_delay_ms);
 			}
 
-			uv_hysteresis_step(&this->toggle_hyst, (int32_t) abs(target_req));
-			bool hyston = uv_hysteresis_get_output(&this->toggle_hyst);
-
-			bool on = (this->mode == PROP_OUTPUT_MODE_PROP_NORMAL) ?
-					(!!target_req) : hyston;
-			bool last_on = (this->mode == PROP_OUTPUT_MODE_PROP_NORMAL) ?
-					(!!this->last_target_req) : this->last_hyst;
-			bool last_hyst = this->last_hyst;
+			bool on = (!!target_req);
+			bool last_on = (!!this->last_target_req);
 
 			if (on && !last_on) {
 				uv_delay_init(&this->pre_enable_delay, this->enable_pre_delay_ms);
 				this->pre_enable_dir = (target_req < 0) ?
 						-1 : 1;
 			}
-			else if (!on && last_on) {
-				// post enable is not used on toggle modes
-				if (this->mode != PROP_OUTPUT_MODE_ONOFF_TOGGLE &&
-						this->mode != PROP_OUTPUT_MODE_PROP_TOGGLE) {
-					uv_delay_init(&this->post_enable_delay, this->enable_post_delay_ms);
-					this->post_enable_val = this->last_target_req;
-				}
-			}
-			else {
-
-			}
 			// update the last_target_req variable to hold the current target_req value
 			this->last_target_req = target_req;
-			this->last_hyst = uv_hysteresis_get_output(&this->toggle_hyst);
 
 
 
@@ -175,36 +132,18 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 			}
 			else if (!uv_delay_has_ended(&this->post_enable_delay)) {
 				target_req = this->post_enable_val;
-				hyston = true;
-				last_hyst = true;
 			}
 			else {
 
 			}
 
 			// pre enable delay delays the turn ON
-			if (uv_delay(&this->pre_enable_delay, TARGET_DELAY_MS)) {
-				if (this->mode == PROP_OUTPUT_MODE_ONOFF_TOGGLE ||
-						this->mode == PROP_OUTPUT_MODE_PROP_TOGGLE) {
-					// in toggle modes send a toggle signal for 1 step cycle
-					hyston = true;
-					// the output direction is remembered from when the predelay started
-					target_req = (this->pre_enable_dir == 1) ? 1 : -1;
-				}
-				last_hyst = false;
-			}
-			else if (!uv_delay_has_ended(&this->pre_enable_delay)) {
+			uv_delay(&this->pre_enable_delay, TARGET_DELAY_MS);
+
+			if (!uv_delay_has_ended(&this->pre_enable_delay)) {
 				// delay the turn on ONLY if toggle mode is not ON.
 				// This way toggle modes turn the output off always instantly
-				if (this->toggle_on == 0) {
-					hyston = false;
-					target_req = 0;
-				}
-				else {
-					// end the delay if the toggle is ON, otherwise, the toggle
-					// is turned on when the delay finishes
-					uv_delay_end(&this->pre_enable_delay);
-				}
+				target_req = 0;
 				// set post enable val to zero. This prevent output to turn off if
 				// the input is clicked very shortly
 				this->post_enable_val = 0;
@@ -215,67 +154,27 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 
 
 			// calculate the target value depending on the mode
-			if (this->mode == PROP_OUTPUT_MODE_PROP_TOGGLE ||
-					this->mode == PROP_OUTPUT_MODE_ONOFF_TOGGLE) {
-				if (hyston) {
-					if (!last_hyst) {
-						if (!!this->toggle_on) {
-							this->toggle_on = 0;
-						}
-						else {
-							if (target_req > 0) {
-								this->toggle_on = 1;
-							}
-							else {
-								this->toggle_on = -1;
-							}
-						}
-						uv_delay_init(&this->toggle_delay,
-								(this->toggle_on > 0) ?
-										this->toggle_limit_ms_pos :
-										this->toggle_limit_ms_neg);
-					}
+			if (this->mode == PROP_OUTPUT_MODE_ONOFF) {
+				if (target_req > 0) {
+					target_req = PROP_OUTPUT_TARGET_MAX;
 				}
-				if (((this->toggle_on > 0) && this->toggle_limit_ms_pos) ||
-					((this->toggle_on < 0) && this->toggle_limit_ms_neg)) {
-					if (uv_delay(&this->toggle_delay, TARGET_DELAY_MS)) {
-						this->toggle_on = 0;
-					}
-				}
-				target_req = (this->toggle_on) ?
-						((this->toggle_on > 0) ?
-								PROP_OUTPUT_TARGET_MAX : PROP_OUTPUT_TARGET_MIN) : 0;
-			}
-			else {
-				this->toggle_on = 0;
-				if (this->mode == PROP_OUTPUT_MODE_ONOFF_NORMAL) {
-					if (hyston) {
-						if (target_req > 0) {
-							target_req = PROP_OUTPUT_TARGET_MAX;
-						}
-						else if (target_req < 0) {
-							target_req = PROP_OUTPUT_TARGET_MIN;
-						}
-						else {
-							target_req = 0;
-						}
-					}
-					else {
-						target_req = 0;
-					}
+				else if (target_req < 0) {
+					target_req = PROP_OUTPUT_TARGET_MIN;
 				}
 				else {
-					// PROP_OUTPUT_MODE_PROP_NORMAL
-					// Nothing to do here
+					target_req = 0;
 				}
+			}
+			else {
+				// PROP_OUTPUT_MODE_PROP_NORMAL
+				// Nothing to do here
 			}
 
 
 
 			// calculate the output target value depending on the conf parameters
 			// when acc and dec are maximum, the pid controller is bypassed
-			if (this->mode == PROP_OUTPUT_MODE_ONOFF_NORMAL ||
-					this->mode == PROP_OUTPUT_MODE_ONOFF_TOGGLE ||
+			if (this->mode == PROP_OUTPUT_MODE_ONOFF ||
 					(acc == PROP_ACC_MAX &&
 							dec == PROP_DEC_MAX)) {
 				this->target = target_req;

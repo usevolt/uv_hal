@@ -196,8 +196,7 @@ static inline uv_output_state_e uv_dual_solenoid_output_get_state(uv_dual_soleno
 
 
 
-/// @brief: Sets the mode for both outputs. The mode can be either current oŕ pwm.
-/// The B output is updated in the dual_solenoid_output_step function according to A output.
+/// @brief: Sets the mode for this output. Mode is either PROP or ONOFF.
 static inline void uv_dual_solenoid_output_set_mode(uv_dual_solenoid_output_st *this,
 		uv_prop_output_modes_e value) {
 	uv_prop_output_set_mode((uv_prop_output_st *) this, value);
@@ -212,17 +211,7 @@ static inline uv_prop_output_modes_e uv_dual_solenoid_output_get_mode(
 
 
 
-static inline void uv_dual_solenoid_output_set_toggle_threshold(
-		uv_dual_solenoid_output_st *this, uint16_t value) {
-	uv_prop_output_set_toggle_threshold((uv_prop_output_st *) this, value);
-}
 
-
-
-static inline void uv_dual_solenoid_output_set_toggle_limit_ms(
-		uv_dual_solenoid_output_st *this, uint32_t value_pos, uint32_t value_neg) {
-	uv_prop_output_set_toggle_limit_ms((uv_prop_output_st *) this, value_pos, value_neg);
-}
 
 
 
@@ -232,12 +221,6 @@ static inline void uv_dual_solenoid_output_set_enable_delays_ms(
 }
 
 
-
-/// @brief: Returns the direction of ONOFFTOGGLE mode state. -1 if negative direction is active,
-/// 1 if positive is active, 0 otherwise.
-static inline uint8_t uv_dual_solenoid_output_get_onofftoggle_dir(uv_dual_solenoid_output_st *this) {
-	return uv_prop_output_get_onofftoggle_dir((uv_prop_output_st *) this);
-}
 
 
 

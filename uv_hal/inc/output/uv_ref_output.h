@@ -136,20 +136,6 @@ static inline uv_output_state_e uv_ref_output_get_state(uv_ref_output_st *this) 
 }
 
 
-/// @brief: Sets the toggle threshold value which has to be exceeded in
-/// either direction to trigger the toggle state. 0 .. 1000.
-static inline void uv_ref_output_set_toggle_threshold(uv_ref_output_st *this,
-		uint16_t value) {
-	uv_prop_output_set_toggle_threshold((uv_prop_output_st*) this, value);
-}
-
-
-/// @brief: Sets the toggle limit in milliseconds. When the output has been ON after this time,
-/// The toggle state is cleared.
-static inline void uv_ref_output_set_toggle_limit_ms(
-		uv_ref_output_st *this, uint32_t value_pos, uint32_t value_neg) {
-	uv_prop_output_set_toggle_limit_ms((uv_prop_output_st*) this, value_pos, value_neg);
-}
 
 
 static inline void uv_ref_output_set_enable_delays_ms(
@@ -180,12 +166,6 @@ static inline int16_t uv_ref_output_get_target(uv_ref_output_st *this) {
 	return uv_prop_output_get_target((uv_prop_output_st*) this);
 }
 
-
-/// @brief: Returns the direction of ONOFFTOGGLE mode state. -1 if negative direction is active,
-/// 1 if positive is active, 0 otherwise.
-static inline uint8_t uv_ref_output_get_onofftoggle_dir(uv_ref_output_st *this) {
-	return uv_prop_output_get_onofftoggle_dir((uv_prop_output_st*) this);
-}
 
 
 

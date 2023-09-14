@@ -86,8 +86,7 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 
 	// make sure the solenoid outputs are in right mode
 	uv_prop_output_modes_e mode = uv_prop_output_get_mode((uv_prop_output_st *) this);
-	if (mode == PROP_OUTPUT_MODE_ONOFF_NORMAL ||
-			mode == PROP_OUTPUT_MODE_ONOFF_TOGGLE) {
+	if (mode == PROP_OUTPUT_MODE_ONOFF) {
 		uv_solenoid_output_set_mode(&this->solenoid[0], SOLENOID_OUTPUT_MODE_ONOFF);
 		uv_solenoid_output_set_mode(&this->solenoid[1], SOLENOID_OUTPUT_MODE_ONOFF);
 	}

@@ -53,10 +53,8 @@
 /// Solenoid output can be defined as current or PWM, but prop output tries to stay out
 /// of such low-level stuff, being only proportional or toggle.
 typedef enum {
-	PROP_OUTPUT_MODE_PROP_NORMAL = 0,
-	PROP_OUTPUT_MODE_PROP_TOGGLE,
-	PROP_OUTPUT_MODE_ONOFF_NORMAL,
-	PROP_OUTPUT_MODE_ONOFF_TOGGLE
+	PROP_OUTPUT_MODE_PROP = 0,
+	PROP_OUTPUT_MODE_ONOFF
 } uv_prop_output_modes_e;
 
 
@@ -123,15 +121,6 @@ typedef struct {
 	uv_delay_st target_delay;
 	uv_prop_output_modes_e mode;
 
-	uv_hysteresis_st toggle_hyst;
-	uint16_t last_hyst;
-	uint16_t toggle_threshold;
-	// tells the output state on ONOFFTOGGLE modes
-	int8_t toggle_on;
-	uv_delay_st toggle_delay;
-
-	uint32_t toggle_limit_ms_pos;
-	uint32_t toggle_limit_ms_neg;
 	uint32_t enable_pre_delay_ms;
 	uint32_t enable_post_delay_ms;
 	uv_delay_st pre_enable_delay;
@@ -226,17 +215,6 @@ static inline int16_t uv_prop_output_get_maxspeed_scaler(
 }
 
 
-static inline void uv_prop_output_set_toggle_threshold(
-		uv_prop_output_st *this, int16_t value) {
-	this->toggle_threshold = abs(value);
-}
-
-
-static inline void uv_prop_output_set_toggle_limit_ms(
-		uv_prop_output_st *this, uint32_t value_pos, uint32_t value_neg) {
-	this->toggle_limit_ms_pos = value_pos;
-	this->toggle_limit_ms_neg = value_neg;
-}
 
 
 /// @brief: Sets the enable delays time in milliseconds. The output
@@ -248,12 +226,6 @@ static inline void uv_prop_output_set_enable_delays_ms(
 	this->enable_post_delay_ms = post_delay;
 }
 
-
-/// @brief: Returns the direction of ONOFFTOGGLE mode state. -1 if negative direction is active,
-/// 1 if positive is active, 0 otherwise.
-static inline uint8_t uv_prop_output_get_onofftoggle_dir(uv_prop_output_st *this) {
-	return this->toggle_on;
-}
 
 
 
