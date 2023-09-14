@@ -120,6 +120,13 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 				this->pre_enable_dir = (target_req < 0) ?
 						-1 : 1;
 			}
+			else if (!on && last_on) {
+				uv_delay_init(&this->post_enable_delay, this->enable_post_delay_ms);
+				this->post_enable_val = this->last_target_req;
+			}
+			else {
+
+			}
 			// update the last_target_req variable to hold the current target_req value
 			this->last_target_req = target_req;
 
