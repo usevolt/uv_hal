@@ -87,21 +87,24 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 	// make sure the solenoid outputs are in right mode
 	uv_prop_output_modes_e mode = uv_prop_output_get_mode((uv_prop_output_st *) this);
 	if (mode == PROP_OUTPUT_MODE_ONOFF) {
-		uv_solenoid_output_set_mode(&this->solenoid[0], SOLENOID_OUTPUT_MODE_ONOFF);
-		uv_solenoid_output_set_mode(&this->solenoid[1], SOLENOID_OUTPUT_MODE_ONOFF);
+		uv_solenoid_output_set_mode(&this->solenoid[sa], SOLENOID_OUTPUT_MODE_ONOFF);
+		uv_solenoid_output_set_mode(&this->solenoid[sb], SOLENOID_OUTPUT_MODE_ONOFF);
 	}
 	else {
 		if (this->out_type == SOLENOID_OUTPUT_MODE_PVG) {
-			uv_solenoid_output_set_mode(&this->solenoid[0], SOLENOID_OUTPUT_MODE_PWM);
-			uv_solenoid_output_set_mode(&this->solenoid[1], SOLENOID_OUTPUT_MODE_ONOFF);
+			uv_solenoid_output_set_mode(&this->solenoid[sa], SOLENOID_OUTPUT_MODE_PWM);
+			uv_solenoid_output_set_mode(&this->solenoid[sb], SOLENOID_OUTPUT_MODE_ONOFF);
 		}
 		else {
-			uv_solenoid_output_set_mode(&this->solenoid[0], this->out_type);
-			uv_solenoid_output_set_mode(&this->solenoid[1], this->out_type);
+			uv_solenoid_output_set_mode(&this->solenoid[sa], this->out_type);
+			uv_solenoid_output_set_mode(&this->solenoid[sb], this->out_type);
 		}
 	}
 
 
+
+	int16_t maxspeed_scaler = uv_dual_solenoid_output_get_maxspeed_scaler(this);
+	LIMITS(maxspeed_scaler, 0, 1000);
 	int16_t target = uv_prop_output_get_target((uv_prop_output_st *) this);
 	if (this->out_type != SOLENOID_OUTPUT_MODE_PVG) {
 		if (this->unidir) {
@@ -132,33 +135,15 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 				}
 			}
 		}
-	}
-	else {
-		// SOLENOID_OUTPUT_MODE_PVG
 
-		// Solenoid A is in PWM single-ended mode
-		int16_t t = target;
-		t = target / 2 + 500;
-		if (this->unidir) {
-			t = 500 + abs(t - 500);
-		}
-		uv_solenoid_output_set(&this->solenoid[sa], t);
-		// Solenoid B is ON/OFF
-		uv_solenoid_output_set(&this->solenoid[sb], target);
 
-	}
+		uv_solenoid_output_set_maxspeed_scaler(
+				&this->solenoid[DUAL_OUTPUT_SOLENOID_A], maxspeed_scaler);
+		uv_solenoid_output_set_maxspeed_scaler(
+				&this->solenoid[DUAL_OUTPUT_SOLENOID_B], maxspeed_scaler);
 
-	int16_t maxspeed_scaler = uv_dual_solenoid_output_get_maxspeed_scaler(this);
-	LIMITS(maxspeed_scaler, 0, 1000);
+		uv_solenoid_output_step(&this->solenoid[DUAL_OUTPUT_SOLENOID_A], step_ms);
 
-	uv_solenoid_output_set_maxspeed_scaler(
-			&this->solenoid[DUAL_OUTPUT_SOLENOID_A], maxspeed_scaler);
-	uv_solenoid_output_set_maxspeed_scaler(
-			&this->solenoid[DUAL_OUTPUT_SOLENOID_B], maxspeed_scaler);
-
-	uv_solenoid_output_step(&this->solenoid[DUAL_OUTPUT_SOLENOID_A], step_ms);
-
-	if (this->out_type != SOLENOID_OUTPUT_MODE_PVG) {
 		if (this->unidir) {
 				// control solenoid B with the same value as solenoid A
 				uv_pwm_set(this->solenoid[DUAL_OUTPUT_SOLENOID_B].pwm_chn,
@@ -171,6 +156,55 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 		else {
 			uv_solenoid_output_step(&this->solenoid[DUAL_OUTPUT_SOLENOID_B], step_ms);
 		}
+
+	}
+	else {
+		// SOLENOID_OUTPUT_MODE_PVG
+
+		// Solenoid A is in PWM single-ended mode
+		int16_t t = 0;
+		if (target > 0) {
+			// min and max are 0 ... 1000
+			int32_t min = uv_reli(this->solenoid[sa].conf->min, 0, UINT8_MAX);
+			int32_t max = uv_reli(this->solenoid[sa].conf->max, 0, UINT8_MAX);
+			t = uv_lerpi(target,
+						uv_lerpi(min,
+								500 + this->solenoid[sa].limitconf->min / 2,
+								500 + this->solenoid[sa].limitconf->max / 2),
+						uv_lerpi(
+								uv_lerpi(maxspeed_scaler, min, max),
+								uv_lerpi(min,
+										500 + this->solenoid[sa].limitconf->min / 2,
+										500 + this->solenoid[sa].limitconf->max / 2),
+								500 + this->solenoid[sa].limitconf->max / 2));
+		}
+		else if (target < 0) {
+			target = abs(target);
+			// min and max are 0 ... 1000
+			int32_t min = uv_reli(this->solenoid[sb].conf->min, 0, UINT8_MAX);
+			int32_t max = uv_reli(this->solenoid[sb].conf->max, 0, UINT8_MAX);
+			t = uv_lerpi(target,
+						uv_lerpi(min,
+								500 - this->solenoid[sb].limitconf->min / 2,
+								500 - this->solenoid[sb].limitconf->max / 2),
+						uv_lerpi(
+								uv_lerpi(maxspeed_scaler, min, max),
+								uv_lerpi(min,
+										500 - this->solenoid[sb].limitconf->min / 2,
+										500 - this->solenoid[sb].limitconf->max),
+								500 - this->solenoid[sb].limitconf->max / 2));
+		}
+		else {
+
+		}
+
+		// Solenoid A is bypassed and PWM is controlled directly by us
+		uv_solenoid_output_force_set_pwm(&this->solenoid[sa], (target) ? t : 0);
+		uv_solenoid_output_step(&this->solenoid[sa], step_ms);
+
+		// Solenoid B is ON/OFF
+		uv_solenoid_output_set(&this->solenoid[sb], target);
+		uv_solenoid_output_step(&this->solenoid[sb], step_ms);
 	}
 
 
@@ -179,7 +213,14 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 	int16_t cb = uv_solenoid_output_get_out(&this->solenoid[DUAL_OUTPUT_SOLENOID_B]);
 	this->current_ma = (ca) ? uv_solenoid_output_get_current(&this->solenoid[0]) :
 			-uv_solenoid_output_get_current(&this->solenoid[1]);
-	this->out = (ca) ? ca : -cb;
+	if (this->out_type == SOLENOID_OUTPUT_MODE_PVG) {
+		// out value holds the milliamps this valve consumpts
+		this->out = cb;
+	}
+	else {
+		this->out = (ca) ? ca : -cb;
+	}
+
 
 }
 

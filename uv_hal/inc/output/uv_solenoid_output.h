@@ -147,6 +147,9 @@ typedef struct {
 
 	uv_delay_st openloop_delay;
 
+	// true for 1 step cycle if pwm was forcefully set
+	bool force_set;
+
 } uv_solenoid_output_st;
 
 
@@ -301,6 +304,9 @@ static inline uint16_t uv_solenoid_output_get_pwm_dc(uv_solenoid_output_st *this
 }
 
 
+
+/// @brief: Overrides all other functionality and sets the PWM
+void uv_solenoid_output_force_set_pwm(uv_solenoid_output_st *this, uint16_t pwm);
 
 
 

@@ -100,6 +100,8 @@ void uv_solenoid_output_init(uv_solenoid_output_st *this,
 	this->pwm_chn = pwm_chn;
 	uv_pwm_set(this->pwm_chn, this->pwm);
 
+	this->force_set = false;
+
 	uv_delay_init(&this->openloop_delay, OPENLOOP_DELAY_MS);
 
 	uv_pid_init(&this->ma_pid, CONFIG_SOLENOID_MA_P, CONFIG_SOLENOID_MA_I, 0);
@@ -119,7 +121,8 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 	// set output to OFF state when target is zero and either PWM or ADC value is zero.
 	// This disables the ADC current measuring, even when there's open load.
 	if ((!!this->target == 0) &&
-			((this->pwm == 0) || (uv_solenoid_output_get_current(this) == 0))) {
+			((this->pwm == 0) ||
+					((uv_solenoid_output_get_current(this) == 0) && !this->force_set))) {
 		uv_solenoid_output_set_state(this, OUTPUT_STATE_OFF);
 	}
 	else {
@@ -138,7 +141,6 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 			this->dither_ampl *= -1;
 		}
 		this->pwm = 0;
-		this->out = 0;
 	}
 	else {
 		// output is ON
@@ -207,7 +209,6 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 				output = 0;
 			}
 
-			this->out = uv_output_get_current((uv_output_st*) this);
 		}
 		// solenoid is PWM driven
 		else if (this->mode == SOLENOID_OUTPUT_MODE_PWM) {
@@ -222,20 +223,19 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 								uv_lerpi(min, this->limitconf->min, this->limitconf->max),
 								this->limitconf->max));
 			}
-			this->out = output;
 		}
 		// solenoid is on/off
 		else { // SOLENOID_OUTPUT_MODE_ONOFF
 			if (this->target) {
 				output = PWM_MAX_VALUE;
 			}
-
-			this->out = uv_output_get_current((uv_output_st*) this);
 		}
 		LIMITS(output, 0, PWM_MAX_VALUE);
 
-		// set the output value
-		this->pwm = output;
+		if (!this->force_set) {
+			// set the output value
+			this->pwm = output;
+		}
 		// set output state depending if the output is active
 		uv_output_set_state((uv_output_st *) this, (output) ? OUTPUT_STATE_ON : OUTPUT_STATE_OFF);
 	}
@@ -244,6 +244,22 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 	uv_pwm_set(this->pwm_chn, this->pwm);
 	// update pwm avg value
 	uv_moving_aver_step(&this->pwmaver, this->pwm);
+
+	// update out variable
+	switch (this->mode) {
+	case SOLENOID_OUTPUT_MODE_PWM:
+		this->out = this->pwm;
+		break;
+	case SOLENOID_OUTPUT_MODE_CURRENT:
+	case SOLENOID_OUTPUT_MODE_ONOFF:
+	default:
+		this->out = (state == OUTPUT_STATE_ON) ?
+				uv_output_get_current((uv_output_st*) this) : 0;
+		break;
+	}
+
+	this->force_set = false;
+
 }
 
 
@@ -260,6 +276,12 @@ void uv_solenoid_output_set_dither_ampl(
 	if (abs(this->dither_ampl) != ampl) {
 		this->dither_ampl = ampl;
 	}
+}
+
+
+void uv_solenoid_output_force_set_pwm(uv_solenoid_output_st *this, uint16_t pwm) {
+	this->force_set = true;
+	this->pwm = pwm;
 }
 
 
