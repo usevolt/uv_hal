@@ -138,27 +138,29 @@ void uv_uigraph_draw(void *me, const uv_bounding_box_st *pbb) {
 	}
 	LIMITS(relx, x, x + cw);
 
-	// content x & y coordinates
-	int16_t cx = uv_lerpi(uv_reli(this->current_val_x, this->min_x, this->max_x), x, x + cw);
-	int16_t cy = uv_lerpi(uv_reli(this->current_val_y, this->min_y, this->max_y), y + ch, y);
 
 	// draw grid
 	if (this->grid_size_x != 0 && this->grid_size_y != 0) {
 		int16_t x_spacing = this->grid_size_x * cw / abs(this->max_x - this->min_x);
 		if (x_spacing > 2) {
-			for (int16_t i = cx + x_spacing; i < cx + cw; i += x_spacing) {
-				uv_ui_draw_line(i, cy, i, cy - ch, 1,
+			for (int16_t i = x + x_spacing; i < x + cw; i += x_spacing) {
+				uv_ui_draw_line(i, y, i, y + ch, 1,
 						uv_uic_alpha(this->coordinate_c, -UINT8_MAX / 2));
 			}
 		}
 		int16_t y_spacing = this->grid_size_y * ch / abs(this->max_y - this->min_y);
 		if (y_spacing > 2) {
-			for (int16_t i = cy + y_spacing; i > cy - ch; i -= y_spacing) {
-				uv_ui_draw_line(cx, i, cx + cw, i, 1,
+			for (int16_t i = y + ch - y_spacing; i > y; i -= y_spacing) {
+				uv_ui_draw_line(x, i, x + cw, i, 1,
 						uv_uic_alpha(this->coordinate_c, -UINT8_MAX / 2));
 			}
 		}
 	}
+	// content x & y coordinates
+	int16_t cx = uv_lerpi(uv_reli(this->current_val_x, this->min_x, this->max_x),
+			x, x + cw);
+	int16_t cy = uv_lerpi(uv_reli(this->current_val_y, this->min_y, this->max_y),
+			y + ch, y);
 
 	// draw the current value lines
 	if (this->current_val_x >= this->min_x &&
