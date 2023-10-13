@@ -73,19 +73,25 @@ typedef struct __attribute__((packed)) {
 /// @param style: The UI style of the numpad
 void uv_uinumpad_init(void *me, const char *title, const uv_uistyle_st *style);
 
+
 /// @brief: Helper function to show a dialog with a numpad on it.
 ///
 /// @note: This uses lots of stack to store the uielements!
 ///
 /// @return: Value entered into the numpad
+///
+/// @param fallback_value is returned if numpad was closed without
+/// entering anything. Defaults to 0
+
 int32_t uv_uinumpaddialog_exec(const char *title,
 		int32_t max_limit, int32_t min_limit,
-		int32_t def_value, const uv_uistyle_st *style);
+		int32_t fallback_value, const uv_uistyle_st *style);
 
 #ifdef this
 #undef this
 #endif
 #define this ((uv_uinumpad_st*) me)
+
 
 
 /// @brief: Returns the current input value. If nothing has been inputted,

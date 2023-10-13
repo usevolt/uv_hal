@@ -327,7 +327,7 @@ static uv_uiobject_ret_e exec_callb(void *user_ptr, uint16_t step_ms) {
 
 int32_t uv_uinumpaddialog_exec(const char *title,
 		int32_t max_limit, int32_t min_limit,
-		int32_t def_value, const uv_uistyle_st *style) {
+		int32_t fallback_value, const uv_uistyle_st *style) {
 	uv_uidialog_st d;
 	uv_uiobject_st *bfr;
 	uv_uinumpad_st numpad;
@@ -342,7 +342,8 @@ int32_t uv_uinumpaddialog_exec(const char *title,
 
 	uv_uidialog_exec(&d);
 
-	int32_t value = uv_uinumpad_get_value(&numpad);
+	int32_t value = uv_uinumpad_get_cancelled(&numpad) ?
+			fallback_value : uv_uinumpad_get_value(&numpad);
 	return value;
 }
 

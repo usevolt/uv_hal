@@ -217,7 +217,8 @@ static void touch(void *me, uv_touch_st *touch) {
 	if (this->mode == UIDIGITEDIT_MODE_NORMAL) {
 		if (touch->action == TOUCH_CLICKED) {
 			touch->action = TOUCH_NONE;
-			uint32_t value = uv_uinumpaddialog_exec( this->modedata.normal.numpaddialog_title,
+			uint32_t value = uv_uinumpaddialog_exec(
+					this->modedata.normal.numpaddialog_title,
 					this->limit_max, this->limit_min, this->value, this->style);
 			uv_uidigitedit_set_value(this, value);
 			uv_ui_refresh(this);
