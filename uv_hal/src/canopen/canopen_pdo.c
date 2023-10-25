@@ -274,7 +274,6 @@ void _uv_canopen_pdo_rx(const uv_can_message_st *msg) {
 	for (uint8_t i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
 		valid = true;
 		const canopen_rxpdo_com_parameter_st *com = this->rxpdo[i].com_ptr;
-
 		if (com) {
 			if (com->cob_id & CANOPEN_PDO_DISABLED) {
 				valid = false;
@@ -301,6 +300,10 @@ void _uv_canopen_pdo_rx(const uv_can_message_st *msg) {
 			// matching RXPDO found. copy data to it's pointers
 			for (uint8_t j = 0; j < CONFIG_CANOPEN_PDO_MAPPING_COUNT; j++) {
 				uint8_t *dest = this->rxpdo[i].mapping_ptr[j];
+//				if (i == 16) {
+//					printf("0x%x %i 0x%x 0x%x\n", com->cob_id, i, msg->data_8bit[j],
+//							this->rxpdo[i].mapping_ptr[j]);
+//				}
 				if (dest) {
 					memcpy(dest, &msg->data_8bit[j], sizeof(uint8_t));
 				}
@@ -364,6 +367,7 @@ void _uv_canopen_pdo_mapping_ptr_conf(canopen_pdo_mapping_parameter_st *mapping_
 	memset(ptr_bfr, 0, sizeof(uint8_t*) * CONFIG_CANOPEN_PDO_MAPPING_COUNT);
 	uint8_t byte_count = 0;
 	for (uint8_t i = 0; i < CONFIG_CANOPEN_PDO_MAPPING_COUNT; i++) {
+		uv_terminal_enable(TERMINAL_CAN);
 		canopen_pdo_mapping_st *map = &mapping_param->mappings[i];
 		// length 0 means we stop mapping here
 		if (map->length == 0 ||
@@ -372,6 +376,7 @@ void _uv_canopen_pdo_mapping_ptr_conf(canopen_pdo_mapping_parameter_st *mapping_
 		}
 		const canopen_object_st *obj =
 				_uv_canopen_obj_dict_get(map->main_index, map->sub_index);
+
 		if (obj != NULL) {
 			if ((obj->permissions & permissions)) {
 				uint8_t *ptr = NULL;
