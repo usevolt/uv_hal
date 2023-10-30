@@ -270,7 +270,7 @@ static inline void uv_delay_end(uv_delay_st *p) {
 /// @param delay_ms The length of the delay in ms.
 /// @param step_ms The duration between cyclic calls in ms.
 /// @param p Pointer to a delay counter variable. Variable's value is increased every step and
-/// @pre: uv_start_delay should have been called
+/// @pre: uv_delay_init should have been called
 /// when it exceeds delay_ms, true is returned.
 /// @example:
 /// 	static int p;
@@ -285,6 +285,12 @@ bool uv_delay(uv_delay_st* p, uint16_t step_ms);
 /// @brief: returns true if the delay has ended
 static inline bool uv_delay_has_ended(uv_delay_st* p) {
 	return (*p <= 0);
+}
+
+
+/// @brief: returns true for 1 step cycle when the delay triggers the end
+static inline bool uv_delay_triggered(uv_delay_st *p) {
+	return (*p == 0);
 }
 
 /// @brief: Triggers the delay right away
