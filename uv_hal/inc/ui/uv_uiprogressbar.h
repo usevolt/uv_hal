@@ -110,7 +110,7 @@ static inline void uv_uiprogressbar_set_vertical(void *me) {
 
 /// @brief: Sets the progressbar current value.
 ///
-/// @param value: Value from 0 to 1000, e.g. part-per-thousands
+/// @param value: Value from min_val to max_val
 void uv_uiprogressbar_set_value(void *me, int16_t value);
 
 
