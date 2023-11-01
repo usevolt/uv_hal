@@ -1,4 +1,4 @@
-/* 
+/*
  * This file is part of the uv_hal distribution (www.usevolt.fi).
  * Copyright (c) 2017 Usevolt Oy.
  * 
@@ -269,9 +269,7 @@ void uv_init(void *device) {
 	_uv_adc_init();
 #endif
 
-#if CONFIG_DAC
 	_uv_dac_init();
-#endif
 
 #if CONFIG_SPI
 	_uv_spi_init();
