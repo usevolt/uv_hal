@@ -35,40 +35,30 @@
 #include "dac_15xx.h"
 #endif
 
-#if CONFIG_TARGET_LPC15XX
+
+
+#if CONFIG_DAC
+
 
 void _uv_dac_init(void) {
 
-#if CONFIG_DAC
+#if CONFIG_TARGET_LPC15XX
 	Chip_DAC_Init(LPC_DAC);
 	// disable DAC, as it is enabled by default
 	Chip_SWM_EnableFixedPin(SWM_FIXED_DAC_OUT);
-#else
-	// disable DAC, as it is enabled by default
-	Chip_SWM_DisableFixedPin(SWM_FIXED_DAC_OUT);
-
 #endif
 }
-
-#else
-void _uv_dac_init(void) {
-}
-
-#endif
-
-#if CONFIG_DAC
-
-#if CONFIG_TARGET_LPC15XX
 
 
 void uv_dac_set(uint32_t value) {
+#if CONFIG_TARGET_LPC15XX
 	if (value > DAC_MAX_VALUE) {
 		value = DAC_MAX_VALUE;
 	}
 	Chip_DAC_UpdateValue(LPC_DAC, value);
+#endif
 }
 
 
-#endif
 
 #endif
