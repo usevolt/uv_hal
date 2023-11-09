@@ -1,4 +1,4 @@
-/* 
+/*
  * This file is part of the uv_hal distribution (www.usevolt.fi).
  * Copyright (c) 2017 Usevolt Oy.
  * 

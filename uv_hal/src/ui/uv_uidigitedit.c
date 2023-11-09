@@ -68,7 +68,8 @@ void uv_uidigitedit_init(void *me, int32_t value, const uv_uistyle_st *style) {
 void uv_uidigitedit_set_mode(void *me, uv_uidigitedit_mode_e value) {
 	this->mode = value;
 	if (this->mode == UIDIGITEDIT_MODE_NORMAL) {
-		this->modedata.normal.numpaddialog_title = "";
+
+		this->modedata.normal.numpaddialog_title = this->title;
 	}
 	else if (this->mode == UIDIGITEDIT_MODE_INCDEC) {
 		this->modedata.incdec.inc_step = 1;

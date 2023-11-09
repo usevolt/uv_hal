@@ -61,9 +61,11 @@
 void uv_dac_set(uint32_t value);
 
 
+
+#endif
+
 /// @brief: Initializes the dac. For HAL library inner usage only
 void _uv_dac_init(void);
 
-#endif
 
 #endif /* UV_HAL_INC_UV_DAC_H_ */
