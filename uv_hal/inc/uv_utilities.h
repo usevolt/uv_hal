@@ -336,8 +336,13 @@ typedef struct {
 uv_errors_e uv_ring_buffer_init(uv_ring_buffer_st *buffer_ptr, void *buffer,
 		uint16_t buffer_size, uint16_t element_size);
 
-/// @brief: Adds a new element into the ring buffer
+/// @brief: Adds a new element into the ring buffer. If the buffer was full
+/// returns an error and new value is not pushed
 uv_errors_e uv_ring_buffer_push(uv_ring_buffer_st *buffer, void *element);
+
+/// @brief: Adds a new element into the ring buffer. If the buffer was full,
+/// the last value is discarded and new is pushed in any case.
+void uv_ring_buffer_push_force(uv_ring_buffer_st *buffer, void *element);
 
 /// @brief: Returns the next element without removing it from the buffer.
 /// Can be used to check what's coming next in the buffer
@@ -348,6 +353,13 @@ uv_errors_e uv_ring_buffer_peek(uv_ring_buffer_st *buffer, void *dest);
 /// element is stored into 'dest'
 uv_errors_e uv_ring_buffer_pop(uv_ring_buffer_st *buffer, void *dest);
 
+static inline uv_errors_e uv_ring_buffer_pop_back(uv_ring_buffer_st *buffer, void *dest) {
+	return uv_ring_buffer_pop(buffer, dest);
+}
+
+/// @brief: Removes the first element from the ring buffer, i.e. the one pushed last
+uv_errors_e uv_ring_buffer_pop_front(uv_ring_buffer_st *buffer, void *dest);
+
 
 /// @brief: Clears the ring buffer to the initial state
 static inline uv_errors_e uv_ring_buffer_clear(uv_ring_buffer_st *buffer) {
@@ -357,6 +369,10 @@ static inline uv_errors_e uv_ring_buffer_clear(uv_ring_buffer_st *buffer) {
 /// @brief: Returns true if the ring buffer was empty
 static inline bool uv_ring_buffer_empty(uv_ring_buffer_st *buffer) {
 	return !buffer->element_count;
+}
+
+static inline bool uv_ring_buffer_is_full(uv_ring_buffer_st *buffer) {
+	return buffer->element_count == buffer->buffer_size;
 }
 
 /// @brief: Returns the current element count in the buffer

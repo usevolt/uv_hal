@@ -110,11 +110,10 @@ uv_errors_e uv_ring_buffer_push(uv_ring_buffer_st *buffer, void *element) {
 		ret = ERR_BUFFER_OVERFLOW;
 	}
 	else {
-		uint16_t i;
-		for (i = 0; i < buffer->element_size; i++) {
-			*(buffer->head) = *((char*) element + i);
-			buffer->head++;
+		if (element) {
+			memcpy(buffer->head, element, buffer->element_size);
 		}
+		buffer->head += buffer->element_size;
 		if (buffer->head == buffer->buffer + buffer->buffer_size * buffer->element_size) {
 			buffer->head = buffer->buffer;
 		}
@@ -122,6 +121,14 @@ uv_errors_e uv_ring_buffer_push(uv_ring_buffer_st *buffer, void *element) {
 	}
 	return ret;
 }
+
+void uv_ring_buffer_push_force(uv_ring_buffer_st *buffer, void *element) {
+	if (uv_ring_buffer_is_full(buffer)) {
+		uv_ring_buffer_pop(buffer, NULL);
+	}
+	uv_ring_buffer_push(buffer, element);
+}
+
 
 uv_errors_e uv_ring_buffer_peek(uv_ring_buffer_st *buffer, void *dest) {
 	uv_errors_e ret = ERR_NONE;
@@ -153,13 +160,10 @@ uv_errors_e uv_ring_buffer_pop(uv_ring_buffer_st *buffer, void *dest) {
 		ret = ERR_BUFFER_EMPTY;
 	}
 	else {
-		uint16_t i;
-			for (i = 0; i < buffer->element_size; i++) {
-				if (dest) {
-					*((char*)dest + i) = *(buffer->tail);
-				}
-				buffer->tail++;
+		if (dest) {
+			memcpy(dest, buffer->tail, buffer->element_size);
 		}
+		buffer->tail += buffer->element_size;
 		if (buffer->tail == buffer->buffer + buffer->buffer_size * buffer->element_size) {
 			buffer->tail = buffer->buffer;
 		}
@@ -167,6 +171,31 @@ uv_errors_e uv_ring_buffer_pop(uv_ring_buffer_st *buffer, void *dest) {
 	}
 	return ret;
 }
+
+
+uv_errors_e uv_ring_buffer_pop_front(uv_ring_buffer_st *buffer, void *dest) {
+	uv_errors_e ret = ERR_NONE;
+
+	if (buffer == NULL) {
+		ret = ERR_NULL_PTR;
+	}
+	else if (!buffer->element_count) {
+		ret = ERR_BUFFER_EMPTY;
+	}
+	else {
+		if (dest) {
+			memcpy(dest, buffer->head, buffer->element_size);
+		}
+		buffer->head += buffer->element_size;
+		if (buffer->head == buffer->buffer + buffer->buffer_size * buffer->element_size) {
+			buffer->head = buffer->buffer;
+		}
+		buffer->element_count--;
+	}
+
+	return ret;
+}
+
 
 
 void uv_vector_init(uv_vector_st *this, void *buffer,
