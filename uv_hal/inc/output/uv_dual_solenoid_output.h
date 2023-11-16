@@ -70,6 +70,8 @@ typedef struct {
 	int16_t current_ma;
 	// signed output value (depends on the mode)
 	int16_t out;
+	// delay for keeping pvg control signal for a bit longer than powering it
+	uv_delay_st pvg_delay;
 } uv_dual_solenoid_output_st;
 
 

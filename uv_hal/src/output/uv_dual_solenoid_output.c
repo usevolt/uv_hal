@@ -35,6 +35,7 @@
 
 
 #define OUTPUT_FAULT_FREEZE_MS			10
+#define PVG_DELAY_MS					1000
 
 
 
@@ -66,6 +67,8 @@ void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 			pwm_b, dither_freq, dither_ampl,
 			adc_common, sense_ampl, max_current, fault_current,
 			emcy_openloop_b, emcy_fault_b);
+
+	uv_delay_init(&this->pvg_delay, PVG_DELAY_MS);
 }
 
 
@@ -161,6 +164,16 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 	else {
 		// SOLENOID_OUTPUT_MODE_PVG
 
+		uv_solenoid_output_set_maxspeed_scaler(
+				&this->solenoid[DUAL_OUTPUT_SOLENOID_A], 1000);
+		uv_solenoid_output_set_maxspeed_scaler(
+				&this->solenoid[DUAL_OUTPUT_SOLENOID_B], 1000);
+
+		uv_delay(&this->pvg_delay, step_ms);
+		if (target) {
+			uv_delay_init(&this->pvg_delay, PVG_DELAY_MS);
+		}
+
 		// Solenoid A is in PWM single-ended mode
 		int16_t t = 0;
 		if (target > 0) {
@@ -195,15 +208,15 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 								500 - this->solenoid[sb].limitconf->max / 2));
 		}
 		else {
-
+			t = uv_delay_has_ended(&this->pvg_delay) ? 0 : 500;
 		}
 
 		// Solenoid A is bypassed and PWM is controlled directly by us
-		uv_solenoid_output_force_set_pwm(&this->solenoid[sa], (target) ? t : 0);
+		uv_solenoid_output_force_set_pwm(&this->solenoid[sa], t);
 		uv_solenoid_output_step(&this->solenoid[sa], step_ms);
 
 		// Solenoid B is ON/OFF
-		uv_solenoid_output_set(&this->solenoid[sb], target);
+		uv_solenoid_output_set(&this->solenoid[sb], t);
 		uv_solenoid_output_step(&this->solenoid[sb], step_ms);
 	}
 
