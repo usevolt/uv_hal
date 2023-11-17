@@ -59,12 +59,12 @@ bool uv_delay(uv_delay_st* p, uint16_t step_ms) {
 		else if (*p <= 0) {
 			// for rest of the time p is negative to indicate that
 			// delay ended long time ago
+			ret = (*p == 0) ? true : false;
 			*p = -1;
-			ret = false;
 		}
 		else {
 			// p is 0 for 1 step cycle when delay ends
-			ret = true;
+			ret = false;
 			*p = 0;
 		}
 	}
