@@ -46,7 +46,8 @@ static void add_number(void *me, char value) {
 		str[0] = value;
 		str[1] = '\0';
 		strcat(this->value_str, str);
-		int32_t val = strtol(this->value_str, NULL, 0);
+		int32_t val = strtol(this->value_str, NULL,
+				(this->flags & UINUMPAD_FLAGS_HEX) ? 16 : 0);
 		// dont add new character if the maximum limit would be exceeded
 		if (val > this->limit_max) {
 			this->value_str[strlen(this->value_str) - 1] = '\0';
@@ -57,7 +58,8 @@ static void add_number(void *me, char value) {
 			this->value = this->limit_min;
 		}
 		else {
-			this->value = strtol(this->value_str, NULL, 0);
+			this->value = strtol(this->value_str, NULL,
+					(this->flags & UINUMPAD_FLAGS_HEX) ? 16 : 0);
 		}
 		uv_ui_refresh(this);
 	}
@@ -70,6 +72,7 @@ void uv_uinumpad_init(void *me, const char *title, const uv_uistyle_st *style) {
 	uv_uiobject_set_touch_callb(this, &touch);
 	uv_uiobject_set_step_callb(this, &numpad_step);
 
+	this->flags = UINUMPAD_FLAGS_NONE;
 	this->title = title;
 	this->style = style;
 	this->value = 0;
@@ -83,8 +86,9 @@ void uv_uinumpad_init(void *me, const char *title, const uv_uistyle_st *style) {
 	strcpy(this->value_str, "");
 }
 
+#define SIGN_INDEX			99
 
-const char *labels[] = {
+const char *labels_dec[] = {
 		"1",
 		"2",
 		"3",
@@ -94,14 +98,40 @@ const char *labels[] = {
 		"7",
 		"8",
 		"9",
-		"0"
+		"CANCEL",
+		"0",
+		"OK"
+};
+const char *labels_hex[] = {
+		"1",
+		"2",
+		"3",
+		"A",
+		"B",
+		"4",
+		"5",
+		"6",
+		"C",
+		"D",
+		"7",
+		"8",
+		"9",
+		"E",
+		"F",
+		"CANCEL",
+		"",
+		"0",
+		"",
+		"OK"
 };
 
 static void draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t globx = uv_ui_get_xglobal(this);
 	int16_t globy = uv_ui_get_yglobal(this);
-	int16_t butw = uv_uibb(this)->width / 3;
-	int16_t buth = uv_uibb(this)->height / 5;
+	uint8_t row_count = 5;
+	uint8_t col_count = (this->flags & UINUMPAD_FLAGS_HEX) ? 5 : 3;
+	int16_t butw = uv_uibb(this)->width / col_count;
+	int16_t buth = uv_uibb(this)->height / row_count;
 	color_t highlight_c = uv_uic_brighten(this->style->bg_c, 30);
 	color_t shadow_c = uv_uic_brighten(this->style->bg_c, -30);
 
@@ -116,14 +146,14 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	}
 
 	uint8_t index = 0;
-	for (int8_t y = 1; y < 5; y++) {
-		for (int8_t x = 0; x < 3; x++) {
+	for (int8_t y = 1; y < row_count; y++) {
+		for (int8_t x = 0; x < col_count; x++) {
 
-			if (this->limit_min < 0 && y == 4 && x == 0) {
+			if (this->limit_min < 0 && y == row_count - 1 && x == 0) {
 				// draw background for back & sign buttons in case if the numpad is signed
 				uv_ui_draw_shadowrrect(globx + x * butw, globy + y * buth,
 						butw / 2, buth, CONFIG_UI_RADIUS,
-						(this->pressed_index == ((y - 1) * 3 + x)) ?
+						(this->pressed_index == ((y - 1) * col_count + x)) ?
 								highlight_c : this->style->bg_c,
 						highlight_c, shadow_c);
 
@@ -137,11 +167,11 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 				// draw background for all other buttons except sign button
 				uv_ui_draw_shadowrrect(globx + x * butw, globy + y * buth,
 						butw, buth, CONFIG_UI_RADIUS,
-						(this->pressed_index == ((y - 1) * 3 + x)) ?
+						(this->pressed_index == ((y - 1) * col_count + x)) ?
 								highlight_c : this->style->bg_c,
 						highlight_c, shadow_c);
 			}
-			if (y == 4 && x == 0) {
+			if (y == row_count - 1 && x == 0) {
 				if (this->limit_min < 0) {
 					uv_ui_draw_string("Back", this->style->font,
 							globx + x * butw + butw / 4, globy + y * buth + buth / 2,
@@ -156,17 +186,20 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 							ALIGN_CENTER, this->style->text_color);
 				}
 			}
-			else if (y == 4 && x == 2) {
+			else if (y == row_count - 1 && x == col_count - 1) {
 				uv_ui_draw_string("OK", this->style->font,
 						globx + x * butw + butw / 2, globy + y * buth + buth / 2,
 						ALIGN_CENTER, this->style->text_color);
 			}
 			else {
-				uv_ui_draw_string((char*) labels[index], this->style->font,
-						globx + x * butw + butw / 2, globy + y * buth + buth / 2,
+				uv_ui_draw_string((char*) ((this->flags & UINUMPAD_FLAGS_HEX) ?
+								labels_hex[index] : labels_dec[index]),
+								this->style->font,
+						globx + x * butw + butw / 2,
+						globy + y * buth + buth / 2,
 						ALIGN_CENTER, this->style->text_color);
-				index++;
 			}
+			index++;
 
 		}
 	}
@@ -174,17 +207,21 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 
 static void touch(void *me, uv_touch_st *touch) {
-	int16_t butw = uv_uibb(this)->width / 3;
-	int16_t buth = uv_uibb(this)->height / 5;
+	uint8_t row_count = 5;
+	uint8_t col_count = (this->flags & UINUMPAD_FLAGS_HEX) ? 5 : 3;
+	int16_t butw = uv_uibb(this)->width / col_count;
+	int16_t buth = uv_uibb(this)->height / row_count;
 
 	if (touch->action == TOUCH_PRESSED) {
 		uint8_t index = 0;
 		bool found = false;
-		for (uint8_t y = 1; y < 5; y++) {
-			for (uint8_t x = 0; x < 3; x++) {
+		for (uint8_t y = 1; y < row_count; y++) {
+			for (uint8_t x = 0; x < col_count; x++) {
 				if ((touch->y >= y * buth) &&
 						(touch->y < (y + 1) * buth)) {
-					if (this->limit_min < 0 && y == 4 && x == 0) {
+					if (this->limit_min < 0 &&
+							y == row_count - 1 &&
+							x == 0) {
 						if ((touch->x >= x * butw) &&
 								(touch->x < (x + 1) * butw - butw / 2)) {
 							this->pressed_index = index;
@@ -195,7 +232,7 @@ static void touch(void *me, uv_touch_st *touch) {
 						else if ((touch->x >= x * butw + butw / 2) &&
 								(touch->x < (x + 1) * butw)) {
 							// sign-button needs special handling
-							this->pressed_index = 12;
+							this->pressed_index = SIGN_INDEX;
 							this->sign = (this->sign > 0) ? -1 : 1;
 							uv_ui_refresh(this);
 							found = true;
@@ -234,50 +271,19 @@ static void touch(void *me, uv_touch_st *touch) {
 	}
 }
 
+#include "uv_terminal.h"
 static uv_uiobject_ret_e numpad_step(void *me, uint16_t step_ms) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
 	this->cancelled = false;
 	this->submitted = false;
 
-	// back pressed
-	if (this->released_index == 9) {
-		uint8_t len = strlen(this->value_str);
-		if (len) {
-			if (len == 2 && this->value_str[0] == '-') {
-				// make sure negative sign cannot be the only character
-				len = 1;
-				this->sign = 1;
-				uv_ui_refresh(this);
-			}
-			this->value_str[len - 1] = '\0';
-			if (strlen(this->value_str)) {
-				this->value = strtol(this->value_str, NULL, 0);
-			}
-			else {
-				this->value = 0;
-			}
-			uv_ui_refresh(this);
-		}
-		else {
-			this->cancelled = true;
-		}
-	}
-	// 0 pressed
-	else if (this->released_index == 10) {
-		add_number(this, '0');
-		// remove trailing zeros
-		uint8_t i = (this->sign >= 0) ? 0 : 1;
-		while (this->value_str[i] == '0' && this->value_str[i + 1] == '0') {
-			memmove(&this->value_str[i], &this->value_str[i + 1], strlen(this->value_str) - i);
-		}
-	}
-	// ok pressed
-	else if (this->released_index == 11) {
-		this->submitted = true;
-	}
+	const char **labels = (this->flags & UINUMPAD_FLAGS_HEX) ? labels_hex : labels_dec;
 	// sign pressed
-	else if (this->released_index == 12) {
+	if (this->released_index == -1) {
+		// nothing pressed
+	}
+	else if (this->released_index == SIGN_INDEX) {
 		if (this->sign > 0) {
 			if (strlen(this->value_str)) {
 				memmove(this->value_str, &this->value_str[1],
@@ -290,18 +296,50 @@ static uv_uiobject_ret_e numpad_step(void *me, uint16_t step_ms) {
 					MIN(strlen(this->value_str) + 1, sizeof(this->value_str)));
 			this->value_str[0] = '-';
 		}
-		this->value = strtol(this->value_str, NULL, 0);
+		this->value = strtol(this->value_str, NULL,
+				(this->flags & UINUMPAD_FLAGS_HEX) ? 16 : 0);
 		uv_ui_refresh(this);
 	}
+	// back pressed
+	else if (strcmp(labels[this->released_index], "CANCEL") == 0) {
+		uint8_t len = strlen(this->value_str);
+		if (len) {
+			if (len == 2 && this->value_str[0] == '-') {
+				// make sure negative sign cannot be the only character
+				len = 1;
+				this->sign = 1;
+				uv_ui_refresh(this);
+			}
+			this->value_str[len - 1] = '\0';
+			if (strlen(this->value_str)) {
+				this->value = strtol(this->value_str, NULL,
+						(this->flags & UINUMPAD_FLAGS_HEX) ? 16 : 0);
+			}
+			else {
+				this->value = 0;
+			}
+			uv_ui_refresh(this);
+		}
+		else {
+			this->cancelled = true;
+		}
+	}
+	// ok pressed
+	else if (strcmp(labels[this->released_index], "OK") == 0) {
+		this->submitted = true;
+	}
 	// other numbers pressed
-	else if (this->released_index != -1) {
-		add_number(this, '0' + this->released_index + 1);
-		// remove trailing zeros
+	else if (strlen(labels[this->released_index]) != 0) {
+		add_number(this, *labels[this->released_index]);
+		// remove trailing zeroes
 		uint8_t i = (this->sign >= 0) ? 0 : 1;
 		while (this->value_str[i] == '0') {
-			memmove(&this->value_str[i], &this->value_str[i + 1], strlen(this->value_str) - i);
+			memmove(&this->value_str[i],
+					&this->value_str[i + 1],
+					strlen(this->value_str) - i);
 		}
-		this->value = strtol(this->value_str, NULL, 0);
+		this->value = strtol(this->value_str, NULL,
+				(this->flags & UINUMPAD_FLAGS_HEX) ? 16 : 0);
 	}
 	else {
 
@@ -327,7 +365,8 @@ static uv_uiobject_ret_e exec_callb(void *user_ptr, uint16_t step_ms) {
 
 int32_t uv_uinumpaddialog_exec(const char *title,
 		int32_t max_limit, int32_t min_limit,
-		int32_t fallback_value, const uv_uistyle_st *style) {
+		int32_t fallback_value, uv_uinumpad_flags_e flags,
+		const uv_uistyle_st *style) {
 	uv_uidialog_st d;
 	uv_uiobject_st *bfr;
 	uv_uinumpad_st numpad;
@@ -335,6 +374,7 @@ int32_t uv_uinumpaddialog_exec(const char *title,
 	uv_uidialog_set_stepcallback(&d, &exec_callb, &numpad);
 
 	uv_uinumpad_init(&numpad, title, &uv_uistyles[0]);
+	uv_uinumpad_set_flags(&numpad, flags);
 	uv_uinumpad_set_maxlimit(&numpad, max_limit);
 	uv_uinumpad_set_minlimit(&numpad, min_limit);
 	uv_uidialog_addxy(&d, &numpad, 0, 0,

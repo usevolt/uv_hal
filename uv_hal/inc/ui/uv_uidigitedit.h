@@ -66,6 +66,7 @@ typedef struct __attribute__((packed)) {
 	int32_t value;
 	uint16_t divider;
 	bool changed;
+	bool hex;
 	const uv_uistyle_st *style;
 	int32_t limit_max;
 	int32_t limit_min;
@@ -147,6 +148,13 @@ static inline void uv_uidigitedit_set_inc_step(void *me, int16_t value) {
 static inline int16_t uv_uidigitedit_get_inc_step(void *me) {
 	return this->modedata.incdec.inc_step;
 }
+/// @brief Sets the display to hexadecimal. Only valid if divider == 0
+void uv_uidigitedit_set_hex(void *me, bool value);
+
+/// @brief Returns true if the display is hexadecimal
+static inline bool uv_uidigitedit_get_hex(void *me) {
+	return this->hex;
+}
 
 /// @brief: Sets the title for the digitedit. The title text is shown below the digitedit fiel
 static inline void uv_uidigitedit_set_title(void *me, char *value) {
@@ -192,6 +200,7 @@ static inline void uv_uidigitedit_set_minlimit(void *me, int32_t value) {
 static inline void uv_uidigitedit_set_limits(void *me, int32_t min_value, int32_t max_value) {
 	this->limit_min = min_value;
 	this->limit_max = max_value;
+	uv_uidigitedit_set_value(this, this->value);
 }
 
 

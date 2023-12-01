@@ -54,6 +54,7 @@ void uv_uidigitedit_init(void *me, int32_t value, const uv_uistyle_st *style) {
 	this->value = !value;
 	this->title = NULL;
 	this->unit = NULL;
+	this->hex = false;
 	this->bg_color = style->bg_c;
 	this->limit_max = INT32_MAX;
 	this->limit_min = (value > 0) ? 0 : INT16_MIN + 1;
@@ -91,7 +92,8 @@ static void set_value(void *me, int32_t value, bool forced_update) {
 	if (this->value != value ||
 			forced_update) {
 		if (this->divider == 0) {
-			sprintf(this->str, "%i %s", (int) value, (this->unit) ? this->unit : "");
+			sprintf(this->str, (this->hex) ? "0x%x %s" : "%i %s",
+					(int) value, (this->unit) ? this->unit : "");
 		}
 		else {
 			char format[16];
@@ -220,7 +222,10 @@ static void touch(void *me, uv_touch_st *touch) {
 			touch->action = TOUCH_NONE;
 			uint32_t value = uv_uinumpaddialog_exec(
 					this->modedata.normal.numpaddialog_title,
-					this->limit_max, this->limit_min, this->value, this->style);
+					this->limit_max, this->limit_min,
+					this->value,
+					this->hex ? UINUMPAD_FLAGS_HEX : UINUMPAD_FLAGS_NONE,
+					this->style);
 			uv_uidigitedit_set_value(this, value);
 			uv_ui_refresh(this);
 		}
@@ -260,6 +265,13 @@ static void touch(void *me, uv_touch_st *touch) {
 void uv_uidigitedit_set_divider(void *me, uint16_t value) {
 	this->divider = value;
 	set_value(this, this->value, true);
+}
+
+void uv_uidigitedit_set_hex(void *me, bool value) {
+	if (this->hex != value) {
+		this->hex = value;
+		set_value(this, this->value, true);
+	}
 }
 
 

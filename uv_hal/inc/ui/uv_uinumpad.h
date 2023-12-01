@@ -41,10 +41,18 @@
 
 
 
+typedef enum {
+	UINUMPAD_FLAGS_NONE = 0,
+	// display numpad has hexadecimal
+	UINUMPAD_FLAGS_HEX
+} uv_uinumpad_flags_e;
+
+
 
 typedef struct __attribute__((packed)) {
 	EXTENDS(uv_uiobject_st);
 
+	uv_uinumpad_flags_e flags;
 	char value_str[NUMPAD_VALUE_STR_LEN];
 	int32_t value;
 	const char *title;
@@ -85,7 +93,8 @@ void uv_uinumpad_init(void *me, const char *title, const uv_uistyle_st *style);
 
 int32_t uv_uinumpaddialog_exec(const char *title,
 		int32_t max_limit, int32_t min_limit,
-		int32_t fallback_value, const uv_uistyle_st *style);
+		int32_t fallback_value, uv_uinumpad_flags_e flags,
+		const uv_uistyle_st *style);
 
 #ifdef this
 #undef this
@@ -124,6 +133,13 @@ static inline void uv_uinumpad_set_minlimit(void *me, int32_t value) {
 
 static inline int32_t uv_uinumpad_get_minlimit(void *me) {
 	return this->limit_min;
+}
+
+static inline void uv_uinumpad_set_flags(void *me, uv_uinumpad_flags_e flags) {
+	this->flags = flags;
+}
+static inline uv_uinumpad_flags_e uv_uinumpad_get_flags(void *me) {
+	return this->flags;
 }
 
 #undef this
