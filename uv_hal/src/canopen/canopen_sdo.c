@@ -216,9 +216,14 @@ void _canopen_copy_data(uv_can_message_st *dest, const canopen_object_st *src, u
 	uv_enable_int();
 }
 
-bool _canopen_write_data(const canopen_object_st *dest, const uv_can_msg_st *src, uint8_t subindex) {
+bool _canopen_write_data(const canopen_object_st *dest,
+		const uv_can_msg_st *src, uint8_t subindex) {
 	uv_disable_int();
 	bool ret = true;
+	int8_t len = CANOPEN_SIZEOF(dest->type);
+	if (src->data_8bit[0] & 1) {
+		len = 4 - ((src->data_8bit[0] >> 2) & 0b11);
+	}
 	if (CANOPEN_IS_ARRAY(dest->type)) {
 		// cannot write to subindex 0
 		if (subindex == 0) {
@@ -226,23 +231,25 @@ bool _canopen_write_data(const canopen_object_st *dest, const uv_can_msg_st *src
 		}
 		else {
 			if (dest->data_ptr != NULL) {
-				memcpy(&((uint8_t*) dest->data_ptr)[(subindex - 1) * CANOPEN_TYPE_LEN(dest->type)],
-						&src->data_32bit[1], CANOPEN_TYPE_LEN(dest->type));
+				if ((subindex - 1) * CANOPEN_SIZEOF(dest->type) + len <=
+						dest->array_max_size * CANOPEN_SIZEOF(dest->type)) {
+					memcpy(&((uint8_t*) dest->data_ptr)[(subindex - 1) *
+														CANOPEN_TYPE_LEN(dest->type)],
+							&src->data_32bit[1],
+							len);
+				}
+				else {
+					ret = false;
+				}
 			}
 		}
 	}
 	else {
-		int8_t len;
-		if (src->data_8bit[0] & 1) {
-			len = 4 - ((src->data_8bit[0] >> 2) & 0b11);
+		if (CANOPEN_IS_STRING(dest->type)) {
+			len = MIN(len, dest->string_len);
 		}
 		else {
-			if (CANOPEN_IS_STRING(dest->type)) {
-				len = uv_mini(4, dest->string_len);
-			}
-			else {
-				len = CANOPEN_TYPE_LEN(dest->type);
-			}
+			len = MIN(len, dest->type);
 		}
 		if (dest->data_ptr != NULL) {
 			memcpy(dest->data_ptr, &src->data_32bit[1], len);
