@@ -240,7 +240,8 @@ void uv_canopen_config_rx_msgs(void) {
 				if (!(com->cob_id & CANOPEN_PDO_DISABLED)) {
 					// only config the receive msg object if the pdo is enabled
 					uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
-							com->cob_id,
+							// clear possible EXTENDED ID flag bit
+							com->cob_id & ~CANOPEN_PDO_EXT,
 							CAN_ID_MASK_DEFAULT, (com->cob_id & CANOPEN_PDO_EXT) ?
 									CAN_EXT : CAN_STD);
 				}
