@@ -200,7 +200,10 @@ static inline void uv_uidigitedit_set_minlimit(void *me, int32_t value) {
 static inline void uv_uidigitedit_set_limits(void *me, int32_t min_value, int32_t max_value) {
 	this->limit_min = min_value;
 	this->limit_max = max_value;
-	uv_uidigitedit_set_value(this, this->value);
+	if (this->value < this->limit_min ||
+			this->value > this->limit_max) {
+		uv_uidigitedit_set_value(this, this->value);
+	}
 }
 
 
