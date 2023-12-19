@@ -247,10 +247,10 @@ extern CONFIG_APP_ST;
 	else if (x > (max)) { x = (max); } else { } } while (0)
 
 /// @brief: Checks that *x* cannot be greater than *max*
-#define LIMIT_MAX(x, max) do { if (x > (max)) { x = (max); } } while (0)
+#define LIMIT_MAX(x, __max) do { if (x > (__max)) { x = (__max); } } while (0)
 
 /// @brief: Checks that *x* cannot be smaller than *min*
-#define LIMIT_MIN(x, min) do { if (x < (min)) { x = (min); } } while (0)
+#define LIMIT_MIN(x, __min) do { if (x < (__min)) { x = (__min); } } while (0)
 
 typedef int32_t uv_delay_st;
 

@@ -67,12 +67,12 @@ static inline bool uv_moving_aver_is_full(uv_moving_aver_st *this) {
 
 
 typedef struct {
-	int32_t val;
+	int64_t val;
 	int32_t tau;
 } uv_ewma_st;
 
 
-#define EWMA_ALPHA_MAX			1000000
+#define EWMA_ALPHA_MAX			1000000LL
 
 
 /// @brief: Initializes the ewma filter

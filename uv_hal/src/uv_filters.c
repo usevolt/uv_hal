@@ -80,8 +80,10 @@ int32_t uv_ewma_step(uv_ewma_st *this, int64_t val, uint16_t step_ms) {
 	LIMITS(alpha, 1, EWMA_ALPHA_MAX);
 
 
-	int64_t newval = (((EWMA_ALPHA_MAX - alpha) * this->val) / EWMA_ALPHA_MAX +
+	int64_t newval = ((EWMA_ALPHA_MAX - alpha) * this->val /
+			EWMA_ALPHA_MAX +
 			alpha * val);
+
 	this->val = (this->val == newval) ? (val * EWMA_ALPHA_MAX) : newval;
 
 	return this->val / EWMA_ALPHA_MAX;
