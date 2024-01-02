@@ -182,7 +182,7 @@ void _uv_can_hal_send(uv_can_channels_e chn);
 #define PENDING_MSG_OBJ_TIME_LIMIT_MS		8
 
 
-static uint32_t get_msgif_id(const bool ext) {
+static uint32_t get_msgif_id(uv_can_msg_types_e ext) {
 	uint32_t id;
 	if (ext) {
 		id = LPC_CAN->IF1_ARB1;
@@ -231,9 +231,9 @@ static void set_msgif_mask(const uint32_t mask, const uv_can_msg_types_e type) {
 	}
 }
 
-/// @return: 1 if extended, 0 if standard
-static inline uint8_t get_msgif_type(void) {
-	return ((LPC_CAN->IF1_ARB2 & (1 << 14)) >> 14);
+/// @return: CAN_EXT if extended, CAN_STD if standard
+static inline uv_can_msg_types_e get_msgif_type(void) {
+	return ((LPC_CAN->IF1_ARB2 & (1 << 14)) >> 14) ? CAN_EXT : CAN_STD;
 }
 
 static void read_msg_obj(uint8_t msg_obj) {
@@ -294,7 +294,7 @@ void CAN_IRQHandler(void) {
 						uv_can_msg_st msg;
 						msg.type = (LPC_CAN->IF1_ARB2 & (1 << 14)) ? CAN_EXT : CAN_STD;
 						msg.data_length = LPC_CAN->IF1_MCTRL & 0b1111;
-						msg.id = get_msgif_id(msg.type == CAN_EXT);
+						msg.id = get_msgif_id(msg.type);
 						msg.data_16bit[0] = LPC_CAN->IF1_DA1;
 						msg.data_16bit[1] = LPC_CAN->IF1_DA2;
 						msg.data_16bit[2] = LPC_CAN->IF1_DB1;
@@ -451,10 +451,10 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		if (GET_MASKED(this->used_msg_objs, (1 << i))) {
 
 			read_msg_obj(i + 1);
-			uint8_t msgif_type = get_msgif_type();
+			uv_can_msg_types_e msgif_type = get_msgif_type();
 			uint32_t msgif_id = get_msgif_id(msgif_type),
 					msgif_mask = get_msgif_mask(msgif_type);
-			if (msgif_type == (type == CAN_EXT)) {
+			if (msgif_type == CAN_EXT) {
 				// check if new mask is a subset of the existing msgif mask
 				if (~((~msgif_mask) | mask) == 0) {
 
@@ -511,6 +511,10 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 	}
 
 	__enable_irq();
+
+	if (ret) {
+		printf("err: %u\n", ret);
+	}
 
 	return ret;
 }

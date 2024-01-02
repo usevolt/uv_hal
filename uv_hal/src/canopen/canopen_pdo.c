@@ -300,10 +300,6 @@ void _uv_canopen_pdo_rx(const uv_can_message_st *msg) {
 			// matching RXPDO found. copy data to it's pointers
 			for (uint8_t j = 0; j < CONFIG_CANOPEN_PDO_MAPPING_COUNT; j++) {
 				uint8_t *dest = this->rxpdo[i].mapping_ptr[j];
-//				if (i == 16) {
-//					printf("0x%x %i 0x%x 0x%x\n", com->cob_id, i, msg->data_8bit[j],
-//							this->rxpdo[i].mapping_ptr[j]);
-//				}
 				if (dest) {
 					memcpy(dest, &msg->data_8bit[j], sizeof(uint8_t));
 				}
