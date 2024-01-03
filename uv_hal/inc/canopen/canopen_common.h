@@ -119,7 +119,7 @@ typedef uint8_t canopen_object_type_e;
 #define CANOPEN_STRING_TYPE				char
 #define CANOPEN_ARRAY8_TYPE				uint8_t
 #define CANOPEN_ARRAYUNSIGNED8_TYPE		uint8_t
-#define CANPEN_ARRAYSIGNED8_TYPE		int8_t
+#define CANOPEN_ARRAYSIGNED8_TYPE		int8_t
 #define CANOPEN_ARRAY16_TYPE			uint16_t
 #define CANOPEN_ARRAYUNSIGNED16_TYPE	uint16_t
 #define CANOPEN_ARRAYSIGNED16_TYPE		int16_t
