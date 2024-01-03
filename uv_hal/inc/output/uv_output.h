@@ -92,6 +92,8 @@ typedef struct {
 	uv_output_state_e state;
 	/// @brief: gpio pin for the gate driving
 	uv_gpios_e gate_io;
+	// Set to true if the gate IO logic should be inverted
+	bool gate_io_invert;
 
 	// delay for fault freexing
 	uv_delay_st fault_freeze_delay;
@@ -172,6 +174,14 @@ static inline void uv_output_set(uv_output_st *this, uv_output_state_e state) {
 	uv_output_set_state(this, state);
 }
 
+
+static inline void uv_output_set_gate_io_invert(uv_output_st *this, bool value) {
+	this->gate_io_invert = value;
+}
+
+static inline bool uv_output_get_gate_io_invert(uv_output_st *this) {
+	return this->gate_io_invert;
+}
 
 /// @brief: Enabled output. Needs to be called only after calling *uv_output_disable* in order
 /// to enable it once again. Once enabled, output will be in state OFF.

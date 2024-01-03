@@ -48,7 +48,7 @@ static uint16_t current_func(void *this_ptr, uint16_t adc) {
 /// different output modules from this, set gate_io to 0.
 static inline void set_out(uv_output_st *this, uint16_t value) {
 	if (this->gate_io) {
-		uv_gpio_set(this->gate_io, value);
+		uv_gpio_set(this->gate_io, (this->gate_io_invert) ? (!value) : value);
 	}
 }
 
