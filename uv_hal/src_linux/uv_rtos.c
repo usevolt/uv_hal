@@ -46,6 +46,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <signal.h>
+#include "main.h"
 
 
 
@@ -231,12 +232,17 @@ void uv_rtos_start_scheduler(void) {
 #define OPT_NONVOL	'v'
 // sets the eeprom memory file path. Default is set in uv_eeprom.c
 #define OPT_EEPROM	'e'
+// sets the CANopen NODEID of this device. Force overwrites the nodeid
+// set in non-volatile parameters
+#define OPT_NODEID	'n'
+static int8_t arg_nodeid = -1;
 static struct option long_opts[] =
 {
     {"can", required_argument, NULL, OPT_CAN},
     {"ui", no_argument, NULL, OPT_UI},
 	{"nonvol", required_argument, NULL, OPT_NONVOL},
 	{"eeprom", required_argument, NULL, OPT_EEPROM},
+	{"nodeid", required_argument, NULL, OPT_NODEID},
     {NULL, 0, NULL, 0}
 };
 
@@ -287,6 +293,10 @@ void uv_init_arg(void *device, int argc, char *argv[]) {
 	        	 uv_eeprom_set_filepath(optarg);
 	        	 break;
 #endif
+	         case OPT_NODEID:
+				 arg_nodeid = strtol(optarg, NULL, 0);
+	        	 printf("Setting nodeid to 0x%x\n", arg_nodeid);
+				 break;
 	         case '?':
 	             break;
 	         default:
@@ -316,13 +326,18 @@ void uv_init(void *device) {
 #endif
 	}
 
+	// check if arguments set node
+	if (arg_nodeid != -1) {
+		CONFIG_NON_VOLATILE_START.id = arg_nodeid;
+	}
+
 #if CONFIG_CANOPEN
 	_uv_canopen_init();
 #endif
 
 	uv_rtos_task_create(hal_task, "uv_hal", UV_RTOS_MIN_STACK_SIZE, NULL, 0xFFFF, NULL);
 
-	// Register signal and signal handleru
+	// Register signal and signal handler
 	signal(SIGINT, signal_callb);
 }
 
