@@ -345,5 +345,14 @@ void uv_canopen_set_our_nodeid(uint8_t nodeid) {
 }
 
 
+bool uv_canopen_rxpdo_is_received(uint16_t rxpdo_i) {
+	bool ret = false;
+	if (rxpdo_i < CONFIG_CANOPEN_RXPDO_COUNT) {
+		ret = !uv_delay_has_ended(&this->rxpdo[rxpdo_i].def_delay);
+	}
+	return ret;
+}
+
+
 
 #endif

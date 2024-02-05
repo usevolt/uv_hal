@@ -368,6 +368,8 @@ typedef struct {
 
 	// RXPDO member variables
 	struct {
+		// receive delay. If message was not received withing this time delay,
+		// the data is cleared to 0.
 		uv_delay_st def_delay;
 		// 1-byte pointers pointing to memory locations to make fetching the data
 		// from object dictionary faster
@@ -627,6 +629,9 @@ static inline uint8_t uv_canopen_get_our_nodeid(void) {
 /// after saving non-volatile settings and resetting the device.
 void uv_canopen_set_our_nodeid(uint8_t nodeid);
 
+
+/// @brief: Returns true if the given index RXPDO is received within the specified time
+bool uv_canopen_rxpdo_is_received(uint16_t rxpdo_i);
 
 #endif
 
