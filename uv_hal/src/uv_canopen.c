@@ -60,7 +60,7 @@ extern const uv_canopen_non_volatile_st CONFIG_CANOPEN_INITIALIZER;
 
 
 
-void _uv_canopen_init(void) {
+void _uv_canopen_init(uint8_t nodeid) {
 #if defined(CONFIG_CANOPEN_INITIALIZER)
 	// calculate the initializer crc and compare it to ours
 	uint16_t crc = uv_memory_calc_crc((void*) &CONFIG_CANOPEN_INITIALIZER,
@@ -71,7 +71,7 @@ void _uv_canopen_init(void) {
 	}
 
 #endif
-	this->current_node_id = (CONFIG_NON_VOLATILE_START.id);
+	this->current_node_id = (nodeid == 0) ? CONFIG_NON_VOLATILE_START.id : nodeid;
 	// Greater Node ID than 0x7F is invalid, revert to default
 	if (this->current_node_id > 0x7F) {
 		this->current_node_id = 0x7F;

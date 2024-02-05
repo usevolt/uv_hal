@@ -484,22 +484,9 @@ extern _uv_canopen_st _canopen;
 
 /// @brief: Initializes the CANopen node and the object dictionary
 ///
-/// @param node_id: The node-id which is used to initiate the canopen stack. The node ID can be updated
-/// only by restarting the canopen stack.
-/// @param obj_dict: Pointer to the uv_canopen_object_st array containing the application specific objects
-/// @param obj_dict_length: The length of the object array in objects
-/// @param can_channel: The CAN channel which this CANopen instance uses
-/// @param heartbeat_delay: Pointer to an int variable which is used for heart beat delay conting.
-/// Giving this as a pointer makes sure that non-volatile memory is not flashed if nothing
-/// else than heartbeat_delay is changed.
-/// @param restore_defaults_callback: A callback function which restores the application parameter
-/// object values to their default values. Implementing this is mandatory in order to ensure
-/// correct CANopen behaviour.
-/// @param sdo_write_callback: A function pointer to a callback function which will be called
-/// when a SDO write request was received. If callback function is not required, NULL can be passed.
-/// @param emcy_callback Callback function which is called when an EMCY message sent by any node
-/// in the CAN-bus is received.
-void _uv_canopen_init(void);
+/// @param node_id: The node-id which is used to initiate the canopen stack
+/// If 0 is given, nodeid is loaded from default parameters
+void _uv_canopen_init(uint8_t nodeid);
 
 
 /// @brief: The CANopen step function. Makes sure that the txPDO and heartbeat messages
