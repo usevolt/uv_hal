@@ -235,7 +235,7 @@ void uv_rtos_start_scheduler(void) {
 // sets the CANopen NODEID of this device. Force overwrites the nodeid
 // set in non-volatile parameters
 #define OPT_NODEID	'n'
-static int8_t arg_nodeid = -1;
+static int8_t arg_nodeid = 0;
 static struct option long_opts[] =
 {
     {"can", required_argument, NULL, OPT_CAN},
@@ -326,13 +326,9 @@ void uv_init(void *device) {
 #endif
 	}
 
-	// check if arguments set node
-	if (arg_nodeid != -1) {
-		CONFIG_NON_VOLATILE_START.id = arg_nodeid;
-	}
 
 #if CONFIG_CANOPEN
-	_uv_canopen_init();
+	_uv_canopen_init(arg_nodeid);
 #endif
 
 	uv_rtos_task_create(hal_task, "uv_hal", UV_RTOS_MIN_STACK_SIZE, NULL, 0xFFFF, NULL);

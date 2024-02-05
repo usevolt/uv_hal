@@ -112,7 +112,6 @@ uv_errors_e uv_memory_save(void) {
 
 
 uv_errors_e uv_memory_load(memory_scope_e scope) {
-	// on linux memory cannot be saved for now
 	uv_errors_e ret = ERR_NOT_INITIALIZED;
 
 	char *scope_str;

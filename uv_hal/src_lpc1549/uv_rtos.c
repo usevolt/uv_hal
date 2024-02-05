@@ -262,7 +262,7 @@ void uv_init(void *device) {
 
 
 #if CONFIG_CANOPEN
-	_uv_canopen_init();
+	_uv_canopen_init(0);
 #endif
 
 #if CONFIG_ADC || CONFIG_ADC0 || CONFIG_ADC1
