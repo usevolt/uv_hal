@@ -284,7 +284,7 @@ bool uv_delay(uv_delay_st* p, uint16_t step_ms);
 
 /// @brief: returns true if the delay has ended
 static inline bool uv_delay_has_ended(uv_delay_st* p) {
-	return (*p <= 0);
+	return (*p < 0);
 }
 
 
