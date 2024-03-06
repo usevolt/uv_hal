@@ -209,7 +209,7 @@ void uv_can_close(void) {
 
 #if CONFIG_TARGET_LINUX
 
-char *uv_can_set_up(void) {
+char *uv_can_set_up(bool force_set_up) {
 	char *ret = NULL;
 	char cmd[128];
 	int current_baud = this->baudrate;
@@ -240,7 +240,8 @@ char *uv_can_set_up(void) {
 	}
 	pclose(fp);
 
-	if (this->baudrate != current_baud) {
+	if (this->baudrate != current_baud ||
+			force_set_up) {
 		if (this->state == CAN_STATE_OPEN) {
 			// close the socket if one is open
 			cclose();
@@ -368,7 +369,7 @@ uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* me
 	uv_errors_e ret = ERR_NONE;
 
 	if (this->state == CAN_STATE_INIT) {
-		uv_can_set_up();
+		uv_can_set_up(false);
 	}
 
 	if (this->state == CAN_STATE_OPEN) {
@@ -381,26 +382,16 @@ uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* me
 		retval = write(this->soc, &frame, sizeof(struct can_frame));
 		if (retval != sizeof(struct can_frame) && errno == ENETDOWN) {
 			// try to set the net dev up
-			uv_can_set_up();
+			uv_can_set_up(false);
 			retval = write(this->soc, &frame, sizeof(struct can_frame));
 		}
-		if (retval != sizeof(struct can_frame)) {
+		else if (errno != EINTR) {
 			printf("Sending a message with ID of 0x%x resulted in a CAN error: %u , %s***\n",
 					message->id, errno, strerror(errno));
-			if (errno == ENETDOWN) {
-				printf("The network is down. Initialize the network with command:\n\n"
-						"sudo ip link set CHANNEL type can bitrate BAUDRATE txqueuelen 1000\n\n"
-						"And open the network with command:\n\n"
-						"sudo ip link set dev CHANNEL up\n\n"
-						"After that you can communicate with the device.\n");
-				// exit the program to prevent further error messages
-				exit(0);
-			}
-			printf("Failed to send message with id 0f 0x%x to CAN channel %s\n",
-					message->id, channel);
 			ret = ERR_HARDWARE_NOT_SUPPORTED;
 		}
 		else {
+
 		}
 	}
 
