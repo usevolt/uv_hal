@@ -386,7 +386,8 @@ uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* me
 			retval = write(this->soc, &frame, sizeof(struct can_frame));
 		}
 		else if (errno &&
-				errno != EINTR) {
+				errno != EINTR &&
+				errno != EAGAIN) {
 			printf("Sending a message with ID of 0x%x resulted in a CAN error: %u , %s***\n",
 					message->id, errno, strerror(errno));
 			ret = ERR_HARDWARE_NOT_SUPPORTED;
