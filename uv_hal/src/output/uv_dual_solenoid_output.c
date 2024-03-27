@@ -68,7 +68,7 @@ void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 			adc_common, sense_ampl, max_current, fault_current,
 			emcy_openloop_b, emcy_fault_b);
 
-	uv_delay_init(&this->pvg_delay, PVG_DELAY_MS);
+	uv_delay_end(&this->pvg_delay);
 }
 
 
@@ -105,6 +105,7 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 	}
 
 
+	uv_delay(&this->pvg_delay, step_ms);
 
 	int16_t maxspeed_scaler = uv_dual_solenoid_output_get_maxspeed_scaler(this);
 	LIMITS(maxspeed_scaler, 0, 1000);
@@ -159,7 +160,6 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 		else {
 			uv_solenoid_output_step(&this->solenoid[DUAL_OUTPUT_SOLENOID_B], step_ms);
 		}
-
 	}
 	else {
 		// SOLENOID_OUTPUT_MODE_PVG
@@ -169,7 +169,6 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 		uv_solenoid_output_set_maxspeed_scaler(
 				&this->solenoid[DUAL_OUTPUT_SOLENOID_B], 1000);
 
-		uv_delay(&this->pvg_delay, step_ms);
 		if (target) {
 			uv_delay_init(&this->pvg_delay, PVG_DELAY_MS);
 		}
