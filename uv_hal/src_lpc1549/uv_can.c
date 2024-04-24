@@ -435,12 +435,10 @@ uv_errors_e _uv_can_init() {
 
 
 
-
 uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		unsigned int id,
 		unsigned int mask,
 		uv_can_msg_types_e type) {
-
 	uv_errors_e ret = ERR_NONE;
 
 	__disable_irq();
@@ -454,16 +452,33 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 			uv_can_msg_types_e msgif_type = get_msgif_type();
 			uint32_t msgif_id = get_msgif_id(msgif_type),
 					msgif_mask = get_msgif_mask(msgif_type);
-			if (msgif_type == CAN_EXT) {
-				// check if new mask is a subset of the existing msgif mask
-				if (~((~msgif_mask) | mask) == 0) {
-
+			if (msgif_type == type) {
+				// check if new id is a subset of the existing msgif mask
+				uint32_t masked_id = id & mask;
+				uint32_t masked_ifid = msgif_id & msgif_mask;
+				uint32_t bits_differ = masked_id ^ masked_ifid;
+				if (masked_id == masked_ifid) {
 					// if new msg matches with msgif message and mask, we dont
 					// need to configure new message
 					if ((msgif_id & msgif_mask) == (id & msgif_mask)) {
 						match = true;
 						break;
 					}
+				}
+				else if (uv_countofbit(bits_differ, 1) == 1) {
+					// only 1 bit differs in ID. Modify mask to include both messages
+					msgif_mask &= ~bits_differ;
+					msg_obj_disable(i + 1);
+					read_msg_obj(i + 1);
+					// write receive message data to msg obj
+					set_msgif_mask(msgif_mask, type);
+					write_msg_obj(i + 1, false);
+					msg_obj_enable(i + 1);
+					match = true;
+					break;
+				}
+				else {
+
 				}
 			}
 		}
@@ -483,8 +498,10 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 				read_msg_obj(i + 1);
 				// write receive message data to msg obj
 				set_msgif_mask(mask, type);
-				LPC_CAN->IF1_MSK2 |= (0b11 << 14);		// use msg type and dir for filtering
-				LPC_CAN->IF1_ARB2 = 0;	// msg dir receive, also init ARB2 register
+				// use msg type and dir for filtering
+				LPC_CAN->IF1_MSK2 |= (0b11 << 14);
+				// msg dir receive, also init ARB2 register
+				LPC_CAN->IF1_ARB2 = 0;
 				set_msgif_id(id, (type == CAN_EXT));
 				if (type == CAN_EXT) {
 					LPC_CAN->IF1_ARB2 |= (1 << 14);
@@ -510,10 +527,9 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		ret = ERR_CAN_RX_MESSAGE_COUNT_FULL;
 	}
 
-	__enable_irq();
-
 	if (ret) {
-		printf("err: %u\n", ret);
+		uv_terminal_enable(TERMINAL_CAN);
+		printf("CAN config rxmsgobj err: %u\n", ret);
 	}
 
 	return ret;
