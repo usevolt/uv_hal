@@ -92,8 +92,10 @@ static void set_value(void *me, int32_t value, bool forced_update) {
 	if (this->value != value ||
 			forced_update) {
 		if (this->divider == 0) {
-			sprintf(this->str, (this->hex) ? "0x%x %s" : "%i %s",
-					(int) value, (this->unit) ? this->unit : "");
+			sprintf(this->str, (this->hex) ?
+					((value < 0) ? "-0x%x %s" : "0x%x %s") : "%i %s",
+					(this->hex) ? abs(value) : (int) value,
+					(this->unit) ? this->unit : "");
 		}
 		else {
 			char format[16];
@@ -207,7 +209,8 @@ static uv_uiobject_ret_e uv_uidigitedit_step(void *me, uint16_t step_ms) {
 		if (uv_delay(&this->modedata.incdec.delay, step_ms)) {
 			uv_delay_init(&this->modedata.incdec.delay, UISLIDER_LONGPRESS_MIN_DELAY_MS);
 			uv_uidigitedit_set_value(this,
-					this->value + this->modedata.incdec.inc_step * this->modedata.incdec.pressed_button);
+					this->value + this->modedata.incdec.inc_step *
+					this->modedata.incdec.pressed_button);
 		}
 	}
 
@@ -220,7 +223,7 @@ static void touch(void *me, uv_touch_st *touch) {
 	if (this->mode == UIDIGITEDIT_MODE_NORMAL) {
 		if (touch->action == TOUCH_CLICKED) {
 			touch->action = TOUCH_NONE;
-			uint32_t value = uv_uinumpaddialog_exec(
+			int32_t value = uv_uinumpaddialog_exec(
 					this->modedata.normal.numpaddialog_title,
 					this->limit_max, this->limit_min,
 					this->value,

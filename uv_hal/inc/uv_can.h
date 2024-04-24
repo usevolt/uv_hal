@@ -334,7 +334,7 @@ bool uv_can_is_connected(void);
 /// @brief: Sets the CAN dev up and running
 ///
 /// @return: NULL if succesfull, or pointer to a string describing the error
-char *uv_can_set_up(void);
+char *uv_can_set_up(bool force_set_up);
 
 /// @brief: CLoses the CAN channel when done
 void uv_can_close(void);

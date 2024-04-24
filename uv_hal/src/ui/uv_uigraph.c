@@ -165,11 +165,11 @@ void uv_uigraph_draw(void *me, const uv_bounding_box_st *pbb) {
 	// draw the current value lines
 	if (this->current_val_x >= this->min_x &&
 			this->current_val_x <= this->max_x) {
-		uv_ui_draw_line(cx, y, cx, y + ch, CONFIG_UI_GRAPH_LINE_WIDTH, this->style->bg_c);
+		uv_ui_draw_line(cx, y, cx, y + ch, CONFIG_UI_GRAPH_LINE_WIDTH, this->coordinate_c);
 	}
 	if (this->current_val_y >= this->min_y &&
 			this->current_val_y <= this->max_y) {
-		uv_ui_draw_line(x, cy, x + cw, cy, CONFIG_UI_GRAPH_LINE_WIDTH, this->style->bg_c);
+		uv_ui_draw_line(x, cy, x + cw, cy, CONFIG_UI_GRAPH_LINE_WIDTH, this->coordinate_c);
 	}
 
 	// draw x axis
