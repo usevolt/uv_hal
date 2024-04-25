@@ -138,7 +138,14 @@ void uv_prop_output_step(uv_prop_output_st *this, uint16_t step_ms) {
 			if (uv_delay(&this->post_enable_delay, TARGET_DELAY_MS)) {
 			}
 			else if (!uv_delay_has_ended(&this->post_enable_delay)) {
-				target_req = this->post_enable_val;
+				if (target_req * this->post_enable_val < 0) {
+					// target_req drives in opposite direction,
+					// clear post delay
+					uv_delay_end(&this->post_enable_delay);
+				}
+				else {
+					target_req = this->post_enable_val;
+				}
 			}
 			else {
 
