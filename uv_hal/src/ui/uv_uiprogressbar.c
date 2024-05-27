@@ -38,67 +38,88 @@ static void draw(void *me, const uv_bounding_box_st *pbb);
 
 
 /// @brief: Initializes the progress bar as horizontal bar
-void uv_uiprogressbar_init(void *me, int16_t min_value,
-		int16_t max_value, const uv_uistyle_st *style) {
+void uv_uiprogressbar_init(void *me, int16_t limit_min,
+		int16_t limit_max, const uv_uistyle_st *style) {
 	uv_uiobject_init(this);
-	this->min_val = min_value;
-	this->max_val = max_value;
+	this->limit_min = limit_min;
+	this->limit_max = limit_max;
 	this->font = style->font;
 	this->text_c = style->text_color;
 	this->main_c = style->fg_c;
 	this->bg_c = style->window_c;
 	this->horizontal = true;
-	this->value = this->min_val;
-	this->limit = this->min_val;
-	this->limit_type = UI_PROGRESSBAR_LIMIT_NONE;
+	this->value_max = this->limit_min;
+	this->value_min = this->limit_min;
 	this->title = NULL;
+	this->cursor_val = this->value_min - 1;
 	uv_uiobject_set_draw_callb(this, &draw);
 }
 
 
-void uv_uiprogressbar_set_value(void *me, int16_t value) {
-	if (value > this->max_val) value = this->max_val;
-	else if (value < this->min_val) value = this->min_val;
-	if (this->value != value) {
+void uv_uiprogressbar_set_value(void *me, int16_t value_min, int16_t value_max) {
+	LIMITS(value_max, this->limit_min, this->limit_max);
+	LIMITS(value_min, this->limit_min, this->limit_max);
+	if (this->value_max != value_max) {
 		uv_ui_refresh(this);
-		this->value = value;
+		this->value_max = value_max;
+	}
+	if (this->value_min != value_min) {
+		uv_ui_refresh(this);
+		this->value_min = value_min;
 	}
 }
 
 
-void uv_uiprogressbar_set_limit(void *me, uiprogressbar_limit_e type,
-		int16_t limit, color_t color) {
-	this->limit_type = type;
-	this->limit = limit;
-	this->limit_c = color;
-	uv_ui_refresh(this);
+void uv_uiprogressbar_set_cursor(void *me, int16_t val) {
+	LIMITS(val, this->limit_min, this->limit_max);
+	if (this->cursor_val != val) {
+		uv_ui_refresh(this);
+		this->cursor_val = val;
+	}
 }
 
 
+
 static void draw(void *me, const uv_bounding_box_st *pbb) {
-	color_t c = ((this->limit_type == UI_PROGRESSBAR_LIMIT_UNDER && this->value < this->limit) ||
-			(this->limit_type == UI_PROGRESSBAR_LIMIT_OVER && this->value > this->limit)) ?
-			this->limit_c :
-			this->main_c;
+	color_t c = this->main_c;
 	int16_t x = this->horizontal ?
 			uv_ui_get_xglobal(this) :
-			uv_ui_get_xglobal(this) + uv_uibb(this)->width / 2 - CONFIG_UI_PROGRESSBAR_HEIGHT / 2;
+			uv_ui_get_xglobal(this) +
+			uv_uibb(this)->width / 2 - CONFIG_UI_PROGRESSBAR_HEIGHT / 2;
 	int16_t y = this->horizontal ?
-			uv_ui_get_yglobal(this) + uv_uibb(this)->height / 2 - CONFIG_UI_PROGRESSBAR_HEIGHT / 2 :
-			uv_ui_get_yglobal(this) + uv_uibb(this)->height -
+			uv_ui_get_yglobal(this) +
+			uv_uibb(this)->height / 2 - CONFIG_UI_PROGRESSBAR_HEIGHT / 2 :
+			uv_ui_get_yglobal(this) +
+			uv_uibb(this)->height -
 			(this->title ? (uv_ui_get_string_height(this->title, this->font) + 3) : 0) -
 			CONFIG_UI_PROGRESSBAR_WIDTH;
-	int16_t rel = uv_reli(this->value, this->min_val, this->max_val);
-	if (rel < 0) { rel = 0; }
+	int16_t rel_max = uv_reli(this->value_max, this->limit_min, this->limit_max),
+			rel_min = uv_reli(this->value_min, this->limit_min, this->limit_max);
+	LIMITS(rel_max, 0, 1000);
+	LIMITS(rel_min, 0, 1000);
 
-	int16_t w = this->horizontal ?
-			(uv_uibb(this)->width) : CONFIG_UI_PROGRESSBAR_HEIGHT;
-	int16_t h = this->horizontal ?
-			CONFIG_UI_PROGRESSBAR_HEIGHT : uv_uibb(this)->height;
-	int16_t barw = (this->horizontal) ?
-			w * rel / 1000 : w;
-	int16_t barh = (this->horizontal) ?
-			h : h * rel / 1000;
+	int16_t w, h, barx, bary, barw, barh, cursorpos;
+	if (this->horizontal) {
+		w = (uv_uibb(this)->width);
+		h = CONFIG_UI_PROGRESSBAR_HEIGHT;
+		barx = x + w * rel_min / 1000;
+		bary = y;
+		barw = w * (rel_max - rel_min) / 1000;
+		barh = h;
+		cursorpos = x +
+				w * uv_reli(this->cursor_val, this->limit_min, this->limit_max) / 1000;
+	}
+	else {
+		w = CONFIG_UI_PROGRESSBAR_HEIGHT;
+		h = uv_uibb(this)->height;
+		barx = x;
+		bary = y + h * rel_min / 1000;
+		barw = w;
+		barh = h * rel_max / 1000;
+		cursorpos = y +
+				h * uv_reli(this->cursor_val, this->limit_min, this->limit_max) / 1000;
+	}
+
 	if (barw < CONFIG_UI_RADIUS + 4) {
 		barw = CONFIG_UI_RADIUS + 4;
 	}
@@ -106,18 +127,37 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 		barh = CONFIG_UI_RADIUS + 4;
 	}
 
-	uv_ui_draw_rrect(x, y, w - 4, h - 4, CONFIG_UI_RADIUS, uv_uic_brighten(this->bg_c, -30));
-	uv_ui_draw_rrect(x + 4, y + 4, w - 4, h - 4, CONFIG_UI_RADIUS, uv_uic_brighten(this->bg_c, 30));
-	uv_ui_draw_rrect(x + 2, y + 2, w - 4, h - 4, CONFIG_UI_RADIUS, this->bg_c);
+	uv_ui_draw_rrect(x, y, w - 4, h - 4,
+			CONFIG_UI_RADIUS, uv_uic_brighten(this->bg_c, -30));
+	uv_ui_draw_rrect(x + 4, y + 4, w - 4, h - 4,
+			CONFIG_UI_RADIUS, uv_uic_brighten(this->bg_c, 30));
+	uv_ui_draw_rrect(x + 2, y + 2, w - 4, h - 4,
+			CONFIG_UI_RADIUS, this->bg_c);
 
-	// draw handle
-	if (rel != 0) {
-		uv_ui_draw_rrect(x + 2, y + 2, barw - 4, barh - 4, CONFIG_UI_RADIUS, c);
+	// draw bar
+	if (rel_min != rel_max) {
+		if (this->horizontal) {
+			uv_ui_draw_rrect(barx, bary + 2, barw, barh - 4, CONFIG_UI_RADIUS, c);
+		}
+		else {
+			uv_ui_draw_rrect(barx + 2, bary, barw - 4, barh, CONFIG_UI_RADIUS, c);
+		}
+	}
+
+	// draw cursor
+	if (this->cursor_val >= this->value_min &&
+			this->cursor_val <= this->value_max) {
+		if (this->horizontal) {
+			uv_ui_draw_line(cursorpos, y, cursorpos, y + h, 1, this->text_c);
+		}
+		else {
+			uv_ui_draw_line(x, cursorpos, x + w, cursorpos, 1, this->text_c);
+		}
 	}
 
 	if (this->title) {
 		uv_ui_draw_string(this->title, this->font,
-				x + w / 2, y + h, ALIGN_TOP_CENTER,
+				x + w / 2, y + h + 2, ALIGN_TOP_CENTER,
 				this->text_c);
 	}
 

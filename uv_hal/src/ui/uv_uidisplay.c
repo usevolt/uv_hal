@@ -205,6 +205,12 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 
 
 
+void uv_uidisplay_clear(void *me) {
+	uv_uiwindow_clear(me);
+	uv_uiobject_set_draw_callb(me, &_uv_uidisplay_draw);
+}
+
+
 
 
 #endif

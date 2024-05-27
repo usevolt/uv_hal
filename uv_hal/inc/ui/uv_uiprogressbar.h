@@ -50,30 +50,22 @@
 #endif
 
 
-enum {
-	UI_PROGRESSBAR_LIMIT_NONE = 0,
-	UI_PROGRESSBAR_LIMIT_OVER,
-	UI_PROGRESSBAR_LIMIT_UNDER
-};
-typedef uint8_t uiprogressbar_limit_e;
-
 typedef struct __attribute__((packed)) {
 	EXTENDS(uv_uiobject_st);
 
 	/// @brief: Current value
-	int16_t value;
+	int16_t value_max;
+	// minimum value, if progressbar is used in dual mode
+	int16_t value_min;
+	// cursor value is shown as white bar
+	int16_t cursor_val;
 	/// @brief: Minimum (zero) value
-	int16_t min_val;
+	int16_t limit_min;
 	/// @brief: Maximum value
-	int16_t max_val;
+	int16_t limit_max;
 	/// @brief: If set to true, this progress bar will be shown horizontally.
 	/// Default to true.
 	bool horizontal;
-	/// @brief: Specifies if the limit_color is shown when the value
-	/// is over or under the limit value
-	uiprogressbar_limit_e limit_type;
-	/// @brief: When the value is below or over this, active bar color is changed to *low_color*
-	int16_t limit;
 
 	/// @brief: Optional second color which is shown when the value is below *limit*
 	color_t limit_c;
@@ -92,8 +84,8 @@ typedef struct __attribute__((packed)) {
 #define this ((uv_uiprogressbar_st *)me)
 
 /// @brief: Initializes the progress bar as horizontal bar
-void uv_uiprogressbar_init(void *me, int16_t min_value,
-		int16_t max_value, const uv_uistyle_st *style);
+void uv_uiprogressbar_init(void *me, int16_t limit_min,
+		int16_t limit_max, const uv_uistyle_st *style);
 
 
 /// @brief: Displays the progressbar as horizontal. This is the default.
@@ -108,15 +100,23 @@ static inline void uv_uiprogressbar_set_vertical(void *me) {
 	uv_ui_refresh_parent(this);
 }
 
-/// @brief: Sets the progressbar current value.
+/// @brief: Sets the progressbar current value
 ///
-/// @param value: Value from min_val to max_val
-void uv_uiprogressbar_set_value(void *me, int16_t value);
+/// @param value_max: Right edge of the bar
+/// @param value_min: Left edge of the bar
+void uv_uiprogressbar_set_value(void *me, int16_t value_min, int16_t value_max);
 
+
+void uv_uiprogressbar_set_cursor(void *me, int16_t val);
 
 /// @brief: Getter for the value
-static inline int16_t uv_uiprogressbar_get_value(void *me) {
-	return this->value;
+static inline int16_t uv_uiprogressbar_get_value_max(void *me) {
+	return this->value_max;
+}
+
+/// @brief: Getter for the value
+static inline int16_t uv_uiprogressbar_get_value_min(void *me) {
+	return this->value_min;
 }
 
 
@@ -128,16 +128,6 @@ static inline void uv_uiprogressbar_set_title(void *me, char *title) {
 static inline char *uv_uiprogressbar_get_title(void *me) {
 	return this->title;
 }
-
-/// @brief: Sets the limit color. When the value is below *limit*,
-/// active bar color will be changed to *color*.
-///
-/// @param type: UIPROGRESSBAR_LIMIT_OVER if the color is shown when the limit is exceeded,
-/// UIPROGRESSBAR_LIMIT_BELOW if the color is shown when the limit is undercut
-/// @param limit: Limiting value 0...1000
-void uv_uiprogressbar_set_limit(void *me, uiprogressbar_limit_e type,
-		int16_t limit, color_t color);
-
 
 
 #undef this
