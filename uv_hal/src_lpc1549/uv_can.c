@@ -532,6 +532,8 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		printf("CAN config rxmsgobj err: %u\n", ret);
 	}
 
+	__enable_irq();
+
 	return ret;
 }
 
