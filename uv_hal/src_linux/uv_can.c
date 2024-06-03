@@ -78,6 +78,7 @@ typedef enum {
 typedef struct {
 	can_state_e state;
 	unsigned int baudrate;
+	bool force_baudrate;
 	// can dev socket
 	int soc;
 	char dev[32];
@@ -105,6 +106,7 @@ typedef struct {
 static can_st _can = {
 		.state = CAN_STATE_INIT,
 		.baudrate = 250000,
+		.force_baudrate = false,
 		.dev = "can0",
 		.dev_count = 0,
 		.soc = -1
@@ -238,6 +240,9 @@ char *uv_can_set_up(bool force_set_up) {
 			current_baud = -1;
 		}
 	}
+	if (this->force_baudrate) {
+		current_baud = -1;
+	}
 	pclose(fp);
 
 	if (this->baudrate != current_baud ||
@@ -277,6 +282,7 @@ char *uv_can_set_up(bool force_set_up) {
 bool uv_can_set_baudrate(uv_can_channels_e channel, unsigned int baudrate) {
 	bool ret = true;
 	this->baudrate = baudrate;
+	this->force_baudrate = true;
 	strcpy(this->dev, channel);
 
 	// find out the names of network interfaces
