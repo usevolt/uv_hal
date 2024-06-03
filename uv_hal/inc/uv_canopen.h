@@ -207,6 +207,9 @@ initialization structure."
 #if !defined(CONFIG_CANOPEN_TERMINAL_INDEX)
 #define CONFIG_CANOPEN_TERMINAL_INDEX		0x5FFE
 #endif
+#if !defined(CONFIG_CANOPEN_BAUDRATE_INDEX)
+#define CONFIG_CANOPEN_BAUDRATE_INDEX		0x5FFD
+#endif
 #endif
 #if !defined(CONFIG_CANOPEN_SDO_SEGMENTED)
 #error "CONFIG_CANOPEN_SDO_SEGMENTED should be defined as 1 if SDO segmented transfers \

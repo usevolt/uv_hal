@@ -161,6 +161,13 @@ const canopen_object_st com_params[] = {
 				.type = CANOPEN_UNSIGNED16,
 				.data_ptr = &CONFIG_NON_VOLATILE_START.canopen_data.producer_heartbeat_time_ms
 		},
+		{
+				.main_index = CONFIG_CANOPEN_BAUDRATE_INDEX,
+				.sub_index = 0,
+				.permissions = CANOPEN_RW,
+				.type = CANOPEN_UNSIGNED32,
+				.data_ptr = &CONFIG_NON_VOLATILE_START.can_baudrate
+		},
 #if CONFIG_CANOPEN_SDO_SEGMENTED
 		{
 				.main_index = CONFIG_CANOPEN_DEVNAME_INDEX,
