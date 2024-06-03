@@ -123,9 +123,7 @@ static inline void uv_uidisplay_remove(void *me, void *obj) {
 	uv_uiwindow_remove(me, obj);
 }
 
-static inline void uv_uidisplay_clear(void *me) {
-	uv_uiwindow_clear(me);
-}
+void uv_uidisplay_clear(void *me);
 
 /// @brief: Step function takes care of updating the screen and touch events
 uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms);

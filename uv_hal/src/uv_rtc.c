@@ -98,10 +98,10 @@ void uv_rtc_get_time(uv_time_st *dest) {
 				break;
 			}
 		}
-		dest->day = strtol(&__DATE__[3], NULL, 0);
-		dest->hour = strtol(__TIME__, NULL, 0);
-		dest->min = strtol(&__TIME__[3], NULL, 0);
-		dest->sec = strtol(&__TIME__[6], NULL, 0);
+		dest->day = strtol(&__DATE__[3], NULL, 10);
+		dest->hour = strtol(__TIME__, NULL, 10);
+		dest->min = strtol(&__TIME__[3], NULL, 10);
+		dest->sec = strtol(&__TIME__[6], NULL, 10);
 
 		uv_rtc_set_time(dest);
 	}
