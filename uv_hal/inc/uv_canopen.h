@@ -209,7 +209,7 @@ initialization structure."
 #endif
 #endif
 #if !defined(CONFIG_CANOPEN_BAUDRATE_INDEX)
-#define CONFIG_CANOPEN_BAUDRATE_INDEX		0x5FFD
+#define CONFIG_CANOPEN_BAUDRATE_INDEX		0x5FF7
 #endif
 #if !defined(CONFIG_CANOPEN_SDO_SEGMENTED)
 #error "CONFIG_CANOPEN_SDO_SEGMENTED should be defined as 1 if SDO segmented transfers \
