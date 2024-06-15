@@ -232,6 +232,23 @@ uv_errors_e uv_jsonwriter_add_int(uv_json_st *json, char *name, int value) {
 	return ret;
 }
 
+uv_errors_e uv_jsonwriter_add_int_hex(uv_json_st *json, char *name, uint32_t value) {
+	uv_errors_e ret = ERR_NONE;
+
+	char v[14];
+	sprintf(v, "0x%x", value);
+	unsigned int len = 6 + strlen(name) + strlen(v);
+
+	ret = check_overflow(json, len);
+
+	if (ret == ERR_NONE) {
+		snprintf(json->start_ptr + strlen(json->start_ptr), len + 1, "\"%s\":\"%s\",",
+				name, v);
+	}
+	return ret;
+}
+
+
 uv_errors_e uv_jsonwriter_array_add_int(uv_json_st *json, int value) {
 	uv_errors_e ret = ERR_NONE;
 
@@ -246,6 +263,22 @@ uv_errors_e uv_jsonwriter_array_add_int(uv_json_st *json, int value) {
 
 	return ret;
 }
+
+uv_errors_e uv_jsonwriter_array_add_int_hex(uv_json_st *json, int value) {
+	uv_errors_e ret = ERR_NONE;
+
+	char v[12];
+	sprintf(v, "0x%x", value);
+	unsigned int len = strlen(v) + 3;
+	ret = check_overflow(json, len);
+
+	if (ret == ERR_NONE) {
+		snprintf(json->start_ptr + strlen(json->start_ptr), len + 1, "\"%s\",", v);
+	}
+
+	return ret;
+}
+
 
 
 uv_errors_e uv_jsonwriter_add_string(uv_json_st *json, char *name, char *value) {
@@ -588,7 +621,18 @@ static char *array_index(char *array, unsigned int index) {
 int uv_jsonreader_get_int(char *object) {
 	int ret = 0;
 	if (object != NULL) {
-		ret = strtol(get_value_ptr(object), NULL, 0);
+		uv_json_types_e type = uv_jsonreader_get_type(object);
+		// as hex values are stored as strings, we need to check the type
+		if (type == JSON_INT) {
+			ret = strtol(get_value_ptr(object), NULL, 0);
+		}
+		else if (type == JSON_STRING) {
+			ret = strtol(uv_jsonreader_get_string_ptr(object), NULL, 0);
+		}
+		else {
+
+		}
+
 	}
 	return ret;
 }
@@ -713,6 +757,10 @@ int uv_jsonreader_array_get_int(char *object, unsigned int index) {
 
 	if (object != NULL) {
 		object = array_index(object, index);
+		// hex values are stored as strings, thus hop over quotes
+		if (*object == '"') {
+			object++;
+		}
 		ret = strtol(object, NULL, 0);
 	}
 

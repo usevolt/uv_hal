@@ -155,8 +155,16 @@ uv_errors_e uv_jsonwriter_end_array(uv_json_st *json);
 /// @param value: The value
 uv_errors_e uv_jsonwriter_add_int(uv_json_st *json, char *name, int value);
 
+/// @brief: As *uv_jsonwriter_add_int* except adds the integer as hexadecimal value.
+/// As JSON doesn't support hex numbers, this actually stores the value as string.
+///
+/// @note: *value* is considered as unsigned value
+uv_errors_e uv_jsonwriter_add_int_hex(uv_json_st *json, char *name, uint32_t value);
+
 /// @brief: Writes an integer value to an array
 uv_errors_e uv_jsonwriter_array_add_int(uv_json_st *json, int value);
+
+uv_errors_e uv_jsonwriter_array_add_int_hex(uv_json_st *json, int value);
 
 /// @brief: Writes a string to a JSON key-value pair
 ///
