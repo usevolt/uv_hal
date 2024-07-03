@@ -207,6 +207,11 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 }
 
 
+void uv_memory_set_can_baudrate(uint32_t baudrate) {
+	uv_can_set_baudrate(CONFIG_CANOPEN_CHANNEL, baudrate);
+}
+
+
 
 
 uv_errors_e uv_memory_clear(memory_scope_e scope) {
