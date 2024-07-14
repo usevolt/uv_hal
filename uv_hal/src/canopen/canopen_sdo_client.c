@@ -668,6 +668,7 @@ uv_sdo_error_codes_e _uv_canopen_sdo_get_error_code(void) {
 	return this->last_err_code;
 }
 
+
 void uv_canopen_sdo_client_set_wait_callback(void (*callb)(uint16_t, uint8_t)) {
 	this->wait_callb = callb;
 }

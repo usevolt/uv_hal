@@ -104,6 +104,7 @@ uv_sdo_error_codes_e _uv_canopen_sdo_get_error_code(void);
 
 
 
+
 /// @brief: Sets the callback function that is called with a time delay always
 /// when an SDO request is active. Can be used to, for example, update GUI when
 /// waiting for SDO request to complete.

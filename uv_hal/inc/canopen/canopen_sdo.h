@@ -61,6 +61,65 @@ typedef enum {
 typedef uint32_t uv_sdo_error_codes_e;
 
 
+static inline const char *uv_canopen_sdo_error_code_to_str(uv_sdo_error_codes_e err) {
+	const char *ret = "";
+	switch (err) {
+	case CANOPEN_SDO_ERROR_NONE:
+		ret = "NONE";
+		break;
+	case CANOPEN_SDO_ERROR_SDO_TOGGLE_BIT_NOT_ALTERED:
+		ret = "TOGGLE BIT NOT ALTERED";
+		break;
+	case CANOPEN_SDO_ERROR_CRC_ERROR:
+		ret = "CRC ERROR";
+		break;
+	case CANOPEN_SDO_ERROR_OUT_OF_MEMORY:
+		ret = "OUT OF MEMORY";
+		break;
+	case CANOPEN_SDO_ERROR_SDO_PROTOCOL_TIMED_OUT:
+		ret = "SDO PROTOCOL TIMED OUT";
+		break;
+	case CANOPEN_SDO_ERROR_INVALID_BLOCK_SIZE:
+		ret = "INVALID BLOCK SIZE";
+		break;
+	case CANOPEN_SDO_ERROR_INVALID_SEQ_NUMBER:
+		ret = "INVALID SEQUENCE NUMBER";
+		break;
+	case CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT:
+		ret = "UNSUPPORTED ACCESS TO OBJECT";
+		break;
+	case CANOPEN_SDO_ERROR_ATTEMPT_TO_READ_A_WRITE_ONLY_OBJECT:
+		ret = "ATTEMPT TO READ A WRITE ONLY OBJECT";
+		break;
+	case CANOPEN_SDO_ERROR_ATTEMPT_TO_WRITE_A_READ_ONLY_OBJECT:
+		ret = "ATTEMPTTO WRITE A READ ONLY OBJECT";
+		break;
+	case CANOPEN_SDO_ERROR_OBJECT_DOES_NOT_EXIST:
+		ret = "OBJECT DOES NOT EXIST";
+		break;
+	case CANOPEN_SDO_ERROR_OBJECT_CANNOT_BE_MAPPED_TO_PDO:
+		ret = "OBJECT CANNOT BE MAPPED TO PDO";
+		break;
+	case CANOPEN_SDO_ERROR_VALUE_OF_PARAMETER_TOO_HIGH:
+		ret = "VALUE OF PARAMETER TOO HIGH";
+		break;
+	case CANOPEN_SDO_ERROR_VALUE_OF_PARAMETER_TOO_LOW:
+		ret = "VALUE OF PARAMETER TOO LOW";
+		break;
+	case CANOPEN_SDO_ERROR_OBJECT_ACCESS_FAILED_DUE_TO_HARDWARE:
+		ret = "OBJECT ACCESS FAILED DUE TO HARDWARE";
+		break;
+	case CANOPEN_SDO_ERROR_GENERAL:
+		ret = "GENERAL";
+		break;
+	default:
+		ret = "UNKNOWN ERRORCODE";
+		break;
+	}
+	return ret;
+}
+
+
 
 
 
