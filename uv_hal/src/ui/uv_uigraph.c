@@ -96,17 +96,17 @@ void uv_uigraph_draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t value_height = CONFIG_UI_GRAPH_LINE_WIDTH + this->style->font->char_height;
 	char str[20];
 	if (this->y_unit != NULL) {
-		sprintf(str, "%i %s", this->max_y, this->y_unit);
+		sprintf(str, "%i %s", (int) this->max_y, this->y_unit);
 	}
 	else {
-		sprintf(str, "%i", this->max_y);
+		sprintf(str, "%i", (int) this->max_y);
 	}
 	int16_t maxy_value_width = uv_ui_get_string_width(str, this->style->font);
 	if (this->y_unit != NULL) {
-		sprintf(str, "%i %s", this->min_y, this->y_unit);
+		sprintf(str, "%i %s", (int) this->min_y, this->y_unit);
 	}
 	else {
-		sprintf(str, "%i", this->min_y);
+		sprintf(str, "%i", (int) this->min_y);
 	}
 	int16_t miny_value_width = uv_ui_get_string_width(str, this->style->font);
 	int16_t value_width = MAX(maxy_value_width, miny_value_width) + CONFIG_UI_GRAPH_LINE_WIDTH;
@@ -175,18 +175,18 @@ void uv_uigraph_draw(void *me, const uv_bounding_box_st *pbb) {
 	// draw x axis
 	uv_ui_draw_line(x, rely, x + cw, rely, CONFIG_UI_GRAPH_LINE_WIDTH, this->coordinate_c);
 	if (this->x_unit != NULL) {
-		sprintf(str, "%i %s", this->min_x, this->x_unit);
+		sprintf(str, "%i %s", (int) this->min_x, this->x_unit);
 	}
 	else {
-		sprintf(str, "%i", this->min_x);
+		sprintf(str, "%i", (int) this->min_x);
 	}
 	uv_ui_draw_string(str, this->style->font, x, rely + CONFIG_UI_GRAPH_LINE_WIDTH,
 			ALIGN_TOP_LEFT, this->coordinate_c);
 	if (this->x_unit != NULL) {
-		sprintf(str, "%i %s", this->max_x, this->x_unit);
+		sprintf(str, "%i %s", (int) this->max_x, this->x_unit);
 	}
 	else {
-		sprintf(str, "%i", this->max_x);
+		sprintf(str, "%i", (int) this->max_x);
 	}
 	uv_ui_draw_string(str, this->style->font, x + cw, rely + CONFIG_UI_GRAPH_LINE_WIDTH,
 			ALIGN_TOP_RIGHT, this->coordinate_c);
@@ -194,18 +194,18 @@ void uv_uigraph_draw(void *me, const uv_bounding_box_st *pbb) {
 	// draw y axis
 	uv_ui_draw_line(relx, y, relx, y + ch, CONFIG_UI_GRAPH_LINE_WIDTH, this->coordinate_c);
 	if (this->y_unit != NULL) {
-		sprintf(str, "%i %s", this->max_y, this->y_unit);
+		sprintf(str, "%i %s", (int) this->max_y, this->y_unit);
 	}
 	else {
-		sprintf(str, "%i", this->max_y);
+		sprintf(str, "%i", (int) this->max_y);
 	}
 	uv_ui_draw_string(str, this->style->font, relx - CONFIG_UI_GRAPH_LINE_WIDTH, y,
 			ALIGN_TOP_RIGHT, this->coordinate_c);
 	if (this->y_unit != NULL) {
-		sprintf(str, "%i %s", this->min_y, this->y_unit);
+		sprintf(str, "%i %s", (int) this->min_y, this->y_unit);
 	}
 	else {
-		sprintf(str, "%i", this->min_y);
+		sprintf(str, "%i", (int) this->min_y);
 	}
 	uv_ui_draw_string(str, this->style->font, relx - CONFIG_UI_GRAPH_LINE_WIDTH,
 			y + ch - uv_ui_get_string_height(str, this->style->font),
