@@ -104,7 +104,7 @@ uv_errors_e _uv_i2c_init(void) {
 	/* Set I2C bitrate */
 	if (LPC_I2CD_API->i2c_set_bitrate(
 			i2c_handle_master, Chip_Clock_GetSystemClockRate(),
-									  CONFIG_I2C_BAUDRATE) != LPC_OK) {
+									  CONFIG_I2C0_BAUDRATE) != LPC_OK) {
 		ret = ERR_INTERNAL;
 	}
 
