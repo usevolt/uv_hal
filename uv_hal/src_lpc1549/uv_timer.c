@@ -39,23 +39,15 @@
 #endif
 
 #if CONFIG_TIMER0 || CONFIG_TIMER1 || CONFIG_TIMER2 || CONFIG_TIMER3
-typedef struct {
-
-} timers_st;
-
-timers_st _timers;
-#define this (&_timers)
 
 
 
-#if CONFIG_TARGET_LPC15XX
-LPC_SCT_T *timers[TIMER_COUNT] = {
+static const LPC_SCT_T *timers[TIMER_COUNT] = {
 		LPC_SCT0,
 		LPC_SCT1,
 		LPC_SCT2,
 		LPC_SCT3
 };
-#endif
 
 
 uv_errors_e uv_timer_init(uv_timers_e timer) {

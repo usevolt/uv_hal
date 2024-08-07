@@ -76,7 +76,7 @@ uv_errors_e _uv_i2c_init(void) {
 	// Enable I2C clock and reset I2C peripheral - the boot ROM does not do this
 	Chip_I2C_Init(LPC_I2C0);
 
-#if CONFIG_I2C_BAUDRATE <= 40000
+#if CONFIG_I2C0_BAUDRATE <= 40000
 	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 22, IOCON_SFI2C_EN);
 	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 23, IOCON_SFI2C_EN);
 #else

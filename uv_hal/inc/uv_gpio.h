@@ -44,6 +44,10 @@
 #include "chip.h"
 #include "gpio_15xx.h"
 #include "uv_gpio_lpc1549.h"
+#elif CONFIG_TARGET_LPC40XX
+#include "chip.h"
+#include "gpio_17xx_40xx.h"
+#include "uv_gpio_lpc4078.h"
 #elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 #include "uv_gpio_linuxwin.h"
 #endif
@@ -81,15 +85,7 @@ typedef enum {
 /// @brief: Sets the state of an output pin
 ///
 /// @param gpio: uv_gpios_e pin to be configured
-#if CONFIG_TARGET_LPC1785
-#define UV_GPIO_SET(gpio, value)	\
-	(port(CAT(CAT(GPIO_, gpio), _port))->PIN = (port(CAT(CAT(GPIO_, gpio), _port))->PIN \
-			& ~(1 << CAT(CAT(GPIO_, gpio), _pin))) | (value << CAT(CAT(GPIO_, gpio), _pin)))
-#elif CONFIG_TARGET_LPC11C14
-#define UV_GPIO_SET(gpio, value)  \
-	(port(CAT(CAT(GPIO_, gpio), _port))->DATA = (port(CAT(CAT(GPIO_, gpio), _port))->DATA \
-			& ~(1 << CAT(CAT(GPIO_, gpio), _pin))) | (value << CAT(CAT(GPIO_, gpio), _pin)))
-#elif CONFIG_TARGET_LPC15XX
+#if CONFIG_TARGET_LPC15XX || CONFIG_TARGET_LPC40XX
 #define UV_GPIO_SET(gpio, value)  Chip_GPIO_SetPinState(LPC_GPIO, UV_GPIO_PORT(gpio), UV_GPIO_PIN(gpio), value)
 #elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 #define UV_GPIO_SET(gpio, value)
@@ -100,12 +96,9 @@ typedef enum {
 /// @brief: Toggles an output pin
 ///
 /// @param gpio: uv_gpios_e pin to be configured
-#if CONFIG_TARGET_LPC1785
-#define UV_GPIO_TOGGLE(gpio) \
-	(port(CAT(CAT(GPIO_, gpio), _port))->PIN ^= (1 << CAT(CAT(GPIO_, gpio), _pin)))
-#elif CONFIG_TARGET_LPC11C14
-#define UV_GPIO_TOGGLE(gpio) \
-	(port(CAT(CAT(GPIO_, gpio), _port))->DATA ^= (1 << CAT(CAT(GPIO_, gpio), _pin)))
+#if CONFIG_TARGET_LPC40XX
+#define UV_GPIO_TOGGLE(gpio) Chip_GPIO_SetPinState(LPC_GPIO, UV_GPIO_PORT(gpio), UV_GPIO_PIN(gpio), \
+		!Chip_GPIO_GetPinState(LPC_GPIO, UV_GPIO_PORT(gpio), UV_GPIO_PIN(gpio)))
 #elif CONFIG_TARGET_LPC15XX
 #define UV_GPIO_TOGGLE(gpio) Chip_GPIO_SetPinToggle(LPC_GPIO, UV_GPIO_PORT(gpio), UV_GPIO_PIN(gpio))
 #elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
@@ -118,13 +111,7 @@ typedef enum {
 /// @brief: Returns the state of the input GPIO pin
 ///
 /// @param gpio: uv_gpios_e pin to be configured
-#if CONFIG_TARGET_LPC1785
-#define UV_GPIO_GET(gpio) \
-	((port(CAT(CAT(GPIO_, gpio), _port))->PIN & (1 << UV_GPIO_PIN(gpio))) >> UV_GPIO_PIN(gpio))
-#elif CONFIG_TARGET_LPC11C14
-#define UV_GPIO_GET(gpio) \
-	((port(CAT(CAT(GPIO_, gpio), _port))->DATA & (1 << UV_GPIO_PIN(gpio))) >> UV_GPIO_PIN(gpio))
-#elif CONFIG_TARGET_LPC15XX
+#if CONFIG_TARGET_LPC15XX || CONFIG_TARGET_LPC40XX
 #define UV_GPIO_GET(gpio)		Chip_GPIO_GetPinState(LPC_GPIO, UV_GPIO_PORT(gpio), UV_GPIO_PIN(gpio))
 #elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 #define UV_GPIO_GET(gpio)
@@ -143,6 +130,9 @@ typedef enum {
 #if CONFIG_TARGET_LPC15XX
 #define UV_GPIO_CONFIGURE(gpio, input_config)\
 	LPC_IOCON->PIO[uv_gpio_get_port(gpio)][uv_gpio_get_pin(gpio)] = input_config
+#elif CONFIG_TARGET_LPC40XX
+#define UV_GPIO_CONFIGURE(gpio, input_config)\
+	LPC_IOCON->p[uv_gpio_get_port(gpio)][uv_gpio_get_pin(gpio)] = input_config
 #else
 #define UV_GPIO_CONFIGURE(gpio, input_config)\
 	CAT(CAT(GPIO_, gpio), _config)(input_config)
@@ -189,6 +179,28 @@ static inline void uv_gpio_init_output(uv_gpios_e gpio, bool value) {
 	uv_gpio_set(gpio, value);
 }
 
+#elif CONFIG_TARGET_LPC40XX
+
+static inline bool uv_gpio_get(uv_gpios_e gpio) {
+	return Chip_GPIO_GetPinState(LPC_GPIO, uv_gpio_get_port(gpio), uv_gpio_get_pin(gpio));
+}
+
+static inline void uv_gpio_set(uv_gpios_e gpio, bool value) {
+	Chip_GPIO_SetPinState(LPC_GPIO, uv_gpio_get_port(gpio), uv_gpio_get_pin(gpio), value);
+}
+
+static inline void uv_gpio_init_input(uv_gpios_e gpio, uint32_t confs) {
+	Chip_GPIO_SetPinDIRInput(LPC_GPIO, uv_gpio_get_port(gpio), uv_gpio_get_pin(gpio));
+	UV_GPIO_CONFIGURE(gpio, confs);
+}
+
+static inline void uv_gpio_init_output(uv_gpios_e gpio, bool value) {
+	UV_GPIO_CONFIGURE(gpio, 0);
+	Chip_GPIO_SetPinDIROutput(LPC_GPIO, uv_gpio_get_port(gpio), uv_gpio_get_pin(gpio));
+	uv_gpio_set(gpio, value);
+}
+
+
 #elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 
 static inline bool uv_gpio_get(uv_gpios_e gpio) {
@@ -206,6 +218,7 @@ static inline void uv_gpio_init_output(uv_gpios_e gpio, bool value) { }
 #endif
 
 
+#if CONFIG_TARGET_LPC15XX || CONFIG_TARGET_LINUX
 /// @brief: Enables interrupts on pin **gpio**
 ///
 /// @note: There is a maximum limit of enabled interrupt pins depending on the hardware
@@ -217,8 +230,7 @@ uv_errors_e uv_gpio_enable_int(uv_gpios_e gpio, uv_gpio_interrupt_config_e confs
 
 /// @brief: Disables interrupts on pin **gpio**
 void uv_gpio_disable_int(uv_gpios_e gpio);
-
-
+#endif
 
 
 

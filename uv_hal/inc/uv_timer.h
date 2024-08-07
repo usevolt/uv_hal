@@ -46,7 +46,6 @@ typedef enum {
 	TIMER2,
 	TIMER3,
 	TIMER_COUNT
-
 } uv_timers_e;
 
 

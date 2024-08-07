@@ -84,6 +84,9 @@
 #elif CONFIG_TARGET_LPC15X7
 #define RAM_SIZE_BYTES	0x3000
 #define RAM_BASE_ADDRESS 0x2000000
+#elif CONFIG_TARGET_LPC4078
+#define RAM_SIZE_BYTES	0x10000
+#define RAM_BASE_ADDRESS 0x10000000
 #else
 #warning "Controller not defined"
 #endif

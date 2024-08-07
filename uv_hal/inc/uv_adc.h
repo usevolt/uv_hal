@@ -91,7 +91,11 @@ typedef enum {
 	ADC1_9,
 	ADC1_10,
 	ADC1_11,
+#if CONFIG_TARGET_LPC1549
 	ADC_COUNT
+#else // CONFIG_TARGET_LPC4078
+	ADC_COUNT = 8 + 1
+#endif
 } uv_adc_channels_e;
 
 

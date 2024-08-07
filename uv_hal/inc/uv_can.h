@@ -183,19 +183,12 @@ typedef char * uv_can_channels_e;
 #define CAN_CHANNEL_MAX_COUNT	10
 #else
 typedef enum {
-#if CONFIG_TARGET_LPC11C14
+#if CONFIG_TARGET_LPC15XX
 	CAN0 = 0,
 	CAN_COUNT
-#elif CONFIG_TARGET_LPC1785
-#if CONFIG_CAN0
-	CAN0,
-#endif
-#if CONFIG_CAN1
+#elif CONFIG_TARGET_LPC40XX
+	CAN0 = 0,
 	CAN1,
-#endif
-	CAN_COUNT
-#elif CONFIG_TARGET_LPC15XX
-	CAN0 = 0,
 	CAN_COUNT
 #else
 #error "Unknown hardware"

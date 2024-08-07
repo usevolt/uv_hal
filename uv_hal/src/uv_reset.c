@@ -32,11 +32,7 @@
 #include "uv_reset.h"
 #include <stdlib.h>
 
-#if CONFIG_TARGET_LPC11C14
-#include "LPC11xx.h"
-#elif CONFIG_TARGET_LPC1785
-#include "LPC177x_8x.h"
-#elif CONFIG_TARGET_LPC15XX
+#if CONFIG_TARGET_LPC15XX || CONFIG_TARGET_LPC4078
 #include "chip.h"
 #endif
 #include "uv_wdt.h"
@@ -56,7 +52,7 @@ void uv_system_reset(void) {
 
 
 void uv_bootloader_start(void) {
-#if !CONFIG_TARGET_LINUX && !CONFIG_TARGET_WIN
+#if CONFIG_TARGET_LPC1549
 	// BUGFIX NOTE: When resetting, SCT PWM outputs are left ON, keeping
 	// those pins pulled low. To prevent this, SWM mappings from SCT timers
 	// will be cleared here. Some testing with SYSCON periph resets didn't work...
@@ -65,6 +61,8 @@ void uv_bootloader_start(void) {
 	LPC_SWM->PINASSIGN[9] = 0xFFFFFFFF;
 	LPC_SWM->PINASSIGN[10] |= 0xFF;
 
+	NVIC_SystemReset();
+#elif CONFIG_TARGET_LPC4078
 	NVIC_SystemReset();
 #else
 	exit(0);

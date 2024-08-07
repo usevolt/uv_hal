@@ -33,14 +33,6 @@
 
 #if CONFIG_I2C
 
-#if !defined(CONFIG_I2C_MODE)
-#error "CONFIG_I2C_MODE should be defined as I2C_MASTER or I2C_SLAVE."
-#endif
-#if !defined(CONFIG_I2C_BAUDRATE)
-#error "CONFIG_I2C_BAUDRATE should be defined as the desired baudrate for the I2C module."
-#elif (CONFIG_I2C_BAUDRATE > 1000000)
-#error "CONFIG_I2C_BAUDRATE maximum value is 1000000. uv_hal library doesn't support higher baudrates."
-#endif
 #if CONFIG_I2C_ASYNC
 #if !CONFIG_I2C_ASYNC_MAX_BYTE_LEN
 #error "CONFIG_I2C_ASYNC_MAX_BYTE_LEN has to define the maximum amount\
@@ -52,10 +44,46 @@
 #endif
 #endif
 
+#if CONFIG_I2C0
+#if !defined(CONFIG_I2C0_MODE)
+#error "CONFIG_I2C0_MODE should be defined as I2C_MASTER or I2C_SLAVE."
+#endif
+#if !defined(CONFIG_I2C0_BAUDRATE)
+#error "CONFIG_I2C0_BAUDRATE should be defined as the desired baudrate for the I2C module."
+#elif (CONFIG_I2C0_BAUDRATE > 1000000)
+#error "CONFIG_I2C0_BAUDRATE maximum value is 1000000. uv_hal library doesn't support higher baudrates."
+#endif
+#endif
+#if CONFIG_I2C1
+#if !defined(CONFIG_I2C1_MODE)
+#error "CONFIG_I2C1_MODE should be defined as I2C_MASTER or I2C_SLAVE."
+#endif
+#if !defined(CONFIG_I2C1_BAUDRATE)
+#error "CONFIG_I2C1_BAUDRATE should be defined as the desired baudrate for the I2C module."
+#elif (CONFIG_I2C1_BAUDRATE > 1000000)
+#error "CONFIG_I2C1_BAUDRATE maximum value is 1000000. uv_hal library doesn't support higher baudrates."
+#endif
+#endif
+#if CONFIG_I2C2
+#if !defined(CONFIG_I2C2_MODE)
+#error "CONFIG_I2C2_MODE should be defined as I2C_MASTER or I2C_SLAVE."
+#endif
+#if !defined(CONFIG_I2C2_BAUDRATE)
+#error "CONFIG_I2C2_BAUDRATE should be defined as the desired baudrate for the I2C module."
+#elif (CONFIG_I2C2_BAUDRATE > 1000000)
+#error "CONFIG_I2C2_BAUDRATE maximum value is 1000000. uv_hal library doesn't support higher baudrates."
+#endif
+#endif
+
+#if !CONFIG_TARGET_LPC4078
+// "header i2c_17xx_40xx already defines these I2C enums
 typedef enum {
 	I2C0 = 0,
+	I2C1,
+	I2C2,
 	I2C_COUNT
 } i2c_e;
+#endif
 
 
 /// @brief: Different modes for the I2C
