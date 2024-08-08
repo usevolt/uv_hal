@@ -200,7 +200,7 @@ static void set_msgif_id(const uint32_t id, const bool ext) {
 	LPC_CAN->IF1_ARB2 = 0;
 	if (ext) {
 		LPC_CAN->IF1_ARB1 = id & 0xFFFF;
-		LPC_CAN->IF1_ARB2 |= ((id >> 16) & 0x1FFF);
+		LPC_CAN->IF1_ARB2 |= ((id >> 16) & 0x1FFF) | (1 << 14);
 	}
 	else {
 		LPC_CAN->IF1_ARB2 |= ((id & 0x7FF) << 2);
@@ -465,13 +465,17 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 						break;
 					}
 				}
-				else if (uv_countofbit(bits_differ, 1) == 1) {
+				// difference between masked id's has to be 1 bit at most
+				// and also new mask has to be include old mask in it
+				else if (uv_countofbit(bits_differ, 1) == 1 &&
+						(msgif_mask & ~mask) == 0) {
 					// only 1 bit differs in ID. Modify mask to include both messages
 					msgif_mask &= ~bits_differ;
 					msg_obj_disable(i + 1);
 					read_msg_obj(i + 1);
 					// write receive message data to msg obj
 					set_msgif_mask(msgif_mask, type);
+					set_msgif_id(msgif_id, (msgif_type == CAN_EXT));
 					write_msg_obj(i + 1, false);
 					msg_obj_enable(i + 1);
 					match = true;
@@ -500,15 +504,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 				set_msgif_mask(mask, type);
 				// use msg type and dir for filtering
 				LPC_CAN->IF1_MSK2 |= (0b11 << 14);
-				// msg dir receive, also init ARB2 register
-				LPC_CAN->IF1_ARB2 = 0;
 				set_msgif_id(id, (type == CAN_EXT));
-				if (type == CAN_EXT) {
-					LPC_CAN->IF1_ARB2 |= (1 << 14);
-				}
-				else {
-					LPC_CAN->IF1_ARB2 &= ~(1 << 14);
-				}
 				LPC_CAN->IF1_MCTRL = (1 << 7) |		// single message (end of buffer)
 						(1 << 10) |					// receive interrupt enabled
 						(1 << 12);					// use mask for filtering
