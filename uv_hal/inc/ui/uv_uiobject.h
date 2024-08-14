@@ -115,7 +115,7 @@ typedef struct _uv_uitransition_st uv_uitransition_st;
 
 /// @brief: Main struct for GUI object structure. Every GUI object should declare
 /// this struct as it's first variable, e.g. they should inherit from this.
-typedef struct __attribute__((packed)) uv_uiobject_st {
+typedef struct   uv_uiobject_st {
 	/// @brief: Object bounding box
 	uv_bounding_box_st bb;
 	/// @brief: Pointer to the object's parent or NULL

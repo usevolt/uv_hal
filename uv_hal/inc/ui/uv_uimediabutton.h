@@ -47,7 +47,7 @@ typedef enum {
 
 
 /// @brief: uimediabutton is a button with a media (i.e. an image) placed next to the text
-typedef struct __attribute__((packed)) {
+typedef struct   {
 	// has to extend togglebutton since uv_uimediatogglebutton_st is used for
 	// toggle behaviour
 	EXTENDS(uv_uitogglebutton_st);

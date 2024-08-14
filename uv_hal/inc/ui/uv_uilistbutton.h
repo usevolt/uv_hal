@@ -41,7 +41,7 @@
 
 
 /// @brief: Button structure
-typedef struct __attribute__((packed)) {
+typedef struct   {
 	EXTENDS(uv_uibutton_st);
 	char **content;
 	char *title;

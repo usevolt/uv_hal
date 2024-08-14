@@ -51,7 +51,7 @@
 
 
 enum {
-	PWM0_0 = 0,
+	PWM0_0 = 1,
 	PWM0_1,
 	PWM0_2,
 	PWM0_3,

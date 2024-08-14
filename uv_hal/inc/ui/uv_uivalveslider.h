@@ -59,7 +59,7 @@ typedef enum {
 
 /// @brief: uivalveslider is a multihandle slider that is used for setting
 /// the min & max currents for a unidir or dual dir solenoid output
-typedef struct __attribute__((packed)) {
+typedef struct   {
 	EXTENDS(uv_uiobject_st);
 
 	int16_t min_val;

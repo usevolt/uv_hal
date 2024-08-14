@@ -56,7 +56,7 @@ typedef enum {
 
 
 /// @brief: Structure for showing text label on the screen.
-typedef struct __attribute__((packed)) {
+typedef struct   {
 	EXTENDS(uv_uilabel_st);
 
 	char str[16];

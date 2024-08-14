@@ -44,7 +44,7 @@
  used when drawing the graph in pixels"
 #endif
 
-typedef struct __attribute__((packed)) {
+typedef struct   {
 	int16_t x;
 	int16_t y;
 	bool interactive;
@@ -65,7 +65,7 @@ typedef enum {
 } uv_uigraph_point_dir_e;
 
 
-typedef struct __attribute__((packed)) {
+typedef struct   {
 	EXTENDS(uv_uiobject_st);
 
 	color_t coordinate_c;

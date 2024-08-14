@@ -44,7 +44,7 @@
 /// for a smaller subsystem.
 
 
-typedef struct __attribute__((packed)) {
+typedef struct   {
 	EXTENDS(uv_uidisplay_st);
 
 } uv_uidialog_st;

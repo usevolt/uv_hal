@@ -47,7 +47,7 @@
 #define UISLIDER_LONGPRESS_MIN_DELAY_MS		30
 
 /// @brief: Slider is a vertical or horizontal slider with a value
-typedef struct __attribute__((packed)) {
+typedef struct   {
 	EXTENDS(uv_uiobject_st);
 
 	int16_t min_val;

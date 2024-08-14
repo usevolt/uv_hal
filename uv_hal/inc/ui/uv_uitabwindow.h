@@ -55,7 +55,7 @@ typedef enum {
 
 
 /// @brief: tab window is a window with different tabs
-typedef struct __attribute__((packed)) {
+typedef struct   {
 	EXTENDS(uv_uiwindow_st);
 
 	/// @brief: tells how many tabs this tabwindow has

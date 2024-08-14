@@ -41,7 +41,7 @@
 ///
 /// @note: This should apply exactly with uitogglebutton, as the uicheckbox
 /// uses uitogglebutton functions.
-typedef struct __attribute__((packed)) {
+typedef struct   {
 	EXTENDS(uv_uitogglebutton_st);
 
 	color_t fillc;

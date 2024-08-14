@@ -38,7 +38,7 @@
 
 
 /// @brief: The dual label button is a button with two labels with different fonts
-typedef struct __attribute__((packed)) {
+typedef struct   {
 	EXTENDS(uv_uibutton_st);
 
 	char *dualtext;

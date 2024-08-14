@@ -59,7 +59,7 @@ typedef uint8_t uibutton_state_e;
 
 
 /// @brief: Button structure
-typedef struct __attribute__((packed)) {
+typedef struct   {
 	EXTENDS(uv_uiobject_st);
 
 	uibutton_state_e state;

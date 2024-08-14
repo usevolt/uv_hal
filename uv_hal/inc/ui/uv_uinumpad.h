@@ -49,7 +49,7 @@ typedef enum {
 
 
 
-typedef struct __attribute__((packed)) {
+typedef struct   {
 	EXTENDS(uv_uiobject_st);
 
 	uv_uinumpad_flags_e flags;

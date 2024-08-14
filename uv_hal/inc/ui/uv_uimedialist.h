@@ -40,7 +40,7 @@
 
 
 /// @brief: uimedialist_entry structure
-typedef struct __attribute__((packed)) {
+typedef struct   {
 	EXTENDS(uv_uilist_entry_st);
 
 	// the bitmap that is shown on this entry
@@ -63,7 +63,7 @@ static inline void uv_uimedialist_entry_init(uv_uimedialist_entry_st *this,
 
 
 /// @brief: List is a selectable vertical list of label entries
-typedef struct __attribute__((packed)) {
+typedef struct   {
 	EXTENDS(uv_uilist_st);
 
 } uv_uimedialist_st;

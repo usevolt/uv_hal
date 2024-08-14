@@ -49,7 +49,7 @@
 typedef struct _uv_uitreeobject_st uv_uitreeobject_st;
 
 /// @brief: Object structure which will be shown as a single treewindow object
-struct __attribute__((packed)) _uv_uitreeobject_st {
+struct   _uv_uitreeobject_st {
 	EXTENDS(uv_uiwindow_st);
 	/// @brief: Visible name of the object
 	const char *name;

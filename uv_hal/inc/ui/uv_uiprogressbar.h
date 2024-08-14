@@ -50,7 +50,7 @@
 #endif
 
 
-typedef struct __attribute__((packed)) {
+typedef struct   {
 	EXTENDS(uv_uiobject_st);
 
 	/// @brief: Current value

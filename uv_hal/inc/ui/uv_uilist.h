@@ -42,7 +42,7 @@
 
 
 
-typedef struct __attribute__((packed)) {
+typedef struct   {
 	char *str;
 } uv_uilist_entry_st;
 
@@ -55,7 +55,7 @@ static inline void uv_uilist_entry_init(uv_uilist_entry_st *this, char *text) {
 
 
 /// @brief: List is a selectable vertical list of label entries
-typedef struct __attribute__((packed)) {
+typedef struct   {
 	EXTENDS(uv_uiobject_st);
 
 	/// @brief: List of the entries
