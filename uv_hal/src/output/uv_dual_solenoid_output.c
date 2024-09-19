@@ -72,7 +72,7 @@ void uv_dual_solenoid_output_init(uv_dual_solenoid_output_st *this,
 }
 
 
-
+#include "main.h"
 
 void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t step_ms) {
 	uv_prop_output_step((uv_prop_output_st *) this, step_ms);
@@ -83,8 +83,10 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 
 	// if other solenoid output modes are defined, DUAL_OUTPUT_SOLENOID_B follows
 	// DUAL_OUTPUT_SOLENOID_A's mode
-	uv_solenoid_output_set_mode(&this->solenoid[1],
-			uv_solenoid_output_get_mode(&this->solenoid[0]));
+	if (this->out_type != SOLENOID_OUTPUT_MODE_PVG) {
+		uv_solenoid_output_set_mode(&this->solenoid[1],
+				uv_solenoid_output_get_mode(&this->solenoid[0]));
+	}
 
 
 	// make sure the solenoid outputs are in right mode
