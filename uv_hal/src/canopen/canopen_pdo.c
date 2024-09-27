@@ -199,19 +199,19 @@ void _uv_canopen_pdo_step(uint16_t step_ms) {
 				this->txpdo[i].inhibit_time = com->inhibit_time;
 
 				uv_can_message_st msg = {};
-				uint8_t last_mapped_byte = 0;
+				uint8_t next_mapped_byte = 0;
 
 				for (uint8_t j = 0; (j < CONFIG_CANOPEN_PDO_MAPPING_COUNT); j++) {
 					uint8_t *ptr = this->txpdo[i].mapping_ptr[j];
 					if (ptr) {
 						msg.data_8bit[j] = *ptr;
-						last_mapped_byte = j;
+						next_mapped_byte = j + 1;
 					}
 				}
-				if (last_mapped_byte) {
+				if (next_mapped_byte) {
 					// send the txpdo if any data got mapped
 					msg.type = CAN_STD;
-					msg.data_length = last_mapped_byte + 1;
+					msg.data_length = next_mapped_byte;
 					msg.id = com->cob_id;
 					uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
 				}
