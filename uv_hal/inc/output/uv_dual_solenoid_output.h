@@ -120,10 +120,8 @@ static inline uv_solenoid_output_mode_e uv_dual_solenoid_output_get_type(
 /// @brief: Sets the dual solenoid output to unidir mode, where both outputs
 /// are controlled with the same value. Due to the limitations in the hardware,
 /// the current measurement is calculated as the sum of currents.
-static inline void uv_dual_solenoid_output_set_unidir(uv_dual_solenoid_output_st *this,
-		bool value) {
-	this->unidir = value;
-}
+void uv_dual_solenoid_output_set_unidir(uv_dual_solenoid_output_st *this,
+		bool value);
 
 
 /// @brief: Disables the dual solenoid output module

@@ -239,6 +239,19 @@ void uv_dual_solenoid_output_step(uv_dual_solenoid_output_st *this, uint16_t ste
 }
 
 
+void uv_dual_solenoid_output_set_unidir(uv_dual_solenoid_output_st *this,
+		bool value) {
+	if (this->unidir != value) {
+		// freeze fault detection for short time when changing unidir value
+		uv_solenoid_output_freeze_fault_detection(&this->solenoid[0],
+				OUTPUT_FAULT_FREEZE_MS);
+		uv_solenoid_output_freeze_fault_detection(&this->solenoid[1],
+				OUTPUT_FAULT_FREEZE_MS);
+	}
+	this->unidir = value;
+}
+
+
 
 void uv_dual_solenoid_output_set_conf(uv_dual_solenoid_output_st *this,
 					uv_prop_output_conf_st *conf) {
