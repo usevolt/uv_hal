@@ -79,8 +79,6 @@
 // "header i2c_17xx_40xx already defines these I2C enums
 typedef enum {
 	I2C0 = 0,
-	I2C1,
-	I2C2,
 	I2C_COUNT
 } i2c_e;
 #endif
