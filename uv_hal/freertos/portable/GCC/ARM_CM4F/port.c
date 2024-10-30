@@ -71,9 +71,6 @@
  * Implementation of functions defined in portable.h for the ARM CM4F port.
  *----------------------------------------------------------*/
 
-#include "uv_hal_config.h"
-
-#if CONFIG_TARGET
 
 /* Scheduler includes. */
 #include "FreeRTOS.h"
@@ -756,7 +753,6 @@ static void vPortEnableVFP( void )
 		configASSERT( ( portAIRCR_REG & portPRIORITY_GROUP_MASK ) <= ulMaxPRIGROUPValue );
 	}
 
-#endif
 
 
 #endif /* configASSERT_DEFINED */

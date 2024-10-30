@@ -53,6 +53,8 @@
 #define FLASH_START_ADDRESS 				0x00000000
 #define NV_LEN								(0x400 * CONFIG_NVKB)
 
+#define NON_VOLATILE_MEMORY_START_ADDRESS	(0x80000 - NV_LEN)
+
 
 
 // IAP function location, refer to user manual page 269
@@ -290,7 +292,7 @@ uv_iap_status_e uv_erase_and_write_to_flash(unsigned int ram_address,
 	}
 
 	if (ret == IAP_CMD_SUCCESS &&
-			nnum_bytes !=! 0) {
+			num_bytes != 0) {
 
 		//prepare the flash sections for erase operation
 		command_param[0] = PREPARE_SECTOR;

@@ -69,7 +69,7 @@ void uv_ltc6804_init(uv_ltc6804_st *this, spi_e spi, spi_slaves_e ssel) {
 	this->ssel = ssel;
 
 	// wake up the device with a dummy byte
-	uint16_t write[9] = {}, read[sizeof(write) / sizeof(write[0])];
+	spi_data_t write[9] = {}, read[sizeof(write) / sizeof(write[0])];
 	write[0] = 0;
 	uv_spi_write_sync(this->spi, this->ssel, write, 8, 1);
 	uv_rtos_task_delay(1);

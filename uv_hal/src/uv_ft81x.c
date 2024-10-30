@@ -594,8 +594,8 @@ bool uv_ui_init(void) {
 
 
 static uint8_t read8(const ft81x_reg_e address) {
-	uint16_t wb[READ8_LEN] = {};
-	uint16_t rb[READ8_LEN] = {};
+	spi_data_t wb[READ8_LEN] = {};
+	spi_data_t rb[READ8_LEN] = {};
 	wb[0] = FT81X_PREFIX_READ | ((address >> 16) & 0x3F);
 	wb[1] = (address >> 8) & 0xFF;
 	wb[2] = (address) & 0xFF;
@@ -608,8 +608,8 @@ static uint8_t read8(const ft81x_reg_e address) {
 
 
 static uint16_t read16(const ft81x_reg_e address) {
-	uint16_t wb[READ16_LEN] = {};
-	uint16_t rb[READ16_LEN] = {};
+	spi_data_t wb[READ16_LEN] = {};
+	spi_data_t rb[READ16_LEN] = {};
 	wb[0] = FT81X_PREFIX_READ | ((address >> 16) & 0x3F);
 	wb[1] = (address >> 8) & 0xFF;
 	wb[2] = address & 0xFF;
@@ -623,8 +623,8 @@ static uint16_t read16(const ft81x_reg_e address) {
 
 
 static uint32_t read32(const ft81x_reg_e address) {
-	uint16_t wb[READ32_LEN] = {};
-	uint16_t rb[READ32_LEN] = {};
+	spi_data_t wb[READ32_LEN] = {};
+	spi_data_t rb[READ32_LEN] = {};
 	wb[0] = FT81X_PREFIX_READ | ((address >> 16) & 0x3F);
 	wb[1] = (address >> 8) & 0xFF;
 	wb[2] = (address) & 0xFF;
@@ -649,7 +649,7 @@ static void writestr(const ft81x_reg_e address,
 			addr -= MEMMAP_RAM_CMD_END - MEMMAP_RAM_CMD_BEGIN;
 		}
 		uint32_t l = uv_mini(WRITESTR_BUFFER_LEN, len);
-		uint16_t wb[l + ADDR_OFFSET];
+		spi_data_t wb[l + ADDR_OFFSET];
 		wb[0] = FT81X_PREFIX_WRITE | ((addr >> 16) & 0x3F);
 		wb[1] = (addr >> 8) & 0xFF;
 		wb[2] = (addr) & 0xFF;
@@ -684,7 +684,7 @@ static inline void writedl(uint32_t data) {
 
 
 static void write8(const ft81x_reg_e address, uint8_t value) {
-	uint16_t wb[WRITE8_LEN] = {};
+	spi_data_t wb[WRITE8_LEN] = {};
 	wb[0] = FT81X_PREFIX_WRITE | ((address >> 16) & 0x3F);
 	wb[1] = (address >> 8) & 0xFF;
 	wb[2] = (address) & 0xFF;
@@ -696,7 +696,7 @@ static void write8(const ft81x_reg_e address, uint8_t value) {
 
 
 static void write16(const ft81x_reg_e address, uint16_t value) {
-	uint16_t wb[WRITE16_LEN] = {};
+	spi_data_t wb[WRITE16_LEN] = {};
 	wb[0] = FT81X_PREFIX_WRITE | ((address >> 16) & 0x3F);
 	wb[1] = (address >> 8) & 0xFF;
 	wb[2] = (address) & 0xFF;
@@ -709,7 +709,7 @@ static void write16(const ft81x_reg_e address, uint16_t value) {
 
 
 static void write32(const ft81x_reg_e address, uint32_t value) {
-	uint16_t wb[WRITE32_LEN] = {};
+	spi_data_t wb[WRITE32_LEN] = {};
 	wb[0] = FT81X_PREFIX_WRITE | ((address >> 16) & 0x3F);
 	wb[1] = (address >> 8) & 0xFF;
 	wb[2] = (address) & 0xFF;
@@ -724,7 +724,7 @@ static void write32(const ft81x_reg_e address, uint32_t value) {
 
 
 static void writehostcmd(const ft81x_hostcmds_e hostcmd, uint8_t parameter) {
-	uint16_t wb[3] = {};
+	spi_data_t wb[3] = {};
 	wb[0] = hostcmd;
 	wb[1] = parameter;
 	wb[2] = 0;
@@ -801,7 +801,7 @@ static void set_line_diameter(const uint16_t diameter) {
 
 static void set_font(const uint8_t font) {
 	if (this->font != font) {
-		DEBUG("Setting fobitmap handle (font)\n");
+		DEBUG("Setting bitmap handle (font)\n");
 		writedl(BITMAP_HANDLE(font));
 	}
 }

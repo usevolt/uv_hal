@@ -83,6 +83,17 @@
 #error "either CONFIG_TERMINAL_UART or CONFIG_TERMINAL_CAN has to be defined as 1, to redirect printf to\
  corresponding peripherals."
 #endif
+#if CONFIG_TERMINAL_CAN
+#if CAN_COUNT > 1
+#if !defined(CONFIG_TERMINAL_CAN_CHN)
+#error "CONFIG_TERMINAL_CAN_CHN has to define the CAN channel to be used"
+#endif
+#else
+#if !defined(CONFIG_TERMINAL_CAN_CHN)
+#define CONFIG_TERMINAL_CAN_CHN		0
+#endif
+#endif
+#endif
 
 
 

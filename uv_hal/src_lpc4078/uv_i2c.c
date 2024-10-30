@@ -35,7 +35,6 @@
 #include <uv_rtos.h>
 #include "uv_terminal.h"
 #include "chip.h"
-#include "i2c_17xx_40xx.h"
 
 
 #if CONFIG_I2C_ASYNC
@@ -60,12 +59,6 @@ static void transmit_next(i2c_e channel);
 #endif
 static void i2c_transfer_int_callb(uint32_t err_code, uint32_t n);
 
-
-static const LPC_I2C_T *modules[3] = {
-		LPC_I2C0,
-		LPC_I2C1,
-		LPC_I2C2
-};
 
 
 #if CONFIG_I2C_ASYNC
@@ -103,8 +96,8 @@ uv_errors_e _uv_i2c_init(void) {
 #else
 #error "CONFIG_I2C0_SCL_IO doesnt define suitable IO pin"
 #endif
-	Chip_I2C_Init(LPC_I2C0);
-	Chip_I2C_SetClockRate(LPC_I2C0, CONFIG_I2C0_BAUDRATE);
+	Chip_I2C_Init(I2C0);
+	Chip_I2C_SetClockRate(I2C0, CONFIG_I2C0_BAUDRATE);
 #endif
 #if CONFIG_I2C1
 #if CONFIG_I2C1_SDA_IO == P0_0
@@ -125,8 +118,8 @@ uv_errors_e _uv_i2c_init(void) {
 #else
 #error "CONFIG_I2C1_SCL_IO doesnt define suitable IO pin"
 #endif
-	Chip_I2C_Init(LPC_I2C1);
-	Chip_I2C_SetClockRate(LPC_I2C1, CONFIG_I2C1_BAUDRATE);
+	Chip_I2C_Init(I2C1);
+	Chip_I2C_SetClockRate(I2C1, CONFIG_I2C1_BAUDRATE);
 #endif
 #if CONFIG_I2C2
 #if CONFIG_I2C2_SDA_IO == P0_10
@@ -147,8 +140,8 @@ uv_errors_e _uv_i2c_init(void) {
 #else
 #error "CONFIG_I2C2_SCL_IO doesnt define suitable IO pin"
 #endif
-	Chip_I2C_Init(LPC_I2C2);
-	Chip_I2C_SetClockRate(LPC_I2C2, CONFIG_I2C2_BAUDRATE);
+	Chip_I2C_Init(I2C2);
+	Chip_I2C_SetClockRate(I2C2, CONFIG_I2C2_BAUDRATE);
 #endif
 
 	return ret;
@@ -217,6 +210,7 @@ static void i2c_transfer_int_callb(uint32_t err_code, uint32_t n) {
 
 static i2c_tx_msg_st txmsg;
 static void transmit_next(i2c_e channel) {
+#warning "ASYNC mode not yet implemented on LPC4078"
 	if (LPC_I2CD_API->i2c_get_status(i2c_handle_master) == IDLE) {
 		uv_disable_int();
 		if (uv_ring_buffer_pop(&i2c[channel].tx, &txmsg) == ERR_NONE) {
@@ -238,6 +232,7 @@ static void transmit_next(i2c_e channel) {
 
 uv_errors_e uv_i2cm_write_async(i2c_e channel,
 		uint8_t *tx_buffer, uint16_t tx_len) {
+#warning "ASYNC mode not yet implemented on LPC4078"
 	uv_can_errors_e ret = ERR_NONE;
 	i2c_tx_msg_st msg;
 

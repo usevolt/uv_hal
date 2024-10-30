@@ -21,8 +21,9 @@
 
 
 
-#if CONFIG_I2C
+#if CONFIG_I2C && CONFIG_I2C_ASYNC
 
+#define CONFIG_PCA9685		1
 
 
 typedef enum {

@@ -37,9 +37,6 @@
 #define NODEID			this->current_node_id
 
 
-#define CONFIG_RX_MSG(i)	do { uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL, \
-CAT(CONFIG_CANOPEN_EMCY_MSG_ID_, INC(i)), CAN_STD); } while(0)
-
 void _uv_canopen_emcy_init(void) {
 	uv_ring_buffer_init(&this->emcy_rx, this->emcy_rx_buffer,
 			CONFIG_CANOPEN_EMCY_RX_BUFFER_SIZE, sizeof(canopen_emcy_msg_st));

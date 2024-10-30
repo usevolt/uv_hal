@@ -533,7 +533,8 @@ uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
 }
 
 
-void uv_can_clear_rx_messages(void) {
+void uv_can_clear_rx_messages(uv_can_chn_e chn) {
+	if (chn);
 }
 
 

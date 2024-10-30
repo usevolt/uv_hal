@@ -534,7 +534,8 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 }
 
 
-void uv_can_clear_rx_messages(void) {
+void uv_can_clear_rx_messages(uv_can_chn_e chn) {
+	if (chn);
 	this->used_msg_objs = (1 << (TX_MSG_OBJ - 1));
 
 	// clear all rx message objects
@@ -554,12 +555,13 @@ void _uv_can_hal_send(uv_can_channels_e chn) {
 	}
 
 	uv_can_message_st msg;
-	uv_errors_e e = uv_ring_buffer_pop(&this->tx_buffer, &msg);
 
+	NVIC_DisableIRQ(CAN_IRQn);
+
+	uv_errors_e e = uv_ring_buffer_pop(&this->tx_buffer, &msg);
 
 	if (e == ERR_NONE) {
 
-		__disable_irq();
 
 		msg_obj_disable(TX_MSG_OBJ);
 
@@ -584,8 +586,8 @@ void _uv_can_hal_send(uv_can_channels_e chn) {
 
 		msg_obj_enable(TX_MSG_OBJ);
 
-		__enable_irq();
 	}
+	NVIC_EnableIRQ(CAN_IRQn);
 }
 
 

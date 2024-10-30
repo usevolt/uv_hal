@@ -73,12 +73,10 @@ bool uv_delay(uv_delay_st* p, uint16_t step_ms) {
 
 
 char *uv_get_hardware_name() {
-#if CONFIG_TARGET_LPC11C14
-	return "CONFIG_TARGET_LPC11C14";
-#elif CONFIG_TARGET_LPC1785
-	return "CONFIG_TARGET_LPC1785";
-#elif CONFIG_TARGET_LPC15XX
+#if CONFIG_TARGET_LPC15XX
 	return "CONFIG_TARGET_LPC15XX";
+#elif CONFIG_TARGET_LPC40XX
+	return "CONFIG_TARGET_LPC40XX";
 #elif CONFIG_TARGET_LINUX
 	return "CONFIG_TARGET_LINUX";
 #elif CONFIG_TARGET_WIN

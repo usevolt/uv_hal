@@ -47,6 +47,7 @@
 #elif CONFIG_TARGET_LPC40XX
 #include "chip.h"
 #include "gpio_17xx_40xx.h"
+#include "gpioint_17xx_40xx.h"
 #include "uv_gpio_lpc4078.h"
 #elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 #include "uv_gpio_linuxwin.h"
@@ -218,7 +219,6 @@ static inline void uv_gpio_init_output(uv_gpios_e gpio, bool value) { }
 #endif
 
 
-#if CONFIG_TARGET_LPC15XX || CONFIG_TARGET_LINUX
 /// @brief: Enables interrupts on pin **gpio**
 ///
 /// @note: There is a maximum limit of enabled interrupt pins depending on the hardware
@@ -230,7 +230,6 @@ uv_errors_e uv_gpio_enable_int(uv_gpios_e gpio, uv_gpio_interrupt_config_e confs
 
 /// @brief: Disables interrupts on pin **gpio**
 void uv_gpio_disable_int(uv_gpios_e gpio);
-#endif
 
 
 

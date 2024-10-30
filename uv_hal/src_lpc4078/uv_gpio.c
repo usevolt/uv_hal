@@ -28,7 +28,7 @@
 
 
 #include "uv_gpio.h"
-
+#include "chip.h"
 #include <chip.h>
 #include <stdio.h>
 #include "uv_utilities.h"
@@ -45,7 +45,7 @@ static void (*callback)(uv_gpios_e) = 0;
 
 void uv_gpio_interrupt_init(void (*callback_function)(uv_gpios_e)) {
 	callback = callback_function;
-	Chip_GPIOINT_Init(LPC_GPIO_PIN_INT);
+	Chip_GPIOINT_Init(LPC_GPIOINT);
 }
 
 
@@ -65,15 +65,19 @@ uv_errors_e uv_gpio_enable_int(uv_gpios_e gpio, uv_gpio_interrupt_config_e confs
 	if (uv_gpio_get_port(gpio) == 0 || uv_gpio_get_port(gpio) == 2) {
 		NVIC_SetPriority(GPIO_IRQn, 1);
 
+		uv_gpio_disable_int(gpio);
+
 		if ((confs & INT_RISING_EDGE) ||
 				(confs & INT_LEVEL_HIGH)) {
-			Chip_GPIOINT_SetIntRising(LPC_GPIO_PIN_INT, uv_gpio_get_port(gpio),
-					Chip_GPIOINT_GetIntRising(LPC_GPIO_PIN_INT) | uv_gpio_get_pin(gpio));
+			Chip_GPIOINT_SetIntRising(LPC_GPIOINT, uv_gpio_get_port(gpio),
+					Chip_GPIOINT_GetIntRising(LPC_GPIOINT,
+							uv_gpio_get_port(gpio)) | (1 << uv_gpio_get_pin(gpio)));
 		}
 		if ((confs & INT_FALLING_EDGE) ||
 				(confs & INT_LEVEL_LOW)) {
-			Chip_GPIOINT_SetIntRising(LPC_GPIO_PIN_INT, uv_gpio_get_port(gpio),
-					Chip_GPIOINT_GetIntRising(LPC_GPIO_PIN_INT) | uv_gpio_get_pin(gpio));
+			Chip_GPIOINT_SetIntFalling(LPC_GPIOINT, uv_gpio_get_port(gpio),
+					Chip_GPIOINT_GetIntFalling(LPC_GPIOINT,
+							uv_gpio_get_port(gpio)) | (1 << uv_gpio_get_pin(gpio)));
 		}
 		NVIC_EnableIRQ(GPIO_IRQn);
 	}
@@ -85,32 +89,39 @@ uv_errors_e uv_gpio_enable_int(uv_gpios_e gpio, uv_gpio_interrupt_config_e confs
 }
 
 void uv_gpio_disable_int(uv_gpios_e gpio) {
-	NVIC_DisableIRQ(GPIO_IRQn);
+	if (uv_gpio_get_port(gpio) == 0 || uv_gpio_get_port(gpio) == 2) {
+		Chip_GPIOINT_SetIntRising(LPC_GPIOINT, uv_gpio_get_port(gpio),
+				Chip_GPIOINT_GetIntRising(LPC_GPIOINT,
+						uv_gpio_get_port(gpio)) & ~(1 << uv_gpio_get_pin(gpio)));
+		Chip_GPIOINT_SetIntFalling(LPC_GPIOINT, uv_gpio_get_port(gpio),
+				Chip_GPIOINT_GetIntFalling(LPC_GPIOINT,
+						uv_gpio_get_port(gpio)) & ~(1 << uv_gpio_get_pin(gpio)));
+	}
 }
 
 
 
 void GPIO_IRQHandler(void) {
-	uint32_t p0_pins = Chip_GPIOINT_GetStatusFalling(LPC_GPIO_PIN_INT, 0) |
-			Chip_GPIOINT_GetStatusRising(LPC_GPIO_PIN_INT, 0);
+	uint32_t p0_pins = Chip_GPIOINT_GetStatusFalling(LPC_GPIOINT, 0) |
+			Chip_GPIOINT_GetStatusRising(LPC_GPIOINT, 0);
 	for (uint8_t i = 0; i < 32; i++) {
-		if (!Chip_GPIOINT_IsIntPending(LPC_GPIO_PIN_INT, 0)) {
+		if (!Chip_GPIOINT_IsIntPending(LPC_GPIOINT, 0)) {
 			break;
 		}
 		if (p0_pins | (1 << i)) {
 			callback(P0_0 + i);
-			Chip_GPIOINT_ClearIntStatus(LPC_GPIO_PIN_INT, 0, i);
+			Chip_GPIOINT_ClearIntStatus(LPC_GPIOINT, 0, i);
 		}
 	}
-	uint32_t p2_pins = Chip_GPIOINT_GetStatusFalling(LPC_GPIO_PIN_INT, 2) |
-			Chip_GPIOINT_GetStatusRising(LPC_GPIO_PIN_INT, 2);
+	uint32_t p2_pins = Chip_GPIOINT_GetStatusFalling(LPC_GPIOINT, 2) |
+			Chip_GPIOINT_GetStatusRising(LPC_GPIOINT, 2);
 	for (uint8_t i = 0; i < 32; i++) {
-		if (!Chip_GPIOINT_IsIntPending(LPC_GPIO_PIN_INT, 2)) {
+		if (!Chip_GPIOINT_IsIntPending(LPC_GPIOINT, 2)) {
 			break;
 		}
 		if (p2_pins | (1 << i)) {
 			callback(P2_0 + i);
-			Chip_GPIOINT_ClearIntStatus(LPC_GPIO_PIN_INT, 2, i);
+			Chip_GPIOINT_ClearIntStatus(LPC_GPIOINT, 2, i);
 		}
 	}
 }

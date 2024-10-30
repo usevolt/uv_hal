@@ -31,6 +31,138 @@
 
 #if CONFIG_SPI
 
+#if CONFIG_SPI0
+#if (CONFIG_SPI0_SLAVE_COUNT > 4)
+#error "Maximum slave count is 4 for SPI0"
+#elif (CONFIG_SPI0_SLAVE_COUNT > 3)
+#if !defined(CONFIG_SPI0_SSEL3_IO)
+#error "CONFIG_SPI0_SSEL3_IO should define the I/O pin used for slave 3 select"
+#endif
+#if !defined(CONFIG_SPI0_SSEL3_INV)
+#error "CONFIG_SPI0_SSEL3_INV should be defined as 1 or 0, depending if the SSEL3\
+ logic polarity should be inverted. (when 0, SSEL3 is active low.)"
+#endif
+#endif
+#if (CONFIG_SPI0_SLAVE_COUNT > 2)
+#if !defined(CONFIG_SPI0_SSEL2_IO)
+#error "CONFIG_SPI0_SSEL2_IO should define the I/O pin used for slave 2 select"
+#endif
+#if !defined(CONFIG_SPI0_SSEL2_INV)
+#error "CONFIG_SPI0_SSEL2_INV should be defined as 1 or 0, depending if the SSEL2\
+ logic polarity should be inverted. (when 0, SSEL2 is active low.)"
+#endif
+#endif
+#if (CONFIG_SPI0_SLAVE_COUNT > 1)
+#if !defined(CONFIG_SPI0_SSEL1_IO)
+#error "CONFIG_SPI0_SSEL1_IO should define the I/O pin used for slave 1 select"
+#endif
+#if !defined(CONFIG_SPI0_SSEL1_INV)
+#error "CONFIG_SPI0_SSEL1_INV should be defined as 1 or 0, depending if the SSEL1\
+ logic polarity should be inverted. (when 0, SSEL1 is active low.)"
+#endif
+#endif
+#if (CONFIG_SPI0_SLAVE_COUNT > 0)
+#if !defined(CONFIG_SPI0_SSEL0_IO)
+#error "CONFIG_SPI0_SSEL0_IO should define the I/O pin used for slave 0 select"
+#endif
+#if !defined(CONFIG_SPI0_SSEL0_INV)
+#error "CONFIG_SPI0_SSEL0_INV should be defined as 1 or 0, depending if the SSEL0\
+ logic polarity should be inverted. (when 0, SSEL0 is active low.)"
+#endif
+#endif
+#if !defined(CONFIG_SPI0_MSB_FIRST)
+#error "CONFIG_SPI0_MSB_FIRST should be set to 1 or 0 depending if the most\
+ significant bit should be transmitted first"
+#endif
+#if !defined(CONFIG_SPI0_PREDELAY)
+#error "CONFIG_SPI0_PREDELAY should define the delay between SSEL and first bit"
+#endif
+#if !defined(CONFIG_SPI0_POSTDELAY)
+#error "CONFIG_SPI0_POSTDELAY should define the delay between last bit and SSEL"
+#endif
+#if !defined(CONFIG_SPI0_FRAMEDELAY)
+#error "CONFIG_SPI0_FRAMEDELAY should define the delay between frames"
+#endif
+#if !defined(CONFIG_SPI0_TRANSFERDELAY)
+#error "CONFIG_SPI0_TRANSFERDELAY should define the minimum amount of time that SSEL's are\
+ deasserted between frames."
+#endif
+#if !defined(CONFIG_SPI0_MISO_PULL_UP) && !defined(CONFIG_SPI0_MISO_PULL_DOWN)
+#error "CONFIG_SPI0_MISO_PULL_UP or CONFIG_SPI0_MISO_PULL_DOWN should be defined as 1 depending if the MISO \
+line should have a pull up resistor or pull down resistor enabled."
+#endif
+#if CONFIG_SPI0_MISO_PULL_UP && CONFIG_SPI0_MISO_PULL_DOWN
+#error "CONFIG_SPI0_MISO_PULL_UP and CONFIG_SPI0_MISO_PULL_DOWN cannot both be enabled."
+#endif
+#endif
+
+#if CONFIG_SPI1
+#if (CONFIG_SPI1_SLAVE_COUNT > 4)
+#error "Maximum slave count is 4 for SPI1"
+#elif (CONFIG_SPI1_SLAVE_COUNT > 3)
+#if !defined(CONFIG_SPI1_SSEL3_IO)
+#error "CONFIG_SPI1_SSEL3_IO should define the I/O pin used for slave 3 select"
+#endif
+#if !defined(CONFIG_SPI1_SSEL3_INV)
+#error "CONFIG_SPI1_SSEL3_INV should be defined as 1 or 0, depending if the SSEL3\
+ logic polarity should be inverted. (when 0, SSEL3 is active low.)"
+#endif
+#endif
+#if (CONFIG_SPI1_SLAVE_COUNT > 2)
+#if !defined(CONFIG_SPI1_SSEL2_IO)
+#error "CONFIG_SPI1_SSEL2_IO should define the I/O pin used for slave 2 select"
+#endif
+#if !defined(CONFIG_SPI1_SSEL2_INV)
+#error "CONFIG_SPI1_SSEL2_INV should be defined as 1 or 0, depending if the SSEL2\
+ logic polarity should be inverted. (when 0, SSEL2 is active low.)"
+#endif
+#endif
+#if (CONFIG_SPI1_SLAVE_COUNT > 1)
+#if !defined(CONFIG_SPI1_SSEL1_IO)
+#error "CONFIG_SPI1_SSEL1_IO should define the I/O pin used for slave 1 select"
+#endif
+#if !defined(CONFIG_SPI1_SSEL1_INV)
+#error "CONFIG_SPI1_SSEL1_INV should be defined as 1 or 0, depending if the SSEL1\
+ logic polarity should be inverted. (when 0, SSEL1 is active low.)"
+#endif
+#endif
+#if (CONFIG_SPI1_SLAVE_COUNT > 0)
+#if !defined(CONFIG_SPI1_SSEL0_IO)
+#error "CONFIG_SPI1_SSEL0_IO should define the I/O pin used for slave 0 select"
+#endif
+#if !defined(CONFIG_SPI1_SSEL0_INV)
+#error "CONFIG_SPI1_SSEL0_INV should be defined as 1 or 0, depending if the SSEL0\
+ logic polarity should be inverted. (when 0, SSEL0 is active low.)"
+#endif
+#endif
+#if !defined(CONFIG_SPI1_MSB_FIRST)
+#error "CONFIG_SPI1_MSB_FIRST should be set to 1 or 0 depending if the most\
+ significant bit should be transmitted first"
+#endif
+#if !defined(CONFIG_SPI1_PREDELAY)
+#error "CONFIG_SPI1_PREDELAY should define the delay between SSEL and first bit"
+#endif
+#if !defined(CONFIG_SPI1_POSTDELAY)
+#error "CONFIG_SPI1_POSTDELAY should define the delay between last bit and SSEL"
+#endif
+#if !defined(CONFIG_SPI1_FRAMEDELAY)
+#error "CONFIG_SPI1_FRAMEDELAY should define the delay between frames"
+#endif
+#if !defined(CONFIG_SPI1_TRANSFERDELAY)
+#error "CONFIG_SPI1_TRANSFERDELAY should define the minimum amount of time that SSEL's are\
+ deasserted between frames."
+#endif
+#if !defined(CONFIG_SPI1_MISO_PULL_UP) && !defined(CONFIG_SPI1_MISO_PULL_DOWN)
+#error "CONFIG_SPI1_MISO_PULL_UP or CONFIG_SPI1_MISO_PULL_DOWN should be defined as 1 depending if the MISO \
+line should have a pull up resistor or pull down resistor enabled."
+#endif
+#if CONFIG_SPI1_MISO_PULL_UP && CONFIG_SPI1_MISO_PULL_DOWN
+#error "CONFIG_SPI1_MISO_PULL_UP and CONFIG_SPI1_MISO_PULL_DOWN cannot both be enabled."
+#endif
+#endif
+
+
+
 #if CONFIG_TARGET_LPC15XX
 
 
@@ -197,7 +329,7 @@ void _uv_spi_init(void) {
 
 
 bool uv_spi_readwrite_sync(const spi_e spi, spi_slaves_e slaves,
-		const uint16_t *writebuffer, uint16_t *readbuffer,
+		const spi_data_t *writebuffer, spi_data_t *readbuffer,
 		const uint8_t byte_len, const uint16_t buffer_len) {
 	bool ret = true;
 
@@ -223,7 +355,7 @@ bool uv_spi_readwrite_sync(const spi_e spi, spi_slaves_e slaves,
 
 
 bool uv_spi_write_sync(const spi_e spi, spi_slaves_e slaves,
-		const uint16_t *writebuffer, const uint8_t byte_len, const uint16_t buffer_len) {
+		const spi_data_t *writebuffer, const uint8_t byte_len, const uint16_t buffer_len) {
 	bool ret = true;
 
 	// note: Make sure to specifically deassert all nodes not used for transmission

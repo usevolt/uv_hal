@@ -7,6 +7,9 @@
 
 
 #include <uv_pca9685.h>
+
+#if CONFIG_PCA9685
+
 #include "uv_pwm.h"
 #include "uv_terminal.h"
 #include "uv_rtos.h"
@@ -234,5 +237,7 @@ void uv_pca9685_set_freq(void *me, uint32_t chn, uint32_t freq) {
 	uv_i2cm_write(this->i2c, w, sizeof(w));
 }
 
+
+#endif
 
 #endif

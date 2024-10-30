@@ -75,7 +75,10 @@
 #endif
 #endif
 
-#if !CONFIG_TARGET_LPC4078
+#if CONFIG_TARGET_LPC4078
+#include "i2c_17xx_40xx.h"
+typedef I2C_ID_T i2c_e;
+#else
 // "header i2c_17xx_40xx already defines these I2C enums
 typedef enum {
 	I2C0 = 0,

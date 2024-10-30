@@ -78,11 +78,11 @@
 #define WRITE_CMD_LEN					4
 
 // RAM buffer size of W25Q128 Page but in 16-bit
-static uint16_t buffer[W25Q128_PAGE_SIZE];
+static spi_data_t buffer[W25Q128_PAGE_SIZE];
 
 static bool is_busy(uv_w25q128_st *this) {
-	uint16_t read[2] = {};
-	uint16_t write[2] = {};
+	spi_data_t read[2] = {};
+	spi_data_t write[2] = {};
 	write[0] = CMD_READ_STATUS_REGISTER_1;
 	uv_spi_readwrite_sync(this->spi, this->ssel, write, read, 8, 2);
 	return (read[1] & (1 << 0));
@@ -95,8 +95,8 @@ uv_errors_e uv_w25q128_init(uv_w25q128_st *this, spi_e spi, spi_slaves_e ssel) {
 	this->ssel = ssel;
 	this->data_location = 0;
 
-	uint16_t read[6] = {};
-	uint16_t write[6] = {};
+	spi_data_t read[6] = {};
+	spi_data_t write[6] = {};
 	write[0] = CMD_MANUFACTURER_DEVICE_ID;
 	uv_spi_readwrite_sync(this->spi, this->ssel, write, read, 8, 6);
 	if ((read[4] != 0xef) ||
@@ -121,13 +121,18 @@ void *uv_w25q128_read(uv_w25q128_st *this,
 	uint32_t read_count = 0;
 	while (true) {
 		bool br = false;
-		uint16_t len = uv_mini((sizeof(buffer) / sizeof(buffer[0])) - READ_CMD_LEN, byte_count);
+		uint32_t len = uv_mini((sizeof(buffer) / sizeof(buffer[0])) - READ_CMD_LEN, byte_count);
 		buffer[0] = CMD_READ_DATA;
 		buffer[1] = ((address >> 16) & 0xFF);
 		buffer[2] = ((address >> 8) & 0xFF);
 		buffer[3] = (address & 0xFF);
 
-		if (uv_spi_readwrite_sync(this->spi, this->ssel, buffer, buffer, 8, len + READ_CMD_LEN)) {
+		if (uv_spi_readwrite_sync(this->spi,
+				this->ssel,
+				buffer,
+				buffer,
+				8,
+				len + READ_CMD_LEN)) {
 			for (int32_t i = 0; i < len; i++) {
 				((uint8_t*) dest)[read_count + i] = buffer[READ_CMD_LEN + i];
 			}
@@ -168,7 +173,7 @@ bool uv_w25q128_write(uv_w25q128_st *this,
 			}
 
 			buffer[0] = CMD_WRITE_ENABLE;
-			uv_spi_write_sync(this->spi, this->ssel, (uint16_t*) buffer, 8, 1);
+			uv_spi_write_sync(this->spi, this->ssel, buffer, 8, 1);
 
 
 			bool br = false;
@@ -188,7 +193,7 @@ bool uv_w25q128_write(uv_w25q128_st *this,
 				buffer[i + 4] = ((uint8_t*) src)[write_count + i];
 			}
 			if (!uv_spi_write_sync(this->spi, this->ssel,
-					(uint16_t*) buffer, 8, WRITE_CMD_LEN + len)) {
+					buffer, 8, WRITE_CMD_LEN + len)) {
 				// problem writing the data, return false
 				ret = false;
 				br = true;
@@ -218,7 +223,7 @@ bool uv_w25q128_clear(uv_w25q128_st *this) {
 		uv_rtos_task_yield();
 	}
 	buffer[0] = CMD_WRITE_ENABLE;
-	uv_spi_write_sync(this->spi, this->ssel, (uint16_t*) buffer, 8, 1);
+	uv_spi_write_sync(this->spi, this->ssel, buffer, 8, 1);
 
 	buffer[0] = CMD_CHIP_ERASE;
 	uv_spi_write_sync(this->spi, this->ssel, buffer, 8, 1);
@@ -235,7 +240,7 @@ bool uv_w25q128_clear_sector_at(uv_w25q128_st *this, uint32_t address) {
 	uint32_t sector = address - (address % W25Q128_SECTOR_SIZE);
 
 	buffer[0] = CMD_WRITE_ENABLE;
-	uv_spi_write_sync(this->spi, this->ssel, (uint16_t*) buffer, 8, 1);
+	uv_spi_write_sync(this->spi, this->ssel, buffer, 8, 1);
 
 	buffer[0] = CMD_SECTOR_ERASE_4KB;
 	buffer[1] = ((sector >> 16) & 0xFF);

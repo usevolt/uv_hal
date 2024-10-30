@@ -42,7 +42,7 @@ void _uv_spi_init(void) {
 
 
 bool uv_spi_readwrite_sync(const spi_e spi, spi_slaves_e slaves,
-		const uint16_t *writebuffer, uint16_t *readbuffer,
+		const spi_data_t *writebuffer, spi_data_t *readbuffer,
 		const uint8_t byte_len, const uint16_t buffer_len) {
 	bool ret = true;
 
@@ -51,7 +51,7 @@ bool uv_spi_readwrite_sync(const spi_e spi, spi_slaves_e slaves,
 
 
 bool uv_spi_write_sync(const spi_e spi, spi_slaves_e slaves,
-		const uint16_t *writebuffer, const uint8_t byte_len, const uint16_t buffer_len) {
+		const spi_data_t *writebuffer, const uint8_t byte_len, const uint16_t buffer_len) {
 	bool ret = true;
 
 	return ret;

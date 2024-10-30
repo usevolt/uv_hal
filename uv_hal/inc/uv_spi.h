@@ -59,60 +59,10 @@
 #if !CONFIG_SPI0_SLAVE_COUNT
 #error "CONFIG_SPI0_SLAVE_COUNT should define the number of slave devices on SPI0"
 #endif
-#if (CONFIG_SPI0_SLAVE_COUNT > 4)
-#error "Maximum slave count is 4 for SPI0"
-#elif (CONFIG_SPI0_SLAVE_COUNT > 3)
-#if !defined(CONFIG_SPI0_SSEL3_IO)
-#error "CONFIG_SPI0_SSEL3_IO should define the I/O pin used for slave 3 select"
-#endif
-#if !defined(CONFIG_SPI0_SSEL3_INV)
-#error "CONFIG_SPI0_SSEL3_INV should be defined as 1 or 0, depending if the SSEL3\
- logic polarity should be inverted. (when 0, SSEL3 is active low.)"
-#endif
-#endif
-#if (CONFIG_SPI0_SLAVE_COUNT > 2)
-#if !defined(CONFIG_SPI0_SSEL2_IO)
-#error "CONFIG_SPI0_SSEL2_IO should define the I/O pin used for slave 2 select"
-#endif
-#if !defined(CONFIG_SPI0_SSEL2_INV)
-#error "CONFIG_SPI0_SSEL2_INV should be defined as 1 or 0, depending if the SSEL2\
- logic polarity should be inverted. (when 0, SSEL2 is active low.)"
-#endif
-#endif
-#if (CONFIG_SPI0_SLAVE_COUNT > 1)
-#if !defined(CONFIG_SPI0_SSEL1_IO)
-#error "CONFIG_SPI0_SSEL1_IO should define the I/O pin used for slave 1 select"
-#endif
-#if !defined(CONFIG_SPI0_SSEL1_INV)
-#error "CONFIG_SPI0_SSEL1_INV should be defined as 1 or 0, depending if the SSEL1\
- logic polarity should be inverted. (when 0, SSEL1 is active low.)"
-#endif
-#endif
 #if (CONFIG_SPI0_SLAVE_COUNT > 0)
 #if !defined(CONFIG_SPI0_SSEL0_IO)
 #error "CONFIG_SPI0_SSEL0_IO should define the I/O pin used for slave 0 select"
 #endif
-#if !defined(CONFIG_SPI0_SSEL0_INV)
-#error "CONFIG_SPI0_SSEL0_INV should be defined as 1 or 0, depending if the SSEL0\
- logic polarity should be inverted. (when 0, SSEL0 is active low.)"
-#endif
-#endif
-#if !defined(CONFIG_SPI0_MSB_FIRST)
-#error "CONFIG_SPI0_MSB_FIRST should be set to 1 or 0 depending if the most\
- significant bit should be transmitted first"
-#endif
-#if !defined(CONFIG_SPI0_PREDELAY)
-#error "CONFIG_SPI0_PREDELAY should define the delay between SSEL and first bit"
-#endif
-#if !defined(CONFIG_SPI0_POSTDELAY)
-#error "CONFIG_SPI0_POSTDELAY should define the delay between last bit and SSEL"
-#endif
-#if !defined(CONFIG_SPI0_FRAMEDELAY)
-#error "CONFIG_SPI0_FRAMEDELAY should define the delay between frames"
-#endif
-#if !defined(CONFIG_SPI0_TRANSFERDELAY)
-#error "CONFIG_SPI0_TRANSFERDELAY should define the minimum amount of time that SSEL's are\
- deasserted between frames."
 #endif
 #if !defined(CONFIG_SPI0_CLOCK_POL)
 #error "CONFIG_SPI0_CLOCK_POL should define the clock rest state"
@@ -120,13 +70,6 @@
 #if !defined(CONFIG_SPI0_CLOCK_PHASE)
 #error "CONFIG_SPI0_CLOCK_PHASE should be defined as 0 if SPI captures data on first clock transition, or\
  as 1 if SPI should change the serial data on first clock transition."
-#endif
-#if !defined(CONFIG_SPI0_MISO_PULL_UP) && !defined(CONFIG_SPI0_MISO_PULL_DOWN)
-#error "CONFIG_SPI0_MISO_PULL_UP or CONFIG_SPI0_MISO_PULL_DOWN should be defined as 1 depending if the MISO \
-line should have a pull up resistor or pull down resistor enabled."
-#endif
-#if CONFIG_SPI0_MISO_PULL_UP && CONFIG_SPI0_MISO_PULL_DOWN
-#error "CONFIG_SPI0_MISO_PULL_UP and CONFIG_SPI0_MISO_PULL_DOWN cannot be noth enabled."
 #endif
 #endif
 #if CONFIG_SPI1
@@ -148,60 +91,10 @@ line should have a pull up resistor or pull down resistor enabled."
 #if !CONFIG_SPI1_SLAVE_COUNT
 #error "CONFIG_SPI1_SLAVE_COUNT should define the number of slave devices on SPI1"
 #endif
-#if (CONFIG_SPI1_SLAVE_COUNT > 4)
-#error "Maximum slave count is 4 for SPI1"
-#elif (CONFIG_SPI1_SLAVE_COUNT > 3)
-#if !defined(CONFIG_SPI1_SSEL3_IO)
-#error "CONFIG_SPI1_SSEL3_IO should define the I/O pin used for slave 3 select"
-#endif
-#if !defined(CONFIG_SPI1_SSEL3_INV)
-#error "CONFIG_SPI1_SSEL3_INV should be defined as 1 or 0, depending if the SSEL3\
- logic polarity should be inverted. (when 0, SSEL3 is active low.)"
-#endif
-#endif
-#if (CONFIG_SPI1_SLAVE_COUNT > 2)
-#if !defined(CONFIG_SPI1_SSEL2_IO)
-#error "CONFIG_SPI1_SSEL2_IO should define the I/O pin used for slave 2 select"
-#endif
-#if !defined(CONFIG_SPI1_SSEL2_INV)
-#error "CONFIG_SPI1_SSEL2_INV should be defined as 1 or 0, depending if the SSEL2\
- logic polarity should be inverted. (when 0, SSEL2 is active low.)"
-#endif
-#endif
-#if (CONFIG_SPI1_SLAVE_COUNT > 1)
-#if !defined(CONFIG_SPI1_SSEL1_IO)
-#error "CONFIG_SPI1_SSEL1_IO should define the I/O pin used for slave 1 select"
-#endif
-#if !defined(CONFIG_SPI1_SSEL1_INV)
-#error "CONFIG_SPI1_SSEL1_INV should be defined as 1 or 0, depending if the SSEL1\
- logic polarity should be inverted. (when 0, SSEL1 is active low.)"
-#endif
-#endif
 #if (CONFIG_SPI1_SLAVE_COUNT > 0)
 #if !defined(CONFIG_SPI1_SSEL0_IO)
 #error "CONFIG_SPI1_SSEL0_IO should define the I/O pin used for slave 0 select"
 #endif
-#if !defined(CONFIG_SPI1_SSEL0_INV)
-#error "CONFIG_SPI1_SSEL0_INV should be defined as 1 or 0, depending if the SSEL0\
- logic polarity should be inverted. (when 0, SSEL0 is active low.)"
-#endif
-#endif
-#if !defined(CONFIG_SPI1_MSB_FIRST)
-#error "CONFIG_SPI1_MSB_FIRST should be set to 1 or 0 depending if the most\
- significant bit should be transmitted first"
-#endif
-#if !defined(CONFIG_SPI1_PREDELAY)
-#error "CONFIG_SPI1_PREDELAY should define the delay between SSEL and first bit"
-#endif
-#if !defined(CONFIG_SPI1_POSTDELAY)
-#error "CONFIG_SPI1_POSTDELAY should define the delay between last bit and SSEL"
-#endif
-#if !defined(CONFIG_SPI1_FRAMEDELAY)
-#error "CONFIG_SPI1_FRAMEDELAY should define the delay between frames"
-#endif
-#if !defined(CONFIG_SPI1_TRANSFERDELAY)
-#error "CONFIG_SPI1_TRANSFERDELAY should define the minimum amount of time that SSEL's are\
- deasserted between frames."
 #endif
 #if !defined(CONFIG_SPI1_CLOCK_POL)
 #error "CONFIG_SPI1_CLOCK_POL should define the clock rest state"
@@ -210,25 +103,60 @@ line should have a pull up resistor or pull down resistor enabled."
 #error "CONFIG_SPI1_CLOCK_PHASE should be defined as 0 if SPI captures data on first clock transition, or\
  1 if SPI should change the serial data on first clock transition."
 #endif
-#if !defined(CONFIG_SPI1_MISO_PULL_UP) && !defined(CONFIG_SPI1_MISO_PULL_DOWN)
-#error "CONFIG_SPI1_MISO_PULL_UP or CONFIG_SPI1_MISO_PULL_DOWN should be defined as 1 depending if the MISO \
-line should have a pull up resistor or pull down resistor enabled."
 #endif
-#if CONFIG_SPI1_MISO_PULL_UP && CONFIG_SPI1_MISO_PULL_DOWN
-#error "CONFIG_SPI1_MISO_PULL_UP and CONFIG_SPI1_MISO_PULL_DOWN cannot be noth enabled."
+#if CONFIG_SPI2
+#if !CONFIG_SPI2_BAUDRATE
+#error "CONFIG_SPI2_BAUDRATE should define the baudrate used for SPI2"
+#endif
+#if (CONFIG_SPI2_BAUDRATE > 17000000)
+#error "CONFIG_SPI2_BAUDRATE Cannot be greater than 17000000"
+#endif
+#if !defined(CONFIG_SPI2_MOSI_IO)
+#error "CONFIG_SPI2_MOSI_IO should define the I/O pin used for SPI2 MOSI"
+#endif
+#if !defined(CONFIG_SPI2_MISO_IO)
+#error "CONFIG_SPI2_MISO_IO should define the I/O pin used for SPI2_MISO"
+#endif
+#if !defined(CONFIG_SPI2_SCK_IO)
+#error "CONFIG_SPI2_SCK_IO should define the I/O pin used for SPI2_CLK"
+#endif
+#if !CONFIG_SPI2_SLAVE_COUNT
+#error "CONFIG_SPI2_SLAVE_COUNT should define the number of slave devices on SPI2"
+#endif
+#if (CONFIG_SPI2_SLAVE_COUNT > 0)
+#if !defined(CONFIG_SPI2_SSEL0_IO)
+#error "CONFIG_SPI2_SSEL0_IO should define the I/O pin used for slave 0 select"
 #endif
 #endif
+#if !defined(CONFIG_SPI2_CLOCK_POL)
+#error "CONFIG_SPI2_CLOCK_POL should define the clock rest state"
+#endif
+#if !defined(CONFIG_SPI2_CLOCK_PHASE)
+#error "CONFIG_SPI2_CLOCK_PHASE should be defined as 0 if SPI captures data on first clock transition, or\
+ 1 if SPI should change the serial data on first clock transition."
+#endif
+#endif
+
 
 /// @brief: SPI modules
 #if CONFIG_TARGET_LPC15XX
 #define SPI0	LPC_SPI0
 #define SPI1	LPC_SPI1
-
+typedef uint16_t spi_data_t;
 typedef LPC_SPI_T* spi_e;
+#elif CONFIG_TARGET_LPC40XX
+#include "ssp_17xx_40xx.h"
+typedef enum {
+	SPI0 = 0,
+	SPI1,
+	SPI2
+} spi_e;
+typedef uint8_t spi_data_t;
 #else
 typedef void* spi_e;
 #define SPI0	NULL
 #define SPI1	NULL
+typedef uint8_t spi_data_t;
 #endif
 
 
@@ -255,14 +183,14 @@ void _uv_spi_init(void);
 /// @param spi: The SPI channel used
 /// @param slaves: Selected slaves to whom the data is sent
 /// @param writebuffer: Pointer to a buffer where write data is read. Note:
-/// Buffer has to be of type uint16_t or int16_t.
+/// Buffer is of type spi_data_t which depends on TARGET.
 /// @param readbuffer: Pointer to a buffer where read data is written. Note:
-/// Buffer has to be of type uint16_t or int16_t.
+/// Buffer is of type spi_data_t which depends on TARGET.
 /// @byte_len: The length of individual bytes in bits (usually 8)
 /// @buffer_len: The length of the read and write buffers in bytes
 /// (not local bytes but *byte_len* bytes)
 bool uv_spi_readwrite_sync(const spi_e spi, spi_slaves_e slaves,
-		const uint16_t *writebuffer, uint16_t *readbuffer,
+		const spi_data_t *writebuffer, spi_data_t *readbuffer,
 		const uint8_t byte_len, const uint16_t buffer_len);
 
 
@@ -279,7 +207,7 @@ bool uv_spi_readwrite_sync(const spi_e spi, spi_slaves_e slaves,
 /// @buffer_len: The length of the write buffer in bytes
 /// (not local bytes but *byte_len* bytes)
 bool uv_spi_write_sync(const spi_e spi, spi_slaves_e slaves,
-		const uint16_t *writebuffer, const uint8_t byte_len, const uint16_t buffer_len);
+		const spi_data_t *writebuffer, const uint8_t byte_len, const uint16_t buffer_len);
 
 
 #endif

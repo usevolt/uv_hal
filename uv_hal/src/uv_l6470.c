@@ -333,8 +333,8 @@ void uv_l6470_wait(uv_l6470_st *this) {
 
 void readwrite(uv_l6470_st *this, uint8_t *write_ptr, uint8_t *read_ptr, uint8_t data_len) {
 	for (uint8_t i = 0; i < data_len; i++) {
-		uint16_t w = write_ptr[i];
-		uint16_t r = 0;
+		spi_data_t w = write_ptr[i];
+		spi_data_t r = 0;
 		uv_spi_readwrite_sync(this->spi, this->ssel, &w, &r, 8, 1);
 		if (read_ptr) {
 			read_ptr[i] = (uint8_t) r;

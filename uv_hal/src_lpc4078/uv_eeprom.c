@@ -28,13 +28,10 @@
 
 
 #include "uv_eeprom.h"
+#if CONFIG_EEPROM
 #include "uv_rtos.h"
 #include "eeprom_17xx_40xx.h"
 
-#if CONFIG_EEPROM
-
-#include "eeprom.h"
-#include "iap.h"
 
 
 typedef struct {
@@ -88,14 +85,12 @@ uv_errors_e uv_eeprom_read(void *dest, uint16_t len, uint16_t eeprom_addr) {
 	else {
 
 		uv_disable_int();
-		if (Chip_EEPROM_Read(LPC_EEPROM,
+		Chip_EEPROM_Read(LPC_EEPROM,
 				eeprom_addr % EEPROM_PAGE_SIZE,
 				eeprom_addr / EEPROM_PAGE_SIZE,
 				dest,
 				EEPROM_RWSIZE_8BITS,
-				len) != SUCCESS) {
-			ret = ERR_HARDWARE_NOT_SUPPORTED;
-		}
+				len);
 		uv_enable_int();
 	}
 	return ret;

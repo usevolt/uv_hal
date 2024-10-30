@@ -51,7 +51,7 @@
 #error "CONFIG_CAN_ERROR_LOG not defined. When CONFIG_CAN_LOG is set as 0,\
  CONFIG_CAN_ERROR_LOG should be definded as 0 or 1, to disable or enable error logging."
 #endif
-#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC15XX
+#if CONFIG_TARGET_LPC15XX
 #if !CONFIG_CAN0
 #error "At least one CAN channel should be defined"
 #endif
@@ -79,7 +79,7 @@
 #endif
 #endif
 #endif
-#elif CONFIG_TARGET_LPC1785
+#elif CONFIG_TARGET_LPC40XX
 #if CONFIG_CAN0
 #if !defined(CONFIG_CAN0_BAUDRATE)
 #error "CONFIG_CAN0_BAUDRATE not defined. It should define the baudrate used for CAN0 module."
@@ -96,11 +96,11 @@
 #if !defined(CONFIG_CAN0_RX_PIN)
 #error "CONFIG_CAN0_RX_PIN should define the GPIO pin used as the CAN0 receive pin"
 #endif
-#if CONFIG_CAN0_TX_PIN != PIO0_1 && CONFIG_CAN0_TX_PIN != PIO0_22
-#error "CONFIG_CAN0_TX_PIN can be PIO0_1 or PIO0_22"
+#if CONFIG_CAN0_TX_PIN != P0_1 && CONFIG_CAN0_TX_PIN != P0_22
+#error "CONFIG_CAN0_TX_PIN can only be PIO0_1 or PIO0_22"
 #endif
-#if CONFIG_CAN0_RX_PIN != PIO0_0 && CONFIG_CAN0_RX_PIN != PIO0_21
-#error "CONFIG_CAN0_RX_PIN can be PIO0_0 or PIO0_21"
+#if CONFIG_CAN0_RX_PIN != P0_0 && CONFIG_CAN0_RX_PIN != P0_21
+#error "CONFIG_CAN0_RX_PIN can only be PIO0_0 or PIO0_21"
 #endif
 #endif
 #if CONFIG_CAN1
@@ -119,13 +119,14 @@
 #if !defined(CONFIG_CAN1_RX_PIN)
 #error "CONFIG_CAN1_RX_PIN should define the GPIO pin used as the CAN1 receive pin"
 #endif
-#if CONFIG_CAN1_TX_PIN != PIO0_5 && CONFIG_CAN1_TX_PIN != PIO2_8
+#if CONFIG_CAN1_TX_PIN != P0_5 && CONFIG_CAN1_TX_PIN != P2_8
 #error "CONFIG_CAN1_TX_PIN can be PIO0_5 or PIO2_8"
 #endif
-#if CONFIG_CAN1_RX_PIN != PIO0_4 && CONFIG_CAN1_RX_PIN != PIO2_7
+#if CONFIG_CAN1_RX_PIN != P0_4 && CONFIG_CAN1_RX_PIN != P2_7
 #error "CONFIG_CAN1_RX_PIN can be PIO0_4 or PIO2_7"
 #endif
 #endif
+
 #elif CONFIG_TARGET_LINUX
 #if !defined(CONFIG_CAN0_BAUDRATE)
 #error "CONFIG_CAN0_BAUDRATE should define the default baudrate for CAN."
@@ -182,19 +183,21 @@ typedef enum {
 typedef char * uv_can_channels_e;
 #define CAN_CHANNEL_MAX_COUNT	10
 #else
-typedef enum {
 #if CONFIG_TARGET_LPC15XX
-	CAN0 = 0,
-	CAN_COUNT
+#define	CAN0 		0
+#define CAN_COUNT	1
 #elif CONFIG_TARGET_LPC40XX
-	CAN0 = 0,
-	CAN1,
-	CAN_COUNT
+// Named as CAN1 in user manual UM10562
+#define CAN0 		0
+// Named as CAN2 in user manual UM10562
+#define CAN1		1
+#define CAN_COUNT	2
 #else
 #error "Unknown hardware"
 #endif
-} uv_can_channels_e;
 #endif
+typedef uint8_t uv_can_channels_e;
+typedef uv_can_channels_e uv_can_chn_e;
 
 
 /// @brief: A enum describing popular CAN masks used when configuring receive messages.
@@ -236,7 +239,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 /// @brief: Clears all receive messages configured with *uv_can_config_rx_message*.
 /// After call to this none messages are received and the reserved messages objects
 /// are released for new usage.
-void uv_can_clear_rx_messages(void);
+void uv_can_clear_rx_messages(uv_can_chn_e chn);
 
 
 /// @brief: An alternative way to send a CAN message

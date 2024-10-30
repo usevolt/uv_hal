@@ -40,7 +40,7 @@
 
 
 
-static const LPC_TIMER_T *timers[TIMER_COUNT] = {
+static LPC_TIMER_T *timers[TIMER_COUNT] = {
 		LPC_TIMER0,
 		LPC_TIMER1,
 		LPC_TIMER2,

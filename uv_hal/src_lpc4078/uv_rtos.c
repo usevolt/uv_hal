@@ -216,13 +216,13 @@ void uv_init(void *device) {
 	SCB->VTOR = APP_START_ADDR;
 #endif
 
-	Chip_SYSCTL_PeriphReset(RESET_IOCON);
-	Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_IOCON);
+	Chip_SYSCTL_PeriphReset(SYSCTL_RESET_IOCON);
+	// Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_IOCON);
 	Chip_GPIO_DeInit(LPC_GPIO);
 	Chip_GPIO_Init(LPC_GPIO);
 
 	// configure brown-out detection to reset the device
-	LPC_SYSCON->BODCTRL = (2 << 0) | (1 << 4);
+	// Bornw-out detection should be enabled by default
 
 
 #if CONFIG_WDT

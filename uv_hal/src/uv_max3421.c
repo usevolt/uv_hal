@@ -102,10 +102,10 @@ static void reg_write(uv_max3421_st *this, max3421_reg_e reg, uint8_t value);
 
 
 static uint8_t reg_read(uv_max3421_st *this, max3421_reg_e reg) {
-	uint16_t write[2] = {
+	spi_data_t write[2] = {
 			(reg << 3) | (READ << 1)
 	};
-	uint16_t read[2] = {};
+	spi_data_t read[2] = {};
 	uv_spi_readwrite_sync(this->spi, this->ss, write, read, 8, 2);
 
 	return read[1];
@@ -114,11 +114,11 @@ static uint8_t reg_read(uv_max3421_st *this, max3421_reg_e reg) {
 
 
 static void reg_write(uv_max3421_st *this, max3421_reg_e reg, uint8_t value) {
-	uint16_t write[2] = {
+	spi_data_t write[2] = {
 			(reg << 3) | (WRITE << 1),
 			value
 	};
-	uint16_t read[2] = {};
+	spi_data_t read[2] = {};
 	uv_spi_readwrite_sync(this->spi, this->ss, write, read, 8, 2);
 }
 

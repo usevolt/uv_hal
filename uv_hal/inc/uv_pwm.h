@@ -249,7 +249,7 @@ typedef volatile uint32_t uv_pwm_channel_t;
 
 #define DUTY_CYCLEPPT(ppt)	((uint32_t) PWM_MAX_VALUE * (ppt) / 1000)
 
-/// @brief: This device as PWM module, if modules are deifned with uv_pwm_init_module
+/// @brief: This device as PWM module, if modules are defined with uv_pwm_init_module
 #define PWMEXT_MODULE_THIS			0
 
 #define PWMEXT_GET_MODULE(chn)		((chn) >> 24)

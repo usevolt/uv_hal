@@ -51,6 +51,11 @@ struct ext_module {
 typedef struct {
 	LPC_TIMER_T *modules[4];
 	uint32_t pwm_freq[4];
+	struct {
+		// stores match register value for each PWM channel.
+		// This is updated when timer reaches 0
+		uint32_t match[2];
+	} pwm[2];
 #if CONFIG_PWMEXT_MODULE_COUNT
 	struct ext_module ext_module[CONFIG_PWMEXT_MODULE_COUNT];
 #endif
@@ -58,6 +63,55 @@ typedef struct {
 static pwm_st pwm = {};
 #define this (&pwm)
 
+
+void TIMER0_IRQHandler(void) {
+	// set PWM matches high
+	if (this->pwm[0].match[0]) {
+		LPC_TIMER0->EMR |= (1 << 0);
+	}
+	if (this->pwm[0].match[1]) {
+		LPC_TIMER0->EMR |= (1 << 1);
+	}
+	Chip_TIMER_SetMatch(LPC_TIMER0, 0, this->pwm[0].match[0]);
+	Chip_TIMER_SetMatch(LPC_TIMER0, 1, this->pwm[0].match[1]);
+	Chip_TIMER_Enable(LPC_TIMER0);
+}
+void TIMER1_IRQHandler(void) {
+	// set PWM matches high
+	if (this->pwm[1].match[0]) {
+		LPC_TIMER1->EMR |= (1 << 0);
+	}
+	if (this->pwm[1].match[1]) {
+		LPC_TIMER1->EMR |= (1 << 1);
+	}
+	Chip_TIMER_SetMatch(LPC_TIMER1, 0, this->pwm[1].match[0]);
+	Chip_TIMER_SetMatch(LPC_TIMER1, 1, this->pwm[1].match[1]);
+	Chip_TIMER_Enable(LPC_TIMER1);
+}
+void TIMER2_IRQHandler(void) {
+	// set PWM matches high
+	if (this->pwm[2].match[0]) {
+		LPC_TIMER2->EMR |= (1 << 0);
+	}
+	if (this->pwm[2].match[1]) {
+		LPC_TIMER2->EMR |= (1 << 1);
+	}
+	Chip_TIMER_SetMatch(LPC_TIMER2, 0, this->pwm[2].match[0]);
+	Chip_TIMER_SetMatch(LPC_TIMER2, 1, this->pwm[2].match[1]);
+	Chip_TIMER_Enable(LPC_TIMER2);
+}
+void TIMER3_IRQHandler(void) {
+	// set PWM matches high
+	if (this->pwm[3].match[0]) {
+		LPC_TIMER3->EMR |= (1 << 0);
+	}
+	if (this->pwm[3].match[1]) {
+		LPC_TIMER3->EMR |= (1 << 1);
+	}
+	Chip_TIMER_SetMatch(LPC_TIMER3, 0, this->pwm[3].match[0]);
+	Chip_TIMER_SetMatch(LPC_TIMER3, 1, this->pwm[3].match[1]);
+	Chip_TIMER_Enable(LPC_TIMER3);
+}
 
 
 
@@ -67,13 +121,21 @@ uv_errors_e _uv_pwm_init() {
 	this->modules[2] = LPC_TIMER2;
 	this->modules[3] = LPC_TIMER3;
 
+	memset(&this->pwm, 0, sizeof(this->pwm));
+
 #if CONFIG_PWM0
 	Chip_TIMER_Init(LPC_TIMER0);
 	this->pwm_freq[0] = CONFIG_PWM0_FREQ;
-	// MATCH3 is set to value 0 to set PWM outputs HIGH
-	Chip_TIMER_ExtMatchControlSet(LPC_TIMER0,
-			0,
-			TIMER_EXTMATCH_SET, 3);
+	// MATCH3 is used to generate interrupt to set PWM's high
+	Chip_TIMER_SetMatch(LPC_TIMER0, 3, 0);
+	Chip_TIMER_StopOnMatchEnable(LPC_TIMER0, 3);
+	Chip_TIMER_MatchEnableInt(LPC_TIMER0, 3);
+	NVIC_ClearPendingIRQ(TIMER0_IRQn);
+	NVIC_EnableIRQ(TIMER0_IRQn);
+
+	// match 2 is used to reset timer value, also sets the frequency
+	Chip_TIMER_ResetOnMatchEnable(LPC_TIMER0, 2);
+
 	uv_pwm_set_freq(PWM0_0, CONFIG_PWM0_FREQ);
 #if CONFIG_PWM0_0
 	Chip_TIMER_ExtMatchControlSet(LPC_TIMER0,
@@ -110,10 +172,15 @@ uv_errors_e _uv_pwm_init() {
 #if CONFIG_PWM1
 	Chip_TIMER_Init(LPC_TIMER1);
 	this->pwm_freq[1] = CONFIG_PWM1_FREQ;
-	// MATCH3 is set to value 0 to set PWM outputs HIGH
-	Chip_TIMER_ExtMatchControlSet(LPC_TIMER1,
-			0,
-			TIMER_EXTMATCH_SET, 3);
+	// MATCH3 is used to generate interrupt to set PWM's high
+	Chip_TIMER_SetMatch(LPC_TIMER1, 3, 0);
+	Chip_TIMER_StopOnMatchEnable(LPC_TIMER1, 3);
+	Chip_TIMER_MatchEnableInt(LPC_TIMER1, 3);
+	NVIC_ClearPendingIRQ(TIMER1_IRQn);
+	NVIC_EnableIRQ(TIMER1_IRQn);
+	// match 2 is used to reset timer value, also sets the frequency
+	Chip_TIMER_ResetOnMatchEnable(LPC_TIMER1, 2);
+
 	uv_pwm_set_freq(PWM1_0, CONFIG_PWM1_FREQ);
 #if CONFIG_PWM1_0
 	Chip_TIMER_ExtMatchControlSet(LPC_TIMER1,
@@ -150,10 +217,15 @@ uv_errors_e _uv_pwm_init() {
 #if CONFIG_PWM2
 	Chip_TIMER_Init(LPC_TIMER2);
 	this->pwm_freq[2] = CONFIG_PWM2_FREQ;
-	// MATCH3 is set to value 0 to set PWM outputs HIGH
-	Chip_TIMER_ExtMatchControlSet(LPC_TIMER2,
-			0,
-			TIMER_EXTMATCH_SET, 3);
+	// MATCH3 is used to generate interrupt to set PWM's high
+	Chip_TIMER_SetMatch(LPC_TIMER2, 3, 0);
+	Chip_TIMER_StopOnMatchEnable(LPC_TIMER2, 3);
+	Chip_TIMER_MatchEnableInt(LPC_TIMER2, 3);
+	NVIC_ClearPendingIRQ(TIMER2_IRQn);
+	NVIC_EnableIRQ(TIMER2_IRQn);
+	// match 2 is used to reset timer value, also sets the frequency
+	Chip_TIMER_ResetOnMatchEnable(LPC_TIMER2, 2);
+
 	uv_pwm_set_freq(PWM2_0, CONFIG_PWM2_FREQ);
 #if CONFIG_PWM2_0
 	Chip_TIMER_ExtMatchControlSet(LPC_TIMER2,
@@ -192,10 +264,15 @@ uv_errors_e _uv_pwm_init() {
 #if CONFIG_PWM3
 	Chip_TIMER_Init(LPC_TIMER3);
 	this->pwm_freq[3] = CONFIG_PWM3_FREQ;
-	// MATCH3 is set to value 0 to set PWM outputs HIGH
-	Chip_TIMER_ExtMatchControlSet(LPC_TIMER3,
-			0,
-			TIMER_EXTMATCH_SET, 3);
+	// MATCH3 is used to generate interrupt to set PWM's high
+	Chip_TIMER_SetMatch(LPC_TIMER3, 3, 0);
+	Chip_TIMER_StopOnMatchEnable(LPC_TIMER3, 3);
+	Chip_TIMER_MatchEnableInt(LPC_TIMER3, 3);
+	NVIC_ClearPendingIRQ(TIMER3_IRQn);
+	NVIC_EnableIRQ(TIMER3_IRQn);
+	// match 2 is used to reset timer value, also sets the frequency
+	Chip_TIMER_ResetOnMatchEnable(LPC_TIMER3, 2);
+
 	uv_pwm_set_freq(PWM3_0, CONFIG_PWM3_FREQ);
 #if CONFIG_PWM3_0
 	Chip_TIMER_ExtMatchControlSet(LPC_TIMER3,
@@ -248,8 +325,9 @@ uv_errors_e uv_pwm_set(uv_pwm_channel_t chn, uint16_t value) {
 	uint8_t module = PWMEXT_GET_MODULE(chn);
 	if (module == PWMEXT_MODULE_THIS &&
 			PWMEXT_GET_CHN(chn) != 0) {
-		Chip_SCTPWM_SetDutyCycle(this->modules[PWM_GET_MODULE(chn)], PWM_GET_CHANNEL(chn) + 1,
-				Chip_SCTPWM_GetTicksPerCycle(this->modules[PWM_GET_MODULE(chn)]) * value / PWM_MAX_VALUE);
+		uint8_t m = PWM_GET_MODULE(chn);
+		this->pwm[m].match[PWM_GET_CHANNEL(chn)] =
+				this->modules[m]->MR[2] * value / PWM_MAX_VALUE;
 	}
 #if CONFIG_PWMEXT_MODULE_COUNT
 	else if (module <= CONFIG_PWMEXT_MODULE_COUNT) {
@@ -267,14 +345,14 @@ uv_errors_e uv_pwm_set(uv_pwm_channel_t chn, uint16_t value) {
 }
 
 
-uint16_t uv_pwm_get(uv_pwm_channel_t chn) {
+uint16_t uv_pwm_get(uv_pwm_channel_t c) {
 	uint16_t ret = 0;
-	uint8_t module = PWMEXT_GET_MODULE(chn);
-	uint8_t chn = PWM_GET_CHANNEL(chn);
+	uint8_t module = PWMEXT_GET_MODULE(c);
+	uint8_t chn = PWM_GET_CHANNEL(c);
 	if (module == PWMEXT_MODULE_THIS &&
 			PWMEXT_GET_CHN(chn) != 0) {
 		ret = PWM_MAX_VALUE * this->modules[module]->MR[chn] /
-				this->modules[module]->MR[3];
+				this->modules[module]->MR[2];
 	}
 #if CONFIG_PWMEXT_MODULE_COUNT
 	else if (module <= CONFIG_PWMEXT_MODULE_COUNT) {
@@ -295,14 +373,10 @@ void uv_pwm_set_freq(uv_pwm_channel_t chn, uint32_t value) {
 	if (module == PWMEXT_MODULE_THIS &&
 			PWMEXT_GET_CHN(chn) != 0) {
 		if (this->pwm_freq[PWM_GET_MODULE(chn)] != value) {
-			Chip_TIMER_SetMatch(this->modules[module], 3,
+			Chip_TIMER_SetMatch(this->modules[module], 2,
 					Chip_Clock_GetSystemClockRate() * value);
-			// clear match registers to prevent glitch if match was bigger than
-			// set frequency
-			this->modules[module]->MR[0] = 0;
-			this->modules[module]->MR[1] = 0;
-			this->modules[module]->MR[2] = 0;
 			this->pwm_freq[PWM_GET_MODULE(chn)] = value;
+			this->modules[module]->TC = 0;
 		}
 	}
 #if CONFIG_PWMEXT_MODULE_COUNT
