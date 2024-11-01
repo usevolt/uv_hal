@@ -49,6 +49,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
+#include <uv_hal_config.h>
 
 #if !defined(CONFIG_RTOS_HEAP_SIZE)
 #error "CONFIG_RTOS_HEAP_SIZE not defined. It should define the number of bytes reserved to be used\
@@ -66,7 +67,12 @@
 // defines the start address where the firmware is found.
 // Usually defaults to 0x0, but uv_bootloader changes this to 0x1000
 // since the bootloader resides in 0x0.
+// NOTE: On LPC4078 bootloader consmues 2 sectors of flash, thus this is 0x2000
+#if CONFIG_TARGET_LPC40XX
+#define APP_START_ADDR						0x2000
+#else
 #define APP_START_ADDR						0x1000
+#endif
 #endif
 
 #if !defined(CONFIG_HAL_STEP_MS)

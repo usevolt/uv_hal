@@ -186,17 +186,18 @@ typedef char * uv_can_channels_e;
 #if CONFIG_TARGET_LPC15XX
 #define	CAN0 		0
 #define CAN_COUNT	1
+typedef uint8_t uv_can_channels_e;
 #elif CONFIG_TARGET_LPC40XX
 // Named as CAN1 in user manual UM10562
 #define CAN0 		0
 // Named as CAN2 in user manual UM10562
 #define CAN1		1
 #define CAN_COUNT	2
+typedef uint8_t uv_can_channels_e;
 #else
 #error "Unknown hardware"
 #endif
 #endif
-typedef uint8_t uv_can_channels_e;
 typedef uv_can_channels_e uv_can_chn_e;
 
 

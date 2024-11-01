@@ -57,8 +57,8 @@
 
 
 
-// IAP function location, refer to user manual page 269
-#define IAP_LOCATION 0x03000205UL
+// IAP function location, refer to lpc_chip_40xx iap.h
+#define IAP_LOCATION		0X1FFF1FF1
 
 #define PREPARE_SECTOR      50
 #define COPY_RAM_TO_FLASH   51
@@ -268,16 +268,6 @@ uv_iap_status_e uv_erase_and_write_to_flash(unsigned int ram_address,
 	//disable interrupts
 	__disable_irq();
 
-	switch (num_bytes) {
-	case IAP_BYTES_256:
-	case IAP_BYTES_512:
-	case IAP_BYTES_1024:
-	case IAP_BYTES_4096:
-		break;
-	default:
-		ret = IAP_PARAM_ERROR;
-	}
-
 	int startSection, endSection;
 
 	if (flash_address >= 0x10000) {
@@ -310,27 +300,32 @@ uv_iap_status_e uv_erase_and_write_to_flash(unsigned int ram_address,
 			iap_entry(command_param, status_result);
 
 			if (status_result[0] == IAP_CMD_SUCCESS) {
-				//prepare sections for writing
-				command_param[0] = PREPARE_SECTOR;
-				command_param[1] = startSection;
-				command_param[2] = endSection;
-
-				iap_entry(command_param, status_result);
-
-				if (status_result[0] == IAP_CMD_SUCCESS) {
-					//write the sections
-					command_param[0] = COPY_RAM_TO_FLASH;
-					command_param[1] = flash_address;
-					command_param[2] = ram_address;
-					command_param[3] = num_bytes;
-					command_param[4] = SystemCoreClock / 1000;
+				for (uint32_t count = 0; count < num_bytes; count += IAP_BYTES_4096) {
+					//prepare sections for writing
+					command_param[0] = PREPARE_SECTOR;
+					command_param[1] = startSection;
+					command_param[2] = endSection;
 
 					iap_entry(command_param, status_result);
 
-					ret = status_result[0];
-				}
-				else {
-					ret = status_result[0];
+					if (status_result[0] == IAP_CMD_SUCCESS) {
+						//write the sections
+						command_param[0] = COPY_RAM_TO_FLASH;
+						command_param[1] = flash_address + count;
+						command_param[2] = ram_address + count;
+						command_param[3] = IAP_BYTES_4096;
+						command_param[4] = SystemCoreClock / 1000;
+
+						iap_entry(command_param, status_result);
+
+						ret = status_result[0];
+					}
+					else {
+						ret = status_result[0];
+					}
+					if (ret != IAP_CMD_SUCCESS) {
+						break;
+					}
 				}
 			}
 			else {
@@ -372,7 +367,8 @@ uv_errors_e uv_memory_clear(memory_scope_e scope) {
 		for (uint32_t i = 0; i < length; i += FLASH_SECTOR_SIZE) {
 			uv_iap_status_e status = uv_erase_and_write_to_flash(
 					(uint32_t) &CONFIG_NON_VOLATILE_START + i,
-					FLASH_SECTOR_SIZE, NON_VOLATILE_MEMORY_START_ADDRESS + i);
+					FLASH_SECTOR_SIZE,
+					NON_VOLATILE_MEMORY_START_ADDRESS + i);
 			if (status != IAP_CMD_SUCCESS) {
 				ret = ERR_INTERNAL;
 				break;

@@ -349,7 +349,35 @@ void CAN_IRQHandler(void) {
 				msg.id = m.ID & 0x3FFF;
 				msg.type = (m.ID & CAN_EXTEND_ID_USAGE) ? CAN_EXT : CAN_STD;
 				memcpy(msg.data_8bit, m.Data, m.DLC);
-				uv_ring_buffer_push(&this->can[0].rx_buffer, &msg);
+
+				if (this->can[0].rx_callback != NULL &&
+						!this->can[0].rx_callback(__uv_get_user_ptr(), &msg)) {
+
+				}
+				else {
+#if CONFIG_TERMINAL_CAN && (CONFIG_TERMINAL_CAN_CHN == CAN0)
+					// terminal characters are sent to their specific buffer
+					if (msg.id == UV_TERMINAL_CAN_RX_ID +
+							uv_canopen_get_our_nodeid() &&
+							msg.type == CAN_STD &&
+							msg.data_8bit[0] == 0x22 &&
+							msg.data_8bit[1] == (UV_TERMINAL_CAN_INDEX & 0xFF) &&
+							msg.data_8bit[2] == UV_TERMINAL_CAN_INDEX >> 8 &&
+							msg.data_8bit[3] == UV_TERMINAL_CAN_SUBINDEX &&
+							msg.data_length > 4) {
+						uint8_t i;
+						for (i = 0; i < msg.data_length - 4; i++) {
+							uv_ring_buffer_push(&this->char_buffer,
+									(char*) &msg.data_8bit[4 + i]);
+						}
+					}
+					else {
+#endif
+							uv_ring_buffer_push(&this->can[0].rx_buffer, &msg);
+#if CONFIG_TERMINAL_CAN && (CONFIG_TERMINAL_CAN_CHN == CAN0)
+					}
+#endif
+				}
 			}
 		}
 		else {
@@ -374,7 +402,34 @@ void CAN_IRQHandler(void) {
 				msg.id = m.ID & 0x3FFF;
 				msg.type = (m.ID & CAN_EXTEND_ID_USAGE) ? CAN_EXT : CAN_STD;
 				memcpy(msg.data_8bit, m.Data, m.DLC);
-				uv_ring_buffer_push(&this->can[1].rx_buffer, &msg);
+				if (this->can[1].rx_callback != NULL &&
+						!this->rx_callback(__uv_get_user_ptr(), &msg)) {
+
+				}
+				else {
+#if CONFIG_TERMINAL_CAN && (CONFIG_TERMINAL_CAN_CHN == CAN1)
+					// terminal characters are sent to their specific buffer
+					if (msg.id == UV_TERMINAL_CAN_RX_ID +
+							uv_canopen_get_our_nodeid() &&
+							msg.type == CAN_STD &&
+							msg.data_8bit[0] == 0x22 &&
+							msg.data_8bit[1] == (UV_TERMINAL_CAN_INDEX & 0xFF) &&
+							msg.data_8bit[2] == UV_TERMINAL_CAN_INDEX >> 8 &&
+							msg.data_8bit[3] == UV_TERMINAL_CAN_SUBINDEX &&
+							msg.data_length > 4) {
+						uint8_t i;
+						for (i = 0; i < msg.data_length - 4; i++) {
+							uv_ring_buffer_push(&this->char_buffer,
+									(char*) &msg.data_8bit[4 + i]);
+						}
+					}
+					else {
+#endif
+							uv_ring_buffer_push(&this->can[1].rx_buffer, &msg);
+#if CONFIG_TERMINAL_CAN && (CONFIG_TERMINAL_CAN_CHN == CAN1)
+					}
+#endif
+				}
 			}
 		}
 		else {
@@ -471,9 +526,6 @@ uv_errors_e uv_can_send_sync(uv_can_channels_e chn, uv_can_message_st *msg) {
 			m.Type = 0;
 			Chip_CAN_Send(this->can[chn].lpc_can, txbuf, &m);
 
-			Chip_CAN_EnableInt(this->can[chn].lpc_can,
-					CAN_IER_TIE1 | CAN_IER_TIE2 | CAN_IER_TIE3);
-
 			// wait until message is transferred or CAN status changes
 			bool br = false;
 			while (true) {
@@ -491,10 +543,10 @@ uv_errors_e uv_can_send_sync(uv_can_channels_e chn, uv_can_message_st *msg) {
 				}
 			}
 		}
-	}
-	else {
 		Chip_CAN_EnableInt(this->can[chn].lpc_can,
 				CAN_IER_TIE1 | CAN_IER_TIE2 | CAN_IER_TIE3);
+	}
+	else {
 		ret = ERR_NOT_INITIALIZED;
 	}
 

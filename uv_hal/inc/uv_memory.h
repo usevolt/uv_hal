@@ -96,8 +96,13 @@
 /// to pass a received can message. This is used with CANopen compatible bootloader.
 /// When the boot process starts, this address is loaded with that CAN message and
 /// bootloader is triggered.
-#define UV_BOOTLOADER_DATA_ADDR			((void*) (RAM_BASE_ADDRESS + RAM_SIZE_BYTES - sizeof(uv_can_msg_st)))
 #define UV_BOOTLOADER_DATA_LEN			(sizeof(uv_can_msg_st))
+#if CONFIG_TARGET_LPC40XX
+// Cotex-M uses top of RAM as stack. Thus, store data to peripheral RAM
+#define UV_BOOTLOADER_DATA_ADDR			((void*) 0x20000000)
+#else
+#define UV_BOOTLOADER_DATA_ADDR			((void*) (RAM_BASE_ADDRESS + RAM_SIZE_BYTES - UV_BOOTLOADER_DATA_LEN))
+#endif
 
 typedef uint32_t uv_bootloader_wait_t;
 
@@ -154,33 +159,14 @@ void uv_get_device_serial(unsigned int dest[4]);
 
 
 /// @brief: IAP status/error codes. Writing to flash returns one of these values.
-#if CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC1785
-typedef enum {
-    IAP_CMD_SUCCESS = 0,
-	IAP_INVALID_COMMAND,
-	IAP_SRC_ADDR_ERROR,
-	IAP_DST_ADDR_ERROR,
-	IAP_SRC_ADDR_NOT_MAPPED,
-	IAP_DST_ADDR_NOT_MAPPED,
-	IAP_COUNT_ERROR,
-	IAP_INVALID_SECTOR,
-	IAP_SECTOR_NOT_BLANK,
-	IAP_SECTOR_NOT_PREPARED_FOR_WRITE_OPERATION,
-	IAP_COMPARE_ERROR,
-	IAP_BUSY,
-	IAP_PARAM_ERROR
-} uv_iap_status_e;
-#else
 typedef int uv_iap_status_e;
-#endif
 
 
 typedef enum {
 	IAP_BYTES_256 = 256,
 	IAP_BYTES_512 = 512,
 	IAP_BYTES_1024 = 1024,
-	IAP_BYTES_4096 = 4096,
-	IAP_BYTES_32768 = 32768,
+	IAP_BYTES_4096 = 0x1000,
 	IAP_BYTES_COUNT
 } uv_writable_amount_e;
 

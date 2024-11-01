@@ -349,7 +349,7 @@ void uv_init(void *device) {
 				com->cob_id |= arg_nodeid;
 			}
 		}
-		uv_can_clear_rx_messages();
+		uv_can_clear_rx_messages(CONFIG_CANOPEN_CHANNEL);
 		uv_canopen_config_rx_msgs();
 		uv_exit_critical();
 	}

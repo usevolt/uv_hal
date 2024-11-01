@@ -59,9 +59,12 @@ static const struct {
 uv_errors_e _uv_adc_init() {
 
 #if CONFIG_ADC0
+	ADC_CLOCK_SETUP_T setup;
 	// initialize ADC0
-	Chip_ADC_Init(LPC_ADC, 0);
-
+	Chip_ADC_Init(LPC_ADC, &setup);
+#if CONFIG_ADC_CONVERSION_FREQ
+	Chip_ADC_SetSampleRate(LPC_ADC, &setup, CONFIG_ADC_CONVERSION_FREQ);
+#endif
 #endif
 
 	return ERR_NONE;
