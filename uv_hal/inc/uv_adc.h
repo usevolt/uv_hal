@@ -40,7 +40,7 @@
 
 #define ADC_MAX_FREQ	50000000
 
-#if !CONFIG_ADC_CONVERSION_FREQ
+#if !defined(CONFIG_ADC_CONVERSION_FREQ)
 #error "CONFIG_ADC_CONVERSION_FREQ should define the ADC conversion frequency in Hz."
 #endif
 #if ((CONFIG_ADC_CONVERSION_FREQ * 25) > ADC_MAX_FREQ)

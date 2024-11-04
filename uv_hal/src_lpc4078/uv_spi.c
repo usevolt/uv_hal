@@ -146,7 +146,7 @@ void _uv_spi_init(void) {
 		Chip_SSP_Init(spi[1]);
 
 #if CONFIG_SPI1_SCK_IO == P0_7
-		Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 7, FUNC2 | MD_ANA_DIS);
+		Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 7, FUNC2 | MD_ANA_DIS | MD_FAST_SLEW_RATE);
 #elif CONFIG_SPI1_SCK_IO == P1_19
 		Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 19, FUNC5);
 #elif CONFIG_SPI1_SCK_IO == P1_31
@@ -166,7 +166,7 @@ void _uv_spi_init(void) {
 #error "No suitable pin for CONFIG_SPI1_SSEL0_IO"
 #endif
 #if CONFIG_SPI1_MISO_IO == P0_8
-		Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 8, FUNC2 | MD_ANA_DIS);
+		Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 8, FUNC2 | MD_ANA_DIS | MD_FAST_SLEW_RATE);
 #elif CONFIG_SPI1_MISO_IO == P0_12
 		Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 12, FUNC2 | MD_ANA_DIS);
 #elif CONFIG_SPI1_MISO_IO == P1_18
@@ -176,7 +176,7 @@ void _uv_spi_init(void) {
 #error "No suitable pin for CONFIG_SPI1_MISO_IO"
 #endif
 #if CONFIG_SPI1_MOSI_IO == P0_9
-		Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 9, FUNC2 | MD_FILT_DIS);
+		Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 9, FUNC2 | MD_FILT_DIS | MD_FAST_SLEW_RATE);
 #elif CONFIG_SPI1_MOSI_IO == P0_13
 		Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 13, FUNC2 | MD_ANA_DIS);
 #elif CONFIG_SPI1_MOSI_IO == P1_22
@@ -240,12 +240,12 @@ void _uv_spi_init(void) {
 
 
 
-bool uv_spi_readwrite_sync(const spi_e s, spi_slaves_e slaves,
+uint16_t uv_spi_readwrite_sync(const spi_e s, spi_slaves_e slaves,
 		const spi_data_t *writebuffer, spi_data_t *readbuffer,
 		const uint8_t byte_len, const uint16_t buffer_len) {
-	bool ret = true;
+	uint16_t ret;
 
-	Chip_SSP_SetFormat(spi[s], byte_len, SSP_FRAMEFORMAT_SPI, clocks[s]);
+	Chip_SSP_SetFormat(spi[s], byte_len - 1, SSP_FRAMEFORMAT_SPI, clocks[s]);
 	Chip_SSP_DATA_SETUP_T setup = { };
 	setup.length = buffer_len;
 	setup.rx_cnt = setup.tx_cnt = 0;
@@ -253,28 +253,20 @@ bool uv_spi_readwrite_sync(const spi_e s, spi_slaves_e slaves,
 	setup.rx_data = (void*) readbuffer;
 
 	// Transfer message as SPI master via polling
-	if (Chip_SSP_RWFrames_Blocking(spi[s], &setup) <= 0) {
-		// SPI error
-		ret = false;
-	}
+	ret = Chip_SSP_RWFrames_Blocking(spi[s], &setup);
 
 	return ret;
 }
 
 
-bool uv_spi_write_sync(const spi_e s, spi_slaves_e slaves,
+uint16_t uv_spi_write_sync(const spi_e s, spi_slaves_e slaves,
 		const spi_data_t *writebuffer, const uint8_t byte_len, const uint16_t buffer_len) {
-	bool ret = true;
+	uint16_t ret;
 
-	Chip_SSP_SetFormat(spi[s], byte_len, SSP_FRAMEFORMAT_SPI, clocks[s]);
+	Chip_SSP_SetFormat(spi[s], byte_len - 1, SSP_FRAMEFORMAT_SPI, clocks[s]);
 
 	// Transfer message as SPI master via polling
-	if (Chip_SSP_WriteFrames_Blocking(spi[s], (uint8_t*) writebuffer, buffer_len) <= 0) {
-		// SPI error
-		ret = false;
-	}
-
-	return ret;
+	ret = Chip_SSP_WriteFrames_Blocking(spi[s], (uint8_t*) writebuffer, buffer_len);
 
 	return ret;
 

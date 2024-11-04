@@ -72,7 +72,7 @@ static void send_can_msg(void) {
 		msg.data_8bit[4 + i] = *((uint8_t*)uv_vector_at(&can_vec, i));
 	}
 	uv_vector_clear(&can_vec);
-#if !CONFIG_TARGET_LPC15XX
+#if !CONFIG_TARGET_LPC15XX && !CONFIG_TARGET_LPC40XX
 	can_delay = CAN_DELAY_MS;
 
 	// if CAN is in active state, wait until putting the message to the queue was succeeded.
@@ -107,7 +107,7 @@ int outbyte(int c) {
 		if (uv_active_terminal() == TERMINAL_CAN) {
 			uint8_t ch = c;
 			uv_vector_push_back(&can_vec, &ch);
-#if !CONFIG_TARGET_LPC15XX
+#if !CONFIG_TARGET_LPC15XX && !CONFIG_TARGET_LPC40XX
 			if (uv_vector_size(&can_vec) == uv_vector_max_size(&can_vec)) {
 				send_can_msg();
 			}

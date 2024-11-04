@@ -152,6 +152,7 @@ void Chip_SSP_SetClockRate(LPC_SSP_T *pSSP, uint32_t clk_rate, uint32_t prescale
 	pSSP->CPSR = prescale;
 }
 
+
 /* SSP Polling Read/Write in blocking mode */
 uint32_t Chip_SSP_RWFrames_Blocking(LPC_SSP_T *pSSP, Chip_SSP_DATA_SETUP_T *xf_setup)
 {

@@ -515,6 +515,14 @@ bool uv_ui_init(void) {
 
 	// read ID, should be 0x7C
 	uint8_t id = read8(REG_ID);
+	while (true) {
+		uint8_t id = read8(REG_ID);
+		printf("%i\n", id);
+		if (id == 0x7C) {
+			break;
+		}
+		uv_rtos_task_delay(10);
+	}
 	if (id == 0x7C) {
 		DEBUG("FT81X id: 0x%x\n", id);
 

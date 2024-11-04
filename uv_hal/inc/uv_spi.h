@@ -178,7 +178,7 @@ void _uv_spi_init(void);
 /// reading and writing are done at the same time.
 /// The function returns after the transmission finishes.
 ///
-/// @return: True if writing and reading was successful, otherwise false
+/// @return: Amount of data written, 0 in case of error
 ///
 /// @param spi: The SPI channel used
 /// @param slaves: Selected slaves to whom the data is sent
@@ -189,7 +189,7 @@ void _uv_spi_init(void);
 /// @byte_len: The length of individual bytes in bits (usually 8)
 /// @buffer_len: The length of the read and write buffers in bytes
 /// (not local bytes but *byte_len* bytes)
-bool uv_spi_readwrite_sync(const spi_e spi, spi_slaves_e slaves,
+uint16_t uv_spi_readwrite_sync(const spi_e spi, spi_slaves_e slaves,
 		const spi_data_t *writebuffer, spi_data_t *readbuffer,
 		const uint8_t byte_len, const uint16_t buffer_len);
 
@@ -197,7 +197,7 @@ bool uv_spi_readwrite_sync(const spi_e spi, spi_slaves_e slaves,
 /// @brief: Writes to the SPI bus, while ignoring the received data.
 /// The function returns after the transmission finishes.
 ///
-/// @return: True if writing and reading was successful, otherwise false
+/// @return: Amount of data written, 0 in case of error
 ///
 /// @param spi: The SPI channel used
 /// @param slaves: Selected slaves to whom the data is sent
@@ -206,7 +206,7 @@ bool uv_spi_readwrite_sync(const spi_e spi, spi_slaves_e slaves,
 /// @byte_len: The length of a individual bytes in bits (usually 8)
 /// @buffer_len: The length of the write buffer in bytes
 /// (not local bytes but *byte_len* bytes)
-bool uv_spi_write_sync(const spi_e spi, spi_slaves_e slaves,
+uint16_t uv_spi_write_sync(const spi_e spi, spi_slaves_e slaves,
 		const spi_data_t *writebuffer, const uint8_t byte_len, const uint16_t buffer_len);
 
 
