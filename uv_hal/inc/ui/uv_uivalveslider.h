@@ -47,6 +47,9 @@
 #endif
 
 
+#define VALVESLIDER_CURSOR_MIN		-100
+#define VALVESLIDER_CURSOR_MAX		100
+
 typedef enum {
 	UIVALVESLIDER_HANDLE_POS_MIN = 0,
 	UIVALVESLIDER_HANDLE_POS_MAX,
@@ -68,6 +71,7 @@ typedef struct   {
 	uv_uivalveslider_handles_e selected_handle;
 	bool value_changed;
 	bool unidir;
+	bool invert;
 	uint8_t horiz_padding;
 	int16_t drag_start_val;
 	int16_t drag_x;
@@ -131,6 +135,8 @@ static inline uv_uivalveslider_handles_e uv_uivalveslider_get_selected_handle(vo
 
 /// @brief: Sets the cursor position and the shown text. The text has to point to a volatile
 /// memory address.
+///
+/// @param position: -100 ... 100 for shouwing the cursor, any other value hides it
 void uv_uivalveslider_set_cursor(void *me, int16_t position, char *text);
 
 
@@ -145,6 +151,13 @@ static inline bool uv_uivalveslider_get_unidir(void *me) {
 	return this->unidir;
 }
 
+
+/// @brief: Inverts the positive and negative side colors
+void uv_uivalveslider_set_invert(void *me, bool value);
+
+static inline bool uv_uivalveslider_get_invert(void *me) {
+	return this->invert;
+}
 
 /// @brief: Sets the horizontal padding. Horizontal padding is free space on left and right
 /// edges that is still considered as touch area, but where the sliders do not extend.

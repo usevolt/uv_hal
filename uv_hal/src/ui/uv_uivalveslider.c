@@ -37,8 +37,8 @@ static void touch(void *me, uv_touch_st *touch);
 static uv_uiobject_ret_e step(void *me, uint16_t step_ms);
 
 
-#define POS_C C(0x6000FF00)
-#define NEG_C C(0x60FF0000)
+#define POS_C C(0x9000FF00)
+#define NEG_C C(0x90FF0000)
 #define OUTBOUNDS_C	C(0x20FFFFFF)
 #define POSTEXT_C C(0xFF00FF00)
 #define NEGTEXT_C C(0xFFFF0000)
@@ -213,8 +213,8 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 	// draw the cursor if assigned
 	if (this->cursor_text != NULL &&
-			this->cursor_position >= -100 &&
-			this->cursor_position <= 100) {
+			this->cursor_position >= VALVESLIDER_CURSOR_MIN &&
+			this->cursor_position <= VALVESLIDER_CURSOR_MAX) {
 		int16_t cursor_x;
 		color_t cursor_c = this->text_c;
 		if (this->cursor_position > 0) {
@@ -265,6 +265,7 @@ void uv_uivalveslider_init(void *me, int16_t min_val, int16_t max_val,
 	this->max_val = max_val;
 	this->title = NULL;
 	this->unidir = false;
+	this->invert = false;
 	this->cursor_text = NULL;
 	this->cursor_position = INT16_MAX;
 	this->horiz_padding = 0;
@@ -444,6 +445,17 @@ static uv_uiobject_ret_e step(void *me, uint16_t step_ms) {
 
 
 
+void uv_uivalveslider_set_invert(void *me, bool value) {
+	if (this->invert != value) {
+		color_t c = this->positive_c;
+		this->positive_c = this->negative_c;
+		this->negative_c = c;
+		this->invert = value;
+		uv_ui_refresh(this);
+	}
+}
+
+
 
 int16_t uv_uivalveslider_get_selected_handle_value(void *me) {
 	int16_t ret = 0;
@@ -458,6 +470,9 @@ void uv_uivalveslider_set_cursor(void *me, int16_t position, char *text) {
 	if (this->cursor_position != position ||
 			strcmp(this->cursor_text, text) != 0) {
 		uv_ui_refresh(this);
+	}
+	if (this->invert) {
+		position = -position;
 	}
 	this->cursor_position = position;
 	this->cursor_text = text;
