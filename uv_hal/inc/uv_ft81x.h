@@ -46,8 +46,12 @@
 #if !defined(CONFIG_FT81X_SPI_CHANNEL)
 #error "CONFIG_FT81X_SPI_CHANNEL should define the SPI channel used for FT81X."
 #endif
+#if !defined(CONFIG_FT81X_SSEL) && !defined(CONFIG_FT81X_SSEL_IO)
+#error "CONFIG_FT81X_SSEL should define the slave ID for SPI channel OR\
+	CONFIG_FT81X_SSEL_IO should defined the IO pin used as manual SSEL"
+#endif
 #if !defined(CONFIG_FT81X_SSEL)
-#error "CONFIG_FT81X_SSEL should define the slave ID for SPI channel"
+#define CONFIG_FT81X_SSEL	0
 #endif
 #if !defined(CONFIG_FT81X_PD_IO)
 #error "CONFIG_FT81X_PD_IO should define the I/O pin used for power down."

@@ -103,6 +103,7 @@ void _uv_spi_init(void) {
 		Chip_IOCON_PinMuxSet(LPC_IOCON, 2, 22, FUNC5);
 #error "No suitable pin for CONFIG_SPI0_SCK_IO"
 #endif
+#if CONFIG_SPI0_SLAVE_COUNT
 #if CONFIG_SPI0_SSEL0_IO == P0_16
 		Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 16, FUNC2);
 #elif CONFIG_SPI0_SSEL0_IO == P1_21
@@ -112,6 +113,7 @@ void _uv_spi_init(void) {
 #elif CONFIG_SPI0_SEL0_IO == P2_23
 		Chip_IOCON_PinMuxSet(LPC_IOCON, 2, 23, FUNC2);
 #error "No suitable pin for CONFIG_SPI0_SSEL0_IO"
+#endif
 #endif
 #if CONFIG_SPI0_MISO_IO == P0_17
 		Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 17, FUNC2);
@@ -155,6 +157,7 @@ void _uv_spi_init(void) {
 		Chip_IOCON_PinMuxSet(LPC_IOCON, 4, 20, FUNC3);
 #error "No suitable pin for CONFIG_SPI1_SCK_IO"
 #endif
+#if CONFIG_SPI1_SLAVE_COUNT
 #if CONFIG_SPI1_SSEL0_IO == P0_6
 		Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 6, FUNC2);
 #elif CONFIG_SPI1_SSEL0_IO == P0_14
@@ -164,6 +167,7 @@ void _uv_spi_init(void) {
 #elif CONFIG_SPI1_SEL0_IO == P4_21
 		Chip_IOCON_PinMuxSet(LPC_IOCON, 4, 21, FUNC3);
 #error "No suitable pin for CONFIG_SPI1_SSEL0_IO"
+#endif
 #endif
 #if CONFIG_SPI1_MISO_IO == P0_8
 		Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 8, FUNC2 | MD_ANA_DIS | MD_FAST_SLEW_RATE);
@@ -207,11 +211,13 @@ void _uv_spi_init(void) {
 		Chip_IOCON_PinMuxSet(LPC_IOCON, 5, 2, FUNC2 | MD_HS_DIS);
 #error "No suitable pin for CONFIG_SPI2_SCK_IO"
 #endif
+#if CONFIG_SPI2_SLAVE_COUNT
 #if CONFIG_SPI2_SSEL0_IO == P1_8
 		Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 8, FUNC4);
 #elif CONFIG_SPI2_SSEL0_IO == P5_3
 		Chip_IOCON_PinMuxSet(LPC_IOCON, 5, 3, FUNC2 | MD_HS_DIS);
 #error "No suitable pin for CONFIG_SPI2_SSEL0_IO"
+#endif
 #endif
 #if CONFIG_SPI2_MISO_IO == P1_4
 		Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 4, FUNC4);

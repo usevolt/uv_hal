@@ -127,5 +127,21 @@ void GPIO_IRQHandler(void) {
 }
 
 
+void UV_GPIO_CONFIGURE(uv_gpios_e gpio, uint32_t input_config) {
+	switch (gpio) {
+	case P0_12 ... P0_13:
+	case P0_23 ... P0_26:
+	case P1_30 ... P1_31:
+	case P0_7 ... P0_9:
+	case P1_5 ... P1_7:
+	case P1_14:
+	case P1_16 ... P1_17:
+		input_config |= MD_ANA_DIS;
+	break;
+	default:
+		break;
+	}
+	LPC_IOCON->p[uv_gpio_get_port(gpio)][uv_gpio_get_pin(gpio)] = input_config;
+}
 
 

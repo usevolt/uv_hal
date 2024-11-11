@@ -380,7 +380,7 @@ typedef enum {
 } ft81x_cmds_e;
 
 
-#define _DEBUG		0
+#define _DEBUG		1
 
 #if defined(DEBUG)
 #undef DEBUG
@@ -509,20 +509,16 @@ bool uv_ui_init(void) {
 	UV_GPIO_SET(CONFIG_FT81X_PD_IO, true);
 	uv_rtos_task_delay(100);
 
+#if CONFIG_FT81X_SSEL_IO
+	uv_gpio_init_output(CONFIG_FT81X_SSEL_IO, true);
+#endif
+
 	// FT81X is now in sleep state. Set it to active state
 	writehostcmd(HOSTCMD_ACTIVE, 0);
 	uv_rtos_task_delay(100);
 
 	// read ID, should be 0x7C
 	uint8_t id = read8(REG_ID);
-	while (true) {
-		uint8_t id = read8(REG_ID);
-		printf("%i\n", id);
-		if (id == 0x7C) {
-			break;
-		}
-		uv_rtos_task_delay(10);
-	}
 	if (id == 0x7C) {
 		DEBUG("FT81X id: 0x%x\n", id);
 
@@ -600,6 +596,14 @@ bool uv_ui_init(void) {
 
 
 
+#if CONFIG_FT81X_SSEL_IO
+#define FT81X_SSELECT	uv_gpio_set(CONFIG_FT81X_SSEL_IO, false)
+#define FT81X_SRELEASE	uv_gpio_set(CONFIG_FT81X_SSEL_IO, true)
+#else
+#define FT81X_SSELECT
+#define FT81X_SRELEASE
+#endif
+
 
 static uint8_t read8(const ft81x_reg_e address) {
 	spi_data_t wb[READ8_LEN] = {};
@@ -607,9 +611,10 @@ static uint8_t read8(const ft81x_reg_e address) {
 	wb[0] = FT81X_PREFIX_READ | ((address >> 16) & 0x3F);
 	wb[1] = (address >> 8) & 0xFF;
 	wb[2] = (address) & 0xFF;
-
+	FT81X_SSELECT;
 	uv_spi_readwrite_sync(CONFIG_FT81X_SPI_CHANNEL, CONFIG_FT81X_SSEL,
 				wb, rb, 8, READ8_LEN);
+	FT81X_SRELEASE;
 	return (uint8_t) rb[4];
 }
 
@@ -621,9 +626,9 @@ static uint16_t read16(const ft81x_reg_e address) {
 	wb[0] = FT81X_PREFIX_READ | ((address >> 16) & 0x3F);
 	wb[1] = (address >> 8) & 0xFF;
 	wb[2] = address & 0xFF;
-
+	FT81X_SSELECT;
 	uv_spi_readwrite_sync(CONFIG_FT81X_SPI_CHANNEL, CONFIG_FT81X_SSEL, wb, rb, 8, READ16_LEN);
-
+	FT81X_SRELEASE;
 	uint16_t ret = rb[4] + (rb[5] << 8);
 	return ret;
 }
@@ -636,9 +641,9 @@ static uint32_t read32(const ft81x_reg_e address) {
 	wb[0] = FT81X_PREFIX_READ | ((address >> 16) & 0x3F);
 	wb[1] = (address >> 8) & 0xFF;
 	wb[2] = (address) & 0xFF;
-
+	FT81X_SSELECT;
 	uv_spi_readwrite_sync(CONFIG_FT81X_SPI_CHANNEL, CONFIG_FT81X_SSEL, wb, rb, 8, READ32_LEN);
-
+	FT81X_SRELEASE;
 	uint32_t ret = ((uint32_t) rb[7] << 24) + ((uint32_t) rb[6] << 16) + ((uint32_t) rb[5] << 8) + rb[4];
 	return ret;
 }
@@ -665,12 +670,16 @@ static void writestr(const ft81x_reg_e address,
 			wb[i + ADDR_OFFSET] = src[written + i];
 		}
 		if (dest == NULL) {
+			FT81X_SSELECT;
 			uv_spi_write_sync(CONFIG_FT81X_SPI_CHANNEL,
 					CONFIG_FT81X_SSEL, wb, 8, l + ADDR_OFFSET);
+			FT81X_SRELEASE;
 		}
 		else {
+			FT81X_SSELECT;
 			uv_spi_readwrite_sync(CONFIG_FT81X_SPI_CHANNEL,
 					CONFIG_FT81X_SSEL, wb, wb, 8, l + ADDR_OFFSET);
+			FT81X_SRELEASE;
 			for (uint16_t i = 0; i < l; i++) {
 				dest[written + i] = wb[i + ADDR_OFFSET];
 			}
@@ -690,15 +699,15 @@ static inline void writedl(uint32_t data) {
 	this->dl_index += 4;
 }
 
-
 static void write8(const ft81x_reg_e address, uint8_t value) {
 	spi_data_t wb[WRITE8_LEN] = {};
 	wb[0] = FT81X_PREFIX_WRITE | ((address >> 16) & 0x3F);
 	wb[1] = (address >> 8) & 0xFF;
 	wb[2] = (address) & 0xFF;
 	wb[3] = value;
-
+	FT81X_SSELECT;
 	uv_spi_write_sync(CONFIG_FT81X_SPI_CHANNEL, CONFIG_FT81X_SSEL, wb, 8, WRITE8_LEN);
+	FT81X_SRELEASE;
 }
 
 
@@ -710,8 +719,9 @@ static void write16(const ft81x_reg_e address, uint16_t value) {
 	wb[2] = (address) & 0xFF;
 	wb[3] = value & 0xFF;
 	wb[4] = (value >> 8) & 0xFF;
-
+	FT81X_SSELECT;
 	uv_spi_write_sync(CONFIG_FT81X_SPI_CHANNEL, CONFIG_FT81X_SSEL, wb, 8, WRITE16_LEN);
+	FT81X_SRELEASE;
 }
 
 
@@ -725,8 +735,9 @@ static void write32(const ft81x_reg_e address, uint32_t value) {
 	wb[4] = (value >> 8) & 0xFF;
 	wb[5] = (value >> 16) & 0xFF;
 	wb[6] = (value >> 24) & 0xFF;
-
+	FT81X_SSELECT;
 	uv_spi_write_sync(CONFIG_FT81X_SPI_CHANNEL, CONFIG_FT81X_SSEL, wb, 8, WRITE32_LEN);
+	FT81X_SRELEASE;
 }
 
 
@@ -736,7 +747,9 @@ static void writehostcmd(const ft81x_hostcmds_e hostcmd, uint8_t parameter) {
 	wb[0] = hostcmd;
 	wb[1] = parameter;
 	wb[2] = 0;
+	FT81X_SSELECT;
 	uv_spi_write_sync(CONFIG_FT81X_SPI_CHANNEL, CONFIG_FT81X_SSEL, wb, 8, 3);
+	FT81X_SRELEASE;
 }
 
 
@@ -1363,6 +1376,8 @@ bool uv_ui_get_touch(int16_t *x, int16_t *y) {
 	int16_t tx = t >> 16;
 	int16_t ty = t & 0xFFFF;
 	bool ret = (t == 0x80008000) ? false : true;
+	uint32_t p = read32(REG_TOUCH_RAW_XY);
+	printf("0x%x\n", p);
 	if (ret) {
 		if (x) {
 			*x = tx;

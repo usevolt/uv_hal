@@ -132,8 +132,7 @@ typedef enum {
 #define UV_GPIO_CONFIGURE(gpio, input_config)\
 	LPC_IOCON->PIO[uv_gpio_get_port(gpio)][uv_gpio_get_pin(gpio)] = input_config
 #elif CONFIG_TARGET_LPC40XX
-#define UV_GPIO_CONFIGURE(gpio, input_config)\
-	LPC_IOCON->p[uv_gpio_get_port(gpio)][uv_gpio_get_pin(gpio)] = input_config
+void UV_GPIO_CONFIGURE(uv_gpios_e gpio, uint32_t input_config);
 #else
 #define UV_GPIO_CONFIGURE(gpio, input_config)\
 	CAT(CAT(GPIO_, gpio), _config)(input_config)

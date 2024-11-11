@@ -56,7 +56,7 @@
 #if !defined(CONFIG_SPI0_SCK_IO)
 #error "CONFIG_SPI0_SCK_IO should define the I/O pin used for SPI0_CLK"
 #endif
-#if !CONFIG_SPI0_SLAVE_COUNT
+#if !defined(CONFIG_SPI0_SLAVE_COUNT)
 #error "CONFIG_SPI0_SLAVE_COUNT should define the number of slave devices on SPI0"
 #endif
 #if (CONFIG_SPI0_SLAVE_COUNT > 0)
@@ -88,7 +88,7 @@
 #if !defined(CONFIG_SPI1_SCK_IO)
 #error "CONFIG_SPI1_SCK_IO should define the I/O pin used for SPI1_CLK"
 #endif
-#if !CONFIG_SPI1_SLAVE_COUNT
+#if !defined(CONFIG_SPI1_SLAVE_COUNT)
 #error "CONFIG_SPI1_SLAVE_COUNT should define the number of slave devices on SPI1"
 #endif
 #if (CONFIG_SPI1_SLAVE_COUNT > 0)
@@ -120,7 +120,7 @@
 #if !defined(CONFIG_SPI2_SCK_IO)
 #error "CONFIG_SPI2_SCK_IO should define the I/O pin used for SPI2_CLK"
 #endif
-#if !CONFIG_SPI2_SLAVE_COUNT
+#if !defined(CONFIG_SPI2_SLAVE_COUNT)
 #error "CONFIG_SPI2_SLAVE_COUNT should define the number of slave devices on SPI2"
 #endif
 #if (CONFIG_SPI2_SLAVE_COUNT > 0)
