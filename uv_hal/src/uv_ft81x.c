@@ -380,7 +380,7 @@ typedef enum {
 } ft81x_cmds_e;
 
 
-#define _DEBUG		1
+#define _DEBUG		0
 
 #if defined(DEBUG)
 #undef DEBUG
