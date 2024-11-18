@@ -470,7 +470,7 @@ uv_ft81x_st ft81x;
 #define GRAPHIC_HANDLE_COUNT	FONT_HANDLE
 /// @brief: defines the bitmap handle for the first font. All handles bigger than this
 /// are reserved for fonts
-#define FONT_HANDLE				(30 - UI_MAX_FONT_COUNT)
+#define FONT_HANDLE				(30 - UI_MAX_FONT_COUNT + 1)
 #define FONT_HANDLE_DISABLED	UIBITMAP_DISABLED
 /// @brief: Scratch handle for ft81x pre-processor
 #define SCRATCH_HANDLE			31
@@ -896,13 +896,15 @@ static void draw_line(char *str, ui_font_st *font,
 
 	// write header information as a bulk transfer
 	// FT81X automatically wraps continuous writes to RAM_CMD ring buffer space
+	DEBUG("CMD_TEXT: (%i, %i), font %i\n", x, y, font->handle);
 	uint16_t buf[DRAW_LINE_BUF_LEN];
 	*((uint32_t*) &buf[0]) = CMD_TEXT;
 	buf[2] = x;
 	buf[3] = y;
 	buf[4] = font->handle;
 	buf[5] = align;
-	writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, (const char*) buf, NULL, DRAW_LINE_BUF_LEN * 2);
+	writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr,
+			(const char*) buf, NULL, DRAW_LINE_BUF_LEN * 2);
 	this->cmdwriteaddr = (this->cmdwriteaddr + DRAW_LINE_BUF_LEN * 2) % RAMCMD_SIZE;
 
 	DEBUG("Writing '%s'\n", str);
