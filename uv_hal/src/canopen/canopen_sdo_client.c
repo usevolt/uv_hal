@@ -510,7 +510,38 @@ uv_errors_e _uv_canopen_sdo_client_write(uint8_t node_id,
 		}
 	}
 	else {
-		// todo: write locally to obj dict
+		// write locally to obj dict
+		const canopen_object_st *obj;
+		if ((obj = _canopen_find_object(&msg, CANOPEN_WO)) &&
+				data != NULL &&
+				obj->data_ptr != NULL) {
+			if ((uv_canopen_is_array(obj) &&
+					(sindex == 0 ||
+					(sindex + data_len / CANOPEN_SIZEOF(obj->type)) > obj->array_max_size)) ||
+					(uv_canopen_is_string(obj) && ((sindex + data_len) >= obj->string_len))) {
+				ret = ERR_ABORTED;
+				this->last_err_code = CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT;
+			}
+			else {
+				if (uv_canopen_is_array(obj)) {
+					sindex--;
+				}
+				else if (!uv_canopen_is_string(obj)) {
+					// limit write amount to maximum of 4 with
+					// other than array and string types
+					LIMIT_MAX(sindex, 4);
+				}
+				else {
+
+				}
+				memcpy(obj->data_ptr +
+						sindex * CANOPEN_SIZEOF(obj->type), data, data_len);
+			}
+		}
+		else {
+			ret = ERR_CANOPEN_MAPPED_OBJECT_NOT_FOUND;
+		}
+
 	}
 
 
@@ -574,8 +605,8 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 		}
 	}
 	else {
-		const canopen_object_st *obj;
 		// read from our local obj dict
+		const canopen_object_st *obj;
 		if ((obj = _canopen_find_object(&msg, CANOPEN_RO)) &&
 				data != NULL &&
 				obj->data_ptr != NULL) {
