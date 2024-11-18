@@ -717,6 +717,14 @@ uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* me
 }
 
 
+uv_errors_e uv_can_send_local(uv_can_chn_e chn, uv_can_msg_st *msg) {
+	uv_disable_int();
+	uv_errors_e ret = uv_ring_buffer_push(&this->rx_buffer, msg);
+	uv_enable_int();
+	return ret;
+}
+
+
 
 uv_errors_e uv_can_pop_message(uv_can_channels_e channel, uv_can_message_st *message) {
 	uv_errors_e ret = ERR_NONE;

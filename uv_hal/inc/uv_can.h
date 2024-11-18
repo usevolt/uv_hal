@@ -257,6 +257,9 @@ static inline uv_errors_e uv_can_send(uv_can_channels_e channel, uv_can_message_
 	return uv_can_send_message(channel, msg);
 }
 
+/// @brief: "Sends" a CAN message locally by forwarding it directly to rx buffer
+uv_errors_e uv_can_send_local(uv_can_chn_e chn, uv_can_msg_st *msg);
+
 
 /// @brief: Sends a CAN message synchronously. Returns when the message has been sent
 /// or when an error is received (CAN is in error passive or bus off)
