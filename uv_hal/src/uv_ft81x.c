@@ -1379,7 +1379,6 @@ bool uv_ui_get_touch(int16_t *x, int16_t *y) {
 	int16_t ty = t & 0xFFFF;
 	bool ret = (t == 0x80008000) ? false : true;
 	uint32_t p = read32(REG_TOUCH_RAW_XY);
-	printf("0x%x\n", p);
 	if (ret) {
 		if (x) {
 			*x = tx;
