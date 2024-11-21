@@ -123,6 +123,9 @@ static inline uv_solenoid_output_mode_e uv_dual_solenoid_output_get_type(
 void uv_dual_solenoid_output_set_unidir(uv_dual_solenoid_output_st *this,
 		bool value);
 
+static inline bool uv_dual_solenoid_output_get_unidir(uv_dual_solenoid_output_st *this) {
+	return this->unidir;
+}
 
 /// @brief: Disables the dual solenoid output module
 static inline void uv_dual_solenoid_output_disable(uv_dual_solenoid_output_st *this) {
