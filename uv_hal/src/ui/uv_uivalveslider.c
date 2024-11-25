@@ -222,14 +222,14 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 					uv_reli(this->cursor_position, 0, this->max_val),
 					handle_x[UIVALVESLIDER_HANDLE_POS_MIN] + handle_w / 2,
 					handle_x[UIVALVESLIDER_HANDLE_POS_MAX] - handle_w / 2);
-			cursor_c = POSTEXT_C;
+			cursor_c = (this->invert) ? NEGTEXT_C : POSTEXT_C;
 		}
 		else if (this->cursor_position < 0) {
 			cursor_x = uv_lerpi(
 					uv_reli(this->cursor_position, 0, this->min_val),
 					handle_x[UIVALVESLIDER_HANDLE_NEG_MIN] - handle_w / 2,
 							 handle_x[UIVALVESLIDER_HANDLE_NEG_MAX] + handle_w / 2);
-			cursor_c = NEGTEXT_C;
+			cursor_c = (this->invert) ? POSTEXT_C : NEGTEXT_C;
 		}
 		else {
 			cursor_x = x + w / 2;
@@ -470,9 +470,6 @@ void uv_uivalveslider_set_cursor(void *me, int16_t position, char *text) {
 	if (this->cursor_position != position ||
 			strcmp(this->cursor_text, text) != 0) {
 		uv_ui_refresh(this);
-	}
-	if (this->invert) {
-		position = -position;
 	}
 	this->cursor_position = position;
 	this->cursor_text = text;
