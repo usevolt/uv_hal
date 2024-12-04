@@ -223,6 +223,10 @@ char *uv_jsonreader_find_child(char *parent, char *child_name);
 
 
 
+/// @brief: Finds and returns a pointer to *index*'th child of *parent* object
+char *uv_jsonreader_get_child(char *parent, uint16_t index);
+
+
 /// @brief: Stores the name of the object 'object' to 'dest'
 /// If the object is a cell in array, it doesn't have a name. In this case
 /// a null string is returned.

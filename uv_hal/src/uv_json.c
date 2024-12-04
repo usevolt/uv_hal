@@ -491,6 +491,45 @@ char *uv_jsonreader_find_child(char *parent, char *child_name) {
 
 
 
+char *uv_jsonreader_get_child(char *parent, uint16_t index) {
+	char *ret = NULL;
+	char *ptr;
+
+	// check if this object is of type object or array
+	if (!uv_json_is_objarray(uv_jsonreader_get_type(parent))) {
+		ret = false;
+	}
+	else {
+		// jump to the start of this object
+		parent = get_value_ptr(parent);
+		ptr = parent;
+		if (*ptr == '{') {
+			ptr++;
+		}
+		uint16_t i = 0;
+		while (*ptr != '\0') {
+			bool br = false;
+
+			// child found, check if child has the name requested
+			if (i == index) {
+				ret = ptr;
+				br = true;
+			}
+			else {
+				i++;
+				if (!uv_jsonreader_get_next_sibling(ptr, &ptr)) {
+					br = true;
+				}
+			}
+			if (br) {
+				break;
+			}
+		}
+	}
+	return ret;
+}
+
+
 
 bool uv_jsonreader_get_obj_name(char *object, char *dest, unsigned int dest_length) {
 	bool ret = true;
@@ -540,8 +579,25 @@ uv_json_types_e uv_jsonreader_get_type(char *object) {
 				ret = JSON_ARRAY;
 				break;
 			case '"':
-				ret = JSON_STRING;
+			{
+				char *str = object + 1;
+				// hexadecimals can be written as strings
+				bool hex = false;
+				if (strncmp(str, "0x", 2) == 0) {
+					hex = true;
+					str += 2;
+				}
+				while ((hex) ? isxdigit(*str) : isdigit(*str)) {
+					str++;
+				}
+				if (*str == '"') {
+					ret = JSON_INT;
+				}
+				else {
+					ret = JSON_STRING;
+				}
 				break;
+			}
 			case 't':
 			case 'f':
 				ret = JSON_BOOL;
@@ -624,7 +680,12 @@ int uv_jsonreader_get_int(char *object) {
 		uv_json_types_e type = uv_jsonreader_get_type(object);
 		// as hex values are stored as strings, we need to check the type
 		if (type == JSON_INT) {
-			ret = strtol(get_value_ptr(object), NULL, 0);
+			char *c = get_value_ptr(object);
+			// hexvalues are defined as strings
+			if (*c == '"') {
+				c++;
+			}
+			ret = strtol(c, NULL, 0);
 		}
 		else if (type == JSON_STRING) {
 			ret = strtol(uv_jsonreader_get_string_ptr(object), NULL, 0);
