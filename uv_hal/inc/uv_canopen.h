@@ -623,6 +623,9 @@ void uv_canopen_set_our_nodeid(uint8_t nodeid);
 /// @brief: Returns true if the given index RXPDO is received within the specified time
 bool uv_canopen_rxpdo_is_received(uint16_t rxpdo_i);
 
+/// @brief: Marks the given rxpdo as received or not received
+void uv_canopen_rxpdo_set_received(uint16_t rxpdo_i, bool value);
+
 #endif
 
 #endif /* UW_CANOPEN_H_ */

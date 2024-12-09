@@ -354,5 +354,19 @@ bool uv_canopen_rxpdo_is_received(uint16_t rxpdo_i) {
 }
 
 
+void uv_canopen_rxpdo_set_received(uint16_t rxpdo_i, bool value) {
+	if (rxpdo_i < CONFIG_CANOPEN_RXPDO_COUNT) {
+		if (value) {
+			uv_delay_init(&this->rxpdo[rxpdo_i].def_delay,
+					CONFIG_CANOPEN_RXPDO_TIMEOUT_MS);
+		}
+		else {
+			uv_delay_end(&this->rxpdo[rxpdo_i].def_delay);
+		}
+	}
+}
+
+
+
 
 #endif

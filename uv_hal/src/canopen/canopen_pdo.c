@@ -26,7 +26,6 @@
  * SOFTWARE.
  */
 
-
 #include "canopen/canopen_pdo.h"
 #include "string.h"
 #include "uv_rtos.h"
@@ -148,6 +147,7 @@ void _uv_canopen_pdo_init() {
 	}
 	for (int32_t i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
 		uv_delay_init(&this->rxpdo[i].def_delay, CONFIG_CANOPEN_RXPDO_TIMEOUT_MS);
+		uv_delay_end(&this->rxpdo[i].def_delay);
 	}
 }
 
