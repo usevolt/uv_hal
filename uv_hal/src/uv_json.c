@@ -581,20 +581,26 @@ uv_json_types_e uv_jsonreader_get_type(char *object) {
 			case '"':
 			{
 				char *str = object + 1;
-				// hexadecimals can be written as strings
-				bool hex = false;
-				if (strncmp(str, "0x", 2) == 0) {
-					hex = true;
-					str += 2;
-				}
-				while ((hex) ? isxdigit(*str) : isdigit(*str)) {
-					str++;
-				}
 				if (*str == '"') {
-					ret = JSON_INT;
+					// empty string
+					ret = JSON_STRING;
 				}
 				else {
-					ret = JSON_STRING;
+					// hexadecimals can be written as strings
+					bool hex = false;
+					if (strncmp(str, "0x", 2) == 0) {
+						hex = true;
+						str += 2;
+					}
+					while ((hex) ? isxdigit(*str) : isdigit(*str)) {
+						str++;
+					}
+					if (*str == '"') {
+						ret = JSON_INT;
+					}
+					else {
+						ret = JSON_STRING;
+					}
 				}
 				break;
 			}
@@ -859,7 +865,28 @@ uv_json_types_e uv_jsonreader_array_get_type(char *array, unsigned int index) {
 				ret = JSON_ARRAY;
 				break;
 			case '"':
-				ret = JSON_STRING;
+				char *str = obj + 1;
+				if (*str == '"') {
+					// empty string
+					ret = JSON_STRING;
+				}
+				else {
+					// hexadecimals can be written as strings
+					bool hex = false;
+					if (strncmp(str, "0x", 2) == 0) {
+						hex = true;
+						str += 2;
+					}
+					while ((hex) ? isxdigit(*str) : isdigit(*str)) {
+						str++;
+					}
+					if (*str == '"') {
+						ret = JSON_INT;
+					}
+					else {
+						ret = JSON_STRING;
+					}
+				}
 				break;
 			case 't':
 			case 'f':
