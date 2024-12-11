@@ -42,7 +42,7 @@
 
 
 
-static const LPC_SCT_T *timers[TIMER_COUNT] = {
+static LPC_SCT_T * const timers[TIMER_COUNT] = {
 		LPC_SCT0,
 		LPC_SCT1,
 		LPC_SCT2,
