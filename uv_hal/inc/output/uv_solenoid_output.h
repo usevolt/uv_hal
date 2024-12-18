@@ -282,7 +282,12 @@ static inline uv_solenoid_output_conf_st *uv_solenoid_output_get_conf(uv_solenoi
 /// @brief: Sets the dither frequency
 static inline void uv_solenoid_output_set_dither_freq(
 		uv_solenoid_output_st *this, uint16_t freq) {
-	this->dither_ms = (1000 / (freq * 2));
+	if (freq != 0) {
+		this->dither_ms = (1000 / (freq * 2));
+	}
+	else {
+		this->dither_ms = 0;
+	}
 }
 
 
