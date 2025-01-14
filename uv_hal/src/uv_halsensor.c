@@ -52,6 +52,13 @@ void uv_halsensor_init(uv_halsensor_st *this, uv_halsensor_config_st *config,
 	uv_adc_enable_ain(adc_chn);
 	this->fault_emcy = fault_emcy;
 	this->state = HALSENSOR_STATE_ON;
+	this->last_state = HALSENSOR_STATE_ON;
+	this->output8 = 0;
+	this->output16 = 0;
+	this->output32 = 0;
+	this->out_adc = 0;
+	this->out_mv = 0;
+	this->calib_start_adc = 0;
 }
 
 
