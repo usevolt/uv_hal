@@ -87,7 +87,9 @@ static inline void uv_pid_set_target(uv_pid_st *this, int32_t value) {
 
 /// @brief: Resets the PID state to zero
 static inline void uv_pid_reset(uv_pid_st *this) {
-	uv_pid_init(this, this->p, this->i, this->d);
+	this->last_err = 0;
+	this->sum = 0;
+	this->state = PID_STATE_ON;
 }
 
 /// @brief: Sets the P factor. Valid range is from 0 to 65535.
@@ -96,7 +98,7 @@ static inline void uv_pid_set_p(uv_pid_st *this, uint32_t p) {
 }
 
 /// @brief: Returns the P factor. Valid range is from 0 to 65535.
-static inline uint8_t uv_pid_get_p(uv_pid_st *this) {
+static inline uint32_t uv_pid_get_p(uv_pid_st *this) {
 	return this->p;
 }
 
@@ -116,7 +118,7 @@ static inline void uv_pid_set_min_sum(uv_pid_st *this, int32_t value) {
 }
 
 /// @brief: Return the I factor. Valid range is from 0 to 65535.
-static inline uint8_t uv_pid_get_i(uv_pid_st *this) {
+static inline uint32_t uv_pid_get_i(uv_pid_st *this) {
 	return this->i;
 }
 
@@ -126,7 +128,7 @@ static inline void uv_pid_set_d(uv_pid_st *this, uint32_t d) {
 }
 
 /// @brief: Returns the D factor. Valid range is from 0 to 255.
-static inline uint8_t uv_pid_get_d(uv_pid_st *this) {
+static inline uint32_t uv_pid_get_d(uv_pid_st *this) {
 	return this->d;
 }
 
