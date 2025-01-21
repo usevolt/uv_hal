@@ -266,6 +266,11 @@ static inline void uv_delay_end(uv_delay_st *p) {
 	*p = -1;
 }
 
+
+static inline int32_t uv_delay_get_time(uv_delay_st *p) {
+	return (int32_t) *p;
+}
+
 /// @brief: Delay function. Can be used to create different delays in a discrete cyclical step function system.
 /// @param delay_ms The length of the delay in ms.
 /// @param step_ms The duration between cyclic calls in ms.
