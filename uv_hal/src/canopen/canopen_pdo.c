@@ -353,10 +353,11 @@ canopen_rxpdo_com_parameter_st *uv_canopen_rxpdo_get_com(uint16_t rxpdo) {
 }
 
 canopen_txpdo_com_parameter_st *uv_canopen_txpdo_get_com(uint16_t txpdo) {
-	if (txpdo >= CONFIG_CANOPEN_TXPDO_COUNT) {
-		txpdo = CONFIG_CANOPEN_TXPDO_COUNT - 1;
+	canopen_txpdo_com_parameter_st *ret = NULL;
+	if (txpdo < CONFIG_CANOPEN_TXPDO_COUNT) {
+		ret = &thisnv->txpdo_coms[txpdo];
 	}
-	return &thisnv->txpdo_coms[txpdo];
+	return ret;
 }
 
 
