@@ -471,6 +471,9 @@ void uv_uivalveslider_set_cursor(void *me, int16_t position, char *text) {
 			strcmp(this->cursor_text, text) != 0) {
 		uv_ui_refresh(this);
 	}
+	if (this->unidir) {
+		position = abs(position);
+	}
 	this->cursor_position = position;
 	this->cursor_text = text;
 }
