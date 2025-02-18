@@ -84,21 +84,27 @@ static bool is_busy(uv_w25q128_st *this) {
 	spi_data_t read[2] = {};
 	spi_data_t write[2] = {};
 	write[0] = CMD_READ_STATUS_REGISTER_1;
-	uv_spi_readwrite_sync(this->spi, this->ssel, write, read, 8, 2);
+	uv_gpio_set(this->ssel_io, false);
+	uv_spi_readwrite_sync(this->spi, 0, write, read, 8, 2);
+	uv_gpio_set(this->ssel_io, true);
 	return (read[1] & (1 << 0));
 }
 
 
-uv_errors_e uv_w25q128_init(uv_w25q128_st *this, spi_e spi, spi_slaves_e ssel) {
+uv_errors_e uv_w25q128_init(uv_w25q128_st *this, spi_e spi,
+		uv_gpios_e ssel_io) {
 	uv_errors_e ret = ERR_NONE;
 	this->spi = spi;
-	this->ssel = ssel;
+	this->ssel_io = ssel_io;
 	this->data_location = 0;
 
 	spi_data_t read[6] = {};
 	spi_data_t write[6] = {};
 	write[0] = CMD_MANUFACTURER_DEVICE_ID;
-	uv_spi_readwrite_sync(this->spi, this->ssel, write, read, 8, 6);
+	uv_gpio_init_output(this->ssel_io, true);
+	uv_gpio_set(this->ssel_io, false);
+	uv_spi_readwrite_sync(this->spi, 0, write, read, 8, 6);
+	uv_gpio_set(this->ssel_io, true);
 	if ((read[4] != 0xef) ||
 			(read[5] != 0x17)) {
 		// cannot connect to the device
@@ -127,8 +133,9 @@ void *uv_w25q128_read(uv_w25q128_st *this,
 		buffer[2] = ((address >> 8) & 0xFF);
 		buffer[3] = (address & 0xFF);
 
+		uv_gpio_set(this->ssel_io, false);
 		if (uv_spi_readwrite_sync(this->spi,
-				this->ssel,
+				0,
 				buffer,
 				buffer,
 				8,
@@ -144,6 +151,7 @@ void *uv_w25q128_read(uv_w25q128_st *this,
 			br = true;
 			ret = NULL;
 		}
+		uv_gpio_set(this->ssel_io, true);
 
 		if (byte_count <= 0) {
 			br = true;
@@ -173,7 +181,9 @@ bool uv_w25q128_write(uv_w25q128_st *this,
 			}
 
 			buffer[0] = CMD_WRITE_ENABLE;
-			uv_spi_write_sync(this->spi, this->ssel, buffer, 8, 1);
+			uv_gpio_set(this->ssel_io, false);
+			uv_spi_write_sync(this->spi, 0, buffer, 8, 1);
+			uv_gpio_set(this->ssel_io, true);
 
 
 			bool br = false;
@@ -192,12 +202,15 @@ bool uv_w25q128_write(uv_w25q128_st *this,
 			for (int32_t i = 0; i < len; i++) {
 				buffer[i + 4] = ((uint8_t*) src)[write_count + i];
 			}
-			if (!uv_spi_write_sync(this->spi, this->ssel,
+
+			uv_gpio_set(this->ssel_io, false);
+			if (!uv_spi_write_sync(this->spi, 0,
 					buffer, 8, WRITE_CMD_LEN + len)) {
 				// problem writing the data, return false
 				ret = false;
 				br = true;
 			}
+			uv_gpio_set(this->ssel_io, true);
 
 			byte_count -= len;
 			address += len;
@@ -223,10 +236,12 @@ bool uv_w25q128_clear(uv_w25q128_st *this) {
 		uv_rtos_task_yield();
 	}
 	buffer[0] = CMD_WRITE_ENABLE;
-	uv_spi_write_sync(this->spi, this->ssel, buffer, 8, 1);
+	uv_gpio_set(this->ssel_io, false);
+	uv_spi_write_sync(this->spi, 0, buffer, 8, 1);
 
 	buffer[0] = CMD_CHIP_ERASE;
-	uv_spi_write_sync(this->spi, this->ssel, buffer, 8, 1);
+	uv_spi_write_sync(this->spi, 0, buffer, 8, 1);
+	uv_gpio_set(this->ssel_io, true);
 
 	return ret;
 }
@@ -240,13 +255,15 @@ bool uv_w25q128_clear_sector_at(uv_w25q128_st *this, uint32_t address) {
 	uint32_t sector = address - (address % W25Q128_SECTOR_SIZE);
 
 	buffer[0] = CMD_WRITE_ENABLE;
-	uv_spi_write_sync(this->spi, this->ssel, buffer, 8, 1);
+	uv_gpio_set(this->ssel_io, false);
+	uv_spi_write_sync(this->spi, 0, buffer, 8, 1);
 
 	buffer[0] = CMD_SECTOR_ERASE_4KB;
 	buffer[1] = ((sector >> 16) & 0xFF);
 	buffer[2] = ((sector >> 8) & 0xFF);
 	buffer[3] = (sector & 0xFF);
-	uv_spi_write_sync(this->spi, this->ssel, buffer, 8, 4);
+	uv_spi_write_sync(this->spi, 0, buffer, 8, 4);
+	uv_gpio_set(this->ssel_io, true);
 
 
 	return ret;

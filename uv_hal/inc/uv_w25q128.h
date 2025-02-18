@@ -50,7 +50,7 @@ the data from external flash memory."
 
 typedef struct {
 	spi_e spi;
-	spi_slaves_e ssel;
+	uv_gpios_e ssel_io;
 	/// @brief: Tells the current location for writing the data over CAN-bus
 	uint32_t data_location;
 } uv_w25q128_st;
@@ -61,7 +61,10 @@ typedef struct {
 #define W25Q128_PAGE_COUNT			65536
 
 /// @brief: Initializes the w25q128 memory module
-uv_errors_e uv_w25q128_init(uv_w25q128_st *this, spi_e spi, spi_slaves_e ssel);
+///
+/// @param ssel_io: Slave select for selected SPI gpio pin that is driven manually
+uv_errors_e uv_w25q128_init(uv_w25q128_st *this, spi_e spi,
+		uv_gpios_e ssel_io);
 
 
 /// @brief: Reads **byte_count** bytes sychronously. The function returns when the
