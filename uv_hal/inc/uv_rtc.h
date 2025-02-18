@@ -31,7 +31,7 @@
 
 #include <uv_hal_config.h>
 #include "uv_utilities.h"
-
+#include "uv_i2c.h"
 
 #if CONFIG_RTC
 
@@ -63,11 +63,11 @@ bool uv_rtc_get_low_power_flag(void);
 
 /// @brief: Returns the current time to *dest*.
 /// With S35390A this communicates with I2C bus, thus the execution takes a long time.
-void uv_rtc_get_time(uv_time_st *dest);
+void uv_rtc_get_time(uv_time_st *dest, i2c_e i2c);
 
 /// @brief: Sets the current time
 /// With S35390A this communicates with I2C bus, thus the execution takes a long time.
-void uv_rtc_set_time(uv_time_st *src);
+void uv_rtc_set_time(uv_time_st *src, i2c_e i2c);
 
 
 

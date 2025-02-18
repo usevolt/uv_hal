@@ -34,7 +34,7 @@
 
 
 
-#define OUTPUT_FAULT_FREEZE_MS			10
+#define OUTPUT_FAULT_FREEZE_MS			5
 #define PVG_DELAY_MS					1000
 
 
