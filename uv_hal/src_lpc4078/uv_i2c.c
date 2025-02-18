@@ -71,82 +71,90 @@ uv_errors_e _uv_i2c_init(void) {
 
 #if CONFIG_I2C0
 #if CONFIG_I2C0_SDA_IO == P0_27
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 27, FUNC1 | MD_HS_DIS);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 27, FUNC1 | MD_HS_ENA);
 #elif CONFIG_I2C0_SDA_IO == P1_30
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 30, FUNC4 | MD_HS_DIS);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 30, FUNC4 | MD_HS_ENA | MD_ANA_DIS);
 #elif CONFIG_I2C0_SDA_IO == P5_2
 #if CONFIG_I2C0_BAUDRATE <= 40000
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 5, 2, FUNC5 | MD_HS_DIS);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 5, 2, FUNC5 | MD_HS_ENA);
 #else
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 5, 2, FUNC5 | MD_HS_DIS | MD_HD_ENA);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 5, 2, FUNC5 | MD_HS_ENA | MD_HD_ENA);
 #endif
 #else
 #error "CONFIG_I2C0_SDA_IO doesnt define suitable IO pin"
 #endif
 #if CONFIG_I2C0_SCL_IO == P1_31
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 31, FUNC4 | MD_HS_DIS);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 31, FUNC4 | MD_HS_ENA | MD_ANA_DIS);
 #elif CONFIG_I2C0_SCL_IO == P0_28
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 28, FUNC1 | MD_HS_DIS);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 28, FUNC1 | MD_HS_ENA);
 #elif CONFIG_I2C0_SCL_IO == P5_3
 #if CONFIG_I2C0_BAUDRATE <= 40000
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 5, 3, FUNC5 | MD_HS_DIS);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 5, 3, FUNC5 | MD_HS_ENA);
 #else
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 5, 3, FUNC5 | MD_HS_DIS | MD_HD_ENA);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 5, 3, FUNC5 | MD_HS_ENA | MD_HD_ENA);
 #endif
 #else
 #error "CONFIG_I2C0_SCL_IO doesnt define suitable IO pin"
 #endif
 	Chip_I2C_Init(I2C0);
 	Chip_I2C_SetClockRate(I2C0, CONFIG_I2C0_BAUDRATE);
+	Chip_I2C_SetMasterEventHandler(I2C0, Chip_I2C_EventHandlerPolling);
+
 #endif
+
+
+
 #if CONFIG_I2C1
 #if CONFIG_I2C1_SDA_IO == P0_0
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 0, FUNC3 | MD_HS_DIS);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 0, FUNC3 | MD_HS_ENA);
 #elif CONFIG_I2C1_SDA_IO == P1_19
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 19, FUNC3 | MD_HS_DIS);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 19, FUNC3 | MD_HS_ENA);
 #elif CONFIG_I2C1_SDA_IO == P2_14
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 2, 14, FUNC2 | MD_HS_DIS);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 2, 14, FUNC2 | MD_HS_ENA);
 #else
 #error "CONFIG_I2C1_SDA_IO doesnt define suitable IO pin"
 #endif
 #if CONFIG_I2C1_SCL_IO == P0_1
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 1, FUNC3 | MD_HS_DIS);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 1, FUNC3 | MD_HS_ENA);
 #elif CONFIG_I2C1_SCL_IO == P0_20
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 20, FUNC3 | MD_HS_DIS);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 20, FUNC3 | MD_HS_ENA);
 #elif CONFIG_I2C1_SCL_IO == P2_15
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 2, 15, FUNC2 | MD_HS_DIS);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 2, 15, FUNC2 | MD_HS_ENA);
 #else
 #error "CONFIG_I2C1_SCL_IO doesnt define suitable IO pin"
 #endif
 	Chip_I2C_Init(I2C1);
 	Chip_I2C_SetClockRate(I2C1, CONFIG_I2C1_BAUDRATE);
+	Chip_I2C_SetMasterEventHandler(I2C1, Chip_I2C_EventHandlerPolling);
 #endif
+
+
 #if CONFIG_I2C2
 #if CONFIG_I2C2_SDA_IO == P0_10
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 10, FUNC2 | MD_HS_DIS);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 10, FUNC2 | MD_HS_ENA);
 #elif CONFIG_I2C2_SDA_IO == P1_15
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 15, FUNC3 | MD_HS_DIS);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 15, FUNC3 | MD_HS_ENA);
 #elif CONFIG_I2C2_SDA_IO == P2_30
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 2, 30, FUNC2 | MD_HS_DIS);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 2, 30, FUNC2 | MD_HS_ENA);
 #else
 #error "CONFIG_I2C2_SDA_IO doesnt define suitable IO pin"
 #endif
 #if CONFIG_I2C2_SCL_IO == P0_11
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 11, FUNC2 | MD_HS_DIS);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 11, FUNC2 | MD_HS_ENA);
 #elif CONFIG_I2C2_SCL_IO == P2_31
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 2, 31, FUNC2 | MD_HS_DIS);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 2, 31, FUNC2 | MD_HS_ENA);
 #elif CONFIG_I2C2_SCL_IO == P4_21
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 4, 21, FUNC2 | MD_HS_DIS);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 4, 21, FUNC2 | MD_HS_ENA);
 #else
 #error "CONFIG_I2C2_SCL_IO doesnt define suitable IO pin"
 #endif
-	Chip_I2C_Init(I2C2);
-	Chip_I2C_SetClockRate(I2C2, CONFIG_I2C2_BAUDRATE);
+	Chip_I2C_Init(I2C1);
+	Chip_I2C_SetClockRate(I2C1, CONFIG_I2C2_BAUDRATE);
+	Chip_I2C_SetMasterEventHandler(I2C2, Chip_I2C_EventHandlerPolling);
 #endif
 
 	return ret;
 }
-
 
 
 uv_errors_e uv_i2cm_read(i2c_e channel, uint8_t *tx_buffer, uint16_t tx_len,
@@ -156,20 +164,31 @@ uv_errors_e uv_i2cm_read(i2c_e channel, uint8_t *tx_buffer, uint16_t tx_len,
 	while (Chip_I2C_IsMasterActive(channel)) {
 		uv_rtos_task_yield();
 	}
-	if (tx_len > 1 &&
-			rx_len >= 1) {
-		I2C_XFER_T xfer = {};
-		// clear READ bit from ID
-		xfer.slaveAddr = tx_buffer[0] & ~0x80;
-		xfer.txBuff = tx_buffer + 1;
-		xfer.txSz = tx_len - 1;
-		xfer.rxBuff = rx_buffer;
+	I2C_XFER_T xfer = {};
+	if (tx_len) {
+		// slave address is read from txbuffer first byte
+		// first bit includes R/W bit that is automatically appended
+		xfer.slaveAddr = ((tx_buffer[0]) >> 1);
+		// first byte should be reserved for the slave address
+		if (rx_len) {
+			rx_len--;
+			rx_buffer = &rx_buffer[1];
+		}
 		xfer.rxSz = rx_len;
-		while (Chip_I2C_MasterTransfer(channel, &xfer) == I2C_STATUS_ARBLOST) {}
+		xfer.rxBuff = rx_buffer;
+		xfer.txSz = tx_len - 1;
+		xfer.txBuff = &tx_buffer[1];
 	}
 	else {
-		ret = ERR_ABORTED;
+		// slave address is read from rx_buffer first byte
+		// first bit includes R/W bit that is automatically appended
+		xfer.slaveAddr = ((rx_buffer[0]) >> 1);
+		xfer.rxSz = rx_len - 1;
+		xfer.rxBuff = &rx_buffer[1];
+		xfer.txSz = 0;
+		xfer.txBuff = NULL;
 	}
+	while (Chip_I2C_MasterTransfer(channel, &xfer) == I2C_STATUS_ARBLOST) {}
 
 
 	return ret;
@@ -182,7 +201,7 @@ uv_errors_e uv_i2cm_write(i2c_e channel, uint8_t *tx_buffer, uint16_t tx_len) {
 
 	if (tx_len > 1) {
 		I2C_XFER_T xfer = {};
-		xfer.slaveAddr = tx_buffer[0];
+		xfer.slaveAddr = ((tx_buffer[0]) >> 1);
 		xfer.txBuff = tx_buffer + 1;
 		xfer.txSz = tx_len - 1;
 		while (Chip_I2C_MasterTransfer(channel, &xfer) == I2C_STATUS_ARBLOST) {}

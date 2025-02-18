@@ -111,7 +111,8 @@ uv_errors_e _uv_i2c_init(void);
 /// to the device, following a RESTART condition and then data is read
 /// to *rx_buffer*.
 ///
-/// @note: First byte of *rx_buffer* always contains slave address and read bit!,
+/// @note: If tx_len is zero,
+/// First byte of *rx_buffer* always contains slave address and read bit!,
 /// otherwise the function fails with NACK.
 ///
 /// @param tx_buffer: Pointer to the buffer which holds the write data. Note
