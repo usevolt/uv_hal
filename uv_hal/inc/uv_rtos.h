@@ -139,8 +139,8 @@ static inline void uv_mutex_init(uv_mutex_st *mutex) {
 
 #include <stdio.h>
 /// @brief: Locks the mutex. No one else can lock the mutex before it is unlocked.
-static inline void uv_mutex_lock(uv_mutex_st *mutex) {
-	xSemaphoreTake(*mutex, portMAX_DELAY);
+static inline bool uv_mutex_lock(uv_mutex_st *mutex) {
+	return xSemaphoreTake(*mutex, portMAX_DELAY);
 }
 
 /// @brief: Tries to lock the mutex for *wait_ms* milliseconds
@@ -167,9 +167,15 @@ typedef QueueHandle_t uv_queue_st;
 ///
 /// @param queue_len: The length of the queue in element count
 /// @param element_size: the size of an individual element in bytes
-static inline void uv_queue_init(uv_queue_st *this,
+static inline uv_queue_st uv_queue_init(uv_queue_st *this,
 		int32_t queue_len, uint32_t element_size) {
 	*this = xQueueCreate(queue_len, element_size);
+	return *this;
+}
+
+/// @brief: Empties the queue
+static inline void uv_queue_clear(uv_queue_st *this) {
+	xQueueReset(*this);
 }
 
 
