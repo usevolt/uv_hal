@@ -115,6 +115,10 @@ uv_errors_e _uv_can_init() {
 	uv_ring_buffer_init(&this->can[0].tx_buffer, this->can[0].tx_buffer_data,
 			CONFIG_CAN0_TX_BUFFER_SIZE, sizeof(uv_can_message_st));
 
+	Chip_SYSCTL_PeriphReset(SYSCTL_RESET_CAN1);
+	Chip_SYSCTL_PeriphReset(SYSCTL_RESET_CAN2);
+	Chip_SYSCTL_PeriphReset(SYSCTL_RESET_CANACC);
+
 	uint32_t baudrate;
 
 #if CONFIG_CAN0
@@ -127,7 +131,6 @@ uv_errors_e _uv_can_init() {
 		baudrate = CONFIG_CAN0_BAUDRATE;
 		CONFIG_NON_VOLATILE_START.can_baudrate = baudrate;
 	}
-
 	Chip_CAN_Init(this->can[0].lpc_can, LPC_CANAF, LPC_CANAF_RAM);
 	Chip_CAN_SetBitRate(this->can[0].lpc_can, baudrate);
 	Chip_CAN_EnableInt(this->can[0].lpc_can,
@@ -208,19 +211,20 @@ static inline void insert_msg(uv_can_chn_e chn,
 		uint32_t id, uint32_t mask, uv_can_msg_types_e type, uint8_t ctz) {
 	// clear masked bits to zero
 	id = id & mask;
-	// configure single message in case mask has no zero bits
 	if (ctz > 0) {
+		// configure range
 		if (type == CAN_STD) {
-			CAN_STD_ID_RANGE_ENTRY_T range;
+			CAN_STD_ID_RANGE_ENTRY_T range = {};
 			range.LowerID.CtrlNo = chn;
 			range.LowerID.ID_11 = id;
 			range.UpperID.CtrlNo = chn;
 			range.UpperID.ID_11 = id | (0x7FF & (~mask));
+			printf("adding range 0x%x to 0x%x\n", range.LowerID.ID_11, range.UpperID.ID_11);
 			Chip_CAN_InsertGroupSTDEntry(LPC_CANAF, LPC_CANAF_RAM, &range);
 		}
 		else {
 			// type == CAN_EXT
-			CAN_EXT_ID_RANGE_ENTRY_T range;
+			CAN_EXT_ID_RANGE_ENTRY_T range = {};
 			range.LowerID.CtrlNo = chn;
 			range.LowerID.ID_29 = id;
 			range.UpperID.CtrlNo = chn;
@@ -229,19 +233,31 @@ static inline void insert_msg(uv_can_chn_e chn,
 		}
 	}
 	else {
+		// configure single message in case mask has no zero bits
 		if (type == CAN_STD) {
-			CAN_STD_ID_ENTRY_T std;
+			CAN_STD_ID_ENTRY_T std = {};
 			std.CtrlNo = chn;
 			std.ID_11 = id;
 			Chip_CAN_InsertSTDEntry(LPC_CANAF, LPC_CANAF_RAM, &std);
 		}
 		else {
-			CAN_EXT_ID_ENTRY_T ext;
+			CAN_EXT_ID_ENTRY_T ext = {};
 			ext.CtrlNo = chn;
 			ext.ID_29 = id;
 			Chip_CAN_InsertEXTEntry(LPC_CANAF, LPC_CANAF_RAM, &ext);
 		}
 	}
+
+	printf("count: %i",
+			Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_FULLCAN_SEC));
+	printf(" %i",
+			Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_SFF_SEC));
+	printf(" %i",
+			Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_SFF_GRP_SEC));
+	printf(" %i",
+			Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_EFF_SEC));
+	printf(" %i\n",
+			Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_EFF_GRP_SEC));
 
 }
 
@@ -259,6 +275,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e chn,
 	uint8_t ctz = uv_ctz(mask);
 	// clear masked bits to zero
 	id = id & mask;
+
 	// configure single message in case mask has no zero bits
 	insert_msg(chn, id, mask, type, ctz);
 
@@ -269,9 +286,11 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e chn,
 		// all matching messages have to be configured separately
 		if (!(mask & (1 << i))) {
 			for (uint32_t val = 1; val < (1 << (i - last_onebit)); val++) {
+				uint32_t idd = id + (val << i);
+				uint32_t mask = ~((1 << ctz) - 1);
 				insert_msg(chn,
-						id + (val << i),
-						~((1 << ctz) - 1),
+						idd,
+						mask,
 						type, ctz);
 			}
 		}
@@ -288,45 +307,20 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e chn,
 
 
 void uv_can_clear_rx_messages(uv_can_chn_e chn) {
-	CAN_STD_ID_ENTRY_T std;
-	uint16_t i = 0;
-	while (Chip_CAN_ReadSTDEntry(LPC_CANAF, LPC_CANAF_RAM, i, &std) == SUCCESS) {
-		if (std.CtrlNo == chn) {
-			Chip_CAN_RemoveSTDEntry(LPC_CANAF, LPC_CANAF_RAM, i);
-		}
-		else {
-			i++;
-		}
+	while (Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_FULLCAN_SEC)) {
+		Chip_CAN_RemoveFullCANEntry(LPC_CANAF, LPC_CANAF_RAM, 0);
 	}
-	i = 0;
-	CAN_STD_ID_RANGE_ENTRY_T stdrange;
-	while (Chip_CAN_ReadGroupSTDEntry(LPC_CANAF, LPC_CANAF_RAM, i, &stdrange) == SUCCESS) {
-		if (stdrange.LowerID.CtrlNo == chn) {
-			Chip_CAN_RemoveGroupSTDEntry(LPC_CANAF, LPC_CANAF_RAM, i);
-		}
-		else {
-			i++;
-		}
+	while (Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_SFF_SEC)) {
+		Chip_CAN_RemoveSTDEntry(LPC_CANAF, LPC_CANAF_RAM, 0);
 	}
-	i = 0;
-	CAN_EXT_ID_ENTRY_T ext;
-	while (Chip_CAN_ReadEXTEntry(LPC_CANAF, LPC_CANAF_RAM, i, &ext) == SUCCESS) {
-		if (ext.CtrlNo == chn) {
-			Chip_CAN_RemoveEXTEntry(LPC_CANAF, LPC_CANAF_RAM, i);
-		}
-		else {
-			i++;
-		}
+	while (Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_SFF_GRP_SEC)) {
+		Chip_CAN_RemoveGroupSTDEntry(LPC_CANAF, LPC_CANAF_RAM, 0);
 	}
-	i = 0;
-	CAN_EXT_ID_RANGE_ENTRY_T extrange;
-	while (Chip_CAN_ReadGroupEXTEntry(LPC_CANAF, LPC_CANAF_RAM, i, &extrange) == SUCCESS) {
-		if (extrange.LowerID.CtrlNo == chn) {
-			Chip_CAN_RemoveGroupEXTEntry(LPC_CANAF, LPC_CANAF_RAM, i);
-		}
-		else {
-			i++;
-		}
+	while (Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_EFF_SEC)) {
+		Chip_CAN_RemoveEXTEntry(LPC_CANAF, LPC_CANAF_RAM, 0);
+	}
+	while (Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_EFF_GRP_SEC)) {
+		Chip_CAN_RemoveGroupEXTEntry(LPC_CANAF, LPC_CANAF_RAM, 0);
 	}
 }
 
@@ -343,16 +337,17 @@ void CAN_IRQHandler(void) {
 		}
 		else if (canint & CAN_ICR_RI) {
 			CAN_MSG_T m;
+			printf("rx ");
 			if (Chip_CAN_Receive(this->can[0].lpc_can, &m) == SUCCESS) {
 				uv_can_msg_st msg = { };
 				msg.data_length = m.DLC;
 				msg.id = m.ID & 0x3FFF;
+				printf("0x%x\n", msg.id);
 				msg.type = (m.ID & CAN_EXTEND_ID_USAGE) ? CAN_EXT : CAN_STD;
 				memcpy(msg.data_8bit, m.Data, m.DLC);
 
 				if (this->can[0].rx_callback != NULL &&
 						!this->can[0].rx_callback(__uv_get_user_ptr(), &msg)) {
-
 				}
 				else {
 #if CONFIG_TERMINAL_CAN && (CONFIG_TERMINAL_CAN_CHN == CAN0)
@@ -381,7 +376,8 @@ void CAN_IRQHandler(void) {
 			}
 		}
 		else {
-
+			printf("*** CAN AF configuration error\n");
+			Chip_CAN_ConfigFullCANInt(LPC_CANAF, DISABLE);
 		}
 
 	}
@@ -501,8 +497,7 @@ uv_errors_e uv_can_send_sync(uv_can_channels_e chn, uv_can_message_st *msg) {
 	if (this->can[chn].init) {
 
 		// disable transmit interrupts so that we have free txbuffer
-		Chip_CAN_DisableInt(this->can[chn].lpc_can,
-				CAN_IER_TIE1 | CAN_IER_TIE2 | CAN_IER_TIE3);
+		NVIC_DisableIRQ(CAN_IRQn);
 
 		// wait until tx msg obj is free
 		uint8_t txbuf;
@@ -543,8 +538,7 @@ uv_errors_e uv_can_send_sync(uv_can_channels_e chn, uv_can_message_st *msg) {
 				}
 			}
 		}
-		Chip_CAN_EnableInt(this->can[chn].lpc_can,
-				CAN_IER_TIE1 | CAN_IER_TIE2 | CAN_IER_TIE3);
+		NVIC_EnableIRQ(CAN_IRQn);
 	}
 	else {
 		ret = ERR_NOT_INITIALIZED;
