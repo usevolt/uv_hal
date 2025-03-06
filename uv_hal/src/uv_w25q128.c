@@ -238,7 +238,10 @@ bool uv_w25q128_clear(uv_w25q128_st *this) {
 	buffer[0] = CMD_WRITE_ENABLE;
 	uv_gpio_set(this->ssel_io, false);
 	uv_spi_write_sync(this->spi, 0, buffer, 8, 1);
+	uv_gpio_set(this->ssel_io, true);
+	uv_rtos_task_delay(1);
 
+	uv_gpio_set(this->ssel_io, false);
 	buffer[0] = CMD_CHIP_ERASE;
 	uv_spi_write_sync(this->spi, 0, buffer, 8, 1);
 	uv_gpio_set(this->ssel_io, true);
