@@ -209,7 +209,6 @@ void _uv_spi_init(void) {
 		// MSB or LSB first
 		cfg.DataOrder = CONFIG_SPI0_MSB_FIRST ?
 				SPI_DATA_MSB_FIRST : SPI_DATA_LSB_FIRST;
-#if (CONFIG_SPI0_SLAVE_COUNT)
 		// slave select polarity
 #if (CONFIG_SPI0_SLAVE_COUNT > 0)
 		cfg.SSELPol = (CONFIG_SPI0_SSEL0_INV ? SPI_CFG_SPOL0_HI : SPI_CFG_SPOL0_LO);
