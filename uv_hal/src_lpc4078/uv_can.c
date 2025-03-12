@@ -219,7 +219,6 @@ static inline void insert_msg(uv_can_chn_e chn,
 			range.LowerID.ID_11 = id;
 			range.UpperID.CtrlNo = chn;
 			range.UpperID.ID_11 = id | (0x7FF & (~mask));
-			printf("adding range 0x%x to 0x%x\n", range.LowerID.ID_11, range.UpperID.ID_11);
 			Chip_CAN_InsertGroupSTDEntry(LPC_CANAF, LPC_CANAF_RAM, &range);
 		}
 		else {
@@ -247,17 +246,6 @@ static inline void insert_msg(uv_can_chn_e chn,
 			Chip_CAN_InsertEXTEntry(LPC_CANAF, LPC_CANAF_RAM, &ext);
 		}
 	}
-
-	printf("count: %i",
-			Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_FULLCAN_SEC));
-	printf(" %i",
-			Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_SFF_SEC));
-	printf(" %i",
-			Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_SFF_GRP_SEC));
-	printf(" %i",
-			Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_EFF_SEC));
-	printf(" %i\n",
-			Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_EFF_GRP_SEC));
 
 }
 
@@ -307,21 +295,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e chn,
 
 
 void uv_can_clear_rx_messages(uv_can_chn_e chn) {
-	while (Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_FULLCAN_SEC)) {
-		Chip_CAN_RemoveFullCANEntry(LPC_CANAF, LPC_CANAF_RAM, 0);
-	}
-	while (Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_SFF_SEC)) {
-		Chip_CAN_RemoveSTDEntry(LPC_CANAF, LPC_CANAF_RAM, 0);
-	}
-	while (Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_SFF_GRP_SEC)) {
-		Chip_CAN_RemoveGroupSTDEntry(LPC_CANAF, LPC_CANAF_RAM, 0);
-	}
-	while (Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_EFF_SEC)) {
-		Chip_CAN_RemoveEXTEntry(LPC_CANAF, LPC_CANAF_RAM, 0);
-	}
-	while (Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_EFF_GRP_SEC)) {
-		Chip_CAN_RemoveGroupEXTEntry(LPC_CANAF, LPC_CANAF_RAM, 0);
-	}
+	Chip_CAN_clearAFLUT(LPC_CANAF, LPC_CANAF_RAM);
 }
 
 
@@ -337,12 +311,10 @@ void CAN_IRQHandler(void) {
 		}
 		else if (canint & CAN_ICR_RI) {
 			CAN_MSG_T m;
-			printf("rx ");
 			if (Chip_CAN_Receive(this->can[0].lpc_can, &m) == SUCCESS) {
 				uv_can_msg_st msg = { };
 				msg.data_length = m.DLC;
 				msg.id = m.ID & 0x3FFF;
-				printf("0x%x\n", msg.id);
 				msg.type = (m.ID & CAN_EXTEND_ID_USAGE) ? CAN_EXT : CAN_STD;
 				memcpy(msg.data_8bit, m.Data, m.DLC);
 

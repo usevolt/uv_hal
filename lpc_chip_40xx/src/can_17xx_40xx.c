@@ -960,8 +960,6 @@ Status Chip_CAN_SetAFLUT(LPC_CANAF_T *pCANAF, LPC_CANAF_RAM_T *pCANAFRam, CANAF_
 	return ret;
 }
 
-#include "uv_terminal.h"
-#include <stdio.h>
 /* Get the number of entries of the given section */
 uint16_t Chip_CAN_GetEntriesNum(LPC_CANAF_T *pCANAF, LPC_CANAF_RAM_T *pCANAFRam,
 								CANAF_RAM_SECTION_T SectionID)
@@ -1081,7 +1079,6 @@ Status Chip_CAN_InsertGroupSTDEntry(LPC_CANAF_T *pCANAF,
 
 	getSectionAddress(pCANAF, CANAF_RAM_SFF_GRP_SEC, &StartRow, &EndRow);
 
-	printf("insertindex %i, startrow %i, endrow %i\n", InsertIndex, StartRow, EndRow);
 	/* Search for Index of the entry which upper the new item */
 	for (InsertIndex = StartRow; InsertIndex <= EndRow; InsertIndex++) {
 		LowerID = (pCANAFRam->MASK[InsertIndex] >> (16 + CAN_STD_ENTRY_ID_POS)) & CAN_STD_ENTRY_ID_MASK;
@@ -1097,7 +1094,6 @@ Status Chip_CAN_InsertGroupSTDEntry(LPC_CANAF_T *pCANAF,
 		PrevUpperID = (pCANAFRam->MASK[InsertIndex - 1] >> CAN_STD_ENTRY_ID_POS) & CAN_STD_ENTRY_ID_MASK;
 
 		if (PrevUpperID >= pEntry->UpperID.ID_11) {
-			printf("id: 0x%x\n", PrevUpperID);
 			return SUCCESS;
 		}
 
@@ -1105,11 +1101,9 @@ Status Chip_CAN_InsertGroupSTDEntry(LPC_CANAF_T *pCANAF,
 			if (pEntry->LowerID.ID_11 < PrevUpperID) {	/* The new range is merged to the range of the previous row */
 				uint32_t val = pCANAFRam->MASK[InsertIndex - 1] & 0xFFFF0000;
 				pCANAFRam->MASK[InsertIndex - 1] = val | createStdIDEntry(&pEntry->UpperID, false);
-				printf("3\n");
 				return SUCCESS;
 			}
 			else {
-				printf("goto\n");
 				goto insert_grp_entry;
 			}
 		}
@@ -1122,14 +1116,12 @@ Status Chip_CAN_InsertGroupSTDEntry(LPC_CANAF_T *pCANAF,
 			val = createStdIDEntry(&pEntry->LowerID, false) << 16;
 			val |= createStdIDEntry(&pEntry->UpperID, false);
 			pCANAFRam->MASK[InsertIndex] = val;
-			printf("4\n");
 			return SUCCESS;
 		}
 		else if (pEntry->UpperID.ID_11 < UpperID) {
 			if (pEntry->UpperID.ID_11 > LowerID) {	/* The new range is merged to the range of the next row */
 				uint32_t val = pCANAFRam->MASK[InsertIndex] & 0x0000FFFF;
 				pCANAFRam->MASK[InsertIndex] = val | (createStdIDEntry(&pEntry->LowerID, false) << 16);
-				printf("5\n");
 				return SUCCESS;
 			}
 		}
