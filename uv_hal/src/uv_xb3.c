@@ -155,7 +155,9 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 
 	printf("XB3 initialized, took %i ms\n", ms);
 
-	this->initialized = true;
+	if (ret == ERR_NONE) {
+		this->initialized = true;
+	}
 
 	return ret;
 }
