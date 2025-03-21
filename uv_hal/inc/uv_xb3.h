@@ -16,6 +16,7 @@
 #include "uv_rtos.h"
 
 
+#if CONFIG_SPI
 
 
 typedef enum {
@@ -114,5 +115,6 @@ static inline uv_xb3_at_response_e uv_xb3_get_at_response(uv_xb3_st *this) {
 	return this->at_response;
 }
 
+#endif
 
 #endif /* UV_HAL_UV_HAL_INC_UV_XB3_H_ */

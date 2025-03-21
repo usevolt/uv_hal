@@ -12,6 +12,7 @@
 #include <uv_terminal.h>
 #include <uv_wdt.h>
 
+#if CONFIG_SPI
 
 
 #define APIFRAME_64TRANSMIT					0x0
@@ -283,3 +284,5 @@ uv_errors_e uv_xb3_set_node_identifier(uv_xb3_st *this, char *name) {
 
 }
 
+
+#endif
