@@ -49,12 +49,16 @@
 
 /// @brief: Writes a local AT command request to device
 /// according to frame type LOCALATCMDREQ
-void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd, char *data) {
+void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd, char *data, uint16_t data_len) {
 	uv_mutex_lock(&this->tx_mutex);
 	this->at_response = XB3_AT_RESPONSE_COUNT;
 	uv_queue_clear(&this->rx_at_queue);
 	uint32_t crc = 0;
-	uint16_t paramvaluelen = strlen(data);
+	uint16_t paramvaluelen = data_len;
+	if (data != NULL &&
+			paramvaluelen == 0) {
+		paramvaluelen = strlen(data);
+	}
 	uint8_t d = APIFRAME_START;
 	uv_queue_push(&this->tx_queue, &d, 0);
 	uint16_t framedatalen = 4 + paramvaluelen;
@@ -76,8 +80,8 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd, char *data) {
 	crc += d;
 	uv_queue_push(&this->tx_queue, &d, 0);
 	for (uint16_t i = 0; i < paramvaluelen; i++) {
-		crc += d;
 		uv_queue_push(&this->tx_queue, &data[i], 0);
+		crc += (uint8_t) data[i];
 	}
 	d = 0xFF - (crc & 0xFF);
 	uv_queue_push(&this->tx_queue, &d, 0);
@@ -152,7 +156,7 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	// We do this by reading from XB3
 
 	// set AO to 0, zigee data format
-	uv_xb3_local_at_cmd_req(this, "AO", "0");
+	uv_xb3_local_at_cmd_req(this, "AO", "0", 1);
 
 	printf("XB3 initialized, took %i ms\n", ms);
 
@@ -226,7 +230,7 @@ void uv_xb3_poll(uv_xb3_st *this) {
 							else if (this->rx_index > 8) {
 								if (this->at_echo) {
 									if (this->at_echo_hex) {
-										printf("0x%x ", rx);
+										printf("0x%02x ", rx);
 									}
 									else {
 										printf("%c", rx);
@@ -273,7 +277,7 @@ void uv_xb3_poll(uv_xb3_st *this) {
 uv_errors_e uv_xb3_set_node_identifier(uv_xb3_st *this, char *name) {
 	uv_errors_e ret = ERR_NONE;
 	uv_queue_clear(&this->rx_at_queue);
-	uv_xb3_local_at_cmd_req(this, "NI", name);
+	uv_xb3_local_at_cmd_req(this, "NI", name, strlen(name));
 	while (uv_xb3_get_at_response(this) == XB3_AT_RESPONSE_COUNT) {
 		uv_rtos_task_delay(1);
 	}

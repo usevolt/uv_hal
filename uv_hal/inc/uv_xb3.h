@@ -90,7 +90,11 @@ static inline bool uv_xb3_get_data(uv_xb3_st *this, char *dest) {
 
 
 /// @brief: Writes a local AT command to XB3 module
-void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd, char *data);
+///
+/// @param data_len: The length of data string. This is given because
+/// *data* can contain zero bytes, for example when writing PAN ID to device.
+/// If *data_len* is 0 but *data* is not NULL, strlen(data) is used instead.
+void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd, char *data, uint16_t data_len);
 
 
 static inline void uv_xb3_set_at_echo(uv_xb3_st *this, bool value) {
