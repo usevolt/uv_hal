@@ -22,13 +22,11 @@
 #define APIFRAME_TRANSMITREQ				0x10
 #define APIFRAME_EXPLADDCMDREQ				0x11
 #define APIFRAME_REMOTEATCMDREQ				0x17
+#define APIFRAME_CREATESOURCEROUTE			0x21
+#define APIFRAME_REGISTERJOINDEVICE			0x24
 #define APIFRAME_BLEUNLOCKREQ				0x2C
 #define APIFRAME_USERDATARELAYINPUT			0x2D
 #define APIFRAME_SECURESESSIONCONTROL		0x2E
-#define APIFRAME_64RECEIVE					0x80
-#define APIFRAME_16RECEIVE					0x81
-#define APIFRAME_64IOSAMPLEIND				0x82
-#define APIFRAME_16IOSAMPLEIND				0x83
 #define APIFRAME_LOCALATCMDRESPONSE			0x88
 #define APIFRAME_TRANSMITSTATUS				0x89
 #define APIFRAME_MODEMSTATUS				0x8A
@@ -36,6 +34,7 @@
 #define APIFRAME_RECEIVEPACKET				0x90
 #define APIFRAME_EXPLRECEIVEIND				0x91
 #define APIFRAME_IOSAMPLEIND				0x92
+#define APIFRAME_NODEIDENTIFICATIONIND		0x95
 #define APIFRAME_REMOTEATCMDRESPONSE		0x97
 #define APIFRAME_EXTMODEMSTATUS				0x98
 #define APIFRAME_BLEUNLOCKRESPONSE			0xAC
@@ -43,6 +42,44 @@
 #define APIFRAME_SECURESESSIONRESPONSE		0xAE
 #define APIFRAME_START						0x7E
 
+
+
+
+const char *uv_xb3_modem_status_to_str(uv_xb3_modem_status_e stat) {
+	const char *ret = "";
+	switch (stat) {
+	case XB3_MODEMSTATUS_ACCESSFAULT: ret = "ACCESSFAULT"; break;
+	case XB3_MODEMSTATUS_BLECONNECT: ret = "BLECONNECT"; break;
+	case XB3_MODEMSTATUS_BLEDISCONNECT: ret = "BLEDISCONNECT"; break;
+	case XB3_MODEMSTATUS_COORDINATORCHANGEDPANID: ret = "COORDINATORCHANGEDPANID"; break;
+	case XB3_MODEMSTATUS_COORDINATORDETECTEDPANIDCONFLICT:
+		ret = "COORDINATORDETECTEDPANIDCONFLICT"; break;
+	case XB3_MODEMSTATUS_COORDINATORSTARTED: ret = "COORDINATORSTARTED"; break;
+	case XB3_MODEMSTATUS_FATALERROR: ret = "FATALERROR"; break;
+	case XB3_MODEMSTATUS_JOINEDNETWORK: ret = "JOINEDNETWORK"; break;
+	case XB3_MODEMSTATUS_LEFTNETWORK: ret = "LEFTNETWORK"; break;
+	case XB3_MODEMSTATUS_MODEMCONFCHANGEDWHILEJOIN:
+		ret = "MODEMCONFCHANGEDWHILEJOIN"; break;
+	case XB3_MODEMSTATUS_NETWORKSECURITYKEYUPDATED:
+		ret = "NETWORKSECURITYKEYUPDATED"; break;
+	case XB3_MODEMSTATUS_NETWORKWENTTOSLEEP: ret = "NETWORKWENTTOSLEEP"; break;
+	case XB3_MODEMSTATUS_NETWORKWOKEUP: ret = "NETWORKWOKEUP"; break;
+	case XB3_MODEMSTATUS_POWERUP: ret = "POWERUP"; break;
+	case XB3_MODEMSTATUS_REMOTEMANAGEDISCONNECTED: ret = "REMOTEMANAGEDISCONNECTED"; break;
+	case XB3_MODEMSTATUS_REMOTEMANAGERCONNECTED: ret = "REMOTEMANAGERCONNECTED"; break;
+	case XB3_MODEMSTATUS_VCCEXCEEDED: ret = "VCCEXCEEDED"; break;
+	case XB3_MODEMSTATUS_WDT: ret = "WDT"; break;
+	case XB3_MODEMSTATUS_ROUTERPANIDCHANGEDBYCOORDINATOR:
+		ret = "ROUTERPANIDCHANGEDBYCOORDINATOR"; break;
+	case XB3_MODEMSTATUS_NETWORKWDT: ret = "NETWORKWDT TIMEDOUT"; break;
+	case XB3_MODEMSTATUS_JOINWINDOWOPEN: ret = "JOINWINDOWOPEN"; break;
+	case XB3_MODEMSTATUS_JOINWINDOWCLOSED: ret = "JOINWINDOWCLOSED"; break;
+	default:
+		ret = "UNKNOWN";
+		break;
+	}
+	return ret;
+}
 
 
 
@@ -107,6 +144,7 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	this->at_response = XB3_AT_RESPONSE_COUNT;
 	this->rx_index = 0;
 	this->rx_size = 0;
+	this->modem_status = 0;
 	if (uv_queue_init(&this->tx_queue, 100, sizeof(char)) == NULL) {
 		uv_terminal_enable(TERMINAL_CAN);
 		printf("XB3: Creating TX queue failed\n");
@@ -117,7 +155,7 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 		printf("XB3: Creating RX data queue failed\n");
 		ret = ERR_NOT_ENOUGH_MEMORY;
 	}
-	if (uv_queue_init(&this->rx_at_queue, 10, sizeof(char)) == NULL) {
+	if (uv_queue_init(&this->rx_at_queue, 50, sizeof(char)) == NULL) {
 		uv_terminal_enable(TERMINAL_CAN);
 		printf("XB3: Creating RX AT queue failed\n");
 		ret = ERR_NOT_ENOUGH_MEMORY;
@@ -188,6 +226,8 @@ void uv_xb3_poll(uv_xb3_st *this) {
 			else {
 				this->rx_index++;
 
+				uint16_t offset = this->rx_index - 1;
+
 				switch(this->rx_index) {
 				// API package length MSB byte
 				case 2:
@@ -245,13 +285,21 @@ void uv_xb3_poll(uv_xb3_st *this) {
 							}
 							break;
 						}
-						case APIFRAME_16RECEIVE: {
-							if (uv_queue_push(&this->rx_data_queue, &rx, 0) != ERR_NONE) {
-								printf("XB3: RX data queue full\n");
+//						case APIFRAME_16RECEIVE: {
+//							if (uv_queue_push(&this->rx_data_queue, &rx, 0) != ERR_NONE) {
+//								printf("XB3: RX data queue full\n");
+//							}
+//							break;
+//						}
+						case APIFRAME_MODEMSTATUS:
+							if (offset == 4) {
+								this->modem_status = rx;
+								printf("MODEMSTATUS 0x%x '%s'\n", rx,
+										uv_xb3_modem_status_to_str(rx));
 							}
 							break;
-						}
 						default:
+							printf("APIFRAME 0x%x\n", this->rx_frame_type);
 							break;
 						}
 					}
