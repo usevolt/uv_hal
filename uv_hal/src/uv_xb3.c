@@ -127,14 +127,85 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd, char *data, uint16_t 
 }
 
 
+void uv_xb3_write_data(uv_xb3_st *this, uint64_t destaddr,
+		char *data, uint16_t datalen) {
+	uv_mutex_lock(&this->tx_mutex);
+	uint32_t crc = 0;
+	uint8_t d = APIFRAME_START;
+	uv_queue_push(&this->tx_queue, &d, 0);
+	uint16_t framedatalen = 14 + datalen;
+	// Length
+	d = (framedatalen >> 8);
+	uv_queue_push(&this->tx_queue, &d, 0);
+	d = framedatalen & 0xFF;
+	uv_queue_push(&this->tx_queue, &d, 0);
+	d = APIFRAME_TRANSMITREQ;
+	crc += d;
+	uv_queue_push(&this->tx_queue, &d, 0);
+	// 64-bit address
+	d = (destaddr >> 56) & 0xFF;
+	crc += d;
+	uv_queue_push(&this->tx_queue, &d, 0);
+	d = (destaddr >> 48) & 0xFF;
+	crc += d;
+	uv_queue_push(&this->tx_queue, &d, 0);
+	d = (destaddr >> 40) & 0xFF;
+	crc += d;
+	uv_queue_push(&this->tx_queue, &d, 0);
+	d = (destaddr >> 32) & 0xFF;
+	crc += d;
+	uv_queue_push(&this->tx_queue, &d, 0);
+	d = (destaddr >> 24) & 0xFF;
+	crc += d;
+	uv_queue_push(&this->tx_queue, &d, 0);
+	d = (destaddr >> 16) & 0xFF;
+	crc += d;
+	uv_queue_push(&this->tx_queue, &d, 0);
+	d = (destaddr >> 8) & 0xFF;
+	crc += d;
+	uv_queue_push(&this->tx_queue, &d, 0);
+	d = (destaddr) & 0xFF;
+	crc += d;
+	uv_queue_push(&this->tx_queue, &d, 0);
+	// 16-bit adddress
+	d = 0xFF;
+	crc += d;
+	uv_queue_push(&this->tx_queue, &d, 0);
+	d = 0xFE;
+	crc += d;
+	uv_queue_push(&this->tx_queue, &d, 0);
+	// broadcast radius
+	d = 0;
+	crc += d;
+	uv_queue_push(&this->tx_queue, &d, 0);
+	// transmit options
+	d = 0;
+	crc += d;
+	uv_queue_push(&this->tx_queue, &d, 0);
+	for (uint16_t i = 0; i < datalen; i++) {
+		d = data[i];
+		crc += d;
+		uv_queue_push(&this->tx_queue, &d, 0);
+	}
+	d = 0xFF - crc;
+	uv_queue_push(&this->tx_queue, &d, 0);
+
+	uv_mutex_unlock(&this->tx_mutex);
+}
+
+
+
 
 
 uv_errors_e uv_xb3_init(uv_xb3_st *this,
+		uv_xb3_conf_st *conf,
 		spi_e spi,
 		uv_gpios_e ssel_gpio,
 		uv_gpios_e spi_attn_gpio,
-		uv_gpios_e reset_gpio) {
+		uv_gpios_e reset_gpio,
+		const char *nodeid) {
 	uv_errors_e ret = ERR_NONE;
+	this->conf = conf;
 	this->initialized = false;
 	this->spi = spi;
 	this->attn_gpio = spi_attn_gpio;
@@ -202,8 +273,26 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 		this->initialized = true;
 	}
 
+	printf("Setting device identification string to '%s'\n", nodeid);
+	uv_xb3_set_nodename(this, nodeid);
+
+
 	return ret;
 }
+
+
+uv_errors_e uv_xb3_set_nodename(uv_xb3_st *this, const char *name) {
+	uv_errors_e ret = ERR_NONE;
+	uv_xb3_local_at_cmd_req(this, "NI", (char*) name, strlen(name));
+	while (uv_xb3_get_at_response(this) == XB3_AT_RESPONSE_COUNT) {
+		uv_xb3_poll(this);
+	}
+	if (uv_xb3_get_at_response(this) != XB3_AT_RESPONSE_OK) {
+		ret = ERR_ABORTED;
+	}
+	return ret;
+}
+
 
 
 void uv_xb3_poll(uv_xb3_st *this) {
@@ -247,25 +336,7 @@ void uv_xb3_poll(uv_xb3_st *this) {
 						switch (this->rx_frame_type) {
 						case APIFRAME_LOCALATCMDRESPONSE: {
 							if (this->rx_index == 8) {
-								this->at_response = rx;
-								if (this->at_echo) {
-									switch(rx) {
-									case 0:
-										printf("OK\n");
-										break;
-									case 1:
-										printf("ERROR\n");
-										break;
-									case 2:
-										printf("Invalid command\n");
-										break;
-									case 3:
-										printf("Invalid parameter\n");
-										break;
-									default:
-										break;
-									}
-								}
+								this->at_response_req = rx;
 							}
 							else if (this->rx_index > 8) {
 								if (this->at_echo) {
@@ -282,6 +353,28 @@ void uv_xb3_poll(uv_xb3_st *this) {
 							}
 							else {
 
+							}
+							if (this->rx_index - 4 == this->rx_size - 1) {
+								// last byte of this response, update AT response status
+								if (this->at_echo) {
+									switch(this->at_response_req) {
+									case XB3_AT_RESPONSE_OK:
+										printf("OK\n");
+										break;
+									case XB3_AT_RESPONSE_ERROR:
+										printf("ERROR\n");
+										break;
+									case XB3_AT_RESPONSE_INVALID_COMMAND:
+										printf("Invalid command\n");
+										break;
+									case XB3_AT_RESPONSE_INVALID_PARAMETER:
+										printf("Invalid parameter\n");
+										break;
+									default:
+										break;
+									}
+								}
+								this->at_response = this->at_response_req;
 							}
 							break;
 						}
@@ -322,18 +415,76 @@ void uv_xb3_poll(uv_xb3_st *this) {
 
 
 
-uv_errors_e uv_xb3_set_node_identifier(uv_xb3_st *this, char *name) {
-	uv_errors_e ret = ERR_NONE;
-	uv_queue_clear(&this->rx_at_queue);
-	uv_xb3_local_at_cmd_req(this, "NI", name, strlen(name));
-	while (uv_xb3_get_at_response(this) == XB3_AT_RESPONSE_COUNT) {
-		uv_rtos_task_delay(1);
-	}
-	if (uv_xb3_get_at_response(this) != XB3_AT_RESPONSE_OK) {
-		ret = ERR_ABORTED;
-	}
-	return ret;
 
+uv_xb3_at_response_e uv_xb3_scan_devs(uv_xb3_st *this,
+		uint8_t *dev_count,
+		uv_xb3_dev_st *dest,
+		uint8_t dev_max_count) {
+
+	uv_xb3_local_at_cmd_req(this, "AS", "", 0);
+	if (dev_count) {
+		*dev_count = 0;
+	}
+	for (uint8_t i = 0; i < dev_max_count; i++) {
+		// wait until AT response is received
+		while (uv_xb3_get_at_response(this) == XB3_AT_RESPONSE_COUNT) {
+			uv_rtos_task_delay(1);
+		}
+
+		uv_enter_critical();
+
+		bool br = false;
+
+		uint8_t data = 0;
+		uv_xb3_dev_st d;
+		if (uv_xb3_get_at_response(this) != XB3_AT_RESPONSE_OK ||
+				uv_queue_pop(&this->rx_at_queue, &data, 0) != ERR_NONE) {
+			// no data received, it means scan has ended
+			br = true;
+		}
+		else if (data == 0x2) {
+
+			uv_queue_pop(&this->rx_at_queue, &d.channel, 0);
+			d.pan16 = 0;
+			uv_queue_pop(&this->rx_at_queue, &data, 0);
+			d.pan16 |= (((uint16_t) data) << 8);
+			uv_queue_pop(&this->rx_at_queue, &data, 0);
+			d.pan16 |= (((uint16_t) data) << 0);
+			d.pan64 = 0;
+			uv_queue_pop(&this->rx_at_queue, &data, 0);
+			d.pan64 |= ((uint64_t) data << 56);
+			uv_queue_pop(&this->rx_at_queue, &data, 0);
+			d.pan64 |= ((uint64_t) data << 48);
+			uv_queue_pop(&this->rx_at_queue, &data, 0);
+			d.pan64 |= ((uint64_t) data << 40);
+			uv_queue_pop(&this->rx_at_queue, &data, 0);
+			d.pan64 |= ((uint64_t) data << 32);
+			uv_queue_pop(&this->rx_at_queue, &data, 0);
+			d.pan64 |= ((uint64_t) data << 24);
+			uv_queue_pop(&this->rx_at_queue, &data, 0);
+			d.pan64 |= ((uint64_t) data << 16);
+			uv_queue_pop(&this->rx_at_queue, &data, 0);
+			d.pan64 |= ((uint64_t) data << 8);
+			uv_queue_pop(&this->rx_at_queue, &data, 0);
+			d.pan64 |= (data << 0);
+			uv_queue_pop(&this->rx_at_queue, &d.allowjoin, 0);
+			uv_queue_pop(&this->rx_at_queue, &d.stackprofile, 0);
+			uv_queue_pop(&this->rx_at_queue, &d.lqi, 0);
+			uv_queue_pop(&this->rx_at_queue, &d.rssi, 0);
+			memcpy(&dest[i], &d, sizeof(d));
+			(*dev_count)++;
+		}
+		else {
+
+		}
+		uv_exit_critical();
+		if (br) {
+			break;
+		}
+	}
+
+
+	return uv_xb3_get_at_response(this);
 }
 
 

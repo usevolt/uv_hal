@@ -55,8 +55,35 @@ typedef enum {
 
 const char *uv_xb3_modem_status_to_str(uv_xb3_modem_status_e stat);
 
+
+typedef struct {
+	uint64_t panid64;
+} uv_xb3_conf_st;
+
+/// @brief: Resets the configuration structure
+static inline void uv_xb3_conf_reset(uv_xb3_conf_st *conf) {
+	memset(conf, 0, sizeof(uv_xb3_conf_st));
+}
+
+
+/// @brief: Structure defining zigbee devices that are found with "ATAS" command
+typedef struct {
+	uint8_t channel;
+	uint16_t pan16;
+	uint64_t pan64;
+	uint8_t allowjoin;
+	uint8_t stackprofile;
+	// link quality indicator, higher the better
+	uint8_t lqi;
+	// relative signal strength indicator, lower the better
+	int8_t rssi;
+} uv_xb3_dev_st;
+
+
 /// @brief: Main struct for XB3 wireless module
 typedef struct {
+	uv_xb3_conf_st *conf;
+
 	// the spi channel used
 	spi_e spi;
 	// SPI SSEL gpio. Note that this HAS to be GPIO pin and this module
@@ -83,6 +110,7 @@ typedef struct {
 	bool at_echo_hex;
 	bool initialized;
 	uv_xb3_at_response_e at_response;
+	uv_xb3_at_response_e at_response_req;
 	int16_t rx_index;
 	uint16_t rx_size;
 	uint8_t rx_frame_type;
@@ -94,16 +122,22 @@ typedef struct {
 /// @brief: Initializes the XB3 module
 ///
 /// @ref: ERR_NONE if initialized succesfully
+///
+/// @param nodeid: Node Identifier, custom string
 uv_errors_e uv_xb3_init(uv_xb3_st *this,
+		uv_xb3_conf_st *conf,
 		spi_e spi,
 		uv_gpios_e ssel_gpio,
 		uv_gpios_e spi_attn_gpio,
-		uv_gpios_e reset_gpio);
+		uv_gpios_e reset_gpio,
+		const char *nodeid);
 
 
 /// @brief: Should be called in rtos idle hook
 void uv_xb3_poll(uv_xb3_st *this);
 
+
+uv_errors_e uv_xb3_set_nodename(uv_xb3_st *this, const char *name);
 
 
 /// @brief: Gets received data from internal rx buffer.
@@ -116,6 +150,21 @@ static inline bool uv_xb3_get_data(uv_xb3_st *this, char *dest) {
 	return (e == ERR_NONE);
 }
 
+
+/// @brief: Writes data to XB3
+void uv_xb3_write_data(uv_xb3_st *this, uint64_t destaddr,
+		char *data, uint16_t datalen);
+
+
+/// @brief: Performs an ATAS active scan and writes the result to *dest*.
+///
+/// @param dev_count: Pointer to where found dev count is written
+/// @param dest: Destination array of xb3 dev structures
+/// @param dev_max_count: The length of *dest* in xb3_devs
+uv_xb3_at_response_e uv_xb3_scan_devs(uv_xb3_st *this,
+		uint8_t *dev_count,
+		uv_xb3_dev_st *dest,
+		uint8_t dev_max_count);
 
 
 /// @brief: Writes a local AT command to XB3 module
@@ -136,9 +185,6 @@ static inline void uv_xb3_set_at_echo_as_hex(uv_xb3_st *this, bool value) {
 static inline bool uv_xb3_get_at_echo_as_hex(uv_xb3_st *this) {
 	return this->at_echo_hex;
 }
-
-/// @brief: Sets the node identifier for this device
-uv_errors_e uv_xb3_set_node_identifier(uv_xb3_st *this, char *name);
 
 
 /// @brief: Returns the response to last AT command request sent with
