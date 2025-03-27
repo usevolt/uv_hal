@@ -14,6 +14,7 @@
 #include "uv_spi.h"
 #include "uv_gpio.h"
 #include "uv_rtos.h"
+#include "uv_terminal.h"
 
 
 #if CONFIG_SPI
@@ -56,13 +57,26 @@ typedef enum {
 const char *uv_xb3_modem_status_to_str(uv_xb3_modem_status_e stat);
 
 
+// when set, XB3 creates it's own network and operates as a coordinator
+#define XB3_CONF_FLAGS_OPERATE_AS_COORDINATOR		(1 << 0)
+
 typedef struct {
-	uint64_t panid64;
+	uint16_t flags;
+	union {
+	struct {
+		uint16_t epid1;
+		uint16_t epid2;
+		uint16_t epid3;
+		uint16_t epid4;
+	};
+	uint64_t epid;
+	};
 } uv_xb3_conf_st;
 
 /// @brief: Resets the configuration structure
-static inline void uv_xb3_conf_reset(uv_xb3_conf_st *conf) {
+static inline void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def) {
 	memset(conf, 0, sizeof(uv_xb3_conf_st));
+	conf->flags = flags_def;
 }
 
 
@@ -99,16 +113,23 @@ typedef struct {
 	uv_queue_st tx_queue;
 	// mutex that should be locked when writing data to tx queue
 	uv_mutex_st tx_mutex;
+	// mutex that should belocked when AT command is ongoing
+	uv_mutex_st atreq_mutex;
 	// buffer for read data from XB3. Holds raw data parsed from API packages
 	uv_queue_st rx_data_queue;
 	// buffer for read AT commands from XB3. Holds raw data parsed from API packages
 	uv_queue_st rx_at_queue;
 
-	uint8_t modem_status;
+	uv_xb3_modem_status_e modem_status;
+
+	uv_delay_st joinwindow_delay;
 
 	bool at_echo;
 	bool at_echo_hex;
+	// init function is executed
 	bool initialized;
+	// step function has configured
+	bool configured;
 	uv_xb3_at_response_e at_response;
 	uv_xb3_at_response_e at_response_req;
 	int16_t rx_index;
@@ -133,11 +154,15 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 		const char *nodeid);
 
 
+uv_errors_e uv_xb3_set_nodename(uv_xb3_st *this, const char *name);
+
+
 /// @brief: Should be called in rtos idle hook
 void uv_xb3_poll(uv_xb3_st *this);
 
 
-uv_errors_e uv_xb3_set_nodename(uv_xb3_st *this, const char *name);
+void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms);
+
 
 
 /// @brief: Gets received data from internal rx buffer.
@@ -167,6 +192,12 @@ uv_xb3_at_response_e uv_xb3_scan_devs(uv_xb3_st *this,
 		uint8_t dev_max_count);
 
 
+/// @brief: Returns the extended PAN ID with "ATID" command
+uint64_t uv_xb3_get_epid(uv_xb3_st *this);
+
+
+
+
 /// @brief: Writes a local AT command to XB3 module
 ///
 /// @param data_len: The length of data string. This is given because
@@ -193,6 +224,11 @@ static inline bool uv_xb3_get_at_echo_as_hex(uv_xb3_st *this) {
 static inline uv_xb3_at_response_e uv_xb3_get_at_response(uv_xb3_st *this) {
 	return this->at_response;
 }
+
+
+/// @brief: Parses the "xb" termnal command
+void uv_xb3_terminal(uv_xb3_st *this,
+		unsigned int args, argument_st *argv);
 
 #endif
 
