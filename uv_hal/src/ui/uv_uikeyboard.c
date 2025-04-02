@@ -38,8 +38,18 @@
 /// *space* is the only special character which is shown below these
 static const char letters[] = "1234567890qwertyuiopasdfghjklzxcvbnm";
 static const char shift_letters[] = "1234567890QWERTYUIOPASDFGHJKLZXCVBNM";
-static bool shift = false;
-static bool refresh = true;
+
+typedef struct {
+	EXTENDS(uv_uidisplay_st);
+
+	uv_uiobject_st *bfr[1];
+	bool shift;
+	const char *title;
+	char *buffer;
+	const uv_uistyle_st *style;
+} uv_uikeyboard_st;
+
+static uv_uikeyboard_st *this;
 
 /// @brief: Defines the length of each character line. e.g. How many buttons
 /// are shown on each line
@@ -73,31 +83,31 @@ static void update_input(char *input, const uv_uistyle_st *style);
 
 
 
-static void draw(const char *title, char *buffer, const uv_uistyle_st *style) {
+static void draw(void *me, const uv_bounding_box_st *pbb) {
 	// background
-	uv_ui_clear(style->window_c);
+	uv_ui_clear(this->style->window_c);
 
-	uv_ui_draw_string((char*) title, style->font,
-			LCD_WPPT(500), 0, ALIGN_TOP_CENTER, style->text_color);
+	uv_ui_draw_string((char*) this->title, this->style->font,
+			LCD_WPPT(500), 0, ALIGN_TOP_CENTER, this->style->text_color);
 
 	// draw current text
-	update_input(buffer, style);
+	update_input(this->buffer, this->style);
 
 	// draw buttons
 	uint8_t line = 0;
 	uint8_t line_counter = 0;
 	int16_t x = 0;
 	int16_t y = BUTTONS_START;
-	color_t highlight_c = uv_uic_brighten(style->bg_c, 30);
-	color_t shadow_c = uv_uic_brighten(style->bg_c, -30);
+	color_t highlight_c = uv_uic_brighten(this->style->bg_c, 30);
+	color_t shadow_c = uv_uic_brighten(this->style->bg_c, -30);
 	char str[2];
 	for (int16_t i = 0; i < strlen(letters); i++) {
-		str[0] = shift ? shift_letters[i] : letters[i];
+		str[0] = this->shift ? shift_letters[i] : letters[i];
 		str[1] = '\0';
 		uv_ui_draw_shadowrrect(x, y, BUTTON_W, BUTTON_H, CONFIG_UI_RADIUS,
-				style->bg_c, highlight_c, shadow_c);
-		uv_ui_draw_string(str, style->font, x + BUTTON_W / 2, y + BUTTON_H / 2,
-				ALIGN_CENTER, style->text_color);
+				this->style->bg_c, highlight_c, shadow_c);
+		uv_ui_draw_string(str, this->style->font, x + BUTTON_W / 2, y + BUTTON_H / 2,
+				ALIGN_CENTER, this->style->text_color);
 		x += BUTTON_W;
 
 		line_counter++;
@@ -105,24 +115,26 @@ static void draw(const char *title, char *buffer, const uv_uistyle_st *style) {
 		// draw backspace
 		if (line == 0 && line_counter >= line_lengths[line]) {
 			uv_ui_draw_shadowrrect(x, y, BUTTON_W * 2, BUTTON_H, CONFIG_UI_RADIUS,
-					style->bg_c, highlight_c, shadow_c);
-			uv_ui_draw_string("Backspace", style->font, x + BUTTON_W, y + BUTTON_H / 2,
-					ALIGN_CENTER, style->text_color);
+					this->style->bg_c, highlight_c, shadow_c);
+			uv_ui_draw_string("Backspace", this->style->font,
+					x + BUTTON_W, y + BUTTON_H / 2,
+					ALIGN_CENTER, this->style->text_color);
 		}
 		// draw enter
 		else if (line == 1 && line_counter >= line_lengths[line]) {
 			uv_ui_draw_shadowrrect(x, y, BUTTON_W * 1.5, BUTTON_H * 2 + 1, CONFIG_UI_RADIUS,
-					style->bg_c, highlight_c, shadow_c);
-			uv_ui_draw_string("Enter", style->font, x + BUTTON_W * 0.75, y + BUTTON_H,
-					ALIGN_CENTER, style->text_color);
+					this->style->bg_c, highlight_c, shadow_c);
+			uv_ui_draw_string("Enter", this->style->font,
+					x + BUTTON_W * 0.75, y + BUTTON_H,
+					ALIGN_CENTER, this->style->text_color);
 		}
 		// draw shift
 		else if (line == 3 && line_counter >= line_lengths[line]) {
 		uv_ui_draw_shadowrrect(x, y, BUTTON_W * 2, BUTTON_H, CONFIG_UI_RADIUS,
-				shift ? highlight_c : style->bg_c,
+				this->shift ? highlight_c : this->style->bg_c,
 						highlight_c, shadow_c);
-		uv_ui_draw_string("Shift", style->font, x + BUTTON_W, y + BUTTON_H / 2,
-				ALIGN_CENTER, style->text_color);
+		uv_ui_draw_string("Shift", this->style->font, x + BUTTON_W, y + BUTTON_H / 2,
+				ALIGN_CENTER, this->style->text_color);
 		}
 		else {
 
@@ -137,9 +149,12 @@ static void draw(const char *title, char *buffer, const uv_uistyle_st *style) {
 	}
 	// draw space bar
 	uv_ui_draw_shadowrrect(LCD_WPPT(100), y, LCD_WPPT(800), BUTTON_H, CONFIG_UI_RADIUS,
-			style->bg_c, highlight_c, shadow_c);
-	uv_ui_draw_string("Space", style->font, LCD_WPPT(500), y + BUTTON_H / 2,
-			ALIGN_CENTER, style->text_color);
+			this->style->bg_c, highlight_c, shadow_c);
+	uv_ui_draw_string("Space", this->style->font, LCD_WPPT(500), y + BUTTON_H / 2,
+			ALIGN_CENTER, this->style->text_color);
+
+	// draw touch indicator
+	uv_uidisplay_draw_touch_ind(this);
 
 	// update the ft81x display
 	uv_ui_dlswap();
@@ -166,34 +181,17 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 
 		if (touch->x >= x && touch->x <= x + BUTTON_W &&
 				touch->y >= y && touch->y <= y + BUTTON_H) {
-			if (touch->action == TOUCH_PRESSED) {
-				char str[2];
-				str[0] = shift ? shift_letters[i] : letters[i];
-				str[1] = '\0';
-				uv_ui_draw_shadowrrect(x, y, BUTTON_W, BUTTON_H, CONFIG_UI_RADIUS,
-						style->bg_c, highlight_c, shadow_c);
-				uv_ui_draw_string(str, style->font, x + BUTTON_W / 2, y + BUTTON_H / 2,
-						ALIGN_CENTER, style->text_color);
-				return '\0';
-			}
-			else if (touch->action == TOUCH_RELEASED) {
-				refresh = true;
-				return shift ? shift_letters[i] : letters[i];
+			if (touch->action == TOUCH_CLICKED) {
+				uv_ui_refresh(this);
+				return this->shift ? shift_letters[i] : letters[i];
 			}
 		}
 		else {
 			if (line == 0 && line_counter >= line_lengths[line]) {
 				if (touch->x >= x &&
 						touch->y >= y && touch->y <= y + BUTTON_H) {
-					if (touch->action == TOUCH_PRESSED) {
-						uv_ui_draw_shadowrrect(x + BUTTON_W, y, BUTTON_W * 2, BUTTON_H,
-								CONFIG_UI_RADIUS, style->bg_c, highlight_c, shadow_c);
-						uv_ui_draw_string("Backspace", style->font,
-								x + BUTTON_W * 2, y + BUTTON_H / 2, ALIGN_CENTER,
-								style->text_color);
-					}
-					else if (touch->action == TOUCH_RELEASED) {
-						refresh = true;
+					if (touch->action == TOUCH_CLICKED) {
+						uv_ui_refresh(this);
 						return BACKSPACE;
 					}
 				}
@@ -201,16 +199,8 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 			else if (line == 1 && line_counter >= line_lengths[line]) {
 				if (touch->x >= x + BUTTON_W &&
 						touch->y >= y && touch->y <= y + BUTTON_H * 2) {
-					if (touch->action == TOUCH_PRESSED) {
-						uv_ui_draw_shadowrrect(x + BUTTON_W, y, BUTTON_W * 1.5,
-								BUTTON_H * 2, CONFIG_UI_RADIUS, highlight_c,
-								highlight_c, shadow_c);
-						uv_ui_draw_string("Enter", style->font,
-								x + BUTTON_W * 1.75, y + BUTTON_H,
-								ALIGN_CENTER, style->text_color);
-					}
-					else if (touch->action == TOUCH_RELEASED) {
-						refresh = true;
+					if (touch->action == TOUCH_CLICKED) {
+						uv_ui_refresh(this);
 						return ENTER;
 					}
 				}
@@ -218,16 +208,8 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 			else if (line == 3 && line_counter >= line_lengths[line]) {
 				if (touch->x >= x &&
 						touch->y >= y && touch->y <= y + BUTTON_H) {
-					if (touch->action == TOUCH_PRESSED) {
-						uv_ui_draw_shadowrrect(x + BUTTON_W, y, BUTTON_W * 2,
-								BUTTON_H, CONFIG_UI_RADIUS,
-								highlight_c, highlight_c, shadow_c);
-						uv_ui_draw_string("Shift", style->font,
-								x + BUTTON_W * 2, y + BUTTON_H / 2,
-								ALIGN_CENTER, style->text_color);
-					}
-					else if (touch->action == TOUCH_RELEASED) {
-						refresh = true;
+					if (touch->action == TOUCH_CLICKED) {
+						uv_ui_refresh(this);
 						return SHIFT;
 					}
 				}
@@ -245,15 +227,8 @@ static char get_press(uv_touch_st *touch, const uv_uistyle_st *style) {
 
 	if (touch->x >= LCD_WPPT(100) && touch->x <= LCD_WPPT(900) &&
 			touch->y >= y) {
-		if (touch->action == TOUCH_PRESSED) {
-			uv_ui_draw_shadowrrect(LCD_WPPT(100), y, LCD_WPPT(800),
-					BUTTON_H, CONFIG_UI_RADIUS,
-					highlight_c, highlight_c, shadow_c);
-			uv_ui_draw_string("Space", style->font, LCD_WPPT(500), y + BUTTON_H / 2,
-					ALIGN_CENTER, style->text_color);
-		}
-		else if (touch->action == TOUCH_RELEASED) {
-			refresh = true;
+		if (touch->action == TOUCH_CLICKED) {
+			uv_ui_refresh(this);
 			return ' ';
 		}
 	}
@@ -273,10 +248,14 @@ static void update_input(char *input, const uv_uistyle_st *style) {
 bool uv_uikeyboard_show(const char *title, char *buffer,
 		uint16_t buf_len, const uv_uistyle_st *style) {
 	bool ret;
-	uv_touch_st t;
-	shift = true;
-	bool pressed = uv_ui_get_touch(&t.x, &t.y);
-	refresh = true;
+	uv_uikeyboard_st me;
+	this = &me;
+	uv_uidisplay_init(this, this->bfr, &uv_uistyles[0]);
+	uv_uiobject_set_draw_callb(this, &draw);
+	this->shift = true;
+	this->title = title;
+	this->buffer = buffer;
+	this->style = style;
 	bool nullterm = false;
 	for (uint8_t i = 0; i < buf_len; i++) {
 		if (buffer[i] == '\0') {
@@ -292,24 +271,13 @@ bool uv_uikeyboard_show(const char *title, char *buffer,
 	uint16_t input_len = strlen(buffer);
 
 	while (true) {
+		uint16_t step_ms = 20;
+		uv_uidisplay_step(this, step_ms);
 
-		bool state = uv_ui_get_touch(&t.x, &t.y);
-		// either pressed or released
-		if (state && !pressed) {
-			t.action = TOUCH_PRESSED;
-		}
-		else if (!state && pressed) {
-			t.action = TOUCH_RELEASED;
-		}
-		else {
-			t.action = TOUCH_NONE;
-		}
-		pressed = state;
-
-		char c = get_press(&t, style);
+		char c = get_press(uv_uidisplay_get_touch(this), style);
 		if (c) {
 			if ((uint8_t) c == SHIFT) {
-				shift = !shift;
+				this->shift = !this->shift;
 			}
 			else if ((uint8_t) c == ENTER) {
 				// replace added new lines with spaces
@@ -325,30 +293,25 @@ bool uv_uikeyboard_show(const char *title, char *buffer,
 				}
 				else {
 					// first character defaults to uppercase
-					shift = true;
+					this->shift = true;
 				}
-				buffer[input_len] = '\0';
-				update_input(buffer, style);
+				this->buffer[input_len] = '\0';
+				update_input(this->buffer, this->style);
 			}
 			// normal character pressed
 			else {
 				if (input_len < buf_len - 1) {
-					buffer[input_len++] = c;
-					buffer[input_len] = '\0';
+					this->buffer[input_len++] = c;
+					this->buffer[input_len] = '\0';
 					if (input_len == 1) {
-						shift = false;
+						this->shift = false;
 					}
-					update_input(buffer, style);
+					update_input(this->buffer, this->style);
 				}
 			}
 		}
 
-		if (refresh) {
-			draw(title, buffer, style);
-			refresh = false;
-		}
-
-		uv_rtos_task_delay(20);
+		uv_rtos_task_delay(step_ms);
 	}
 
 	return ret;

@@ -79,6 +79,10 @@ typedef struct {
 	uv_delay_st press_delay;
 
 	color_t display_c;
+	// when true, small dot indicates touch position on screen
+	bool touch_ind;
+	uv_delay_st touch_ind_delay;
+	uv_touch_st touch;
 #endif
 } uv_uidisplay_st;
 
@@ -133,6 +137,23 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms);
 /// This is automatically called after every step cycle, but can also
 /// be called anytime inside the gui step task.
 void uv_uidisplay_draw(void *me);
+
+void uv_uidisplay_draw_touch_ind(void *me);
+
+
+static inline void uv_uidisplay_set_touch_indicator(void *me, bool value) {
+	this->touch_ind = value;
+}
+
+static inline bool uv_uidisplay_get_touch_indicator(void *me) {
+	return this->touch_ind;
+}
+
+
+/// @brief: Returns pointer to the touch struct
+static inline uv_touch_st *uv_uidisplay_get_touch(void *me) {
+	return &this->touch;
+}
 
 
 #undef this

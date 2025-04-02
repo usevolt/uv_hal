@@ -265,6 +265,7 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	uv_errors_e ret = ERR_NONE;
 	this->conf = conf;
 	this->configured = false;
+	this->initialized = false;
 	this->spi = spi;
 	this->attn_gpio = spi_attn_gpio;
 	this->reset_gpio = reset_gpio;
@@ -314,27 +315,29 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 		uv_wdt_update();
 		uv_rtos_task_delay(10);
 		ms += 10;
-		if (ms > 5000) {
+		if (ms > 1000) {
 			ret = ERR_NACK;
 			break;
 		}
 	}
-	uv_gpio_set(this->ssel_gpio, true);
+	if (ret != ERR_NACK) {
+		uv_gpio_set(this->ssel_gpio, true);
 
-	uv_rtos_task_delay(1);
+		uv_rtos_task_delay(1);
 
-	// SMD devices enter SPI mode by asserting SSEL.
-	// We do this by reading from XB3
+		// SMD devices enter SPI mode by asserting SSEL.
+		// We do this by reading from XB3
 
-	// set AO to 0, zigee data format
-	uv_xb3_local_at_cmd_req(this, "AO", "0", 1);
+		// set AO to 0, zigee data format
+		uv_xb3_local_at_cmd_req(this, "AO", "0", 1);
 
-	printf("XB3 initialized, took %i ms\n", ms);
+		printf("XB3 initialized, took %i ms\n", ms);
 
-	this->initialized = true;
+		this->initialized = true;
 
-	printf("Setting device identification string to '%s'\n", nodeid);
-	uv_xb3_set_nodename(this, nodeid);
+		printf("Setting device identification string to '%s'\n", nodeid);
+		uv_xb3_set_nodename(this, nodeid);
+	}
 
 	return ret;
 }
@@ -359,7 +362,8 @@ uv_errors_e uv_xb3_set_nodename(uv_xb3_st *this, const char *name) {
 
 
 void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms) {
-	if (!this->configured) {
+	if (this->initialized &&
+			!this->configured) {
 
 		// wait until network is created or device is booted
 		if (this->modem_status == XB3_MODEMSTATUS_JOINWINDOWOPEN ||
