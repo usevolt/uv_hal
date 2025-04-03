@@ -44,6 +44,10 @@
 #include <fcntl.h>
 #include <errno.h>
 
+#if !defined(PRINT)
+#define PRINT(...) printf(__VA_ARGS__)
+#endif
+
 
 #if defined(__UV_PROGRAM_VERSION)
 #undef __UV_PROGRAM_VERSION
@@ -85,7 +89,7 @@ uv_errors_e uv_memory_save(void) {
 	int32_t length = (((unsigned long int) &CONFIG_NON_VOLATILE_END) + sizeof(uv_data_end_t)) -
 			((unsigned long int) &CONFIG_NON_VOLATILE_START);
 
-	fprintf(stderr, "Flashing %u bytes\n", (int) length);
+	PRINT("Flashing %u bytes\n", (int) length);
 	if (length < 0) {
 		ret = ERR_END_ADDR_LESS_THAN_START_ADDR;
 	}
@@ -98,7 +102,7 @@ uv_errors_e uv_memory_save(void) {
 		// open the file and write
 		FILE *file = fopen(nonvol_filepath, "wb");
 		if (file == NULL) {
-			fprintf(stderr, "Creating the non-volatile memory file '%s' failed\n",
+			PRINT("Creating the non-volatile memory file '%s' failed\n",
 					nonvol_filepath);
 			ret = ERR_INTERNAL;
 		}
@@ -125,7 +129,7 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 	else {
 		scope_str = "COM_PARAMS";
 	}
-	fprintf(stderr, "Loading non-volatile %s data from '%s'\n",
+	PRINT("Loading non-volatile %s data from '%s'\n",
 			scope_str, nonvol_filepath);
 
 	// try to open the nonvolatile file
@@ -167,7 +171,7 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 		}
 	}
 	else {
-		fprintf(stderr, "Failed to open the non-volatile data file.\n");
+		PRINT("Failed to open the non-volatile data file.\n");
 	}
 
 
@@ -187,7 +191,7 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 			// calculate the HAL checksum and compare it to the loaded value
 			uint16_t crc = uv_memory_calc_crc(& CONFIG_NON_VOLATILE_START, sizeof(uv_data_start_t));
 			if (crc != CONFIG_NON_VOLATILE_END.hal_crc) {
-				fprintf(stderr, "calculated crc 0x%x don't match with 0x%x\n",
+				PRINT("calculated crc 0x%x don't match with 0x%x\n",
 						crc,
 						CONFIG_NON_VOLATILE_END.hal_crc);
 				// hal crc didn't match, which means that we have loaded invalid settings.

@@ -49,10 +49,13 @@
 #include "main.h"
 
 
+#if !defined(PRINT)
+#define PRINT(...) printf(__VA_ARGS__)
+#endif
 
 
 void vAssertCalled( const char * const pcFileName,  unsigned long ulLine ) {
-	fprintf(stderr, "Assert in '%s', line %u\n", pcFileName, ulLine);
+	PRINT("Assert in '%s', line %u\n", pcFileName, ulLine);
 	exit(0);
 }
 
@@ -161,7 +164,7 @@ int32_t uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_na
 	size += stack_depth;
 	if (size >= CONFIG_RTOS_HEAP_SIZE) {
 		while(true) {
-			fprintf(stderr, "Task creation failed: Out of memory\r");
+			PRINT("Task creation failed: Out of memory\r");
 		}
 	}
 	return xTaskCreate(task_function, (const char * const)task_name, stack_depth,
@@ -199,7 +202,7 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char * pcTaskName) {
 	(void) xTask;
 	(void) pcTaskName;
 
-	fprintf(stderr, "stack overflow from task: %s\n", pcTaskName);
+	PRINT("stack overflow from task: %s\n", pcTaskName);
 	/* Run time stack overflow checking is performed if
 	   configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2.  This hook
 	   function is called if a stack overflow is detected. */
@@ -218,9 +221,9 @@ void vApplicationTickHook(void) {
 
 
 void uv_rtos_start_scheduler(void) {
-	fprintf(stderr, "The FreeRTOS scheduler started\n");
+	PRINT("The FreeRTOS scheduler started\n");
 	vTaskStartScheduler();
-	fprintf(stderr, "The FreeRTOS scheduler stopped\n");
+	PRINT("The FreeRTOS scheduler stopped\n");
 }
 
 
@@ -273,35 +276,35 @@ void uv_init_arg(void *device, int argc, char *argv[]) {
 	    {
 #if CONFIG_CAN
 	         case OPT_CAN:
-	        	 fprintf(stderr, "Can dev set '%s'\n", optarg);
+	        	 PRINT("Can dev set '%s'\n", optarg);
 	        	 uv_can_set_dev(optarg);
 	             break;
 #endif
 #if CONFIG_UI
 	         case OPT_UI:
-	        	 fprintf(stderr, "Showing the configuration UI\n");
+	        	 PRINT("Showing the configuration UI\n");
 	        	 uv_ui_confwindow_exec();
 	        	 break;
 #endif
 	         case OPT_NONVOL:
-	        	 fprintf(stderr, "Setting the non-volatile memory file path to '%s'\n", optarg);
+	        	 PRINT("Setting the non-volatile memory file path to '%s'\n", optarg);
 	        	 uv_memory_set_nonvol_filepath(optarg);
 	        	 break;
 #if CONFIG_EEPROM
 	         case OPT_EEPROM:
-	        	 fprintf(stderr, "Setting the non-volatile memory file path to '%s'\n", optarg);
+	        	 PRINT("Setting the non-volatile memory file path to '%s'\n", optarg);
 	        	 uv_eeprom_set_filepath(optarg);
 	        	 break;
 #endif
 	         case OPT_NODEID: {
 				 arg_nodeid = strtol(optarg, NULL, 0);
-	        	 fprintf(stderr, "Setting nodeid to 0x%x\n", arg_nodeid);
+	        	 PRINT("Setting nodeid to 0x%x\n", arg_nodeid);
 				 break;
 	         }
 	         case '?':
 	             break;
 	         default:
-				 fprintf(stderr, "Defined but not used argument '%c'\n", ch);
+				 PRINT("Defined but not used argument '%c'\n", ch);
 	        	 break;
 	    }
 	}
@@ -364,7 +367,7 @@ void uv_init(void *device) {
 
 
 void signal_callb(int signum) {
-	fprintf(stderr, "Caught signal %u\n", signum);
+	PRINT("Caught signal %u\n", signum);
 
 	uv_deinit();
    // Terminate program

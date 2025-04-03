@@ -63,6 +63,11 @@
 #include <stdlib.h>
 #include <linux/if_link.h>
 
+
+#if !defined(PRINT)
+#define PRINT(...) printf(__VA_ARGS__)
+#endif
+
 #if CONFIG_CAN_LOG
 extern bool can_log;
 #endif
@@ -155,7 +160,7 @@ static bool copen(void) {
 	/* open socket */
 	this->soc = socket(PF_CAN, SOCK_RAW, CAN_RAW);
 	if(this->soc < 0) {
-		fprintf(stderr, "Opening the socket failed with error code %i\n", this->soc);
+		PRINT("Opening the socket failed with error code %i\n", this->soc);
 		ret = false;
 	}
 	else {
@@ -163,14 +168,14 @@ static bool copen(void) {
 		strcpy(ifr.ifr_name, this->dev);
 
 		if (ioctl(this->soc, SIOCGIFINDEX, &ifr) < 0) {
-			fprintf(stderr, "ioctl failed, CAN bus not available.\n");
+			PRINT("ioctl failed, CAN bus not available.\n");
 			ret = false;
 		}
 		else {
 			addr.can_ifindex = ifr.ifr_ifindex;
 
 			if (bind(this->soc, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-				fprintf(stderr, "Binding to the CAN socket failed\n");
+				PRINT("Binding to the CAN socket failed\n");
 				ret = false;
 			}
 			else {
@@ -179,7 +184,7 @@ static bool copen(void) {
 						&err_mask, sizeof(err_mask));
 
 
-				fprintf(stderr, "CAN socket opened to device %s, fd: %i\n",
+				PRINT("CAN socket opened to device %s, fd: %i\n",
 						this->dev, this->soc);
 				this->state = CAN_STATE_OPEN;
 			}
@@ -196,7 +201,7 @@ static bool cclose(void) {
 
 	if (this->state == CAN_STATE_OPEN) {
 		close(this->soc);
-		fprintf(stderr, "Socket closed.\n");
+		PRINT("Socket closed.\n");
 	}
 
 	this->state = CAN_STATE_INIT;
@@ -249,25 +254,25 @@ char *uv_can_set_up(bool force_set_up) {
 		}
 		// since baudrate is not what we want, we need to set network dev down
 		sprintf(cmd, "sudo ip link set dev %s down", this->dev);
-		fprintf(stderr, "%s\n", cmd);
+		PRINT("%s\n", cmd);
 		if (system(cmd));
 
 		// set the net dev up and configure all parameters
 		sprintf(cmd, "sudo ip link set %s type can bitrate %u", this->dev, this->baudrate);
-		fprintf(stderr, "%s\n", cmd);
+		PRINT("%s\n", cmd);
 		if (system(cmd));
 		sprintf(cmd, "sudo ip link set %s txqueuelen 1000", this->dev);
-		fprintf(stderr, "%s\n", cmd);
+		PRINT("%s\n", cmd);
 		if (system(cmd));
 		sprintf(cmd, "sudo ip link set dev %s up", this->dev);
-		fprintf(stderr, "%s\n", cmd);
+		PRINT("%s\n", cmd);
 		if (system(cmd));
 	}
 
 	/* open socket */
 	if (!copen()) {
 		ret = "Couldn't open the connection to the CAN network.";
-		fprintf(stderr, "%s\n", ret);
+		PRINT("%s\n", ret);
 		this->state = CAN_STATE_FAULT;
 	}
 
@@ -390,7 +395,7 @@ uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* me
 				errno != EINTR &&
 				errno != EAGAIN &&
 				errno != ENOENT) {
-			fprintf(stderr, "Sending a message with ID of 0x%x resulted in a CAN error: %u , %s***\n",
+			PRINT("Sending a message with ID of 0x%x resulted in a CAN error: %u , %s***\n",
 					message->id, errno, strerror(errno));
 			ret = ERR_HARDWARE_NOT_SUPPORTED;
 		}
@@ -487,7 +492,7 @@ void _uv_can_hal_step(unsigned int step_ms) {
 							else {
 #endif
 								if (uv_ring_buffer_push(&this->rx_buffer, &msg) != ERR_NONE) {
-									fprintf(stderr, "** CAN RX buffer full**\n");
+									PRINT("** CAN RX buffer full**\n");
 									fflush(stdout);
 								}
 #if CONFIG_TERMINAL_CAN
@@ -504,10 +509,10 @@ void _uv_can_hal_step(unsigned int step_ms) {
 #endif
 					}
 					else if (recvbytes == -1) {
-						fprintf(stderr, "*** CAN RX error: %u , %s***\n",
+						PRINT("*** CAN RX error: %u , %s***\n",
 								errno, strerror(errno));
 						if (errno == ENETDOWN) {
-							fprintf(stderr, "The network is down. Initialize the network with command:\n\n"
+							PRINT("The network is down. Initialize the network with command:\n\n"
 									"sudo ip link set CHANNEL type can bitrate BAUDRATE txqueuelen 1000\n\n"
 									"And open the network with command:\n\n"
 									"sudo ip link set dev CHANNEL up\n\n"

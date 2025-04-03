@@ -35,6 +35,10 @@
 #include <unistd.h>
 #include "uv_rtos.h"
 
+#if !defined(PRINT)
+#define PRINT(...) printf(__VA_ARGS__)
+#endif
+
 
 #if CONFIG_WDT
 
@@ -50,7 +54,7 @@ static void *wdt_task(void *ptr) {
 
 		this->counter--;
 		if (this->counter < 0) {
-			fprintf(stderr, "Watchdog timer triggered\n");
+			PRINT("Watchdog timer triggered\n");
 			break;
 		}
 	}
