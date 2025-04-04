@@ -570,7 +570,7 @@ bool uv_ui_init(void) {
 					(10 + i) * FONT_METRICS_FONT_LEN +
 					FONT_METRICS_FONT_HEIGHT_OFFSET);
 			ui_fonts[i].handle = FONT_HANDLE + i;
-			DEBUG("Font %u height: %u\n", i, ui_fonts[i].char_height);
+			printf("Font %u height: %u\n", i, ui_fonts[i].char_height);
 			cmd_romfont(ui_fonts[i].handle, ui_fonts[i].index);
 		}
 
