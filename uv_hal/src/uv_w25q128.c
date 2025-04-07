@@ -1,4 +1,4 @@
-/* 
+/*
  * This file is part of the uv_hal distribution (www.usevolt.fi).
  * Copyright (c) 2017 Usevolt Oy.
  * 
@@ -80,7 +80,8 @@
 // RAM buffer size of W25Q128 Page but in 16-bit
 static spi_data_t buffer[W25Q128_PAGE_SIZE];
 
-static bool is_busy(uv_w25q128_st *this) {
+
+bool uv_exmem_is_busy(uv_w25q128_st *this) {
 	spi_data_t read[2] = {};
 	spi_data_t write[2] = {};
 	write[0] = CMD_READ_STATUS_REGISTER_1;
@@ -120,7 +121,7 @@ uv_errors_e uv_w25q128_init(uv_w25q128_st *this, spi_e spi,
 void *uv_w25q128_read(uv_w25q128_st *this,
 		int32_t address, int32_t byte_count, void *dest) {
 	void *ret = dest;
-	while (is_busy(this)) {
+	while (uv_exmem_is_busy(this)) {
 		uv_rtos_task_yield();
 	}
 
@@ -176,7 +177,7 @@ bool uv_w25q128_write(uv_w25q128_st *this,
 	else {
 		uint32_t write_count = 0;
 		while (true) {
-			while (is_busy(this)) {
+			while (uv_exmem_is_busy(this)) {
 				uv_rtos_task_yield();
 			}
 
@@ -232,7 +233,7 @@ bool uv_w25q128_write(uv_w25q128_st *this,
 bool uv_w25q128_clear(uv_w25q128_st *this) {
 	bool ret = true;
 
-	while (is_busy(this)) {
+	while (uv_exmem_is_busy(this)) {
 		uv_rtos_task_yield();
 	}
 	buffer[0] = CMD_WRITE_ENABLE;
@@ -252,7 +253,7 @@ bool uv_w25q128_clear(uv_w25q128_st *this) {
 
 bool uv_w25q128_clear_sector_at(uv_w25q128_st *this, uint32_t address) {
 	bool ret = true;
-	while (is_busy(this)) {
+	while (uv_exmem_is_busy(this)) {
 		uv_rtos_task_yield();
 	}
 	uint32_t sector = address - (address % W25Q128_SECTOR_SIZE);
@@ -260,11 +261,14 @@ bool uv_w25q128_clear_sector_at(uv_w25q128_st *this, uint32_t address) {
 	buffer[0] = CMD_WRITE_ENABLE;
 	uv_gpio_set(this->ssel_io, false);
 	uv_spi_write_sync(this->spi, 0, buffer, 8, 1);
+	uv_gpio_set(this->ssel_io, true);
+	uv_rtos_task_delay(1);
 
 	buffer[0] = CMD_SECTOR_ERASE_4KB;
 	buffer[1] = ((sector >> 16) & 0xFF);
 	buffer[2] = ((sector >> 8) & 0xFF);
 	buffer[3] = (sector & 0xFF);
+	uv_gpio_set(this->ssel_io, false);
 	uv_spi_write_sync(this->spi, 0, buffer, 8, 4);
 	uv_gpio_set(this->ssel_io, true);
 
@@ -427,6 +431,7 @@ uint32_t uv_exmem_write(uv_w25q128_st *this, char *filename, uint32_t filesize,
 				// the search continues to the end of files
 				uint32_t addr = file.data_addr;
 				file.data_addr = EXMEM_DELETED_ADDR;
+				// note: no need to clear memory here since EXMEM_DELETED_ADDR is all zeroes
 				uv_w25q128_write(this,
 						addr - sizeof(file),
 						&file, sizeof(file));
@@ -438,13 +443,14 @@ uint32_t uv_exmem_write(uv_w25q128_st *this, char *filename, uint32_t filesize,
 					for (uint32_t i = 0;
 							i < (((file.file_size + sizeof(file)) / W25Q128_SECTOR_SIZE) + 1);
 							i++) {
-						uv_w25q128_clear_sector_at(this, file.data_addr + i * W25Q128_SECTOR_SIZE);
+						uv_w25q128_clear_sector_at(this,
+								file.data_addr + i * W25Q128_SECTOR_SIZE);
 					}
 					// next disable sectors that are not used anymore
-					uv_fd_st ffile = file;
 					for (uint32_t i = ((fd.file_size + sizeof(fd)) / W25Q128_SECTOR_SIZE) + 1;
 							i < (((file.file_size + sizeof(file)) / W25Q128_SECTOR_SIZE) + 1);
 							i++) {
+						uv_fd_st ffile = file;
 						ffile.file_size = W25Q128_SECTOR_SIZE - sizeof(file);
 						ffile.data_addr = EXMEM_DELETED_ADDR;
 						uv_w25q128_write(this,
@@ -460,34 +466,22 @@ uint32_t uv_exmem_write(uv_w25q128_st *this, char *filename, uint32_t filesize,
 		if (!found) {
 			// file couldn't be found, search for a suitable place
 			fd.data_addr = get_free_addr(this, filesize);
-			// make sure that the sectors are cleared
-			if (fd.data_addr != -1) {
-				for (uint32_t i = 0;
-						i < (((fd.file_size + sizeof(fd)) / W25Q128_SECTOR_SIZE) + 1);
-						i++) {
-					uv_w25q128_clear_sector_at(this, fd.data_addr + i * W25Q128_SECTOR_SIZE);
-				}
-			}
-
 		}
 		else {
-			// *file* should now be pointing to free memory, or existing file which has more space
+			// *file* should now be pointing to free memory, or existing file
+			// which has more space
 			fd.data_addr = file.data_addr;
 		}
-		if (fd.data_addr == -1) {
-			ret = ERR_NOT_ENOUGH_MEMORY;
-		}
-		else {
+		if (fd.data_addr != -1) {
 			if (offset == 0) {
 				// write the file descriptor to the start of sector
 				uv_w25q128_write(this, fd.data_addr - sizeof(fd), &fd, sizeof(fd));
 			}
-			// write the data to file
+			// then write the data to file
 			ret = uv_w25q128_write(this, fd.data_addr + offset, src, len) ? len : 0;
 		}
 	}
 	else {
-		ret = 0;
 	}
 
 	return ret;

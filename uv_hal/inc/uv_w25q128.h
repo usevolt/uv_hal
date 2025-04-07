@@ -223,6 +223,11 @@ bool uv_exmem_index(uv_w25q128_st *this, uint32_t index, uv_fd_st *dest);
 bool uv_exmem_delete(uv_w25q128_st *this, char *filename);
 
 
+/// @brief: Returns true when operation is in process
+bool uv_exmem_is_busy(uv_w25q128_st *this);
+
+
+
 #endif
 
 
