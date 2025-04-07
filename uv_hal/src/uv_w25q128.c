@@ -185,7 +185,7 @@ bool uv_w25q128_write(uv_w25q128_st *this,
 			uv_gpio_set(this->ssel_io, false);
 			uv_spi_write_sync(this->spi, 0, buffer, 8, 1);
 			uv_gpio_set(this->ssel_io, true);
-
+			uv_rtos_task_delay(1);
 
 			bool br = false;
 			uint32_t offset = (address % W25Q128_PAGE_SIZE);
