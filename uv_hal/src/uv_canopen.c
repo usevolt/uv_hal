@@ -150,7 +150,9 @@ void _uv_canopen_step(unsigned int step_ms) {
 	else {
 
 	}
-	if (this->store_req[0] == 0x65766173) {
+	// accept both "save" and "evas" as save command for maximum compatibility
+	if (this->store_req[0] == 0x65766173 ||
+			this->store_req[0] == 0x73617665) {
 		this->store_req[0] = 0x1;
 		uv_memory_save();
 	}
