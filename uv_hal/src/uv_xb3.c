@@ -766,14 +766,24 @@ void uv_xb3_terminal(uv_xb3_st *this,
 			if (args > 1) {
 				if (args > 2) {
 					if (argv[1].type != ARG_STRING) {
-						printf("Argument 1 should be string "
+						printf("Argument 2 should be string "
 								"defining the extended PAN ID\n");
 					}
+					else if (strncmp(argv[1].str, "0x", 2) != 0) {
+						printf("Argument 2 should be hexadecimal string, "
+								"starting with '0x'\n");
+					}
 					else {
-						uint64_t panid = strtoll(argv[1].str, NULL, 0);
-						printf("Writing to dev: 0x%x%x, data: '%s'\n",
-								panid >> 32,
-								panid & 0xFFFFFFFF,
+						uint64_t panid = strtol(argv[1].str, NULL, 0);
+						if (panid == 0x7FFFFFFF) {
+							char str1[11] = {};
+							strncpy(str1, argv[1].str, 10);
+							panid = ((uint64_t) strtol(str1, NULL, 0)) << 32;
+							panid += strtol(&argv[1].str[10], NULL, 16);
+						}
+						printf("Writing to dev: 0x%08x%08x, data:'%s'\n",
+								(unsigned int) ((uint64_t) panid >> 32),
+								(unsigned int) (panid & 0xFFFFFFFF),
 								argv[2].str);
 						uv_xb3_write_data_to_addr(this, panid, argv[2].str,
 								strlen(argv[2].str) + 1);
