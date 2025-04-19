@@ -17,8 +17,13 @@
 #include "uv_terminal.h"
 
 
-#if CONFIG_SPI
+#if CONFIG_SPI && CONFIG_XB3
 
+
+#ifndef CONFIG_XB3_COORDINATOR_MAX_DEV_COUNT
+#error "CONFIG_XB3_COORDINATOR_MAX_DEV_COUNT should define maximum count of end-devices\
+	that can connect to this coordinator."
+#endif
 
 typedef enum {
 	XB3_AT_RESPONSE_OK = 0,
@@ -59,6 +64,8 @@ const char *uv_xb3_modem_status_to_str(uv_xb3_modem_status_e stat);
 
 // when set, XB3 creates it's own network and operates as a coordinator
 #define XB3_CONF_FLAGS_OPERATE_AS_COORDINATOR		(1 << 0)
+// RX data echo enabled
+#define XB3_CONF_FLAGS_RX_ECHO						(1 << 1)
 
 typedef struct {
 	uint16_t flags;
@@ -176,8 +183,16 @@ static inline bool uv_xb3_get_data(uv_xb3_st *this, char *dest) {
 }
 
 
-/// @brief: Writes data to XB3
-void uv_xb3_write_data(uv_xb3_st *this, uint64_t destaddr,
+
+/// @brief: Writes data to network.
+/// @bote: Zigbee devices not support broadcast messages. This function operates
+/// so that if this device is end-device, this function writes data to coordinator.
+/// If this device operates as a coordinator, data is sent to all end-devices
+/// connected to it.
+void uv_xb3_write(uv_xb3_st *this, char *data, uint16_t datalen);
+
+/// @brief: Writes data directly to zigbee device
+void uv_xb3_write_data_to_addr(uv_xb3_st *this, uint64_t destaddr,
 		char *data, uint16_t datalen);
 
 
@@ -215,6 +230,11 @@ static inline void uv_xb3_set_at_echo_as_hex(uv_xb3_st *this, bool value) {
 }
 static inline bool uv_xb3_get_at_echo_as_hex(uv_xb3_st *this) {
 	return this->at_echo_hex;
+}
+
+
+static inline void uv_xb3_set_rx_echo(uv_xb3_st *this, bool value) {
+	this->conf->flags |= (XB3_CONF_FLAGS_RX_ECHO);
 }
 
 

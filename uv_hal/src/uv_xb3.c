@@ -12,7 +12,7 @@
 #include <uv_terminal.h>
 #include <uv_wdt.h>
 
-#if CONFIG_SPI
+#if CONFIG_SPI && CONFIG_XB3
 
 
 #define APIFRAME_64TRANSMIT					0x0
@@ -184,8 +184,17 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd, char *data, uint16_t 
 
 
 
+void uv_xb3_write(uv_xb3_st *this, char *data, uint16_t datalen) {
+	if (this->conf->flags & XB3_CONF_FLAGS_OPERATE_AS_COORDINATOR) {
+		// todo: write data to all end-devices connected to us
+	}
+	else {
+		uv_xb3_write_data_to_addr(this, this->conf->epid, data, datalen);
+	}
+}
 
-void uv_xb3_write_data(uv_xb3_st *this, uint64_t destaddr,
+
+void uv_xb3_write_data_to_addr(uv_xb3_st *this, uint64_t destaddr,
 		char *data, uint16_t datalen) {
 	uv_mutex_lock(&this->tx_mutex);
 	uint32_t crc = 0;
@@ -532,17 +541,22 @@ void uv_xb3_poll(uv_xb3_st *this) {
 							}
 							break;
 						}
-//						case APIFRAME_16RECEIVE: {
-//							if (uv_queue_push(&this->rx_data_queue, &rx, 0) != ERR_NONE) {
-//								printf("XB3: RX data queue full\n");
-//							}
-//							break;
-//						}
 						case APIFRAME_MODEMSTATUS:
 							if (offset == 4) {
 								printf("MODEMSTATUS 0x%x '%s'\n", rx,
 										uv_xb3_modem_status_to_str(rx));
 								this->modem_status = rx;
+							}
+							break;
+						case APIFRAME_RECEIVEPACKET:
+							if (offset >= 15) {
+								if (uv_queue_push(&this->rx_data_queue, &rx, 0)
+										!= ERR_NONE) {
+									printf("XB3: RX data queue full\n");
+								}
+								if (this->conf->flags & XB3_CONF_FLAGS_RX_ECHO) {
+									printf("%c", rx);
+								}
 							}
 							break;
 						default:
@@ -746,6 +760,28 @@ void uv_xb3_terminal(uv_xb3_st *this,
 				}
 				uv_xb3_set_at_echo(this, true);
 				uv_xb3_local_at_cmd_req(this, argv[1].str, data, datalen);
+			}
+		}
+		else if (strcmp(argv[0].str, "write") == 0) {
+			if (args > 1) {
+				if (args > 2) {
+					if (argv[1].type != ARG_STRING) {
+						printf("Argument 1 should be string "
+								"defining the extended PAN ID\n");
+					}
+					else {
+						uint64_t panid = strtoll(argv[1].str, NULL, 0);
+						printf("Writing to dev: 0x%x%x, data: '%s'\n",
+								panid >> 32,
+								panid & 0xFFFFFFFF,
+								argv[2].str);
+						uv_xb3_write_data_to_addr(this, panid, argv[2].str,
+								strlen(argv[2].str) + 1);
+					}
+				}
+			}
+			else {
+				printf("Give data to write as a second argument\n");
 			}
 		}
 		else {
