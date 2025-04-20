@@ -596,8 +596,13 @@ void uv_xb3_poll(uv_xb3_st *this) {
 							if (offset == 4) {
 								printf("MODEMSTATUS 0x%x '%s'\n", rx,
 										uv_xb3_modem_status_to_str(rx));
-								this->modem_status = rx;
-								this->modem_status_changed = rx;
+								// Joinwindow is always open,
+								// it just messes up state machine
+								if (rx != XB3_MODEMSTATUS_JOINWINDOWOPEN &&
+										rx != XB3_MODEMSTATUS_JOINWINDOWCLOSED) {
+									this->modem_status = rx;
+									this->modem_status_changed = rx;
+								}
 							}
 							break;
 						case APIFRAME_RECEIVEPACKET:
