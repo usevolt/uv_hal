@@ -166,10 +166,10 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd, char *data, uint16_t 
 	d = 0xFF - (crc & 0xFF);
 	uv_queue_push(&this->tx_queue, &d, 0);
 
-	if (this->at_echo) {
+	if (this->conf->flags & XB3_CONF_FLAGS_AT_ECHO) {
 		printf("AT %s ", atcmd);
 		for (uint16_t i = 0; i < data_len; i++) {
-			if (this->at_echo_hex) {
+			if (this->conf->flags & XB3_CONF_FLAGS_AT_HEX) {
 				printf("0x%x ", data[i]);
 			}
 			else {
@@ -200,62 +200,85 @@ void uv_xb3_write_data_to_addr(uv_xb3_st *this, uint64_t destaddr,
 	uint32_t crc = 0;
 	uint8_t d = APIFRAME_START;
 	uv_queue_push(&this->tx_queue, &d, 0);
+	printf("0x%x ", d);
 	uint16_t framedatalen = 14 + datalen;
 	// Length
 	d = (framedatalen >> 8);
 	uv_queue_push(&this->tx_queue, &d, 0);
+	printf("0x%x ", d);
 	d = framedatalen & 0xFF;
 	uv_queue_push(&this->tx_queue, &d, 0);
+	printf("0x%x ", d);
 	d = APIFRAME_TRANSMITREQ;
 	crc += d;
 	uv_queue_push(&this->tx_queue, &d, 0);
+	printf("0x%x ", d);
+	// Frame ID. 0x0 doesnt emit response frame
+	d = 0x52;
+	crc += d;
+	uv_queue_push(&this->tx_queue, &d, 0);
+	printf("0x%x ", d);
 	// 64-bit address
 	d = (destaddr >> 56) & 0xFF;
 	crc += d;
 	uv_queue_push(&this->tx_queue, &d, 0);
+	printf("0x%x ", d);
 	d = (destaddr >> 48) & 0xFF;
 	crc += d;
 	uv_queue_push(&this->tx_queue, &d, 0);
+	printf("0x%x ", d);
 	d = (destaddr >> 40) & 0xFF;
 	crc += d;
 	uv_queue_push(&this->tx_queue, &d, 0);
+	printf("0x%x ", d);
 	d = (destaddr >> 32) & 0xFF;
 	crc += d;
 	uv_queue_push(&this->tx_queue, &d, 0);
+	printf("0x%x ", d);
 	d = (destaddr >> 24) & 0xFF;
 	crc += d;
 	uv_queue_push(&this->tx_queue, &d, 0);
+	printf("0x%x ", d);
 	d = (destaddr >> 16) & 0xFF;
 	crc += d;
 	uv_queue_push(&this->tx_queue, &d, 0);
+	printf("0x%x ", d);
 	d = (destaddr >> 8) & 0xFF;
 	crc += d;
 	uv_queue_push(&this->tx_queue, &d, 0);
+	printf("0x%x ", d);
 	d = (destaddr) & 0xFF;
 	crc += d;
 	uv_queue_push(&this->tx_queue, &d, 0);
+	printf("0x%x ", d);
 	// 16-bit adddress
 	d = 0xFF;
 	crc += d;
 	uv_queue_push(&this->tx_queue, &d, 0);
+	printf("0x%x ", d);
 	d = 0xFE;
 	crc += d;
 	uv_queue_push(&this->tx_queue, &d, 0);
+	printf("0x%x ", d);
 	// broadcast radius
 	d = 0;
 	crc += d;
 	uv_queue_push(&this->tx_queue, &d, 0);
+	printf("0x%x ", d);
 	// transmit options
 	d = 0;
 	crc += d;
 	uv_queue_push(&this->tx_queue, &d, 0);
+	printf("0x%x ", d);
 	for (uint16_t i = 0; i < datalen; i++) {
 		d = data[i];
 		crc += d;
 		uv_queue_push(&this->tx_queue, &d, 0);
+		printf("0x%x ", d);
 	}
 	d = 0xFF - crc;
 	uv_queue_push(&this->tx_queue, &d, 0);
+	printf("0x%x \n", d);
 
 	uv_mutex_unlock(&this->tx_mutex);
 }
@@ -279,11 +302,12 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	this->attn_gpio = spi_attn_gpio;
 	this->reset_gpio = reset_gpio;
 	this->ssel_gpio = ssel_gpio;
-	this->at_echo = false;
 	this->at_response = XB3_AT_RESPONSE_COUNT;
 	this->rx_index = 0;
 	this->rx_size = 0;
 	this->modem_status = XB3_MODEMSTATUS_POWERUP;
+	// at ehco defaults to false, sending commands via terminal enables AT echo
+	uv_xb3_set_at_echo(this, false);
 
 	if (uv_queue_init(&this->tx_queue, 100, sizeof(char)) == NULL) {
 		uv_terminal_enable(TERMINAL_CAN);
@@ -502,8 +526,8 @@ void uv_xb3_poll(uv_xb3_st *this) {
 								this->at_response_req = rx;
 							}
 							else if (this->rx_index > 8) {
-								if (this->at_echo) {
-									if (this->at_echo_hex) {
+								if (this->conf->flags & XB3_CONF_FLAGS_AT_ECHO) {
+									if (this->conf->flags & XB3_CONF_FLAGS_AT_HEX) {
 										printf("0x%02x ", rx);
 									}
 									else {
@@ -519,7 +543,7 @@ void uv_xb3_poll(uv_xb3_st *this) {
 							}
 							if (this->rx_index - 4 == this->rx_size - 1) {
 								// last byte of this response, update AT response status
-								if (this->at_echo) {
+								if (this->conf->flags & XB3_CONF_FLAGS_AT_ECHO) {
 									switch(this->at_response_req) {
 									case XB3_AT_RESPONSE_OK:
 										printf("OK\n");
@@ -559,6 +583,24 @@ void uv_xb3_poll(uv_xb3_st *this) {
 								}
 							}
 							break;
+						case APIFRAME_EXTTRANSMITSTATUS:
+							if (offset == 8) {
+								if (this->conf->flags & XB3_CONF_FLAGS_RX_ECHO) {
+									if (rx) {
+										printf("XB3 TRANSMIT ");
+										if (rx == 1) {
+											printf("MAC ACK fail\n");
+										}
+										else if (rx == 2) {
+											printf("CCA/LBT fail\n");
+										}
+										else {
+											printf("Indirect message requested\n");
+										}
+									}
+								}
+							}
+							break;
 						default:
 							printf("APIFRAME 0x%x\n", this->rx_frame_type);
 							break;
@@ -567,9 +609,6 @@ void uv_xb3_poll(uv_xb3_st *this) {
 					else {
 						// last byte is CRC, which marks the end of transmission
 						this->rx_index = 0;
-						if (this->at_echo &&
-								this->rx_frame_type == APIFRAME_LOCALATCMDRESPONSE) {
-						}
 					}
 					break;
 				}
@@ -651,8 +690,10 @@ uv_xb3_at_response_e uv_xb3_scan_devs(uv_xb3_st *this,
 			break;
 		}
 	}
+	printf("4\n");
 
 	uv_xb3_at_response_e ret = uv_xb3_get_at_response(this);
+	printf("5\n");
 
 	uv_mutex_unlock(&this->atreq_mutex);
 
@@ -715,7 +756,7 @@ void uv_xb3_terminal(uv_xb3_st *this,
 			if (args > 1) {
 				uv_xb3_set_at_echo_as_hex(this, argv[1].number);
 			}
-			printf("Display as hex: %u\n", this->at_echo_hex);
+			printf("Display as hex: %u\n", !!(this->conf->flags & XB3_CONF_FLAGS_AT_HEX));
 		}
 		else if (strcmp(argv[0].str, "at") == 0 ||
 				strcmp(argv[0].str, "AT") == 0) {
@@ -762,6 +803,27 @@ void uv_xb3_terminal(uv_xb3_st *this,
 				uv_xb3_local_at_cmd_req(this, argv[1].str, data, datalen);
 			}
 		}
+		else if (strcmp(argv[0].str, "rxecho") == 0) {
+			if (args > 1) {
+				bool val = 0;
+				if (argv[1].type == ARG_STRING) {
+					if (strcmp(argv[1].str, "true") == 0 ||
+							strcmp(argv[1].str, "1") == 0) {
+						val = 1;
+					}
+				}
+				else {
+					val = argv[1].number;
+				}
+				if (val) {
+					this->conf->flags |= XB3_CONF_FLAGS_RX_ECHO;
+				}
+				else {
+					this->conf->flags &= ~XB3_CONF_FLAGS_RX_ECHO;
+				}
+			}
+			printf("RX echo: %u\n", !!(this->conf->flags & XB3_CONF_FLAGS_RX_ECHO));
+		}
 		else if (strcmp(argv[0].str, "write") == 0) {
 			if (args > 1) {
 				if (args > 2) {
@@ -786,7 +848,7 @@ void uv_xb3_terminal(uv_xb3_st *this,
 								(unsigned int) (panid & 0xFFFFFFFF),
 								argv[2].str);
 						uv_xb3_write_data_to_addr(this, panid, argv[2].str,
-								strlen(argv[2].str) + 1);
+								strlen(argv[2].str));
 					}
 				}
 			}

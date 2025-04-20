@@ -66,6 +66,8 @@ const char *uv_xb3_modem_status_to_str(uv_xb3_modem_status_e stat);
 #define XB3_CONF_FLAGS_OPERATE_AS_COORDINATOR		(1 << 0)
 // RX data echo enabled
 #define XB3_CONF_FLAGS_RX_ECHO						(1 << 1)
+#define XB3_CONF_FLAGS_AT_ECHO						(1 << 2)
+#define XB3_CONF_FLAGS_AT_HEX						(1 << 3)
 
 typedef struct {
 	uint16_t flags;
@@ -131,8 +133,6 @@ typedef struct {
 
 	uv_delay_st joinwindow_delay;
 
-	bool at_echo;
-	bool at_echo_hex;
 	// init function is executed
 	bool initialized;
 	// step function has configured
@@ -222,14 +222,24 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd, char *data, uint16_t 
 
 
 static inline void uv_xb3_set_at_echo(uv_xb3_st *this, bool value) {
-	this->at_echo = value;
+	if (value) {
+		this->conf->flags |= XB3_CONF_FLAGS_AT_ECHO;
+	}
+	else {
+		this->conf->flags &= ~XB3_CONF_FLAGS_AT_ECHO;
+	}
 }
 
 static inline void uv_xb3_set_at_echo_as_hex(uv_xb3_st *this, bool value) {
-	this->at_echo_hex = value;
+	if (value) {
+		this->conf->flags |= XB3_CONF_FLAGS_AT_HEX;
+	}
+	else {
+		this->conf->flags &= ~XB3_CONF_FLAGS_AT_HEX;
+	}
 }
 static inline bool uv_xb3_get_at_echo_as_hex(uv_xb3_st *this) {
-	return this->at_echo_hex;
+	return !!(this->conf->flags & XB3_CONF_FLAGS_AT_HEX);
 }
 
 
