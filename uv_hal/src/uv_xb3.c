@@ -213,7 +213,7 @@ void uv_xb3_write_data_to_addr(uv_xb3_st *this, uint64_t destaddr,
 	crc += d;
 	uv_queue_push(&this->tx_queue, &d, 0);
 	printf("0x%x ", d);
-	// Frame ID. 0x0 doesnt emit response frame
+	// Frame ID. 0x0 doesn't emit response frame
 	d = 0x52;
 	crc += d;
 	uv_queue_push(&this->tx_queue, &d, 0);
@@ -769,7 +769,7 @@ void uv_xb3_terminal(uv_xb3_st *this,
 						data[0] = argv[2].number & 0xFF;
 						data[1] = (argv[2].number >> 8) & 0xFF;
 						datalen = 2;
-						if (args > 2) {
+						if (args > 3) {
 							data[0] = (argv[2].number >> 24) & 0xFF;
 							data[1] = (argv[2].number >> 16) & 0xFF;
 							data[2] = (argv[2].number >> 8) & 0xFF;
@@ -787,11 +787,16 @@ void uv_xb3_terminal(uv_xb3_st *this,
 							data[3] = (argv[2].number >> 0) & 0xFF;
 							datalen = 4;
 						}
-						else {
+						else if (argv[2].number > UINT8_MAX) {
 							// convert integer into string
 							data[0] = (argv[2].number >> 8) & 0xFF;
 							data[1] = (argv[2].number >> 0) & 0xFF;
 							datalen = 2;
+						}
+						else {
+							// convert integer into string
+							data[0] = argv[2].number;
+							datalen = 1;
 						}
 					}
 					else {
