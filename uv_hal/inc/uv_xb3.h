@@ -56,7 +56,8 @@ typedef enum {
 	XB3_MODEMSTATUS_ROUTERPANIDCHANGEDBYCOORDINATOR = 0x40,
 	XB3_MODEMSTATUS_NETWORKWDT = 0x42,
 	XB3_MODEMSTATUS_JOINWINDOWOPEN = 0x43,
-	XB3_MODEMSTATUS_JOINWINDOWCLOSED = 0x44
+	XB3_MODEMSTATUS_JOINWINDOWCLOSED = 0x44,
+	XB3_MODEMSTATUS_NONE = 0xFF
 } uv_xb3_modem_status_e;
 
 const char *uv_xb3_modem_status_to_str(uv_xb3_modem_status_e stat);
@@ -71,14 +72,15 @@ const char *uv_xb3_modem_status_to_str(uv_xb3_modem_status_e stat);
 
 typedef struct {
 	uint16_t flags;
+	// extended PAN ID for creating or joining network
 	union {
-	struct {
-		uint16_t epid1;
-		uint16_t epid2;
-		uint16_t epid3;
-		uint16_t epid4;
-	};
-	uint64_t epid;
+		struct {
+			uint16_t id1;
+			uint16_t id2;
+			uint16_t id3;
+			uint16_t id4;
+		};
+		uint64_t id;
 	};
 } uv_xb3_conf_st;
 
@@ -130,13 +132,12 @@ typedef struct {
 	uv_queue_st rx_at_queue;
 
 	uv_xb3_modem_status_e modem_status;
+	uv_xb3_modem_status_e modem_status_changed;
 
 	uv_delay_st joinwindow_delay;
 
 	// init function is executed
 	bool initialized;
-	// step function has configured
-	bool configured;
 	uv_xb3_at_response_e at_response;
 	uv_xb3_at_response_e at_response_req;
 	int16_t rx_index;

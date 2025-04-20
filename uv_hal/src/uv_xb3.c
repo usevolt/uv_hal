@@ -76,6 +76,21 @@ static uint64_t ntouint64(uv_xb3_st *this, uv_queue_st *srcqueue) {
 	return ret;
 }
 
+static uint16_t ntouint16(uv_xb3_st *this, uv_queue_st *srcqueue) {
+	uint16_t ret = 0;
+	uint8_t data = 0;
+	while (this->at_response != XB3_AT_RESPONSE_OK) {
+		uv_rtos_task_delay(1);
+	}
+	uv_queue_pop(srcqueue, &data, 0);
+	ret |= ((uint16_t) data << 8);
+	uv_queue_pop(srcqueue, &data, 0);
+	ret |= ((uint16_t) data << 0);
+
+	return ret;
+}
+
+
 static void uint64ton(char *dest, uint64_t value) {
 	dest[0] = (value >> 56) & 0xFF;
 	dest[1] = (value >> 48) & 0xFF;
@@ -85,6 +100,12 @@ static void uint64ton(char *dest, uint64_t value) {
 	dest[5] = (value >> 16) & 0xFF;
 	dest[6] = (value >> 8) & 0xFF;
 	dest[7] = (value >> 0) & 0xFF;
+}
+
+
+static void uint16ton(char *dest, uint16_t value) {
+	dest[0] = (value >> 8) & 0xFF;
+	dest[1] = (value >> 0) & 0xFF;
 }
 
 
@@ -189,7 +210,7 @@ void uv_xb3_write(uv_xb3_st *this, char *data, uint16_t datalen) {
 		// todo: write data to all end-devices connected to us
 	}
 	else {
-		uv_xb3_write_data_to_addr(this, this->conf->epid, data, datalen);
+		uv_xb3_write_data_to_addr(this, this->conf->id, data, datalen);
 	}
 }
 
@@ -296,7 +317,6 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 		const char *nodeid) {
 	uv_errors_e ret = ERR_NONE;
 	this->conf = conf;
-	this->configured = false;
 	this->initialized = false;
 	this->spi = spi;
 	this->attn_gpio = spi_attn_gpio;
@@ -305,7 +325,8 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	this->at_response = XB3_AT_RESPONSE_COUNT;
 	this->rx_index = 0;
 	this->rx_size = 0;
-	this->modem_status = XB3_MODEMSTATUS_POWERUP;
+	this->modem_status = XB3_MODEMSTATUS_NONE;
+	this->modem_status_changed = XB3_MODEMSTATUS_NONE;
 	// at ehco defaults to false, sending commands via terminal enables AT echo
 	uv_xb3_set_at_echo(this, false);
 
@@ -395,87 +416,93 @@ uv_errors_e uv_xb3_set_nodename(uv_xb3_st *this, const char *name) {
 
 
 void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms) {
-	if (this->initialized &&
-			!this->configured) {
+	if (this->initialized) {
+		uv_enter_critical();
+		uv_xb3_modem_status_e modem_status_changed = this->modem_status_changed;
+		this->modem_status_changed = XB3_MODEMSTATUS_NONE;
+		uv_exit_critical();
 
 		// wait until network is created or device is booted
-		if (this->modem_status == XB3_MODEMSTATUS_JOINWINDOWOPEN ||
-				this->modem_status == XB3_MODEMSTATUS_POWERUP) {
-
-			// fetch the extended PAN id
-			uint64_t epid = uv_xb3_get_epid(this);
-
+		if (modem_status_changed == XB3_MODEMSTATUS_POWERUP) {
 			uv_mutex_lock(&this->atreq_mutex);
-
 			if (this->conf->flags & XB3_CONF_FLAGS_OPERATE_AS_COORDINATOR) {
-				if (epid == 0 ||
-						epid != this->conf->epid) {
+				if (this->conf->id != 0) {
+					char data[8] = {};
+					// write 64-bit PAN-ID
+					uint64ton(data, this->conf->id);
+					uv_xb3_local_at_cmd_req(this, "ID", data, 8);
 
-					if (this->conf->epid == 0) {
-						// "OP" contains random EPID that we copy to ID to keep
-						// constant EPID in future
-						uv_xb3_local_at_cmd_req(this, "OP", "", 0);
-						epid = ntouint64(this, &this->rx_at_queue);
-						this->conf->epid = epid;
-						printf("XB3 EPID fetched from module to nonvol conf.\n"
-								"Nonvol data should be saved.\n");
-					}
-					else {
-						// take epid from conf parameters
-						epid = this->conf->epid;
-					}
-
-					if (epid == 0) {
-						printf("XB3 error: Coudln't read \"ATOP\" command EPID\n");
-					}
-					else {
-						char data[8] = {};
-						uint64ton(data, epid);
-						uv_xb3_local_at_cmd_req(this, "ID", data, 8);
-
-						while (this->at_response != XB3_AT_RESPONSE_OK) {
-							uv_rtos_task_delay(1);
-						}
-
+					while (this->at_response != XB3_AT_RESPONSE_OK) {
+						uv_rtos_task_delay(1);
 					}
 				}
-
-				char data = 1;
-				uv_xb3_local_at_cmd_req(this, "CE", &data, 1);
+				// operate as COORDINATOR
+				char data[8];
+				data[0] = 1;
+				uv_xb3_local_at_cmd_req(this, "CE", data, 1);
 				while (this->at_response == XB3_AT_RESPONSE_COUNT) {
 					uv_rtos_task_delay(1);
 				}
 
-				// configure join window to be always open
-				data = 0xFF;
-				uv_xb3_local_at_cmd_req(this, "NJ", (char*) &data, 1);
+				// Node join time is infinite
+				data[0] = 0xFF;
+				uv_xb3_local_at_cmd_req(this, "NJ", data, 1);
 				while (this->at_response == XB3_AT_RESPONSE_COUNT) {
 					uv_rtos_task_delay(1);
 				}
-
 			}
 			else {
-				// operate as router, copy epid to XB3
+				// operate as router, copy ID to XB3
 				char data[8];
 				data[0] = 0;
 				uv_xb3_local_at_cmd_req(this, "CE", data, 1);
 				while (this->at_response == XB3_AT_RESPONSE_COUNT) {
 					uv_rtos_task_delay(1);
 				}
-				uint64ton(data, this->conf->epid);
+				uint64ton(data, this->conf->id);
 				uv_xb3_local_at_cmd_req(this, "ID", data, 8);
 				while (this->at_response != XB3_AT_RESPONSE_OK) {
 					uv_rtos_task_delay(1);
 				}
+				// router configuration is done
 			}
-
-
 			uv_mutex_unlock(&this->atreq_mutex);
-			this->configured = true;
+		}
+		else if (modem_status_changed == XB3_MODEMSTATUS_COORDINATORSTARTED) {
+			uv_mutex_lock(&this->atreq_mutex);
+			if (this->conf->id == 0) {
+				// "OP" contains random EPID that we copy to ID to keep
+				// constant EPID in future
+				uv_xb3_local_at_cmd_req(this, "OP", "", 0);
+				this->conf->id = ntouint64(this, &this->rx_at_queue);
+				if (this->conf->id) {
+					printf("XB3 ID fetched from module to nonvol conf.\n"
+							"Nonvol data should be saved.\n");
+				}
+			}
+			uv_mutex_unlock(&this->atreq_mutex);
+		}
+		else if (modem_status_changed == XB3_MODEMSTATUS_JOINEDNETWORK) {
+			uv_mutex_lock(&this->atreq_mutex);
+			// routers by default connect to first network they find.
+			// This is OK for new devices, but we dont want to accidentally
+			// connect to wrong networks. Thus disable autojoining by
+			// only joining to networks that we connect to.
+			if (!(this->conf->flags & XB3_CONF_FLAGS_OPERATE_AS_COORDINATOR)) {
+				uv_xb3_local_at_cmd_req(this, "OP", "", 0);
+				while (this->at_response == XB3_AT_RESPONSE_COUNT) {
+					uv_rtos_task_delay(1);
+				}
+				this->conf->id = ntouint64(this, &this->rx_at_queue);
+				printf("XB3: EPID set according to joined network.\n"
+						"Nonvol data should be saved.\n");
+			}
+			uv_mutex_unlock(&this->atreq_mutex);
+		}
+		else {
+
 		}
 	}
-
-
 }
 
 
@@ -570,6 +597,7 @@ void uv_xb3_poll(uv_xb3_st *this) {
 								printf("MODEMSTATUS 0x%x '%s'\n", rx,
 										uv_xb3_modem_status_to_str(rx));
 								this->modem_status = rx;
+								this->modem_status_changed = rx;
 							}
 							break;
 						case APIFRAME_RECEIVEPACKET:
@@ -860,6 +888,14 @@ void uv_xb3_terminal(uv_xb3_st *this,
 			else {
 				printf("Give data to write as a second argument\n");
 			}
+		}
+		else if (strcmp(argv[0].str, "stat") == 0) {
+			printf("XB3 stat:\n"
+					"   id: 0x%02x%02x%02x%02x\n",
+					this->conf->id4,
+					this->conf->id3,
+					this->conf->id2,
+					this->conf->id1);
 		}
 		else {
 
