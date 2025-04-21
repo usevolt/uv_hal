@@ -72,16 +72,6 @@ const char *uv_xb3_modem_status_to_str(uv_xb3_modem_status_e stat);
 
 typedef struct {
 	uint16_t flags;
-	// extended PAN ID for creating or joining network
-	union {
-		struct {
-			uint16_t id1;
-			uint16_t id2;
-			uint16_t id3;
-			uint16_t id4;
-		};
-		uint64_t id;
-	};
 } uv_xb3_conf_st;
 
 /// @brief: Resets the configuration structure
@@ -89,20 +79,6 @@ static inline void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def) {
 	memset(conf, 0, sizeof(uv_xb3_conf_st));
 	conf->flags = flags_def;
 }
-
-
-/// @brief: Structure defining zigbee devices that are found with "ATAS" command
-typedef struct {
-	uint8_t channel;
-	uint16_t pan16;
-	uint64_t pan64;
-	uint8_t allowjoin;
-	uint8_t stackprofile;
-	// link quality indicator, higher the better
-	uint8_t lqi;
-	// relative signal strength indicator, lower the better
-	int8_t rssi;
-} uv_xb3_dev_st;
 
 
 /// @brief: Main struct for XB3 wireless module
@@ -130,6 +106,8 @@ typedef struct {
 	uv_queue_st rx_data_queue;
 	// buffer for read AT commands from XB3. Holds raw data parsed from API packages
 	uv_queue_st rx_at_queue;
+
+	uint64_t epanid;
 
 	uv_xb3_modem_status_e modem_status;
 	uv_xb3_modem_status_e modem_status_changed;
@@ -197,15 +175,57 @@ void uv_xb3_write_data_to_addr(uv_xb3_st *this, uint64_t destaddr,
 		char *data, uint16_t datalen);
 
 
+
+
+/// @brief: Structure defining zigbee devices that are found with "ATAS" command
+typedef struct {
+	uint8_t channel;
+	uint16_t pan16;
+	uint64_t pan64;
+	uint8_t allowjoin;
+	uint8_t stackprofile;
+	// link quality indicator, higher the better
+	uint8_t lqi;
+	// relative signal strength indicator, lower the better
+	int8_t rssi;
+} uv_xb3_network_st;
+
+
 /// @brief: Performs an ATAS active scan and writes the result to *dest*.
 ///
-/// @param dev_count: Pointer to where found dev count is written
-/// @param dest: Destination array of xb3 dev structures
-/// @param dev_max_count: The length of *dest* in xb3_devs
-uv_xb3_at_response_e uv_xb3_scan_devs(uv_xb3_st *this,
+/// @param dev_count: Pointer to where found network count is written
+/// @param dest: Destination array of xb3 network structures
+/// @param network_max_count: The length of *dest* in xb3_networks
+uv_xb3_at_response_e uv_xb3_scan_networks(uv_xb3_st *this,
+		uint8_t *network_count,
+		uv_xb3_network_st *dest,
+		uint8_t network_max_count);
+
+
+typedef struct {
+	union {
+		struct {
+			uint32_t sl;
+			uint32_t sh;
+		};
+		uint64_t serial;
+	};
+	uint8_t db;
+	char ni[21];
+	uint16_t parent_panid;
+	uint8_t device_type;
+	uint8_t status;
+} uv_xb3_dev_st;
+
+
+/// @brief: Performs ATND network discovery command and writes result to *dest*
+///
+/// @param dev_count: Pointer to where the discovered device count is stored
+uv_xb3_at_response_e uv_xb3_node_discovery(uv_xb3_st *this,
 		uint8_t *dev_count,
 		uv_xb3_dev_st *dest,
 		uint8_t dev_max_count);
+
 
 
 /// @brief: Returns the extended PAN ID with "ATID" command
