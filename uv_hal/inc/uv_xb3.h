@@ -72,6 +72,7 @@ const char *uv_xb3_modem_status_to_str(uv_xb3_modem_status_e stat);
 
 typedef struct {
 	uint16_t flags;
+	uint64_t epanid;
 } uv_xb3_conf_st;
 
 /// @brief: Resets the configuration structure
@@ -106,8 +107,6 @@ typedef struct {
 	uv_queue_st rx_data_queue;
 	// buffer for read AT commands from XB3. Holds raw data parsed from API packages
 	uv_queue_st rx_at_queue;
-
-	uint64_t epanid;
 
 	uv_xb3_modem_status_e modem_status;
 	uv_xb3_modem_status_e modem_status_changed;
@@ -144,7 +143,9 @@ uv_errors_e uv_xb3_set_nodename(uv_xb3_st *this, const char *name);
 
 
 /// @brief: Should be called in rtos idle hook
-void uv_xb3_poll(uv_xb3_st *this);
+///
+/// @return: True if any RX data was going to be read, false otherwise
+bool uv_xb3_poll(uv_xb3_st *this);
 
 
 void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms);

@@ -11,6 +11,7 @@
 #include <uv_rtos.h>
 #include <uv_terminal.h>
 #include <uv_wdt.h>
+#include "uv_memory.h"
 
 #if CONFIG_SPI && CONFIG_XB3
 
@@ -37,6 +38,7 @@
 #define APIFRAME_NODEIDENTIFICATIONIND		0x95
 #define APIFRAME_REMOTEATCMDRESPONSE		0x97
 #define APIFRAME_EXTMODEMSTATUS				0x98
+#define APIFRAME_MANYTOONEREQ				0xA3
 #define APIFRAME_BLEUNLOCKRESPONSE			0xAC
 #define APIFRAME_USERDATARELAYOUTPUT		0xAD
 #define APIFRAME_SECURESESSIONRESPONSE		0xAE
@@ -309,11 +311,8 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	this->at_response = XB3_AT_RESPONSE_COUNT;
 	this->rx_index = 0;
 	this->rx_size = 0;
-	this->epanid = 0;
 	this->modem_status = XB3_MODEMSTATUS_NONE;
 	this->modem_status_changed = XB3_MODEMSTATUS_NONE;
-	// at ehco defaults to false, sending commands via terminal enables AT echo
-	uv_xb3_set_at_echo(this, false);
 
 	if (uv_queue_init(&this->tx_queue, 100, sizeof(char)) == NULL) {
 		uv_terminal_enable(TERMINAL_CAN);
@@ -387,12 +386,20 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 uv_errors_e uv_xb3_set_nodename(uv_xb3_st *this, const char *name) {
 	uv_errors_e ret = ERR_NONE;
 	uv_mutex_lock(&this->atreq_mutex);
-	uv_xb3_local_at_cmd_req(this, "NI", (char*) name, strlen(name));
+	char str[20] = {};
+	strncpy(str, name, 19);
+	strcat(str, "\r");
+	uv_xb3_local_at_cmd_req(this, "NI", (char*) str, strlen(str));
 	while (uv_xb3_get_at_response(this) == XB3_AT_RESPONSE_COUNT) {
 		uv_xb3_poll(this);
 	}
 	if (uv_xb3_get_at_response(this) != XB3_AT_RESPONSE_OK) {
 		ret = ERR_ABORTED;
+	}
+	// parse out all rx data from XB3 before continuing
+	uv_rtos_task_delay(1);
+	while (uv_xb3_poll(this)) {
+		uv_rtos_task_delay(1);
 	}
 	uv_mutex_unlock(&this->atreq_mutex);
 	return ret;
@@ -409,13 +416,27 @@ void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms) {
 
 		// wait until network is created or device is booted
 		if (modem_status_changed == XB3_MODEMSTATUS_POWERUP) {
-			this->epanid = uv_xb3_get_epid(this);
+
 			uv_mutex_lock(&this->atreq_mutex);
 
 			if (this->conf->flags & XB3_CONF_FLAGS_OPERATE_AS_COORDINATOR) {
-				if (this->epanid == 0) {
-					// operate as COORDINATOR
+				if (this->conf->epanid == 0) {
 					char data[8] = {};
+					// network reset
+					data[0] = 1;
+					uv_xb3_local_at_cmd_req(this, "NR", data, 1);
+					while (this->at_response == XB3_AT_RESPONSE_COUNT) {
+						uv_rtos_task_delay(1);
+					}
+
+					// clear ID
+					uint64ton(data, this->conf->epanid);
+					uv_xb3_local_at_cmd_req(this, "ID", data, 8);
+					while (this->at_response == XB3_AT_RESPONSE_COUNT) {
+						uv_rtos_task_delay(1);
+					}
+
+					// operate as COORDINATOR
 					data[0] = 1;
 					uv_xb3_local_at_cmd_req(this, "CE", data, 1);
 					while (this->at_response == XB3_AT_RESPONSE_COUNT) {
@@ -430,22 +451,49 @@ void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms) {
 					}
 				}
 			}
+			else {
+				if (this->conf->epanid == 0) {
+					char data[8] = {};
+					// network reset
+					data[0] = 1;
+					uv_xb3_local_at_cmd_req(this, "NR", data, 1);
+					while (this->at_response == XB3_AT_RESPONSE_COUNT) {
+						uv_rtos_task_delay(1);
+					}
+
+					// write join device controls
+					data[0] = (1 << 3) | // join network with strongest signal
+							(1 << 6);	 // reply automatically to many-to-one-route_request
+					uv_xb3_local_at_cmd_req(this, "DC", data, 1);
+					while (this->at_response == XB3_AT_RESPONSE_COUNT) {
+						uv_rtos_task_delay(1);
+					}
+
+					// clear ID
+					uint64ton(data, this->conf->epanid);
+					uv_xb3_local_at_cmd_req(this, "ID", data, 8);
+					while (this->at_response == XB3_AT_RESPONSE_COUNT) {
+						uv_rtos_task_delay(1);
+					}
+				}
+			}
 			uv_mutex_unlock(&this->atreq_mutex);
 		}
 		else if (modem_status_changed == XB3_MODEMSTATUS_COORDINATORSTARTED) {
 			uv_mutex_lock(&this->atreq_mutex);
-			if (this->epanid == 0) {
+			if (this->conf->epanid == 0) {
 				// "OP" contains random EPID that we copy to ID to keep
 				// constant EPID in future
 				uv_xb3_local_at_cmd_req(this, "OP", "", 0);
-				this->epanid = ntouint64(this, &this->rx_at_queue);
-				if (this->epanid) {
+				this->conf->epanid = ntouint64(this, &this->rx_at_queue);
+				if (this->conf->epanid) {
 					// write modifications to nonvol memory on XB3
 					uv_xb3_local_at_cmd_req(this, "WR", "", 0);
 					while (this->at_response == XB3_AT_RESPONSE_COUNT) {
 						uv_rtos_task_delay(1);
 					}
 					printf("XB3: Wrote configuration to nonvol memory\n");
+					uv_memory_save();
 				}
 			}
 			uv_mutex_unlock(&this->atreq_mutex);
@@ -456,26 +504,25 @@ void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms) {
 			// This is OK for new devices, but we dont want to accidentally
 			// connect to wrong networks. Thus disable autojoining by
 			// only joining to networks that we connect to.
-			if (!(this->conf->flags & XB3_CONF_FLAGS_OPERATE_AS_COORDINATOR)) {
-				uv_xb3_local_at_cmd_req(this, "OP", "", 0);
+			uv_xb3_local_at_cmd_req(this, "OP", "", 0);
+			while (this->at_response == XB3_AT_RESPONSE_COUNT) {
+				uv_rtos_task_delay(1);
+			}
+			uint64_t id = ntouint64(this, &this->rx_at_queue);
+			if (id != this->conf->epanid) {
+				char data[8];
+				this->conf->epanid = id;
+				uint64ton(data, this->conf->epanid);
+				uv_xb3_local_at_cmd_req(this, "ID", data, 8);
 				while (this->at_response == XB3_AT_RESPONSE_COUNT) {
 					uv_rtos_task_delay(1);
 				}
-				uint64_t id = ntouint64(this, &this->rx_at_queue);
-				if (id != this->epanid) {
-					char data[8];
-					this->epanid = id;
-					uint64ton(data, this->epanid);
-					uv_xb3_local_at_cmd_req(this, "ID", data, 8);
-					while (this->at_response == XB3_AT_RESPONSE_COUNT) {
-						uv_rtos_task_delay(1);
-					}
-					uv_xb3_local_at_cmd_req(this, "WR", "", 0);
-					while (this->at_response == XB3_AT_RESPONSE_COUNT) {
-						uv_rtos_task_delay(1);
-					}
-					printf("XB3: Wrote configuration to nonvol memory\n");
+				uv_xb3_local_at_cmd_req(this, "WR", "", 0);
+				while (this->at_response == XB3_AT_RESPONSE_COUNT) {
+					uv_rtos_task_delay(1);
 				}
+				printf("XB3: Wrote configuration to nonvol memory\n");
+				uv_memory_save();
 			}
 			uv_mutex_unlock(&this->atreq_mutex);
 		}
@@ -489,13 +536,15 @@ void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms) {
 
 
 
-void uv_xb3_poll(uv_xb3_st *this) {
+bool uv_xb3_poll(uv_xb3_st *this) {
+	bool ret = false;
 	if (this->initialized) {
 		// read and write to XB3
 		spi_data_t tx = 0;
 
 		if ((uv_queue_pop(&this->tx_queue, &tx, 0) == ERR_NONE) ||
 				!uv_gpio_get(this->attn_gpio)) {
+			ret = true;
 			spi_data_t rx = 0;
 			uv_gpio_set(this->ssel_gpio, false);
 			uv_spi_readwrite_sync(this->spi, SPI_SLAVE_NONE, &tx, &rx, 8, 1);
@@ -631,6 +680,7 @@ void uv_xb3_poll(uv_xb3_st *this) {
 			uv_gpio_set(this->ssel_gpio, true);
 		}
 	}
+	return ret;
 }
 
 
@@ -897,8 +947,8 @@ void uv_xb3_terminal(uv_xb3_st *this,
 					"   RX echo: %u\n"
 					"   AT echo: %u\n"
 					"   AT as hex: %u\n",
-					(unsigned int) ((uint64_t) this->epanid >> 32),
-					(unsigned int) ((uint32_t) this->epanid & 0xFFFFFFFF),
+					(unsigned int) ((uint64_t) this->conf->epanid >> 32),
+					(unsigned int) ((uint32_t) this->conf->epanid & 0xFFFFFFFF),
 					!!(this->conf->flags & XB3_CONF_FLAGS_RX_ECHO),
 					!!(this->conf->flags & XB3_CONF_FLAGS_AT_ECHO),
 					!!(this->conf->flags & XB3_CONF_FLAGS_AT_HEX));
