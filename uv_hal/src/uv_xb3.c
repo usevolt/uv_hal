@@ -409,13 +409,13 @@ void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms) {
 
 		// wait until network is created or device is booted
 		if (modem_status_changed == XB3_MODEMSTATUS_POWERUP) {
-			uv_mutex_lock(&this->atreq_mutex);
 			this->epanid = uv_xb3_get_epid(this);
+			uv_mutex_lock(&this->atreq_mutex);
 
 			if (this->conf->flags & XB3_CONF_FLAGS_OPERATE_AS_COORDINATOR) {
 				if (this->epanid == 0) {
-				// operate as COORDINATOR
-					char data[8];
+					// operate as COORDINATOR
+					char data[8] = {};
 					data[0] = 1;
 					uv_xb3_local_at_cmd_req(this, "CE", data, 1);
 					while (this->at_response == XB3_AT_RESPONSE_COUNT) {
