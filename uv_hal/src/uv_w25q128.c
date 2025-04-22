@@ -356,7 +356,7 @@ static int32_t get_free_addr(uv_w25q128_st *this, uint32_t filesize) {
 
 		addr += size;
 		if (addr >= W25Q128_SECTOR_COUNT * W25Q128_SECTOR_SIZE ||
-				free_space >= filesize) {
+				(free_space >= filesize + sizeof(fd))) {
 			break;
 		}
 		uv_w25q128_read(this, addr, sizeof(fd), &fd);
