@@ -78,7 +78,7 @@
 #define WRITE_CMD_LEN					4
 
 // RAM buffer size of W25Q128 Page but in 16-bit
-static spi_data_t buffer[W25Q128_PAGE_SIZE];
+static spi_data_t buffer[W25Q128_PAGE_SIZE + 4];
 
 
 bool uv_exmem_is_busy(uv_w25q128_st *this) {
@@ -356,7 +356,7 @@ static int32_t get_free_addr(uv_w25q128_st *this, uint32_t filesize) {
 
 		addr += size;
 		if (addr >= W25Q128_SECTOR_COUNT * W25Q128_SECTOR_SIZE ||
-				(free_space >= filesize + sizeof(fd))) {
+				(free_space >= filesize)) {
 			break;
 		}
 		uv_w25q128_read(this, addr, sizeof(fd), &fd);
