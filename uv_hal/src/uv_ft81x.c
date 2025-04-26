@@ -1145,6 +1145,7 @@ uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
 			// now read the result from the previous cmdwriteaddr
 			uint32_t ptr = read32(MEMMAP_RAM_CMD_BEGIN + ((x + 4) % RAMCMD_SIZE));
 			bitmap->size = ptr - bitmap->addr;
+
 			// size should be 4-byte aligned
 			if (bitmap->size % 4) {
 				bitmap->size += 4 - (bitmap->size % 4);
@@ -1187,6 +1188,7 @@ uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
 		bitmap->format = BITMAP_FORMAT_RGB565;
 		bitmap->palette_size = 0;
 	}
+
 
 	return size;
 }

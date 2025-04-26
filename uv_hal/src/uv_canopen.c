@@ -276,7 +276,7 @@ void uv_canopen_config_rx_msgs(void) {
 			CANOPEN_SDO_RESPONSE_ID, ~0x7F, CAN_STD);
 
 	// SDO Server
-	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
+	uv_errors_e e = uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
 			CANOPEN_SDO_REQUEST_ID + NODEID, CAN_ID_MASK_DEFAULT, CAN_STD);
 
 	// EMCY

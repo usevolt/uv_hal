@@ -111,8 +111,10 @@ uv_errors_e uv_w25q128_init(uv_w25q128_st *this, spi_e spi,
 		// cannot connect to the device
 		ret = ERR_NOT_RESPONDING;
 		uv_terminal_enable(TERMINAL_CAN);
+		printf("w25q128 init failed, manufacturer id 0x%x, device id: 0x%x\n",
+				read[4],
+				read[5]);
 	}
-	printf("w25q128 manufacturer id 0x%x, device id: 0x%x\n", read[4], read[5]);
 
 	return ret;
 }
