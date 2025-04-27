@@ -313,10 +313,10 @@ typedef struct {
 	canopen_heartbeat_consumer_st consumer_heartbeats[CONFIG_CANOPEN_HEARTBEAT_PRODUCER_COUNT];
 #endif
 
-	canopen_rxpdo_com_parameter_st rxpdo_coms[CONFIG_CANOPEN_RXPDO_COUNT];
+	canopen_pdo_com_parameter_st rxpdo_coms[CONFIG_CANOPEN_RXPDO_COUNT];
 	canopen_pdo_mapping_parameter_st rxpdo_maps[CONFIG_CANOPEN_RXPDO_COUNT];
 
-	canopen_txpdo_com_parameter_st txpdo_coms[CONFIG_CANOPEN_TXPDO_COUNT];
+	canopen_pdo_com_parameter_st txpdo_coms[CONFIG_CANOPEN_TXPDO_COUNT];
 	canopen_pdo_mapping_parameter_st txpdo_maps[CONFIG_CANOPEN_TXPDO_COUNT];
 
 
@@ -366,7 +366,7 @@ typedef struct {
 		// 1-byte pointers pointing to memory locations to make fetching the data
 		// from object dictionary faster
 		uint8_t *mapping_ptr[CONFIG_CANOPEN_PDO_MAPPING_COUNT];
-		const canopen_txpdo_com_parameter_st *com_ptr;
+		const canopen_pdo_com_parameter_st *com_ptr;
 	} txpdo[CONFIG_CANOPEN_TXPDO_COUNT];
 
 	// RXPDO member variables
@@ -377,7 +377,7 @@ typedef struct {
 		// 1-byte pointers pointing to memory locations to make fetching the data
 		// from object dictionary faster
 		uint8_t *mapping_ptr[CONFIG_CANOPEN_PDO_MAPPING_COUNT];
-		const canopen_rxpdo_com_parameter_st *com_ptr;
+		const canopen_pdo_com_parameter_st *com_ptr;
 	} rxpdo[CONFIG_CANOPEN_RXPDO_COUNT];
 
 	void (*can_callback)(void *user_ptr, uv_can_message_st* msg);
@@ -618,6 +618,9 @@ static inline uint8_t uv_canopen_get_our_nodeid(void) {
 /// @brief: Sets the nodeid of this device. The change comes valid
 /// after saving non-volatile settings and resetting the device.
 void uv_canopen_set_our_nodeid(uint8_t nodeid);
+
+
+void canopen_pdo_cobid_update(void);
 
 
 /// @brief: Returns true if the given index RXPDO is received within the specified time

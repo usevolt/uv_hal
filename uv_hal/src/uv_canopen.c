@@ -234,7 +234,7 @@ void uv_canopen_config_rx_msgs(void) {
 	const canopen_object_st *obj;
 	for (int i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
 		if ((obj = _uv_canopen_obj_dict_get(CONFIG_CANOPEN_RXPDO_COM_INDEX + i, 0))) {
-			canopen_rxpdo_com_parameter_st* com = obj->data_ptr;
+			canopen_pdo_com_parameter_st* com = obj->data_ptr;
 			if (uv_canopen_is_array(obj)) {
 				this->rxpdo[i].com_ptr = com;
 				if (!(com->cob_id & CANOPEN_PDO_DISABLED)) {
@@ -257,7 +257,7 @@ void uv_canopen_config_rx_msgs(void) {
 	// TXPDO
 	for (int i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
 		if ((obj = _uv_canopen_obj_dict_get(CONFIG_CANOPEN_TXPDO_COM_INDEX + i, 0))) {
-			canopen_txpdo_com_parameter_st *com = obj->data_ptr;
+			canopen_pdo_com_parameter_st *com = obj->data_ptr;
 			if (uv_canopen_is_array(obj)) {
 				this->txpdo[i].com_ptr = com;
 			}
@@ -323,26 +323,34 @@ uv_errors_e uv_canopen_sdo_store_params(uint8_t node_id, memory_scope_e_ param_s
 
 
 void uv_canopen_set_our_nodeid(uint8_t nodeid) {
-	uint8_t last_nodeid = uv_canopen_get_our_nodeid();
 	CONFIG_NON_VOLATILE_START.id = nodeid;
 	// update all PDO's which where mapped for the previous node id
+	canopen_pdo_cobid_update();
+}
+
+
+void canopen_pdo_cobid_update(void) {
 	uv_enter_critical();
+	uint8_t last_nodeid = uv_canopen_get_our_nodeid();
+	uint8_t nodeid = CONFIG_NON_VOLATILE_START.id;
+
 	for (uint8_t i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
-		canopen_txpdo_com_parameter_st *com = &dev.data_start.canopen_data.txpdo_coms[i];
-		if ((com->cob_id & 0x7F) == last_nodeid) {
-			com->cob_id &= ~(0x7F);
-			com->cob_id |= nodeid;
+		canopen_pdo_com_parameter_st *com = &dev.data_start.canopen_data.txpdo_coms[i];
+		if (!(com->reserved & CANOPEN_PDO_RESERVED_FLAGS_BREAKNODEIDLINKAGE)) {
+			com->cob_id -= last_nodeid;
+			com->cob_id += nodeid;
 		}
 	}
 	for (uint8_t i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
-		canopen_rxpdo_com_parameter_st *com = &dev.data_start.canopen_data.rxpdo_coms[i];
-		if ((com->cob_id & 0x7F) == last_nodeid) {
-			com->cob_id &= ~(0x7F);
-			com->cob_id |= nodeid;
+		canopen_pdo_com_parameter_st *com = &dev.data_start.canopen_data.rxpdo_coms[i];
+		if (!(com->reserved & CANOPEN_PDO_RESERVED_FLAGS_BREAKNODEIDLINKAGE)) {
+			com->cob_id -= last_nodeid;
+			com->cob_id += nodeid;
 		}
 	}
 	uv_exit_critical();
 }
+
 
 
 bool uv_canopen_rxpdo_is_received(uint16_t rxpdo_i) {

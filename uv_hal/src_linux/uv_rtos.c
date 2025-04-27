@@ -334,7 +334,7 @@ void uv_init(void *device) {
 		// update all PDO's which where mapped for the previous node id
 		uv_enter_critical();
 		for (uint8_t i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
-			canopen_txpdo_com_parameter_st *com =
+			canopen_pdo_com_parameter_st *com =
 					&dev.data_start.canopen_data.txpdo_coms[i];
 			if ((com->cob_id & 0x7F) == last_nodeid) {
 				com->cob_id &= ~(0x7F);
@@ -342,7 +342,7 @@ void uv_init(void *device) {
 			}
 		}
 		for (uint8_t i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
-			canopen_rxpdo_com_parameter_st *com =
+			canopen_pdo_com_parameter_st *com =
 					&dev.data_start.canopen_data.rxpdo_coms[i];
 			if ((com->cob_id & 0x7F) == last_nodeid) {
 				com->cob_id &= ~(0x7F);

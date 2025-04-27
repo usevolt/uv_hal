@@ -52,7 +52,7 @@ extern uint32_t CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS_COUNT (void);
 
 #define RXPDO_COM(x)	{	\
 	.main_index = CONFIG_CANOPEN_RXPDO_COM_INDEX + x,\
-	.array_max_size = CANOPEN_RXPDO_COM_ARRAY_SIZE,\
+	.array_max_size = CANOPEN_PDO_COM_ARRAY_SIZE,\
 	.permissions = CANOPEN_RW, \
 	.type = CANOPEN_ARRAY32, \
 	.data_ptr = &CONFIG_NON_VOLATILE_START.canopen_data.rxpdo_coms[x] \
@@ -68,7 +68,7 @@ extern uint32_t CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS_COUNT (void);
 
 #define TXPDO_COM(x)	{ \
 	.main_index = CONFIG_CANOPEN_TXPDO_COM_INDEX + x, \
-	.array_max_size = CANOPEN_TXPDO_COM_ARRAY_SIZE, \
+	.array_max_size = CANOPEN_PDO_COM_ARRAY_SIZE, \
 	.permissions = CANOPEN_RW, \
 	.type = CANOPEN_ARRAY32, \
 	.data_ptr = &CONFIG_NON_VOLATILE_START.canopen_data.txpdo_coms[x] \

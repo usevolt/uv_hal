@@ -105,13 +105,13 @@
 		}\
 },
 
-static const canopen_txpdo_com_parameter_st txpdo_com_defs[] = {
+static const canopen_pdo_com_parameter_st txpdo_com_defs[] = {
 		REPEAT(CONFIG_CANOPEN_TXPDO_COUNT, TXPDO_COM_DEF)
 };
 static const canopen_pdo_mapping_parameter_st txpdo_map_defs[] = {
 		REPEAT(CONFIG_CANOPEN_TXPDO_COUNT, TXPDO_MAPPINGS_DEF)
 };
-static const canopen_rxpdo_com_parameter_st rxpdo_com_defs[] = {
+static const canopen_pdo_com_parameter_st rxpdo_com_defs[] = {
 		REPEAT(CONFIG_CANOPEN_RXPDO_COUNT, RXPDO_COM_DEF)
 };
 static const canopen_pdo_mapping_parameter_st rxpdo_map_defs[] = {
@@ -136,7 +136,7 @@ void _uv_canopen_pdo_init() {
 	for (int i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
 		if ((obj = _uv_canopen_obj_dict_get(CONFIG_CANOPEN_TXPDO_COM_INDEX + i, 0))) {
 			// PDO communication parameter found
-			canopen_txpdo_com_parameter_st *com;
+			canopen_pdo_com_parameter_st *com;
 			com = obj->data_ptr;
 			uv_delay_init((uv_delay_st*) &this->txpdo[i].time, com->event_timer);
 			this->txpdo[i].inhibit_time = 0;
@@ -180,7 +180,7 @@ void _uv_canopen_pdo_step(uint16_t step_ms) {
 	 * TXPDO
 	 */
 	for (int i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
-		const canopen_txpdo_com_parameter_st *com = this->txpdo[i].com_ptr;
+		const canopen_pdo_com_parameter_st *com = this->txpdo[i].com_ptr;
 
 		// check inhibit time
 		if (this->txpdo[i].inhibit_time > 0) {
@@ -276,7 +276,7 @@ void _uv_canopen_pdo_rx(const uv_can_message_st *msg) {
 	 */
 	for (uint8_t i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
 		valid = true;
-		const canopen_rxpdo_com_parameter_st *com = this->rxpdo[i].com_ptr;
+		const canopen_pdo_com_parameter_st *com = this->rxpdo[i].com_ptr;
 		if (com) {
 			if (com->cob_id & CANOPEN_PDO_DISABLED) {
 				valid = false;
@@ -345,14 +345,14 @@ canopen_pdo_mapping_parameter_st *uv_canopen_txpdo_get_mapping(uint16_t txpdo) {
 
 
 
-canopen_rxpdo_com_parameter_st *uv_canopen_rxpdo_get_com(uint16_t rxpdo) {
+canopen_pdo_com_parameter_st *uv_canopen_rxpdo_get_com(uint16_t rxpdo) {
 	if (rxpdo >= CONFIG_CANOPEN_RXPDO_COUNT) {
 		rxpdo = CONFIG_CANOPEN_RXPDO_COUNT - 1;
 	}
 	return &thisnv->rxpdo_coms[rxpdo];
 }
 
-canopen_txpdo_com_parameter_st *uv_canopen_txpdo_get_com(uint16_t txpdo) {
+canopen_pdo_com_parameter_st *uv_canopen_txpdo_get_com(uint16_t txpdo) {
 	if (txpdo >= CONFIG_CANOPEN_TXPDO_COUNT) {
 		txpdo = CONFIG_CANOPEN_TXPDO_COUNT - 1;
 	}

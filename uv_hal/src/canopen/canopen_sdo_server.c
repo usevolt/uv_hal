@@ -174,6 +174,37 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 					if (_canopen_write_data(obj, msg, GET_SINDEX(msg))) {
 						memcpy(&reply_msg.data_32bit[1], &msg->data_32bit[1], 4);
 						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+
+						// break PDO linkage if new COB-ID is written
+						if ((this->mindex & ~0x700) == (CANOPEN_TXPDO1_ID & ~0x700) &&
+								this->sindex == 1) {
+							uint8_t pdo = ((this->mindex & 0x700) >> 8);
+							canopen_pdo_com_parameter_st *p =
+									uv_canopen_txpdo_get_com(pdo);
+							if (p) {
+								p->reserved |=
+										CANOPEN_PDO_RESERVED_FLAGS_BREAKNODEIDLINKAGE;
+							}
+						}
+						else if ((this->mindex & ~0x700) ==
+								(CANOPEN_RXPDO1_ID & ~0x700) &&
+								this->sindex == 1) {
+							uint8_t pdo = ((this->mindex & 0x700) >> 8);
+							canopen_pdo_com_parameter_st *p =
+									uv_canopen_rxpdo_get_com(pdo);
+							if (p) {
+								p->reserved |=
+										CANOPEN_PDO_RESERVED_FLAGS_BREAKNODEIDLINKAGE;
+							}
+						}
+						// update PDO's if nodeid was written
+						else if (this->mindex == CONFIG_CANOPEN_NODEID_INDEX) {
+							canopen_pdo_cobid_update();
+						}
+						else {
+
+						}
+
 						if (this->write_callb) {
 							this->write_callb(this->mindex, this->sindex);
 						}
@@ -527,7 +558,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 
 		// copy new nodeid to all PDO's that had our nodeid in them
 		for (uint8_t i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
-			canopen_txpdo_com_parameter_st *txcom = uv_canopen_txpdo_get_com(i);
+			canopen_pdo_com_parameter_st *txcom = uv_canopen_txpdo_get_com(i);
 			if (!(txcom->cob_id & CANOPEN_PDO_EXT) &&
 					!(txcom->cob_id & CANOPEN_PDO_DISABLED)) {
 				if ((txcom->cob_id & 0x7F) == last_nodeid) {
@@ -537,7 +568,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 			}
 		}
 		for (uint8_t i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
-			canopen_rxpdo_com_parameter_st *rxcom = uv_canopen_rxpdo_get_com(i);
+			canopen_pdo_com_parameter_st *rxcom = uv_canopen_rxpdo_get_com(i);
 			if (!(rxcom->cob_id & CANOPEN_PDO_EXT) &&
 					!(rxcom->cob_id & CANOPEN_PDO_DISABLED)) {
 				if ((rxcom->cob_id & 0x7F) == last_nodeid) {

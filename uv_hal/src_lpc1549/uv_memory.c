@@ -245,6 +245,7 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 		}
 	}
 	else {
+		printf("Nonvolatile memory error: Not enough memory\n");
 		ret = ERR_NOT_ENOUGH_MEMORY;
 	}
 
