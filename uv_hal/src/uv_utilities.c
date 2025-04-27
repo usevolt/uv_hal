@@ -33,6 +33,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
+#include "uv_rtos.h"
 #if CONFIG_TARGET_LPC11C14
 #include "LPC11xx.h"
 #elif CONFIG_TARGET_LPC1785
@@ -442,7 +443,8 @@ void *__uv_get_user_ptr() {
 	return user_ptr;
 }
 
-#if (CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC15XX || CONFIG_TARGET_LPC1785)
+#if (CONFIG_TARGET_LPC11C14 || CONFIG_TARGET_LPC15XX || \
+CONFIG_TARGET_LPC1785 || CONFIG_TARGET_LPC40XX)
 
 void NMI_Handler(void) {
 	printf("NMI\r");
@@ -452,10 +454,12 @@ void NMI_Handler(void) {
 extern void CONFIG_HARDFAULT_CALLBACK (void);
 #endif
 
+extern uv_mutex_st printf_mutex;
 void HardFault_Handler(void) {
 #if defined(CONFIG_HARDFAULT_CALLBACK)
 	CONFIG_HARDFAULT_CALLBACK ();
 #endif
+	uv_mutex_unlock(&printf_mutex);
 	printf("HardFault\r");
 }
 void MemManage_Handler(void) {

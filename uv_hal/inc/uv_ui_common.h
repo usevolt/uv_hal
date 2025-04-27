@@ -137,13 +137,20 @@ typedef enum {
 
 
 /// @brief: Color typedef
-typedef struct __attribute__((packed)) {
-	uint8_t b;
-	uint8_t g;
-	uint8_t r;
-	uint8_t a;
-} color_st;
 typedef uint32_t color_t;
+typedef struct __attribute__((packed)) {
+	union {
+		struct {
+			uint8_t b;
+			uint8_t g;
+			uint8_t r;
+			uint8_t a;
+		};
+		color_t color;
+	};
+} color_st;
+
+
 
 /// @brief: Conerts *color_t* type to *color_st* struture. Also applies
 /// the grayscale and other global modification sin uv_ui_common.

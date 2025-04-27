@@ -44,6 +44,8 @@ enum {
 
 
 #define this ((uv_uidisplay_st*) me)
+#define TOUCH_IND_DELAY_MS			300
+#define TOUCH_IND_DIAM_PX			15
 
 
 static void _uv_uidisplay_draw(void *me, const uv_bounding_box_st *pbb);
@@ -51,6 +53,27 @@ static void _uv_uidisplay_draw(void *me, const uv_bounding_box_st *pbb);
 
 void uv_uidisplay_draw(void *me) {
 	_uv_uidisplay_draw(this, uv_uibb(this));
+}
+
+void uv_uidisplay_draw_touch_ind(void *me) {
+	if (this->touch_ind) {
+		if (!uv_delay_has_ended(&this->touch_ind_delay)) {
+			int16_t reli = uv_reli(this->touch_ind_delay, 0, TOUCH_IND_DELAY_MS);
+			color_st c = {
+					.r = 0xFF,
+					.g = 0xFF,
+					.b = 0xFF,
+					.a = uv_lerpi(reli, 0x0, 0xFF)
+			};
+			uv_ui_draw_point(this->press_x,
+					this->press_y,
+					c.color,
+					uv_lerpi(
+						reli,
+						0,
+						TOUCH_IND_DIAM_PX));
+		}
+	}
 }
 
 
@@ -63,6 +86,8 @@ static void _uv_uidisplay_draw(void *me, const uv_bounding_box_st *pbb) {
 
 	// draw all the objects added to the screen
 	_uv_uiwindow_draw_children(this, pbb);
+
+	uv_uidisplay_draw_touch_ind(this);
 
 	// all UI components should now be updated, swap display list buffers
 	uv_ui_dlswap();
@@ -79,10 +104,13 @@ void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *
 	uv_uibb(me)->width = LCD_W_PX;
 	uv_uibb(me)->height = LCD_H_PX;
 	this->display_c = style->display_c;
+	this->touch_ind = true;
+	uv_delay_end(&this->touch_ind_delay);
 	uv_ui_refresh_parent(this);
 	uv_uiobject_set_draw_callb(this, &_uv_uidisplay_draw);
 	// have to set touch callback to null as uiwindow tries to set it to itself
 	uv_uiobject_set_touch_callb(this, NULL);
+	memset(&this->touch, 0, sizeof(this->touch));
 
 #if CONFIG_UI_TOUCHSCREEN
 	uv_delay_init(&this->press_delay, UIDISPLAY_PRESS_DELAY_MS);
@@ -98,57 +126,55 @@ void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *
 
 uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 	uv_uiobject_ret_e ret;
-	uv_touch_st t = {};
-	t.action = TOUCH_NONE;
+	this->touch.action = TOUCH_NONE;
 
 	// get touch data from the LCD
 #if CONFIG_UI_TOUCHSCREEN
-	bool touch;
-	touch = uv_ui_get_touch(&t.x, &t.y);
+	bool t = uv_ui_get_touch(&this->touch.x, &this->touch.y);
 
 	uv_delay(&this->press_delay, step_ms);
 
-	if (touch &&
+	if (t &&
 			uv_delay_has_ended(&this->press_delay)) {
-		t.x = uv_moving_aver_step(&this->avr_x, t.x);
-		t.y = uv_moving_aver_step(&this->avr_y, t.y);
+		this->touch.x = uv_moving_aver_step(&this->avr_x, this->touch.x);
+		this->touch.y = uv_moving_aver_step(&this->avr_y, this->touch.y);
 		if (this->press_state == RELEASED) {
-			this->press_x = t.x;
-			this->press_y = t.y;
-			t.action = TOUCH_PRESSED;
+			this->press_x = this->touch.x;
+			this->press_y = this->touch.y;
+			this->touch.action = TOUCH_PRESSED;
 			this->press_state = PRESSING;
 		}
 		else if (this->press_state == PRESSING) {
-			if (abs(this->press_x - t.x) > CONFIG_UI_CLICK_THRESHOLD ||
-					abs(this->press_y - t.y) > CONFIG_UI_CLICK_THRESHOLD) {
-				t.action = TOUCH_DRAG;
-				this->drag_x = t.x;
-				this->drag_y = t.y;
-				t.x = 0;
-				t.y = 0;
+			if (abs(this->press_x - this->touch.x) > CONFIG_UI_CLICK_THRESHOLD ||
+					abs(this->press_y - this->touch.y) > CONFIG_UI_CLICK_THRESHOLD) {
+				this->touch.action = TOUCH_DRAG;
+				this->drag_x = this->touch.x;
+				this->drag_y = this->touch.y;
+				this->touch.x = 0;
+				this->touch.y = 0;
 				this->press_state = DRAGGING;
 			}
 			else {
-				t.action = TOUCH_IS_DOWN;
-				t.x = this->press_x;
-				t.y = this->press_y;
+				this->touch.action = TOUCH_IS_DOWN;
+				this->touch.x = this->press_x;
+				this->touch.y = this->press_y;
 			}
 		}
 		else if (this->press_state == DRAGGING) {
 			// store the current position
-			int16_t tx = t.x, ty = t.y;
-			t.action = TOUCH_DRAG;
+			int16_t tx = this->touch.x, ty = this->touch.y;
+			this->touch.action = TOUCH_DRAG;
 			// drag event gives an offset from
 			// last drag position as parameters
-			t.x -= this->drag_x;
-			t.y -= this->drag_y;
-			if (abs(t.x) > DRAG_MAX_SPEED_PX ||
-					abs(t.y) > DRAG_MAX_SPEED_PX) {
+			this->touch.x -= this->drag_x;
+			this->touch.y -= this->drag_y;
+			if (abs(this->touch.x) > DRAG_MAX_SPEED_PX ||
+					abs(this->touch.y) > DRAG_MAX_SPEED_PX) {
 				// dragging speed exceeded the maximum allowed dragging speed.
 				// This might indicate a faulty press, thus we ignore the dragging
 				// on this step cycle
-				t.x = 0;
-				t.y = 0;
+				this->touch.x = 0;
+				this->touch.y = 0;
 			}
 			// save current position to drag variables
 			this->drag_x = tx;
@@ -157,13 +183,13 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 	}
 	else {
 		if (this->press_state != RELEASED) {
-			t.x = this->press_x;
-			t.y = this->press_y;
+			this->touch.x = this->press_x;
+			this->touch.y = this->press_y;
 			if (this->press_state == PRESSING) {
-				t.action = TOUCH_CLICKED;
+				this->touch.action = TOUCH_CLICKED;
 			}
 			else {
-				t.action = TOUCH_RELEASED;
+				this->touch.action = TOUCH_RELEASED;
 			}
 			uv_delay_init(&this->press_delay, UIDISPLAY_PRESS_DELAY_MS);
 			uv_moving_aver_reset(&this->avr_x);
@@ -171,16 +197,28 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 			this->press_state = RELEASED;
 		}
 	}
+	if (this->touch.action == TOUCH_PRESSED) {
+		uv_delay_init(&this->touch_ind_delay, TOUCH_IND_DELAY_MS);
+	}
+	else {
+		if (uv_delay(&this->touch_ind_delay, step_ms) ||
+				!uv_delay_has_ended(&this->touch_ind_delay)) {
+			// updte every second step cycle to make display react better
+			if ((this->touch_ind_delay % (step_ms * 2)) == 0) {
+				uv_ui_refresh(this);
+			}
+		}
+	}
 #endif
 	// call user touch callback
-	if ((((uv_uiobject_st*) this)->vrtl_touch) && (t.action != TOUCH_NONE)) {
-		((uv_uiobject_st*) this)->vrtl_touch(this, &t);
+	if ((((uv_uiobject_st*) this)->vrtl_touch) && (this->touch.action != TOUCH_NONE)) {
+		((uv_uiobject_st*) this)->vrtl_touch(this, &this->touch);
 	}
 
 
 	// call uiwindow's touch callback to
 	// propagate touches to all objects in reverse order
-	_uv_uiwindow_touch(this, &t);
+	_uv_uiwindow_touch(this, &this->touch);
 
 	// call the step function and let it propagate through all objects in order
 	ret = uv_uiwindow_step(me, step_ms);

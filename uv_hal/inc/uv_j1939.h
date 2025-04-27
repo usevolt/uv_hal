@@ -15,7 +15,7 @@
 
 #define UV_J1939_PGN_DM1			(0xFECA)
 
-#define UV_J1939_PGN_MASK			(0xFFFF00)
+#define UV_J1939_PGN_MASK			(0x3FFFF00)
 
 
 /// @brief: Returns the parameter group number from the message. 0 in case of error.

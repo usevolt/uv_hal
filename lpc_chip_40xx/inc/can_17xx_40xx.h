@@ -1119,6 +1119,13 @@ Status Chip_CAN_FullCANReceive(LPC_CANAF_T *pCANAF,
 							   CAN_MSG_T *pMsg,
 							   uint8_t *pSCC);
 
+
+/// @brief: Usevolt add on to clear AF
+extern void clearAFLUT(LPC_CANAF_T *pCanAF, LPC_CANAF_RAM_T *pCanAFRam);
+static inline void Chip_CAN_clearAFLUT(LPC_CANAF_T *pCanAF, LPC_CANAF_RAM_T *pCanAFRam) {
+	clearAFLUT(pCanAF, pCanAFRam);
+}
+
 /**
  * @}
  */

@@ -43,6 +43,7 @@
 #endif
 
 
+
 #if !defined(CONFIG_NON_VOLATILE_MEMORY)
 #error "CONFIG_NON_VOLATILE_MEMORY should be defined as a 1 or 0, depending\
  if non volatile memory saving needs to be enabled."

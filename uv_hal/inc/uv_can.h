@@ -44,6 +44,7 @@
 #if CONFIG_CAN
 
 
+
 #if !defined(CONFIG_CAN_LOG)
 #error "CONFIG_CAN_LOG not defined"
 #endif

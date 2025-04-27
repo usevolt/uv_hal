@@ -165,7 +165,8 @@ typedef enum {
 	SPI_SLAVE0 = (1 << 0),
 	SPI_SLAVE1 = (1 << 1),
 	SPI_SLAVE2 = (1 << 2),
-	SPI_SLAVE3 = (1 << 3)
+	SPI_SLAVE3 = (1 << 3),
+	SPI_SLAVE_NONE = 0
 } spi_slaves_e;
 
 
@@ -209,6 +210,25 @@ uint16_t uv_spi_readwrite_sync(const spi_e spi, spi_slaves_e slaves,
 uint16_t uv_spi_write_sync(const spi_e spi, spi_slaves_e slaves,
 		const spi_data_t *writebuffer, const uint8_t byte_len, const uint16_t buffer_len);
 
+
+
+
+/// @brief: Reads and writes to SPI asynchronously
+///
+/// @return: Amount of data written, 0 in case of error
+///
+/// @param spi: The SPI channel used
+/// @param slaves: Selected slaves to whom the data is sent
+/// @param writebuffer: Pointer to a buffer where write data is read. Note:
+/// Buffer is of type spi_data_t which depends on TARGET.
+/// @param readbuffer: Pointer to a buffer where read data is written. Note:
+/// Buffer is of type spi_data_t which depends on TARGET.
+/// @byte_len: The length of individual bytes in bits (usually 8)
+/// @buffer_len: The length of the read and write buffers in bytes
+/// (not local bytes but *byte_len* bytes)
+uint16_t uv_spi_readwrite_async(const spi_e spi, spi_slaves_e slaves,
+		const spi_data_t *writebuffer, spi_data_t *readbuffer,
+		const uint8_t byte_len, const uint16_t buffer_len);
 
 #endif
 

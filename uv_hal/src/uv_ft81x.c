@@ -35,6 +35,7 @@
 #include "uv_w25q128.h"
 #include "ui/uv_uifont.h"
 #include "uv_terminal.h"
+#include "uv_wdt.h"
 #include <string.h>
 
 
@@ -520,7 +521,6 @@ bool uv_ui_init(void) {
 	// read ID, should be 0x7C
 	uint8_t id = read8(REG_ID);
 	if (id == 0x7C) {
-		DEBUG("FT81X id: 0x%x\n", id);
 
 		// read co-processor command fifo buffer address.
 		// Address is 0 only if power-on-reset happened,
@@ -570,18 +570,17 @@ bool uv_ui_init(void) {
 					(10 + i) * FONT_METRICS_FONT_LEN +
 					FONT_METRICS_FONT_HEIGHT_OFFSET);
 			ui_fonts[i].handle = FONT_HANDLE + i;
+			printf("Font %u height: %u\n", i, ui_fonts[i].char_height);
 			cmd_romfont(ui_fonts[i].handle, ui_fonts[i].index);
-			DEBUG("Font %u height: %u\n", i, ui_fonts[i].char_height);
 		}
 
 		// lastly wait until the screen is not pressed.
-		// If the screen is pressed more than 1 second, start screen
-		// calibration
 		uv_delay_st d;
 		uv_delay_init(&d, 100);
 		while (uv_ui_get_touch(NULL, NULL)) {
 			uv_delay(&d, 20);
 			uv_rtos_task_delay(20);
+			uv_wdt_update();
 		}
 		if (uv_delay_has_ended(&d)) {
 			ret = true;
@@ -1146,6 +1145,7 @@ uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
 			// now read the result from the previous cmdwriteaddr
 			uint32_t ptr = read32(MEMMAP_RAM_CMD_BEGIN + ((x + 4) % RAMCMD_SIZE));
 			bitmap->size = ptr - bitmap->addr;
+
 			// size should be 4-byte aligned
 			if (bitmap->size % 4) {
 				bitmap->size += 4 - (bitmap->size % 4);
@@ -1188,6 +1188,7 @@ uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
 		bitmap->format = BITMAP_FORMAT_RGB565;
 		bitmap->palette_size = 0;
 	}
+
 
 	return size;
 }
@@ -1316,8 +1317,13 @@ void uv_ui_touchscreen_calibrate(ui_transfmat_st *transform_matrix) {
 	uv_ui_dlswap();
 	uv_ui_set_mask(0, 0, LCD_W_PX, LCD_H_PX);
 	uv_ui_clear(C(0xFF002040));
-	uv_ui_draw_string("Calibrate the touchscreen\nby touching the flashing points", &font28,
-			LCD_WPPT(500), LCD_HPPT(100), UI_ALIGN_CENTER_TOP, C(0xFFFFFFFF));
+	uv_ui_draw_string("Calibrate the touchscreen\n"
+			"by touching the flashing points",
+			&font28,
+			LCD_WPPT(500),
+			LCD_HPPT(100),
+			UI_ALIGN_CENTER_TOP,
+			C(0xFFFFFFFF));
 	write16(REG_CMD_DL, this->dl_index);
 
 	while (true) {
@@ -1378,7 +1384,6 @@ bool uv_ui_get_touch(int16_t *x, int16_t *y) {
 	int16_t tx = t >> 16;
 	int16_t ty = t & 0xFFFF;
 	bool ret = (t == 0x80008000) ? false : true;
-	uint32_t p = read32(REG_TOUCH_RAW_XY);
 	if (ret) {
 		if (x) {
 			*x = tx;

@@ -42,6 +42,8 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	// draw all the objects added to the screen
 	_uv_uiwindow_draw_children(this, pbb);
 
+	uv_uidisplay_draw_touch_ind(this);
+
 	// all UI components should now be updated, swap display list buffers
 	uv_ui_dlswap();
 }
@@ -53,7 +55,6 @@ void uv_uidialog_init(void *me, uv_uiobject_st **object_array, const uv_uistyle_
 	uv_uidisplay_init(this, object_array, style);
 	// dialog defaults to non-transparent.
 	uv_uidialog_set_transparent(this, false);
-	// uidialog uses uiwindow's draw function
 	uv_uiobject_set_draw_callb(this, &draw);
 }
 

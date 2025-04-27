@@ -62,9 +62,9 @@ bool uv_rtc_get_low_power_flag(void) {
 
 
 
-void uv_rtc_get_time(uv_time_st *dest) {
+void uv_rtc_get_time(uv_time_st *dest, i2c_e i2c) {
 	uint8_t read[8] = { S35390A_CMD(S35390A_REALTIME_DATA1, I2C_READ) };
-	uv_i2cm_read(I2C0, NULL, 0, read, sizeof(read));
+	uv_i2cm_read(i2c, NULL, 0, read, sizeof(read));
 
 	dest->year = 2000 + bitswap(read[1] << 4) * 10 + bitswap(read[1] & 0xF0);
 	dest->month = bitswap((read[2] << 4)) * 10 + bitswap(read[2] & 0xF0);
@@ -72,6 +72,7 @@ void uv_rtc_get_time(uv_time_st *dest) {
 	dest->hour = bitswap(((read[5] & 0xC) << 4)) * 10 + bitswap(read[5] & 0xF0);
 	dest->min = bitswap((read[6] << 4)) * 10 + bitswap(read[6] & 0xF0);
 	dest->sec = bitswap((read[7] << 4)) * 10 + bitswap(read[7] & 0xF0);
+
 
 	uint16_t buildyear = strtol(&__DATE__[7], NULL, 0);
 
@@ -103,18 +104,18 @@ void uv_rtc_get_time(uv_time_st *dest) {
 		dest->min = strtol(&__TIME__[3], NULL, 10);
 		dest->sec = strtol(&__TIME__[6], NULL, 10);
 
-		uv_rtc_set_time(dest);
+		uv_rtc_set_time(dest, i2c);
 	}
 
 }
 
 
-void uv_rtc_set_time(uv_time_st *src) {
+void uv_rtc_set_time(uv_time_st *src, i2c_e i2c) {
 
 	uint8_t write[8] = { S35390A_CMD(S35390A_STATUS_REG1, I2C_WRITE) };
 
 	write[1] = 0x40;
-	uv_i2cm_write(I2C0, write, 2);
+	uv_i2cm_write(i2c, write, 2);
 
 	write[0] = S35390A_CMD(S35390A_REALTIME_DATA1, I2C_WRITE);
 	// get the base year from the build date
@@ -130,7 +131,7 @@ void uv_rtc_set_time(uv_time_st *src) {
 	write[6] = (bitswap(src->min / 10) >> 4) + bitswap(src->min % 10);
 	write[7] = (bitswap(src->sec / 10) >> 4) + bitswap(src->sec % 10);
 
-	uv_i2cm_write(I2C0, write, sizeof(write));
+	uv_i2cm_write(i2c, write, sizeof(write));
 }
 
 

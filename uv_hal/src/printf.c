@@ -38,6 +38,7 @@
 #include <ctype.h>
 #include <stdint.h>
 #include <uv_uart.h>
+#include <uv_rtos.h>
 #include "uv_hal_config.h"
 
 
@@ -197,13 +198,23 @@ int print(char **out, const char *format, int count, va_list args )
 	return pc;
 }
 
+uv_mutex_st printf_mutex;
 int printf(const char *format, ...)
 {
-
+		static bool init = false;
+		if (!init) {
+			uv_mutex_init(&printf_mutex);
+			uv_mutex_unlock(&printf_mutex);
+			init = true;
+		}
+		uv_mutex_lock(&printf_mutex);
         va_list args;
 
         va_start( args, format );
-        return print( 0, format, -1, args );
+        int ret = print( 0, format, -1, args );
+        uv_mutex_unlock(&printf_mutex);
+
+        return ret;
 }
 
 int sprintf(char *out, const char *format, ...)

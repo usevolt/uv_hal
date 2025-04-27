@@ -74,6 +74,20 @@ enum {
 typedef uint8_t uv_touch_action_e;
 
 
+static inline const char *uv_touchaction_to_str(uv_touch_action_e action) {
+	const char *ret = "";
+	switch (action) {
+	case TOUCH_NONE: ret = "NONE"; break;
+	case TOUCH_PRESSED: ret = "PRESSED"; break;
+	case TOUCH_IS_DOWN: ret = "IS_DOWN"; break;
+	case TOUCH_RELEASED: ret = "RELEASED"; break;
+	case TOUCH_CLICKED: ret = "CLICKED"; break;
+	case TOUCH_DRAG: ret = "TOUCH_DRAG"; break;
+	default: break;
+	}
+	return ret;
+}
+
 
 
 

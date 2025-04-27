@@ -45,6 +45,9 @@
 #include <cairo.h>
 #include <cairo-xlib.h>
 
+#if !defined(PRINT)
+#define PRINT(...) printf(__VA_ARGS__)
+#endif
 
 
 
@@ -309,7 +312,7 @@ bool uv_ui_get_touch(int16_t *x, int16_t *y) {
 			// unknown event 65
 			break;
 		default:
-			fprintf(stderr, "Dropping unhandled XEevent.type = %d.\n", e.type);
+			PRINT("Dropping unhandled XEevent.type = %d.\n", e.type);
 			break;
 		}
 	}
@@ -655,7 +658,7 @@ uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
 		else {
 			cairo_surface_destroy(m->surface);
 			free(m);
-			fprintf(stderr, "Could not create surface from png file '%'s\n", filename);
+			PRINT("Could not create surface from png file '%'s\n", filename);
 			ret = 0;
 		}
 	}

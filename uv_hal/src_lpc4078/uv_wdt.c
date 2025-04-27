@@ -45,7 +45,7 @@ void _uv_wdt_init(void) {
 	__disable_irq();
 
 	/* The WDT divides the input frequency into it by 4 */
-	int32_t wdtFreq = Chip_Clock_GetWDTOSCRate() / 4;
+	int32_t wdtFreq = WDT_OSC / 4;
 
 	/* Initialize WWDT (also enables WWDT clock) */
 	Chip_WWDT_Init(LPC_WWDT);
