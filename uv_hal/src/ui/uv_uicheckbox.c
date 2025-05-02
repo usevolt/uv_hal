@@ -39,8 +39,8 @@
 
 static inline void draw(void *me, const uv_bounding_box_st *pbb) {
 	color_t fontc = ((uv_uibutton_st *) this)->text_c;
-	color_t shadowc = uv_uic_brighten(((uv_uibutton_st*) this)->main_c, -30);
-	color_t lightc = uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 30);
+	color_t shadowc = uv_uic_brighten(((uv_uibutton_st*) this)->main_c, -80);
+	color_t lightc = uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 80);
 	int16_t x = uv_ui_get_xglobal(this);
 	int16_t y = uv_ui_get_yglobal(this);
 	int16_t bh = uv_ui_get_font_height(((uv_uibutton_st*) this)->font) * 2;

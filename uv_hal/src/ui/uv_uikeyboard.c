@@ -98,8 +98,8 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	uint8_t line_counter = 0;
 	int16_t x = 0;
 	int16_t y = BUTTONS_START;
-	color_t highlight_c = uv_uic_brighten(this->style->bg_c, 30);
-	color_t shadow_c = uv_uic_brighten(this->style->bg_c, -30);
+	color_t highlight_c = uv_uic_brighten(this->style->bg_c, 80);
+	color_t shadow_c = uv_uic_brighten(this->style->bg_c, -80);
 	char str[2];
 	for (int16_t i = 0; i < strlen(letters); i++) {
 		str[0] = this->shift ? shift_letters[i] : letters[i];

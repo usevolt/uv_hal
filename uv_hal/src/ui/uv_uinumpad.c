@@ -132,8 +132,8 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	uint8_t col_count = (this->flags & UINUMPAD_FLAGS_HEX) ? 5 : 3;
 	int16_t butw = uv_uibb(this)->width / col_count;
 	int16_t buth = uv_uibb(this)->height / row_count;
-	color_t highlight_c = uv_uic_brighten(this->style->bg_c, 30);
-	color_t shadow_c = uv_uic_brighten(this->style->bg_c, -30);
+	color_t highlight_c = uv_uic_brighten(this->style->bg_c, 80);
+	color_t shadow_c = uv_uic_brighten(this->style->bg_c, -80);
 
 	uv_ui_draw_string((char*) this->title, this->style->font,
 			globx + uv_uibb(this)->width / 2, globy, ALIGN_TOP_CENTER, this->style->text_color);

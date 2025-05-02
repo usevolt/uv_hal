@@ -111,8 +111,8 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 }
 
 static void draw_entry(void *me, void *entry, bool selected, uv_bounding_box_st *bb) {
-	color_t highlight_c = uv_uic_brighten(this->bg_c, selected ? 60 : 30);
-	color_t shadow_c = uv_uic_brighten(this->bg_c, selected ? 0 : -30);
+	color_t highlight_c = uv_uic_brighten(this->bg_c, selected ? 120 : 80);
+	color_t shadow_c = uv_uic_brighten(this->bg_c, selected ? 0 : -80);
 	color_t c = uv_uic_brighten(this->bg_c, selected ? 30 : 0);
 	uv_uilist_entry_st *uilist_entry = entry;
 
