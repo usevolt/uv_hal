@@ -329,7 +329,7 @@ void uv_w25q128_step(uv_w25q128_st *this, uint16_t step_ms) {
 
 
 // returns an address where *filesize* of data bytes are free to be written.
-// In case that memory was full, returns -1
+// In case that memory was full, returns -1.
 static int32_t get_free_addr(uv_w25q128_st *this, uint32_t filesize) {
 	int32_t ret = -1;
 	uv_fd_st fd;
@@ -420,7 +420,6 @@ uint32_t uv_exmem_write(uv_w25q128_st *this, char *filename, uint32_t filesize,
 	if (offset + len <= filesize) {
 		bool found = false;
 		while (uv_exmem_find(this, fd.filename, &file)) {
-
 			uint32_t size = file.file_size + W25Q128_SECTOR_SIZE - 1;
 			size -= size % W25Q128_SECTOR_SIZE;
 			// data size is checked only if offset is 0, i.e. this is the first write to a file.
@@ -468,6 +467,16 @@ uint32_t uv_exmem_write(uv_w25q128_st *this, char *filename, uint32_t filesize,
 		if (!found) {
 			// file couldn't be found, search for a suitable place
 			fd.data_addr = get_free_addr(this, filesize);
+			if (offset == 0) {
+				// start by clearing the old file if the offset was zero,
+				// i.e. the first write was requested
+				for (uint32_t i = 0;
+						i < (((fd.file_size + sizeof(fd)) / W25Q128_SECTOR_SIZE) + 1);
+						i++) {
+					uv_w25q128_clear_sector_at(this,
+							fd.data_addr + i * W25Q128_SECTOR_SIZE);
+				}
+			}
 		}
 		else {
 			// *file* should now be pointing to free memory, or existing file
@@ -523,19 +532,27 @@ bool uv_exmem_index(uv_w25q128_st *this, uint32_t index, uv_fd_st *dest) {
 	uv_w25q128_read(this, addr, sizeof(*dest), dest);
 	while (dest->data_addr != EXMEM_EMPTY_ADDR &&
 			(addr < W25Q128_SECTOR_COUNT * W25Q128_SECTOR_SIZE)) {
-		if (index == 0) {
-			if (dest->data_addr != EXMEM_DELETED_ADDR) {
-				ret = true;
+		if (dest->data_addr == EXMEM_DELETED_ADDR) {
+			// jump to the end of this file, aligned with the memory sector size
+			addr += (dest->file_size + W25Q128_SECTOR_SIZE - 1);
+			addr -= addr % W25Q128_SECTOR_SIZE;
+			if (dest->file_size == 0) {
+				addr += W25Q128_SECTOR_SIZE;
 			}
-			else {
-				ret = false;
-			}
+		}
+		else if (index == 0) {
+			ret = true;
 			break;
 		}
-		index--;
-		// jump to the end of this file, aligned with the memory sector size
-		addr += (dest->file_size + W25Q128_SECTOR_SIZE - 1);
-		addr -= addr % W25Q128_SECTOR_SIZE;
+		else {
+			index--;
+			// jump to the end of this file, aligned with the memory sector size
+			addr += (dest->file_size + W25Q128_SECTOR_SIZE - 1);
+			addr -= addr % W25Q128_SECTOR_SIZE;
+			if (dest->file_size == 0) {
+				addr += W25Q128_SECTOR_SIZE;
+			}
+		}
 		uv_w25q128_read(this, addr, sizeof(*dest), dest);
 	}
 	return ret;
