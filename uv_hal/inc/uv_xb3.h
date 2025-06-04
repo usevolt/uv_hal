@@ -69,6 +69,7 @@ const char *uv_xb3_modem_status_to_str(uv_xb3_modem_status_e stat);
 #define XB3_CONF_FLAGS_RX_ECHO						(1 << 1)
 #define XB3_CONF_FLAGS_AT_ECHO						(1 << 2)
 #define XB3_CONF_FLAGS_AT_HEX						(1 << 3)
+#define XB3_CONF_FLAGS_DEBUG						(1 << 4)
 
 typedef struct {
 	uint16_t flags;
@@ -203,7 +204,9 @@ uv_xb3_at_response_e uv_xb3_scan_networks(uv_xb3_st *this,
 		uint8_t network_max_count);
 
 
-typedef struct {
+/// @brief: data type for network_discovery command
+typedef struct __attribute__((packed)) {
+	uint16_t my;
 	union {
 		struct {
 			uint32_t sl;
@@ -211,21 +214,23 @@ typedef struct {
 		};
 		uint64_t serial;
 	};
-	uint8_t db;
 	char ni[21];
 	uint16_t parent_panid;
 	uint8_t device_type;
 	uint8_t status;
-} uv_xb3_dev_st;
+	uint16_t profile_id;
+	uint16_t manufacture_id;
+} uv_xb3_nddev_st;
 
 
-/// @brief: Performs ATND network discovery command and writes result to *dest*
+/// @brief: Performs AT+ND network discovery command and writes result to *dest*
 ///
 /// @param dev_count: Pointer to where the discovered device count is stored
-uv_xb3_at_response_e uv_xb3_node_discovery(uv_xb3_st *this,
+uv_xb3_at_response_e uv_xb3_network_discovery(uv_xb3_st *this,
 		uint8_t *dev_count,
-		uv_xb3_dev_st *dest,
+		uv_xb3_nddev_st *dest,
 		uint8_t dev_max_count);
+
 
 
 
@@ -233,6 +238,7 @@ uv_xb3_at_response_e uv_xb3_node_discovery(uv_xb3_st *this,
 uint64_t uv_xb3_get_epid(uv_xb3_st *this);
 
 
+void uv_xb3_network_reset(uv_xb3_st *this);
 
 
 /// @brief: Writes a local AT command to XB3 module

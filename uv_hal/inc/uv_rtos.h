@@ -173,6 +173,11 @@ static inline uv_queue_st uv_queue_init(uv_queue_st *this,
 	return *this;
 }
 
+/// @brief: Deletes a queue and frees all memory allocated for it
+static inline void uv_queue_delete(uv_queue_st *this) {
+	vQueueDelete(*this);
+}
+
 /// @brief: Empties the queue
 static inline void uv_queue_clear(uv_queue_st *this) {
 	xQueueReset(*this);

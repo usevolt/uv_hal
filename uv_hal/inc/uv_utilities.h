@@ -606,6 +606,14 @@ static inline bool uv_ipot(uint32_t x) {
 #define uv_set_int_priority(src, priority) NVIC_SetPriority(src, priority)
 
 
+/// @brief: Convert network byte order (MSB) to local byte order (LSB)
+uint64_t ntouint64(uint64_t netdata);
+
+/// @brief: Convert network byte order (MSB) to local byte order (LSB)
+uint16_t ntouint16(uint16_t netdata);
+
+
+
 
 /**** PROTECTED FUNCTIONS ******/
 /* These are meant only for HAL library's internal usage */
