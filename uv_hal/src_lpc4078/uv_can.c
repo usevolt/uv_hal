@@ -46,6 +46,7 @@
 #include <string.h>
 #include "chip.h"
 #include "can_17xx_40xx.h"
+#include "chip_lpc407x_8x.h"
 #if CONFIG_NON_VOLATILE_MEMORY
 #include CONFIG_MAIN_H
 #endif
@@ -110,18 +111,18 @@ uv_errors_e uv_can_add_rx_callback(uv_can_channels_e chn,
 uv_errors_e _uv_can_init() {
 	SystemCoreClockUpdate();
 
+	Chip_SYSCTL_PeriphReset(SYSCTL_RESET_CAN1);
+	Chip_SYSCTL_PeriphReset(SYSCTL_RESET_CAN2);
+	Chip_SYSCTL_PeriphReset(SYSCTL_RESET_CANACC);
+
+
+#if CONFIG_CAN0
+	uint32_t baudrate;
 	uv_ring_buffer_init(&this->can[0].rx_buffer, this->can[0].rx_buffer_data,
 			CONFIG_CAN0_RX_BUFFER_SIZE, sizeof(uv_can_message_st));
 	uv_ring_buffer_init(&this->can[0].tx_buffer, this->can[0].tx_buffer_data,
 			CONFIG_CAN0_TX_BUFFER_SIZE, sizeof(uv_can_message_st));
 
-	Chip_SYSCTL_PeriphReset(SYSCTL_RESET_CAN1);
-	Chip_SYSCTL_PeriphReset(SYSCTL_RESET_CAN2);
-	Chip_SYSCTL_PeriphReset(SYSCTL_RESET_CANACC);
-
-	uint32_t baudrate;
-
-#if CONFIG_CAN0
 #if CONFIG_NON_VOLATILE_MEMORY
 	baudrate = CONFIG_NON_VOLATILE_START.can_baudrate;
 #else
@@ -158,21 +159,33 @@ uv_errors_e _uv_can_init() {
 #if CONFIG_CAN1
 
 	// todo: init CAN1 also
+	uv_ring_buffer_init(&this->can[1].rx_buffer, this->can[1].rx_buffer_data,
+			CONFIG_CAN1_RX_BUFFER_SIZE, sizeof(uv_can_message_st));
+	uv_ring_buffer_init(&this->can[1].tx_buffer, this->can[1].tx_buffer_data,
+			CONFIG_CAN1_TX_BUFFER_SIZE, sizeof(uv_can_message_st));
+
+	Chip_CAN_Init(this->can[1].lpc_can, LPC_CANAF, LPC_CANAF_RAM);
+	Chip_CAN_SetBitRate(this->can[1].lpc_can, CONFIG_CAN1_BAUDRATE);
+	Chip_CAN_EnableInt(this->can[1].lpc_can,
+			CAN_IER_TIE1 | CAN_IER_TIE2 | CAN_IER_TIE3 | CAN_IER_RIE);
+
 
 #if CONFIG_CAN1_RX_PIN == P0_4
 	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 4, FUNC2);
 #elif CONFIG_CAN1_RX_PIN == P2_7
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 2, 7, FUNC1);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 2, 7, FUNC1 | MD_FAST_SLEW_RATE);
 #else
 #error "CONFIG_CAN1_RX_PIN valid values P0_4 or P2_7"
 #endif
 #if CONFIG_CAN1_TX_PIN == P0_5
 	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 5, FUNC2);
 #elif CONFIG_CAN1_TX_PIN == P2_8
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 2, 8, FUNC1);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 2, 8, FUNC1 | MD_FAST_SLEW_RATE);
 #else
 #error "CONFIG_CAN1_TX_PIN valid values P0_5 or P2_8"
 #endif
+
+	this->can[1].init = true;
 #endif
 
 	// initialize acceptance filter
@@ -207,46 +220,38 @@ uv_errors_e _uv_can_init() {
 }
 
 
-static inline void insert_msg(uv_can_chn_e chn,
+
+
+static void insert_msg(uv_can_chn_e chn,
 		uint32_t id, uint32_t mask, uv_can_msg_types_e type, uint8_t ctz) {
 	// clear masked bits to zero
 	id = id & mask;
-	if (ctz > 0) {
-		// configure range
-		if (type == CAN_STD) {
-			CAN_STD_ID_RANGE_ENTRY_T range = {};
-			range.LowerID.CtrlNo = chn;
-			range.LowerID.ID_11 = id;
-			range.UpperID.CtrlNo = chn;
-			range.UpperID.ID_11 = id | (0x7FF & (~mask));
-			Chip_CAN_InsertGroupSTDEntry(LPC_CANAF, LPC_CANAF_RAM, &range);
-		}
-		else {
-			// type == CAN_EXT
-			CAN_EXT_ID_RANGE_ENTRY_T range = {};
-			range.LowerID.CtrlNo = chn;
-			range.LowerID.ID_29 = id;
-			range.UpperID.CtrlNo = chn;
-			range.UpperID.ID_29 = id | (0x3FFF & (~mask));
-			Chip_CAN_InsertGroupEXTEntry(LPC_CANAF, LPC_CANAF_RAM, &range);
-		}
+	// configure range
+	if (type == CAN_STD) {
+		CAN_STD_ID_RANGE_ENTRY_T range = {};
+		range.LowerID.CtrlNo = chn;
+		range.LowerID.ID_11 = id;
+		range.UpperID.CtrlNo = chn;
+		range.UpperID.ID_11 = (ctz) ? (id | (0x7FF & (~mask))) : id;
+//		printf("RX configuring STD range 0x%x ... 0x%x for CAN%u\n",
+//				range.LowerID.ID_11,
+//				range.UpperID.ID_11,
+//				range.LowerID.CtrlNo);
+		Chip_CAN_InsertGroupSTDEntry(LPC_CANAF, LPC_CANAF_RAM, &range);
 	}
 	else {
-		// configure single message in case mask has no zero bits
-		if (type == CAN_STD) {
-			CAN_STD_ID_ENTRY_T std = {};
-			std.CtrlNo = chn;
-			std.ID_11 = id;
-			Chip_CAN_InsertSTDEntry(LPC_CANAF, LPC_CANAF_RAM, &std);
-		}
-		else {
-			CAN_EXT_ID_ENTRY_T ext = {};
-			ext.CtrlNo = chn;
-			ext.ID_29 = id;
-			Chip_CAN_InsertEXTEntry(LPC_CANAF, LPC_CANAF_RAM, &ext);
-		}
+		// type == CAN_EXT
+		CAN_EXT_ID_RANGE_ENTRY_T range = {};
+		range.LowerID.CtrlNo = chn;
+		range.LowerID.ID_29 = id;
+		range.UpperID.CtrlNo = chn;
+		range.UpperID.ID_29 = (ctz) ? (id | (0x1FFFFFFF & (~mask))) : id;
+//		printf("RX configuring EXT range 0x%x ... 0x%x for CAN%u\n",
+//				range.LowerID.ID_29,
+//				range.UpperID.ID_29,
+//				range.LowerID.CtrlNo);
+		Chip_CAN_InsertGroupEXTEntry(LPC_CANAF, LPC_CANAF_RAM, &range);
 	}
-
 }
 
 uv_errors_e uv_can_config_rx_message(uv_can_channels_e chn,
@@ -314,7 +319,7 @@ void CAN_IRQHandler(void) {
 			if (Chip_CAN_Receive(this->can[0].lpc_can, &m) == SUCCESS) {
 				uv_can_msg_st msg = { };
 				msg.data_length = m.DLC;
-				msg.id = m.ID & 0x3FFF;
+				msg.id = m.ID & 0x1FFFFFFF;
 				msg.type = (m.ID & CAN_EXTEND_ID_USAGE) ? CAN_EXT : CAN_STD;
 				memcpy(msg.data_8bit, m.Data, m.DLC);
 
@@ -322,34 +327,33 @@ void CAN_IRQHandler(void) {
 						!this->can[0].rx_callback(__uv_get_user_ptr(), &msg)) {
 				}
 				else {
-#if CONFIG_TERMINAL_CAN && (CONFIG_TERMINAL_CAN_CHN == CAN0)
-					// terminal characters are sent to their specific buffer
-					if (msg.id == UV_TERMINAL_CAN_RX_ID +
-							uv_canopen_get_our_nodeid() &&
-							msg.type == CAN_STD &&
-							msg.data_8bit[0] == 0x22 &&
-							msg.data_8bit[1] == (UV_TERMINAL_CAN_INDEX & 0xFF) &&
-							msg.data_8bit[2] == UV_TERMINAL_CAN_INDEX >> 8 &&
-							msg.data_8bit[3] == UV_TERMINAL_CAN_SUBINDEX &&
-							msg.data_length > 4) {
-						uint8_t i;
-						for (i = 0; i < msg.data_length - 4; i++) {
-							uv_ring_buffer_push(&this->char_buffer,
-									(char*) &msg.data_8bit[4 + i]);
-						}
-					}
-					else {
-#endif
-							uv_ring_buffer_push(&this->can[0].rx_buffer, &msg);
-#if CONFIG_TERMINAL_CAN && (CONFIG_TERMINAL_CAN_CHN == CAN0)
-					}
-#endif
+					uv_ring_buffer_push(&this->can[0].rx_buffer, &msg);
 				}
+#if CONFIG_TERMINAL_CAN && (CONFIG_TERMINAL_CAN_CHN == CAN0)
+				// terminal characters are sent to their specific buffer
+				if (msg.id == UV_TERMINAL_CAN_RX_ID +
+						uv_canopen_get_our_nodeid() &&
+						msg.type == CAN_STD &&
+						msg.data_8bit[0] == 0x22 &&
+						msg.data_8bit[1] == (UV_TERMINAL_CAN_INDEX & 0xFF) &&
+						msg.data_8bit[2] == UV_TERMINAL_CAN_INDEX >> 8 &&
+						msg.data_8bit[3] == UV_TERMINAL_CAN_SUBINDEX &&
+						msg.data_length > 4) {
+					uint8_t i;
+					for (i = 0; i < msg.data_length - 4; i++) {
+						uv_ring_buffer_push(&this->char_buffer,
+								(char*) &msg.data_8bit[4 + i]);
+					}
+				}
+#endif
 			}
 		}
-		else {
-			printf("*** CAN AF configuration error\n");
+		else if (canint != 0) {
+//			printf("*** CAN AF configuration error 0x%x\n", canint);
 			Chip_CAN_ConfigFullCANInt(LPC_CANAF, DISABLE);
+		}
+		else {
+
 		}
 
 	}
@@ -367,38 +371,38 @@ void CAN_IRQHandler(void) {
 			if (Chip_CAN_Receive(this->can[1].lpc_can, &m) == SUCCESS) {
 				uv_can_msg_st msg = { };
 				msg.data_length = m.DLC;
-				msg.id = m.ID & 0x3FFF;
+				msg.id = m.ID & 0x1FFFFFFF;
 				msg.type = (m.ID & CAN_EXTEND_ID_USAGE) ? CAN_EXT : CAN_STD;
 				memcpy(msg.data_8bit, m.Data, m.DLC);
 				if (this->can[1].rx_callback != NULL &&
-						!this->rx_callback(__uv_get_user_ptr(), &msg)) {
+						!this->can[1].rx_callback(__uv_get_user_ptr(), &msg)) {
 
 				}
 				else {
-#if CONFIG_TERMINAL_CAN && (CONFIG_TERMINAL_CAN_CHN == CAN1)
-					// terminal characters are sent to their specific buffer
-					if (msg.id == UV_TERMINAL_CAN_RX_ID +
-							uv_canopen_get_our_nodeid() &&
-							msg.type == CAN_STD &&
-							msg.data_8bit[0] == 0x22 &&
-							msg.data_8bit[1] == (UV_TERMINAL_CAN_INDEX & 0xFF) &&
-							msg.data_8bit[2] == UV_TERMINAL_CAN_INDEX >> 8 &&
-							msg.data_8bit[3] == UV_TERMINAL_CAN_SUBINDEX &&
-							msg.data_length > 4) {
-						uint8_t i;
-						for (i = 0; i < msg.data_length - 4; i++) {
-							uv_ring_buffer_push(&this->char_buffer,
-									(char*) &msg.data_8bit[4 + i]);
-						}
-					}
-					else {
-#endif
-							uv_ring_buffer_push(&this->can[1].rx_buffer, &msg);
-#if CONFIG_TERMINAL_CAN && (CONFIG_TERMINAL_CAN_CHN == CAN1)
-					}
-#endif
+					uv_ring_buffer_push(&this->can[1].rx_buffer, &msg);
 				}
+#if CONFIG_TERMINAL_CAN && (CONFIG_TERMINAL_CAN_CHN == CAN1)
+				// terminal characters are sent to their specific buffer
+				if (msg.id == UV_TERMINAL_CAN_RX_ID +
+						uv_canopen_get_our_nodeid() &&
+						msg.type == CAN_STD &&
+						msg.data_8bit[0] == 0x22 &&
+						msg.data_8bit[1] == (UV_TERMINAL_CAN_INDEX & 0xFF) &&
+						msg.data_8bit[2] == UV_TERMINAL_CAN_INDEX >> 8 &&
+						msg.data_8bit[3] == UV_TERMINAL_CAN_SUBINDEX &&
+						msg.data_length > 4) {
+					uint8_t i;
+					for (i = 0; i < msg.data_length - 4; i++) {
+						uv_ring_buffer_push(&this->char_buffer,
+								(char*) &msg.data_8bit[4 + i]);
+					}
+				}
+#endif
 			}
+		}
+		else if (canint != 0) {
+//			printf("0x%x\n", canint);
+			Chip_CAN_ConfigFullCANInt(LPC_CANAF, DISABLE);
 		}
 		else {
 
@@ -520,6 +524,9 @@ uv_errors_e uv_can_send_sync(uv_can_channels_e chn, uv_can_message_st *msg) {
 }
 
 
+void uv_can_set_baudrate(uv_can_chn_e chn, uint32_t baudrate) {
+	Chip_CAN_SetBitRate(this->can[chn].lpc_can, baudrate);
+}
 
 
 
@@ -571,8 +578,6 @@ uv_errors_e uv_can_pop_message(uv_can_channels_e chn, uv_can_message_st *message
 
 uv_errors_e uv_can_reset(uv_can_channels_e chn) {
 	Chip_SYSCTL_PeriphReset(SYSCTL_RESET_CAN1 + chn);
-
-	// todo: clear rx objs from this channel
 
 	return ERR_NONE;
 }

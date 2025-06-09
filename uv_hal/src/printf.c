@@ -198,9 +198,12 @@ int print(char **out, const char *format, int count, va_list args )
 	return pc;
 }
 
+#if CONFIG_PRINTF_MUTEX
 uv_mutex_st printf_mutex;
+#endif
 int printf(const char *format, ...)
 {
+#if CONFIG_PRINTF_MUTEX
 		static bool init = false;
 		if (!init) {
 			uv_mutex_init(&printf_mutex);
@@ -208,11 +211,14 @@ int printf(const char *format, ...)
 			init = true;
 		}
 		uv_mutex_lock(&printf_mutex);
+#endif
         va_list args;
 
         va_start( args, format );
         int ret = print( 0, format, -1, args );
+#if CONFIG_PRINTF_MUTEX
         uv_mutex_unlock(&printf_mutex);
+#endif
 
         return ret;
 }

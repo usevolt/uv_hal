@@ -459,7 +459,9 @@ void HardFault_Handler(void) {
 #if defined(CONFIG_HARDFAULT_CALLBACK)
 	CONFIG_HARDFAULT_CALLBACK ();
 #endif
+#if CONFIG_PRINTF_MUTEX
 	uv_mutex_unlock(&printf_mutex);
+#endif
 	printf("HardFault\r");
 }
 void MemManage_Handler(void) {
