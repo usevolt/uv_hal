@@ -209,117 +209,122 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd, char *data, uint16_t 
 
 }
 
+#define TX_DEBUG(this, ...)	if (this->conf->flags & XB3_CONF_FLAGS_TX_ECHO) \
+	XB3_DEBUG(this, __VA_ARGS__);
+
 uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
 		uint16_t datalen, uint64_t destaddr, bool isr) {
 	uv_errors_e ret = ERR_NONE;
-	if (uv_streambuffer_get_free_space(&this->tx_streambuffer) >= 18 + datalen) {
+	if (uv_streambuffer_get_free_space(&this->tx_streambuffer) < 18 + datalen) {
+		XB3_DEBUG(this, "XB3 Write: not enough memory in buffer\n");
 		ret = ERR_NOT_ENOUGH_MEMORY;
 	}
 	else if (!this->initialized) {
+		XB3_DEBUG(this, "XB3 write: Not initialized\n");
 		ret = ERR_NOT_INITIALIZED;
 	}
 	else {
 		uv_enter_critical();
 		uint32_t crc = 0;
 		uint8_t d = APIFRAME_START;
-		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
 				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		XB3_DEBUG(this, "0x%x ", d);
+		TX_DEBUG(this, "0x%x ", d);
 		uint16_t framedatalen = 14 + datalen;
 		// Length
 		d = (framedatalen >> 8);
-		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
 				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		XB3_DEBUG(this, "0x%x ", d);
+		TX_DEBUG(this, "0x%x ", d);
 		d = framedatalen & 0xFF;
-		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
 				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		XB3_DEBUG(this, "0x%x ", d);
+		TX_DEBUG(this, "0x%x ", d);
 		d = APIFRAME_TRANSMITREQ;
 		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
 				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		XB3_DEBUG(this, "0x%x ", d);
+		TX_DEBUG(this, "0x%x ", d);
 		// Frame ID. 0x0 doesn't emit response frame
 		d = 0x52;
 		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
 				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		XB3_DEBUG(this, "0x%x ", d);
+		TX_DEBUG(this, "0x%x ", d);
 		// 64-bit address
 		d = (destaddr >> 56) & 0xFF;
 		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
 				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		XB3_DEBUG(this, "0x%x ", d);
+		TX_DEBUG(this, "0x%x ", d);
 		d = (destaddr >> 48) & 0xFF;
 		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
 				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		XB3_DEBUG(this, "0x%x ", d);
+		TX_DEBUG(this, "0x%x ", d);
 		d = (destaddr >> 40) & 0xFF;
 		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
 				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		XB3_DEBUG(this, "0x%x ", d);
+		TX_DEBUG(this, "0x%x ", d);
 		d = (destaddr >> 32) & 0xFF;
 		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
 				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		XB3_DEBUG(this, "0x%x ", d);
+		TX_DEBUG(this, "0x%x ", d);
 		d = (destaddr >> 24) & 0xFF;
 		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
 				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		XB3_DEBUG(this, "0x%x ", d);
+		TX_DEBUG(this, "0x%x ", d);
 		d = (destaddr >> 16) & 0xFF;
 		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
 				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		XB3_DEBUG(this, "0x%x ", d);
+		TX_DEBUG(this, "0x%x ", d);
 		d = (destaddr >> 8) & 0xFF;
 		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
 				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		XB3_DEBUG(this, "0x%x ", d);
+		TX_DEBUG(this, "0x%x ", d);
 		d = (destaddr) & 0xFF;
 		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
 				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		XB3_DEBUG(this, "0x%x ", d);
+		TX_DEBUG(this, "0x%x ", d);
 		// 16-bit adddress
 		d = 0xFF;
 		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
 				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		XB3_DEBUG(this, "0x%x ", d);
+		TX_DEBUG(this, "0x%x ", d);
 		d = 0xFE;
 		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
 				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		XB3_DEBUG(this, "0x%x ", d);
+		TX_DEBUG(this, "0x%x ", d);
 		// broadcast radius
 		d = 0;
 		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
 				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		XB3_DEBUG(this, "0x%x ", d);
+		TX_DEBUG(this, "0x%x ", d);
 		// transmit options
 		d = 0;
 		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
 				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		XB3_DEBUG(this, "0x%x ", d);
+		TX_DEBUG(this, "0x%x ", d);
 		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &data[0], datalen) :
 				uv_streambuffer_push(&this->tx_streambuffer, &data[0], datalen, 0);
 		for (uint16_t i = 0; i < datalen; i++) {
 			crc += d;
-			XB3_DEBUG(this, "0x%x ", d);
+			TX_DEBUG(this, "0x%x ", d);
 		}
 		d = 0xFF - crc;
-		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
 				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		XB3_DEBUG(this, "0x%x \n", d);
+		TX_DEBUG(this, "0x%x \n", d);
 
 		uv_exit_critical();
 	}
@@ -603,7 +608,7 @@ bool uv_xb3_poll(uv_xb3_st *this) {
 		// read and write to XB3
 		spi_data_t tx = 0;
 
-		if (uv_streambuffer_pop(&this->tx_streambuffer, &tx, 1, 0) ||
+		if (uv_streambuffer_pop_isr(&this->tx_streambuffer, &tx, 1) ||
 				!uv_gpio_get(this->attn_gpio)) {
 			ret = true;
 			spi_data_t rx = 0;
@@ -1059,6 +1064,27 @@ void uv_xb3_terminal(uv_xb3_st *this,
 			}
 			printf("RX echo: %u\n", !!(this->conf->flags & XB3_CONF_FLAGS_RX_ECHO));
 		}
+		else if (strcmp(argv[0].str, "txecho") == 0) {
+			if (args > 1) {
+				bool val = 0;
+				if (argv[1].type == ARG_STRING) {
+					if (strcmp(argv[1].str, "true") == 0 ||
+							strcmp(argv[1].str, "1") == 0) {
+						val = 1;
+					}
+				}
+				else {
+					val = argv[1].number;
+				}
+				if (val) {
+					this->conf->flags |= XB3_CONF_FLAGS_TX_ECHO;
+				}
+				else {
+					this->conf->flags &= ~XB3_CONF_FLAGS_TX_ECHO;
+				}
+			}
+			printf("TX echo: %u\n", !!(this->conf->flags & XB3_CONF_FLAGS_TX_ECHO));
+		}
 		else if (strcmp(argv[0].str, "atecho") == 0) {
 			if (args > 1) {
 				bool val = 0;
@@ -1126,10 +1152,12 @@ void uv_xb3_terminal(uv_xb3_st *this,
 		}
 		else if (strcmp(argv[0].str, "stat") == 0) {
 			printf("XB3 stat:\n"
+					"   initialized: %i\n"
 					"   id: 0x%08x%08x\n"
 					"   RX echo: %u\n"
 					"   AT echo: %u\n"
 					"   AT as hex: %u\n",
+					(int) this->initialized,
 					(unsigned int) ((uint64_t) this->conf->epanid >> 32),
 					(unsigned int) ((uint32_t) this->conf->epanid & 0xFFFFFFFF),
 					!!(this->conf->flags & XB3_CONF_FLAGS_RX_ECHO),

@@ -70,6 +70,7 @@ const char *uv_xb3_modem_status_to_str(uv_xb3_modem_status_e stat);
 #define XB3_CONF_FLAGS_AT_ECHO						(1 << 2)
 #define XB3_CONF_FLAGS_AT_HEX						(1 << 3)
 #define XB3_CONF_FLAGS_DEBUG						(1 << 4)
+#define XB3_CONF_FLAGS_TX_ECHO						(1 << 5)
 
 typedef struct {
 	uint16_t flags;
