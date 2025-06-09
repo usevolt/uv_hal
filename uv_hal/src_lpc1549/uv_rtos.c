@@ -50,6 +50,7 @@
 #if CONFIG_TERMINAL_USBDVCOM
 #include "cdc_vcom.h"
 #endif
+#include "uv_terminal.h"
 
 
 
@@ -116,6 +117,12 @@ uv_errors_e uv_queue_push_isr(uv_queue_st *this, void *src) {
 }
 
 
+
+
+
+
+
+
 void uv_mutex_unlock_isr(uv_mutex_st *mutex) {
 	BaseType_t woken;
 	xSemaphoreGiveFromISR(*mutex, &woken);
@@ -148,8 +155,14 @@ int32_t uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_na
 			printf("Out of memory\r");
 		}
 	}
-	return xTaskCreate(task_function, (const char * const)task_name, stack_depth,
+	int32_t ret = xTaskCreate(task_function, (const char * const)task_name, stack_depth,
 			this_ptr, task_priority, handle);
+
+	if (ret == errCOULD_NOT_ALLOCATE_REQUIRED_MEMORY) {
+		uv_terminal_enable(TERMINAL_CAN);
+		printf("RTOS ERR: Could not allocate memory for task '%s'\n",
+				task_name);
+	}
 }
 
 

@@ -482,3 +482,29 @@ void IntDefaultHandler(void) {
 bool uv_isdigit(char c) {
 	return (c >= '0') && (c <= '9');
 }
+
+
+uint64_t ntouint64(uint64_t netdata) {
+	uint64_t ret = 0;
+
+	ret |= (((uint64_t) ((uint8_t*) &netdata)[0]) << 56);
+	ret |= (((uint64_t) ((uint8_t*) &netdata)[1]) << 48);
+	ret |= (((uint64_t) ((uint8_t*) &netdata)[2]) << 40);
+	ret |= (((uint64_t) ((uint8_t*) &netdata)[3]) << 32);
+	ret |= (((uint64_t) ((uint8_t*) &netdata)[4]) << 24);
+	ret |= (((uint64_t) ((uint8_t*) &netdata)[5]) << 16);
+	ret |= (((uint64_t) ((uint8_t*) &netdata)[6]) << 8);
+	ret |= (((uint64_t) ((uint8_t*) &netdata)[7]) << 0);
+
+	return ret;
+}
+
+
+uint16_t ntouint16(uint16_t netdata) {
+	uint16_t ret = 0;
+
+	ret |= (((uint16_t) ((uint8_t*) &netdata)[0]) << 8);
+	ret |= (((uint16_t) ((uint8_t*) &netdata)[1]) << 0);
+
+	return ret;
+}
