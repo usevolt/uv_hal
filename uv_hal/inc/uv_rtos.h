@@ -218,8 +218,10 @@ uv_errors_e uv_queue_pop_isr(uv_queue_st *this, void *dest);
 typedef StreamBufferHandle_t uv_streambuffer_st;
 
 /// @brief: Initializes the streambuffer
-static inline void uv_streambuffer_init(uv_streambuffer_st *this, uint32_t len_bytes) {
+static inline uv_errors_e uv_streambuffer_init(
+		uv_streambuffer_st *this, uint32_t len_bytes) {
 	*this = xStreamBufferCreate(len_bytes, 1);
+	return (this) ? ERR_NONE : ERR_NOT_ENOUGH_MEMORY;
 }
 
 /// @brief: Returns the number of data currently in stream buffer, in bytes

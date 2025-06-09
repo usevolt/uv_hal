@@ -371,6 +371,9 @@ static bool xb3_reset(uv_xb3_st *this) {
 }
 
 
+#define TX_BUF_SIZE		100
+#define RX_BUF_SIZE		100
+
 uv_errors_e uv_xb3_init(uv_xb3_st *this,
 		uv_xb3_conf_st *conf,
 		spi_e spi,
@@ -391,8 +394,16 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	this->modem_status = XB3_MODEMSTATUS_NONE;
 	this->modem_status_changed = XB3_MODEMSTATUS_NONE;
 
-	uv_streambuffer_init(&this->tx_streambuffer, 100);
-	uv_streambuffer_init(&this->rx_data_streambuffer, 100);
+	if (uv_streambuffer_init(&this->tx_streambuffer, TX_BUF_SIZE) != ERR_NONE) {
+		uv_terminal_enable(TERMINAL_CAN);
+		XB3_DEBUG(this, "XB3: Creating TX streambuffer failed, not enough memory\n");
+		ret = ERR_NOT_ENOUGH_MEMORY;
+	}
+	if (uv_streambuffer_init(&this->rx_data_streambuffer, RX_BUF_SIZE) != ERR_NONE) {
+		uv_terminal_enable(TERMINAL_CAN);
+		XB3_DEBUG(this, "XB3: Creating RX streambuffer failed, not enough memory\n");
+		ret = ERR_NOT_ENOUGH_MEMORY;
+	}
 	if (uv_queue_init(&this->rx_at_queue, 50, sizeof(char)) == NULL) {
 		uv_terminal_enable(TERMINAL_CAN);
 		XB3_DEBUG(this, "XB3: Creating RX AT queue failed\n");
