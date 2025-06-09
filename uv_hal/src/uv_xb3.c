@@ -209,7 +209,7 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd, char *data, uint16_t 
 		printf("AT %s ", atcmd);
 		for (uint16_t i = 0; i < data_len; i++) {
 			if (this->conf->flags & XB3_CONF_FLAGS_AT_HEX) {
-				printf("0x%x ", data[i]);
+				printf("0x%02x ", data[i]);
 			}
 			else {
 				printf("%c", data[i]);
@@ -226,118 +226,120 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd, char *data, uint16_t 
 uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
 		uint16_t datalen, uint64_t destaddr, bool isr) {
 	uv_errors_e ret = ERR_NONE;
-	if (uv_streambuffer_get_free_space(&this->tx_streambuffer) < 18 + datalen) {
-		XB3_DEBUG(this, "XB3 Write: not enough memory in buffer\n");
-		ret = ERR_NOT_ENOUGH_MEMORY;
-	}
-	else if (!this->initialized) {
-		XB3_DEBUG(this, "XB3 write: Not initialized\n");
-		ret = ERR_NOT_INITIALIZED;
-	}
-	else {
-		uv_enter_critical();
-		uint32_t crc = 0;
-		uint8_t d = APIFRAME_START;
-		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
-				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		TX_DEBUG(this, "0x%x ", d);
-		uint16_t framedatalen = 14 + datalen;
-		// Length
-		d = (framedatalen >> 8);
-		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
-				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		TX_DEBUG(this, "0x%x ", d);
-		d = framedatalen & 0xFF;
-		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
-				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		TX_DEBUG(this, "0x%x ", d);
-		d = APIFRAME_TRANSMITREQ;
-		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
-				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		TX_DEBUG(this, "0x%x ", d);
-		// Frame ID. 0x0 doesn't emit response frame
-		d = 0x52;
-		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
-				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		TX_DEBUG(this, "0x%x ", d);
-		// 64-bit address
-		d = (destaddr >> 56) & 0xFF;
-		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
-				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		TX_DEBUG(this, "0x%x ", d);
-		d = (destaddr >> 48) & 0xFF;
-		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
-				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		TX_DEBUG(this, "0x%x ", d);
-		d = (destaddr >> 40) & 0xFF;
-		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
-				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		TX_DEBUG(this, "0x%x ", d);
-		d = (destaddr >> 32) & 0xFF;
-		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
-				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		TX_DEBUG(this, "0x%x ", d);
-		d = (destaddr >> 24) & 0xFF;
-		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
-				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		TX_DEBUG(this, "0x%x ", d);
-		d = (destaddr >> 16) & 0xFF;
-		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
-				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		TX_DEBUG(this, "0x%x ", d);
-		d = (destaddr >> 8) & 0xFF;
-		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
-				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		TX_DEBUG(this, "0x%x ", d);
-		d = (destaddr) & 0xFF;
-		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
-				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		TX_DEBUG(this, "0x%x ", d);
-		// 16-bit adddress
-		d = 0xFF;
-		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
-				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		TX_DEBUG(this, "0x%x ", d);
-		d = 0xFE;
-		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
-				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		TX_DEBUG(this, "0x%x ", d);
-		// broadcast radius
-		d = 0;
-		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
-				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		TX_DEBUG(this, "0x%x ", d);
-		// transmit options
-		d = 0;
-		crc += d;
-		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
-				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		TX_DEBUG(this, "0x%x ", d);
-		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &data[0], datalen) :
-				uv_streambuffer_push(&this->tx_streambuffer, &data[0], datalen, 0);
-		for (uint16_t i = 0; i < datalen; i++) {
-			crc += d;
-			TX_DEBUG(this, "0x%x ", d);
+	if (this->initialized) {
+		if (uv_streambuffer_get_free_space(&this->tx_streambuffer) < 18 + datalen) {
+			XB3_DEBUG(this, "XB3 Write: not enough memory in buffer\n");
+			ret = ERR_NOT_ENOUGH_MEMORY;
 		}
-		d = 0xFF - crc;
-		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
-				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
-		TX_DEBUG(this, "0x%x \n", d);
+		else if (!this->initialized) {
+			XB3_DEBUG(this, "XB3 write: Not initialized\n");
+			ret = ERR_NOT_INITIALIZED;
+		}
+		else {
+			uv_enter_critical();
+			uint32_t crc = 0;
+			uint8_t d = APIFRAME_START;
+			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
+					uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+			TX_DEBUG(this, "0x%02x ", d);
+			uint16_t framedatalen = 14 + datalen;
+			// Length
+			d = (framedatalen >> 8);
+			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
+					uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+			TX_DEBUG(this, "0x%02x ", d);
+			d = framedatalen & 0xFF;
+			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
+					uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+			TX_DEBUG(this, "0x%02x ", d);
+			d = APIFRAME_TRANSMITREQ;
+			crc += d;
+			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
+					uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+			TX_DEBUG(this, "0x%02x ", d);
+			// Frame ID. 0x0 doesn't emit response frame
+			d = 0x52;
+			crc += d;
+			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
+					uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+			TX_DEBUG(this, "0x%02x ", d);
+			// 64-bit address
+			d = (destaddr >> 56) & 0xFF;
+			crc += d;
+			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
+					uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+			TX_DEBUG(this, "0x%02x ", d);
+			d = (destaddr >> 48) & 0xFF;
+			crc += d;
+			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
+					uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+			TX_DEBUG(this, "0x%02x ", d);
+			d = (destaddr >> 40) & 0xFF;
+			crc += d;
+			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
+					uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+			TX_DEBUG(this, "0x%02x ", d);
+			d = (destaddr >> 32) & 0xFF;
+			crc += d;
+			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
+					uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+			TX_DEBUG(this, "0x%02x ", d);
+			d = (destaddr >> 24) & 0xFF;
+			crc += d;
+			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
+					uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+			TX_DEBUG(this, "0x%02x ", d);
+			d = (destaddr >> 16) & 0xFF;
+			crc += d;
+			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
+					uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+			TX_DEBUG(this, "0x%02x ", d);
+			d = (destaddr >> 8) & 0xFF;
+			crc += d;
+			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
+					uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+			TX_DEBUG(this, "0x%02x ", d);
+			d = (destaddr) & 0xFF;
+			crc += d;
+			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
+					uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+			TX_DEBUG(this, "0x%02x ", d);
+			// 16-bit adddress
+			d = 0xFF;
+			crc += d;
+			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
+					uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+			TX_DEBUG(this, "0x%02x ", d);
+			d = 0xFE;
+			crc += d;
+			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
+					uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+			TX_DEBUG(this, "0x%02x ", d);
+			// broadcast radius
+			d = 0;
+			crc += d;
+			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
+					uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+			TX_DEBUG(this, "0x%02x ", d);
+			// transmit options
+			d = 0;
+			crc += d;
+			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
+					uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+			TX_DEBUG(this, "0x%02x ", d);
+			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &data[0], datalen) :
+					uv_streambuffer_push(&this->tx_streambuffer, &data[0], datalen, 0);
+			for (uint16_t i = 0; i < datalen; i++) {
+				crc += d;
+				TX_DEBUG(this, "0x%02x ", d);
+			}
+			d = 0xFF - crc;
+			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
+					uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+			TX_DEBUG(this, "0x%02x \n", d);
 
-		uv_exit_critical();
+			uv_exit_critical();
+		}
 	}
 	return ret;
 }
@@ -649,6 +651,7 @@ bool uv_xb3_poll(uv_xb3_st *this) {
 				// API Frame type
 				case 4:
 					this->rx_frame_type = rx;
+					printf("frame type 0x%02x\n", rx);
 					break;
 				// API data
 				default:
