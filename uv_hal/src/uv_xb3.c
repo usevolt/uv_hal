@@ -330,8 +330,8 @@ uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
 			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &data[0], datalen) :
 					uv_streambuffer_push(&this->tx_streambuffer, &data[0], datalen, 0);
 			for (uint16_t i = 0; i < datalen; i++) {
-				crc += d;
-				TX_DEBUG(this, "0x%02x ", d);
+				crc += data[i];
+				TX_DEBUG(this, "0x%02x ", data[i]);
 			}
 			d = 0xFF - crc;
 			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &d, 1) :
@@ -651,7 +651,6 @@ bool uv_xb3_poll(uv_xb3_st *this) {
 				// API Frame type
 				case 4:
 					this->rx_frame_type = rx;
-					printf("frame type 0x%02x\n", rx);
 					break;
 				// API data
 				default:
@@ -1168,6 +1167,7 @@ void uv_xb3_terminal(uv_xb3_st *this,
 			printf("XB3 stat:\n"
 					"   initialized: %i\n"
 					"   id: 0x%08x%08x\n"
+					"   debug: %u\n"
 					"   RX echo: %u\n"
 					"    TX echo: %u\n"
 					"   AT echo: %u\n"
@@ -1175,6 +1175,7 @@ void uv_xb3_terminal(uv_xb3_st *this,
 					(int) this->initialized,
 					(unsigned int) ((uint64_t) this->conf->epanid >> 32),
 					(unsigned int) ((uint32_t) this->conf->epanid & 0xFFFFFFFF),
+					!!(this->conf->flags & XB3_CONF_FLAGS_DEBUG),
 					!!(this->conf->flags & XB3_CONF_FLAGS_RX_ECHO),
 					!!(this->conf->flags & XB3_CONF_FLAGS_TX_ECHO),
 					!!(this->conf->flags & XB3_CONF_FLAGS_AT_ECHO),
