@@ -167,6 +167,15 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd, char *data, uint16_t 
 			paramvaluelen == 0) {
 		paramvaluelen = strlen(data);
 	}
+
+
+	while (uv_streambuffer_get_free_space(&this->tx_streambuffer) < 8 + paramvaluelen) {
+		printf("XB3 AT Write: Buffer full\n");
+		uv_rtos_task_delay(1);
+	}
+
+	uv_enter_critical();
+
 	uint8_t d = APIFRAME_START;
 	uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
 	uint16_t framedatalen = 4 + paramvaluelen;
@@ -193,6 +202,8 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd, char *data, uint16_t 
 	}
 	d = 0xFF - (crc & 0xFF);
 	uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+
+	uv_exit_critical();
 
 	if (this->conf->flags & XB3_CONF_FLAGS_AT_ECHO) {
 		printf("AT %s ", atcmd);
@@ -376,7 +387,7 @@ static bool xb3_reset(uv_xb3_st *this) {
 }
 
 
-#define TX_BUF_SIZE		100
+#define TX_BUF_SIZE		200
 #define RX_BUF_SIZE		100
 
 uv_errors_e uv_xb3_init(uv_xb3_st *this,
@@ -1155,12 +1166,14 @@ void uv_xb3_terminal(uv_xb3_st *this,
 					"   initialized: %i\n"
 					"   id: 0x%08x%08x\n"
 					"   RX echo: %u\n"
+					"    TX echo: %u\n"
 					"   AT echo: %u\n"
 					"   AT as hex: %u\n",
 					(int) this->initialized,
 					(unsigned int) ((uint64_t) this->conf->epanid >> 32),
 					(unsigned int) ((uint32_t) this->conf->epanid & 0xFFFFFFFF),
 					!!(this->conf->flags & XB3_CONF_FLAGS_RX_ECHO),
+					!!(this->conf->flags & XB3_CONF_FLAGS_TX_ECHO),
 					!!(this->conf->flags & XB3_CONF_FLAGS_AT_ECHO),
 					!!(this->conf->flags & XB3_CONF_FLAGS_AT_HEX));
 		}
