@@ -58,7 +58,7 @@
 /// Use this for data received from XB3. Reads 8 bytes from *srcqueue*.
 static uint64_t ntouint64_queue(uv_xb3_st *this, uv_queue_st *srcqueue) {
 	uint64_t ret = 0;
-	while (this->at_response != XB3_AT_RESPONSE_OK) {
+	while (this->at_response == XB3_AT_RESPONSE_COUNT) {
 		uv_rtos_task_delay(1);
 	}
 	uint64_t data = 0;
@@ -76,7 +76,7 @@ static uint64_t ntouint64_queue(uv_xb3_st *this, uv_queue_st *srcqueue) {
 /// Use this for data received from XB3. Reads 2 bytes from *srcqueue*.
 static uint16_t ntouint16_queue(uv_xb3_st *this, uv_queue_st *srcqueue) {
 	uint16_t ret = 0;
-	while (this->at_response != XB3_AT_RESPONSE_OK) {
+	while (this->at_response == XB3_AT_RESPONSE_COUNT) {
 		uv_rtos_task_delay(1);
 	}
 	uint16_t data = 0;
@@ -85,6 +85,18 @@ static uint16_t ntouint16_queue(uv_xb3_st *this, uv_queue_st *srcqueue) {
 	}
 
 	ret = ntouint16(data);
+
+	return ret;
+}
+
+/// @brief: Converts uint8_t data from network byte order to local byte order.
+/// Use this for data received from XB3. Reads 1 bytes from *srcqueue*.
+static uint8_t ntouint8_queue(uv_xb3_st *this, uv_queue_st *srcqueue) {
+	uint8_t ret = 0;
+	while (this->at_response == XB3_AT_RESPONSE_COUNT) {
+		uv_rtos_task_delay(1);
+	}
+	uv_queue_pop(srcqueue, &ret, 0);
 
 	return ret;
 }
@@ -147,7 +159,6 @@ const char *uv_xb3_modem_status_to_str(uv_xb3_modem_status_e stat) {
 /// @brief: Writes a local AT command request to device
 /// according to frame type LOCALATCMDREQ
 void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd, char *data, uint16_t data_len) {
-	uv_mutex_lock(&this->tx_mutex);
 	this->at_response = XB3_AT_RESPONSE_COUNT;
 	uv_queue_clear(&this->rx_at_queue);
 	uint32_t crc = 0;
@@ -157,31 +168,31 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd, char *data, uint16_t 
 		paramvaluelen = strlen(data);
 	}
 	uint8_t d = APIFRAME_START;
-	uv_queue_push(&this->tx_queue, &d, 0);
+	uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
 	uint16_t framedatalen = 4 + paramvaluelen;
 	d = (framedatalen >> 8); // length MSB
-	uv_queue_push(&this->tx_queue, &d, 0);
+	uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
 	d = framedatalen & 0xFF; // length LSB
-	uv_queue_push(&this->tx_queue, &d, 0);
+	uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
 	d = APIFRAME_LOCALATCMDREQ;
 	crc += d;
-	uv_queue_push(&this->tx_queue, &d, 0);
+	uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
 	// Frame ID, has to be something else than 0
 	d = 0x17;
 	crc += d;
-	uv_queue_push(&this->tx_queue, &d, 0);
+	uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
 	d = atcmd[0];
 	crc += d;
-	uv_queue_push(&this->tx_queue, &d, 0);
+	uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
 	d = atcmd[1];
 	crc += d;
-	uv_queue_push(&this->tx_queue, &d, 0);
+	uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+	uv_streambuffer_push(&this->tx_streambuffer, &data[0], paramvaluelen, 0);
 	for (uint16_t i = 0; i < paramvaluelen; i++) {
-		uv_queue_push(&this->tx_queue, &data[i], 0);
 		crc += (uint8_t) data[i];
 	}
 	d = 0xFF - (crc & 0xFF);
-	uv_queue_push(&this->tx_queue, &d, 0);
+	uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
 
 	if (this->conf->flags & XB3_CONF_FLAGS_AT_ECHO) {
 		printf("AT %s ", atcmd);
@@ -196,110 +207,126 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd, char *data, uint16_t 
 		printf("\n");
 	}
 
-	uv_mutex_unlock(&this->tx_mutex);
 }
 
-
-
-void uv_xb3_write(uv_xb3_st *this, char *data, uint16_t datalen) {
-	if (this->conf->flags & XB3_CONF_FLAGS_OPERATE_AS_COORDINATOR) {
-		// todo: write data to all end-devices connected to us
+uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
+		uint16_t datalen, uint64_t destaddr, bool isr) {
+	uv_errors_e ret = ERR_NONE;
+	if (uv_streambuffer_get_free_space(&this->tx_streambuffer) >= 18 + datalen) {
+		ret = ERR_NOT_ENOUGH_MEMORY;
+	}
+	else if (!this->initialized) {
+		ret = ERR_NOT_INITIALIZED;
 	}
 	else {
-		// writing to address 0 writes data to coordinator
-		uv_xb3_write_data_to_addr(this, 0, data, datalen);
-	}
-}
-
-
-void uv_xb3_write_data_to_addr(uv_xb3_st *this, uint64_t destaddr,
-		char *data, uint16_t datalen) {
-	uv_mutex_lock(&this->tx_mutex);
-	uint32_t crc = 0;
-	uint8_t d = APIFRAME_START;
-	uv_queue_push(&this->tx_queue, &d, 0);
-	printf("0x%x ", d);
-	uint16_t framedatalen = 14 + datalen;
-	// Length
-	d = (framedatalen >> 8);
-	uv_queue_push(&this->tx_queue, &d, 0);
-	printf("0x%x ", d);
-	d = framedatalen & 0xFF;
-	uv_queue_push(&this->tx_queue, &d, 0);
-	printf("0x%x ", d);
-	d = APIFRAME_TRANSMITREQ;
-	crc += d;
-	uv_queue_push(&this->tx_queue, &d, 0);
-	printf("0x%x ", d);
-	// Frame ID. 0x0 doesn't emit response frame
-	d = 0x52;
-	crc += d;
-	uv_queue_push(&this->tx_queue, &d, 0);
-	printf("0x%x ", d);
-	// 64-bit address
-	d = (destaddr >> 56) & 0xFF;
-	crc += d;
-	uv_queue_push(&this->tx_queue, &d, 0);
-	printf("0x%x ", d);
-	d = (destaddr >> 48) & 0xFF;
-	crc += d;
-	uv_queue_push(&this->tx_queue, &d, 0);
-	printf("0x%x ", d);
-	d = (destaddr >> 40) & 0xFF;
-	crc += d;
-	uv_queue_push(&this->tx_queue, &d, 0);
-	printf("0x%x ", d);
-	d = (destaddr >> 32) & 0xFF;
-	crc += d;
-	uv_queue_push(&this->tx_queue, &d, 0);
-	printf("0x%x ", d);
-	d = (destaddr >> 24) & 0xFF;
-	crc += d;
-	uv_queue_push(&this->tx_queue, &d, 0);
-	printf("0x%x ", d);
-	d = (destaddr >> 16) & 0xFF;
-	crc += d;
-	uv_queue_push(&this->tx_queue, &d, 0);
-	printf("0x%x ", d);
-	d = (destaddr >> 8) & 0xFF;
-	crc += d;
-	uv_queue_push(&this->tx_queue, &d, 0);
-	printf("0x%x ", d);
-	d = (destaddr) & 0xFF;
-	crc += d;
-	uv_queue_push(&this->tx_queue, &d, 0);
-	printf("0x%x ", d);
-	// 16-bit adddress
-	d = 0xFF;
-	crc += d;
-	uv_queue_push(&this->tx_queue, &d, 0);
-	printf("0x%x ", d);
-	d = 0xFE;
-	crc += d;
-	uv_queue_push(&this->tx_queue, &d, 0);
-	printf("0x%x ", d);
-	// broadcast radius
-	d = 0;
-	crc += d;
-	uv_queue_push(&this->tx_queue, &d, 0);
-	printf("0x%x ", d);
-	// transmit options
-	d = 0;
-	crc += d;
-	uv_queue_push(&this->tx_queue, &d, 0);
-	printf("0x%x ", d);
-	for (uint16_t i = 0; i < datalen; i++) {
-		d = data[i];
+		uv_enter_critical();
+		uint32_t crc = 0;
+		uint8_t d = APIFRAME_START;
+		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+		XB3_DEBUG(this, "0x%x ", d);
+		uint16_t framedatalen = 14 + datalen;
+		// Length
+		d = (framedatalen >> 8);
+		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+		XB3_DEBUG(this, "0x%x ", d);
+		d = framedatalen & 0xFF;
+		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+		XB3_DEBUG(this, "0x%x ", d);
+		d = APIFRAME_TRANSMITREQ;
 		crc += d;
-		uv_queue_push(&this->tx_queue, &d, 0);
-		printf("0x%x ", d);
-	}
-	d = 0xFF - crc;
-	uv_queue_push(&this->tx_queue, &d, 0);
-	printf("0x%x \n", d);
+		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+		XB3_DEBUG(this, "0x%x ", d);
+		// Frame ID. 0x0 doesn't emit response frame
+		d = 0x52;
+		crc += d;
+		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+		XB3_DEBUG(this, "0x%x ", d);
+		// 64-bit address
+		d = (destaddr >> 56) & 0xFF;
+		crc += d;
+		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+		XB3_DEBUG(this, "0x%x ", d);
+		d = (destaddr >> 48) & 0xFF;
+		crc += d;
+		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+		XB3_DEBUG(this, "0x%x ", d);
+		d = (destaddr >> 40) & 0xFF;
+		crc += d;
+		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+		XB3_DEBUG(this, "0x%x ", d);
+		d = (destaddr >> 32) & 0xFF;
+		crc += d;
+		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+		XB3_DEBUG(this, "0x%x ", d);
+		d = (destaddr >> 24) & 0xFF;
+		crc += d;
+		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+		XB3_DEBUG(this, "0x%x ", d);
+		d = (destaddr >> 16) & 0xFF;
+		crc += d;
+		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+		XB3_DEBUG(this, "0x%x ", d);
+		d = (destaddr >> 8) & 0xFF;
+		crc += d;
+		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+		XB3_DEBUG(this, "0x%x ", d);
+		d = (destaddr) & 0xFF;
+		crc += d;
+		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+		XB3_DEBUG(this, "0x%x ", d);
+		// 16-bit adddress
+		d = 0xFF;
+		crc += d;
+		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+		XB3_DEBUG(this, "0x%x ", d);
+		d = 0xFE;
+		crc += d;
+		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+		XB3_DEBUG(this, "0x%x ", d);
+		// broadcast radius
+		d = 0;
+		crc += d;
+		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+		XB3_DEBUG(this, "0x%x ", d);
+		// transmit options
+		d = 0;
+		crc += d;
+		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+		XB3_DEBUG(this, "0x%x ", d);
+		isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, &data[0], datalen) :
+				uv_streambuffer_push(&this->tx_streambuffer, &data[0], datalen, 0);
+		for (uint16_t i = 0; i < datalen; i++) {
+			crc += d;
+			XB3_DEBUG(this, "0x%x ", d);
+		}
+		d = 0xFF - crc;
+		isr ? uv_streambuffer_push_isr(&this->rx_data_streambuffer, &d, 1) :
+				uv_streambuffer_push(&this->tx_streambuffer, &d, 1, 0);
+		XB3_DEBUG(this, "0x%x \n", d);
 
-	uv_mutex_unlock(&this->tx_mutex);
+		uv_exit_critical();
+	}
+	return ret;
 }
+
+
 
 
 
@@ -310,8 +337,8 @@ static bool xb3_reset(uv_xb3_st *this) {
 	this->initialized = false;
 
 	uv_queue_clear(&this->rx_at_queue);
-	uv_queue_clear(&this->rx_data_queue);
-	uv_queue_clear(&this->tx_queue);
+	uv_streambuffer_clear(&this->rx_data_streambuffer);
+	uv_streambuffer_clear(&this->tx_streambuffer);
 
 	uv_gpio_set(this->reset_gpio, false);
 	uv_rtos_task_delay(20);
@@ -364,24 +391,13 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	this->modem_status = XB3_MODEMSTATUS_NONE;
 	this->modem_status_changed = XB3_MODEMSTATUS_NONE;
 
-	if (uv_queue_init(&this->tx_queue, 100, sizeof(char)) == NULL) {
-		uv_terminal_enable(TERMINAL_CAN);
-		XB3_DEBUG(this, "XB3: Creating TX queue failed\n");
-		ret = ERR_NOT_ENOUGH_MEMORY;
-	}
-	if (uv_queue_init(&this->rx_data_queue, 100, sizeof(char)) == NULL) {
-		uv_terminal_enable(TERMINAL_CAN);
-		XB3_DEBUG(this, "XB3: Creating RX data queue failed\n");
-		ret = ERR_NOT_ENOUGH_MEMORY;
-	}
+	uv_streambuffer_init(&this->tx_streambuffer, 100);
+	uv_streambuffer_init(&this->rx_data_streambuffer, 100);
 	if (uv_queue_init(&this->rx_at_queue, 50, sizeof(char)) == NULL) {
 		uv_terminal_enable(TERMINAL_CAN);
 		XB3_DEBUG(this, "XB3: Creating RX AT queue failed\n");
 		ret = ERR_NOT_ENOUGH_MEMORY;
 	}
-
-	uv_mutex_init(&this->tx_mutex);
-	uv_mutex_unlock(&this->tx_mutex);
 
 	uv_mutex_init(&this->atreq_mutex);
 	uv_mutex_unlock(&this->atreq_mutex);
@@ -391,7 +407,7 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	uv_gpio_init_output(this->reset_gpio, false);
 
 	if (xb3_reset(this)) {
-		// set AO to 0, zigee data format
+		// set AO to 0, zigbee data format
 		uv_xb3_local_at_cmd_req(this, "AO", "0", 1);
 
 		XB3_DEBUG(this, "Setting device identification string to '%s'\n", nodeid);
@@ -509,11 +525,14 @@ void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms) {
 				// "OP" contains random EPID that we copy to ID to keep
 				// constant EPID in future
 				uv_xb3_local_at_cmd_req(this, "OP", "", 0);
-
-				while (uv_xb3_get_at_response(this) == XB3_AT_RESPONSE_COUNT) {
-					uv_rtos_task_delay(1);
-				}
 				this->conf->epanid = ntouint64_queue(this, &this->rx_at_queue);
+
+				this->network.op = this->conf->epanid;
+				uv_xb3_local_at_cmd_req(this, "OI", "", 0);
+				this->network.oi = ntouint16_queue(this, &this->rx_at_queue);
+				uv_xb3_local_at_cmd_req(this, "CH", "", 0);
+				this->network.ch = ntouint8_queue(this, &this->rx_at_queue);
+
 				if (this->conf->epanid) {
 					// write modifications to nonvol memory on XB3
 					uv_xb3_local_at_cmd_req(this, "WR", "", 0);
@@ -533,9 +552,6 @@ void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms) {
 			// connect to wrong networks. Thus disable autojoining by
 			// only joining to networks that we connect to.
 			uv_xb3_local_at_cmd_req(this, "OP", "", 0);
-			while (this->at_response == XB3_AT_RESPONSE_COUNT) {
-				uv_rtos_task_delay(1);
-			}
 			uint64_t id = ntouint64_queue(this, &this->rx_at_queue);
 			if (id != this->conf->epanid) {
 				char data[8];
@@ -552,6 +568,12 @@ void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms) {
 				XB3_DEBUG(this, "XB3: Wrote configuration to nonvol memory\n");
 				uv_memory_save();
 			}
+			this->network.op = id;
+			uv_xb3_local_at_cmd_req(this, "OI", "", 0);
+			this->network.oi = ntouint16_queue(this, &this->rx_at_queue);
+			uv_xb3_local_at_cmd_req(this, "CH", "", 0);
+			this->network.ch = ntouint8_queue(this, &this->rx_at_queue);
+
 			uv_mutex_unlock(&this->atreq_mutex);
 		}
 		else {
@@ -570,7 +592,7 @@ bool uv_xb3_poll(uv_xb3_st *this) {
 		// read and write to XB3
 		spi_data_t tx = 0;
 
-		if ((uv_queue_pop(&this->tx_queue, &tx, 0) == ERR_NONE) ||
+		if (uv_streambuffer_pop(&this->tx_streambuffer, &tx, 1, 0) ||
 				!uv_gpio_get(this->attn_gpio)) {
 			ret = true;
 			spi_data_t rx = 0;
@@ -664,8 +686,8 @@ bool uv_xb3_poll(uv_xb3_st *this) {
 							break;
 						case APIFRAME_RECEIVEPACKET:
 							if (offset >= 15) {
-								if (uv_queue_push(&this->rx_data_queue, &rx, 0)
-										!= ERR_NONE) {
+								if (!uv_streambuffer_push(&this->rx_data_streambuffer,
+										&rx, 1, 0)) {
 									printf("XB3: RX data queue full\n");
 								}
 								if (this->conf->flags & XB3_CONF_FLAGS_RX_ECHO) {
@@ -814,6 +836,7 @@ uv_xb3_at_response_e uv_xb3_network_discovery(uv_xb3_st *this,
 
 		uint16_t rx_count = 0;
 		while (ms < discovery_time_ms) {
+			uv_wdt_update();
 			uv_xb3_at_response_e ret = uv_xb3_get_at_response(this);
 			uint8_t rx = 0;
 			if (uv_queue_pop(&this->rx_at_queue, &rx, 0) == ERR_NONE) {
@@ -837,6 +860,12 @@ uv_xb3_at_response_e uv_xb3_network_discovery(uv_xb3_st *this,
 					nd->profile_id = ntouint16(nd->profile_id);
 					nd->manufacture_id = ntouint16(nd->manufacture_id);
 
+					XB3_DEBUG(this, "    '%s' 16-bit id: 0x%x serial: 0x%08x%08x\n",
+							nd->ni,
+							(unsigned int) nd->my,
+							(unsigned int) nd->sh,
+							(unsigned int) nd->sl);
+
 					if (*dev_count == dev_max_count) {
 						break;
 					}
@@ -855,6 +884,8 @@ uv_xb3_at_response_e uv_xb3_network_discovery(uv_xb3_st *this,
 			uv_rtos_task_delay(1);
 		}
 
+		XB3_DEBUG(this, "Found %i devices\n",
+				(int) *dev_count);
 	}
 
 	uv_mutex_unlock(&this->atreq_mutex);
@@ -1017,6 +1048,27 @@ void uv_xb3_terminal(uv_xb3_st *this,
 			}
 			printf("RX echo: %u\n", !!(this->conf->flags & XB3_CONF_FLAGS_RX_ECHO));
 		}
+		else if (strcmp(argv[0].str, "atecho") == 0) {
+			if (args > 1) {
+				bool val = 0;
+				if (argv[1].type == ARG_STRING) {
+					if (strcmp(argv[1].str, "true") == 0 ||
+							strcmp(argv[1].str, "1") == 0) {
+						val = 1;
+					}
+				}
+				else {
+					val = argv[1].number;
+				}
+				if (val) {
+					this->conf->flags |= XB3_CONF_FLAGS_AT_ECHO;
+				}
+				else {
+					this->conf->flags &= ~XB3_CONF_FLAGS_AT_ECHO;
+				}
+			}
+			printf("AT echo: %u\n", !!(this->conf->flags & XB3_CONF_FLAGS_AT_ECHO));
+		}
 		else if (strcmp(argv[0].str, "debug") == 0) {
 			if (args > 1) {
 				if (argv[1].number) {
@@ -1052,8 +1104,8 @@ void uv_xb3_terminal(uv_xb3_st *this,
 								(unsigned int) ((uint64_t) panid >> 32),
 								(unsigned int) (panid & 0xFFFFFFFF),
 								argv[2].str);
-						uv_xb3_write_data_to_addr(this, panid, argv[2].str,
-								strlen(argv[2].str));
+						uv_xb3_write(this, argv[2].str,
+								strlen(argv[2].str), panid);
 					}
 				}
 			}
@@ -1081,21 +1133,9 @@ void uv_xb3_terminal(uv_xb3_st *this,
 			uv_xb3_nddev_st devs[3];
 			uint8_t dev_count;
 			uv_xb3_network_discovery(this, &dev_count, devs, 3);
-			printf("Found %u devs\n", dev_count);
-			for (uint8_t i = 0; i < dev_count; i++) {
-				for (uint8_t j = 0; j < 20; j++) {
-					printf("0x%x ", devs[i].ni[j]);
-				}
-				printf("\n");
-				printf("    '%s' 16-bit id: 0x%x serial: 0x%08x%08x\n",
-						devs[i].ni,
-						(unsigned int) devs[i].my,
-						(unsigned int) devs[i].sh,
-						(unsigned int) devs[i].sl);
-			}
 		}
 		else {
-
+			printf("Unknown command '%s'\n", argv[0].str);
 		}
 	}
 }

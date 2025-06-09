@@ -99,13 +99,11 @@ typedef struct {
 
 	// buffer for writing data and AT commands to XB3.
 	// This queue holds API packetized data
-	uv_queue_st tx_queue;
-	// mutex that should be locked when writing data to tx queue
-	uv_mutex_st tx_mutex;
+	uv_streambuffer_st tx_streambuffer;
 	// mutex that should belocked when AT command is ongoing
 	uv_mutex_st atreq_mutex;
 	// buffer for read data from XB3. Holds raw data parsed from API packages
-	uv_queue_st rx_data_queue;
+	uv_streambuffer_st rx_data_streambuffer;
 	// buffer for read AT commands from XB3. Holds raw data parsed from API packages
 	uv_queue_st rx_at_queue;
 
@@ -113,6 +111,14 @@ typedef struct {
 	uv_xb3_modem_status_e modem_status_changed;
 
 	uv_delay_st joinwindow_delay;
+
+	// stores the currently active network settings.
+	// packed struct to help mapping it to canopen object dictionary
+	struct __attribute__((packed)) {
+		uint64_t op;
+		uint16_t oi;
+		uint16_t ch;
+	} network;
 
 	// init function is executed
 	bool initialized;
@@ -159,27 +165,33 @@ void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms);
 ///
 /// @param dest: Destination where data is copied
 static inline bool uv_xb3_get_data(uv_xb3_st *this, char *dest) {
-	uv_errors_e e = uv_queue_pop(&this->rx_data_queue, dest, 0);
-	return (e == ERR_NONE);
+	return uv_streambuffer_pop(&this->rx_data_streambuffer, dest, 1, 0);
+}
+
+
+/// @brief: Generic write function for internal use
+uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
+		uint16_t datalen, uint64_t destaddr, bool isr);
+
+
+/// @brief: Writes data to device specified by IEEE serial *dest_addr*
+/// To be used inside ISRs
+static inline uv_errors_e uv_xb3_write_isr(uv_xb3_st *this,
+		char *data, uint16_t datalen, uint64_t destaddr) {
+	return uv_xb3_generic_write(this, data, datalen, destaddr, true);
+}
+
+
+/// @brief: Writes data to device specified by IEEE serial *dest_addr*
+static inline uv_errors_e uv_xb3_write(uv_xb3_st *this,
+		char *data, uint16_t datalen, uint64_t destaddr) {
+	return uv_xb3_generic_write(this, data, datalen, destaddr, false);
 }
 
 
 
-/// @brief: Writes data to network.
-/// @bote: Zigbee devices not support broadcast messages. This function operates
-/// so that if this device is end-device, this function writes data to coordinator.
-/// If this device operates as a coordinator, data is sent to all end-devices
-/// connected to it.
-void uv_xb3_write(uv_xb3_st *this, char *data, uint16_t datalen);
 
-/// @brief: Writes data directly to zigbee device
-void uv_xb3_write_data_to_addr(uv_xb3_st *this, uint64_t destaddr,
-		char *data, uint16_t datalen);
-
-
-
-
-/// @brief: Structure defining zigbee devices that are found with "ATAS" command
+/// @brief: Structure defining zigbee devices that are found with "AT+AS" command
 typedef struct {
 	uint8_t channel;
 	uint16_t pan16;

@@ -47,6 +47,7 @@
 
 #include "uv_errors.h"
 #include "FreeRTOS.h"
+#include "stream_buffer.h"
 #include "task.h"
 #include "semphr.h"
 #include <uv_hal_config.h>
@@ -161,6 +162,9 @@ static inline bool uv_mutex_lock_isr(uv_mutex_st *mutex) {
 
 void uv_mutex_unlock_isr(uv_mutex_st *mutex);
 
+
+
+
 typedef QueueHandle_t uv_queue_st;
 
 /// @brief: Creates a FreeRTOS thread-safe queue
@@ -210,6 +214,62 @@ uv_errors_e uv_queue_pop(uv_queue_st *this, void *dest, int32_t wait_ms);
 /// @brief: Removes from a queue. To be used from ISR routines!
 uv_errors_e uv_queue_pop_isr(uv_queue_st *this, void *dest);
 
+
+typedef StreamBufferHandle_t uv_streambuffer_st;
+
+/// @brief: Initializes the streambuffer
+static inline void uv_streambuffer_init(uv_streambuffer_st *this, uint32_t len_bytes) {
+	*this = xStreamBufferCreate(len_bytes, 1);
+}
+
+/// @brief: Returns the number of data currently in stream buffer, in bytes
+static inline uint32_t uv_streambuffer_get_len(uv_streambuffer_st *this) {
+	return xStreamBufferBytesAvailable(*this);
+}
+
+/// @brief: Returns the free data space available in the stream buffer
+static inline uint32_t uv_streambuffer_get_free_space(uv_streambuffer_st *this) {
+	return xStreamBufferSpacesAvailable(*this);
+}
+
+static inline int32_t uv_streambuffer_get_max_len(uv_streambuffer_st *this) {
+	return xStreamBufferBytesAvailable(*this) + xStreamBufferSpacesAvailable(*this);
+}
+
+/// @return: true if streambuffer is currently empty, false otherwise
+static inline bool uv_streambuffer_is_empty(uv_streambuffer_st *this) {
+	return xStreamBufferIsEmpty(*this);
+}
+
+/// @brief: Pushes new data to stream buffer
+static inline uint32_t uv_streambuffer_push(uv_streambuffer_st *this,
+		void *data, uint32_t len, int32_t wait_ms) {
+	return xStreamBufferSend(*this, data, len, wait_ms);
+}
+
+
+/// @brief: Puses new data into the stream buffef. Only to be used inside ISR
+static inline uint32_t uv_streambuffer_push_isr(uv_streambuffer_st *this,
+		void *data, uint32_t len) {
+	return xStreamBufferSendFromISR(*this, data, len, NULL);
+}
+
+/// @brief: Pops data out from streambuffer in FIFO manner
+static inline uint32_t uv_streambuffer_pop(uv_streambuffer_st *this,
+		void *data, uint32_t len, int32_t wait_ms) {
+	return xStreamBufferReceive(*this, data, len, wait_ms);
+}
+
+/// @brief: Pops data out from streambuffer in FIFO manner, only to be used in ISRs
+static inline uint32_t uv_streambuffer_pop_isr(uv_streambuffer_st *this,
+		void *data, uint32_t len) {
+	return xStreamBufferReceiveFromISR(*this, data, len, NULL);
+}
+
+/// @brief: Clears and resets all data stored in the stream
+static inline void uv_streambuffer_clear(uv_streambuffer_st *this) {
+	xStreamBufferReset(*this);
+}
 
 
 
