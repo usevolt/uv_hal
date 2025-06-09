@@ -699,7 +699,7 @@ bool uv_xb3_poll(uv_xb3_st *this) {
 							if (offset >= 15) {
 								if (!uv_streambuffer_push(&this->rx_data_streambuffer,
 										&rx, 1, 0)) {
-									printf("XB3: RX data queue full\n");
+									printf("XB3: RX datastream full\n");
 								}
 								if (this->conf->flags & XB3_CONF_FLAGS_RX_ECHO) {
 									printf("%c", rx);
