@@ -60,6 +60,8 @@ typedef enum {
 	XB3_MODEMSTATUS_NONE = 0xFF
 } uv_xb3_modem_status_e;
 
+
+
 const char *uv_xb3_modem_status_to_str(uv_xb3_modem_status_e stat);
 
 
@@ -72,9 +74,10 @@ const char *uv_xb3_modem_status_to_str(uv_xb3_modem_status_e stat);
 #define XB3_CONF_FLAGS_DEBUG						(1 << 4)
 #define XB3_CONF_FLAGS_TX_ECHO						(1 << 5)
 
-typedef struct {
+typedef struct __attribute__((packed)) {
 	uint16_t flags;
 	uint64_t epanid;
+	uint64_t dest_addr;
 } uv_xb3_conf_st;
 
 /// @brief: Resets the configuration structure
@@ -107,6 +110,8 @@ typedef struct {
 	uv_streambuffer_st rx_data_streambuffer;
 	// buffer for read AT commands from XB3. Holds raw data parsed from API packages
 	uv_queue_st rx_at_queue;
+	// mutex for transmitting data
+	uv_mutex_st tx_mutex;
 
 	uv_xb3_modem_status_e modem_status;
 	uv_xb3_modem_status_e modem_status_changed;
@@ -128,6 +133,7 @@ typedef struct {
 	int16_t rx_index;
 	uint16_t rx_size;
 	uint8_t rx_frame_type;
+	uint16_t max_payload;
 } uv_xb3_st;
 
 
@@ -172,21 +178,21 @@ static inline bool uv_xb3_get_data(uv_xb3_st *this, char *dest) {
 
 /// @brief: Generic write function for internal use
 uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
-		uint16_t datalen, uint64_t destaddr, bool isr);
+		uint16_t datalen, bool isr);
 
 
 /// @brief: Writes data to device specified by IEEE serial *dest_addr*
 /// To be used inside ISRs
 static inline uv_errors_e uv_xb3_write_isr(uv_xb3_st *this,
-		char *data, uint16_t datalen, uint64_t destaddr) {
-	return uv_xb3_generic_write(this, data, datalen, destaddr, true);
+		char *data, uint16_t datalen) {
+	return uv_xb3_generic_write(this, data, datalen, true);
 }
 
 
 /// @brief: Writes data to device specified by IEEE serial *dest_addr*
 static inline uv_errors_e uv_xb3_write(uv_xb3_st *this,
-		char *data, uint16_t datalen, uint64_t destaddr) {
-	return uv_xb3_generic_write(this, data, datalen, destaddr, false);
+		char *data, uint16_t datalen) {
+	return uv_xb3_generic_write(this, data, datalen, false);
 }
 
 
