@@ -76,6 +76,24 @@ static uint64_t ntouint64_queue(uv_xb3_st *this, uv_queue_st *srcqueue) {
 }
 
 
+/// @brief: Converts uint64_t data from network byte order to local byte order.
+/// Use this for data received from XB3. Reads 8 bytes from *srcqueue*.
+static uint32_t ntouint32_queue(uv_xb3_st *this, uv_queue_st *srcqueue) {
+	uint32_t ret = 0;
+	while (this->at_response == XB3_AT_RESPONSE_COUNT) {
+		uv_rtos_task_delay(1);
+	}
+	uint32_t data = 0;
+	for (uint8_t i = 0; i < 4; i++) {
+		uv_queue_pop(srcqueue, &((uint8_t*) &data)[i], 0);
+	}
+
+	ret = ntouint32(data);
+
+	return ret;
+}
+
+
 /// @brief: Converts uint16_t data from network byte order to local byte order.
 /// Use this for data received from XB3. Reads 2 bytes from *srcqueue*.
 static uint16_t ntouint16_queue(uv_xb3_st *this, uv_queue_st *srcqueue) {
@@ -916,6 +934,19 @@ uint64_t uv_xb3_get_epid(uv_xb3_st *this) {
 	else {
 
 	}
+	uv_mutex_unlock(&this->atreq_mutex);
+
+	return ret;
+}
+
+
+uint64_t uv_xb3_get_serial(uv_xb3_st *this) {
+	uint64_t ret = 0;
+	uv_mutex_lock(&this->atreq_mutex);
+	uv_xb3_local_at_cmd_req(this, "SH", "", 0);
+	ret = ((uint64_t) ntouint32_queue(this, &this->rx_at_queue)) << 32;
+	uv_xb3_local_at_cmd_req(this, "SL", "", 0);
+	ret += ntouint32_queue(this, &this->rx_at_queue);
 	uv_mutex_unlock(&this->atreq_mutex);
 
 	return ret;

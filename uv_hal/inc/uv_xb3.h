@@ -257,6 +257,9 @@ uv_xb3_at_response_e uv_xb3_network_discovery(uv_xb3_st *this,
 uint64_t uv_xb3_get_epid(uv_xb3_st *this);
 
 
+/// @brief: Returns the device's IEEE serial with "AT+SL" and "AT+SH" commands
+uint64_t uv_xb3_get_serial(uv_xb3_st *this);
+
 void uv_xb3_network_reset(uv_xb3_st *this);
 
 

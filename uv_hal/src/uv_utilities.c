@@ -499,6 +499,18 @@ uint64_t ntouint64(uint64_t netdata) {
 	return ret;
 }
 
+uint32_t ntouint32(uint32_t netdata) {
+	uint32_t ret = 0;
+
+	ret |= (((uint32_t) ((uint8_t*) &netdata)[4]) << 24);
+	ret |= (((uint32_t) ((uint8_t*) &netdata)[5]) << 16);
+	ret |= (((uint32_t) ((uint8_t*) &netdata)[6]) << 8);
+	ret |= (((uint32_t) ((uint8_t*) &netdata)[7]) << 0);
+
+	return ret;
+}
+
+
 
 uint16_t ntouint16(uint16_t netdata) {
 	uint16_t ret = 0;
