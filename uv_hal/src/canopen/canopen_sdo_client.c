@@ -116,7 +116,6 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 	SET_MINDEX(&reply_msg, GET_MINDEX(msg));
 	SET_SINDEX(&reply_msg, GET_SINDEX(msg));
 
-
 	if ((this->state != CANOPEN_SDO_STATE_READY) &&
 			(GET_NODEID(msg) == this->server_node_id)) {
 		// aborted transfers
@@ -148,6 +147,9 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 				c++;
 			}
 			uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+			if (node_id == uv_canopen_get_our_nodeid()) {
+				uv_can_send_local(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+			}
 			this->toggle = !this->toggle;
 			uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 		}
@@ -177,6 +179,9 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 						reply_msg.data_8bit[1 + c++] = ((uint8_t*) this->data_ptr)[this->data_index++];
 					}
 					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+					if (node_id == uv_canopen_get_our_nodeid()) {
+						uv_can_send_local(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+					}
 					this->toggle = !this->toggle;
 					uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 				}
@@ -203,6 +208,9 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 				//segmented transfer, send upload domain segment message
 				SET_CMD_BYTE(&reply_msg, UPLOAD_DOMAIN_SEGMENT | (this->toggle << 4));
 				uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+				if (node_id == uv_canopen_get_our_nodeid()) {
+					uv_can_send_local(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+				}
 				this->toggle = !this->toggle;
 			}
 			uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
@@ -244,6 +252,9 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 					reply_msg.data_8bit[3] = this->sindex;
 					reply_msg.data_32bit[1] = SDO_ABORT_OUT_OF_MEMORY;
 					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+					if (node_id == uv_canopen_get_our_nodeid()) {
+						uv_can_send_local(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+					}
 				}
 				else {
 					// ask for more data
@@ -252,6 +263,9 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 					memcpy(&reply_msg.data_8bit[1], &msg->data_8bit[1],
 							uv_mini(msg->data_length, 7));
 					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+					if (node_id == uv_canopen_get_our_nodeid()) {
+						uv_can_send_local(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+					}
 					this->toggle = !this->toggle;
 				}
 			}
@@ -284,6 +298,9 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 						this->data_index += data_len;
 						SET_CMD_BYTE(&reply_msg, this->seq | ((this->data_index >= this->data_count) << 7));
 						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+						if (node_id == uv_canopen_get_our_nodeid()) {
+							uv_can_send_local(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+						}
 
 						if ((data_len != 7) || (this->data_index >= this->data_count)) {
 							// data transfer finished
@@ -305,6 +322,9 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 						reply_msg.data_8bit[1] = crc;
 						reply_msg.data_8bit[2] = crc / 256;
 						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+						if (node_id == uv_canopen_get_our_nodeid()) {
+							uv_can_send_local(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+						}
 					}
 					else {
 						this->seq = 0;
@@ -321,6 +341,9 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 							this->data_index += data_len;
 							SET_CMD_BYTE(&reply_msg, this->seq | ((this->data_index >= this->data_count) << 7));
 							uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+							if (node_id == uv_canopen_get_our_nodeid()) {
+								uv_can_send_local(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+							}
 
 							if ((data_len != 7) ||
 									(this->data_index >= this->data_count)) {
@@ -362,6 +385,9 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 					SET_CMD_BYTE(&reply_msg, INITIATE_BLOCK_UPLOAD_REPLY2);
 					reply_msg.data_8bit[4] = BLKSIZE();
 					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+					if (node_id == uv_canopen_get_our_nodeid()) {
+						uv_can_send_local(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+					}
 				}
 			}
 			// end block upload
@@ -391,6 +417,9 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 					// transfer finished successfully
 					SET_CMD_BYTE(&reply_msg, END_BLOCK_UPLOAD_REPLY);
 					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+					if (node_id == uv_canopen_get_our_nodeid()) {
+						uv_can_send_local(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+					}
 					this->state = CANOPEN_SDO_STATE_READY;
 				}
 			}
@@ -423,6 +452,9 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 						reply_msg.data_8bit[1] = this->seq;
 						reply_msg.data_8bit[2] = BLKSIZE();
 						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+						if (node_id == uv_canopen_get_our_nodeid()) {
+							uv_can_send_local(CONFIG_CANOPEN_CHANNEL, &reply_msg);
+						}
 						this->seq = 1;
 					}
 				}
@@ -452,99 +484,66 @@ uv_errors_e _uv_canopen_sdo_client_write(uint8_t node_id,
 	SET_MINDEX(&msg, mindex);
 	SET_SINDEX(&msg, sindex);
 
-	if (node_id != _canopen.current_node_id) {
-		if (this->state != CANOPEN_SDO_STATE_READY) {
-			ret = ERR_HW_BUSY;
-		}
-		else {
-			this->server_node_id = node_id;
-			this->mindex = mindex;
-			this->sindex = sindex;
-			uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
-
-			if (data_len <= 4) {
-				// expedited write
-				// if the data_len is given, size is indicated. Otherwise
-				// 4 bytes of data is copied from *data* to the message and the
-				// SDO receiver (server) is responsible to read only the amount of
-				// bytes that it requires.
-				this->state = CANOPEN_SDO_STATE_EXPEDITED_DOWNLOAD;
-				if (data_len == 0) {
-					SET_CMD_BYTE(&msg, INITIATE_DOMAIN_DOWNLOAD | 0b10);
-				}
-				else {
-					SET_CMD_BYTE(&msg, INITIATE_DOMAIN_DOWNLOAD | 0b11 | ((4 - data_len) << 2));
-				}
-				memcpy(&msg.data_32bit[1], data, (data_len == 0) ? 4 : data_len);
-				uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
-			}
-			else {
-#if CONFIG_CANOPEN_SDO_SEGMENTED
-				// segmented write
-				this->state = CANOPEN_SDO_STATE_SEGMENTED_DOWNLOAD;
-				this->data_count = data_len;
-				this->data_index = 0;
-				this->data_ptr = data;
-				this->toggle = 0;
-				SET_CMD_BYTE(&msg, INITIATE_DOMAIN_DOWNLOAD | (1 << 0));
-				// data count indicated in the data bytes
-				msg.data_32bit[1] = this->data_count;
-				uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
-#endif
-			}
-			// wait for transfer to finish
-			while ((this->state != CANOPEN_SDO_STATE_READY) &&
-					(this->state != CANOPEN_SDO_STATE_TRANSFER_ABORTED)) {
-				// check wait callback request and call it
-				if (this->wait_callb_req && this->wait_callb) {
-					this->wait_callb_req = false;
-					this->wait_callb(this->mindex, this->sindex);
-				}
-				uv_rtos_task_yield();
-			}
-
-			if (this->state == CANOPEN_SDO_STATE_TRANSFER_ABORTED) {
-				this->state = CANOPEN_SDO_STATE_READY;
-				ret = ERR_ABORTED;
-			}
-		}
+	if (this->state != CANOPEN_SDO_STATE_READY) {
+		ret = ERR_HW_BUSY;
 	}
 	else {
-		// write locally to obj dict
-		const canopen_object_st *obj;
-		if ((obj = _canopen_find_object(&msg, CANOPEN_WO)) &&
-				data != NULL &&
-				obj->data_ptr != NULL) {
-			if ((uv_canopen_is_array(obj) &&
-					((sindex == 0) ||
-					((sindex - 1) * CANOPEN_SIZEOF(obj->type) + data_len) > obj->array_max_size)) ||
-					(uv_canopen_is_string(obj) && (((sindex - 1) + data_len) >= obj->string_len))) {
-				ret = ERR_ABORTED;
-				this->last_err_code = CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT;
+		this->server_node_id = node_id;
+		this->mindex = mindex;
+		this->sindex = sindex;
+		uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
+
+		if (data_len <= 4) {
+			// expedited write
+			// if the data_len is given, size is indicated. Otherwise
+			// 4 bytes of data is copied from *data* to the message and the
+			// SDO receiver (server) is responsible to read only the amount of
+			// bytes that it requires.
+			this->state = CANOPEN_SDO_STATE_EXPEDITED_DOWNLOAD;
+			if (data_len == 0) {
+				SET_CMD_BYTE(&msg, INITIATE_DOMAIN_DOWNLOAD | 0b10);
 			}
 			else {
-				if (uv_canopen_is_array(obj)) {
-					sindex--;
-				}
-				else if (!uv_canopen_is_string(obj)) {
-					// limit write amount to maximum of 4 with
-					// other than array and string types
-					LIMIT_MAX(sindex, 4);
-				}
-				else {
-
-				}
-				memcpy(obj->data_ptr +
-						sindex * CANOPEN_SIZEOF(obj->type), data, data_len);
+				SET_CMD_BYTE(&msg, INITIATE_DOMAIN_DOWNLOAD | 0b11 | ((4 - data_len) << 2));
+			}
+			memcpy(&msg.data_32bit[1], data, (data_len == 0) ? 4 : data_len);
+			uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
+			if (node_id == uv_canopen_get_our_nodeid()) {
+				uv_can_send_local(CONFIG_CANOPEN_CHANNEL, &msg);
 			}
 		}
 		else {
-			ret = ERR_CANOPEN_MAPPED_OBJECT_NOT_FOUND;
-		}
-		if (ret == ERR_NONE) {
-			if (_canopen.sdo.server.write_callb) {
-				_canopen.sdo.server.write_callb(mindex, sindex);
+#if CONFIG_CANOPEN_SDO_SEGMENTED
+			// segmented write
+			this->state = CANOPEN_SDO_STATE_SEGMENTED_DOWNLOAD;
+			this->data_count = data_len;
+			this->data_index = 0;
+			this->data_ptr = data;
+			this->toggle = 0;
+			SET_CMD_BYTE(&msg, INITIATE_DOMAIN_DOWNLOAD | (1 << 0));
+			// data count indicated in the data bytes
+			msg.data_32bit[1] = this->data_count;
+			uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
+			if (node_id == _canopen.current_node_id) {
+				// populate our CAN RX buffer with same message
+				uv_can_send_local(CONFIG_CANOPEN_CHANNEL, &msg);
 			}
+#endif
+		}
+		// wait for transfer to finish
+		while ((this->state != CANOPEN_SDO_STATE_READY) &&
+				(this->state != CANOPEN_SDO_STATE_TRANSFER_ABORTED)) {
+			// check wait callback request and call it
+			if (this->wait_callb_req && this->wait_callb) {
+				this->wait_callb_req = false;
+				this->wait_callb(this->mindex, this->sindex);
+			}
+			uv_rtos_task_delay(1);
+		}
+
+		if (this->state == CANOPEN_SDO_STATE_TRANSFER_ABORTED) {
+			this->state = CANOPEN_SDO_STATE_READY;
+			ret = ERR_ABORTED;
 		}
 	}
 
@@ -576,71 +575,37 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 	this->data_count = data_len;
 	this->toggle = 0;
 
-	if (node_id != _canopen.current_node_id) {
-
-		if (this->state != CANOPEN_SDO_STATE_READY) {
-			ret = ERR_HW_BUSY;
-		}
-		else {
-			uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
-
-			// just in case put us to segmented upload state.
-			// expedited answers from server are handled as well
-			this->state = CANOPEN_SDO_STATE_SEGMENTED_UPLOAD;
-			SET_CMD_BYTE(&msg, INITIATE_DOMAIN_UPLOAD);
-			uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
-
-			// wait for reply
-			while ((this->state != CANOPEN_SDO_STATE_READY) &&
-					(this->state != CANOPEN_SDO_STATE_TRANSFER_ABORTED)) {
-				// check wait callback request and call it
-				if (this->wait_callb_req && this->wait_callb) {
-					this->wait_callb_req = false;
-					this->wait_callb(this->mindex, this->sindex);
-				}
-				uv_rtos_task_yield();
-			}
-
-			if (this->state == CANOPEN_SDO_STATE_TRANSFER_ABORTED) {
-				this->state = CANOPEN_SDO_STATE_READY;
-				ret = ERR_ABORTED;
-			}
-			// data should now be copied and transfer is finished
-		}
+	if (this->state != CANOPEN_SDO_STATE_READY) {
+		ret = ERR_HW_BUSY;
 	}
 	else {
-		// read from our local obj dict
-		const canopen_object_st *obj;
-		if ((obj = _canopen_find_object(&msg, CANOPEN_RO)) &&
-				data != NULL &&
-				obj->data_ptr != NULL) {
-			if (uv_canopen_is_array(obj)) {
-				if (sindex == 0) {
-					// copy array size
-					memcpy(data, &obj->array_max_size, sizeof(obj->array_max_size));
-				}
-				else if (obj->array_max_size * CANOPEN_SIZEOF(obj->type) >=
-						((sindex - 1) * CANOPEN_SIZEOF(obj->type)) + data_len) {
-					memcpy(data,
-							obj->data_ptr + (sindex - 1) * CANOPEN_SIZEOF(obj->type),
-							data_len);
-				}
-				else {
-					ret = ERR_CANOPEN_MAPPED_OBJECT_NOT_FOUND;
-				}
-			}
-			else if (uv_canopen_is_string(obj)) {
-				memcpy(data, obj->data_ptr,
-						MIN(data_len, obj->string_len));
-			}
-			else {
-				memcpy(data, obj->data_ptr,
-						MIN(data_len, CANOPEN_SIZEOF(obj->type)));
-			}
+		uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
+
+		// just in case put us to segmented upload state.
+		// expedited answers from server are handled as well
+		this->state = CANOPEN_SDO_STATE_SEGMENTED_UPLOAD;
+		SET_CMD_BYTE(&msg, INITIATE_DOMAIN_UPLOAD);
+		uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
+		if (node_id == uv_canopen_get_our_nodeid()) {
+			uv_can_send_local(CONFIG_CANOPEN_CHANNEL, &msg);
 		}
-		else {
-			ret = ERR_CANOPEN_MAPPED_OBJECT_NOT_FOUND;
+
+		// wait for reply
+		while ((this->state != CANOPEN_SDO_STATE_READY) &&
+				(this->state != CANOPEN_SDO_STATE_TRANSFER_ABORTED)) {
+			// check wait callback request and call it
+			if (this->wait_callb_req && this->wait_callb) {
+				this->wait_callb_req = false;
+				this->wait_callb(this->mindex, this->sindex);
+			}
+			uv_rtos_task_yield();
 		}
+
+		if (this->state == CANOPEN_SDO_STATE_TRANSFER_ABORTED) {
+			this->state = CANOPEN_SDO_STATE_READY;
+			ret = ERR_ABORTED;
+		}
+		// data should now be copied and transfer is finished
 	}
 
 	return ret;
@@ -676,6 +641,9 @@ uv_errors_e _uv_canopen_sdo_client_block_write(uint8_t node_id,
 	SET_CMD_BYTE(&msg, INITIATE_BLOCK_DOWNLOAD | (1 << 2) | (1 << 1));
 	msg.data_32bit[1] = this->data_count;
 	uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
+	if (node_id == uv_canopen_get_our_nodeid()) {
+		uv_can_send_local(CONFIG_CANOPEN_CHANNEL, &msg);
+	}
 
 	// wait for transfer to finish
 	while ((this->state != CANOPEN_SDO_STATE_READY) &&
@@ -721,6 +689,9 @@ uv_errors_e _uv_canopen_sdo_client_block_read(uint8_t node_id,
 		SET_CMD_BYTE(&msg, INITIATE_BLOCK_UPLOAD | (1 << 2));
 		msg.data_8bit[4] = BLKSIZE();
 		uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
+		if (node_id == uv_canopen_get_our_nodeid()) {
+			uv_can_send_local(CONFIG_CANOPEN_CHANNEL, &msg);
+		}
 
 		// wait for transfer to finish
 		while ((this->state != CANOPEN_SDO_STATE_READY) &&
