@@ -48,7 +48,7 @@
 /// @brief: Time structure which is used to represent time.
 /// newlib time_t and struct tm are more complicated and
 /// they would add ~10 kt to the program size
-typedef struct {
+typedef struct __attribute__((packed)) {
 	uint16_t year;
 	uint8_t month;
 	uint8_t day;

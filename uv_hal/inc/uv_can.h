@@ -303,7 +303,6 @@ uv_errors_e uv_can_reset(uv_can_channels_e channel);
 /// @brief: Clears the rx buffer
 void uv_can_clear_rx_buffer(uv_can_channels_e channel);
 
-void uv_can_set_baudrate(uv_can_chn_e chn, uint32_t baudrate);
 
 #if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 /// @brief: Sets the active can dev. The *can_dev* should be found by the ifconfig
@@ -341,6 +340,10 @@ char *uv_can_set_up(bool force_set_up);
 
 /// @brief: CLoses the CAN channel when done
 void uv_can_close(void);
+
+#else
+
+void uv_can_set_baudrate(uv_can_chn_e chn, uint32_t baudrate);
 
 #endif
 
