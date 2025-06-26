@@ -182,7 +182,7 @@ int16_t uv_ui_get_string_height(char *str, ui_font_st *font) {
 	return ret;
 }
 
-int16_t uv_str_get_line_count(char *str) {
+int16_t uv_str_get_line_count(const char *str) {
 	int16_t ret = 0;
 	if (str) {
 		ret = (*str == '\0') ? 0 : 1;
@@ -195,6 +195,18 @@ int16_t uv_str_get_line_count(char *str) {
 	return ret;
 }
 
+
+
+const char *uv_str_next_line(const char *str) {
+	while (*str != '\0' &&
+			*str != '\n') {
+		str++;
+	}
+	if (*str == '\n') {
+		str++;
+	}
+	return str;
+}
 
 
 #endif

@@ -468,7 +468,10 @@ int16_t uv_ui_get_string_height(char *str, ui_font_st *font);
 int16_t uv_ui_get_string_width(char *str, ui_font_st *font);
 
 
-int16_t uv_str_get_line_count(char *str);
+int16_t uv_str_get_line_count(const char *str);
+
+/// @brief: Returns the next line or end of string
+const char *uv_str_next_line(const char *str);
 
 
 /// @brief: Sets the drawing mask which masks all drawing functions to the masked area
