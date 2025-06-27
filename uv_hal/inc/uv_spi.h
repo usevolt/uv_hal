@@ -156,6 +156,7 @@ typedef uint8_t spi_data_t;
 typedef void* spi_e;
 #define SPI0	NULL
 #define SPI1	NULL
+#define SPI2	NULL
 typedef uint8_t spi_data_t;
 #endif
 
