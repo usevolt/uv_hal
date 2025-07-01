@@ -76,8 +76,20 @@ const char *uv_xb3_modem_status_to_str(uv_xb3_modem_status_e stat);
 
 typedef struct __attribute__((packed)) {
 	uint16_t flags;
-	uint64_t epanid;
-	uint64_t dest_addr;
+	union __attribute__((packed)) {
+		struct __attribute__((packed)) {
+			uint32_t epanid_l;
+			uint32_t epanid_h;
+		};
+		uint64_t epanid;
+	};
+	union __attribute__((packed)) {
+		struct __attribute__((packed)) {
+			uint32_t dest_addr_l;
+			uint32_t dest_addr_h;
+		};
+		uint64_t dest_addr;
+	};
 } uv_xb3_conf_st;
 
 /// @brief: Resets the configuration structure
