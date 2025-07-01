@@ -842,7 +842,8 @@ uv_xb3_at_response_e uv_xb3_scan_networks(uv_xb3_st *this,
 uv_xb3_at_response_e uv_xb3_network_discovery(uv_xb3_st *this,
 		uint8_t *dev_count,
 		uv_xb3_nddev_st *dest,
-		uint8_t dev_max_count) {
+		uint8_t dev_max_count,
+		void (*found_dev_callb)(uint8_t index, uv_xb3_nddev_st *dev)) {
 	uv_mutex_lock(&this->atreq_mutex);
 
 	// get discovery time
@@ -879,12 +880,15 @@ uv_xb3_at_response_e uv_xb3_network_discovery(uv_xb3_st *this,
 				if (rx_count == 40) {
 					// whole dev received, swap network byte order to host
 					rx_count = 0;
-					(*dev_count)++;
 					nd->my = ntouint16(nd->my);
 					nd->serial = ntouint64(nd->serial);
 					nd->parent_panid = ntouint16(nd->parent_panid);
 					nd->profile_id = ntouint16(nd->profile_id);
 					nd->manufacture_id = ntouint16(nd->manufacture_id);
+					if (found_dev_callb) {
+						found_dev_callb(*dev_count, nd);
+					}
+					(*dev_count)++;
 
 					XB3_DEBUG(this, "    '%s' 16-bit id: 0x%x serial: 0x%08x%08x\n",
 							nd->ni,
@@ -944,7 +948,8 @@ uint64_t uv_xb3_get_serial(uv_xb3_st *this) {
 	uint64_t ret = 0;
 	uv_mutex_lock(&this->atreq_mutex);
 	uv_xb3_local_at_cmd_req(this, "SH", "", 0);
-	ret = ((uint64_t) ntouint32_queue(this, &this->rx_at_queue)) << 32;
+	ret = ntouint32_queue(this, &this->rx_at_queue);
+	ret = ret << 32;
 	uv_xb3_local_at_cmd_req(this, "SL", "", 0);
 	ret += ntouint32_queue(this, &this->rx_at_queue);
 	uv_mutex_unlock(&this->atreq_mutex);
@@ -1197,7 +1202,7 @@ void uv_xb3_terminal(uv_xb3_st *this,
 			printf("Executing network discovery...\n");
 			uv_xb3_nddev_st devs[3];
 			uint8_t dev_count;
-			uv_xb3_network_discovery(this, &dev_count, devs, 3);
+			uv_xb3_network_discovery(this, &dev_count, devs, 3, NULL);
 		}
 		else {
 			printf("Unknown command '%s'\n", argv[0].str);

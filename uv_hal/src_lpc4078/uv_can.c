@@ -61,6 +61,7 @@ typedef struct {
 		uv_can_message_st tx_buffer_data[CONFIG_CAN0_TX_BUFFER_SIZE];
 		uv_ring_buffer_st tx_buffer;
 		bool (*rx_callback)(void *user_ptr, uv_can_msg_st *msg);
+		bool (*tx_callback)(void *user_ptr, uv_can_msg_st *msg);
 		LPC_CAN_T *lpc_can;
 	} can[CAN_COUNT];
 
@@ -77,11 +78,13 @@ static can_st _this __attribute__((section (".data_RAM2"))) = {
 			{
 				.init = false,
 				.rx_callback = NULL,
+				.tx_callback = NULL,
 				.lpc_can = LPC_CAN1
 			},
 			{
 				.init = false,
 				.rx_callback = NULL,
+				.tx_callback = NULL,
 				.lpc_can = LPC_CAN2
 			}
 		},
@@ -106,6 +109,14 @@ uv_errors_e uv_can_add_rx_callback(uv_can_channels_e chn,
 }
 
 
+
+
+uv_errors_e uv_can_add_tx_callback(uv_can_channels_e channel,
+		bool (*callback_function)(void *user_ptr, uv_can_msg_st *msg)) {
+	this->can[channel].tx_callback = callback_function;
+
+	return ERR_NONE;
+}
 
 
 uv_errors_e _uv_can_init() {
@@ -441,7 +452,11 @@ void _uv_can_hal_send(uv_can_channels_e chn) {
 			memcpy(m.Data, msg.data_8bit, 8);
 			m.ID = msg.id | ((msg.type == CAN_EXT) ? CAN_EXTEND_ID_USAGE : 0);
 			m.Type = 0;
-			Chip_CAN_Send(this->can[chn].lpc_can, txbuf, &m);
+			// call tx callback
+			if (Chip_CAN_Send(this->can[chn].lpc_can, txbuf, &m) &&
+					this->can[chn].tx_callback != NULL) {
+				this->can[chn].tx_callback(__uv_get_user_ptr(), &msg);
+			}
 		}
 	}
 	NVIC_EnableIRQ(CAN_IRQn);
@@ -495,7 +510,10 @@ uv_errors_e uv_can_send_sync(uv_can_channels_e chn, uv_can_message_st *msg) {
 			memcpy(m.Data, msg->data_8bit, 8);
 			m.ID = msg->id | ((msg->type == CAN_EXT) ? CAN_EXTEND_ID_USAGE : 0);
 			m.Type = 0;
-			Chip_CAN_Send(this->can[chn].lpc_can, txbuf, &m);
+			if (Chip_CAN_Send(this->can[chn].lpc_can, txbuf, &m) &&
+					this->can[chn].tx_callback != NULL) {
+				this->can[chn].tx_callback(__uv_get_user_ptr(), msg);
+			}
 
 			// wait until message is transferred or CAN status changes
 			bool br = false;

@@ -260,8 +260,8 @@ typedef struct __attribute__((packed)) {
 uv_xb3_at_response_e uv_xb3_network_discovery(uv_xb3_st *this,
 		uint8_t *dev_count,
 		uv_xb3_nddev_st *dest,
-		uint8_t dev_max_count);
-
+		uint8_t dev_max_count,
+		void (*found_dev_callb)(uint8_t index, uv_xb3_nddev_st *dev));
 
 
 

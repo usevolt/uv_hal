@@ -502,10 +502,10 @@ uint64_t ntouint64(uint64_t netdata) {
 uint32_t ntouint32(uint32_t netdata) {
 	uint32_t ret = 0;
 
-	ret |= (((uint32_t) ((uint8_t*) &netdata)[4]) << 24);
-	ret |= (((uint32_t) ((uint8_t*) &netdata)[5]) << 16);
-	ret |= (((uint32_t) ((uint8_t*) &netdata)[6]) << 8);
-	ret |= (((uint32_t) ((uint8_t*) &netdata)[7]) << 0);
+	ret |= (((uint32_t) ((uint8_t*) &netdata)[0]) << 24);
+	ret |= (((uint32_t) ((uint8_t*) &netdata)[1]) << 16);
+	ret |= (((uint32_t) ((uint8_t*) &netdata)[2]) << 8);
+	ret |= (((uint32_t) ((uint8_t*) &netdata)[3]) << 0);
 
 	return ret;
 }
