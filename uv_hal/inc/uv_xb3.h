@@ -310,6 +310,19 @@ static inline void uv_xb3_set_rx_echo(uv_xb3_st *this, bool value) {
 }
 
 
+/// @brief: Returns the current modem status
+static inline uv_xb3_modem_status_e uv_xb3_get_modem_status(uv_xb3_st *this) {
+	return this->modem_status;
+}
+
+/// @brief: Returns modem status for 1 step cycle when it was changed,
+/// otherwise returns XB3_MODEMSTATUS_NONE
+static inline uv_xb3_modem_status_e uv_xb3_modem_status_changed(uv_xb3_st *this) {
+	return (this->modem_status != this->modem_status_changed) ?
+			this->modem_status :
+			XB3_MODEMSTATUS_NONE;
+}
+
 /// @brief: Returns the response to last AT command request sent with
 /// *uv_xb3_local_at_cmd_req*. Will be cleared to CB3_AT_RESPONSE_COUNT
 /// when sending new command.

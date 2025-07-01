@@ -954,6 +954,8 @@ uint64_t uv_xb3_get_serial(uv_xb3_st *this) {
 
 
 void uv_xb3_network_reset(uv_xb3_st *this) {
+	memset(&this->network, 0, sizeof(this->network));
+
 	uv_mutex_lock(&this->atreq_mutex);
 	char data[8] = {};
 	// clear default extended PAN ID
@@ -971,8 +973,6 @@ void uv_xb3_network_reset(uv_xb3_st *this) {
 	while (uv_xb3_get_at_response(this) == XB3_AT_RESPONSE_COUNT) {
 		uv_rtos_task_delay(1);
 	}
-	// reset XB3
-	xb3_reset(this);
 	uv_mutex_unlock(&this->atreq_mutex);
 	XB3_DEBUG(this, "XB3 network reset\n");
 }

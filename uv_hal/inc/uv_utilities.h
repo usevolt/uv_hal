@@ -610,6 +610,9 @@ static inline bool uv_ipot(uint32_t x) {
 uint64_t ntouint64(uint64_t netdata);
 
 /// @brief: Convert network byte order (MSB) to local byte order (LSB)
+uint32_t ntouint32(uint32_t netdata);
+
+/// @brief: Convert network byte order (MSB) to local byte order (LSB)
 uint16_t ntouint16(uint16_t netdata);
 
 
