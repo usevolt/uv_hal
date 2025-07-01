@@ -163,6 +163,7 @@ int32_t uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_na
 		printf("RTOS ERR: Could not allocate memory for task '%s'\n",
 				task_name);
 	}
+	return ret;
 }
 
 

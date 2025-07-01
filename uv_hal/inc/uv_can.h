@@ -244,6 +244,17 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 void uv_can_clear_rx_messages(uv_can_chn_e chn);
 
 
+typedef enum {
+	CAN_SEND_FLAGS_NO_TX_CALLB =	(1 << 0),
+	CAN_SEND_FLAGS_LOCAL =			(1 << 1),
+	CAN_SEND_FLAGS_SYNC	=			(1 << 2),
+	CAN_SEND_FLAGS_NORMAL =			(1 << 3)
+} can_send_flags_e;
+
+/// @brief: Sends CAN message with flags
+uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
+		can_send_flags_e flags);
+
 /// @brief: An alternative way to send a CAN message
 ///
 /// @note: If message sending buffer is enabled by defining a CAN_ENABLE_ASYNCHRONOUS_MODE,
@@ -253,19 +264,9 @@ void uv_can_clear_rx_messages(uv_can_chn_e chn);
 /// @return: Enum describing if errors were found while sending the message
 ///
 /// @pre: uv_can_init should be called
-uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message);
 static inline uv_errors_e uv_can_send(uv_can_channels_e channel, uv_can_message_st *msg) {
-	return uv_can_send_message(channel, msg);
+	return uv_can_send_flags(channel, msg, CAN_SEND_FLAGS_NORMAL);
 }
-
-/// @brief: "Sends" a CAN message locally by forwarding it directly to rx buffer
-uv_errors_e uv_can_send_local(uv_can_chn_e chn, uv_can_msg_st *msg);
-
-
-/// @brief: Sends a CAN message synchronously. Returns when the message has been sent
-/// or when an error is received (CAN is in error passive or bus off)
-uv_errors_e uv_can_send_sync(uv_can_channels_e channel, uv_can_message_st *msg);
-
 
 /// @brief: Pops the lastly received message from the RX buffer and returns it in
 /// *message* parameter

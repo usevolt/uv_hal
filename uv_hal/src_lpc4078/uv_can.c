@@ -453,10 +453,7 @@ void _uv_can_hal_send(uv_can_channels_e chn) {
 			m.ID = msg.id | ((msg.type == CAN_EXT) ? CAN_EXTEND_ID_USAGE : 0);
 			m.Type = 0;
 			// call tx callback
-			if (Chip_CAN_Send(this->can[chn].lpc_can, txbuf, &m) &&
-					this->can[chn].tx_callback != NULL) {
-				this->can[chn].tx_callback(__uv_get_user_ptr(), &msg);
-			}
+			Chip_CAN_Send(this->can[chn].lpc_can, txbuf, &m);
 		}
 	}
 	NVIC_EnableIRQ(CAN_IRQn);
@@ -482,7 +479,7 @@ uv_can_errors_e uv_can_get_error_state(uv_can_channels_e chn) {
 }
 
 
-uv_errors_e uv_can_send_sync(uv_can_channels_e chn, uv_can_message_st *msg) {
+static uv_errors_e uv_can_send_sync(uv_can_channels_e chn, uv_can_message_st *msg) {
 	uv_errors_e ret = ERR_NONE;
 
 	if (this->can[chn].init) {
@@ -510,10 +507,7 @@ uv_errors_e uv_can_send_sync(uv_can_channels_e chn, uv_can_message_st *msg) {
 			memcpy(m.Data, msg->data_8bit, 8);
 			m.ID = msg->id | ((msg->type == CAN_EXT) ? CAN_EXTEND_ID_USAGE : 0);
 			m.Type = 0;
-			if (Chip_CAN_Send(this->can[chn].lpc_can, txbuf, &m) &&
-					this->can[chn].tx_callback != NULL) {
-				this->can[chn].tx_callback(__uv_get_user_ptr(), msg);
-			}
+			Chip_CAN_Send(this->can[chn].lpc_can, txbuf, &m);
 
 			// wait until message is transferred or CAN status changes
 			bool br = false;
@@ -568,17 +562,24 @@ uv_errors_e uv_can_get_char(char *dest) {
 
 
 
-uv_errors_e uv_can_send_message(uv_can_channels_e chn, uv_can_message_st* message) {
-	uv_disable_int();
+uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
+		can_send_flags_e flags) {
 	uv_errors_e ret = ERR_NONE;
-	ret = uv_ring_buffer_push(&this->can[chn].tx_buffer, message);
-	uv_enable_int();
-	return ret;
-}
-
-uv_errors_e uv_can_send_local(uv_can_chn_e chn, uv_can_msg_st *msg) {
 	uv_disable_int();
-	uv_errors_e ret = uv_ring_buffer_push(&this->can[chn].rx_buffer, msg);
+	if (flags & CAN_SEND_FLAGS_LOCAL) {
+		ret = uv_ring_buffer_push(&this->can[chn].rx_buffer, msg);
+	}
+	if (flags & CAN_SEND_FLAGS_SYNC) {
+		ret = uv_can_send_sync(chn, msg);
+	}
+	if (flags & CAN_SEND_FLAGS_NORMAL) {
+		ret = uv_ring_buffer_push(&this->can[chn].tx_buffer, msg);
+	}
+	if (ret == ERR_NONE &&
+			!(flags & CAN_SEND_FLAGS_NO_TX_CALLB)) {
+		this->can[chn].tx_callback(__uv_get_user_ptr(), msg);
+	}
+
 	uv_enable_int();
 	return ret;
 }

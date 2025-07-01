@@ -157,13 +157,16 @@ typedef struct {
 	char char_buffer_data[CONFIG_TERMINAL_BUFFER_SIZE];
 #endif
 	bool (*rx_callback[CAN_COUNT])(void *user_ptr, uv_can_msg_st *msg);
+	bool (*tx_callback[CAN_COUNT])(void *user_ptr, uv_can_msg_st *msg);
 
 } can_st;
 
 
 
 static can_st _can = {
-		.init = false
+		.init = false,
+		.tx_callback[0] = NULL,
+		.rx_callback[0] = NULL
 };
 #define this (&_can)
 
@@ -272,6 +275,14 @@ uv_errors_e uv_can_add_rx_callback(uv_can_channels_e channel,
 }
 
 
+uv_errors_e uv_can_add_tx_callback(uv_can_channels_e channel,
+		bool (*callback_function)(void *user_ptr, uv_can_msg_st *msg)) {
+	this->tx_callback[channel] = callback_function;
+
+	return ERR_NONE;
+}
+
+
 
 void CAN_IRQHandler(void) {
 	volatile uint32_t p = LPC_CAN->INT;
@@ -353,10 +364,6 @@ void CAN_IRQHandler(void) {
 
 
 uv_errors_e _uv_can_init() {
-	uint8_t i;
-	for (i = 0; i < CAN_COUNT; i++) {
-		this->rx_callback[i] = NULL;
-	}
 	this->init = true;
 	this->used_msg_objs = (1 << (TX_MSG_OBJ - 1));
 
@@ -586,6 +593,9 @@ void _uv_can_hal_send(uv_can_channels_e chn) {
 
 		msg_obj_enable(TX_MSG_OBJ);
 
+		if (this->tx_callback[chn] != NULL) {
+			this->tx_callback[chn](__uv_get_user_ptr(), &msg);
+		}
 	}
 	NVIC_EnableIRQ(CAN_IRQn);
 }
@@ -612,7 +622,7 @@ uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
 }
 
 
-uv_errors_e uv_can_send_sync(uv_can_channels_e channel, uv_can_message_st *msg) {
+static uv_errors_e uv_can_send_sync(uv_can_channels_e channel, uv_can_message_st *msg) {
 	uv_errors_e ret = ERR_NONE;
 
 	if (this->init) {
@@ -654,7 +664,6 @@ uv_errors_e uv_can_send_sync(uv_can_channels_e channel, uv_can_message_st *msg) 
 
 			msg_obj_enable(TX_MSG_OBJ);
 
-
 			uv_enable_int();
 
 			// wait until message is transferred or CAN status changes
@@ -673,6 +682,10 @@ uv_errors_e uv_can_send_sync(uv_can_channels_e channel, uv_can_message_st *msg) 
 				if (br) {
 					break;
 				}
+			}
+
+			if (this->tx_callback[channel] != NULL) {
+				this->tx_callback[channel](__uv_get_user_ptr(), msg);
 			}
 		}
 	}
@@ -708,10 +721,25 @@ uv_errors_e uv_can_get_char(char *dest) {
 
 
 
-uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message) {
-	uv_disable_int();
+
+uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
+		can_send_flags_e flags) {
 	uv_errors_e ret = ERR_NONE;
-	ret = uv_ring_buffer_push(&this->tx_buffer, message);
+	uv_disable_int();
+	if (flags & CAN_SEND_FLAGS_LOCAL) {
+		ret = uv_ring_buffer_push(&this->rx_buffer, msg);
+	}
+	if (flags & CAN_SEND_FLAGS_SYNC) {
+		ret = uv_can_send_sync(chn, msg);
+	}
+	if (flags & CAN_SEND_FLAGS_NORMAL) {
+		ret = uv_ring_buffer_push(&this->tx_buffer, msg);
+	}
+	if (ret == ERR_NONE &&
+			!(flags & CAN_SEND_FLAGS_NO_TX_CALLB)) {
+		this->tx_callback[chn](__uv_get_user_ptr(), msg);
+	}
+
 	uv_enable_int();
 	return ret;
 }

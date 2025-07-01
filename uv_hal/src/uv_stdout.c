@@ -86,7 +86,7 @@ static void send_can_msg(void) {
 		uv_can_send_message(CONFIG_CANOPEN_CHANNEL, &msg);
 	}
 #else
-	uv_can_send_sync(CAN0, &msg);
+	uv_can_send_flags(CAN0, &msg, CAN_SEND_FLAGS_SYNC);
 #endif
 
 }
