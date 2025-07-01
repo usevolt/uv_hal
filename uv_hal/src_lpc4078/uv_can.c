@@ -576,7 +576,8 @@ uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 		ret = uv_ring_buffer_push(&this->can[chn].tx_buffer, msg);
 	}
 	if (ret == ERR_NONE &&
-			!(flags & CAN_SEND_FLAGS_NO_TX_CALLB)) {
+			!(flags & CAN_SEND_FLAGS_NO_TX_CALLB) &&
+			(this->can[chn].tx_callback != NULL)) {
 		this->can[chn].tx_callback(__uv_get_user_ptr(), msg);
 	}
 

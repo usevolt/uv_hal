@@ -683,10 +683,6 @@ static uv_errors_e uv_can_send_sync(uv_can_channels_e channel, uv_can_message_st
 					break;
 				}
 			}
-
-			if (this->tx_callback[channel] != NULL) {
-				this->tx_callback[channel](__uv_get_user_ptr(), msg);
-			}
 		}
 	}
 	else {
@@ -735,8 +731,9 @@ uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 	if (flags & CAN_SEND_FLAGS_NORMAL) {
 		ret = uv_ring_buffer_push(&this->tx_buffer, msg);
 	}
-	if (ret == ERR_NONE &&
-			!(flags & CAN_SEND_FLAGS_NO_TX_CALLB)) {
+	if ((ret == ERR_NONE) &&
+			!(flags & CAN_SEND_FLAGS_NO_TX_CALLB) &&
+			(this->tx_callback[chn] != NULL)) {
 		this->tx_callback[chn](__uv_get_user_ptr(), msg);
 	}
 
@@ -744,13 +741,6 @@ uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 	return ret;
 }
 
-
-uv_errors_e uv_can_send_local(uv_can_chn_e chn, uv_can_msg_st *msg) {
-	uv_disable_int();
-	uv_errors_e ret = uv_ring_buffer_push(&this->rx_buffer, msg);
-	uv_enable_int();
-	return ret;
-}
 
 
 
