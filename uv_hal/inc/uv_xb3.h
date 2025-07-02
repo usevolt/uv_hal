@@ -183,8 +183,8 @@ void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms);
 /// @return True if data was available, otherwise false
 ///
 /// @param dest: Destination where data is copied
-static inline bool uv_xb3_get_data(uv_xb3_st *this, char *dest) {
-	return uv_streambuffer_pop(&this->rx_data_streambuffer, dest, 1, 0);
+static inline bool uv_xb3_get_data(uv_xb3_st *this, char *dest, uint16_t wait_ms) {
+	return uv_streambuffer_pop(&this->rx_data_streambuffer, dest, 1, wait_ms);
 }
 
 

@@ -55,7 +55,7 @@
 
 
 /// @brief: Reads and writes a single byte to XB3
-static void read_write(uv_xb3_st *this, spi_data_t *tx);
+static uv_errors_e read_write(uv_xb3_st *this, spi_data_t *tx);
 
 
 /// @brief: Converts uint64_t data from network byte order to local byte order.
@@ -318,7 +318,7 @@ static bool xb3_reset(uv_xb3_st *this) {
 
 
 #define TX_BUF_SIZE		(0xFF)
-#define RX_BUF_SIZE		100
+#define RX_BUF_SIZE		300
 
 uv_errors_e uv_xb3_init(uv_xb3_st *this,
 		uv_xb3_conf_st *conf,
@@ -556,7 +556,8 @@ void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms) {
 
 
 
-static void read_write(uv_xb3_st *this, spi_data_t *tx) {
+static uv_errors_e read_write(uv_xb3_st *this, spi_data_t *tx) {
+	uv_errors_e ret = ERR_NONE;
 	if (tx ||
 			!uv_gpio_get(this->attn_gpio)) {
 		spi_data_t rx = 0;
@@ -652,7 +653,8 @@ static void read_write(uv_xb3_st *this, spi_data_t *tx) {
 						if (offset >= 15) {
 							if (!uv_streambuffer_push(&this->rx_data_streambuffer,
 									&rx, 1, 0)) {
-								printf("XB3: RX datastream full\n");
+								ret = ERR_BUFFER_OVERFLOW;
+//								printf("XB3: RX datastream full\n");
 							}
 							if (this->conf->flags & XB3_CONF_FLAGS_RX_ECHO) {
 								printf("%c", rx);
@@ -693,7 +695,7 @@ static void read_write(uv_xb3_st *this, spi_data_t *tx) {
 	else {
 		uv_gpio_set(this->ssel_gpio, true);
 	}
-
+	return ret;
 }
 
 
