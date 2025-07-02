@@ -193,6 +193,17 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd,
 
 	uv_mutex_lock(&this->tx_mutex);
 
+	uv_gpio_set(this->ssel_gpio, true);
+
+	// require to read XB3 buffer empty for some reason,
+	// otherwise XB3 might not receive AT request
+	for (uint8_t i = 0; i < 50; i++) {
+		read_write(this, NULL);
+		if (uv_gpio_get(this->attn_gpio)) {
+			break;
+		}
+	}
+
 	spi_data_t d = APIFRAME_START;
 	uv_errors_e e = read_write(this, &d);
 	uint16_t framedatalen = 4 + paramvaluelen;
@@ -221,7 +232,9 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd,
 	d = (uint8_t) 0xFF - (crc & 0xFF);
 	e |= read_write(this, &d);
 
+
 	uv_mutex_unlock(&this->tx_mutex);
+
 
 	if (this->conf->flags & XB3_CONF_FLAGS_AT_ECHO) {
 		if (e != ERR_NONE) {
@@ -664,10 +677,9 @@ static uv_errors_e read_write(uv_xb3_st *this, spi_data_t *tx) {
 						break;
 					case APIFRAME_RECEIVEPACKET:
 						if (offset >= 15) {
-							if (!uv_streambuffer_push(&this->rx_data_streambuffer,
-									&rx, 1, 0)) {
+							if (!uv_streambuffer_push_isr(&this->rx_data_streambuffer,
+									&rx, 1)) {
 								ret = ERR_BUFFER_OVERFLOW;
-//								printf("XB3: RX datastream full\n");
 							}
 							this->rx_max = MAX(this->rx_max,
 									uv_streambuffer_get_len(&this->rx_data_streambuffer));
@@ -680,16 +692,7 @@ static uv_errors_e read_write(uv_xb3_st *this, spi_data_t *tx) {
 						if (offset == 8) {
 							if (this->conf->flags & XB3_CONF_FLAGS_RX_ECHO) {
 								if (rx) {
-									printf("XB3 TRANSMIT ");
-									if (rx == 1) {
-										printf("MAC ACK fail\n");
-									}
-									else if (rx == 2) {
-										printf("CCA/LBT fail\n");
-									}
-									else {
-										printf("Indirect message requested\n");
-									}
+									XB3_DEBUG(this, "XB3 TRANSMIT fail 0x%x", rx);
 								}
 							}
 						}
@@ -733,7 +736,7 @@ bool uv_xb3_poll(uv_xb3_st *this) {
 						(framedatalen >> 8), // Length
 						(framedatalen & 0xFF),
 						APIFRAME_TRANSMITREQ,
-						0x52, // Frame ID. 0x0 doesn't emit response frame
+						0x7e, // Frame ID. 0x0 doesn't emit response frame
 						(this->conf->dest_addr >> 56) & 0xFF, // 64-bit address
 						(this->conf->dest_addr >> 48) & 0xFF,
 						(this->conf->dest_addr >> 40) & 0xFF,
@@ -774,6 +777,8 @@ bool uv_xb3_poll(uv_xb3_st *this) {
 			while (tx_count);
 		}
 		while (tx_count);
+
+		uv_gpio_set(this->ssel_gpio, true);
 
 		uv_mutex_unlock(&this->tx_mutex);
 	}
@@ -928,7 +933,13 @@ uv_xb3_at_response_e uv_xb3_network_discovery(uv_xb3_st *this,
 			}
 			if (ret == XB3_AT_RESPONSE_OK) {
 				this->at_response = XB3_AT_RESPONSE_COUNT;
-
+			}
+			else if (ret == XB3_AT_RESPONSE_ERROR) {
+				XB3_DEBUG(this, "XB3 Network discovery ERROR\n");
+				*dev_count = 0;
+				break;
+			}
+			else {
 
 			}
 			ms += 1;

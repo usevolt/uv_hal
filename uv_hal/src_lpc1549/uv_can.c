@@ -720,7 +720,13 @@ uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 	uv_errors_e ret = ERR_NONE;
 	uv_disable_int();
 	if (flags & CAN_SEND_FLAGS_LOCAL) {
-		ret = uv_ring_buffer_push(&this->rx_buffer, msg);
+		if (this->rx_callback[chn] &&
+				!this->rx_callback[chn](__uv_get_user_ptr(), msg)) {
+
+		}
+		else {
+			ret = uv_ring_buffer_push(&this->rx_buffer, msg);
+		}
 	}
 	if (flags & CAN_SEND_FLAGS_SYNC) {
 		ret = uv_can_send_sync(chn, msg);
