@@ -116,10 +116,12 @@ typedef struct {
 	// buffer for writing data and AT commands to XB3.
 	// This queue holds API packetized data
 	uv_streambuffer_st tx_streambuffer;
+	uint16_t tx_max;
 	// mutex that should belocked when AT command is ongoing
 	uv_mutex_st atreq_mutex;
 	// buffer for read data from XB3. Holds raw data parsed from API packages
 	uv_streambuffer_st rx_data_streambuffer;
+	uint16_t rx_max;
 	// buffer for read AT commands from XB3. Holds raw data parsed from API packages
 	uv_queue_st rx_at_queue;
 	// mutex for transmitting data

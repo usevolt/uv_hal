@@ -180,7 +180,8 @@ const char *uv_xb3_modem_status_to_str(uv_xb3_modem_status_e stat) {
 
 /// @brief: Writes a local AT command request to device
 /// according to frame type LOCALATCMDREQ
-void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd, char *data, uint16_t data_len) {
+void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd,
+		char *data, uint16_t data_len) {
 	this->at_response = XB3_AT_RESPONSE_COUNT;
 	uv_queue_clear(&this->rx_at_queue);
 	uint8_t crc = 0;
@@ -193,36 +194,39 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd, char *data, uint16_t 
 	uv_mutex_lock(&this->tx_mutex);
 
 	spi_data_t d = APIFRAME_START;
-	read_write(this, &d);
+	uv_errors_e e = read_write(this, &d);
 	uint16_t framedatalen = 4 + paramvaluelen;
 	d = (framedatalen >> 8); // length MSB
-	read_write(this, &d);
+	e |= read_write(this, &d);
 	d = framedatalen & 0xFF; // length LSB
-	read_write(this, &d);
+	e |= read_write(this, &d);
 	d = APIFRAME_LOCALATCMDREQ;
 	crc += (uint8_t) d;
-	read_write(this, &d);
+	e |= read_write(this, &d);
 	// Frame ID, has to be something else than 0
 	d = 0x17;
 	crc += (uint8_t) d;
-	read_write(this, &d);
+	e |= read_write(this, &d);
 	d = atcmd[0];
 	crc += (uint8_t) d;
-	read_write(this, &d);
+	e |= read_write(this, &d);
 	d = atcmd[1];
 	crc += (uint8_t) d;
-	read_write(this, &d);
+	e |= read_write(this, &d);
 	for (uint16_t i = 0; i < paramvaluelen; i++) {
 		d = data[i];
-		read_write(this, &d);
+		e |= read_write(this, &d);
 		crc += (uint8_t) data[i];
 	}
 	d = (uint8_t) 0xFF - (crc & 0xFF);
-	read_write(this, &d);
+	e |= read_write(this, &d);
 
 	uv_mutex_unlock(&this->tx_mutex);
 
 	if (this->conf->flags & XB3_CONF_FLAGS_AT_ECHO) {
+		if (e != ERR_NONE) {
+			printf("AT error: %u\n", e);
+		}
 		printf("AT %s ", atcmd);
 		for (uint16_t i = 0; i < data_len; i++) {
 			if (this->conf->flags & XB3_CONF_FLAGS_AT_HEX) {
@@ -241,6 +245,9 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd, char *data, uint16_t 
 	XB3_DEBUG(this, __VA_ARGS__);
 
 
+#define TX_BUF_SIZE		(1000)
+#define RX_BUF_SIZE		300
+
 
 
 uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
@@ -248,8 +255,9 @@ uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
 	uv_errors_e ret = ERR_NONE;
 	if (this->initialized) {
 		if (uv_streambuffer_get_free_space(&this->tx_streambuffer) < datalen) {
-			XB3_DEBUG(this, "XB3 Write: not enough memory (%i, required %i) in buffer\n",
-					(int) uv_streambuffer_get_free_space(&this->tx_streambuffer),
+			XB3_DEBUG(this, "XB3 Write: buffer full %i / %i, required %i\n",
+					(int) uv_streambuffer_get_len(&this->tx_streambuffer),
+					TX_BUF_SIZE,
 					(int) datalen);
 			ret = ERR_NOT_ENOUGH_MEMORY;
 		}
@@ -262,6 +270,8 @@ uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
 
 			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, data, datalen) :
 					uv_streambuffer_push(&this->tx_streambuffer, data, datalen, 0);
+			this->tx_max = MAX(this->tx_max,
+					uv_streambuffer_get_len(&this->tx_streambuffer));
 
 			uv_exit_critical();
 		}
@@ -317,9 +327,6 @@ static bool xb3_reset(uv_xb3_st *this) {
 }
 
 
-#define TX_BUF_SIZE		(0xFF)
-#define RX_BUF_SIZE		300
-
 uv_errors_e uv_xb3_init(uv_xb3_st *this,
 		uv_xb3_conf_st *conf,
 		spi_e spi,
@@ -343,17 +350,19 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 
 	if (uv_streambuffer_init(&this->tx_streambuffer, TX_BUF_SIZE) != ERR_NONE) {
 		uv_terminal_enable(TERMINAL_CAN);
-		XB3_DEBUG(this, "XB3: Creating TX streambuffer failed, not enough memory\n");
+		printf("XB3: Creating TX streambuffer failed, not enough memory\n");
 		ret = ERR_NOT_ENOUGH_MEMORY;
 	}
+	this->tx_max = 0;
 	if (uv_streambuffer_init(&this->rx_data_streambuffer, RX_BUF_SIZE) != ERR_NONE) {
 		uv_terminal_enable(TERMINAL_CAN);
-		XB3_DEBUG(this, "XB3: Creating RX streambuffer failed, not enough memory\n");
+		printf("XB3: Creating RX streambuffer failed, not enough memory\n");
 		ret = ERR_NOT_ENOUGH_MEMORY;
 	}
-	if (uv_queue_init(&this->rx_at_queue, 50, sizeof(char)) == NULL) {
+	this->rx_max = 0;
+	if (uv_queue_init(&this->rx_at_queue, 100, sizeof(char)) == NULL) {
 		uv_terminal_enable(TERMINAL_CAN);
-		XB3_DEBUG(this, "XB3: Creating RX AT queue failed\n");
+		printf("XB3: Creating RX AT queue failed\n");
 		ret = ERR_NOT_ENOUGH_MEMORY;
 	}
 
@@ -564,6 +573,10 @@ static uv_errors_e read_write(uv_xb3_st *this, spi_data_t *tx) {
 		uv_gpio_set(this->ssel_gpio, false);
 		uv_spi_readwrite_sync(this->spi, SPI_SLAVE_NONE, tx, &rx, 8, 1);
 
+		if (tx) {
+			TX_DEBUG(this, "0x%x ", (unsigned int) *tx);
+		}
+
 		if (this->rx_index == 0) {
 			if (rx == APIFRAME_START) {
 				this->rx_index++;
@@ -656,6 +669,8 @@ static uv_errors_e read_write(uv_xb3_st *this, spi_data_t *tx) {
 								ret = ERR_BUFFER_OVERFLOW;
 //								printf("XB3: RX datastream full\n");
 							}
+							this->rx_max = MAX(this->rx_max,
+									uv_streambuffer_get_len(&this->rx_data_streambuffer));
 							if (this->conf->flags & XB3_CONF_FLAGS_RX_ECHO) {
 								printf("%c", rx);
 							}
@@ -705,54 +720,58 @@ bool uv_xb3_poll(uv_xb3_st *this) {
 	if (this->initialized &&
 			uv_mutex_lock_isr(&this->tx_mutex)) {
 		// read and write to XB3
-		uint8_t t = 0;
-		uint8_t tx_count = uv_streambuffer_get_len(&this->tx_streambuffer);
-		uint8_t crc = 0;
-		if (tx_count) {
-			uint16_t framedatalen = 14 + tx_count;
-			uint8_t d[17] = {
-					APIFRAME_START,
-					(framedatalen >> 8), // Length
-					(framedatalen & 0xFF),
-					APIFRAME_TRANSMITREQ,
-					0x52, // Frame ID. 0x0 doesn't emit response frame
-					(this->conf->dest_addr >> 56) & 0xFF, // 64-bit address
-					(this->conf->dest_addr >> 48) & 0xFF,
-					(this->conf->dest_addr >> 40) & 0xFF,
-					(this->conf->dest_addr >> 32) & 0xFF,
-					(this->conf->dest_addr >> 24) & 0xFF,
-					(this->conf->dest_addr >> 16) & 0xFF,
-					(this->conf->dest_addr >> 8) & 0xFF,
-					(this->conf->dest_addr) & 0xFF,
-					0xFF, // 16-bit address
-					0xFE,
-					0, // broadcast radius
-					0, // transmit options
-			};
-			for (uint8_t i = 0; i < sizeof(d); i++) {
-				spi_data_t tx = d[i];
-				read_write(this, &tx);
-				// crc doesn't include first 3 bytes
-				if (i > 2) {
-					crc += d[i];
-				}
-				TX_DEBUG(this, "0x%02x ", d[i]);
-			}
-		}
+		uint8_t tx_count;
 		do {
-			uint8_t tx_available = uv_streambuffer_pop_isr(
-					&this->tx_streambuffer, &t, 1);
-			spi_data_t tx = t;
-			read_write(this, tx_available ? &tx : NULL);
-			crc += t;
-			if (tx_count == 1) {
-				// last data was just sent, calculate crc
-				tx = 0xFF - crc;
-				read_write(this, &tx);
-			}
+			uint8_t t = 0;
+			tx_count = MIN(0xFF - 14,
+					uv_streambuffer_get_len(&this->tx_streambuffer));
+			uint8_t crc = 0;
 			if (tx_count) {
-				tx_count--;
+				uint16_t framedatalen = 14 + tx_count;
+				uint8_t d[17] = {
+						APIFRAME_START,
+						(framedatalen >> 8), // Length
+						(framedatalen & 0xFF),
+						APIFRAME_TRANSMITREQ,
+						0x52, // Frame ID. 0x0 doesn't emit response frame
+						(this->conf->dest_addr >> 56) & 0xFF, // 64-bit address
+						(this->conf->dest_addr >> 48) & 0xFF,
+						(this->conf->dest_addr >> 40) & 0xFF,
+						(this->conf->dest_addr >> 32) & 0xFF,
+						(this->conf->dest_addr >> 24) & 0xFF,
+						(this->conf->dest_addr >> 16) & 0xFF,
+						(this->conf->dest_addr >> 8) & 0xFF,
+						(this->conf->dest_addr) & 0xFF,
+						0xFF, // 16-bit address
+						0xFE,
+						0, // broadcast radius
+						0, // transmit options
+				};
+				for (uint8_t i = 0; i < sizeof(d); i++) {
+					spi_data_t tx = d[i];
+					read_write(this, &tx);
+					// crc doesn't include first 3 bytes
+					if (i > 2) {
+						crc += d[i];
+					}
+				}
 			}
+			do {
+				uint8_t tx_available = uv_streambuffer_pop_isr(
+						&this->tx_streambuffer, &t, 1);
+				spi_data_t tx = t;
+				read_write(this, tx_available ? &tx : NULL);
+				crc += t;
+				if (tx_count == 1) {
+					// last data was just sent, calculate crc
+					tx = 0xFF - crc;
+					read_write(this, &tx);
+				}
+				if (tx_count) {
+					tx_count--;
+				}
+			}
+			while (tx_count);
 		}
 		while (tx_count);
 
@@ -1176,27 +1195,6 @@ void uv_xb3_terminal(uv_xb3_st *this,
 					(unsigned int) (this->conf->dest_addr >> 32),
 					(unsigned int) (this->conf->dest_addr & 0xFFFFFFFF));
 		}
-		else if (strcmp(argv[0].str, "stat") == 0) {
-			printf("XB3 stat:\n"
-					"   initialized: %i\n"
-					"   id: 0x%08x%08x\n"
-					"   dest addr: 0x%08x%08x\n"
-					"   debug: %u\n"
-					"   RX echo: %u\n"
-					"    TX echo: %u\n"
-					"   AT echo: %u\n"
-					"   AT as hex: %u\n",
-					(int) this->initialized,
-					(unsigned int) ((uint64_t) this->conf->epanid >> 32),
-					(unsigned int) ((uint32_t) this->conf->epanid & 0xFFFFFFFF),
-					(unsigned int) ((uint64_t) this->conf->dest_addr >> 32),
-					(unsigned int) ((uint32_t) this->conf->dest_addr & 0xFFFFFFFF),
-					!!(this->conf->flags & XB3_CONF_FLAGS_DEBUG),
-					!!(this->conf->flags & XB3_CONF_FLAGS_RX_ECHO),
-					!!(this->conf->flags & XB3_CONF_FLAGS_TX_ECHO),
-					!!(this->conf->flags & XB3_CONF_FLAGS_AT_ECHO),
-					!!(this->conf->flags & XB3_CONF_FLAGS_AT_HEX));
-		}
 		else if (strcmp(argv[0].str, "reset") == 0) {
 			uv_xb3_network_reset(this);
 		}
@@ -1209,6 +1207,39 @@ void uv_xb3_terminal(uv_xb3_st *this,
 		else {
 			printf("Unknown command '%s'\n", argv[0].str);
 		}
+	}
+	else {
+		printf("XB3 stat:\n"
+				"   initialized: %i\n"
+				"   id: 0x%08x%08x\n"
+				"   dest addr: 0x%08x%08x\n"
+				"   debug: %u\n"
+				"   RX echo: %u\n"
+				"    TX echo: %u\n"
+				"   AT echo: %u\n"
+				"   AT as hex: %u\n"
+				"    TX buf: %i/%i (max %i)\n"
+				"    RX buf: %i/%i (max %i)\n"
+				"    attio: %i\n",
+				(int) this->initialized,
+				(unsigned int) ((uint64_t) this->conf->epanid >> 32),
+				(unsigned int) ((uint32_t) this->conf->epanid & 0xFFFFFFFF),
+				(unsigned int) ((uint64_t) this->conf->dest_addr >> 32),
+				(unsigned int) ((uint32_t) this->conf->dest_addr & 0xFFFFFFFF),
+				!!(this->conf->flags & XB3_CONF_FLAGS_DEBUG),
+				!!(this->conf->flags & XB3_CONF_FLAGS_RX_ECHO),
+				!!(this->conf->flags & XB3_CONF_FLAGS_TX_ECHO),
+				!!(this->conf->flags & XB3_CONF_FLAGS_AT_ECHO),
+				!!(this->conf->flags & XB3_CONF_FLAGS_AT_HEX),
+				(int) uv_streambuffer_get_len(&this->tx_streambuffer),
+				(int) TX_BUF_SIZE,
+				(int) this->tx_max,
+				(int) uv_streambuffer_get_len(&this->rx_data_streambuffer),
+				(int) RX_BUF_SIZE,
+				(int) this->rx_max,
+				uv_gpio_get(this->attn_gpio));
+		this->tx_max = 0;
+		this->rx_max = 0;
 	}
 }
 
