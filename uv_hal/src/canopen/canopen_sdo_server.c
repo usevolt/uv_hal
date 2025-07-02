@@ -161,7 +161,8 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 						// send all replies also locally in case it was us that
 						// initiated the SDO transfer on ourselves
 						uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &reply_msg,
-								CAN_SEND_FLAGS_LOCAL);
+								CAN_SEND_FLAGS_LOCAL |
+								CAN_SEND_FLAGS_NO_TX_CALLB);
 					}
 					else {
 						sdo_server_abort(GET_MINDEX(msg), GET_SINDEX(msg),
@@ -181,7 +182,8 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 						// send all replies also locally in case it was us that
 						// initiated the SDO transfer on ourselves
 						uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &reply_msg,
-								CAN_SEND_FLAGS_LOCAL);
+								CAN_SEND_FLAGS_LOCAL |
+								CAN_SEND_FLAGS_NO_TX_CALLB);
 
 						// break PDO linkage if new COB-ID is written
 						if ((this->mindex & ~0x700) == (CANOPEN_TXPDO1_ID & ~0x700) &&
@@ -250,7 +252,8 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 					// send all replies also locally in case it was us that
 					// initiated the SDO transfer on ourselves
 					uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &reply_msg,
-							CAN_SEND_FLAGS_LOCAL);
+							CAN_SEND_FLAGS_LOCAL |
+							CAN_SEND_FLAGS_NO_TX_CALLB);
 #else
 					sdo_server_abort(GET_MINDEX(msg), GET_SINDEX(msg),
 							CANOPEN_SDO_ERROR_UNSUPPORTED_ACCESS_TO_OBJECT);
@@ -272,7 +275,8 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 					// send all replies also locally in case it was us that
 					// initiated the SDO transfer on ourselves
 					uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &reply_msg,
-							CAN_SEND_FLAGS_LOCAL);
+							CAN_SEND_FLAGS_LOCAL |
+							CAN_SEND_FLAGS_NO_TX_CALLB);
 				}
 			}
 		}
@@ -365,7 +369,8 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 			// send all replies also locally in case it was us that
 			// initiated the SDO transfer on ourselves
 			uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &reply_msg,
-					CAN_SEND_FLAGS_LOCAL);
+					CAN_SEND_FLAGS_LOCAL |
+					CAN_SEND_FLAGS_NO_TX_CALLB);
 			this->toggle = !this->toggle;
 			if (this->read_callb) {
 				this->read_callb(this->mindex, this->sindex);
@@ -409,7 +414,8 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 				// send all replies also locally in case it was us that
 				// initiated the SDO transfer on ourselves
 				uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &reply_msg,
-						CAN_SEND_FLAGS_LOCAL);
+						CAN_SEND_FLAGS_LOCAL |
+						CAN_SEND_FLAGS_NO_TX_CALLB);
 				this->toggle = !this->toggle;
 			}
 			else {
@@ -459,7 +465,8 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 					// send all replies also locally in case it was us that
 					// initiated the SDO transfer on ourselves
 					uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &reply_msg,
-							CAN_SEND_FLAGS_LOCAL);
+							CAN_SEND_FLAGS_LOCAL |
+							CAN_SEND_FLAGS_NO_TX_CALLB);
 					this->state = CANOPEN_SDO_STATE_READY;
 					if (this->write_callb) {
 						this->write_callb(this->mindex, this->sindex);
@@ -499,7 +506,8 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 				// send all replies also locally in case it was us that
 				// initiated the SDO transfer on ourselves
 				uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &reply_msg,
-						CAN_SEND_FLAGS_LOCAL);
+						CAN_SEND_FLAGS_LOCAL |
+						CAN_SEND_FLAGS_NO_TX_CALLB);
 				this->seq = 0;
 			}
 		}
@@ -534,7 +542,8 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 				// send all replies also locally in case it was us that
 				// initiated the SDO transfer on ourselves
 				uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &reply_msg,
-						CAN_SEND_FLAGS_LOCAL);
+						CAN_SEND_FLAGS_LOCAL |
+						CAN_SEND_FLAGS_NO_TX_CALLB);
 			}
 			this->seq = 0;
 			this->state = CANOPEN_SDO_STATE_BLOCK_UPLOAD;
@@ -559,7 +568,8 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 				// send all replies also locally in case it was us that
 				// initiated the SDO transfer on ourselves
 				uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &reply_msg,
-						CAN_SEND_FLAGS_LOCAL);
+						CAN_SEND_FLAGS_LOCAL |
+						CAN_SEND_FLAGS_NO_TX_CALLB);
 				this->state = CANOPEN_SDO_STATE_BLOCK_END_UPLOAD;
 				uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 			}
@@ -582,7 +592,8 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 					// send all replies also locally in case it was us that
 					// initiated the SDO transfer on ourselves
 					uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &reply_msg,
-							CAN_SEND_FLAGS_LOCAL);
+							CAN_SEND_FLAGS_LOCAL |
+							CAN_SEND_FLAGS_NO_TX_CALLB);
 				}
 				// get ready for next transfer
 				this->seq = 0;

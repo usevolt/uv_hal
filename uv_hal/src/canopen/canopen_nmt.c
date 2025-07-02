@@ -137,7 +137,9 @@ void uv_canopen_nmt_master_send_cmd(uint8_t nodeid, canopen_nmt_commands_e comma
 	msg.data_8bit[1] = nodeid;
 	uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
 	if (nodeid == uv_canopen_get_our_nodeid()) {
-		uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &msg, CAN_SEND_FLAGS_LOCAL);
+		uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &msg,
+				CAN_SEND_FLAGS_LOCAL |
+				CAN_SEND_FLAGS_NO_TX_CALLB);
 	}
 }
 

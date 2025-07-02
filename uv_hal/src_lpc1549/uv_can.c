@@ -593,9 +593,6 @@ void _uv_can_hal_send(uv_can_channels_e chn) {
 
 		msg_obj_enable(TX_MSG_OBJ);
 
-		if (this->tx_callback[chn] != NULL) {
-			this->tx_callback[chn](__uv_get_user_ptr(), &msg);
-		}
 	}
 	NVIC_EnableIRQ(CAN_IRQn);
 }

@@ -274,7 +274,9 @@ void _uv_canopen_sdo_abort(uint16_t request_response, uint16_t main_index,
 	msg.data_8bit[3] = sub_index;
 	msg.data_32bit[1] = err_code;
 	uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
-	uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &msg, CAN_SEND_FLAGS_LOCAL);
+	uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &msg,
+			CAN_SEND_FLAGS_LOCAL |
+			CAN_SEND_FLAGS_NO_TX_CALLB);
 }
 
 

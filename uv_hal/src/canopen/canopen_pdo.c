@@ -213,10 +213,11 @@ void _uv_canopen_pdo_step(uint16_t step_ms) {
 					msg.type = CAN_STD;
 					msg.data_length = next_mapped_byte;
 					msg.id = com->cob_id;
-					uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
 					// send all PDO's locally in case if this device is mapped
 					// to receive it's own messages
-					uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &msg, CAN_SEND_FLAGS_LOCAL);
+					uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &msg,
+							CAN_SEND_FLAGS_NORMAL |
+							CAN_SEND_FLAGS_LOCAL);
 				}
 			}
 		}
