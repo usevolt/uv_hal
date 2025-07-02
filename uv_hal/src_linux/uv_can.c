@@ -428,8 +428,7 @@ uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 			(flags & CAN_SEND_FLAGS_SYNC)) {
 		ret = uv_can_send_message(chn, msg);
 	}
-	if (ret == ERR_NONE &&
-			!(flags & CAN_SEND_FLAGS_NO_TX_CALLB) &&
+	if (!(flags & CAN_SEND_FLAGS_NO_TX_CALLB) &&
 			(this->tx_callb != NULL)) {
 		this->tx_callb(__uv_get_user_ptr(), msg);
 	}
