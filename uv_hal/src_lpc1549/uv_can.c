@@ -283,6 +283,29 @@ uv_errors_e uv_can_add_tx_callback(uv_can_channels_e channel,
 }
 
 
+static bool send_terminal(uv_can_msg_st *msg) {
+	bool ret = false;
+#if CONFIG_TERMINAL_CAN
+	// terminal characters are sent to their specific buffer
+	if (msg->id == UV_TERMINAL_CAN_RX_ID + uv_canopen_get_our_nodeid() &&
+			msg->type == CAN_STD &&
+			msg->data_8bit[0] == 0x22 &&
+			msg->data_8bit[1] == (UV_TERMINAL_CAN_INDEX & 0xFF) &&
+			msg->data_8bit[2] == UV_TERMINAL_CAN_INDEX >> 8 &&
+			msg->data_8bit[3] == UV_TERMINAL_CAN_SUBINDEX &&
+			msg->data_length > 4) {
+		uint8_t i;
+		for (i = 0; i < msg->data_length - 4; i++) {
+			uv_ring_buffer_push(&this->char_buffer,
+					(char*) &msg->data_8bit[4 + i]);
+		}
+		ret = true;
+	}
+#endif
+
+	return ret;
+}
+
 
 void CAN_IRQHandler(void) {
 	volatile uint32_t p = LPC_CAN->INT;
@@ -316,26 +339,9 @@ void CAN_IRQHandler(void) {
 
 						}
 						else {
-#if CONFIG_TERMINAL_CAN
-							// terminal characters are sent to their specific buffer
-							if (msg.id == UV_TERMINAL_CAN_RX_ID + uv_canopen_get_our_nodeid() &&
-									msg.type == CAN_STD &&
-									msg.data_8bit[0] == 0x22 &&
-									msg.data_8bit[1] == (UV_TERMINAL_CAN_INDEX & 0xFF) &&
-									msg.data_8bit[2] == UV_TERMINAL_CAN_INDEX >> 8 &&
-									msg.data_8bit[3] == UV_TERMINAL_CAN_SUBINDEX &&
-									msg.data_length > 4) {
-								uint8_t i;
-								for (i = 0; i < msg.data_length - 4; i++) {
-									uv_ring_buffer_push(&this->char_buffer, (char*) &msg.data_8bit[4 + i]);
-								}
-							}
-							else {
-#endif
+							if (!send_terminal(&msg)) {
 								uv_ring_buffer_push(&this->rx_buffer, &msg);
-#if CONFIG_TERMINAL_CAN
 							}
-#endif
 						}
 					}
 					int_pend &= ~(1 << msg_obj);
@@ -720,7 +726,9 @@ uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 	uv_errors_e ret = ERR_NONE;
 	uv_disable_int();
 	if (flags & CAN_SEND_FLAGS_LOCAL) {
-		ret = uv_ring_buffer_push(&this->rx_buffer, msg);
+		if (!send_terminal(msg)) {
+			ret = uv_ring_buffer_push(&this->rx_buffer, msg);
+		}
 	}
 	if (flags & CAN_SEND_FLAGS_SYNC) {
 		ret = uv_can_send_sync(chn, msg);
