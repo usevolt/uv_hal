@@ -87,8 +87,7 @@ static void send_can_msg(void) {
 	}
 #else
 	uv_can_send_flags(CAN0, &msg,
-			CAN_SEND_FLAGS_SYNC |
-			CAN_SEND_FLAGS_NO_TX_CALLB);
+			CAN_SEND_FLAGS_SYNC);
 #endif
 
 }

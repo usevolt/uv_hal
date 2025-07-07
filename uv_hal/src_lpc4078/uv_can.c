@@ -244,11 +244,43 @@ static void insert_msg(uv_can_chn_e chn,
 		range.LowerID.ID_11 = id;
 		range.UpperID.CtrlNo = chn;
 		range.UpperID.ID_11 = (ctz) ? (id | (0x7FF & (~mask))) : id;
-//		printf("RX configuring STD range 0x%x ... 0x%x for CAN%u\n",
-//				range.LowerID.ID_11,
-//				range.UpperID.ID_11,
-//				range.LowerID.CtrlNo);
+		printf("RX configuring STD range 0x%x ... 0x%x for CAN%u\n",
+				range.LowerID.ID_11,
+				range.UpperID.ID_11,
+				range.LowerID.CtrlNo);
+
+		// check other entries and remove them if they are included in the new one.
+		// LPC4078 CANAF is not clever enough to remove recurrant entries
+		// and they fuck up message receiving if left there
+//		uint8_t count = Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_SFF_GRP_SEC);
+//		printf("std group count: %i\n",
+//				count);
+		for (int8_t i = 0;
+				i < Chip_CAN_GetEntriesNum(
+						LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_SFF_GRP_SEC);
+				i++) {
+			CAN_STD_ID_RANGE_ENTRY_T entry = {};
+			Chip_CAN_ReadGroupSTDEntry(LPC_CANAF, LPC_CANAF_RAM, i, &entry);
+			if (entry.LowerID.CtrlNo == range.LowerID.CtrlNo &&
+					!entry.LowerID.Disable &&
+					entry.LowerID.ID_11 >= range.LowerID.ID_11 &&
+						entry.UpperID.ID_11 <= range.UpperID.ID_11) {
+				printf("Removing unused entry %i 0x%x - 0x%x\n",
+						i,
+						entry.LowerID.ID_11,
+						entry.UpperID.ID_11);
+				Chip_CAN_RemoveGroupSTDEntry(LPC_CANAF, LPC_CANAF_RAM, i);
+				i--;
+			}
+//			printf("%i: 0x%x - 0x%x, CAN%i, disable: %i\n",
+//					i,
+//					entry.LowerID.ID_11,
+//					entry.UpperID.ID_11,
+//					entry.LowerID.CtrlNo,
+//					entry.LowerID.Disable);
+		}
 		Chip_CAN_InsertGroupSTDEntry(LPC_CANAF, LPC_CANAF_RAM, &range);
+
 	}
 	else {
 		// type == CAN_EXT
@@ -261,8 +293,38 @@ static void insert_msg(uv_can_chn_e chn,
 //				range.LowerID.ID_29,
 //				range.UpperID.ID_29,
 //				range.LowerID.CtrlNo);
+		// check other entries and remove them if they are included in the new one.
+		// LPC4078 CANAF is not clever enough to remove recurrant entries
+		// and they fuck up message receiving if left there
+//		uint8_t count = Chip_CAN_GetEntriesNum(
+//				LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_EFF_GRP_SEC);
+//		printf("ext group count: %i\n",
+//				count);
+		for (int8_t i = 0;
+				i < Chip_CAN_GetEntriesNum(
+						LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_EFF_GRP_SEC);
+				i++) {
+			CAN_EXT_ID_RANGE_ENTRY_T entry = {};
+			Chip_CAN_ReadGroupEXTEntry(LPC_CANAF, LPC_CANAF_RAM, i, &entry);
+			if (entry.LowerID.CtrlNo == range.LowerID.CtrlNo &&
+					entry.LowerID.ID_29 >= range.LowerID.ID_29 &&
+						entry.UpperID.ID_29 <= range.UpperID.ID_29) {
+				printf("Removing unused entry %i 0x%x - 0x%x\n",
+						i,
+						entry.LowerID.ID_29,
+						entry.UpperID.ID_29);
+				Chip_CAN_RemoveGroupEXTEntry(LPC_CANAF, LPC_CANAF_RAM, i);
+				i--;
+			}
+//			printf("%i: 0x%x - 0x%x, CAN%i\n",
+//					i,
+//					entry.LowerID.ID_29,
+//					entry.UpperID.ID_29,
+//					entry.LowerID.CtrlNo);
+		}
 		Chip_CAN_InsertGroupEXTEntry(LPC_CANAF, LPC_CANAF_RAM, &range);
 	}
+
 }
 
 uv_errors_e uv_can_config_rx_message(uv_can_channels_e chn,
@@ -315,6 +377,30 @@ void uv_can_clear_rx_messages(uv_can_chn_e chn) {
 }
 
 
+static bool receive_terminal(uv_can_msg_st *msg) {
+	bool ret = false;
+#if CONFIG_TERMINAL_CAN
+	// terminal characters are sent to their specific buffer
+	if (msg->id == UV_TERMINAL_CAN_RX_ID +
+			uv_canopen_get_our_nodeid() &&
+			msg->type == CAN_STD &&
+			msg->data_8bit[0] == 0x22 &&
+			msg->data_8bit[1] == (UV_TERMINAL_CAN_INDEX & 0xFF) &&
+			msg->data_8bit[2] == UV_TERMINAL_CAN_INDEX >> 8 &&
+			msg->data_8bit[3] == UV_TERMINAL_CAN_SUBINDEX &&
+			msg->data_length > 4) {
+		uint8_t i;
+		for (i = 0; i < msg->data_length - 4; i++) {
+			uv_ring_buffer_push(&this->char_buffer,
+					(char*) &msg->data_8bit[4 + i]);
+		}
+		ret = true;
+	}
+#endif
+
+	return ret;
+}
+
 
 void CAN_IRQHandler(void) {
 #if CONFIG_CAN0
@@ -338,25 +424,15 @@ void CAN_IRQHandler(void) {
 						!this->can[0].rx_callback(__uv_get_user_ptr(), &msg)) {
 				}
 				else {
-					uv_ring_buffer_push(&this->can[0].rx_buffer, &msg);
-				}
-#if CONFIG_TERMINAL_CAN && (CONFIG_TERMINAL_CAN_CHN == CAN0)
+#if (CONFIG_TERMINAL_CAN_CHN == CAN0)
 				// terminal characters are sent to their specific buffer
-				if (msg.id == UV_TERMINAL_CAN_RX_ID +
-						uv_canopen_get_our_nodeid() &&
-						msg.type == CAN_STD &&
-						msg.data_8bit[0] == 0x22 &&
-						msg.data_8bit[1] == (UV_TERMINAL_CAN_INDEX & 0xFF) &&
-						msg.data_8bit[2] == UV_TERMINAL_CAN_INDEX >> 8 &&
-						msg.data_8bit[3] == UV_TERMINAL_CAN_SUBINDEX &&
-						msg.data_length > 4) {
-					uint8_t i;
-					for (i = 0; i < msg.data_length - 4; i++) {
-						uv_ring_buffer_push(&this->char_buffer,
-								(char*) &msg.data_8bit[4 + i]);
+					if (!receive_terminal(&msg)) {
+						uv_ring_buffer_push(&this->can[0].rx_buffer, &msg);
 					}
-				}
+#else
+					uv_ring_buffer_push(&this->can[0].rx_buffer, &msg);
 #endif
+				}
 			}
 		}
 		else if (canint != 0) {
@@ -390,25 +466,15 @@ void CAN_IRQHandler(void) {
 
 				}
 				else {
-					uv_ring_buffer_push(&this->can[1].rx_buffer, &msg);
-				}
-#if CONFIG_TERMINAL_CAN && (CONFIG_TERMINAL_CAN_CHN == CAN1)
+#if (CONFIG_TERMINAL_CAN_CHN == CAN1)
 				// terminal characters are sent to their specific buffer
-				if (msg.id == UV_TERMINAL_CAN_RX_ID +
-						uv_canopen_get_our_nodeid() &&
-						msg.type == CAN_STD &&
-						msg.data_8bit[0] == 0x22 &&
-						msg.data_8bit[1] == (UV_TERMINAL_CAN_INDEX & 0xFF) &&
-						msg.data_8bit[2] == UV_TERMINAL_CAN_INDEX >> 8 &&
-						msg.data_8bit[3] == UV_TERMINAL_CAN_SUBINDEX &&
-						msg.data_length > 4) {
-					uint8_t i;
-					for (i = 0; i < msg.data_length - 4; i++) {
-						uv_ring_buffer_push(&this->char_buffer,
-								(char*) &msg.data_8bit[4 + i]);
+					if (!receive_terminal(&msg)) {
+						uv_ring_buffer_push(&this->can[1].rx_buffer, &msg);
 					}
-				}
+#else
+					uv_ring_buffer_push(&this->can[1].rx_buffer, &msg);
 #endif
+				}
 			}
 		}
 		else if (canint != 0) {
