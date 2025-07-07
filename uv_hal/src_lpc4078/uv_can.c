@@ -61,7 +61,7 @@ typedef struct {
 		uv_can_message_st tx_buffer_data[CONFIG_CAN0_TX_BUFFER_SIZE];
 		uv_ring_buffer_st tx_buffer;
 		bool (*rx_callback)(void *user_ptr, uv_can_msg_st *msg);
-		bool (*tx_callback)(void *user_ptr, uv_can_msg_st *msg);
+		bool (*tx_callback)(void *user_ptr, uv_can_msg_st *msg, can_send_flags_e flags);
 		LPC_CAN_T *lpc_can;
 	} can[CAN_COUNT];
 
@@ -112,7 +112,8 @@ uv_errors_e uv_can_add_rx_callback(uv_can_channels_e chn,
 
 
 uv_errors_e uv_can_add_tx_callback(uv_can_channels_e channel,
-		bool (*callback_function)(void *user_ptr, uv_can_msg_st *msg)) {
+		bool (*callback_function)(void *user_ptr, uv_can_msg_st *msg,
+				can_send_flags_e flags)) {
 	this->can[channel].tx_callback = callback_function;
 
 	return ERR_NONE;
@@ -644,7 +645,7 @@ uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 	}
 	if (!(flags & CAN_SEND_FLAGS_NO_TX_CALLB) &&
 			(this->can[chn].tx_callback != NULL)) {
-		this->can[chn].tx_callback(__uv_get_user_ptr(), msg);
+		this->can[chn].tx_callback(__uv_get_user_ptr(), msg, flags);
 	}
 
 	uv_enable_int();

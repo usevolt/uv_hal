@@ -55,7 +55,7 @@
 
 
 /// @brief: Reads and writes a single byte to XB3
-static uv_errors_e read_write(uv_xb3_st *this, spi_data_t *tx);
+static uv_errors_e read_write(uv_xb3_st *this);
 
 
 /// @brief: Converts uint64_t data from network byte order to local byte order.
@@ -193,45 +193,36 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd,
 
 	uv_mutex_lock(&this->tx_mutex);
 
-	uv_gpio_set(this->ssel_gpio, true);
-
 	// require to read XB3 buffer empty for some reason,
 	// otherwise XB3 might not receive AT request
-	for (uint8_t i = 0; i < 50; i++) {
-		read_write(this, NULL);
-		if (uv_gpio_get(this->attn_gpio)) {
-			break;
-		}
+	for (uint8_t i = 0; i < 10; i++) {
+		this->tx_buf[0] = 0;
+		this->spi_buf_len = 1;
+		read_write(this);
 	}
 
-	spi_data_t d = APIFRAME_START;
-	uv_errors_e e = read_write(this, &d);
+	spi_data_t *d = this->tx_buf;
+	*d++ = APIFRAME_START;
 	uint16_t framedatalen = 4 + paramvaluelen;
-	d = (framedatalen >> 8); // length MSB
-	e |= read_write(this, &d);
-	d = framedatalen & 0xFF; // length LSB
-	e |= read_write(this, &d);
-	d = APIFRAME_LOCALATCMDREQ;
-	crc += (uint8_t) d;
-	e |= read_write(this, &d);
+	*d++ = (framedatalen >> 8); // length MSB
+	*d++ = framedatalen & 0xFF; // length LSB
+	*d = APIFRAME_LOCALATCMDREQ;
+	crc += (uint8_t) *d++;
 	// Frame ID, has to be something else than 0
-	d = 0x17;
-	crc += (uint8_t) d;
-	e |= read_write(this, &d);
-	d = atcmd[0];
-	crc += (uint8_t) d;
-	e |= read_write(this, &d);
-	d = atcmd[1];
-	crc += (uint8_t) d;
-	e |= read_write(this, &d);
+	*d = 0x17;
+	crc += (uint8_t) *d++;
+	*d = atcmd[0];
+	crc += (uint8_t) *d++;
+	*d = atcmd[1];
+	crc += (uint8_t) *d++;
 	for (uint16_t i = 0; i < paramvaluelen; i++) {
-		d = data[i];
-		e |= read_write(this, &d);
+		*d++ = data[i];
 		crc += (uint8_t) data[i];
 	}
-	d = (uint8_t) 0xFF - (crc & 0xFF);
-	e |= read_write(this, &d);
+	*d = (uint8_t) 0xFF - (crc & 0xFF);
+	this->spi_buf_len = paramvaluelen + 8;
 
+	uv_errors_e e = read_write(this);
 
 	uv_mutex_unlock(&this->tx_mutex);
 
@@ -297,6 +288,19 @@ uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
 
 
 
+uv_errors_e uv_xb3_write_sync(uv_xb3_st *this, char *data,
+		uint16_t datalen) {
+	uv_errors_e ret = ERR_NONE;
+	// poll to clear transmit buffer
+	uv_xb3_poll(this);
+	ret = uv_xb3_generic_write(this, data, datalen, false);
+	// poll to send message
+	uv_xb3_poll(this);
+
+	return ret;
+}
+
+
 
 
 
@@ -360,6 +364,7 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	this->modem_status = XB3_MODEMSTATUS_NONE;
 	this->modem_status_changed = XB3_MODEMSTATUS_NONE;
 	this->max_payload = 0;
+	this->spi_buf_len = 0;
 
 	if (uv_streambuffer_init(&this->tx_streambuffer, TX_BUF_SIZE) != ERR_NONE) {
 		uv_terminal_enable(TERMINAL_CAN);
@@ -578,18 +583,24 @@ void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms) {
 
 
 
-static uv_errors_e read_write(uv_xb3_st *this, spi_data_t *tx) {
+static uv_errors_e read_write(uv_xb3_st *this) {
 	uv_errors_e ret = ERR_NONE;
-	if (tx ||
+
+	if (!this->spi_buf_len &&
 			!uv_gpio_get(this->attn_gpio)) {
-		spi_data_t rx = 0;
+		this->spi_buf_len = 20;
+		memset(this->tx_buf, 0, this->spi_buf_len * sizeof(spi_data_t));
+	}
+
+	if (this->spi_buf_len) {
 		uv_gpio_set(this->ssel_gpio, false);
-		uv_spi_readwrite_sync(this->spi, SPI_SLAVE_NONE, tx, &rx, 8, 1);
+		uv_spi_readwrite_sync(this->spi, SPI_SLAVE_NONE,
+				this->tx_buf, this->rx_buf, 8, this->spi_buf_len);
+		uv_gpio_set(this->ssel_gpio, true);
+	}
 
-		if (tx) {
-			TX_DEBUG(this, "0x%x ", (unsigned int) *tx);
-		}
-
+	for (uint16_t i = 0; i < this->spi_buf_len; i++) {
+		spi_data_t rx = this->rx_buf[i];
 		if (this->rx_index == 0) {
 			if (rx == APIFRAME_START) {
 				this->rx_index++;
@@ -710,9 +721,8 @@ static uv_errors_e read_write(uv_xb3_st *this, spi_data_t *tx) {
 			}
 		}
 	}
-	else {
-		uv_gpio_set(this->ssel_gpio, true);
-	}
+
+
 	return ret;
 }
 
@@ -724,61 +734,50 @@ bool uv_xb3_poll(uv_xb3_st *this) {
 			uv_mutex_lock_isr(&this->tx_mutex)) {
 		// read and write to XB3
 		uint8_t tx_count;
-		do {
-			uint8_t t = 0;
-			tx_count = MIN(0xFF - 14,
-					uv_streambuffer_get_len(&this->tx_streambuffer));
-			uint8_t crc = 0;
-			if (tx_count) {
-				uint16_t framedatalen = 14 + tx_count;
-				uint8_t d[17] = {
-						APIFRAME_START,
-						(framedatalen >> 8), // Length
-						(framedatalen & 0xFF),
-						APIFRAME_TRANSMITREQ,
-						0x7e, // Frame ID. 0x0 doesn't emit response frame
-						(this->conf->dest_addr >> 56) & 0xFF, // 64-bit address
-						(this->conf->dest_addr >> 48) & 0xFF,
-						(this->conf->dest_addr >> 40) & 0xFF,
-						(this->conf->dest_addr >> 32) & 0xFF,
-						(this->conf->dest_addr >> 24) & 0xFF,
-						(this->conf->dest_addr >> 16) & 0xFF,
-						(this->conf->dest_addr >> 8) & 0xFF,
-						(this->conf->dest_addr) & 0xFF,
-						0xFF, // 16-bit address
-						0xFE,
-						0, // broadcast radius
-						0, // transmit options
-				};
-				for (uint8_t i = 0; i < sizeof(d); i++) {
-					spi_data_t tx = d[i];
-					read_write(this, &tx);
-					// crc doesn't include first 3 bytes
-					if (i > 2) {
-						crc += d[i];
-					}
-				}
-			}
-			do {
-				uint8_t tx_available = uv_streambuffer_pop_isr(
-						&this->tx_streambuffer, &t, 1);
-				spi_data_t tx = t;
-				read_write(this, tx_available ? &tx : NULL);
-				crc += t;
-				if (tx_count == 1) {
-					// last data was just sent, calculate crc
-					tx = 0xFF - crc;
-					read_write(this, &tx);
-				}
-				if (tx_count) {
-					tx_count--;
-				}
-			}
-			while (tx_count);
-		}
-		while (tx_count);
+		tx_count = MIN(XB3_SPI_BUF_LEN - 18,
+				uv_streambuffer_get_len(&this->tx_streambuffer));
+		if (tx_count) {
+			uint16_t framedatalen = 14 + tx_count;
+			spi_data_t *d = this->tx_buf;
+			*d++ = APIFRAME_START;
+			*d++ = (framedatalen >> 8); // Length
+			*d++ = (framedatalen & 0xFF);
+			*d++ = APIFRAME_TRANSMITREQ;
+			*d++ = 0x52; // Frame ID. 0x0 doesn't emit response frame
+			*d++ = (this->conf->dest_addr >> 56) & 0xFF; // 64-bit address
+			*d++ = (this->conf->dest_addr >> 48) & 0xFF;
+			*d++ = (this->conf->dest_addr >> 40) & 0xFF;
+			*d++ = (this->conf->dest_addr >> 32) & 0xFF;
+			*d++ = (this->conf->dest_addr >> 24) & 0xFF;
+			*d++ = (this->conf->dest_addr >> 16) & 0xFF;
+			*d++ = (this->conf->dest_addr >> 8) & 0xFF;
+			*d++ = (this->conf->dest_addr) & 0xFF;
+			*d++ = 0xFF; // 16-bit address
+			*d++ = 0xFE;
+			*d++ = 0; // broadcast radius
+			*d++ = 0; // transmit options
 
-		uv_gpio_set(this->ssel_gpio, true);
+			this->spi_buf_len = 17;
+			for (uint8_t i = 0; i < tx_count; i++) {
+				uv_streambuffer_pop_isr(&this->tx_streambuffer,
+						&this->tx_buf[17 + i], 1);
+			}
+			this->spi_buf_len += tx_count;
+
+			uint8_t crc = 0;
+			// crc doesn't include first 3 bytes
+			for (uint8_t i = 3; i < this->spi_buf_len; i++) {
+				crc += (uint8_t) this->tx_buf[i];
+			}
+			this->tx_buf[this->spi_buf_len++] = 0xFF - crc;
+
+		}
+		else {
+			this->spi_buf_len = 0;
+		}
+		read_write(this);
+
+		ret = true;
 
 		uv_mutex_unlock(&this->tx_mutex);
 	}

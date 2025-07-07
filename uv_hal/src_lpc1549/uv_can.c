@@ -157,7 +157,7 @@ typedef struct {
 	char char_buffer_data[CONFIG_TERMINAL_BUFFER_SIZE];
 #endif
 	bool (*rx_callback[CAN_COUNT])(void *user_ptr, uv_can_msg_st *msg);
-	bool (*tx_callback[CAN_COUNT])(void *user_ptr, uv_can_msg_st *msg);
+	bool (*tx_callback[CAN_COUNT])(void *user_ptr, uv_can_msg_st *msg, can_send_flags_e flags);
 
 } can_st;
 
@@ -276,7 +276,8 @@ uv_errors_e uv_can_add_rx_callback(uv_can_channels_e channel,
 
 
 uv_errors_e uv_can_add_tx_callback(uv_can_channels_e channel,
-		bool (*callback_function)(void *user_ptr, uv_can_msg_st *msg)) {
+		bool (*callback_function)(void *user_ptr, uv_can_msg_st *msg,
+				can_send_flags_e flags)) {
 	this->tx_callback[channel] = callback_function;
 
 	return ERR_NONE;
@@ -738,7 +739,7 @@ uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 	}
 	if (!(flags & CAN_SEND_FLAGS_NO_TX_CALLB) &&
 			(this->tx_callback[chn] != NULL)) {
-		this->tx_callback[chn](__uv_get_user_ptr(), msg);
+		this->tx_callback[chn](__uv_get_user_ptr(), msg, flags);
 	}
 
 	uv_enable_int();

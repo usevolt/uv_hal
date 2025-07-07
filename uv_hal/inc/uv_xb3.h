@@ -99,6 +99,9 @@ static inline void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def) {
 }
 
 
+#define XB3_SPI_BUF_LEN		256
+
+
 /// @brief: Main struct for XB3 wireless module
 typedef struct {
 	uv_xb3_conf_st *conf;
@@ -148,6 +151,11 @@ typedef struct {
 	uint16_t rx_size;
 	uint8_t rx_frame_type;
 	uint16_t max_payload;
+
+	uint16_t spi_buf_len;
+	spi_data_t tx_buf[XB3_SPI_BUF_LEN];
+	spi_data_t rx_buf[XB3_SPI_BUF_LEN];
+
 } uv_xb3_st;
 
 
@@ -172,7 +180,7 @@ uv_errors_e uv_xb3_set_nodename(uv_xb3_st *this, const char *name);
 
 /// @brief: Should be called in rtos idle hook
 ///
-/// @return: True if any RX data was going to be read, false otherwise
+/// @return: True if RX and TX buffers were succelsfully received and transmitted
 bool uv_xb3_poll(uv_xb3_st *this);
 
 
@@ -209,6 +217,9 @@ static inline uv_errors_e uv_xb3_write(uv_xb3_st *this,
 	return uv_xb3_generic_write(this, data, datalen, false);
 }
 
+
+uv_errors_e uv_xb3_write_sync(uv_xb3_st *this, char *data,
+		uint16_t datalen);
 
 
 

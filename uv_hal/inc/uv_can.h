@@ -245,6 +245,7 @@ void uv_can_clear_rx_messages(uv_can_chn_e chn);
 
 
 typedef enum {
+	CAN_SEND_FLAGS_NONE = 0,
 	CAN_SEND_FLAGS_NO_TX_CALLB =	(1 << 0),
 	CAN_SEND_FLAGS_LOCAL =			(1 << 1),
 	CAN_SEND_FLAGS_SYNC	=			(1 << 2),
@@ -300,7 +301,8 @@ uv_errors_e uv_can_add_rx_callback(uv_can_channels_e channel,
 
 
 uv_errors_e uv_can_add_tx_callback(uv_can_channels_e channel,
-		bool (*callback_function)(void *user_ptr, uv_can_msg_st *msg));
+		bool (*callback_function)(void *user_ptr, uv_can_msg_st *msg,
+				can_send_flags_e flags));
 
 
 uv_errors_e uv_can_reset(uv_can_channels_e channel);
