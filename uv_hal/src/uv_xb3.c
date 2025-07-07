@@ -428,13 +428,13 @@ uv_errors_e uv_xb3_set_nodename(uv_xb3_st *this, const char *name) {
 	// parse out all rx data from XB3 before continuing
 	// some strange bugs regarding next AT requests after setting NI
 	uv_rtos_task_delay(1);
-	while (uv_xb3_poll(this)) {
-		uv_rtos_task_delay(1);
+	while (!uv_gpio_get(this->attn_gpio)) {
+		uv_xb3_poll(this);
 	}
 	uv_xb3_local_at_cmd_req(this, "ID", "", 0);
 	uv_rtos_task_delay(1);
-	while (uv_xb3_poll(this)) {
-		uv_rtos_task_delay(1);
+	while (!uv_gpio_get(this->attn_gpio)) {
+		uv_xb3_poll(this);
 	}
 	uv_mutex_unlock(&this->atreq_mutex);
 	return ret;
