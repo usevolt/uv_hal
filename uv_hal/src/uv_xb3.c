@@ -182,6 +182,8 @@ const char *uv_xb3_modem_status_to_str(uv_xb3_modem_status_e stat) {
 /// according to frame type LOCALATCMDREQ
 void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd,
 		char *data, uint16_t data_len) {
+	uv_mutex_lock(&this->tx_mutex);
+
 	this->at_response = XB3_AT_RESPONSE_COUNT;
 	uv_queue_clear(&this->rx_at_queue);
 	uint8_t crc = 0;
@@ -191,15 +193,6 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd,
 		paramvaluelen = strlen(data);
 	}
 
-	uv_mutex_lock(&this->tx_mutex);
-
-	// require to read XB3 buffer empty for some reason,
-	// otherwise XB3 might not receive AT request
-	for (uint8_t i = 0; i < 10; i++) {
-		this->tx_buf[0] = 0;
-		this->spi_buf_len = 1;
-		read_write(this);
-	}
 
 	spi_data_t *d = this->tx_buf;
 	*d++ = APIFRAME_START;
@@ -226,23 +219,17 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd,
 
 	uv_mutex_unlock(&this->tx_mutex);
 
-
 	if (this->conf->flags & XB3_CONF_FLAGS_AT_ECHO) {
 		if (e != ERR_NONE) {
 			printf("AT error: %u\n", e);
 		}
 		printf("AT %s ", atcmd);
 		for (uint16_t i = 0; i < data_len; i++) {
-			if (this->conf->flags & XB3_CONF_FLAGS_AT_HEX) {
-				printf("0x%02x ", data[i]);
-			}
-			else {
-				printf("%c", data[i]);
-			}
+			printf("0x%02x ", data[i]);
 		}
 		printf("\n");
-	}
 
+	}
 }
 
 #define TX_DEBUG(this, ...)	if (this->conf->flags & XB3_CONF_FLAGS_TX_ECHO) \
@@ -330,14 +317,20 @@ static bool xb3_reset(uv_xb3_st *this) {
 		}
 	}
 	if (ret) {
-		uv_terminal_enable(TERMINAL_CAN);
-		XB3_DEBUG(this, "XB3 reset, took %i ms\n", ms);
+
+		if (this->conf->flags & XB3_CONF_FLAGS_DEBUG) {
+			uv_terminal_enable(TERMINAL_CAN);
+		}
+		XB3_DEBUG(this, "XB3 reset, took %i ms %i\n", ms, uv_gpio_get(this->attn_gpio));
 
 		uv_gpio_set(this->ssel_gpio, true);
 
 		uv_rtos_task_delay(1);
 
 		this->initialized = true;
+	}
+	else {
+
 	}
 
 	return ret;
@@ -364,7 +357,9 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	this->modem_status = XB3_MODEMSTATUS_NONE;
 	this->modem_status_changed = XB3_MODEMSTATUS_NONE;
 	this->max_payload = 0;
+	this->max_retransmit = 0;
 	this->spi_buf_len = 0;
+	this->escape = false;
 
 	if (uv_streambuffer_init(&this->tx_streambuffer, TX_BUF_SIZE) != ERR_NONE) {
 		uv_terminal_enable(TERMINAL_CAN);
@@ -400,7 +395,13 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 
 		XB3_DEBUG(this, "Setting device identification string to '%s'\n", nodeid);
 		uv_xb3_set_nodename(this, nodeid);
-	}
+
+		uv_xb3_local_at_cmd_req(this, "SH", "", 0);
+		this->ieee_serial = ntouint32_queue(this, &this->rx_at_queue);
+		this->ieee_serial = this->ieee_serial << 32;
+		uv_xb3_local_at_cmd_req(this, "SL", "", 0);
+		this->ieee_serial += ntouint32_queue(this, &this->rx_at_queue);
+}
 	else {
 		ret = ERR_NACK;
 
@@ -424,17 +425,6 @@ uv_errors_e uv_xb3_set_nodename(uv_xb3_st *this, const char *name) {
 	}
 	if (uv_xb3_get_at_response(this) != XB3_AT_RESPONSE_OK) {
 		ret = ERR_ABORTED;
-	}
-	// parse out all rx data from XB3 before continuing
-	// some strange bugs regarding next AT requests after setting NI
-	uv_rtos_task_delay(1);
-	while (!uv_gpio_get(this->attn_gpio)) {
-		uv_xb3_poll(this);
-	}
-	uv_xb3_local_at_cmd_req(this, "ID", "", 0);
-	uv_rtos_task_delay(1);
-	while (!uv_gpio_get(this->attn_gpio)) {
-		uv_xb3_poll(this);
 	}
 	uv_mutex_unlock(&this->atreq_mutex);
 	return ret;
@@ -521,6 +511,9 @@ void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms) {
 				this->network.oi = ntouint16_queue(this, &this->rx_at_queue);
 				uv_xb3_local_at_cmd_req(this, "CH", "", 0);
 				this->network.ch = ntouint8_queue(this, &this->rx_at_queue);
+				char data[8];
+				uint64ton(data, this->conf->epanid);
+				uv_xb3_local_at_cmd_req(this, "ID", data, sizeof(data));
 
 				if (this->conf->epanid) {
 					// write modifications to nonvol memory on XB3
@@ -593,6 +586,27 @@ static uv_errors_e read_write(uv_xb3_st *this) {
 	}
 
 	if (this->spi_buf_len) {
+		// escape characters, start delimiter doesn't need to be escaped
+//		for (uint16_t i = this->spi_buf_len - 1; i > 0; i--) {
+//			if (this->tx_buf[i] == 0x7E ||
+//					this->tx_buf[i] == 0x7D ||
+//					this->tx_buf[i] == 0x11 ||
+//					this->tx_buf[i] == 0x13) {
+//				printf("escaping %i (0x%02x)\n", i, this->tx_buf[i]);
+//				memmove(this->tx_buf + i + 1,
+//						&this->tx_buf[i],
+//						(this->spi_buf_len - i) * sizeof(spi_data_t));
+//				this->tx_buf[i] = 0x7D;
+//				this->tx_buf[i + 1] = this->tx_buf[i + 1] ^ 0x20;
+//				this->spi_buf_len++;
+//			}
+//		}
+
+//		for (uint16_t i = 0; i < this->spi_buf_len; i++) {
+//			printf("%02x ", this->tx_buf[i]);
+//		}
+//		printf("\n");
+
 		uv_gpio_set(this->ssel_gpio, false);
 		uv_spi_readwrite_sync(this->spi, SPI_SLAVE_NONE,
 				this->tx_buf, this->rx_buf, 8, this->spi_buf_len);
@@ -601,9 +615,19 @@ static uv_errors_e read_write(uv_xb3_st *this) {
 
 	for (uint16_t i = 0; i < this->spi_buf_len; i++) {
 		spi_data_t rx = this->rx_buf[i];
+		// handle escape characters
+//		if (rx == 0x7D) {
+//			this->escape = true;
+//		}
+//		else {
+//			if (this->escape) {
+//				rx = rx ^ 0x20;
+//			}
+//			this->escape = false;
 		if (this->rx_index == 0) {
 			if (rx == APIFRAME_START) {
-				this->rx_index++;
+				XB3_DEBUG(this, "APIFRAME START\n");
+				this->rx_index = 1;
 				this->rx_size = 0;
 			}
 		}
@@ -624,6 +648,7 @@ static uv_errors_e read_write(uv_xb3_st *this) {
 			// API Frame type
 			case 4:
 				this->rx_frame_type = rx;
+				XB3_DEBUG(this, "Receiving 0x%02x\n", rx);
 				break;
 			// API data
 			default:
@@ -635,12 +660,7 @@ static uv_errors_e read_write(uv_xb3_st *this) {
 						}
 						else if (this->rx_index > 8) {
 							if (this->conf->flags & XB3_CONF_FLAGS_AT_ECHO) {
-								if (this->conf->flags & XB3_CONF_FLAGS_AT_HEX) {
-									printf("0x%02x ", rx);
-								}
-								else {
-									printf("%c", rx);
-								}
+								printf("0x%02x ", rx);
 							}
 							if (uv_queue_push(&this->rx_at_queue, &rx, 0) != ERR_NONE) {
 								XB3_DEBUG(this, "XB3: AT rx queue full\n");
@@ -691,6 +711,7 @@ static uv_errors_e read_write(uv_xb3_st *this) {
 							if (!uv_streambuffer_push_isr(&this->rx_data_streambuffer,
 									&rx, 1)) {
 								ret = ERR_BUFFER_OVERFLOW;
+								XB3_DEBUG(this, "XB3 receive buffer overflow\n");
 							}
 							this->rx_max = MAX(this->rx_max,
 									uv_streambuffer_get_len(&this->rx_data_streambuffer));
@@ -707,6 +728,15 @@ static uv_errors_e read_write(uv_xb3_st *this) {
 								}
 							}
 						}
+						else if (offset == 7) {
+							this->max_retransmit = MAX(this->max_retransmit, rx);
+						}
+						else if (offset == 9) {
+
+						}
+						else {
+
+						}
 						break;
 					default:
 						XB3_DEBUG(this, "APIFRAME 0x%x\n", this->rx_frame_type);
@@ -716,10 +746,12 @@ static uv_errors_e read_write(uv_xb3_st *this) {
 				else {
 					// last byte is CRC, which marks the end of transmission
 					this->rx_index = 0;
+					XB3_DEBUG(this, "EOF\n");
 				}
 				break;
 			}
 		}
+//		}
 	}
 
 
@@ -732,9 +764,10 @@ bool uv_xb3_poll(uv_xb3_st *this) {
 	bool ret = false;
 	if (this->initialized &&
 			uv_mutex_lock_isr(&this->tx_mutex)) {
+
 		// read and write to XB3
 		uint8_t tx_count;
-		tx_count = MIN(XB3_SPI_BUF_LEN - 18,
+		tx_count = MIN(XB3_SPI_BUF_LEN / 2,
 				uv_streambuffer_get_len(&this->tx_streambuffer));
 		if (tx_count) {
 			uint16_t framedatalen = 14 + tx_count;
@@ -770,11 +803,12 @@ bool uv_xb3_poll(uv_xb3_st *this) {
 				crc += (uint8_t) this->tx_buf[i];
 			}
 			this->tx_buf[this->spi_buf_len++] = 0xFF - crc;
-
+			memset(this->rx_buf, 0, this->spi_buf_len);
 		}
 		else {
 			this->spi_buf_len = 0;
 		}
+
 		read_write(this);
 
 		ret = true;
@@ -975,19 +1009,6 @@ uint64_t uv_xb3_get_epid(uv_xb3_st *this) {
 }
 
 
-uint64_t uv_xb3_get_serial(uv_xb3_st *this) {
-	uint64_t ret = 0;
-	uv_mutex_lock(&this->atreq_mutex);
-	uv_xb3_local_at_cmd_req(this, "SH", "", 0);
-	ret = ntouint32_queue(this, &this->rx_at_queue);
-	ret = ret << 32;
-	uv_xb3_local_at_cmd_req(this, "SL", "", 0);
-	ret += ntouint32_queue(this, &this->rx_at_queue);
-	uv_mutex_unlock(&this->atreq_mutex);
-
-	return ret;
-}
-
 
 void uv_xb3_network_reset(uv_xb3_st *this) {
 	memset(&this->network, 0, sizeof(this->network));
@@ -1010,6 +1031,10 @@ void uv_xb3_network_reset(uv_xb3_st *this) {
 		uv_rtos_task_delay(1);
 	}
 	uv_mutex_unlock(&this->atreq_mutex);
+
+	this->conf->epanid = 0;
+	uv_memory_save();
+
 	XB3_DEBUG(this, "XB3 network reset\n");
 }
 
@@ -1098,7 +1123,6 @@ void uv_xb3_terminal(uv_xb3_st *this,
 						datalen = strlen(data);
 					}
 				}
-				uv_xb3_set_at_echo(this, true);
 				uv_xb3_local_at_cmd_req(this, argv[1].str, data, datalen);
 			}
 		}
@@ -1230,7 +1254,8 @@ void uv_xb3_terminal(uv_xb3_st *this,
 				"   AT as hex: %u\n"
 				"    TX buf: %i/%i (max %i)\n"
 				"    RX buf: %i/%i (max %i)\n"
-				"    attio: %i\n",
+				"    attio: %i\n"
+				"    Max retransmit: %u\n",
 				(int) this->initialized,
 				(unsigned int) ((uint64_t) this->conf->epanid >> 32),
 				(unsigned int) ((uint32_t) this->conf->epanid & 0xFFFFFFFF),
@@ -1247,9 +1272,11 @@ void uv_xb3_terminal(uv_xb3_st *this,
 				(int) uv_streambuffer_get_len(&this->rx_data_streambuffer),
 				(int) RX_BUF_SIZE,
 				(int) this->rx_max,
-				uv_gpio_get(this->attn_gpio));
+				uv_gpio_get(this->attn_gpio),
+				this->max_retransmit);
 		this->tx_max = 0;
 		this->rx_max = 0;
+		this->max_retransmit = 0;
 	}
 }
 

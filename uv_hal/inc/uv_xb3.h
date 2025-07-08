@@ -130,6 +130,8 @@ typedef struct {
 	// mutex for transmitting data
 	uv_mutex_st tx_mutex;
 
+	uint64_t ieee_serial;
+
 	uv_xb3_modem_status_e modem_status;
 	uv_xb3_modem_status_e modem_status_changed;
 
@@ -147,10 +149,12 @@ typedef struct {
 	bool initialized;
 	uv_xb3_at_response_e at_response;
 	uv_xb3_at_response_e at_response_req;
+	bool escape;
 	int16_t rx_index;
-	uint16_t rx_size;
+	int16_t rx_size;
 	uint8_t rx_frame_type;
 	uint16_t max_payload;
+	uint8_t max_retransmit;
 
 	uint16_t spi_buf_len;
 	spi_data_t tx_buf[XB3_SPI_BUF_LEN];
@@ -283,7 +287,9 @@ uint64_t uv_xb3_get_epid(uv_xb3_st *this);
 
 
 /// @brief: Returns the device's IEEE serial with "AT+SL" and "AT+SH" commands
-uint64_t uv_xb3_get_serial(uv_xb3_st *this);
+static inline uint64_t uv_xb3_get_serial(uv_xb3_st *this) {
+	return this->ieee_serial;
+}
 
 void uv_xb3_network_reset(uv_xb3_st *this);
 

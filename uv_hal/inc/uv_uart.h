@@ -37,9 +37,6 @@
 #include <stdint.h>
 #include "uv_stdout.h"
 #include "uv_errors.h"
-#if CONFIG_TARGET_LPC15XX
-#include "chip.h"
-#endif
 
 #if CONFIG_UART0 || CONFIG_UART1 || CONFIG_UART2 || CONFIG_UART3
 #define CONFIG_UART			1
@@ -78,29 +75,7 @@
 /// @brief: Defines UARTS usable on the target system
 /// @note: All systems must define UART_COUNT member which defines the maximum number of UARTs.
 typedef enum {
-#if CONFIG_TARGET_LPC11C14
-#if CONFIG_UART0
-	UART0		= 0,
-#endif
-	UART_COUNT 	= 1
-#elif CONFIG_TARGET_LPC1785
-#if CONFIG_UART0
-	UART0 		= 0,
-#endif
-#if CONFIG_UART1
-	UART1 		= 1,
-#endif
-#if CONFIG_UART2
-	UART2 		= 2,
-#endif
-#if CONFIG_UART3
-	UART3 		= 3,
-#endif
-#if CONFIG_UART4
-	UART4 		= 4,
-#endif
-	UART_COUNT 	= 5
-#elif CONFIG_TARGET_LPC15XX
+#if CONFIG_TARGET_LPC15XX
 #if CONFIG_UART0
 	UART0 = (uint32_t) LPC_USART0,
 #endif
