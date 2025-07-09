@@ -397,10 +397,20 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 		XB3_DEBUG(this, "Setting device identification string to '%s'\n", nodeid);
 		uv_xb3_set_nodename(this, nodeid);
 
+		uv_xb3_poll(this);
 		uv_xb3_local_at_cmd_req(this, "SH", "", 0);
+		while (uv_xb3_get_at_response(this) == XB3_AT_RESPONSE_COUNT) {
+			uv_xb3_poll(this);
+			uv_rtos_task_delay(10);
+		}
 		this->ieee_serial = ntouint32_queue(this, &this->rx_at_queue);
 		this->ieee_serial = this->ieee_serial << 32;
+		uv_xb3_poll(this);
 		uv_xb3_local_at_cmd_req(this, "SL", "", 0);
+		while (uv_xb3_get_at_response(this) == XB3_AT_RESPONSE_COUNT) {
+			uv_xb3_poll(this);
+			uv_rtos_task_delay(10);
+		}
 		this->ieee_serial += ntouint32_queue(this, &this->rx_at_queue);
 	}
 	else {
@@ -419,10 +429,17 @@ uv_errors_e uv_xb3_set_nodename(uv_xb3_st *this, const char *name) {
 	uv_mutex_lock(&this->atreq_mutex);
 	char str[20] = {};
 	strncpy(str, name, 19);
+
+	// empty receive buffer
+	uv_xb3_poll(this);
+
 	uv_xb3_local_at_cmd_req(this, "NI", (char*) str, strlen(str) + 1);
+
 	uv_terminal_enable(TERMINAL_CAN);
-	while (uv_xb3_get_at_response(this) == XB3_AT_RESPONSE_COUNT) {
+
+	while (this->at_response == XB3_AT_RESPONSE_COUNT) {
 		uv_xb3_poll(this);
+		uv_rtos_task_delay(10);
 	}
 	if (uv_xb3_get_at_response(this) != XB3_AT_RESPONSE_OK) {
 		ret = ERR_ABORTED;
