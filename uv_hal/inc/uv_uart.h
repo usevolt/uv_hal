@@ -37,6 +37,9 @@
 #include <stdint.h>
 #include "uv_stdout.h"
 #include "uv_errors.h"
+#if CONFIG_TARGET_LPC15XX
+#include "chip.h"
+#endif
 
 #if CONFIG_UART0 || CONFIG_UART1 || CONFIG_UART2 || CONFIG_UART3
 #define CONFIG_UART			1
@@ -128,9 +131,16 @@ uv_errors_e uv_uart_send_str		(uv_uarts_e uart, char *buffer);
 
 /// @brief: Gets the oldest received byte from the UART buffer and stores it
 /// to 'dest'.
-uv_errors_e uv_uart_get_char(uv_uarts_e uart, char *dest);
+int32_t uv_uart_get(uv_uarts_e uart, char *dest, uint32_t max_len, int wait_ms);
 
 
+/// @brief: Receive up to *max_len* bytes from uart and compare that to *str*.
+/// Returns true if received data matches, false otherwise or if *wait_ms*
+/// time has passed without receiving anything
+bool uv_uart_receive_cmp(uv_uarts_e uart, char *str, uint32_t max_len, int wait_ms);
+
+
+void uv_uart_clear_rx_buffer(uv_uarts_e uart);
 
 /// @brief: Registers a receive callback function when anything is received via uart
 ///

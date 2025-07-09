@@ -34,6 +34,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include "uv_gpio.h"
 #if CONFIG_TARGET_LPC15XX
 #include "chip.h"
 #include "uart_15xx.h"
@@ -48,24 +49,6 @@
 
 
 
-// Receive buffers for all enabled uart's
-#if CONFIG_UART0
-static char uart0_rxbuffer[CONFIG_UART0_RX_BUFFER_SIZE];
-#endif
-#if CONFIG_UART1
-static char uart1_rxbuffer[CONFIG_UART1_RX_BUFFER_SIZE];
-#endif
-#if CONFIG_UART2
-static char uart2_rxbuffer[CONFIG_UART2_RX_BUFFER_SIZE];
-#endif
-#if CONFIG_UART3
-static char uart3_rxbuffer[CONFIG_UART3_RX_BUFFER_SIZE];
-#endif
-#if CONFIG_UART4
-static char uart4_rxbuffer[CONFIG_UART4_RX_BUFFER_SIZE];
-#endif
-
-
 
 
 typedef struct {
@@ -76,7 +59,7 @@ typedef struct {
 
 
 
-static uart_st _this;
+static uart_st _this = {};
 
 #define this (&_this)
 
@@ -97,9 +80,12 @@ static void isr(uv_uarts_e uart) {
 #if CONFIG_UART2
 		if (uart == UART2) { i = 2; }
 #endif
-		uv_errors_e e = uv_streambuffer_push_isr(&this->buffer[i], &c, 1);
-		if (e) {
+		int32_t e = uv_streambuffer_push_isr(&this->buffer[i], &c, 1);
+		if (!e) {
 			uv_log_error(e);
+		}
+		else {
+			printf("%02x ", c);
 		}
 		if (this->callback[i]) {
 			this->callback[i](__uv_get_user_ptr(), uart);
@@ -149,24 +135,26 @@ void uv_uart_add_callback(uv_uarts_e uart,
 uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 	uv_errors_e ret = ERR_NONE;
 
-	Chip_Clock_SetUARTBaseClockRate(Chip_Clock_GetMainClockRate(), false);
+	Chip_Clock_SetUARTBaseClockRate(Chip_Clock_GetMainClockRate(), true);
 
 	#if CONFIG_UART0
 	uint32_t baud;
 	if (uart == UART0) {
 		baud = CONFIG_UART0_BAUDRATE;
 		ret = uv_streambuffer_init(&this->buffer[0], CONFIG_UART0_RX_BUFFER_SIZE);
-		Chip_IOCON_PinMuxSet(LPC_IOCON, uv_gpio_port(CONFIG_UART0_TX_PIN),
-				uv_gpio_pin(CONFIG_UART0_TX_PIN),
+		Chip_IOCON_PinMuxSet(LPC_IOCON, uv_gpio_get_port(CONFIG_UART0_TX_PIN),
+				uv_gpio_get_pin(CONFIG_UART0_TX_PIN),
 				(IOCON_FUNC0 | IOCON_MODE_INACT | IOCON_DIGMODE_EN));
-		Chip_IOCON_PinMuxSet(LPC_IOCON, uv_gpio_port(CONFIG_UART0_RX_PIN),
-				uv_gpio_pin(CONFIG_UART0_RX_PIN),
+		Chip_IOCON_PinMuxSet(LPC_IOCON, uv_gpio_get_port(CONFIG_UART0_RX_PIN),
+				uv_gpio_get_pin(CONFIG_UART0_RX_PIN),
 				(IOCON_FUNC0 | IOCON_MODE_INACT | IOCON_DIGMODE_EN));
 
 		Chip_SWM_MovablePortPinAssign(SWM_UART0_TXD_O,
-				uv_gpio_port(CONFIG_UART0_TX_PIN), uv_gpio_pin(CONFIG_UART0_TX_PIN));
+				uv_gpio_get_port(CONFIG_UART0_TX_PIN),
+				uv_gpio_get_pin(CONFIG_UART0_TX_PIN));
 		Chip_SWM_MovablePortPinAssign(SWM_UART0_RXD_I,
-				uv_gpio_port(CONFIG_UART0_RX_PIN), uv_gpio_pin(CONFIG_UART0_RX_PIN));
+				uv_gpio_get_port(CONFIG_UART0_RX_PIN),
+				uv_gpio_get_pin(CONFIG_UART0_RX_PIN));
 		NVIC_EnableIRQ(UART0_IRQn);
 
 	}
@@ -238,6 +226,11 @@ uv_errors_e uv_uart_send_char(uv_uarts_e uart, char buffer) {
 
 uv_errors_e uv_uart_send(uv_uarts_e uart, char *buffer, uint32_t length) {
 
+	printf("uart writing ");
+	for (uint16_t i = 0; i < length; i++) {
+		printf("0x%02x ", buffer[i]);
+	}
+	printf("\n");
 	while (length != 0) {
 		uv_uart_send_char(uart, *buffer);
 		buffer++;
@@ -259,11 +252,10 @@ uv_errors_e uv_uart_send_str(uv_uarts_e uart, char *buffer) {
 }
 
 
-uv_errors_e uv_uart_get_char(uv_uarts_e uart, char *dest) {
-	uv_errors_e ret = ERR_NONE;
+int32_t uv_uart_get(uv_uarts_e uart, char *dest, uint32_t max_len, int wait_ms) {
+	int32_t ret = 0;
 
-	uv_disable_int();
-	uint32_t i = uart;
+	uint32_t i = 0;
 #if CONFIG_TARGET_LPC15XX
 #if CONFIG_UART0
 	if (uart == UART0) { i = 0; }
@@ -275,12 +267,46 @@ uv_errors_e uv_uart_get_char(uv_uarts_e uart, char *dest) {
 	if (uart == UART2) { i = 2; }
 #endif
 #endif
-	ret = uv_ring_buffer_pop(&this->buffer[i], dest);
-	uv_enable_int();
+	ret = uv_streambuffer_pop(&this->buffer[i], dest, max_len, wait_ms);
 	return ret;
 }
 
 
+
+bool uv_uart_receive_cmp(uv_uarts_e uart, char *str, uint32_t max_len, int wait_ms) {
+	bool ret = false;
+	int32_t i = 0;
+	char c;
+	while (uv_uart_get(uart, &c, 1, wait_ms)) {
+		if (c == str[i]) {
+			i++;
+			if (i == max_len) {
+				ret = true;
+				break;
+			}
+		}
+		else {
+			break;
+		}
+	}
+	return ret;
+}
+
+
+void uv_uart_clear_rx_buffer(uv_uarts_e uart) {
+	uint32_t i = uart;
+#if CONFIG_UART0
+	if (uart == UART0) { i = 0; }
+#endif
+#if CONFIG_UART1
+	if (uart == UART1) { i = 1; }
+#endif
+#if CONFIG_UART2
+	if (uart == UART2) { i = 2; }
+#endif
+	uv_streambuffer_clear(&this->buffer[i]);
+
+}
 
 
 #endif
