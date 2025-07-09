@@ -99,7 +99,7 @@ static inline void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def) {
 }
 
 
-#define XB3_SPI_BUF_LEN		256
+#define XB3_SPI_BUF_LEN		255
 
 
 /// @brief: Main struct for XB3 wireless module

@@ -402,7 +402,7 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 		this->ieee_serial = this->ieee_serial << 32;
 		uv_xb3_local_at_cmd_req(this, "SL", "", 0);
 		this->ieee_serial += ntouint32_queue(this, &this->rx_at_queue);
-}
+	}
 	else {
 		ret = ERR_NACK;
 
@@ -727,7 +727,6 @@ static uv_errors_e read_write(uv_xb3_st *this) {
 				break;
 			}
 		}
-//		}
 	}
 
 
@@ -742,8 +741,8 @@ bool uv_xb3_poll(uv_xb3_st *this) {
 			uv_mutex_lock_isr(&this->tx_mutex)) {
 
 		// read and write to XB3
-		uint8_t tx_count;
-		tx_count = MIN(XB3_SPI_BUF_LEN - 17,
+		uint16_t tx_count;
+		tx_count = MIN(XB3_SPI_BUF_LEN - 20,
 				uv_streambuffer_get_len(&this->tx_streambuffer));
 		if (!this->transmitting &&
 				tx_count) {
