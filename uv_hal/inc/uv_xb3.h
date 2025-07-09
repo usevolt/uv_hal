@@ -12,6 +12,7 @@
 #include <uv_hal_config.h>
 #include "uv_utilities.h"
 #include "uv_spi.h"
+#include "uv_uart.h"
 #include "uv_gpio.h"
 #include "uv_rtos.h"
 #include "uv_terminal.h"
@@ -108,6 +109,7 @@ typedef struct {
 
 	// the spi channel used
 	spi_e spi;
+	uv_uarts_e uart;
 	// SPI SSEL gpio. Note that this HAS to be GPIO pin and this module
 	// itself controls SSEL as a gpio pin, not via SPI modules
 	uv_gpios_e ssel_gpio;
@@ -149,7 +151,6 @@ typedef struct {
 	bool initialized;
 	uv_xb3_at_response_e at_response;
 	uv_xb3_at_response_e at_response_req;
-	bool escape;
 	int16_t rx_index;
 	int16_t rx_size;
 	uint8_t rx_frame_type;
@@ -157,8 +158,8 @@ typedef struct {
 	uint8_t max_retransmit;
 
 	uint16_t spi_buf_len;
-	spi_data_t tx_buf[XB3_SPI_BUF_LEN];
-	spi_data_t rx_buf[XB3_SPI_BUF_LEN];
+	char tx_buf[XB3_SPI_BUF_LEN];
+	char rx_buf[XB3_SPI_BUF_LEN];
 
 } uv_xb3_st;
 
@@ -176,6 +177,7 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 		uv_gpios_e ssel_gpio,
 		uv_gpios_e spi_attn_gpio,
 		uv_gpios_e reset_gpio,
+		uv_uarts_e uart,
 		const char *nodeid);
 
 
