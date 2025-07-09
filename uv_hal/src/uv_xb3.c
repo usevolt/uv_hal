@@ -1249,7 +1249,8 @@ void uv_xb3_terminal(uv_xb3_st *this,
 				"    TX buf: %i/%i (max %i)\n"
 				"    RX buf: %i/%i (max %i)\n"
 				"    attio: %i\n"
-				"    Max retransmit: %u\n",
+				"    Max retransmit: %u\n"
+				"    transmitting frame 0x%02x\n",
 				(int) this->initialized,
 				(unsigned int) ((uint64_t) this->conf->epanid >> 32),
 				(unsigned int) ((uint32_t) this->conf->epanid & 0xFFFFFFFF),
@@ -1267,7 +1268,8 @@ void uv_xb3_terminal(uv_xb3_st *this,
 				(int) RX_BUF_SIZE,
 				(int) this->rx_max,
 				uv_gpio_get(this->attn_gpio),
-				this->max_retransmit);
+				this->max_retransmit,
+				this->transmitting);
 		this->tx_max = 0;
 		this->rx_max = 0;
 		this->max_retransmit = 0;
