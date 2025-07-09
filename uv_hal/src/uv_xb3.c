@@ -359,7 +359,7 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	this->max_payload = 0;
 	this->max_retransmit = 0;
 	this->spi_buf_len = 0;
-	this->escape = false;
+	this->transmitting = 0;
 
 	if (uv_streambuffer_init(&this->tx_streambuffer, TX_BUF_SIZE) != ERR_NONE) {
 		uv_terminal_enable(TERMINAL_CAN);
@@ -391,7 +391,8 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 
 	if (xb3_reset(this)) {
 		// set AO to 0, zigbee data format
-		uv_xb3_local_at_cmd_req(this, "AO", "0", 1);
+		char c = 0;
+		uv_xb3_local_at_cmd_req(this, "AO", &c, 1);
 
 		XB3_DEBUG(this, "Setting device identification string to '%s'\n", nodeid);
 		uv_xb3_set_nodename(this, nodeid);
@@ -586,27 +587,6 @@ static uv_errors_e read_write(uv_xb3_st *this) {
 	}
 
 	if (this->spi_buf_len) {
-		// escape characters, start delimiter doesn't need to be escaped
-//		for (uint16_t i = this->spi_buf_len - 1; i > 0; i--) {
-//			if (this->tx_buf[i] == 0x7E ||
-//					this->tx_buf[i] == 0x7D ||
-//					this->tx_buf[i] == 0x11 ||
-//					this->tx_buf[i] == 0x13) {
-//				printf("escaping %i (0x%02x)\n", i, this->tx_buf[i]);
-//				memmove(this->tx_buf + i + 1,
-//						&this->tx_buf[i],
-//						(this->spi_buf_len - i) * sizeof(spi_data_t));
-//				this->tx_buf[i] = 0x7D;
-//				this->tx_buf[i + 1] = this->tx_buf[i + 1] ^ 0x20;
-//				this->spi_buf_len++;
-//			}
-//		}
-
-//		for (uint16_t i = 0; i < this->spi_buf_len; i++) {
-//			printf("%02x ", this->tx_buf[i]);
-//		}
-//		printf("\n");
-
 		uv_gpio_set(this->ssel_gpio, false);
 		uv_spi_readwrite_sync(this->spi, SPI_SLAVE_NONE,
 				this->tx_buf, this->rx_buf, 8, this->spi_buf_len);
@@ -615,15 +595,6 @@ static uv_errors_e read_write(uv_xb3_st *this) {
 
 	for (uint16_t i = 0; i < this->spi_buf_len; i++) {
 		spi_data_t rx = this->rx_buf[i];
-		// handle escape characters
-//		if (rx == 0x7D) {
-//			this->escape = true;
-//		}
-//		else {
-//			if (this->escape) {
-//				rx = rx ^ 0x20;
-//			}
-//			this->escape = false;
 		if (this->rx_index == 0) {
 			if (rx == APIFRAME_START) {
 				XB3_DEBUG(this, "APIFRAME START\n");
@@ -721,15 +692,20 @@ static uv_errors_e read_write(uv_xb3_st *this) {
 						}
 						break;
 					case APIFRAME_EXTTRANSMITSTATUS:
-						if (offset == 8) {
+						if (offset == 4) {
+							if (this->transmitting == rx) {
+								this->transmitting = 0;
+							}
+						}
+						else if (offset == 7) {
+							this->max_retransmit = MAX(this->max_retransmit, rx);
+						}
+						else if (offset == 8) {
 							if (this->conf->flags & XB3_CONF_FLAGS_RX_ECHO) {
 								if (rx) {
 									XB3_DEBUG(this, "XB3 TRANSMIT fail 0x%x", rx);
 								}
 							}
-						}
-						else if (offset == 7) {
-							this->max_retransmit = MAX(this->max_retransmit, rx);
 						}
 						else if (offset == 9) {
 
@@ -767,16 +743,18 @@ bool uv_xb3_poll(uv_xb3_st *this) {
 
 		// read and write to XB3
 		uint8_t tx_count;
-		tx_count = MIN(XB3_SPI_BUF_LEN / 2,
+		tx_count = MIN(XB3_SPI_BUF_LEN - 17,
 				uv_streambuffer_get_len(&this->tx_streambuffer));
-		if (tx_count) {
+		if (!this->transmitting &&
+				tx_count) {
+			this->transmitting = 0x52;
 			uint16_t framedatalen = 14 + tx_count;
 			spi_data_t *d = this->tx_buf;
 			*d++ = APIFRAME_START;
 			*d++ = (framedatalen >> 8); // Length
 			*d++ = (framedatalen & 0xFF);
 			*d++ = APIFRAME_TRANSMITREQ;
-			*d++ = 0x52; // Frame ID. 0x0 doesn't emit response frame
+			*d++ = this->transmitting; // Frame ID. 0x0 doesn't emit response frame
 			*d++ = (this->conf->dest_addr >> 56) & 0xFF; // 64-bit address
 			*d++ = (this->conf->dest_addr >> 48) & 0xFF;
 			*d++ = (this->conf->dest_addr >> 40) & 0xFF;

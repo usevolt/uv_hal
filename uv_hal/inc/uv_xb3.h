@@ -149,12 +149,12 @@ typedef struct {
 	bool initialized;
 	uv_xb3_at_response_e at_response;
 	uv_xb3_at_response_e at_response_req;
-	bool escape;
 	int16_t rx_index;
 	int16_t rx_size;
 	uint8_t rx_frame_type;
 	uint16_t max_payload;
 	uint8_t max_retransmit;
+	uint8_t transmitting;
 
 	uint16_t spi_buf_len;
 	spi_data_t tx_buf[XB3_SPI_BUF_LEN];
