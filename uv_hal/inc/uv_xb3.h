@@ -12,12 +12,13 @@
 #include <uv_hal_config.h>
 #include "uv_utilities.h"
 #include "uv_spi.h"
+#include "uv_uart.h"
 #include "uv_gpio.h"
 #include "uv_rtos.h"
 #include "uv_terminal.h"
 
 
-#if CONFIG_SPI && CONFIG_XB3
+#if CONFIG_XB3
 
 
 #ifndef CONFIG_XB3_COORDINATOR_MAX_DEV_COUNT
@@ -30,6 +31,7 @@ typedef enum {
 	XB3_AT_RESPONSE_ERROR = 1,
 	XB3_AT_RESPONSE_INVALID_COMMAND = 2,
 	XB3_AT_RESPONSE_INVALID_PARAMETER = 3,
+	XB3_AT_RESPONSE_TIMEOUT,
 	XB3_AT_RESPONSE_COUNT
 } uv_xb3_at_response_e;
 
@@ -92,14 +94,8 @@ typedef struct __attribute__((packed)) {
 	};
 } uv_xb3_conf_st;
 
-/// @brief: Resets the configuration structure
-static inline void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def) {
-	memset(conf, 0, sizeof(uv_xb3_conf_st));
-	conf->flags = flags_def;
-}
 
-
-#define XB3_SPI_BUF_LEN		255
+#define XB3_RF_PACKET_MAX_LEN		255
 
 
 /// @brief: Main struct for XB3 wireless module
@@ -107,12 +103,7 @@ typedef struct {
 	uv_xb3_conf_st *conf;
 
 	// the spi channel used
-	spi_e spi;
-	// SPI SSEL gpio. Note that this HAS to be GPIO pin and this module
-	// itself controls SSEL as a gpio pin, not via SPI modules
-	uv_gpios_e ssel_gpio;
-	// gpio pin for SPI_ATTN signal
-	uv_gpios_e attn_gpio;
+	uv_uarts_e uart;
 	// reset output
 	uv_gpios_e reset_gpio;
 
@@ -127,7 +118,6 @@ typedef struct {
 	uint16_t rx_max;
 	// buffer for read AT commands from XB3. Holds raw data parsed from API packages
 	uv_queue_st rx_at_queue;
-	// mutex for transmitting data
 	uv_mutex_st tx_mutex;
 
 	uint64_t ieee_serial;
@@ -152,16 +142,14 @@ typedef struct {
 	int16_t rx_index;
 	int16_t rx_size;
 	uint8_t rx_frame_type;
-	uint16_t max_payload;
 	uint8_t max_retransmit;
 	uint8_t transmitting;
 
-	uint16_t spi_buf_len;
-	spi_data_t tx_buf[XB3_SPI_BUF_LEN];
-	spi_data_t rx_buf[XB3_SPI_BUF_LEN];
-
 } uv_xb3_st;
 
+
+/// @brief: Resets the configuration structure
+void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart);
 
 
 
@@ -172,20 +160,13 @@ typedef struct {
 /// @param nodeid: Node Identifier, custom string
 uv_errors_e uv_xb3_init(uv_xb3_st *this,
 		uv_xb3_conf_st *conf,
-		spi_e spi,
-		uv_gpios_e ssel_gpio,
-		uv_gpios_e spi_attn_gpio,
 		uv_gpios_e reset_gpio,
+		uv_uarts_e uart,
 		const char *nodeid);
 
 
-uv_errors_e uv_xb3_set_nodename(uv_xb3_st *this, const char *name);
+uv_xb3_at_response_e uv_xb3_set_nodename(uv_xb3_st *this, const char *name);
 
-
-/// @brief: Should be called in rtos idle hook
-///
-/// @return: True if RX and TX buffers were succelsfully received and transmitted
-bool uv_xb3_poll(uv_xb3_st *this);
 
 
 void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms);

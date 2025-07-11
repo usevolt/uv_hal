@@ -126,6 +126,9 @@ to exclude the API function. */
 
 #define configGENERATE_RUN_TIME_STATS			0
 
+extern void vAssertCalled( const char * const pcFileName,  unsigned long ulLine );
+
+#define configASSERT( x ) if( ( x ) == 0 ) vAssertCalled(  __FILE__, __LINE__ )
 
 /* Use the system definition, if there is one */
 #ifdef __NVIC_PRIO_BITS

@@ -112,13 +112,13 @@ uv_errors_e _uv_uart_init(uv_uarts_e uart);
 /// @return: uv_errors_e describing if an error occurred. If succesful, ERR_NONE is returned.
 uv_errors_e uv_uart_send_char 	(uv_uarts_e uart, char buffer);
 
-/// @brief: sends a string synchronously
+/// @brief: sends a string asynchronously
 /// function returns when last character has put into transfer buffer
 ///
-/// @return: uv_errors_e describing if an error occurred. If succesful, ERR_NONE is returned.
+/// @return: Count of bytes succesfully written
 ///
 /// @param length How many characters will be sent
-uv_errors_e uv_uart_send     	(uv_uarts_e uart, char *buffer, uint32_t length);
+int32_t uv_uart_send     	(uv_uarts_e uart, char *buffer, uint32_t length);
 
 /// @brief: sends a string synchronously
 /// function returns when last character has put into transfer buffer.
@@ -129,6 +129,20 @@ uv_errors_e uv_uart_send     	(uv_uarts_e uart, char *buffer, uint32_t length);
 /// String to be send MUST be null-terminated string
 uv_errors_e uv_uart_send_str		(uv_uarts_e uart, char *buffer);
 
+
+int32_t uv_uart_get_tx_free_space(uv_uarts_e uart);
+
+
+/// @brief: Starts to send serial break -condition to UART, forcing TX line to low
+/// until *uv_uart_break_stop()* is called
+static inline void uv_uart_break_start(uv_uarts_e uart) {
+	((LPC_USART_T*) uart)->CTRL |= UART_CTRL_TXBRKEN;
+}
+
+static inline void uv_uart_break_stop(uv_uarts_e uart) {
+	((LPC_USART_T*) uart)->CTRL &= ~UART_CTRL_TXBRKEN;
+}
+
 /// @brief: Gets the oldest received byte from the UART buffer and stores it
 /// to 'dest'.
 int32_t uv_uart_get(uv_uarts_e uart, char *dest, uint32_t max_len, int wait_ms);
@@ -138,6 +152,14 @@ int32_t uv_uart_get(uv_uarts_e uart, char *dest, uint32_t max_len, int wait_ms);
 /// Returns true if received data matches, false otherwise or if *wait_ms*
 /// time has passed without receiving anything
 bool uv_uart_receive_cmp(uv_uarts_e uart, char *str, uint32_t max_len, int wait_ms);
+
+
+
+/// @brief: Sets the baudrate on-the-go
+static inline void uv_uart_set_baudrate(uv_uarts_e uart, unsigned int baudrate) {
+	Chip_UART_SetBaud((LPC_USART_T*) uart, baudrate);
+}
+
 
 
 void uv_uart_clear_rx_buffer(uv_uarts_e uart);

@@ -50,6 +50,7 @@
 #include "stream_buffer.h"
 #include "task.h"
 #include "semphr.h"
+#include "uv_utilities.h"
 #include <uv_hal_config.h>
 
 #if !defined(CONFIG_RTOS_HEAP_SIZE)
@@ -224,18 +225,22 @@ static inline uv_errors_e uv_streambuffer_init(
 	return (this) ? ERR_NONE : ERR_NOT_ENOUGH_MEMORY;
 }
 
+
+
+
 /// @brief: Returns the number of data currently in stream buffer, in bytes
 static inline uint32_t uv_streambuffer_get_len(uv_streambuffer_st *this) {
-	return xStreamBufferBytesAvailable(*this);
+	return xStreamBufferBytesAvailable(*((uv_streambuffer_st*) this));
 }
 
 /// @brief: Returns the free data space available in the stream buffer
 static inline uint32_t uv_streambuffer_get_free_space(uv_streambuffer_st *this) {
-	return xStreamBufferSpacesAvailable(*this);
+	return xStreamBufferSpacesAvailable(*((uv_streambuffer_st*) this));
 }
 
 static inline int32_t uv_streambuffer_get_max_len(uv_streambuffer_st *this) {
-	return xStreamBufferBytesAvailable(*this) + xStreamBufferSpacesAvailable(*this);
+	return xStreamBufferBytesAvailable(*((uv_streambuffer_st*) this)) +
+			xStreamBufferSpacesAvailable(*((uv_streambuffer_st*) this));
 }
 
 /// @return: true if streambuffer is currently empty, false otherwise
@@ -253,7 +258,8 @@ static inline uint32_t uv_streambuffer_push(uv_streambuffer_st *this,
 /// @brief: Puses new data into the stream buffef. Only to be used inside ISR
 static inline uint32_t uv_streambuffer_push_isr(uv_streambuffer_st *this,
 		void *data, uint32_t len) {
-	return xStreamBufferSendFromISR(*this, data, len, NULL);
+	BaseType_t woken;
+	return xStreamBufferSendFromISR(*this, data, len, &woken);
 }
 
 /// @brief: Pops data out from streambuffer in FIFO manner

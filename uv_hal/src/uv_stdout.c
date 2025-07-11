@@ -96,7 +96,6 @@ static void send_can_msg(void) {
 
 int outbyte(int c) {
 #if CONFIG_TERMINAL
-	if (uv_rtos_initialized()) {
 #if CONFIG_TERMINAL_UART
 
 		if (uv_active_terminal() == TERMINAL_UART) {
@@ -125,7 +124,6 @@ int outbyte(int c) {
 		}
 #endif
 
-	}
 #endif
 	return 1;
 }

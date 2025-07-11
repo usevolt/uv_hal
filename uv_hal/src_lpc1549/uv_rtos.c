@@ -54,6 +54,16 @@
 
 
 
+void vAssertCalled( const char * const pcFileName,  unsigned long ulLine ) {
+	uv_terminal_enable(TERMINAL_CAN);
+	printf("Assert in '%s', line %u\n", pcFileName, ulLine);
+	while(true);
+}
+
+
+
+
+
 typedef struct {
 	void (*idle_task)(void *user_ptr);
 	void (*tick_task)(void *user_ptr, unsigned int step_ms);
@@ -254,19 +264,6 @@ void uv_init(void *device) {
 		_uv_rtos_hal_reset();
 	}
 
-#if CONFIG_UART0
-	_uv_uart_init(UART0);
-#endif
-#if CONFIG_UART1
-	_uv_uart_init(UART1);
-#endif
-#if CONFIG_UART2
-	_uv_uart_init(UART2);
-#endif
-#if CONFI_UART3
-	_uv_uart_init(UART3);
-#endif
-
 #if CONFIG_CAN
 	_uv_can_init();
 #endif
@@ -281,6 +278,19 @@ void uv_init(void *device) {
 
 #if CONFIG_ADC || CONFIG_ADC0 || CONFIG_ADC1
 	_uv_adc_init();
+#endif
+
+#if CONFIG_UART0
+	_uv_uart_init(UART0);
+#endif
+#if CONFIG_UART1
+	_uv_uart_init(UART1);
+#endif
+#if CONFIG_UART2
+	_uv_uart_init(UART2);
+#endif
+#if CONFI_UART3
+	_uv_uart_init(UART3);
 #endif
 
 #if CONFIG_DAC
@@ -311,11 +321,10 @@ void uv_init(void *device) {
 	_uv_eeprom_init();
 #endif
 
-
-
-
 	uv_rtos_task_create(hal_task, "uv_hal",
 			UV_RTOS_MIN_STACK_SIZE, NULL, CONFIG_HAL_TASK_PRIORITY, &hal_task_ptr);
+
+	rtos_init = true;
 }
 
 
@@ -336,7 +345,6 @@ void uv_data_reset() {
 void hal_task(void *nullptr) {
 
 	uint16_t step_ms = CONFIG_HAL_STEP_MS;
-	rtos_init = true;
 
 	while (true) {
 		_uv_rtos_halmutex_lock();
