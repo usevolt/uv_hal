@@ -660,8 +660,6 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	this->modem_status_changed = XB3_MODEMSTATUS_NONE;
 	this->max_retransmit = 0;
 
-	uv_uart_set_baudrate(this->uart, 9600);
-
 	if (uv_streambuffer_init(&this->tx_streambuffer, TX_BUF_SIZE) != ERR_NONE) {
 		uv_terminal_enable(TERMINAL_CAN);
 		printf("XB3: Creating TX streambuffer failed, not enough memory\n");
