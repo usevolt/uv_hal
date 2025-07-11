@@ -218,7 +218,6 @@ static void tx(uv_xb3_st *this) {
 
 static void rx(uv_xb3_st *this, int32_t wait_ms) {
 	char rx;
-	uv_mutex_lock(&this->tx_mutex);
 
 	while (uv_uart_get(this->uart, &rx, 1, wait_ms)) {
 		if (this->rx_index == 0) {
@@ -345,18 +344,25 @@ static void rx(uv_xb3_st *this, int32_t wait_ms) {
 			}
 		}
 	}
-	uv_mutex_unlock(&this->tx_mutex);
 }
 
 
 
 
 
-static uv_xb3_at_response_e at_wait_for_reply(uv_xb3_st *this, int32_t wait_ms) {
+static uv_xb3_at_response_e at_wait_for_reply(uv_xb3_st *this, int32_t wait_ms,
+		bool xb3_task) {
 	while (this->at_response == XB3_AT_RESPONSE_COUNT &&
 			wait_ms > 0) {
-		tx(this);
-		rx(this, 1);
+		if (xb3_task) {
+			// if we are in xb3_step_task, handle tx and rx data
+			tx(this);
+			rx(this, 1);
+		}
+		else {
+			// otherwise just wait, xb3 task handles all serial communication
+			uv_rtos_task_delay(1);
+		}
 		wait_ms -= 1;
 	}
 	if (wait_ms <= 0) {
@@ -619,6 +625,21 @@ static bool xb3_reset(uv_xb3_st *this) {
 }
 
 
+static uv_xb3_at_response_e set_nodename(
+		uv_xb3_st *this, const char *name, bool xb3_task) {
+	uv_xb3_at_response_e ret = XB3_AT_RESPONSE_COUNT;
+	uv_mutex_lock(&this->atreq_mutex);
+
+	char str[20] = {};
+	strncpy(str, name, 19);
+	uv_xb3_local_at_cmd_req(this, "NI", (char*) str, strlen(str) + 1);
+	ret = at_wait_for_reply(this, 1000, xb3_task);
+
+	uv_mutex_unlock(&this->atreq_mutex);
+
+	return ret;
+}
+
 
 
 
@@ -674,14 +695,14 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	this->conf->flags |= XB3_CONF_FLAGS_DEBUG;
 
 	XB3_DEBUG(this, "Setting device identification string to '%s'\n", nodeid);
-	uv_xb3_at_response_e res = uv_xb3_set_nodename(this, nodeid);
+	uv_xb3_at_response_e res = set_nodename(this, nodeid, true);
 
 	uv_xb3_local_at_cmd_req(this, "SH", "", 0);
-	res |= at_wait_for_reply(this, 1000);
+	res |= at_wait_for_reply(this, 1000, true);
 	this->ieee_serial = ntouint32_queue(this, &this->rx_at_queue);
 	this->ieee_serial = this->ieee_serial << 32;
 	uv_xb3_local_at_cmd_req(this, "SL", "", 0);
-	res |= at_wait_for_reply(this, 1000);
+	res |= at_wait_for_reply(this, 1000, true);
 	this->ieee_serial += ntouint32_queue(this, &this->rx_at_queue);
 
 	if (res == XB3_AT_RESPONSE_OK) {
@@ -700,14 +721,7 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 
 
 uv_xb3_at_response_e uv_xb3_set_nodename(uv_xb3_st *this, const char *name) {
-	uv_xb3_at_response_e ret = XB3_AT_RESPONSE_COUNT;
-	uv_mutex_lock(&this->atreq_mutex);
-	char str[20] = {};
-	strncpy(str, name, 19);
-	uv_xb3_local_at_cmd_req(this, "NI", (char*) str, strlen(str) + 1);
-	ret = at_wait_for_reply(this, 1000);
-	uv_mutex_unlock(&this->atreq_mutex);
-	return ret;
+	return set_nodename(this, name, false);
 }
 
 
@@ -726,25 +740,25 @@ void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms) {
 				// "OP" contains random EPID that we copy to ID to keep
 				// constant EPID in future
 				uv_xb3_local_at_cmd_req(this, "OP", "", 0);
-				at_wait_for_reply(this, 500);
+				at_wait_for_reply(this, 500, true);
 				this->conf->epanid = ntouint64_queue(this, &this->rx_at_queue);
 
 				this->network.op = this->conf->epanid;
 				uv_xb3_local_at_cmd_req(this, "OI", "", 0);
-				at_wait_for_reply(this, 500);
+				at_wait_for_reply(this, 500, true);
 				this->network.oi = ntouint16_queue(this, &this->rx_at_queue);
 				uv_xb3_local_at_cmd_req(this, "CH", "", 0);
-				at_wait_for_reply(this, 500);
+				at_wait_for_reply(this, 500, true);
 				this->network.ch = ntouint8_queue(this, &this->rx_at_queue);
 				char data[8];
 				uint64ton(data, this->conf->epanid);
 				uv_xb3_local_at_cmd_req(this, "ID", data, sizeof(data));
-				at_wait_for_reply(this, 500);
+				at_wait_for_reply(this, 500, true);
 
 				if (this->conf->epanid) {
 					// write modifications to nonvol memory on XB3
 					uv_xb3_local_at_cmd_req(this, "WR", "", 0);
-					if (at_wait_for_reply(this, 500) == XB3_AT_RESPONSE_OK) {
+					if (at_wait_for_reply(this, 500, true) == XB3_AT_RESPONSE_OK) {
 						XB3_DEBUG(this, "XB3: Wrote configuration to nonvol memory\n");
 						uv_memory_save();
 					}
@@ -762,7 +776,7 @@ void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms) {
 			// connect to wrong networks. Thus disable autojoining by
 			// only joining to networks that we connect to.
 			uv_xb3_local_at_cmd_req(this, "OP", "", 0);
-			at_wait_for_reply(this, 500);
+			at_wait_for_reply(this, 500, true);
 			uint64_t id = ntouint64_queue(this, &this->rx_at_queue);
 
 			if (id != this->conf->epanid) {
@@ -770,19 +784,19 @@ void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms) {
 				this->conf->epanid = id;
 				uint64ton(data, this->conf->epanid);
 				uv_xb3_local_at_cmd_req(this, "ID", data, 8);
-				at_wait_for_reply(this, 500);
+				at_wait_for_reply(this, 500, true);
 
 				uv_xb3_local_at_cmd_req(this, "WR", "", 0);
-				at_wait_for_reply(this, 500);
+				at_wait_for_reply(this, 500, true);
 				XB3_DEBUG(this, "XB3: Wrote configuration to nonvol memory\n");
 				uv_memory_save();
 			}
 			this->network.op = id;
 			uv_xb3_local_at_cmd_req(this, "OI", "", 0);
-			at_wait_for_reply(this, 500);
+			at_wait_for_reply(this, 500, true);
 			this->network.oi = ntouint16_queue(this, &this->rx_at_queue);
 			uv_xb3_local_at_cmd_req(this, "CH", "", 0);
-			at_wait_for_reply(this, 500);
+			at_wait_for_reply(this, 500, true);
 			this->network.ch = ntouint8_queue(this, &this->rx_at_queue);
 
 			uv_mutex_unlock(&this->atreq_mutex);
@@ -806,25 +820,20 @@ void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms) {
 uv_xb3_at_response_e uv_xb3_scan_networks(uv_xb3_st *this,
 		uint8_t *network_count,
 		uv_xb3_network_st *dest,
-		uint8_t network_max_count) {
+		uint8_t network_max_count,
+		bool xb3_step_task) {
 
 	uv_mutex_lock(&this->atreq_mutex);
 
 	uv_xb3_local_at_cmd_req(this, "AS", "", 0);
-	at_wait_for_reply(this, 500);
 	if (network_count) {
 		*network_count = 0;
 	}
 	for (uint8_t i = 0; i < network_max_count; i++) {
 		// wait until AT response is received
-		while (uv_xb3_get_at_response(this) == XB3_AT_RESPONSE_COUNT) {
-			uv_rtos_task_delay(1);
-		}
-
-		uv_enter_critical();
+		at_wait_for_reply(this, 6000, xb3_step_task);
 
 		bool br = false;
-
 		uint8_t data = 0;
 		uv_xb3_network_st d;
 		if (uv_xb3_get_at_response(this) != XB3_AT_RESPONSE_OK ||
@@ -833,6 +842,7 @@ uv_xb3_at_response_e uv_xb3_scan_networks(uv_xb3_st *this,
 			br = true;
 		}
 		else if (data == 0x2) {
+			this->at_response = XB3_AT_RESPONSE_COUNT;
 
 			uv_queue_pop(&this->rx_at_queue, &d.channel, 0);
 			d.pan16 = 0;
@@ -865,9 +875,8 @@ uv_xb3_at_response_e uv_xb3_scan_networks(uv_xb3_st *this,
 			(*network_count)++;
 		}
 		else {
-
+			br = true;
 		}
-		uv_exit_critical();
 		if (br) {
 			break;
 		}
@@ -886,12 +895,13 @@ uv_xb3_at_response_e uv_xb3_network_discovery(uv_xb3_st *this,
 		uint8_t *dev_count,
 		uv_xb3_nddev_st *dest,
 		uint8_t dev_max_count,
-		void (*found_dev_callb)(uint8_t index, uv_xb3_nddev_st *dev)) {
+		void (*found_dev_callb)(uint8_t index, uv_xb3_nddev_st *dev),
+		bool xb3_step_task) {
 	uv_mutex_lock(&this->atreq_mutex);
 
 	// get discovery time
 	uv_xb3_local_at_cmd_req(this, "NT", "", 0);
-	at_wait_for_reply(this, 500);
+	at_wait_for_reply(this, 500, xb3_step_task);
 	uint16_t discovery_time_ms = ntouint16_queue(this, &this->rx_at_queue) * 100;
 	XB3_DEBUG(this, "discovery time: %i\n", discovery_time_ms);
 
@@ -907,19 +917,17 @@ uv_xb3_at_response_e uv_xb3_network_discovery(uv_xb3_st *this,
 
 		uint16_t rx_count = 0;
 		while (ms < discovery_time_ms) {
-			tx(this);
-			rx(this, 1);
 			uv_wdt_update();
 			uv_xb3_at_response_e ret = uv_xb3_get_at_response(this);
-			uint8_t rx = 0;
-			if (uv_queue_pop(&this->rx_at_queue, &rx, 0) == ERR_NONE) {
+			uint8_t r = 0;
+			if (uv_queue_pop(&this->rx_at_queue, &r, 0) == ERR_NONE) {
 				uv_xb3_nddev_st *nd = &dest[*dev_count];
 				// copy data blindly in network byte order to dest
-				((uint8_t*) nd)[rx_count] = rx;
+				((uint8_t*) nd)[rx_count] = r;
 				rx_count++;
 				if (rx_count >= 11 &&
 						rx_count < 11 + 20 &&
-						rx == '\0') {
+						r == '\0') {
 					// device name null termination received, jump to end of name
 					rx_count = 11 + 21;
 				}
@@ -963,6 +971,13 @@ uv_xb3_at_response_e uv_xb3_network_discovery(uv_xb3_st *this,
 
 			}
 			ms += 1;
+			if (xb3_step_task) {
+				tx(this);
+				rx(this, 1);
+			}
+			else {
+				uv_rtos_task_delay(1);
+			}
 		}
 
 		XB3_DEBUG(this, "Found %i devices\n",
@@ -976,11 +991,11 @@ uv_xb3_at_response_e uv_xb3_network_discovery(uv_xb3_st *this,
 
 
 
-uint64_t uv_xb3_get_epid(uv_xb3_st *this) {
+uint64_t uv_xb3_get_epid(uv_xb3_st *this, bool xb3_step_task) {
 	uint64_t ret = 0;
 	uv_mutex_lock(&this->atreq_mutex);
 	uv_xb3_local_at_cmd_req(this, "ID", "", 0);
-	if (at_wait_for_reply(this, 500) == XB3_AT_RESPONSE_OK) {
+	if (at_wait_for_reply(this, 500, xb3_step_task) == XB3_AT_RESPONSE_OK) {
 		ret = ntouint64_queue(this, &this->rx_at_queue);
 	}
 	else {
@@ -993,7 +1008,7 @@ uint64_t uv_xb3_get_epid(uv_xb3_st *this) {
 
 
 
-void uv_xb3_network_reset(uv_xb3_st *this) {
+void uv_xb3_network_reset(uv_xb3_st *this, bool xb3_step_task) {
 	memset(&this->network, 0, sizeof(this->network));
 
 	uv_mutex_lock(&this->atreq_mutex);
@@ -1001,13 +1016,13 @@ void uv_xb3_network_reset(uv_xb3_st *this) {
 	char data[8] = {};
 	// clear default extended PAN ID
 	uv_xb3_local_at_cmd_req(this, "ID", data, 8);
-	at_wait_for_reply(this, 500);
+	at_wait_for_reply(this, 500, xb3_step_task);
 	// save to flash
 	uv_xb3_local_at_cmd_req(this, "WR", "", 0);
-	at_wait_for_reply(this, 500);
+	at_wait_for_reply(this, 500, xb3_step_task);
 	// reset network
 	uv_xb3_local_at_cmd_req(this, "NR", data, 1);
-	at_wait_for_reply(this, 500);
+	at_wait_for_reply(this, 500, xb3_step_task);
 
 	uv_mutex_unlock(&this->atreq_mutex);
 
@@ -1027,7 +1042,7 @@ void uv_xb3_terminal(uv_xb3_st *this,
 			uv_xb3_network_st networks[3] = {};
 			uint8_t network_count = 0;
 			uv_xb3_at_response_e ret =
-					uv_xb3_scan_networks(this, &network_count, networks, 3);
+					uv_xb3_scan_networks(this, &network_count, networks, 3, false);
 			printf("Scan returned %i, Found %i networks\n",
 					ret, network_count);
 			for (uint8_t i = 0; i < network_count; i++) {
@@ -1209,13 +1224,13 @@ void uv_xb3_terminal(uv_xb3_st *this,
 					(unsigned int) (this->conf->dest_addr & 0xFFFFFFFF));
 		}
 		else if (strcmp(argv[0].str, "reset") == 0) {
-			uv_xb3_network_reset(this);
+			uv_xb3_network_reset(this, false);
 		}
 		else if (strcmp(argv[0].str, "netdisc") == 0) {
 			printf("Executing network discovery...\n");
 			uv_xb3_nddev_st devs[3];
 			uint8_t dev_count;
-			uv_xb3_network_discovery(this, &dev_count, devs, 3, NULL);
+			uv_xb3_network_discovery(this, &dev_count, devs, 3, NULL, false);
 		}
 		else {
 			printf("Unknown command '%s'\n", argv[0].str);

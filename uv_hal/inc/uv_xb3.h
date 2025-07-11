@@ -227,10 +227,13 @@ typedef struct {
 /// @param dev_count: Pointer to where found network count is written
 /// @param dest: Destination array of xb3 network structures
 /// @param network_max_count: The length of *dest* in xb3_networks
+/// @param xb3_step_task: Set to true if this function is called within
+/// xb3_step task. Otherwise should be false
 uv_xb3_at_response_e uv_xb3_scan_networks(uv_xb3_st *this,
 		uint8_t *network_count,
 		uv_xb3_network_st *dest,
-		uint8_t network_max_count);
+		uint8_t network_max_count,
+		bool xb3_step_task);
 
 
 /// @brief: data type for network_discovery command
@@ -255,16 +258,21 @@ typedef struct __attribute__((packed)) {
 /// @brief: Performs AT+ND network discovery command and writes result to *dest*
 ///
 /// @param dev_count: Pointer to where the discovered device count is stored
+/// @param xb3_step_task: Set to true if this function is called within
+/// xb3_step task. Otherwise should be false
 uv_xb3_at_response_e uv_xb3_network_discovery(uv_xb3_st *this,
 		uint8_t *dev_count,
 		uv_xb3_nddev_st *dest,
 		uint8_t dev_max_count,
-		void (*found_dev_callb)(uint8_t index, uv_xb3_nddev_st *dev));
+		void (*found_dev_callb)(uint8_t index, uv_xb3_nddev_st *dev),
+		bool xb3_step_task);
 
 
 
 /// @brief: Returns the extended PAN ID with "ATID" command
-uint64_t uv_xb3_get_epid(uv_xb3_st *this);
+/// @param xb3_step_task: Set to true if this function is called within
+/// xb3_step task. Otherwise should be false
+uint64_t uv_xb3_get_epid(uv_xb3_st *this, bool xb3_step_task);
 
 
 /// @brief: Returns the device's IEEE serial with "AT+SL" and "AT+SH" commands
@@ -272,7 +280,10 @@ static inline uint64_t uv_xb3_get_serial(uv_xb3_st *this) {
 	return this->ieee_serial;
 }
 
-void uv_xb3_network_reset(uv_xb3_st *this);
+/// @brief: Performs a XB3 network reset
+/// @param xb3_step_task: Set to true if this function is called within
+/// xb3_step task. Otherwise should be false
+void uv_xb3_network_reset(uv_xb3_st *this, bool xb3_step_task);
 
 
 /// @brief: Writes a local AT command to XB3 module
