@@ -335,3 +335,12 @@ void uv_uart_clear_rx_buffer(uv_uarts_e uart) {
 }
 
 
+
+void uv_uart_break_start(uv_uarts_e uart) {
+	((LPC_USART_T*) uart)->CTRL |= UART_CTRL_TXBRKEN;
+}
+
+void uv_uart_break_stop(uv_uarts_e uart) {
+	((LPC_USART_T*) uart)->CTRL &= ~UART_CTRL_TXBRKEN;
+}
+

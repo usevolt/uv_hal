@@ -90,6 +90,13 @@ typedef enum {
 #endif
 	UART_COUNT = 3
 #endif
+#if CONFIG_TARGET_LPC40XX
+	UART0 = 0,
+	UART1,
+	UART2,
+	UART3,
+	UART_COUNT
+#endif
 } uv_uarts_e;
 
 
@@ -135,13 +142,10 @@ int32_t uv_uart_get_tx_free_space(uv_uarts_e uart);
 
 /// @brief: Starts to send serial break -condition to UART, forcing TX line to low
 /// until *uv_uart_break_stop()* is called
-static inline void uv_uart_break_start(uv_uarts_e uart) {
-	((LPC_USART_T*) uart)->CTRL |= UART_CTRL_TXBRKEN;
-}
+void uv_uart_break_start(uv_uarts_e uart);
 
-static inline void uv_uart_break_stop(uv_uarts_e uart) {
-	((LPC_USART_T*) uart)->CTRL &= ~UART_CTRL_TXBRKEN;
-}
+void uv_uart_break_stop(uv_uarts_e uart);
+
 
 /// @brief: Gets the oldest received byte from the UART buffer and stores it
 /// to 'dest'.
@@ -156,9 +160,14 @@ bool uv_uart_receive_cmp(uv_uarts_e uart, char *str, uint32_t max_len, int wait_
 
 
 /// @brief: Sets the baudrate on-the-go
+#if CONFIG_TARGET_LPC15XX
 static inline void uv_uart_set_baudrate(uv_uarts_e uart, unsigned int baudrate) {
 	Chip_UART_SetBaud((LPC_USART_T*) uart, baudrate);
 }
+#else
+void uv_uart_set_baudrate(uv_uarts_e uart, unsigned int baudrate);
+
+#endif
 
 
 
