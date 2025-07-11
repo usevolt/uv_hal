@@ -112,7 +112,7 @@ static uart_st* u[UART_COUNT] = {
 #if CONFIG_UART0
 void UART0_IRQHandler(void) {
 	char c;
-	if (Chip_UART_ReadIntIDReg(LPC_UART0) & UART_IIR_INTID_RDA) {
+	if (Chip_UART_ReadLineStatus(u[0]->uart) & UART_LSR_RDR) {
 		if (Chip_UART_Read(LPC_UART0, &c, 1)) {
 			uv_streambuffer_push_isr((void*) &u[0]->rx_buffer, &c, 1);
 			if (u[0]->callback) {
@@ -120,16 +120,14 @@ void UART0_IRQHandler(void) {
 			}
 		}
 	}
-	else {
-		// UART_INTEN_TXRDY
-	   if (Chip_UART_ReadIntIDReg(LPC_UART0) & UART_IIR_INTID_THRE) {
-		   if (uv_streambuffer_pop_isr((void*) &u[0]->tx_buffer, &c, 1)) {
-				Chip_UART_SendByte(LPC_UART0, c);
-		   }
-		   else {
-				Chip_UART_IntDisable(LPC_UART0, UART_IER_THREINT);
-		   }
-	   }
+	// UART_INTEN_TXRDY
+	if (Chip_UART_ReadLineStatus(u[0]->uart) & UART_LSR_THRE) {
+		if (uv_streambuffer_pop_isr((void*) &u[0]->tx_buffer, &c, 1)) {
+			Chip_UART_SendByte(LPC_UART0, c);
+		}
+		else {
+			Chip_UART_IntDisable(LPC_UART0, UART_IER_THREINT);
+		}
 	}
 }
 #endif
@@ -227,7 +225,7 @@ int32_t uv_uart_send(uv_uarts_e uart, char *buffer, uint32_t length) {
 	if (length) {
 		uv_enter_critical();
 		len = uv_streambuffer_push((void*) &this->tx_buffer, buffer, length, 0);
-		if (Chip_UART_ReadIntIDReg(this->uart) & UART_IIR_INTID_THRE) {
+		if (Chip_UART_ReadLineStatus(this->uart) & UART_LSR_THRE) {
 			char c;
 			if (uv_streambuffer_pop((void*) &this->tx_buffer, &c, 1, 0)) {
 				Chip_UART_SendByte(this->uart, c);

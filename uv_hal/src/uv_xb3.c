@@ -54,14 +54,15 @@
 
 
 
+static void tx(uv_xb3_st *this);
+static void rx(uv_xb3_st *this, int32_t wait_ms);
+
+
 
 /// @brief: Converts uint64_t data from network byte order to local byte order.
 /// Use this for data received from XB3. Reads 8 bytes from *srcqueue*.
 static uint64_t ntouint64_queue(uv_xb3_st *this, uv_queue_st *srcqueue) {
 	uint64_t ret = 0;
-	while (this->at_response == XB3_AT_RESPONSE_COUNT) {
-		uv_rtos_task_delay(1);
-	}
 	uint64_t data = 0;
 	for (uint8_t i = 0; i < 8; i++) {
 		uv_queue_pop(srcqueue, &((uint8_t*) &data)[i], 0);
@@ -77,9 +78,6 @@ static uint64_t ntouint64_queue(uv_xb3_st *this, uv_queue_st *srcqueue) {
 /// Use this for data received from XB3. Reads 8 bytes from *srcqueue*.
 static uint32_t ntouint32_queue(uv_xb3_st *this, uv_queue_st *srcqueue) {
 	uint32_t ret = 0;
-	while (this->at_response == XB3_AT_RESPONSE_COUNT) {
-		uv_rtos_task_delay(1);
-	}
 	uint32_t data = 0;
 	for (uint8_t i = 0; i < 4; i++) {
 		uv_queue_pop(srcqueue, &((uint8_t*) &data)[i], 0);
@@ -95,9 +93,6 @@ static uint32_t ntouint32_queue(uv_xb3_st *this, uv_queue_st *srcqueue) {
 /// Use this for data received from XB3. Reads 2 bytes from *srcqueue*.
 static uint16_t ntouint16_queue(uv_xb3_st *this, uv_queue_st *srcqueue) {
 	uint16_t ret = 0;
-	while (this->at_response == XB3_AT_RESPONSE_COUNT) {
-		uv_rtos_task_delay(1);
-	}
 	uint16_t data = 0;
 	for (uint8_t i = 0; i < 2; i++) {
 		uv_queue_pop(srcqueue, &((uint8_t*) &data)[i], 0);
@@ -112,9 +107,6 @@ static uint16_t ntouint16_queue(uv_xb3_st *this, uv_queue_st *srcqueue) {
 /// Use this for data received from XB3. Reads 1 bytes from *srcqueue*.
 static uint8_t ntouint8_queue(uv_xb3_st *this, uv_queue_st *srcqueue) {
 	uint8_t ret = 0;
-	while (this->at_response == XB3_AT_RESPONSE_COUNT) {
-		uv_rtos_task_delay(1);
-	}
 	uv_queue_pop(srcqueue, &ret, 0);
 
 	return ret;
@@ -360,6 +352,7 @@ static void rx(uv_xb3_st *this, int32_t wait_ms) {
 static uv_xb3_at_response_e at_wait_for_reply(uv_xb3_st *this, int32_t wait_ms) {
 	while (this->at_response == XB3_AT_RESPONSE_COUNT &&
 			wait_ms > 0) {
+		tx(this);
 		rx(this, 1);
 		wait_ms -= 1;
 	}
@@ -783,8 +776,10 @@ void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms) {
 			}
 			this->network.op = id;
 			uv_xb3_local_at_cmd_req(this, "OI", "", 0);
+			at_wait_for_reply(this, 500);
 			this->network.oi = ntouint16_queue(this, &this->rx_at_queue);
 			uv_xb3_local_at_cmd_req(this, "CH", "", 0);
+			at_wait_for_reply(this, 500);
 			this->network.ch = ntouint8_queue(this, &this->rx_at_queue);
 
 			uv_mutex_unlock(&this->atreq_mutex);
@@ -813,6 +808,7 @@ uv_xb3_at_response_e uv_xb3_scan_networks(uv_xb3_st *this,
 	uv_mutex_lock(&this->atreq_mutex);
 
 	uv_xb3_local_at_cmd_req(this, "AS", "", 0);
+	at_wait_for_reply(this, 500);
 	if (network_count) {
 		*network_count = 0;
 	}
@@ -892,6 +888,7 @@ uv_xb3_at_response_e uv_xb3_network_discovery(uv_xb3_st *this,
 
 	// get discovery time
 	uv_xb3_local_at_cmd_req(this, "NT", "", 0);
+	at_wait_for_reply(this, 500);
 	uint16_t discovery_time_ms = ntouint16_queue(this, &this->rx_at_queue) * 100;
 	XB3_DEBUG(this, "discovery time: %i\n", discovery_time_ms);
 
@@ -899,6 +896,7 @@ uv_xb3_at_response_e uv_xb3_network_discovery(uv_xb3_st *this,
 
 	uv_queue_clear(&this->rx_at_queue);
 	uv_xb3_local_at_cmd_req(this, "ND", "", 0);
+	at_wait_for_reply(this, 500);
 	if (dev_count &&
 			dev_max_count) {
 		*dev_count = 0;
@@ -979,10 +977,7 @@ uint64_t uv_xb3_get_epid(uv_xb3_st *this) {
 	uint64_t ret = 0;
 	uv_mutex_lock(&this->atreq_mutex);
 	uv_xb3_local_at_cmd_req(this, "ID", "", 0);
-	while (uv_xb3_get_at_response(this) == XB3_AT_RESPONSE_COUNT) {
-		uv_rtos_task_delay(1);
-	}
-	if (uv_xb3_get_at_response(this) == XB3_AT_RESPONSE_OK) {
+	if (at_wait_for_reply(this, 500) == XB3_AT_RESPONSE_OK) {
 		ret = ntouint64_queue(this, &this->rx_at_queue);
 	}
 	else {
@@ -999,22 +994,18 @@ void uv_xb3_network_reset(uv_xb3_st *this) {
 	memset(&this->network, 0, sizeof(this->network));
 
 	uv_mutex_lock(&this->atreq_mutex);
+
 	char data[8] = {};
 	// clear default extended PAN ID
 	uv_xb3_local_at_cmd_req(this, "ID", data, 8);
-	while (uv_xb3_get_at_response(this) == XB3_AT_RESPONSE_COUNT) {
-		uv_rtos_task_delay(1);
-	}
+	at_wait_for_reply(this, 500);
 	// save to flash
 	uv_xb3_local_at_cmd_req(this, "WR", "", 0);
-	while (uv_xb3_get_at_response(this) == XB3_AT_RESPONSE_COUNT) {
-		uv_rtos_task_delay(1);
-	}
+	at_wait_for_reply(this, 500);
 	// reset network
 	uv_xb3_local_at_cmd_req(this, "NR", data, 1);
-	while (uv_xb3_get_at_response(this) == XB3_AT_RESPONSE_COUNT) {
-		uv_rtos_task_delay(1);
-	}
+	at_wait_for_reply(this, 500);
+
 	uv_mutex_unlock(&this->atreq_mutex);
 
 	this->conf->epanid = 0;
