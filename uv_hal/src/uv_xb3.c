@@ -218,6 +218,8 @@ static void tx(uv_xb3_st *this) {
 
 static void rx(uv_xb3_st *this, int32_t wait_ms) {
 	char rx;
+	uv_mutex_lock(&this->tx_mutex);
+
 	while (uv_uart_get(this->uart, &rx, 1, wait_ms)) {
 		if (this->rx_index == 0) {
 			if (rx == APIFRAME_START) {
@@ -343,6 +345,7 @@ static void rx(uv_xb3_st *this, int32_t wait_ms) {
 			}
 		}
 	}
+	uv_mutex_unlock(&this->tx_mutex);
 }
 
 
@@ -896,7 +899,6 @@ uv_xb3_at_response_e uv_xb3_network_discovery(uv_xb3_st *this,
 
 	uv_queue_clear(&this->rx_at_queue);
 	uv_xb3_local_at_cmd_req(this, "ND", "", 0);
-	at_wait_for_reply(this, 500);
 	if (dev_count &&
 			dev_max_count) {
 		*dev_count = 0;
@@ -905,6 +907,8 @@ uv_xb3_at_response_e uv_xb3_network_discovery(uv_xb3_st *this,
 
 		uint16_t rx_count = 0;
 		while (ms < discovery_time_ms) {
+			tx(this);
+			rx(this, 1);
 			uv_wdt_update();
 			uv_xb3_at_response_e ret = uv_xb3_get_at_response(this);
 			uint8_t rx = 0;
@@ -959,7 +963,6 @@ uv_xb3_at_response_e uv_xb3_network_discovery(uv_xb3_st *this,
 
 			}
 			ms += 1;
-			uv_rtos_task_delay(1);
 		}
 
 		XB3_DEBUG(this, "Found %i devices\n",

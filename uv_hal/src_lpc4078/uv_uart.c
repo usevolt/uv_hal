@@ -260,7 +260,9 @@ int32_t uv_uart_get_tx_free_space(uv_uarts_e uart) {
 int32_t uv_uart_get(uv_uarts_e uart, char *dest, uint32_t max_len, int wait_ms) {
 	int32_t ret = 0;
 
+	uv_enter_critical();
 	ret = uv_streambuffer_pop((void*) &this->rx_buffer, dest, max_len, wait_ms);
+	uv_exit_critical();
 
 	return ret;
 }
