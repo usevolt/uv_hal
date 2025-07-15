@@ -227,6 +227,9 @@ static void rx(uv_xb3_st *this, int32_t wait_ms) {
 				this->rx_index = 1;
 				this->rx_size = 0;
 			}
+			else {
+				printf("0x%x ", rx);
+			}
 		}
 		else {
 			this->rx_index++;
@@ -318,10 +321,8 @@ static void rx(uv_xb3_st *this, int32_t wait_ms) {
 						break;
 					case APIFRAME_EXTTRANSMITSTATUS:
 						if (offset == 8) {
-							if (this->conf->flags & XB3_CONF_FLAGS_RX_ECHO) {
-								if (rx) {
-									XB3_DEBUG(this, "XB3 TRANSMIT fail 0x%x", rx);
-								}
+							if (rx) {
+								XB3_DEBUG(this, "XB3 TRANSMIT fail 0x%x", rx);
 							}
 						}
 						else if (offset == 7) {
@@ -665,6 +666,7 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	this->modem_status = XB3_MODEMSTATUS_NONE;
 	this->modem_status_changed = XB3_MODEMSTATUS_NONE;
 	this->max_retransmit = 0;
+	memset(&this->network, 0, sizeof(this->network));
 
 	if (uv_streambuffer_init(&this->tx_streambuffer, TX_BUF_SIZE) != ERR_NONE) {
 		uv_terminal_enable(TERMINAL_CAN);
@@ -1240,7 +1242,7 @@ void uv_xb3_terminal(uv_xb3_st *this,
 	else {
 		printf("XB3 stat:\n"
 				"   initialized: %i\n"
-				"   id: 0x%08x%08x\n"
+				"   network id: 0x%08x%08x\n"
 				"   dest addr: 0x%08x%08x\n"
 				"   debug: %u\n"
 				"   RX echo: %u\n"
