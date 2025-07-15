@@ -99,9 +99,6 @@
 #elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 #define uv_disable_int()
 #endif
-/// @brief: Disabled all interrupts. This is meant to be called from
-/// inside interrupt routines.
-#define uv_disable_int_ISR()	taskENTER_CRITICAL_FROM_ISR()
 /// @brief: Enables all interrupts. This shouldn't be called from
 /// interrupt routines, use uv_enable_int_ISR instead!
 #if (CONFIG_TARGET_LPC15XX || CONFIG_TARGET_LPC40XX)
@@ -109,21 +106,19 @@
 #elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 #define uv_enable_int()
 #endif
-/// @brief: Enabled all interrupts. This is meant to be called from
-/// inside interrupt routines.
-#define uv_enable_int_ISR()		taskEXIT_CRITICAL_FROM_ISR(1)
 
 #if (CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN)
+#define uv_enter_critical_isr()
+#define uv_exit_critical_isr()
 #define uv_enter_critical()
-#else
-#define uv_enter_critical()		taskENTER_CRITICAL()
-#endif
-
-#if (CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN)
 #define uv_exit_critical()
 #else
+#define uv_enter_critical_isr()	taskENTER_CRITICAL_FROM_ISR()
+#define uv_exit_critical_isr()		taskEXIT_CRITICAL_FROM_ISR(1)
+#define uv_enter_critical()		taskENTER_CRITICAL()
 #define uv_exit_critical()		taskEXIT_CRITICAL()
 #endif
+
 
 
 

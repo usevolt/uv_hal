@@ -56,7 +56,9 @@
 
 void vAssertCalled( const char * const pcFileName,  unsigned long ulLine ) {
 	uv_terminal_enable(TERMINAL_CAN);
-	printf("Assert in '%s', line %u\n", pcFileName, ulLine);
+	printf("Assert in '%s', line %u\n",
+			pcFileName,
+			(unsigned int) ulLine);
 	while(true);
 }
 

@@ -169,6 +169,9 @@ uv_xb3_at_response_e uv_xb3_set_nodename(uv_xb3_st *this, const char *name);
 
 
 
+/// @brief: Step function
+///  @note: Internally has 1ms delay when receiving data from serial bus,
+/// Thus this task doesn't need uv_rtos_task_delay
 void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms);
 
 

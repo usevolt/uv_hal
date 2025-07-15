@@ -50,7 +50,9 @@
 
 
 #define XB3_DEBUG(xb3, ...) do { if ((xb3)->conf->flags & XB3_CONF_FLAGS_DEBUG) { \
-	printf(__VA_ARGS__); }} while (0)
+	printf_set_flags(PRINTF_FLAGS_NOTXCALLB); \
+	printf(__VA_ARGS__); \
+	printf_clear_flags(PRINTF_FLAGS_NOTXCALLB); }} while (0)
 
 
 
@@ -458,14 +460,14 @@ uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
 			ret = ERR_NOT_INITIALIZED;
 		}
 		else {
-			uv_enter_critical();
+			isr ? uv_enter_critical_isr() : uv_enter_critical();
 
 			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, data, datalen) :
 					uv_streambuffer_push(&this->tx_streambuffer, data, datalen, 0);
 			this->tx_max = MAX(this->tx_max,
 					uv_streambuffer_get_len(&this->tx_streambuffer));
 
-			uv_exit_critical();
+			isr ? uv_exit_critical_isr() : uv_exit_critical();
 		}
 	}
 	else {

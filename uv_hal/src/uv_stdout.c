@@ -46,6 +46,8 @@
 
 
 
+uint32_t printf_flags = 0;
+
 
 #if CONFIG_TERMINAL_CAN
 #define CAN_DELAY_MS		4
@@ -86,8 +88,15 @@ static void send_can_msg(void) {
 		uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
 	}
 #else
-	uv_can_send_flags(CAN0, &msg,
-			CAN_SEND_FLAGS_SYNC);
+	if (printf_get_flags() & PRINTF_FLAGS_NOTXCALLB) {
+		uv_can_send_flags(CAN0, &msg,
+				CAN_SEND_FLAGS_SYNC |
+				CAN_SEND_FLAGS_NO_TX_CALLB);
+	}
+	else {
+		uv_can_send_flags(CAN0, &msg,
+				CAN_SEND_FLAGS_SYNC);
+	}
 #endif
 
 }
