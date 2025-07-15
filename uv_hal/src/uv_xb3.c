@@ -348,6 +348,11 @@ static void rx(uv_xb3_st *this, int32_t wait_ms) {
 	}
 }
 
+static inline void tx_rx(uv_xb3_st *this, int32_t wait_ms) {
+	tx(this);
+	rx(this, uv_streambuffer_get_len(&this->tx_streambuffer) ? 0 : 1);
+}
+
 
 
 
@@ -358,8 +363,7 @@ static uv_xb3_at_response_e at_wait_for_reply(uv_xb3_st *this, int32_t wait_ms,
 			wait_ms > 0) {
 		if (xb3_task) {
 			// if we are in xb3_step_task, handle tx and rx data
-			tx(this);
-			rx(this, 1);
+			tx_rx(this, 1);
 		}
 		else {
 			// otherwise just wait, xb3 task handles all serial communication
@@ -805,9 +809,7 @@ void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms) {
 
 		}
 
-		tx(this);
-
-		rx(this, 1);
+		tx_rx(this, 1);
 	}
 }
 
@@ -972,8 +974,7 @@ uv_xb3_at_response_e uv_xb3_network_discovery(uv_xb3_st *this,
 			}
 			ms += 1;
 			if (xb3_step_task) {
-				tx(this);
-				rx(this, 1);
+				tx_rx(this, 1);
 			}
 			else {
 				uv_rtos_task_delay(1);
