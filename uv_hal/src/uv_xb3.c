@@ -697,9 +697,6 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 
 	xb3_reset(this);
 
-	uv_terminal_enable(TERMINAL_CAN);
-	this->conf->flags |= XB3_CONF_FLAGS_DEBUG;
-
 	XB3_DEBUG(this, "Setting device identification string to '%s'\n", nodeid);
 	uv_xb3_at_response_e res = set_nodename(this, nodeid, true);
 
