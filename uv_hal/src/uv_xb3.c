@@ -13,7 +13,7 @@
 #include <uv_wdt.h>
 #include "uv_memory.h"
 
-#if CONFIG_XB3
+#if CONFIG_XB3 && CONFIG_UART
 
 
 #define APIFRAME_64TRANSMIT					0x0

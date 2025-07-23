@@ -18,7 +18,7 @@
 #include "uv_terminal.h"
 
 
-#if CONFIG_XB3
+#if CONFIG_XB3 && CONFIG_UART
 
 
 #ifndef CONFIG_XB3_COORDINATOR_MAX_DEV_COUNT

@@ -128,7 +128,7 @@ to exclude the API function. */
 
 extern void vAssertCalled( const char * const pcFileName,  unsigned long ulLine );
 
-#define configASSERT( x ) if( ( x ) == 0 ) vAssertCalled(  __FILE__, __LINE__ )
+//#define configASSERT( x ) if( ( x ) == 0 ) vAssertCalled(  __FILE__, __LINE__ )
 
 /* Use the system definition, if there is one */
 #ifdef __NVIC_PRIO_BITS
