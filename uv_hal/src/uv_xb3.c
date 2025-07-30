@@ -1033,6 +1033,18 @@ void uv_xb3_network_reset(uv_xb3_st *this, bool xb3_step_task) {
 }
 
 
+void uv_xb3_join_network(uv_xb3_st *this, uint64_t pan64, uint16_t pan16, uint8_t chn,
+		bool xb3_step_task) {
+
+}
+
+
+void uv_xb3_leave_network(uv_xb3_st *this, bool xb3_step_task) {
+
+}
+
+
+
 
 void uv_xb3_terminal(uv_xb3_st *this,
 		unsigned int args, argument_st *argv) {
