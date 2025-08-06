@@ -327,12 +327,16 @@ uv_errors_e uv_canopen_sdo_store_params(uint8_t node_id, memory_scope_e_ param_s
 void uv_canopen_set_our_nodeid(uint8_t nodeid) {
 	CONFIG_NON_VOLATILE_START.id = nodeid;
 	// update all PDO's which where mapped for the previous node id
-	canopen_pdo_cobid_update();
+	uv_canopen_pdo_cobid_update();
 }
 
+void uv_canopen_set_our_nodeid_isr(uint8_t nodeid) {
+	CONFIG_NON_VOLATILE_START.id = nodeid;
+	// update all PDO's which where mapped for the previous node id
+	uv_canopen_pdo_cobid_update_isr();
+}
 
-void canopen_pdo_cobid_update(void) {
-	uv_enter_critical();
+static void cobid_update(void) {
 	uint8_t last_nodeid = uv_canopen_get_our_nodeid();
 	uint8_t nodeid = CONFIG_NON_VOLATILE_START.id;
 
@@ -350,8 +354,22 @@ void canopen_pdo_cobid_update(void) {
 			com->cob_id += nodeid;
 		}
 	}
+}
+
+void uv_canopen_pdo_cobid_update_isr(void) {
+	uv_enter_critical_isr();
+	cobid_update();
+	uv_exit_critical_isr();
+}
+
+
+void uv_canopen_pdo_cobid_update(void) {
+	uv_enter_critical();
+	cobid_update();
 	uv_exit_critical();
 }
+
+
 
 
 
