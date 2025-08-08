@@ -212,16 +212,18 @@ uv_errors_e uv_xb3_write_sync(uv_xb3_st *this, char *data,
 
 
 /// @brief: Structure defining zigbee devices that are found with "AT+AS" command
-typedef struct {
-	uint8_t channel;
-	uint16_t pan16;
+/// 16-bit aligned to help mapping this to CANOpen object dictionary
+typedef struct __attribute__((packed)) {
 	uint64_t pan64;
+	uint16_t pan16;
+	uint8_t channel;
 	uint8_t allowjoin;
 	uint8_t stackprofile;
 	// link quality indicator, higher the better
 	uint8_t lqi;
 	// relative signal strength indicator, lower the better
 	int8_t rssi;
+	int8_t reserved;
 } uv_xb3_network_st;
 
 
