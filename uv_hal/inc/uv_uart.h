@@ -96,6 +96,9 @@ typedef enum {
 	UART2,
 	UART3,
 	UART_COUNT
+#else
+	UART0 = 0,
+	UART_COUNT
 #endif
 } uv_uarts_e;
 

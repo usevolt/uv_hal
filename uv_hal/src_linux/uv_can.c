@@ -422,7 +422,7 @@ uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 		can_send_flags_e flags) {
 	uv_errors_e ret = ERR_NONE;
 	uv_disable_int();
-	if (flags & CAN_SEND_LOCAL) {
+	if (flags & CAN_SEND_FLAGS_LOCAL) {
 		ret = uv_ring_buffer_push(&this->rx_buffer, msg);
 	}
 	if ((flags & CAN_SEND_FLAGS_LOCAL) ||

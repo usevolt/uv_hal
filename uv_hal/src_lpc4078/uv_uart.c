@@ -198,7 +198,7 @@ uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 #endif
 
 	Chip_UART_Init(this->uart);
-	Chip_UART_SetBaud(this->uart, baud);
+	Chip_UART_SetBaudFDR(this->uart, baud);
 	Chip_UART_TXEnable(this->uart);
 	Chip_UART_IntEnable(this->uart, UART_IER_RBRINT);
 

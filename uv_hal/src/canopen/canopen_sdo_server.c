@@ -209,7 +209,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 						}
 						// update PDO's if nodeid was written
 						else if (this->mindex == CONFIG_CANOPEN_NODEID_INDEX) {
-							canopen_pdo_cobid_update();
+							uv_canopen_pdo_cobid_update();
 						}
 						else {
 

@@ -13,7 +13,7 @@
 #include <uv_wdt.h>
 #include "uv_memory.h"
 
-#if CONFIG_XB3
+#if CONFIG_XB3 && CONFIG_UART
 
 
 #define APIFRAME_64TRANSMIT					0x0
@@ -697,9 +697,6 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 
 	xb3_reset(this);
 
-	uv_terminal_enable(TERMINAL_CAN);
-	this->conf->flags |= XB3_CONF_FLAGS_DEBUG;
-
 	XB3_DEBUG(this, "Setting device identification string to '%s'\n", nodeid);
 	uv_xb3_at_response_e res = set_nodename(this, nodeid, true);
 
@@ -1034,6 +1031,18 @@ void uv_xb3_network_reset(uv_xb3_st *this, bool xb3_step_task) {
 
 	XB3_DEBUG(this, "XB3 network reset\n");
 }
+
+
+void uv_xb3_join_network(uv_xb3_st *this, uint64_t pan64, uint16_t pan16, uint8_t chn,
+		bool xb3_step_task) {
+
+}
+
+
+void uv_xb3_leave_network(uv_xb3_st *this, bool xb3_step_task) {
+
+}
+
 
 
 

@@ -619,8 +619,12 @@ static inline uint8_t uv_canopen_get_our_nodeid(void) {
 /// after saving non-volatile settings and resetting the device.
 void uv_canopen_set_our_nodeid(uint8_t nodeid);
 
+void uv_canopen_set_our_nodeid_isr(uint8_t nodeid);
 
-void canopen_pdo_cobid_update(void);
+
+void uv_canopen_pdo_cobid_update(void);
+
+void uv_canopen_pdo_cobid_update_isr(void);
 
 
 /// @brief: Returns true if the given index RXPDO is received within the specified time

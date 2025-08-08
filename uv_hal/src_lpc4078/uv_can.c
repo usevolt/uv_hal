@@ -53,6 +53,9 @@
 
 
 
+#define CAN_DEBUG(...)
+//#define CAN_DEBUG(...)			printf(__VA_ARGS__)
+
 typedef struct {
 	struct {
 		bool init;
@@ -245,7 +248,7 @@ static void insert_msg(uv_can_chn_e chn,
 		range.LowerID.ID_11 = id;
 		range.UpperID.CtrlNo = chn;
 		range.UpperID.ID_11 = (ctz) ? (id | (0x7FF & (~mask))) : id;
-		printf("RX configuring STD range 0x%x ... 0x%x for CAN%u\n",
+		CAN_DEBUG("RX configuring STD range 0x%x ... 0x%x for CAN%u\n",
 				range.LowerID.ID_11,
 				range.UpperID.ID_11,
 				range.LowerID.CtrlNo);
@@ -266,14 +269,14 @@ static void insert_msg(uv_can_chn_e chn,
 					!entry.LowerID.Disable &&
 					entry.LowerID.ID_11 >= range.LowerID.ID_11 &&
 						entry.UpperID.ID_11 <= range.UpperID.ID_11) {
-				printf("Removing unused entry %i 0x%x - 0x%x\n",
+				CAN_DEBUG("Removing unused entry %i 0x%x - 0x%x\n",
 						i,
 						entry.LowerID.ID_11,
 						entry.UpperID.ID_11);
 				Chip_CAN_RemoveGroupSTDEntry(LPC_CANAF, LPC_CANAF_RAM, i);
 				i--;
 			}
-//			printf("%i: 0x%x - 0x%x, CAN%i, disable: %i\n",
+//			CAN_DEBUG("%i: 0x%x - 0x%x, CAN%i, disable: %i\n",
 //					i,
 //					entry.LowerID.ID_11,
 //					entry.UpperID.ID_11,
@@ -290,7 +293,7 @@ static void insert_msg(uv_can_chn_e chn,
 		range.LowerID.ID_29 = id;
 		range.UpperID.CtrlNo = chn;
 		range.UpperID.ID_29 = (ctz) ? (id | (0x1FFFFFFF & (~mask))) : id;
-//		printf("RX configuring EXT range 0x%x ... 0x%x for CAN%u\n",
+//		CAN_DEBUG("RX configuring EXT range 0x%x ... 0x%x for CAN%u\n",
 //				range.LowerID.ID_29,
 //				range.UpperID.ID_29,
 //				range.LowerID.CtrlNo);
@@ -299,7 +302,7 @@ static void insert_msg(uv_can_chn_e chn,
 		// and they fuck up message receiving if left there
 //		uint8_t count = Chip_CAN_GetEntriesNum(
 //				LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_EFF_GRP_SEC);
-//		printf("ext group count: %i\n",
+//		CAN_DEBUG("ext group count: %i\n",
 //				count);
 		for (int8_t i = 0;
 				i < Chip_CAN_GetEntriesNum(
@@ -310,14 +313,14 @@ static void insert_msg(uv_can_chn_e chn,
 			if (entry.LowerID.CtrlNo == range.LowerID.CtrlNo &&
 					entry.LowerID.ID_29 >= range.LowerID.ID_29 &&
 						entry.UpperID.ID_29 <= range.UpperID.ID_29) {
-				printf("Removing unused entry %i 0x%x - 0x%x\n",
+				CAN_DEBUG("Removing unused entry %i 0x%x - 0x%x\n",
 						i,
 						entry.LowerID.ID_29,
 						entry.UpperID.ID_29);
 				Chip_CAN_RemoveGroupEXTEntry(LPC_CANAF, LPC_CANAF_RAM, i);
 				i--;
 			}
-//			printf("%i: 0x%x - 0x%x, CAN%i\n",
+//			CAN_DEBUG("%i: 0x%x - 0x%x, CAN%i\n",
 //					i,
 //					entry.LowerID.ID_29,
 //					entry.UpperID.ID_29,
@@ -437,7 +440,7 @@ void CAN_IRQHandler(void) {
 			}
 		}
 		else if (canint != 0) {
-//			printf("*** CAN AF configuration error 0x%x\n", canint);
+//			CAN_DEBUG("*** CAN AF configuration error 0x%x\n", canint);
 			Chip_CAN_ConfigFullCANInt(LPC_CANAF, DISABLE);
 		}
 		else {
@@ -479,7 +482,7 @@ void CAN_IRQHandler(void) {
 			}
 		}
 		else if (canint != 0) {
-//			printf("0x%x\n", canint);
+//			CAN_DEBUG("0x%x\n", canint);
 			Chip_CAN_ConfigFullCANInt(LPC_CANAF, DISABLE);
 		}
 		else {

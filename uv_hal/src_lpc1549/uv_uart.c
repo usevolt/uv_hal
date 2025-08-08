@@ -39,7 +39,6 @@
 #include "uart_15xx.h"
 #include "swm_15xx.h"
 #include "iocon_15xx.h"
-#endif
 #include "uv_memory.h"
 #include "uv_utilities.h"
 #if CONFIG_RTOS
@@ -122,6 +121,7 @@ void uv_uart_add_callback(uv_uarts_e uart,
 #if CONFIG_TARGET_LPC15XX
 #if CONFIG_UART0
 	if (uart == UART0) { uart = 0; }
+
 #endif
 #if CONFIG_UART1
 	if (uart == UART1) { uart = 1; }
@@ -344,3 +344,4 @@ void uv_uart_break_stop(uv_uarts_e uart) {
 	((LPC_USART_T*) uart)->CTRL &= ~UART_CTRL_TXBRKEN;
 }
 
+#endif

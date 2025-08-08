@@ -108,10 +108,10 @@
 #endif
 
 #if (CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN)
-#define uv_enter_critical_isr()
-#define uv_exit_critical_isr()
-#define uv_enter_critical()
-#define uv_exit_critical()
+#define uv_enter_critical_isr()		__NOP()
+#define uv_exit_critical_isr()		__NOP()
+#define uv_enter_critical() 		__NOP()
+#define uv_exit_critical()			__NOP()
 #else
 #define uv_enter_critical_isr()	taskENTER_CRITICAL_FROM_ISR()
 #define uv_exit_critical_isr()		taskEXIT_CRITICAL_FROM_ISR(1)
@@ -353,7 +353,8 @@ static inline void uv_rtos_task_yield(void) {
 
 
 #if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
-#define __NOP()
+static inline void __nop(void) { }
+#define __NOP()	__nop()
 #endif
 
 

@@ -18,7 +18,7 @@
 #include "uv_terminal.h"
 
 
-#if CONFIG_XB3
+#if CONFIG_XB3 && CONFIG_UART
 
 
 #ifndef CONFIG_XB3_COORDINATOR_MAX_DEV_COUNT
@@ -289,6 +289,17 @@ static inline uint64_t uv_xb3_get_serial(uv_xb3_st *this) {
 /// @param xb3_step_task: Set to true if this function is called within
 /// xb3_step task. Otherwise should be false
 void uv_xb3_network_reset(uv_xb3_st *this, bool xb3_step_task);
+
+
+/// @brief: Leaves current network and tries to join a new one with given
+/// *pan64*, *pan16* and *channel*
+void uv_xb3_join_network(uv_xb3_st *this, uint64_t pan64, uint16_t pan16, uint8_t chn,
+		bool xb3_step_task);
+
+
+/// @brief: Leaves current network by clearing all default network data and performing
+/// XB3 network reset.
+void uv_xb3_leave_network(uv_xb3_st *this, bool xb3_step_task);
 
 
 /// @brief: Writes a local AT command to XB3 module
