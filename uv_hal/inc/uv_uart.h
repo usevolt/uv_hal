@@ -89,8 +89,7 @@ typedef enum {
 	UART2 = (uint32_t) LPC_USART2,
 #endif
 	UART_COUNT = 3
-#endif
-#if CONFIG_TARGET_LPC40XX
+#elif CONFIG_TARGET_LPC40XX
 	UART0 = 0,
 	UART1,
 	UART2,
