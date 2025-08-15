@@ -634,6 +634,20 @@ static inline uint32_t printf_get_flags(void) {
 
 
 
+/// @brief: Structure to return the actual step time from last step cycle
+typedef struct {
+	int32_t last_tick_count;
+	uint32_t step_ms;
+} uv_ts_st;
+
+
+void uv_ts_init(uv_ts_st *t);
+
+void uv_ts_step(uv_ts_st *t);
+
+static inline uint32_t uv_ts_get_step_ms(uv_ts_st *t) {
+	return t->step_ms;
+}
 
 
 /**** PROTECTED FUNCTIONS ******/

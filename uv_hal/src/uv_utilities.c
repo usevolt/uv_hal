@@ -523,3 +523,22 @@ uint16_t ntouint16(uint16_t netdata) {
 
 
 
+void uv_ts_init(uv_ts_st *t) {
+	t->last_tick_count = uv_rtos_get_tick_count();
+	t->step_ms = 0;
+}
+
+
+
+void uv_ts_step(uv_ts_st *t) {
+	uint32_t tick_count = uv_rtos_get_tick_count();
+	if (tick_count < t->last_tick_count) {
+		t->step_ms = UINT32_MAX - t->last_tick_count + tick_count;
+	}
+	else {
+		t->step_ms = tick_count - t->last_tick_count;
+	}
+	t->last_tick_count = tick_count;
+}
+
+

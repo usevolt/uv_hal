@@ -53,30 +53,47 @@ typedef struct {
 	uv_streambuffer_st rx_buffer;
 	uv_streambuffer_st tx_buffer;
 	LPC_USART_T *uart;
+	uv_gpios_e cts;
 } uart_st;
 
 #if CONFIG_UART0
 static uart_st uart0 = {
 		.uart = LPC_UART0,
 		.callback = NULL
+#ifdef CONFIG_UART0_CTS_IO
+		,
+		.cts = CONFIG_UART0_CTS_IO
+#endif
 };
 #endif
 #if CONFIG_UART1
 static uart_st uart1 = {
 		.uart = LPC_UART1,
 		.callback = NULL
+#ifdef CONFIG_UART1_CTS_IO
+		,
+		.cts = CONFIG_UART1_CTS_IO
+#endif
 };
 #endif
 #if CONFIG_UART2
 static uart_st uart2 = {
 		.uart = LPC_UART2,
 		.callback = NULL
+#ifdef CONFIG_UART2_CTS_IO
+		,
+		.cts = CONFIG_UART2_CTS_IO
+#endif
 };
 #endif
 #if CONFIG_UART3
 static uart_st uart3 = {
 		.uart = LPC_UART3,
 		.callback = NULL
+#ifdef CONFIG_UART3_CTS_IO
+		,
+		.cts = CONFIG_UART3_CTS_IO
+#endif
 };
 #endif
 
@@ -110,15 +127,8 @@ static uart_st* u[UART_COUNT] = {
 
 static inline bool cts(uart_st *uart) {
 	bool ret = true;
-	switch (uart) {
-	case UART0:
-#ifdef CONFIG_UART0_CTS_IO
-		ret = !uv_gpio_get(CONFIG_UART0_CTS_IO);
-#endif
-		break;
-	default:
-		break;
-
+	if (uart->cts) {
+		ret = !uv_gpio_get(uart->cts);
 	}
 	return ret;
 }
@@ -138,7 +148,7 @@ void UART0_IRQHandler(void) {
 	}
 	// UART_INTEN_TXRDY
 	if (Chip_UART_ReadLineStatus(u[0]->uart) & UART_LSR_THRE) {
-		if (cts(&u[uart]) &&
+		if (cts(u[0]) &&
 				uv_streambuffer_pop_isr((void*) &u[0]->tx_buffer, &c, 1)) {
 			Chip_UART_SendByte(LPC_UART0, c);
 		}
@@ -337,9 +347,7 @@ void uv_uart_break_stop(uv_uarts_e uart) {
 
 void _uv_uart_hal_step(uint16_t step_ms) {
 	// if transmission is not ongoing, try next character
-	if (Chip_UART_ReadLineStatus(u[0]->uart) & UART_LSR_THRE) {
-		uv_enter_critical();
-		send_next_byte(UART0);
-		uv_exit_critical();
-	}
+	uv_enter_critical();
+	send_next_byte(UART0);
+	uv_exit_critical();
 }

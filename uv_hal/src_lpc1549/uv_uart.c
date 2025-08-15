@@ -62,7 +62,6 @@ static uart_st _this = {};
 
 
 //UART interrupt handlers
-#if CONFIG_TARGET_LPC15XX
 #if CONFIG_UART0
 void UART0_IRQHandler(void) {
 	char c;
@@ -96,7 +95,6 @@ void UART2_IRQHandler(void) {
 }
 #endif
 
-#endif
 
 
 
@@ -118,7 +116,6 @@ static uint8_t get_i(uv_uarts_e uart) {
 
 void uv_uart_add_callback(uv_uarts_e uart,
 		void (*callback_function)(void* user_ptr, uv_uarts_e uart)) {
-#if CONFIG_TARGET_LPC15XX
 #if CONFIG_UART0
 	if (uart == UART0) { uart = 0; }
 
@@ -129,12 +126,41 @@ void uv_uart_add_callback(uv_uarts_e uart,
 #if CONFIG_UART2
 	if (uart == UART2) { uart = 2; }
 #endif
-#endif
 	this->callback[uart] = callback_function;
 }
 
 
-#if CONFIG_TARGET_LPC15XX
+static inline bool cts(uart_st *uart) {
+	bool ret = true;
+	uv_gpios_e cts = 0;
+#if CONFIG_UART0_CTS_IO
+	if (uart == UART0) {
+		cts = CONFIG_UART0_CTS_IO;
+	}
+#endif
+#if CONFIG_UART1_CTS_IO
+	if (uart == UART1) {
+		cts = CONFIG_UART1_CTS_IO;
+	}
+#endif
+#if CONFIG_UART2_CTS_IO
+	if (uart == UART2) {
+		cts = CONFIG_UART2_CTS_IO;
+	}
+#endif
+#if CONFIG_UART3_CTS_IO
+	if (uart == UART3) {
+		cts = CONFIG_UART3_CTS_IO;
+	}
+#endif
+	if (cts) {
+		ret = !uv_gpio_get(cts);
+	}
+	return ret;
+}
+
+
+
 uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 	uv_errors_e ret = ERR_NONE;
 
@@ -167,6 +193,9 @@ uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 		Chip_SWM_MovablePortPinAssign(SWM_UART0_RXD_I,
 				uv_gpio_get_port(CONFIG_UART0_RX_PIN),
 				uv_gpio_get_pin(CONFIG_UART0_RX_PIN));
+#if CONFIG_UART0_CTS_IO
+		uv_gpio_init_input(CONFIG_UART0_CTS_IO, PULL_DOWN_ENABLED);
+#endif
 		NVIC_SetPriority(UART0_IRQn, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY);
 		NVIC_EnableIRQ(UART0_IRQn);
 
@@ -220,7 +249,6 @@ uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 	return ret;
 }
 
-#endif
 
 
 
@@ -234,6 +262,17 @@ uv_errors_e uv_uart_send_char(uv_uarts_e uart, char buffer) {
 }
 
 
+void send_next_byte(uv_uarts_e uart) {
+	if (cts(uart) &&
+			Chip_UART_GetStatus((void*) uart) & UART_STAT_TXRDY) {
+		char c;
+		if (uv_streambuffer_pop(&this->tx_buffer[i], &c, 1, 0)) {
+			Chip_UART_SendByte((void*) uart, c);
+			Chip_UART_IntEnable((void*) uart, UART_INTEN_TXRDY);
+		}
+	}
+}
+
 
 int32_t uv_uart_send(uv_uarts_e uart, char *buffer, uint32_t length) {
 	uint8_t i = get_i(uart);
@@ -242,13 +281,7 @@ int32_t uv_uart_send(uv_uarts_e uart, char *buffer, uint32_t length) {
 	if (length) {
 		uv_enter_critical();
 		len = uv_streambuffer_push(&this->tx_buffer[i], buffer, length, 0);
-		if (Chip_UART_GetStatus((void*) uart) & UART_STAT_TXRDY) {
-			char c;
-			if (uv_streambuffer_pop(&this->tx_buffer[i], &c, 1, 0)) {
-				Chip_UART_SendByte((void*) uart, c);
-				Chip_UART_IntEnable((void*) uart, UART_INTEN_TXRDY);
-			}
-		}
+		send_next_byte(uart);
 		uv_exit_critical();
 	}
 
@@ -280,7 +313,6 @@ int32_t uv_uart_get(uv_uarts_e uart, char *dest, uint32_t max_len, int wait_ms) 
 	int32_t ret = 0;
 
 	uint32_t i = 0;
-#if CONFIG_TARGET_LPC15XX
 #if CONFIG_UART0
 	if (uart == UART0) { i = 0; }
 #endif
@@ -289,7 +321,6 @@ int32_t uv_uart_get(uv_uarts_e uart, char *dest, uint32_t max_len, int wait_ms) 
 #endif
 #if CONFIG_UART2
 	if (uart == UART2) { i = 2; }
-#endif
 #endif
 
 	ret = uv_streambuffer_pop(&this->rx_buffer[i], dest, max_len, wait_ms);
@@ -342,6 +373,30 @@ void uv_uart_break_start(uv_uarts_e uart) {
 
 void uv_uart_break_stop(uv_uarts_e uart) {
 	((LPC_USART_T*) uart)->CTRL &= ~UART_CTRL_TXBRKEN;
+}
+
+
+void _uv_uart_hal_step(uint16_t step_ms) {
+#if CONFIG_UART0
+	uv_enter_critical();
+	send_next_byte(UART0);
+	uv_exit_critical();
+#endif
+#if CONFIG_UART1
+	uv_enter_critical();
+	send_next_byte(UART1);
+	uv_exit_critical();
+#endif
+#if CONFIG_UART2
+	uv_enter_critical();
+	send_next_byte(UART2);
+	uv_exit_critical();
+#endif
+#if CONFIG_UART3
+	uv_enter_critical();
+	send_next_byte(UART3);
+	uv_exit_critical();
+#endif
 }
 
 #endif
