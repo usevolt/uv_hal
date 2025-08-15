@@ -108,6 +108,22 @@ static uart_st* u[UART_COUNT] = {
 #define this (u[uart])
 
 
+static inline bool cts(uart_st *uart) {
+	bool ret = true;
+	switch (uart) {
+	case UART0:
+#ifdef CONFIG_UART0_CTS_IO
+		ret = !uv_gpio_get(CONFIG_UART0_CTS_IO);
+#endif
+		break;
+	default:
+		break;
+
+	}
+	return ret;
+}
+
+
 //UART interrupt handlers
 #if CONFIG_UART0
 void UART0_IRQHandler(void) {
@@ -122,7 +138,8 @@ void UART0_IRQHandler(void) {
 	}
 	// UART_INTEN_TXRDY
 	if (Chip_UART_ReadLineStatus(u[0]->uart) & UART_LSR_THRE) {
-		if (uv_streambuffer_pop_isr((void*) &u[0]->tx_buffer, &c, 1)) {
+		if (cts(&u[uart]) &&
+				uv_streambuffer_pop_isr((void*) &u[0]->tx_buffer, &c, 1)) {
 			Chip_UART_SendByte(LPC_UART0, c);
 		}
 		else {
@@ -181,6 +198,9 @@ uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 #else
 #error "CONFIG_UART0_RX_IO should define IO pin"
 #endif
+#ifdef CONFIG_UART0_CTS_IO
+		uv_gpio_init_input(CONFIG_UART0_CTS_IO, PULL_DOWN_ENABLED);
+#endif
 
 		NVIC_SetPriority(UART0_IRQn, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY);
 		NVIC_EnableIRQ(UART0_IRQn);
@@ -218,6 +238,17 @@ uv_errors_e uv_uart_send_char(uv_uarts_e uart, char buffer) {
 }
 
 
+static void send_next_byte(uv_uarts_e uart) {
+	if (Chip_UART_ReadLineStatus(this->uart) & UART_LSR_THRE) {
+		char c;
+		if (cts(this) &&
+				uv_streambuffer_pop((void*) &this->tx_buffer, &c, 1, 0)) {
+			Chip_UART_SendByte(this->uart, c);
+			Chip_UART_IntEnable(this->uart, UART_IER_THREINT);
+		}
+	}
+}
+
 
 int32_t uv_uart_send(uv_uarts_e uart, char *buffer, uint32_t length) {
 	int32_t len = 0;
@@ -225,13 +256,7 @@ int32_t uv_uart_send(uv_uarts_e uart, char *buffer, uint32_t length) {
 	if (length) {
 		uv_enter_critical();
 		len = uv_streambuffer_push((void*) &this->tx_buffer, buffer, length, 0);
-		if (Chip_UART_ReadLineStatus(this->uart) & UART_LSR_THRE) {
-			char c;
-			if (uv_streambuffer_pop((void*) &this->tx_buffer, &c, 1, 0)) {
-				Chip_UART_SendByte(this->uart, c);
-				Chip_UART_IntEnable(this->uart, UART_IER_THREINT);
-			}
-		}
+		send_next_byte(uart);
 		uv_exit_critical();
 	}
 
@@ -309,3 +334,12 @@ void uv_uart_break_stop(uv_uarts_e uart) {
 	this->uart->LCR &= ~UART_LCR_BREAK_EN;
 }
 
+
+void _uv_uart_hal_step(uint16_t step_ms) {
+	// if transmission is not ongoing, try next character
+	if (Chip_UART_ReadLineStatus(u[0]->uart) & UART_LSR_THRE) {
+		uv_enter_critical();
+		send_next_byte(UART0);
+		uv_exit_critical();
+	}
+}

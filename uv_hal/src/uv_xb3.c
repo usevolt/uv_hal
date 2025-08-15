@@ -659,6 +659,7 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	this->conf = conf;
 	this->initialized = false;
 	this->uart = uart;
+	uv_gpio_init_input(this->cts_io, PULL_DOWN_ENABLED);
 	this->reset_gpio = reset_gpio;
 	this->at_response = XB3_AT_RESPONSE_COUNT;
 	this->rx_index = 0;

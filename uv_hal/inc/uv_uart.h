@@ -185,6 +185,10 @@ void uv_uart_add_callback(uv_uarts_e uart,
 		void (*callback_function)(void* user_ptr, uv_uarts_e uart));
 
 
+/// @brief: Step function meant to be called inside hal task
+void _uv_uart_hal_step(uint16_t step_ms);
+
+
 #endif
 
 #endif /* UW_UART_H_ */

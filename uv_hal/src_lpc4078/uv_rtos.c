@@ -335,6 +335,10 @@ void hal_task(void *nullptr) {
 		_uv_can_hal_step(step_ms);
 #endif
 
+#if CONFIG_UART
+		_uv_uart_hal_step(step_ms);
+#endif
+
 #if CONFIG_TERMINAL_CAN
 		_uv_stdout_hal_step(step_ms);
 #endif
