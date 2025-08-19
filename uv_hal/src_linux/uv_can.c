@@ -426,7 +426,8 @@ uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 		ret = uv_ring_buffer_push(&this->rx_buffer, msg);
 	}
 	if ((flags & CAN_SEND_FLAGS_LOCAL) ||
-			(flags & CAN_SEND_FLAGS_SYNC)) {
+			(flags & CAN_SEND_FLAGS_SYNC) ||
+			(flags & CAN_SEND_FLAGS_NORMAL)) {
 		ret = uv_can_send_message(chn, msg);
 	}
 	if (!(flags & CAN_SEND_FLAGS_NO_TX_CALLB) &&

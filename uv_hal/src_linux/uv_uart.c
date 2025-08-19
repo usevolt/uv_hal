@@ -35,7 +35,6 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include "uv_gpio.h"
-#endif
 #include "uv_memory.h"
 #include "uv_utilities.h"
 #if CONFIG_RTOS
@@ -121,3 +120,5 @@ void uv_uart_break_start(uv_uarts_e uart) {
 void uv_uart_break_stop(uv_uarts_e uart) {
 }
 
+
+#endif
