@@ -128,7 +128,7 @@ to exclude the API function. */
 
 extern void vAssertCalled( const char * const pcFileName,  unsigned long ulLine );
 
-//#define configASSERT( x ) if( ( x ) == 0 ) vAssertCalled(  __FILE__, __LINE__ )
+#define configASSERT( x ) if( ( x ) == 0 ) vAssertCalled(  __FILE__, __LINE__ )
 
 /* Use the system definition, if there is one */
 #ifdef __NVIC_PRIO_BITS
@@ -182,7 +182,9 @@ standard names - or at least those used in the unmodified vector table. */
 #define configMAX_PRIORITIES		( 8 )
 #define configUSE_TICK_HOOK			0
 #define configTICK_RATE_HZ			( ( portTickType ) 1000 )
-#define configMINIMAL_STACK_SIZE	( ( unsigned short ) 128 )
+// note: Min stack size increased to 256 since
+// debugging XB3 caused it hard to printf from interrupts
+#define configMINIMAL_STACK_SIZE	( ( unsigned short ) 256 )
 #define configSUPPORT_DYNAMIC_ALLOCATION	1
 #define configTOTAL_HEAP_SIZE 		CONFIG_RTOS_HEAP_SIZE
 #define configMAX_TASK_NAME_LEN		( 20 )
@@ -226,6 +228,10 @@ to exclude the API function. */
 
 #define configGENERATE_RUN_TIME_STATS			0
 
+extern void vAssertCalled( const char * const pcFileName,  unsigned long ulLine );
+
+#define configASSERT( x ) if( ( x ) == 0 ) vAssertCalled(  __FILE__, __LINE__ )
+
 
 /* Use the system definition, if there is one */
 #ifdef __NVIC_PRIO_BITS
@@ -234,7 +240,6 @@ to exclude the API function. */
 	#define configPRIO_BITS       5        /* 32 priority levels */
 #endif
 
-#if defined(CORE_M4)
 
 /* The lowest interrupt priority that can be used in a call to a "set priority"
 function. */
@@ -252,7 +257,7 @@ to all Cortex-M ports, and do not rely on any particular library functions. */
 /* !!!! configMAX_SYSCALL_INTERRUPT_PRIORITY must not be set to zero !!!!
 See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 #define configMAX_SYSCALL_INTERRUPT_PRIORITY   ( configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY << (8 - configPRIO_BITS) )
-#endif /* defined(CORE_M3) */
+
 
 /* Definitions that map the FreeRTOS port interrupt handlers to their CMSIS
 standard names - or at least those used in the unmodified vector table. */

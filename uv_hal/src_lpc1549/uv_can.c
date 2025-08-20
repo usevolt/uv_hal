@@ -736,14 +736,14 @@ uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 	uv_disable_int();
 	if (flags & CAN_SEND_FLAGS_LOCAL) {
 		if (!send_terminal(msg)) {
-			ret = uv_ring_buffer_push(&this->rx_buffer, msg);
+			ret |= uv_ring_buffer_push(&this->rx_buffer, msg);
 		}
 	}
 	if (flags & CAN_SEND_FLAGS_SYNC) {
-		ret = uv_can_send_sync(chn, msg);
+		ret |= uv_can_send_sync(chn, msg);
 	}
 	if (flags & CAN_SEND_FLAGS_NORMAL) {
-		ret = uv_ring_buffer_push(&this->tx_buffer, msg);
+		ret |= uv_ring_buffer_push(&this->tx_buffer, msg);
 	}
 	if (!(flags & CAN_SEND_FLAGS_NO_TX_CALLB) &&
 			(this->tx_callback[chn] != NULL)) {

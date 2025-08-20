@@ -225,9 +225,6 @@ static void rx(uv_xb3_st *this, int32_t wait_ms) {
 				this->rx_index = 1;
 				this->rx_size = 0;
 			}
-			else {
-				printf("0x%x ", rx);
-			}
 		}
 		else {
 			this->rx_index++;
@@ -445,7 +442,7 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd,
 #define TX_BUF_SIZE		(700)
 #define RX_BUF_SIZE		300
 
-
+#include <uv_timer.h>
 
 uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
 		uint16_t datalen, bool isr) {
@@ -463,6 +460,9 @@ uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
 			ret = ERR_NOT_INITIALIZED;
 		}
 		else {
+
+			uv_timer_clear(TIMER1);
+			uv_timer_start(TIMER1);
 			isr ? uv_enter_critical_isr() : uv_enter_critical();
 
 			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, data, datalen) :
@@ -484,9 +484,7 @@ uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
 uv_errors_e uv_xb3_write_sync(uv_xb3_st *this, char *data,
 		uint16_t datalen) {
 	uv_errors_e ret = ERR_NONE;
-	// poll to clear transmit buffer
 	ret = uv_xb3_generic_write(this, data, datalen, false);
-	// poll to send message
 
 	return ret;
 }
@@ -654,6 +652,7 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 		uv_uarts_e uart,
 		const char *nodeid) {
 	uv_errors_e ret = ERR_NONE;
+
 	this->conf = conf;
 	this->initialized = false;
 	this->uart = uart;

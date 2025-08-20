@@ -378,9 +378,9 @@ void uv_pwm_set_freq(uv_pwm_channel_t chn, uint32_t value) {
 	if (module == PWMEXT_MODULE_THIS &&
 			PWMEXT_GET_CHN(chn) != 0) {
 		if (this->modules[PWM_GET_MODULE(chn)]->MR[2] !=
-				Chip_Clock_GetSystemClockRate() / value) {
+				Chip_Clock_GetPeripheralClockRate() / value) {
 			Chip_TIMER_SetMatch(this->modules[PWM_GET_MODULE(chn)], 2,
-					Chip_Clock_GetSystemClockRate() / value);
+					Chip_Clock_GetPeripheralClockRate() / value);
 			this->pwm_freq[PWM_GET_MODULE(chn)] = value;
 			this->modules[PWM_GET_MODULE(chn)]->TC = 0;
 		}

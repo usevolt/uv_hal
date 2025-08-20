@@ -53,6 +53,17 @@
 #include "uv_terminal.h"
 
 
+
+void vAssertCalled( const char * const pcFileName,  unsigned long ulLine ) {
+	uv_terminal_enable(TERMINAL_CAN);
+	printf_set_flags(PRINTF_FLAGS_NOTXCALLB);
+	printf("Assert in '%s', line %u\n",
+			pcFileName,
+			(unsigned int) ulLine);
+	while(true);
+}
+
+
 typedef struct {
 	void (*idle_task)(void *user_ptr);
 	void (*tick_task)(void *user_ptr, unsigned int step_ms);
