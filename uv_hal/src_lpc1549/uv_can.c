@@ -473,8 +473,16 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 				uint32_t bits_differ = masked_id ^ masked_ifid;
 				if (masked_id == masked_ifid) {
 					// if new msg matches with msgif message and mask, we dont
-					// need to configure new message
+					// need to configure new message but mask should be updated
 					if ((msgif_id & msgif_mask) == (id & msgif_mask)) {
+						if (msgif_mask != mask) {
+							msg_obj_disable(i + 1);
+							read_msg_obj(i + 1);
+							set_msgif_mask(msgif_mask & mask, type);
+							set_msgif_id(msgif_id, (msgif_type == CAN_EXT));
+							write_msg_obj(i + 1, false);
+							msg_obj_enable(i + 1);
+						}
 						match = true;
 						break;
 					}

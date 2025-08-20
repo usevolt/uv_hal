@@ -130,7 +130,7 @@ void uv_uart_add_callback(uv_uarts_e uart,
 }
 
 
-static inline bool cts(uart_st *uart) {
+static inline bool cts(uv_uarts_e uart) {
 	bool ret = true;
 	uv_gpios_e cts = 0;
 #if CONFIG_UART0_CTS_IO
@@ -263,6 +263,7 @@ uv_errors_e uv_uart_send_char(uv_uarts_e uart, char buffer) {
 
 
 void send_next_byte(uv_uarts_e uart) {
+	uint8_t i = get_i(uart);
 	if (cts(uart) &&
 			Chip_UART_GetStatus((void*) uart) & UART_STAT_TXRDY) {
 		char c;
