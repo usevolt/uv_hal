@@ -119,6 +119,8 @@
 #define uv_exit_critical()		taskEXIT_CRITICAL()
 #endif
 
+#define enter_critical(isr) do { isr ? uv_enter_critical_isr() : uv_enter_critical(); } while (0)
+#define exit_critical(isr) do { isr ? uv_exit_critical_isr() : uv_exit_critical(); } while (0)
 
 
 
