@@ -48,6 +48,7 @@
 #include "uv_errors.h"
 #include "FreeRTOS.h"
 #include "stream_buffer.h"
+#include "message_buffer.h"
 #include "task.h"
 #include "semphr.h"
 #include "uv_utilities.h"
@@ -191,6 +192,12 @@ static inline int32_t uv_queue_get_len(uv_queue_st *this) {
 	return uxQueueMessagesWaiting(*this);
 }
 
+/// @brief: Returns the count of elements currently in the queue
+static inline int32_t uv_queue_get_len_isr(uv_queue_st *this) {
+	return uxQueueMessagesWaitingFromISR(*this);
+}
+
+
 /// @brief: Peeks into a buffer without removing the element
 ///
 /// @param dest: Destination address where to copy the element
@@ -214,6 +221,7 @@ uv_errors_e uv_queue_pop_isr(uv_queue_st *this, void *dest);
 
 
 typedef StreamBufferHandle_t uv_streambuffer_st;
+
 
 /// @brief: Initializes the streambuffer
 static inline uv_errors_e uv_streambuffer_init(
@@ -276,6 +284,62 @@ static inline void uv_streambuffer_clear(uv_streambuffer_st *this) {
 	xStreamBufferReset(*this);
 }
 
+
+typedef MessageBufferHandle_t uv_msgbuffer_st;
+
+
+/// @brief: Initializes the msgbuffer
+static inline uv_errors_e uv_msgbuffer_init(
+		uv_msgbuffer_st *this, uint32_t len_bytes) {
+	*this = xMessageBufferCreate(len_bytes);
+	return (this) ? ERR_NONE : ERR_NOT_ENOUGH_MEMORY;
+}
+
+
+
+
+
+/// @brief: Returns the free data space available in the msg buffer
+static inline uint32_t uv_msgbuffer_get_free_space(uv_msgbuffer_st *this) {
+	return xMessageBufferSpacesAvailable(*((uv_msgbuffer_st*) this));
+}
+
+
+/// @return: true if msgbuffer is currently empty, false otherwise
+static inline bool uv_msgbuffer_is_empty(uv_msgbuffer_st *this) {
+	return xMessageBufferIsEmpty(*this);
+}
+
+/// @brief: Pushes new data to msg buffer
+static inline uint32_t uv_msgbuffer_push(uv_msgbuffer_st *this,
+		void *data, uint32_t len, int32_t wait_ms) {
+	return xMessageBufferSend(*this, data, len, wait_ms);
+}
+
+
+/// @brief: Puses new data into the msg buffef. Only to be used inside ISR
+static inline uint32_t uv_msgbuffer_push_isr(uv_msgbuffer_st *this,
+		void *data, uint32_t len) {
+	BaseType_t woken;
+	return xMessageBufferSendFromISR(*this, data, len, &woken);
+}
+
+/// @brief: Pops data out from msgbuffer in FIFO manner
+static inline uint32_t uv_msgbuffer_pop(uv_msgbuffer_st *this,
+		void *data, uint32_t len, int32_t wait_ms) {
+	return xMessageBufferReceive(*this, data, len, wait_ms);
+}
+
+/// @brief: Pops data out from msgbuffer in FIFO manner, only to be used in ISRs
+static inline uint32_t uv_msgbuffer_pop_isr(uv_msgbuffer_st *this,
+		void *data, uint32_t len) {
+	return xMessageBufferReceiveFromISR(*this, data, len, NULL);
+}
+
+/// @brief: Clears and resets all data stored in the msg
+static inline void uv_msgbuffer_clear(uv_msgbuffer_st *this) {
+	xMessageBufferReset(*this);
+}
 
 
 

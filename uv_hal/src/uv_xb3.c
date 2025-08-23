@@ -303,8 +303,8 @@ static void rx(uv_xb3_st *this, int32_t wait_ms) {
 						break;
 					case APIFRAME_RECEIVEPACKET:
 						if (offset >= 15) {
-							if (!uv_streambuffer_push_isr(&this->rx_data_streambuffer,
-									&rx, 1)) {
+							if (!uv_streambuffer_push(&this->rx_data_streambuffer,
+									&rx, 1, 0)) {
 								XB3_DEBUG(this, "XB3 receive buffer overflow\n");
 							}
 							this->rx_max = MAX(this->rx_max,
@@ -445,32 +445,35 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd,
 #include <uv_timer.h>
 
 uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
-		uint16_t datalen, bool isr) {
+		uint16_t datalen, bool isr, uint16_t wait_ms) {
 	uv_errors_e ret = ERR_NONE;
 	if (this->initialized) {
-		if (uv_streambuffer_get_free_space(&this->tx_streambuffer) < datalen) {
-			XB3_DEBUG(this, "XB3 Write: buffer full %i / %i, required %i\n",
-					(int) uv_streambuffer_get_len(&this->tx_streambuffer),
-					TX_BUF_SIZE,
-					(int) datalen);
-			ret = ERR_NOT_ENOUGH_MEMORY;
-		}
-		else if (!this->initialized) {
-			XB3_DEBUG(this, "XB3 write: Not initialized\n");
-			ret = ERR_NOT_INITIALIZED;
+		if (isr) {
+			// try to lock the mutex and send data
+			if (uv_mutex_lock_isr(&this->txstream_mutex)) {
+				if (uv_streambuffer_get_free_space(&this->tx_streambuffer) < datalen) {
+					XB3_DEBUG(this, "XB3 Write: buffer full %i / %i, required %i\n",
+							(int) uv_streambuffer_get_len(&this->tx_streambuffer),
+							TX_BUF_SIZE,
+							(int) datalen);
+					ret = ERR_NOT_ENOUGH_MEMORY;
+				}
+				uv_streambuffer_push_isr(&this->tx_streambuffer, data, datalen);
+
+				this->tx_max = MAX(this->tx_max,
+						uv_streambuffer_get_len(&this->tx_streambuffer));
+
+				uv_mutex_unlock_isr(&this->txstream_mutex);
+			}
 		}
 		else {
+			uv_mutex_lock(&this->txstream_mutex);
 
-			uv_timer_clear(TIMER1);
-			uv_timer_start(TIMER1);
-			isr ? uv_enter_critical_isr() : uv_enter_critical();
-
-			isr ? uv_streambuffer_push_isr(&this->tx_streambuffer, data, datalen) :
-					uv_streambuffer_push(&this->tx_streambuffer, data, datalen, 0);
+			uv_streambuffer_push(&this->tx_streambuffer, data, datalen, wait_ms);
 			this->tx_max = MAX(this->tx_max,
 					uv_streambuffer_get_len(&this->tx_streambuffer));
 
-			isr ? uv_exit_critical_isr() : uv_exit_critical();
+			uv_mutex_unlock(&this->txstream_mutex);
 		}
 	}
 	else {
@@ -480,14 +483,6 @@ uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
 }
 
 
-
-uv_errors_e uv_xb3_write_sync(uv_xb3_st *this, char *data,
-		uint16_t datalen) {
-	uv_errors_e ret = ERR_NONE;
-	ret = uv_xb3_generic_write(this, data, datalen, false);
-
-	return ret;
-}
 
 
 
@@ -618,6 +613,9 @@ static bool xb3_reset(uv_xb3_st *this) {
 	uv_queue_clear(&this->rx_at_queue);
 	uv_streambuffer_clear(&this->rx_data_streambuffer);
 	uv_streambuffer_clear(&this->tx_streambuffer);
+	uv_mutex_unlock(&this->txstream_mutex);
+
+	uv_mutex_unlock(&this->tx_mutex);
 
 	uv_gpio_set(this->reset_gpio, false);
 	uv_rtos_task_delay(20);
@@ -670,6 +668,8 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 		printf("XB3: Creating TX streambuffer failed, not enough memory\n");
 		ret = ERR_NOT_ENOUGH_MEMORY;
 	}
+	uv_mutex_init(&this->txstream_mutex);
+	uv_mutex_unlock(&this->txstream_mutex);
 	this->tx_max = 0;
 	if (uv_streambuffer_init(&this->rx_data_streambuffer, RX_BUF_SIZE) != ERR_NONE) {
 		uv_terminal_enable(TERMINAL_CAN);
@@ -682,7 +682,6 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 		printf("XB3: Creating RX AT queue failed\n");
 		ret = ERR_NOT_ENOUGH_MEMORY;
 	}
-
 
 	uv_mutex_init(&this->atreq_mutex);
 	uv_mutex_unlock(&this->atreq_mutex);
@@ -1211,7 +1210,7 @@ void uv_xb3_terminal(uv_xb3_st *this,
 						(unsigned int) (this->conf->dest_addr & 0xFFFFFFFF),
 						argv[1].str);
 				uv_xb3_write(this, argv[1].str,
-						strlen(argv[1].str));
+						strlen(argv[1].str), 0);
 			}
 			else {
 				printf("Give data to write as a second argument\n");

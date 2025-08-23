@@ -31,6 +31,7 @@
 
 
 #include "uv_hal_config.h"
+#include <stdbool.h>
 
 /// @brief: Defines the standard output for printf and such
 
@@ -38,6 +39,7 @@
 
 /// @brief: Sends a non-terminated string via the standard output
 void uv_stdout_send(char* str, unsigned int count);
+
 
 
 #if CONFIG_TERMINAL_CAN

@@ -201,10 +201,10 @@ void vApplicationIdleHook(void)
 }
 
 /* FreeRTOS stack overflow hook */
-void vApplicationStackOverflowHook(xTaskHandle pxTask, signed char *pcTaskName)
+void vApplicationStackOverflowHook( TaskHandle_t xTask,
+                                          char * pcTaskName )
 {
-	(void) pxTask;
-	(void) pcTaskName;
+	(void) xTask;
 
 	printf("stack overflow from task: %s\n", pcTaskName);
 	/* Run time stack overflow checking is performed if

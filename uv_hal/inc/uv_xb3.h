@@ -110,6 +110,7 @@ typedef struct {
 	// buffer for writing data and AT commands to XB3.
 	// This queue holds API packetized data
 	uv_streambuffer_st tx_streambuffer;
+	uv_mutex_st txstream_mutex;
 	uint16_t tx_max;
 	// mutex that should belocked when AT command is ongoing
 	uv_mutex_st atreq_mutex;
@@ -188,26 +189,23 @@ static inline bool uv_xb3_get_data(uv_xb3_st *this, char *dest, uint16_t wait_ms
 
 /// @brief: Generic write function for internal use
 uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
-		uint16_t datalen, bool isr);
+		uint16_t datalen, bool isr, uint16_t wait_ms);
 
 
 /// @brief: Writes data to device specified by IEEE serial *dest_addr*
 /// To be used inside ISRs
 static inline uv_errors_e uv_xb3_write_isr(uv_xb3_st *this,
 		char *data, uint16_t datalen) {
-	return uv_xb3_generic_write(this, data, datalen, true);
+	return uv_xb3_generic_write(this, data, datalen, true, 0);
 }
 
 
 /// @brief: Writes data to device specified by IEEE serial *dest_addr*
 static inline uv_errors_e uv_xb3_write(uv_xb3_st *this,
-		char *data, uint16_t datalen) {
-	return uv_xb3_generic_write(this, data, datalen, false);
+		char *data, uint16_t datalen, uint16_t wait_ms) {
+	return uv_xb3_generic_write(this, data, datalen, false, wait_ms);
 }
 
-
-uv_errors_e uv_xb3_write_sync(uv_xb3_st *this, char *data,
-		uint16_t datalen);
 
 
 

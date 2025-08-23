@@ -74,6 +74,7 @@ static void send_can_msg(void) {
 		msg.data_8bit[4 + i] = *((uint8_t*)uv_vector_at(&can_vec, i));
 	}
 	uv_vector_clear(&can_vec);
+
 #if !CONFIG_TARGET_LPC15XX && !CONFIG_TARGET_LPC40XX
 	can_delay = CAN_DELAY_MS;
 
@@ -88,16 +89,14 @@ static void send_can_msg(void) {
 		uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
 	}
 #else
-	if (printf_get_flags() & PRINTF_FLAGS_NOTXCALLB) {
-		uv_can_send_flags(CAN0, &msg,
-				CAN_SEND_FLAGS_SYNC |
-				CAN_SEND_FLAGS_NO_TX_CALLB);
+	can_send_flags_e flags = CAN_SEND_FLAGS_SYNC;
+	if (printf_flags & PRINTF_FLAGS_NOTXCALLB) {
+		flags |= CAN_SEND_FLAGS_NO_TX_CALLB;
 	}
-	else {
-		uv_can_send_flags(CAN0, &msg,
-				CAN_SEND_FLAGS_SYNC);
-	}
+	uv_can_send_flags(CAN0, &msg, flags);
+
 #endif
+
 
 }
 #endif

@@ -215,6 +215,8 @@ void vApplicationStackOverflowHook(TaskHandle_t pxTask, char *pcTaskName)
 	(void) pxTask;
 	(void) pcTaskName;
 
+	uv_terminal_enable(TERMINAL_CAN);
+	printf_set_flags(PRINTF_FLAGS_NOTXCALLB);
 	printf("stack overflow from task: %s\n", pcTaskName);
 	/* Run time stack overflow checking is performed if
 	   configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2.  This hook
