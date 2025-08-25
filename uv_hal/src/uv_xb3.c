@@ -195,7 +195,9 @@ static void tx(uv_xb3_st *this) {
 		*d++ = 0; // broadcast radius
 		*d++ = 0; // transmit options
 
-		uv_uart_send(this->uart, buffer, 17);
+		if (uv_uart_send(this->uart, buffer, 17) != 17) {
+			XB3_DEBUG(this, "UART buffer overflow\n");
+		}
 
 		uint8_t crc = 0;
 		// crc doesn't include first 3 bytes
@@ -206,7 +208,9 @@ static void tx(uv_xb3_st *this) {
 		char c;
 		for (uint8_t i = 0; i < tx_count; i++) {
 			uv_streambuffer_pop(&this->tx_streambuffer, &c, 1, 0);
-			uv_uart_send(this->uart, &c, 1);
+			if (!uv_uart_send(this->uart, &c, 1)) {
+				XB3_DEBUG(this, "UART buffer full\n");
+			}
 			crc += (uint8_t) c;
 		}
 
@@ -239,6 +243,10 @@ static void rx(uv_xb3_st *this, int32_t wait_ms) {
 			// API package length LSB byte
 			case 3:
 				this->rx_size += rx;
+				// limit the maximum RF packet size. This is important
+				// since we dont have any crc checking and corrupting
+				// this might freeze communication for a long time
+				LIMITS(this->rx_size, 0, 255 + 5);
 				break;
 			// API Frame type
 			case 4:
@@ -448,32 +456,39 @@ uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
 		uint16_t datalen, bool isr, uint16_t wait_ms) {
 	uv_errors_e ret = ERR_NONE;
 	if (this->initialized) {
-		if (isr) {
-			// try to lock the mutex and send data
-			if (uv_mutex_lock_isr(&this->txstream_mutex)) {
-				if (uv_streambuffer_get_free_space(&this->tx_streambuffer) < datalen) {
-					XB3_DEBUG(this, "XB3 Write: buffer full %i / %i, required %i\n",
-							(int) uv_streambuffer_get_len(&this->tx_streambuffer),
-							TX_BUF_SIZE,
-							(int) datalen);
-					ret = ERR_NOT_ENOUGH_MEMORY;
-				}
-				uv_streambuffer_push_isr(&this->tx_streambuffer, data, datalen);
+		if ((isr || !wait_ms) &&
+				uv_streambuffer_get_free_space(&this->tx_streambuffer) < datalen) {
+			XB3_DEBUG(this, "XB3 Write: buffer full %i / %i, required %i\n",
+					(int) uv_streambuffer_get_len(&this->tx_streambuffer),
+					TX_BUF_SIZE,
+					(int) datalen);
+			ret = ERR_NOT_ENOUGH_MEMORY;
+		}
+		else {
+			if (isr) {
+				// try to lock the mutex and send data
+				if (uv_mutex_lock_isr(&this->txstream_mutex)) {
+					uv_streambuffer_push_isr(&this->tx_streambuffer, data, datalen);
 
+					this->tx_max = MAX(this->tx_max,
+							uv_streambuffer_get_len(&this->tx_streambuffer));
+
+					uv_mutex_unlock_isr(&this->txstream_mutex);
+				}
+			}
+			else {
+				uv_mutex_lock(&this->txstream_mutex);
+
+				int p = uv_streambuffer_push(&this->tx_streambuffer,
+						data, datalen, wait_ms);
+				if (p != datalen) {
+					XB3_DEBUG(this, "XB3 Write: TX time out\n");
+				}
 				this->tx_max = MAX(this->tx_max,
 						uv_streambuffer_get_len(&this->tx_streambuffer));
 
-				uv_mutex_unlock_isr(&this->txstream_mutex);
+				uv_mutex_unlock(&this->txstream_mutex);
 			}
-		}
-		else {
-			uv_mutex_lock(&this->txstream_mutex);
-
-			uv_streambuffer_push(&this->tx_streambuffer, data, datalen, wait_ms);
-			this->tx_max = MAX(this->tx_max,
-					uv_streambuffer_get_len(&this->tx_streambuffer));
-
-			uv_mutex_unlock(&this->txstream_mutex);
 		}
 	}
 	else {
@@ -662,6 +677,10 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	this->modem_status_changed = XB3_MODEMSTATUS_NONE;
 	this->max_retransmit = 0;
 	memset(&this->network, 0, sizeof(this->network));
+
+	if (this->conf->flags & XB3_CONF_FLAGS_DEBUG) {
+		uv_terminal_enable(TERMINAL_CAN);
+	}
 
 	if (uv_streambuffer_init(&this->tx_streambuffer, TX_BUF_SIZE) != ERR_NONE) {
 		uv_terminal_enable(TERMINAL_CAN);

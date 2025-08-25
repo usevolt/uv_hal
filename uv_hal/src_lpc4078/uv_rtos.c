@@ -148,6 +148,8 @@ void uv_rtos_start_scheduler(void) {
 /// hal step functions
 void hal_task(void *);
 
+void canopen_task(void *);
+
 
 int32_t uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
 		unsigned int stack_depth, void *this_ptr,
@@ -317,6 +319,8 @@ void uv_init(void *device) {
 
 	uv_rtos_task_create(hal_task, "uv_hal",
 			UV_RTOS_MIN_STACK_SIZE, NULL, CONFIG_HAL_TASK_PRIORITY, &hal_task_ptr);
+	uv_rtos_task_create(canopen_task, "canopen",
+			UV_RTOS_MIN_STACK_SIZE, NULL, UV_RTOS_IDLE_PRIORITY + 1, NULL);
 }
 
 
@@ -334,28 +338,29 @@ void uv_data_reset() {
 
 
 
+
 void hal_task(void *nullptr) {
 
 	uint16_t step_ms = CONFIG_HAL_STEP_MS;
+	uv_ts_st ts;
+	uv_ts_init(&ts);
 	rtos_init = true;
 
 	while (true) {
+		uv_ts_step(&ts);
+
 		_uv_rtos_halmutex_lock();
 
 #if CONFIG_CAN
-		_uv_can_hal_step(step_ms);
+		_uv_can_hal_step(uv_ts_get_step_ms(&ts));
 #endif
 
 #if CONFIG_UART
-		_uv_uart_hal_step(step_ms);
+		_uv_uart_hal_step(uv_ts_get_step_ms(&ts));
 #endif
 
 #if CONFIG_TERMINAL_CAN
-		_uv_stdout_hal_step(step_ms);
-#endif
-
-#if CONFIG_CANOPEN
-		_uv_canopen_step(step_ms);
+		_uv_stdout_hal_step(uv_ts_get_step_ms(&ts));
 #endif
 
 		_uv_rtos_halmutex_unlock();
@@ -364,6 +369,24 @@ void hal_task(void *nullptr) {
 	}
 }
 
+
+
+void canopen_task(void *nullptr) {
+
+	uint16_t step_ms = CONFIG_HAL_STEP_MS;
+
+	uv_ts_st ts;
+	uv_ts_init(&ts);
+
+	while (true) {
+#if CONFIG_CANOPEN
+		uv_ts_step(&ts);
+
+		_uv_canopen_step(uv_ts_get_step_ms(&ts));
+#endif
+		uv_rtos_task_delay(step_ms);
+	}
+}
 
 
 
