@@ -404,7 +404,7 @@ void uv_can_set_rx_msg_callbacks(void (*config_callb)(uv_can_channels_e chn,
 void uv_can_clear_rx_messages(uv_can_chn_e chn) {
 	Chip_CAN_clearAFLUT(LPC_CANAF, LPC_CANAF_RAM);
 	if (this->clear_rx_callb) {
-		this->clear_rx_callb();
+		this->clear_rx_callb(chn);
 	}
 }
 
