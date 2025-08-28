@@ -120,6 +120,15 @@ static can_st _can = {
 #define this (&_can)
 
 
+void uv_can_set_rx_msg_callbacks(void (*config_callb)(uv_can_channels_e chn,
+		unsigned int id,
+		unsigned int mask,
+		uv_can_msg_types_e type),
+		void (*clear_callb)(uv_can_channels_e chn)) {
+
+}
+
+
 void _uv_can_hal_send(uv_can_channels_e chn);
 static bool cclose(void);
 static bool copen(void);

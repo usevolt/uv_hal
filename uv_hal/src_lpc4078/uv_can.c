@@ -68,6 +68,12 @@ typedef struct {
 		LPC_CAN_T *lpc_can;
 	} can[CAN_COUNT];
 
+	void (*config_rx_callb)(uv_can_channels_e chn,
+			unsigned int id,
+			unsigned int mask,
+			uv_can_msg_types_e type);
+	void (*clear_rx_callb)(uv_can_channels_e chn);
+
 	#if CONFIG_TERMINAL_CAN
 	uv_ring_buffer_st char_buffer;
 	char char_buffer_data[CONFIG_TERMINAL_BUFFER_SIZE];
@@ -91,6 +97,8 @@ static can_st _this __attribute__((section (".data_RAM2"))) = {
 				.lpc_can = LPC_CAN2
 			}
 		},
+		.config_rx_callb = NULL,
+		.clear_rx_callb = NULL
 };
 #if defined(this)
 #undef this
@@ -337,7 +345,8 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e chn,
 		uv_can_msg_types_e type) {
 	uv_errors_e ret = ERR_NONE;
 
-	__disable_irq();
+	NVIC_DisableIRQ(CAN_IRQn);
+
 	Chip_CAN_SetAFMode(LPC_CANAF, CAN_AF_OFF_MODE);
 
 	//config rx msg
@@ -370,14 +379,33 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e chn,
 	}
 
 	Chip_CAN_SetAFMode(LPC_CANAF, CAN_AF_NORMAL_MODE);
-	__enable_irq();
+
+	NVIC_EnableIRQ(CAN_IRQn);
+
+	if (this->config_rx_callb) {
+		this->config_rx_callb(chn, id, mask, type);
+	}
 
 	return ret;
 }
 
 
+/// @brief: Registers a callback function that is called when rx message
+/// is configured and a callback that is called when rx messages are cleared
+void uv_can_set_rx_msg_callbacks(void (*config_callb)(uv_can_channels_e chn,
+		unsigned int id,
+		unsigned int mask,
+		uv_can_msg_types_e type),
+		void (*clear_callb)(uv_can_channels_e chn)) {
+	this->config_rx_callb = config_callb;
+	this->clear_rx_callb = clear_callb;
+}
+
 void uv_can_clear_rx_messages(uv_can_chn_e chn) {
 	Chip_CAN_clearAFLUT(LPC_CANAF, LPC_CANAF_RAM);
+	if (this->clear_rx_callb) {
+		this->clear_rx_callb();
+	}
 }
 
 

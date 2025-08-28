@@ -237,6 +237,14 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		unsigned int mask,
 		uv_can_msg_types_e type);
 
+/// @brief: Registers a callback function that is called when rx message
+/// is configured and a callback that is called when rx messages are cleared
+void uv_can_set_rx_msg_callbacks(void (*config_callb)(uv_can_channels_e chn,
+		unsigned int id,
+		unsigned int mask,
+		uv_can_msg_types_e type),
+		void (*clear_callb)(uv_can_channels_e chn));
+
 
 /// @brief: Clears all receive messages configured with *uv_can_config_rx_message*.
 /// After call to this none messages are received and the reserved messages objects

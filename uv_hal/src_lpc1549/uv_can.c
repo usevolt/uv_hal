@@ -158,6 +158,11 @@ typedef struct {
 #endif
 	bool (*rx_callback[CAN_COUNT])(void *user_ptr, uv_can_msg_st *msg);
 	bool (*tx_callback[CAN_COUNT])(void *user_ptr, uv_can_msg_st *msg, can_send_flags_e flags);
+	void (*config_rx_callb)(uv_can_channels_e chn,
+			unsigned int id,
+			unsigned int mask,
+			uv_can_msg_types_e type);
+	void (*clear_rx_callb)(uv_can_channels_e chn);
 
 } can_st;
 
@@ -166,7 +171,9 @@ typedef struct {
 static can_st _can = {
 		.init = false,
 		.tx_callback[0] = NULL,
-		.rx_callback[0] = NULL
+		.rx_callback[0] = NULL,
+		.config_rx_callb = NULL,
+		.clear_rx_callb = NULL
 };
 #define this (&_can)
 
@@ -455,7 +462,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		uv_can_msg_types_e type) {
 	uv_errors_e ret = ERR_NONE;
 
-	__disable_irq();
+	NVIC_DisableIRQ(CAN_IRQn);
 
 	// check if any message objects are configured to receive this type of data already
 	bool match = false;
@@ -550,19 +557,41 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		printf("CAN config rxmsgobj err: %u\n", ret);
 	}
 
-	__enable_irq();
+	NVIC_EnableIRQ(CAN_IRQn);
+
+	// call callback if assigned
+	if (this->config_rx_callb) {
+		this->config_rx_callb(channel, id, mask, type);
+	}
 
 	return ret;
 }
 
 
+void uv_can_set_rx_msg_callbacks(void (*config_callb)(uv_can_channels_e chn,
+		unsigned int id,
+		unsigned int mask,
+		uv_can_msg_types_e type),
+		void (*clear_callb)(uv_can_channels_e chn)) {
+	this->config_rx_callb = config_callb;
+	this->clear_rx_callb = clear_callb;
+}
+
+
+
 void uv_can_clear_rx_messages(uv_can_chn_e chn) {
+	NVIC_DisableIRQ(CAN_IRQn);
 	if (chn);
 	this->used_msg_objs = (1 << (TX_MSG_OBJ - 1));
 
 	// clear all rx message objects
 	for (int i = TX_MSG_OBJ; i < 32; i++) {
 		msg_obj_disable(i + 1);
+	}
+	NVIC_EnableIRQ(CAN_IRQn);
+
+	if (this->clear_rx_callb) {
+		this->clear_rx_callb(chn);
 	}
 }
 
