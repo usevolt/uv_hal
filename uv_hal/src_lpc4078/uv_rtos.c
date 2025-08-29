@@ -155,12 +155,7 @@ int32_t uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_na
 		unsigned int stack_depth, void *this_ptr,
 		unsigned int task_priority, uv_rtos_task_ptr* handle) {
 	static unsigned int size = 0;
-	size += stack_depth * 4;
-	if (size >= CONFIG_RTOS_HEAP_SIZE) {
-		while(true) {
-			printf("Out of memory\r");
-		}
-	}
+
 	int32_t ret = xTaskCreate(task_function, (const char * const)task_name, stack_depth,
 			this_ptr, task_priority, handle);
 
