@@ -69,12 +69,14 @@ void _uv_canopen_sdo_server_add_read_callb(void (*read_callb)(uint16_t mindex, u
 static void sdo_server_abort(uint16_t main_index,
 				uint8_t sub_index, uv_sdo_error_codes_e err_code) {
 	_uv_canopen_sdo_abort(CANOPEN_SDO_RESPONSE_ID, main_index, sub_index, err_code);
+	uv_delay_end(&this->delay);
 	this->state = CANOPEN_SDO_STATE_READY;
 }
 
 
 
 void _uv_canopen_sdo_server_init(void) {
+	uv_delay_end(&this->delay);
 	this->state = CANOPEN_SDO_STATE_READY;
 	this->write_callb = NULL;
 }
@@ -125,6 +127,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 
 	// receiving an abort message returns the node to default state
 	if (sdo_type == ABORT_DOMAIN_TRANSFER) {
+		uv_delay_end(&this->delay);
 		this->state = CANOPEN_SDO_STATE_READY;
 	}
 	else if (this->state == CANOPEN_SDO_STATE_READY) {
@@ -331,6 +334,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 			else {
 				SET_CMD_BYTE(&reply_msg, UPLOAD_DOMAIN_SEGMENT_REPLY |
 						(this->toggle << 4) | (7 - data_count) | (1 << 0));
+				uv_delay_end(&this->delay);
 				this->state = CANOPEN_SDO_STATE_READY;
 			}
 			memset(&reply_msg.data_8bit[1], 0, 7);
@@ -362,6 +366,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 		if (((GET_CMD_BYTE(msg) & (1 << 4)) >> 4) == this->toggle) {
 			// last segment
 			if (GET_CMD_BYTE(msg) & (1 << 0)) {
+				uv_delay_end(&this->delay);
 				this->state = CANOPEN_SDO_STATE_READY;
 			}
 			uint8_t data_count = 7 - ((GET_CMD_BYTE(msg) & 0b1110) >> 1);
@@ -542,6 +547,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 	else if ((this->state == CANOPEN_SDO_STATE_BLOCK_END_UPLOAD) &&
 			(sdo_type == END_BLOCK_UPLOAD_REPLY)) {
 		// block transfer finished
+		uv_delay_end(&this->delay);
 		this->state = CANOPEN_SDO_STATE_READY;
 	}
 #endif
