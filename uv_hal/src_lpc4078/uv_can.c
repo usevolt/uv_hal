@@ -607,6 +607,7 @@ static uv_errors_e uv_can_send_sync(uv_can_channels_e chn, uv_can_message_st *ms
 
 		// disable transmit interrupts so that we have free txbuffer
 		NVIC_DisableIRQ(CAN_IRQn);
+		uv_enter_critical();
 
 		// wait until tx msg obj is free
 		uint8_t txbuf;
@@ -648,6 +649,7 @@ static uv_errors_e uv_can_send_sync(uv_can_channels_e chn, uv_can_message_st *ms
 			}
 		}
 		NVIC_EnableIRQ(CAN_IRQn);
+		uv_exit_critical();
 	}
 	else {
 		ret = ERR_NOT_INITIALIZED;
@@ -687,6 +689,7 @@ uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 		can_send_flags_e flags) {
 	uv_errors_e ret = ERR_NONE;
 	NVIC_DisableIRQ(CAN_IRQn);
+	uv_enter_critical();
 	if (flags & CAN_SEND_FLAGS_LOCAL) {
 		// pushing to receive buffer never triggers rx_callback
 		ret |= uv_ring_buffer_push(&this->can[chn].rx_buffer, msg);
@@ -697,6 +700,7 @@ uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 	if (flags & CAN_SEND_FLAGS_NORMAL) {
 		ret |= uv_ring_buffer_push(&this->can[chn].tx_buffer, msg);
 	}
+	uv_exit_critical();
 	if (!(flags & CAN_SEND_FLAGS_NO_TX_CALLB) &&
 			(this->can[chn].tx_callback != NULL)) {
 		this->can[chn].tx_callback(__uv_get_user_ptr(), msg, flags);
