@@ -568,6 +568,27 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 }
 
 
+uv_errors_e uv_can_config_rx_message_no_callb(
+		uv_can_channels_e chn,
+		unsigned int id,
+		unsigned int mask,
+		uv_can_msg_types_e type) {
+	void (*call1)(uv_can_channels_e chn,
+			unsigned int id,
+			unsigned int mask,
+			uv_can_msg_types_e type) = this->config_rx_callb;
+	void (*call2)(uv_can_channels_e chn) = this->clear_rx_callb;
+	this->config_rx_callb = NULL;
+	this->clear_rx_callb = NULL;
+	uv_errors_e ret = uv_can_config_rx_message(
+			chn, id, mask, type);
+	uv_can_set_rx_msg_callbacks(call1, call2);
+
+	return ret;
+}
+
+
+
 void uv_can_set_rx_msg_callbacks(void (*config_callb)(uv_can_channels_e chn,
 		unsigned int id,
 		unsigned int mask,
