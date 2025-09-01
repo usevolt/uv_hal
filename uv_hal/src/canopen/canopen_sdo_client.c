@@ -146,12 +146,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 				reply_msg.data_8bit[1 + c] = ((uint8_t*) this->data_ptr)[this->data_index++];
 				c++;
 			}
-			uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
-			if (node_id == uv_canopen_get_our_nodeid()) {
-				uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &reply_msg,
-						CAN_SEND_FLAGS_LOCAL |
-						CAN_SEND_FLAGS_NO_TX_CALLB);
-			}
+			_uv_canopen_sdo_send(&reply_msg);
 			this->toggle = !this->toggle;
 			uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 		}
@@ -180,12 +175,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 					while ((this->data_index < this->data_count) && (c < 7)) {
 						reply_msg.data_8bit[1 + c++] = ((uint8_t*) this->data_ptr)[this->data_index++];
 					}
-					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
-					if (node_id == uv_canopen_get_our_nodeid()) {
-						uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &reply_msg,
-								CAN_SEND_FLAGS_LOCAL |
-								CAN_SEND_FLAGS_NO_TX_CALLB);
-					}
+					_uv_canopen_sdo_send(&reply_msg);
 					this->toggle = !this->toggle;
 					uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 				}
@@ -211,12 +201,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 				}
 				//segmented transfer, send upload domain segment message
 				SET_CMD_BYTE(&reply_msg, UPLOAD_DOMAIN_SEGMENT | (this->toggle << 4));
-				uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
-				if (node_id == uv_canopen_get_our_nodeid()) {
-					uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &reply_msg,
-							CAN_SEND_FLAGS_LOCAL |
-							CAN_SEND_FLAGS_NO_TX_CALLB);
-				}
+				_uv_canopen_sdo_send(&reply_msg);
 				this->toggle = !this->toggle;
 			}
 			uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
@@ -257,12 +242,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 					reply_msg.data_8bit[2] = this->mindex >> 8;
 					reply_msg.data_8bit[3] = this->sindex;
 					reply_msg.data_32bit[1] = SDO_ABORT_OUT_OF_MEMORY;
-					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
-					if (node_id == uv_canopen_get_our_nodeid()) {
-						uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &reply_msg,
-								CAN_SEND_FLAGS_LOCAL |
-								CAN_SEND_FLAGS_NO_TX_CALLB);
-					}
+					_uv_canopen_sdo_send(&reply_msg);
 				}
 				else {
 					// ask for more data
@@ -270,12 +250,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 					memset(&reply_msg.data_8bit[1], 0, 7);
 					memcpy(&reply_msg.data_8bit[1], &msg->data_8bit[1],
 							uv_mini(msg->data_length, 7));
-					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
-					if (node_id == uv_canopen_get_our_nodeid()) {
-						uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &reply_msg,
-								CAN_SEND_FLAGS_LOCAL |
-								CAN_SEND_FLAGS_NO_TX_CALLB);
-					}
+					_uv_canopen_sdo_send(&reply_msg);
 					this->toggle = !this->toggle;
 				}
 			}
@@ -307,12 +282,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 						memcpy(&reply_msg.data_8bit[1], this->data_ptr + this->data_index, data_len);
 						this->data_index += data_len;
 						SET_CMD_BYTE(&reply_msg, this->seq | ((this->data_index >= this->data_count) << 7));
-						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
-						if (node_id == uv_canopen_get_our_nodeid()) {
-							uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &reply_msg,
-									CAN_SEND_FLAGS_LOCAL |
-									CAN_SEND_FLAGS_NO_TX_CALLB);
-						}
+						_uv_canopen_sdo_send(&reply_msg);
 
 						if ((data_len != 7) || (this->data_index >= this->data_count)) {
 							// data transfer finished
@@ -333,12 +303,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 						uint16_t crc = uv_memory_calc_crc(this->data_ptr, this->data_count);
 						reply_msg.data_8bit[1] = crc;
 						reply_msg.data_8bit[2] = crc / 256;
-						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
-						if (node_id == uv_canopen_get_our_nodeid()) {
-							uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &reply_msg,
-									CAN_SEND_FLAGS_LOCAL |
-									CAN_SEND_FLAGS_NO_TX_CALLB);
-						}
+						_uv_canopen_sdo_send(&reply_msg);
 					}
 					else {
 						this->seq = 0;
@@ -354,12 +319,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 							memcpy(&reply_msg.data_8bit[1], this->data_ptr + this->data_index, data_len);
 							this->data_index += data_len;
 							SET_CMD_BYTE(&reply_msg, this->seq | ((this->data_index >= this->data_count) << 7));
-							uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
-							if (node_id == uv_canopen_get_our_nodeid()) {
-								uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &reply_msg,
-										CAN_SEND_FLAGS_LOCAL |
-										CAN_SEND_FLAGS_NO_TX_CALLB);
-							}
+							_uv_canopen_sdo_send(&reply_msg);
 
 							if ((data_len != 7) ||
 									(this->data_index >= this->data_count)) {
@@ -400,12 +360,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 				else {
 					SET_CMD_BYTE(&reply_msg, INITIATE_BLOCK_UPLOAD_REPLY2);
 					reply_msg.data_8bit[4] = BLKSIZE();
-					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
-					if (node_id == uv_canopen_get_our_nodeid()) {
-						uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &reply_msg,
-								CAN_SEND_FLAGS_LOCAL |
-								CAN_SEND_FLAGS_NO_TX_CALLB);
-					}
+					_uv_canopen_sdo_send(&reply_msg);
 				}
 			}
 			// end block upload
@@ -434,12 +389,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 				if (done) {
 					// transfer finished successfully
 					SET_CMD_BYTE(&reply_msg, END_BLOCK_UPLOAD_REPLY);
-					uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
-					if (node_id == uv_canopen_get_our_nodeid()) {
-						uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &reply_msg,
-								CAN_SEND_FLAGS_LOCAL |
-								CAN_SEND_FLAGS_NO_TX_CALLB);
-					}
+					_uv_canopen_sdo_send(&reply_msg);
 					this->state = CANOPEN_SDO_STATE_READY;
 				}
 			}
@@ -471,12 +421,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 						SET_CMD_BYTE(&reply_msg, UPLOAD_BLOCK_SEGMENT_REPLY);
 						reply_msg.data_8bit[1] = this->seq;
 						reply_msg.data_8bit[2] = BLKSIZE();
-						uv_can_send(CONFIG_CANOPEN_CHANNEL, &reply_msg);
-						if (node_id == uv_canopen_get_our_nodeid()) {
-							uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &reply_msg,
-									CAN_SEND_FLAGS_LOCAL |
-									CAN_SEND_FLAGS_NO_TX_CALLB);
-						}
+						_uv_canopen_sdo_send(&reply_msg);
 						this->seq = 1;
 					}
 				}
@@ -529,12 +474,7 @@ uv_errors_e _uv_canopen_sdo_client_write(uint8_t node_id,
 				SET_CMD_BYTE(&msg, INITIATE_DOMAIN_DOWNLOAD | 0b11 | ((4 - data_len) << 2));
 			}
 			memcpy(&msg.data_32bit[1], data, (data_len == 0) ? 4 : data_len);
-			uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
-			if (node_id == uv_canopen_get_our_nodeid()) {
-				uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &msg,
-						CAN_SEND_FLAGS_LOCAL |
-						CAN_SEND_FLAGS_NO_TX_CALLB);
-			}
+			_uv_canopen_sdo_send(&msg);
 		}
 		else {
 #if CONFIG_CANOPEN_SDO_SEGMENTED
@@ -547,13 +487,7 @@ uv_errors_e _uv_canopen_sdo_client_write(uint8_t node_id,
 			SET_CMD_BYTE(&msg, INITIATE_DOMAIN_DOWNLOAD | (1 << 0));
 			// data count indicated in the data bytes
 			msg.data_32bit[1] = this->data_count;
-			uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
-			if (node_id == _canopen.current_node_id) {
-				// populate our CAN RX buffer with same message
-				uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &msg,
-						CAN_SEND_FLAGS_LOCAL |
-						CAN_SEND_FLAGS_NO_TX_CALLB);
-			}
+			_uv_canopen_sdo_send(&msg);
 #endif
 		}
 		// wait for transfer to finish
@@ -611,12 +545,7 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 		// expedited answers from server are handled as well
 		this->state = CANOPEN_SDO_STATE_SEGMENTED_UPLOAD;
 		SET_CMD_BYTE(&msg, INITIATE_DOMAIN_UPLOAD);
-		uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
-		if (node_id == uv_canopen_get_our_nodeid()) {
-			uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &msg,
-					CAN_SEND_FLAGS_LOCAL |
-					CAN_SEND_FLAGS_NO_TX_CALLB);
-		}
+		_uv_canopen_sdo_send(&msg);
 
 		// wait for reply
 		while ((this->state != CANOPEN_SDO_STATE_READY) &&
@@ -668,12 +597,7 @@ uv_errors_e _uv_canopen_sdo_client_block_write(uint8_t node_id,
 	this->state = CANOPEN_SDO_STATE_BLOCK_DOWNLOAD;
 	SET_CMD_BYTE(&msg, INITIATE_BLOCK_DOWNLOAD | (1 << 2) | (1 << 1));
 	msg.data_32bit[1] = this->data_count;
-	uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
-	if (node_id == uv_canopen_get_our_nodeid()) {
-		uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &msg,
-				CAN_SEND_FLAGS_LOCAL |
-				CAN_SEND_FLAGS_NO_TX_CALLB);
-	}
+	_uv_canopen_sdo_send(&msg);
 
 	// wait for transfer to finish
 	while ((this->state != CANOPEN_SDO_STATE_READY) &&
@@ -718,10 +642,7 @@ uv_errors_e _uv_canopen_sdo_client_block_read(uint8_t node_id,
 		this->state = CANOPEN_SDO_STATE_BLOCK_UPLOAD;
 		SET_CMD_BYTE(&msg, INITIATE_BLOCK_UPLOAD | (1 << 2));
 		msg.data_8bit[4] = BLKSIZE();
-		uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
-		if (node_id == uv_canopen_get_our_nodeid()) {
-			uv_can_send_local(CONFIG_CANOPEN_CHANNEL, &msg);
-		}
+		_uv_canopen_sdo_send(&msg);
 
 		// wait for transfer to finish
 		while ((this->state != CANOPEN_SDO_STATE_READY) &&
