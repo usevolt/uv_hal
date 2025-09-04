@@ -128,6 +128,11 @@ typedef struct {
 
 	uv_delay_st joinwindow_delay;
 
+	// increments every package that was sent, to keep track that
+	// all data is sent in order they were meant
+	uint8_t pkg_id;
+	bool transmitting;
+
 	// stores the currently active network settings.
 	// packed struct to help mapping it to canopen object dictionary
 	struct __attribute__((packed)) {
@@ -144,7 +149,6 @@ typedef struct {
 	int16_t rx_size;
 	uint8_t rx_frame_type;
 	uint8_t max_retransmit;
-	uint8_t transmitting;
 
 } uv_xb3_st;
 

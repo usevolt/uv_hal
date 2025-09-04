@@ -167,55 +167,62 @@ const char *uv_xb3_modem_status_to_str(uv_xb3_modem_status_e stat) {
 static void tx(uv_xb3_st *this) {
 	uv_mutex_lock(&this->tx_mutex);
 
-	int32_t tx_count = MIN(XB3_RF_PACKET_MAX_LEN - 20,
-			uv_streambuffer_get_len(&this->tx_streambuffer));
+	if (!this->transmitting) {
 
-	if (tx_count &&
-			uv_uart_get_tx_free_space(this->uart) >= (18 + tx_count)) {
+		int32_t tx_count = MIN(XB3_RF_PACKET_MAX_LEN - 20,
+				uv_streambuffer_get_len(&this->tx_streambuffer));
 
-		// write to XB3
-		uint16_t framedatalen = 14 + tx_count;
-		char buffer[17];
-		char *d = buffer;
-		*d++ = APIFRAME_START;
-		*d++ = (framedatalen >> 8); // Length
-		*d++ = (framedatalen & 0xFF);
-		*d++ = APIFRAME_TRANSMITREQ;
-		*d++ = 0x52; // Frame ID. 0x0 doesn't emit response frame
-		*d++ = (this->conf->dest_addr >> 56) & 0xFF; // 64-bit address
-		*d++ = (this->conf->dest_addr >> 48) & 0xFF;
-		*d++ = (this->conf->dest_addr >> 40) & 0xFF;
-		*d++ = (this->conf->dest_addr >> 32) & 0xFF;
-		*d++ = (this->conf->dest_addr >> 24) & 0xFF;
-		*d++ = (this->conf->dest_addr >> 16) & 0xFF;
-		*d++ = (this->conf->dest_addr >> 8) & 0xFF;
-		*d++ = (this->conf->dest_addr) & 0xFF;
-		*d++ = 0xFF; // 16-bit address
-		*d++ = 0xFE;
-		*d++ = 0; // broadcast radius
-		*d++ = 0; // transmit options
+		if (tx_count &&
+				uv_uart_get_tx_free_space(this->uart) >= (18 + tx_count)) {
+			this->transmitting = true;
+	//				this->transmitting = false;
 
-		if (uv_uart_send(this->uart, buffer, 17) != 17) {
-			XB3_DEBUG(this, "UART buffer overflow\n");
-		}
+			// write to XB3
+			uint16_t framedatalen = 14 + tx_count;
+			char buffer[17];
+			char *d = buffer;
+			*d++ = APIFRAME_START;
+			*d++ = (framedatalen >> 8); // Length
+			*d++ = (framedatalen & 0xFF);
+			*d++ = APIFRAME_TRANSMITREQ;
+			*d++ = this->pkg_id; // Frame ID. 0x0 doesn't emit response frame
+			*d++ = (this->conf->dest_addr >> 56) & 0xFF; // 64-bit address
+			*d++ = (this->conf->dest_addr >> 48) & 0xFF;
+			*d++ = (this->conf->dest_addr >> 40) & 0xFF;
+			*d++ = (this->conf->dest_addr >> 32) & 0xFF;
+			*d++ = (this->conf->dest_addr >> 24) & 0xFF;
+			*d++ = (this->conf->dest_addr >> 16) & 0xFF;
+			*d++ = (this->conf->dest_addr >> 8) & 0xFF;
+			*d++ = (this->conf->dest_addr) & 0xFF;
+			*d++ = 0xFF; // 16-bit address
+			*d++ = 0xFE;
+			*d++ = 0; // broadcast radius
+			*d++ = 0; // transmit options
 
-		uint8_t crc = 0;
-		// crc doesn't include first 3 bytes
-		for (uint8_t i = 3; i < 17; i++) {
-			crc += (uint8_t) buffer[i];
-		}
-
-		char c;
-		for (uint8_t i = 0; i < tx_count; i++) {
-			uv_streambuffer_pop(&this->tx_streambuffer, &c, 1, 0);
-			if (!uv_uart_send(this->uart, &c, 1)) {
-				XB3_DEBUG(this, "UART buffer full\n");
+			if (uv_uart_send(this->uart, buffer, 17) != 17) {
+				XB3_DEBUG(this, "UART buffer overflow\n");
 			}
-			crc += (uint8_t) c;
+
+			uint8_t crc = 0;
+			// crc doesn't include first 3 bytes
+			for (uint8_t i = 3; i < 17; i++) {
+				crc += (uint8_t) buffer[i];
+			}
+
+			char c;
+			for (uint8_t i = 0; i < tx_count; i++) {
+				uv_streambuffer_pop(&this->tx_streambuffer, &c, 1, 0);
+				if (!uv_uart_send(this->uart, &c, 1)) {
+					XB3_DEBUG(this, "UART buffer full\n");
+				}
+				crc += (uint8_t) c;
+			}
+
+			c = 0xFF - crc;
+
+			uv_uart_send(this->uart, &c, 1);
 		}
 
-		c = 0xFF - crc;
-		uv_uart_send(this->uart, &c, 1);
 	}
 	uv_mutex_unlock(&this->tx_mutex);
 }
@@ -323,13 +330,16 @@ static void rx(uv_xb3_st *this, int32_t wait_ms) {
 						}
 						break;
 					case APIFRAME_EXTTRANSMITSTATUS:
-						if (offset == 8) {
-							if (rx) {
-								XB3_DEBUG(this, "XB3 TRANSMIT fail 0x%x", rx);
-							}
+						if (offset == 4) {
+							this->transmitting = false;
 						}
 						else if (offset == 7) {
 							this->max_retransmit = MAX(this->max_retransmit, rx);
+						}
+						else if (offset == 8) {
+							if (rx) {
+								XB3_DEBUG(this, "XB3 TRANSMIT fail 0x%x", rx);
+							}
 						}
 						else if (offset == 9) {
 
@@ -354,7 +364,10 @@ static void rx(uv_xb3_st *this, int32_t wait_ms) {
 
 static inline void tx_rx(uv_xb3_st *this, int32_t wait_ms) {
 	tx(this);
-	rx(this, uv_streambuffer_get_len(&this->tx_streambuffer) ? 0 : 1);
+	rx(this,
+			(uv_streambuffer_get_len(&this->tx_streambuffer) &&
+					!this->transmitting) ? 0 : 1);
+	uv_rtos_task_yield();
 }
 
 
@@ -677,6 +690,9 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	this->modem_status_changed = XB3_MODEMSTATUS_NONE;
 	this->max_retransmit = 0;
 	memset(&this->network, 0, sizeof(this->network));
+	// pkg_id cannot be 0 since it wouldn't emit transmit message
+	this->pkg_id = 1;
+	this->transmitting = false;
 
 	if (this->conf->flags & XB3_CONF_FLAGS_DEBUG) {
 		uv_terminal_enable(TERMINAL_CAN);
