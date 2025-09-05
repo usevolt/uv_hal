@@ -264,9 +264,9 @@ static void insert_msg(uv_can_chn_e chn,
 		// check other entries and remove them if they are included in the new one.
 		// LPC4078 CANAF is not clever enough to remove recurrant entries
 		// and they fuck up message receiving if left there
-//		uint8_t count = Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_SFF_GRP_SEC);
-//		printf("std group count: %i\n",
-//				count);
+		uint8_t count = Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_SFF_GRP_SEC);
+		CAN_DEBUG("std group count: %i\n",
+				count);
 		for (int8_t i = 0;
 				i < Chip_CAN_GetEntriesNum(
 						LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_SFF_GRP_SEC);
@@ -284,12 +284,14 @@ static void insert_msg(uv_can_chn_e chn,
 				Chip_CAN_RemoveGroupSTDEntry(LPC_CANAF, LPC_CANAF_RAM, i);
 				i--;
 			}
-//			CAN_DEBUG("%i: 0x%x - 0x%x, CAN%i, disable: %i\n",
-//					i,
-//					entry.LowerID.ID_11,
-//					entry.UpperID.ID_11,
-//					entry.LowerID.CtrlNo,
-//					entry.LowerID.Disable);
+			else {
+				CAN_DEBUG("%i: 0x%x - 0x%x, CAN%i, disable: %i\n",
+						i,
+						entry.LowerID.ID_11,
+						entry.UpperID.ID_11,
+						entry.LowerID.CtrlNo,
+						entry.LowerID.Disable);
+			}
 		}
 		Chip_CAN_InsertGroupSTDEntry(LPC_CANAF, LPC_CANAF_RAM, &range);
 
@@ -301,17 +303,17 @@ static void insert_msg(uv_can_chn_e chn,
 		range.LowerID.ID_29 = id;
 		range.UpperID.CtrlNo = chn;
 		range.UpperID.ID_29 = (ctz) ? (id | (0x1FFFFFFF & (~mask))) : id;
-//		CAN_DEBUG("RX configuring EXT range 0x%x ... 0x%x for CAN%u\n",
-//				range.LowerID.ID_29,
-//				range.UpperID.ID_29,
-//				range.LowerID.CtrlNo);
+		CAN_DEBUG("RX configuring EXT range 0x%x ... 0x%x for CAN%u\n",
+				range.LowerID.ID_29,
+				range.UpperID.ID_29,
+				range.LowerID.CtrlNo);
 		// check other entries and remove them if they are included in the new one.
 		// LPC4078 CANAF is not clever enough to remove recurrant entries
 		// and they fuck up message receiving if left there
-//		uint8_t count = Chip_CAN_GetEntriesNum(
-//				LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_EFF_GRP_SEC);
-//		CAN_DEBUG("ext group count: %i\n",
-//				count);
+		uint8_t count = Chip_CAN_GetEntriesNum(
+				LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_EFF_GRP_SEC);
+		CAN_DEBUG("ext group count: %i\n",
+				count);
 		for (int8_t i = 0;
 				i < Chip_CAN_GetEntriesNum(
 						LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_EFF_GRP_SEC);
@@ -328,11 +330,13 @@ static void insert_msg(uv_can_chn_e chn,
 				Chip_CAN_RemoveGroupEXTEntry(LPC_CANAF, LPC_CANAF_RAM, i);
 				i--;
 			}
-//			CAN_DEBUG("%i: 0x%x - 0x%x, CAN%i\n",
-//					i,
-//					entry.LowerID.ID_29,
-//					entry.UpperID.ID_29,
-//					entry.LowerID.CtrlNo);
+			else {
+				CAN_DEBUG("%i: 0x%x - 0x%x, CAN%i\n",
+						i,
+						entry.LowerID.ID_29,
+						entry.UpperID.ID_29,
+						entry.LowerID.CtrlNo);
+			}
 		}
 		Chip_CAN_InsertGroupEXTEntry(LPC_CANAF, LPC_CANAF_RAM, &range);
 	}
@@ -364,8 +368,11 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e chn,
 		// loop through all bits. If other than trailing bits are masked,
 		// all matching messages have to be configured separately
 		if (!(mask & (1 << i))) {
+			CAN_DEBUG("last_onebit: %u, 0x%x\n", last_onebit, mask);
 			for (uint32_t val = 1; val < (1 << (i - last_onebit)); val++) {
-				uint32_t idd = id + (val << i);
+				uint32_t idd = id + (val << (last_onebit + 1));
+				CAN_DEBUG("val 0x%x, id: 0x%x, idd: 0x%x\n", val, id, idd);
+
 				uint32_t mask = ~((1 << ctz) - 1);
 				insert_msg(chn,
 						idd,
@@ -606,8 +613,7 @@ static uv_errors_e uv_can_send_sync(uv_can_channels_e chn, uv_can_message_st *ms
 	if (this->can[chn].init) {
 
 		// disable transmit interrupts so that we have free txbuffer
-		NVIC_DisableIRQ(CAN_IRQn);
-		uv_enter_critical();
+		uv_disable_int();
 
 		// wait until tx msg obj is free
 		uint8_t txbuf;
@@ -648,8 +654,7 @@ static uv_errors_e uv_can_send_sync(uv_can_channels_e chn, uv_can_message_st *ms
 				}
 			}
 		}
-		NVIC_EnableIRQ(CAN_IRQn);
-		uv_exit_critical();
+		uv_enable_int();
 	}
 	else {
 		ret = ERR_NOT_INITIALIZED;
@@ -688,8 +693,7 @@ uv_errors_e uv_can_get_char(char *dest) {
 uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 		can_send_flags_e flags) {
 	uv_errors_e ret = ERR_NONE;
-	NVIC_DisableIRQ(CAN_IRQn);
-	uv_enter_critical();
+	uv_disable_int();
 	if (flags & CAN_SEND_FLAGS_LOCAL) {
 		// pushing to receive buffer never triggers rx_callback
 		ret |= uv_ring_buffer_push(&this->can[chn].rx_buffer, msg);
@@ -700,13 +704,12 @@ uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 	if (flags & CAN_SEND_FLAGS_NORMAL) {
 		ret |= uv_ring_buffer_push(&this->can[chn].tx_buffer, msg);
 	}
-	uv_exit_critical();
+	uv_enable_int();
 	if (!(flags & CAN_SEND_FLAGS_NO_TX_CALLB) &&
 			(this->can[chn].tx_callback != NULL)) {
 		this->can[chn].tx_callback(__uv_get_user_ptr(), msg, flags);
 	}
 
-	NVIC_EnableIRQ(CAN_IRQn);
 	return ret;
 }
 
