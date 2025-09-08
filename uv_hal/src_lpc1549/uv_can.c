@@ -783,7 +783,7 @@ uv_errors_e uv_can_get_char(char *dest) {
 uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 		can_send_flags_e flags) {
 	uv_errors_e ret = ERR_NONE;
-	uv_enter_critical();
+	uv_disable_int();
 	if (flags & CAN_SEND_FLAGS_LOCAL) {
 		if (!send_terminal(msg)) {
 			ret |= uv_ring_buffer_push(&this->rx_buffer, msg);
@@ -795,7 +795,7 @@ uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 	if (flags & CAN_SEND_FLAGS_NORMAL) {
 		ret |= uv_ring_buffer_push(&this->tx_buffer, msg);
 	}
-	uv_exit_critical();
+	uv_enable_int();
 	if (!(flags & CAN_SEND_FLAGS_NO_TX_CALLB) &&
 			(this->tx_callback[chn] != NULL)) {
 		this->tx_callback[chn](__uv_get_user_ptr(), msg, flags);
