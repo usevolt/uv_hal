@@ -345,6 +345,16 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 }
 
 
+uv_errors_e uv_can_config_rx_message_no_callb(
+		uv_can_channels_e chn,
+		unsigned int id,
+		unsigned int mask,
+		uv_can_msg_types_e type) {
+
+	return ERR_NONE;
+}
+
+
 uv_errors_e _uv_can_init() {
 	uv_errors_e ret = ERR_NONE;
 
