@@ -490,17 +490,18 @@ uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
 				}
 			}
 			else {
-				uv_mutex_lock(&this->txstream_mutex);
+				if (uv_mutex_lock_ms(&this->txstream_mutex, wait_ms)) {
+					int p = uv_streambuffer_push(&this->tx_streambuffer,
+							data, datalen, wait_ms);
+					if (p != datalen) {
+						XB3_DEBUG(this, "XB3 Write: TX time out\n");
+					}
+					this->tx_max = MAX(this->tx_max,
+							uv_streambuffer_get_len(&this->tx_streambuffer));
 
-				int p = uv_streambuffer_push(&this->tx_streambuffer,
-						data, datalen, wait_ms);
-				if (p != datalen) {
-					XB3_DEBUG(this, "XB3 Write: TX time out\n");
+					uv_mutex_unlock(&this->txstream_mutex);
 				}
-				this->tx_max = MAX(this->tx_max,
-						uv_streambuffer_get_len(&this->tx_streambuffer));
 
-				uv_mutex_unlock(&this->txstream_mutex);
 			}
 		}
 	}

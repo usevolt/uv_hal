@@ -59,6 +59,7 @@
 typedef struct {
 	struct {
 		bool init;
+		uv_errors_e rx_err;
 		uv_can_message_st rx_buffer_data[CONFIG_CAN0_RX_BUFFER_SIZE];
 		uv_ring_buffer_st rx_buffer;
 		uv_can_message_st tx_buffer_data[CONFIG_CAN0_TX_BUFFER_SIZE];
@@ -489,7 +490,8 @@ void CAN_IRQHandler(void) {
 #if (CONFIG_TERMINAL_CAN_CHN == CAN0)
 				// terminal characters are sent to their specific buffer
 					if (!receive_terminal(&msg)) {
-						uv_ring_buffer_push(&this->can[0].rx_buffer, &msg);
+						uv_errors_e e = uv_ring_buffer_push(&this->can[0].rx_buffer, &msg);
+						this->can[0].rx_err |= e;
 					}
 #else
 					uv_ring_buffer_push(&this->can[0].rx_buffer, &msg);
@@ -560,6 +562,13 @@ void _uv_can_hal_send(uv_can_channels_e chn) {
 	NVIC_DisableIRQ(CAN_IRQn);
 
 	uv_errors_e e = uv_ring_buffer_pop(&this->can[chn].tx_buffer, &msg);
+
+	if (this->can[chn].rx_err) {
+		printf_set_flags(PRINTF_FLAGS_NOTXCALLB);
+		printf("Err %u\n", this->can[chn].rx_err);
+		printf_clear_flags(PRINTF_FLAGS_NOTXCALLB);
+		this->can[chn].rx_err = ERR_NONE;
+	}
 
 	if (e == ERR_NONE) {
 		// wait until tx msg obj is free
