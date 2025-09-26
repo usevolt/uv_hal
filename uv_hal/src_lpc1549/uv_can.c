@@ -163,6 +163,7 @@ typedef struct {
 			unsigned int mask,
 			uv_can_msg_types_e type);
 	void (*clear_rx_callb)(uv_can_channels_e chn);
+	uint8_t sending;
 
 } can_st;
 
@@ -173,10 +174,26 @@ static can_st _can = {
 		.tx_callback[0] = NULL,
 		.rx_callback[0] = NULL,
 		.config_rx_callb = NULL,
-		.clear_rx_callb = NULL
+		.clear_rx_callb = NULL,
+		.sending = 0
 };
 #define this (&_can)
 
+
+
+static inline void can_enter_critical(void) {
+	uv_disable_int();
+	this->sending++;
+}
+
+static inline void can_exit_critical(void) {
+	if (this->sending) {
+		this->sending--;
+	}
+	if (!this->sending) {
+		uv_enable_int();
+	}
+}
 
 void _uv_can_hal_send(uv_can_channels_e chn);
 
@@ -326,7 +343,7 @@ void CAN_IRQHandler(void) {
 			for (msg_obj = 0; msg_obj < 32; msg_obj++) {
 				if (int_pend & (1 << msg_obj)) {
 
-					__disable_irq();
+					can_enter_critical();
 
 					// read the pending object
 					read_msg_obj(msg_obj + 1);
@@ -354,7 +371,7 @@ void CAN_IRQHandler(void) {
 					}
 					int_pend &= ~(1 << msg_obj);
 
-					__enable_irq();
+					can_exit_critical();
 
 					if ((msg_obj + 1) == TX_MSG_OBJ) {
 						_uv_can_hal_send(CAN0);
@@ -697,11 +714,12 @@ static uv_errors_e uv_can_send_sync(uv_can_channels_e channel, uv_can_message_st
 				ret = ERR_CAN_BUS_OFF;
 				break;
 			}
+			uv_rtos_task_yield();
 		}
 
 		if (ret == ERR_NONE) {
 
-		uv_disable_int();
+			can_enter_critical();
 
 			msg_obj_disable(TX_MSG_OBJ);
 
@@ -726,7 +744,7 @@ static uv_errors_e uv_can_send_sync(uv_can_channels_e channel, uv_can_message_st
 
 			msg_obj_enable(TX_MSG_OBJ);
 
-			uv_enable_int();
+			can_exit_critical();
 
 			// wait until message is transferred or CAN status changes
 			bool br = false;
@@ -783,7 +801,7 @@ uv_errors_e uv_can_get_char(char *dest) {
 uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 		can_send_flags_e flags) {
 	uv_errors_e ret = ERR_NONE;
-	uv_disable_int();
+	can_enter_critical();
 	if (flags & CAN_SEND_FLAGS_LOCAL) {
 		if (!send_terminal(msg)) {
 			ret |= uv_ring_buffer_push(&this->rx_buffer, msg);
@@ -795,7 +813,7 @@ uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 	if (flags & CAN_SEND_FLAGS_NORMAL) {
 		ret |= uv_ring_buffer_push(&this->tx_buffer, msg);
 	}
-	uv_enable_int();
+	can_exit_critical();
 	if (!(flags & CAN_SEND_FLAGS_NO_TX_CALLB) &&
 			(this->tx_callback[chn] != NULL)) {
 		this->tx_callback[chn](__uv_get_user_ptr(), msg, flags);
@@ -809,9 +827,9 @@ uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 
 uv_errors_e uv_can_pop_message(uv_can_channels_e channel, uv_can_message_st *message) {
 	uv_errors_e ret = ERR_NONE;
-	uv_disable_int();
+	can_enter_critical();
 	ret = uv_ring_buffer_pop(&this->rx_buffer, message);
-	uv_enable_int();
+	can_exit_critical();
 	return ret;
 }
 

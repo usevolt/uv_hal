@@ -56,8 +56,8 @@
 
 void vAssertCalled( const char * const pcFileName,  unsigned long ulLine ) {
 	uv_terminal_enable(TERMINAL_CAN);
-	printf_set_flags(PRINTF_FLAGS_NOTXCALLB);
-	printf("Assert in '%s', line %u\n",
+	printf_flags(PRINTF_FLAGS_NOTXCALLB,
+			"Assert in '%s', line %u\n",
 			pcFileName,
 			(unsigned int) ulLine);
 	while(true);
@@ -218,8 +218,8 @@ void vApplicationStackOverflowHook(TaskHandle_t pxTask, char *pcTaskName)
 	(void) pcTaskName;
 
 	uv_terminal_enable(TERMINAL_CAN);
-	printf_set_flags(PRINTF_FLAGS_NOTXCALLB);
-	printf("stack overflow from task: %s\n", pcTaskName);
+	printf_flags(PRINTF_FLAGS_NOTXCALLB,
+			"stack overflow from task: %s\n", pcTaskName);
 	/* Run time stack overflow checking is performed if
 	   configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2.  This hook
 	   function is called if a stack overflow is detected. */

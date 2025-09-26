@@ -31,7 +31,6 @@
 
 #if !CONFIG_TARGET_LINUX
 
-#define putchar(c) outbyte(c)
 
 #include <stdarg.h>
 #include <string.h>
@@ -42,23 +41,22 @@
 #include "uv_hal_config.h"
 
 
-extern int outbyte(int c);
+extern int outbyte(unsigned int flags, int c);
 
-static void printchar(char **str, int c)
+static void printchar(unsigned int flags, char **str, int c)
 {
-	extern int putchar(int c);
 
 	if (str) {
 		**str = c;
 		++(*str);
 	}
-	else (void)putchar(c);
+	else (void)outbyte(flags, c);
 }
 
 #define PAD_RIGHT 1
 #define PAD_ZERO 2
 
-static int prints(char **out, const char *string, int width, int pad)
+static int prints(unsigned int flags, char **out, const char *string, int width, int pad)
 {
 	register int pc = 0, padchar = ' ';
 
@@ -72,16 +70,16 @@ static int prints(char **out, const char *string, int width, int pad)
 	}
 	if (!(pad & PAD_RIGHT)) {
 		for ( ; width > 0; --width) {
-			printchar (out, padchar);
+			printchar (flags, out, padchar);
 			++pc;
 		}
 	}
 	for ( ; *string ; ++string) {
-		printchar (out, *string);
+		printchar (flags, out, *string);
 		++pc;
 	}
 	for ( ; width > 0; --width) {
-		printchar (out, padchar);
+		printchar (flags, out, padchar);
 		++pc;
 	}
 
@@ -91,7 +89,7 @@ static int prints(char **out, const char *string, int width, int pad)
 /* the following should be enough for 32 bit int */
 #define PRINT_BUF_LEN 12
 
-static int printi(char **out, int i, int b, int sg, int width, int pad, int letbase)
+static int printi(unsigned int flags, char **out, int i, int b, int sg, int width, int pad, int letbase)
 {
 	char print_buf[PRINT_BUF_LEN];
 	register char *s;
@@ -101,7 +99,7 @@ static int printi(char **out, int i, int b, int sg, int width, int pad, int letb
 	if (i == 0) {
 		print_buf[0] = '0';
 		print_buf[1] = '\0';
-		return prints (out, print_buf, width, pad);
+		return prints (flags, out, print_buf, width, pad);
 	}
 
 	if (sg && b == 10 && i < 0) {
@@ -122,7 +120,7 @@ static int printi(char **out, int i, int b, int sg, int width, int pad, int letb
 
 	if (neg) {
 		if( width && (pad & PAD_ZERO) ) {
-			printchar (out, '-');
+			printchar (flags, out, '-');
 			++pc;
 			--width;
 		}
@@ -131,10 +129,10 @@ static int printi(char **out, int i, int b, int sg, int width, int pad, int letb
 		}
 	}
 
-	return pc + prints (out, s, width, pad);
+	return pc + prints (flags, out, s, width, pad);
 }
 
-int print(char **out, const char *format, int count, va_list args )
+int print(unsigned int flags, char **out, const char *format, int count, va_list args )
 {
 	register int width, pad;
 	register int pc = 0;
@@ -160,36 +158,36 @@ int print(char **out, const char *format, int count, va_list args )
 			}
 			if( *format == 's' ) {
 				register char *s = (char *)va_arg( args, long int );
-				pc += prints (out, s?s:"(null)", width, pad);
+				pc += prints (flags, out, s?s:"(null)", width, pad);
 				continue;
 			}
 			if( *format == 'd' || *format == 'i' ) {
-				pc += printi (out, va_arg( args, int ), 10, 1, width, pad, 'a');
+				pc += printi (flags, out, va_arg( args, int ), 10, 1, width, pad, 'a');
 				continue;
 			}
 			if( *format == 'x' ) {
-				pc += printi (out, va_arg( args, int ), 16, 0, width, pad, 'a');
+				pc += printi (flags, out, va_arg( args, int ), 16, 0, width, pad, 'a');
 				continue;
 			}
 			if( *format == 'X' ) {
-				pc += printi (out, va_arg( args, int ), 16, 0, width, pad, 'A');
+				pc += printi (flags, out, va_arg( args, int ), 16, 0, width, pad, 'A');
 				continue;
 			}
 			if( *format == 'u' ) {
-				pc += printi (out, va_arg( args, int ), 10, 0, width, pad, 'a');
+				pc += printi (flags, out, va_arg( args, int ), 10, 0, width, pad, 'a');
 				continue;
 			}
 			if( *format == 'c' ) {
 				/* char are converted to int then pushed on the stack */
 				scr[0] = (char)va_arg( args, int );
 				scr[1] = '\0';
-				pc += prints (out, scr, width, pad);
+				pc += prints (flags, out, scr, width, pad);
 				continue;
 			}
 		}
 		else {
 		out:
-			printchar (out, *format);
+			printchar (flags, out, *format);
 			++pc;
 		}
 	}
@@ -215,7 +213,29 @@ int printf(const char *format, ...)
         va_list args;
 
         va_start( args, format );
-        int ret = print( 0, format, -1, args );
+        int ret = print(PRINTF_FLAGS_NONE, 0, format, -1, args );
+#if CONFIG_PRINTF_MUTEX
+        uv_mutex_unlock(&printf_mutex);
+#endif
+
+        return ret;
+}
+
+int printf_flags(unsigned int flags, const char *format, ...)
+{
+#if CONFIG_PRINTF_MUTEX
+		static bool init = false;
+		if (!init) {
+			uv_mutex_init(&printf_mutex);
+			uv_mutex_unlock(&printf_mutex);
+			init = true;
+		}
+		uv_mutex_lock(&printf_mutex);
+#endif
+        va_list args;
+
+        va_start( args, format );
+        int ret = print(flags, 0, format, -1, args );
 #if CONFIG_PRINTF_MUTEX
         uv_mutex_unlock(&printf_mutex);
 #endif
@@ -228,7 +248,7 @@ int sprintf(char *out, const char *format, ...)
         va_list args;
 
         va_start( args, format );
-        return print( &out, format, -1, args );
+        return print(PRINTF_FLAGS_NONE, &out, format, -1, args );
 }
 
 
@@ -237,7 +257,7 @@ int snprintf(char * out, size_t n,
     va_list args;
 
     va_start( args, format );
-    return print( &out, format, (int) n, args );
+    return print( PRINTF_FLAGS_NONE, &out, format, (int) n, args );
 }
 
 

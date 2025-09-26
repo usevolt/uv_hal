@@ -46,8 +46,6 @@
 
 
 
-uint32_t printf_flags = 0;
-
 
 #if CONFIG_TERMINAL_CAN
 #define CAN_DELAY_MS		4
@@ -59,7 +57,7 @@ static int8_t can_delay = 0;
 #endif
 
 #if CONFIG_TERMINAL_CAN
-static void send_can_msg(void) {
+static void send_can_msg(unsigned int flags) {
 	uv_can_message_st msg = {
 			.data_length = 4 + uv_vector_size(&can_vec),
 			.type = CAN_STD
@@ -89,11 +87,7 @@ static void send_can_msg(void) {
 		uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
 	}
 #else
-	can_send_flags_e flags = CAN_SEND_FLAGS_SYNC;
-	if (printf_flags & PRINTF_FLAGS_NOTXCALLB) {
-		flags |= CAN_SEND_FLAGS_NO_TX_CALLB;
-	}
-	uv_can_send_flags(CAN0, &msg, flags);
+	uv_can_send_flags(CAN0, &msg, CAN_SEND_FLAGS_SYNC | flags);
 
 #endif
 
@@ -102,7 +96,7 @@ static void send_can_msg(void) {
 #endif
 
 
-int outbyte(int c) {
+int outbyte(unsigned int flags, int c) {
 #if CONFIG_TERMINAL
 #if CONFIG_TERMINAL_UART
 
@@ -117,10 +111,10 @@ int outbyte(int c) {
 			uv_vector_push_back(&can_vec, &ch);
 #if !CONFIG_TARGET_LPC15XX && !CONFIG_TARGET_LPC40XX
 			if (uv_vector_size(&can_vec) == uv_vector_max_size(&can_vec)) {
-				send_can_msg();
+				send_can_msg(flags);
 			}
 #else
-			send_can_msg();
+			send_can_msg(flags);
 #endif
 		}
 #endif
@@ -141,7 +135,7 @@ int outbyte(int c) {
 void uv_stdout_send(char* str, unsigned int count) {
 	int i;
 	for (i = 0; i < count; i++) {
-		outbyte(str[i]);
+		outbyte(PRINTF_FLAGS_NONE, str[i]);
 	}
 }
 

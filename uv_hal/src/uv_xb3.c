@@ -50,9 +50,7 @@
 
 
 #define XB3_DEBUG(xb3, ...) do { if ((xb3)->conf->flags & XB3_CONF_FLAGS_DEBUG) { \
-	printf_set_flags(PRINTF_FLAGS_NOTXCALLB); \
-	printf(__VA_ARGS__); \
-	printf_clear_flags(PRINTF_FLAGS_NOTXCALLB); }} while (0)
+	printf_flags(PRINTF_FLAGS_NOTXCALLB, __VA_ARGS__);}} while (0)
 
 
 
@@ -174,8 +172,8 @@ static void tx(uv_xb3_st *this) {
 
 		if (tx_count &&
 				uv_uart_get_tx_free_space(this->uart) >= (18 + tx_count)) {
-			this->transmitting = true;
-	//				this->transmitting = false;
+//			this->transmitting = true;
+			this->transmitting = false;
 
 			// write to XB3
 			uint16_t framedatalen = 14 + tx_count;
@@ -322,8 +320,6 @@ static void rx(uv_xb3_st *this, int32_t wait_ms) {
 									&rx, 1, 0)) {
 								XB3_DEBUG(this, "XB3 receive buffer overflow\n");
 							}
-							this->rx_max = MAX(this->rx_max,
-									uv_streambuffer_get_len(&this->rx_data_streambuffer));
 							if (this->conf->flags & XB3_CONF_FLAGS_RX_ECHO) {
 								printf("%c", rx);
 							}
@@ -359,15 +355,37 @@ static void rx(uv_xb3_st *this, int32_t wait_ms) {
 				break;
 			}
 		}
+		uv_rtos_task_yield();
 	}
 }
 
-static inline void tx_rx(uv_xb3_st *this, int32_t wait_ms) {
-	tx(this);
-	rx(this,
-			(uv_streambuffer_get_len(&this->tx_streambuffer) &&
-					!this->transmitting) ? 0 : 1);
-	uv_rtos_task_yield();
+static void tx_rx(void* me_ptr) {
+	uv_xb3_st *this = me_ptr;
+
+	uv_ts_st ts;
+	uv_ts_init(&ts);
+	uv_delay_st d;
+	uv_delay_init(&d, 1000);
+
+	while (true) {
+		uv_ts_step(&ts);
+		if (uv_delay(&d, uv_ts_get_step_ms(&ts))) {
+			bool locked = uv_mutex_lock_ms(&this->txstream_mutex, 0);
+			if (locked) {
+				uv_mutex_unlock(&this->txstream_mutex);
+			}
+			XB3_DEBUG(this, "txrx %i %i\n", locked,
+					(uv_streambuffer_get_len(&this->tx_streambuffer) &&
+											!this->transmitting));
+			uv_delay_init(&d, 1000);
+		}
+
+		tx(this);
+		rx(this,
+				(uv_streambuffer_get_len(&this->tx_streambuffer) &&
+						!this->transmitting) ? 0 : 1);
+		uv_rtos_task_yield();
+	}
 }
 
 
@@ -378,14 +396,8 @@ static uv_xb3_at_response_e at_wait_for_reply(uv_xb3_st *this, int32_t wait_ms,
 		bool xb3_task) {
 	while (this->at_response == XB3_AT_RESPONSE_COUNT &&
 			wait_ms > 0) {
-		if (xb3_task) {
-			// if we are in xb3_step_task, handle tx and rx data
-			tx_rx(this, 1);
-		}
-		else {
-			// otherwise just wait, xb3 task handles all serial communication
-			uv_rtos_task_delay(1);
-		}
+		// otherwise just wait, xb3 task handles all serial communication
+		uv_rtos_task_delay(1);
 		wait_ms -= 1;
 	}
 	if (wait_ms <= 0) {
@@ -482,26 +494,24 @@ uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
 				// try to lock the mutex and send data
 				if (uv_mutex_lock_isr(&this->txstream_mutex)) {
 					uv_streambuffer_push_isr(&this->tx_streambuffer, data, datalen);
-
-					this->tx_max = MAX(this->tx_max,
-							uv_streambuffer_get_len(&this->tx_streambuffer));
-
+					XB3_DEBUG(this, "ISR\n");
 					uv_mutex_unlock_isr(&this->txstream_mutex);
 				}
 			}
 			else {
+				const char *name = pcTaskGetName(NULL);
 				if (uv_mutex_lock_ms(&this->txstream_mutex, wait_ms)) {
 					int p = uv_streambuffer_push(&this->tx_streambuffer,
 							data, datalen, wait_ms);
 					if (p != datalen) {
 						XB3_DEBUG(this, "XB3 Write: TX time out\n");
+						ret = ERR_NOT_RESPONDING;
 					}
-					this->tx_max = MAX(this->tx_max,
-							uv_streambuffer_get_len(&this->tx_streambuffer));
 
+					XB3_DEBUG(this, "%i %s", wait_ms, name);
+					XB3_DEBUG(this, "...\n");
 					uv_mutex_unlock(&this->txstream_mutex);
 				}
-
 			}
 		}
 	}
@@ -672,7 +682,6 @@ static uv_xb3_at_response_e set_nodename(
 
 
 
-
 uv_errors_e uv_xb3_init(uv_xb3_st *this,
 		uv_xb3_conf_st *conf,
 		uv_gpios_e reset_gpio,
@@ -706,13 +715,11 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	}
 	uv_mutex_init(&this->txstream_mutex);
 	uv_mutex_unlock(&this->txstream_mutex);
-	this->tx_max = 0;
 	if (uv_streambuffer_init(&this->rx_data_streambuffer, RX_BUF_SIZE) != ERR_NONE) {
 		uv_terminal_enable(TERMINAL_CAN);
 		printf("XB3: Creating RX streambuffer failed, not enough memory\n");
 		ret = ERR_NOT_ENOUGH_MEMORY;
 	}
-	this->rx_max = 0;
 	if (uv_queue_init(&this->rx_at_queue, 100, sizeof(char)) == NULL) {
 		uv_terminal_enable(TERMINAL_CAN);
 		printf("XB3: Creating RX AT queue failed\n");
@@ -728,6 +735,9 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	uv_gpio_init_output(this->reset_gpio, false);
 
 	xb3_reset(this);
+
+	uv_rtos_task_create(&tx_rx, "xb3", UV_RTOS_MIN_STACK_SIZE * 2,
+			this, UV_RTOS_IDLE_PRIORITY + 1, NULL);
 
 	XB3_DEBUG(this, "Setting device identification string to '%s'\n", nodeid);
 	uv_xb3_at_response_e res = set_nodename(this, nodeid, true);
@@ -840,7 +850,6 @@ void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms) {
 
 		}
 
-		tx_rx(this, 1);
 	}
 }
 
@@ -1004,12 +1013,7 @@ uv_xb3_at_response_e uv_xb3_network_discovery(uv_xb3_st *this,
 
 			}
 			ms += 1;
-			if (xb3_step_task) {
-				tx_rx(this, 1);
-			}
-			else {
-				uv_rtos_task_delay(1);
-			}
+			uv_rtos_task_delay(1);
 		}
 
 		XB3_DEBUG(this, "Found %i devices\n",
@@ -1290,9 +1294,8 @@ void uv_xb3_terminal(uv_xb3_st *this,
 				"    TX echo: %u\n"
 				"   AT echo: %u\n"
 				"   AT as hex: %u\n"
-				"    TX buf: %i/%i (max %i)\n"
-				"    RX buf: %i/%i (max %i)\n"
-				"    Max retransmit: %u\n",
+				"    TX buf: %i/%i\n"
+				"    RX buf: %i/%i\n",
 				(int) this->initialized,
 				(unsigned int) ((uint64_t) this->conf->epanid >> 32),
 				(unsigned int) ((uint32_t) this->conf->epanid & 0xFFFFFFFF),
@@ -1305,14 +1308,8 @@ void uv_xb3_terminal(uv_xb3_st *this,
 				!!(this->conf->flags & XB3_CONF_FLAGS_AT_HEX),
 				(int) uv_streambuffer_get_len(&this->tx_streambuffer),
 				(int) TX_BUF_SIZE,
-				(int) this->tx_max,
 				(int) uv_streambuffer_get_len(&this->rx_data_streambuffer),
-				(int) RX_BUF_SIZE,
-				(int) this->rx_max,
-				this->max_retransmit);
-		this->tx_max = 0;
-		this->rx_max = 0;
-		this->max_retransmit = 0;
+				(int) RX_BUF_SIZE);
 	}
 }
 

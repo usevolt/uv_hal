@@ -111,12 +111,10 @@ typedef struct {
 	// This queue holds API packetized data
 	uv_streambuffer_st tx_streambuffer;
 	uv_mutex_st txstream_mutex;
-	uint16_t tx_max;
 	// mutex that should belocked when AT command is ongoing
 	uv_mutex_st atreq_mutex;
 	// buffer for read data from XB3. Holds raw data parsed from API packages
 	uv_streambuffer_st rx_data_streambuffer;
-	uint16_t rx_max;
 	// buffer for read AT commands from XB3. Holds raw data parsed from API packages
 	uv_queue_st rx_at_queue;
 	uv_mutex_st tx_mutex;

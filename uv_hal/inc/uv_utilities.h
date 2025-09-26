@@ -616,21 +616,11 @@ uint32_t ntouint32(uint32_t netdata);
 uint16_t ntouint16(uint16_t netdata);
 
 
-extern uint32_t printf_flags;
+extern int printf_flags(unsigned int flags, const char *format, ...);
 
-#define PRINTF_FLAGS_NOTXCALLB		(1 << 0)
+#define PRINTF_FLAGS_NOTXCALLB		CAN_SEND_FLAGS_NO_TX_CALLB
+#define PRINTF_FLAGS_NONE			CAN_SEND_FLAGS_NONE
 
-static inline void printf_set_flags(uint32_t flags) {
-	printf_flags |= flags;
-}
-
-static inline void printf_clear_flags(uint32_t flags) {
-	printf_flags &= ~(flags);
-}
-
-static inline uint32_t printf_get_flags(void) {
-	return printf_flags;
-}
 
 
 
