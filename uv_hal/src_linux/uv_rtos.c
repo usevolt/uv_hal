@@ -50,7 +50,7 @@
 
 
 #if !defined(PRINT)
-#define PRINT(...) printf(__VA_ARGS__)
+#define PRINT(...) printf_flags(PRINTF_FLAGS_NOTXCALLB, __VA_ARGS__)
 #endif
 
 
