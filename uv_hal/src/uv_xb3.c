@@ -374,6 +374,13 @@ static void tx_rx(void* me_ptr) {
 		rx(this,
 				(uv_streambuffer_get_len(&this->tx_streambuffer) &&
 						!this->transmitting) ? 0 : 1);
+
+		// delay to mark transmitting done, in case transmitting never received
+		// ack message
+		if (uv_delay(&this->transmit_delay, uv_ts_get_step_ms(&ts))) {
+			this->transmitting = false;
+		}
+
 		uv_rtos_task_yield();
 	}
 }
@@ -836,12 +843,6 @@ void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms) {
 		}
 		else {
 
-		}
-
-		// delay to mark transmitting done, in case transmitting never received
-		// ack message
-		if (uv_delay(&this->transmit_delay, step_ms)) {
-			this->transmitting = false;
 		}
 	}
 }
