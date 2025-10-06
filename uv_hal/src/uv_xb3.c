@@ -47,6 +47,7 @@
 
 
 #define JOINWINDOW_DELAY_MS					200
+#define TRANSMIT_DELAY_MS					1000
 
 
 #define XB3_DEBUG(xb3, ...) do { if ((xb3)->conf->flags & XB3_CONF_FLAGS_DEBUG) { \
@@ -172,8 +173,9 @@ static void tx(uv_xb3_st *this) {
 
 		if (tx_count &&
 				uv_uart_get_tx_free_space(this->uart) >= (18 + tx_count)) {
-//			this->transmitting = true;
-			this->transmitting = false;
+//			this->transmitting = false;
+			this->transmitting = true;
+			uv_delay_init(&this->transmit_delay, TRANSMIT_DELAY_MS);
 
 			// write to XB3
 			uint16_t framedatalen = 14 + tx_count;
@@ -703,6 +705,7 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	// pkg_id cannot be 0 since it wouldn't emit transmit message
 	this->pkg_id = 1;
 	this->transmitting = false;
+	uv_delay_init(&this->transmit_delay, TRANSMIT_DELAY_MS);
 
 	if (this->conf->flags & XB3_CONF_FLAGS_DEBUG) {
 		uv_terminal_enable(TERMINAL_CAN);
@@ -850,6 +853,11 @@ void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms) {
 
 		}
 
+		// delay to mark transmitting done, in case transmitting never received
+		// ack message
+		if (uv_delay(&this->transmit_delay, step_ms)) {
+			this->transmitting = false;
+		}
 	}
 }
 

@@ -130,6 +130,7 @@ typedef struct {
 	// all data is sent in order they were meant
 	uint8_t pkg_id;
 	bool transmitting;
+	uv_delay_st transmit_delay;
 
 	// stores the currently active network settings.
 	// packed struct to help mapping it to canopen object dictionary
