@@ -336,7 +336,7 @@ static void rx(uv_xb3_st *this, int32_t wait_ms) {
 						}
 						else if (offset == 8) {
 							if (rx) {
-								XB3_DEBUG(this, "XB3 TRANSMIT fail 0x%x", rx);
+								XB3_DEBUG(this, "XB3 TRANSMIT fail 0x%x\n", rx);
 							}
 						}
 						else if (offset == 9) {
@@ -480,10 +480,10 @@ uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
 	if (this->initialized) {
 		if ((isr || !wait_ms) &&
 				uv_streambuffer_get_free_space(&this->tx_streambuffer) < datalen) {
-			XB3_DEBUG(this, "XB3 Write: buffer full %i / %i, required %i\n",
-					(int) uv_streambuffer_get_len(&this->tx_streambuffer),
-					TX_BUF_SIZE,
-					(int) datalen);
+//			XB3_DEBUG(this, "XB3 Write: buffer full %i / %i, required %i\n",
+//					(int) uv_streambuffer_get_len(&this->tx_streambuffer),
+//					TX_BUF_SIZE,
+//					(int) datalen);
 			ret = ERR_NOT_ENOUGH_MEMORY;
 		}
 		else {
