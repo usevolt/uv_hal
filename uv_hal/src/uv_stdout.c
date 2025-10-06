@@ -147,7 +147,7 @@ void _uv_stdout_hal_step(unsigned int step_ms) {
 			can_delay -= step_ms;
 		}
 		else {
-			send_can_msg();
+			send_can_msg(PRINTF_FLAGS_NONE);
 		}
 	}
 #endif

@@ -265,9 +265,8 @@ static void insert_msg(uv_can_chn_e chn,
 		// check other entries and remove them if they are included in the new one.
 		// LPC4078 CANAF is not clever enough to remove recurrant entries
 		// and they fuck up message receiving if left there
-		uint8_t count = Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_SFF_GRP_SEC);
 		CAN_DEBUG("std group count: %i\n",
-				count);
+				Chip_CAN_GetEntriesNum(LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_SFF_GRP_SEC));
 		for (int8_t i = 0;
 				i < Chip_CAN_GetEntriesNum(
 						LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_SFF_GRP_SEC);
@@ -311,10 +310,9 @@ static void insert_msg(uv_can_chn_e chn,
 		// check other entries and remove them if they are included in the new one.
 		// LPC4078 CANAF is not clever enough to remove recurrant entries
 		// and they fuck up message receiving if left there
-		uint8_t count = Chip_CAN_GetEntriesNum(
-				LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_EFF_GRP_SEC);
 		CAN_DEBUG("ext group count: %i\n",
-				count);
+				Chip_CAN_GetEntriesNum(
+								LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_EFF_GRP_SEC));
 		for (int8_t i = 0;
 				i < Chip_CAN_GetEntriesNum(
 						LPC_CANAF, LPC_CANAF_RAM, CANAF_RAM_EFF_GRP_SEC);
@@ -562,13 +560,6 @@ void _uv_can_hal_send(uv_can_channels_e chn) {
 	NVIC_DisableIRQ(CAN_IRQn);
 
 	uv_errors_e e = uv_ring_buffer_pop(&this->can[chn].tx_buffer, &msg);
-
-	if (this->can[chn].rx_err) {
-		printf_set_flags(PRINTF_FLAGS_NOTXCALLB);
-		printf("Err %u\n", this->can[chn].rx_err);
-		printf_clear_flags(PRINTF_FLAGS_NOTXCALLB);
-		this->can[chn].rx_err = ERR_NONE;
-	}
 
 	if (e == ERR_NONE) {
 		// wait until tx msg obj is free

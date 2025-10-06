@@ -366,21 +366,9 @@ static void tx_rx(void* me_ptr) {
 
 	uv_ts_st ts;
 	uv_ts_init(&ts);
-	uv_delay_st d;
-	uv_delay_init(&d, 1000);
 
 	while (true) {
 		uv_ts_step(&ts);
-		if (uv_delay(&d, uv_ts_get_step_ms(&ts))) {
-			bool locked = uv_mutex_lock_ms(&this->txstream_mutex, 0);
-			if (locked) {
-				uv_mutex_unlock(&this->txstream_mutex);
-			}
-			XB3_DEBUG(this, "txrx %i %i\n", locked,
-					(uv_streambuffer_get_len(&this->tx_streambuffer) &&
-											!this->transmitting));
-			uv_delay_init(&d, 1000);
-		}
 
 		tx(this);
 		rx(this,
@@ -496,7 +484,6 @@ uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
 				// try to lock the mutex and send data
 				if (uv_mutex_lock_isr(&this->txstream_mutex)) {
 					uv_streambuffer_push_isr(&this->tx_streambuffer, data, datalen);
-					XB3_DEBUG(this, "ISR\n");
 					uv_mutex_unlock_isr(&this->txstream_mutex);
 				}
 			}
@@ -510,8 +497,6 @@ uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
 						ret = ERR_NOT_RESPONDING;
 					}
 
-					XB3_DEBUG(this, "%i %s", wait_ms, name);
-					XB3_DEBUG(this, "...\n");
 					uv_mutex_unlock(&this->txstream_mutex);
 				}
 			}
