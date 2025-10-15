@@ -120,5 +120,4 @@ void uv_uart_break_start(uv_uarts_e uart) {
 void uv_uart_break_stop(uv_uarts_e uart) {
 }
 
-
 #endif
