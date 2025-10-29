@@ -228,6 +228,8 @@ uv_errors_e uv_can_add_tx_callback(uv_can_channels_e channel,
 		bool (*callback_function)(void *user_ptr, uv_can_msg_st *msg,
 				can_send_flags_e flags)) {
 	this->tx_callb = callback_function;
+
+	return ERR_NONE;
 }
 
 
