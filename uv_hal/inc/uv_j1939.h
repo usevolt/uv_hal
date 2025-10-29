@@ -9,6 +9,7 @@
 #define HAL_UV_HAL_INC_UV_J1939_H_
 
 #include "uv_can.h"
+#include <stdbool.h>
 
 /// @file Defines for SAE J1939 protocol
 
@@ -16,6 +17,75 @@
 #define UV_J1939_PGN_DM1			(0xFECA)
 
 #define UV_J1939_PGN_MASK			(0x3FFFF00)
+
+typedef enum {
+	J1939_REQ_ENGINE_HOURS = 0x18FEE500,
+	J1939_TRANSPORT_CONNECTION_MANAGEMENT = 0x18ECFF00,
+	J1939_TRANSPORT_DATA_TRANSFER = 0x18EBFF00
+} j1939_ids_e;
+
+typedef enum {
+	// diagnostics message 1
+	J1939_PGN_DM1 = 65226
+} j1939_pgn_e;
+
+
+
+/// @brief: Defines the structure for j1939 DTC in diagnostics PGNs
+typedef struct __attribute__((packed)) {
+	uint32_t spn : 19;
+	uint8_t fmi : 5;
+	uint8_t cm : 1;
+	uint8_t oc : 7;
+} j1939_dtc_st;
+
+
+typedef struct {
+	uint16_t pgn;
+	uint16_t byte_count;
+	uint16_t byte_index;
+	void *dest;
+	uint16_t dest_max_count;
+} uv_j1939_transport_st;
+
+
+/// @brief: Initializes the receive of transport protocol
+///
+/// @param dest: Destination pointer where data is stored
+/// @param pgn: Requested PGN to receive. If any PGN can be received, set to zero.
+void uv_j1939_transport_init(uv_j1939_transport_st *this,
+						  void *dest, uint16_t dest_max_count,
+						  uint16_t pgn);
+
+/// @brief: Stops receiving the transport transfer
+static inline void uv_j1939_transport_clear(uv_j1939_transport_st *this) {
+	this->byte_index = 0;
+	this->byte_count = 0;
+}
+
+static inline uint16_t uv_j1939_transport_get_pgn(uv_j1939_transport_st *this) {
+	return this->pgn;
+}
+
+
+/// @brief: Returns true if the transport was finished
+static inline bool uv_j1939_transport_is_ready(uv_j1939_transport_st *this) {
+	return ((this->byte_index == this->byte_count ||
+			this->byte_index == this->dest_max_count) &&
+			this->byte_count != 0);
+}
+
+/// @brief: Returns the written byte count
+static inline uint16_t uv_j1939_transport_get_byte_count(uv_j1939_transport_st *this) {
+	return this->byte_index;
+}
+
+/// @brief: RX function for receiving transport protocol
+///
+/// @return True when the whole message was received, false otherwise
+bool uv_j1939_transport_rx(uv_j1939_transport_st *this, uv_can_msg_st *msg);
+
+
 
 
 /// @brief: Returns the parameter group number from the message. 0 in case of error.
