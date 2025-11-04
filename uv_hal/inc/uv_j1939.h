@@ -33,13 +33,24 @@ typedef enum {
 
 
 /// @brief: Defines the structure for j1939 DTC in diagnostics PGNs
-typedef struct __attribute__((packed)) {
-	uint32_t spn : 19;
-	uint8_t fmi : 5;
-	uint8_t cm : 1;
-	uint8_t oc : 7;
+typedef struct {
+	uint32_t spn;
+	uint8_t fmi;
+	uint8_t cm;
+	uint8_t oc;
 } j1939_dtc_st;
 
+/// @brief: Parses lamp information from DM1 raw data received via package protocol
+static inline uint8_t uv_j1939_dm1_get_lampinfo(uint8_t *raw_data, uint16_t data_len) {
+	return (data_len >= 1) ? raw_data[0] : 0;
+}
+
+/// @brief: Parses DM1 raw data and returns DTC structure of error code with index
+/// *dtc_index*.
+uv_errors_e uv_j1939_dm1_get_dtc(j1939_dtc_st *dest,
+								 uint8_t *raw_data,
+								 uint16_t data_len,
+								 uint8_t dtc_index);
 
 typedef struct {
 	uint16_t pgn;
