@@ -227,6 +227,23 @@ extern CONFIG_APP_ST;
 
 
 
+#define PRINT_RESET   "\033[0m"
+#define PRINT_BLACK   "\033[30m"      /* Black */
+#define PRINT_RED     "\033[31m"      /* Red */
+#define PRINT_GREEN   "\033[32m"      /* Green */
+#define PRINT_YELLOW  "\033[33m"      /* Yellow */
+#define PRINT_BLUE    "\033[34m"      /* Blue */
+#define PRINT_MAGENTA "\033[35m"      /* Magenta */
+#define PRINT_CYAN    "\033[36m"      /* Cyan */
+#define PRINT_WHITE   "\033[37m"      /* White */
+#define PRINT_BOLDBLACK   "\033[1m\033[30m"      /* Bold Black */
+#define PRINT_BOLDRED     "\033[1m\033[31m"      /* Bold Red */
+#define PRINT_BOLDGREEN   "\033[1m\033[32m"      /* Bold Green */
+#define PRINT_BOLDYELLOW  "\033[1m\033[33m"      /* Bold Yellow */
+#define PRINT_BOLDBLUE    "\033[1m\033[34m"      /* Bold Blue */
+#define PRINT_BOLDMAGENTA "\033[1m\033[35m"      /* Bold Magenta */
+#define PRINT_BOLDCYAN    "\033[1m\033[36m"      /* Bold Cyan */
+#define PRINT_BOLDWHITE   "\033[1m\033[37m"      /* Bold White */
 
 
 

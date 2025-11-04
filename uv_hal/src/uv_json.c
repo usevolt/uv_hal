@@ -53,6 +53,9 @@ const char *uv_json_type_to_str(uv_json_types_e type) {
 	case JSON_OBJECT:
 		ret = "OBJECT";
 		break;
+	case JSON_STRING:
+		ret = "STRING";
+		break;
 	case JSON_UNSUPPORTED:
 		ret = "UNSUPPORTED";
 		break;

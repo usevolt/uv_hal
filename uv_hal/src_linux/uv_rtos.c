@@ -370,8 +370,11 @@ void signal_callb(int signum) {
 	PRINT("Caught signal %u\n", signum);
 
 	uv_deinit();
+	PRINT("TERMINATING\n");
+
+	fflush(stdout);
    // Terminate program
-   exit(signum);
+	exit(signum);
 }
 
 void uv_deinit(void) {
