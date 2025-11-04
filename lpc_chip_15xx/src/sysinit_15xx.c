@@ -97,9 +97,9 @@ void Chip_SetupXtalClocking(void)
 	/* Powerup main oscillator */
 	Chip_SYSCTL_PowerUp(SYSCTL_POWERDOWN_SYSOSC_PD);
 
-	/* Wait 200us for OSC to be stablized, no status
+	/* Wait for OSC to be stablized, no status
 	   indication, dummy wait. */
-	for (i = 0; i < 0x200; i++) {}
+	for (i = 0; i < 0x1000; i++) {}
 
 	/* Set system PLL input to main oscillator */
 	Chip_Clock_SetSystemPLLSource(SYSCTL_PLLCLKSRC_MAINOSC);

@@ -167,8 +167,8 @@ void uv_uidigitedit_draw(void *me, const uv_bounding_box_st *pbb) {
 		color_t c = (this->value == this->limit_min) ?
 				uv_uic_grayscale(this->bg_color) : this->bg_color;
 		uv_ui_draw_shadowrrect(x, y, inc_w, height, CONFIG_UI_RADIUS, c,
-				uv_uic_brighten(c, 30 * ((this->modedata.incdec.pressed_button == -1) ? -1 : 1)),
-				uv_uic_brighten(c, -30 * ((this->modedata.incdec.pressed_button == -1) ? -1 : 1)));
+				uv_uic_brighten(c, 80 * ((this->modedata.incdec.pressed_button == -1) ? -1 : 1)),
+				uv_uic_brighten(c, -80 * ((this->modedata.incdec.pressed_button == -1) ? -1 : 1)));
 		uv_ui_draw_string("-", ((uv_uilabel_st*) this)->font, x + inc_w / 2, y + height / 2,
 				ALIGN_CENTER, ((uv_uilabel_st*) this)->color);
 
@@ -176,8 +176,8 @@ void uv_uidigitedit_draw(void *me, const uv_bounding_box_st *pbb) {
 				uv_uic_grayscale(this->bg_color) : this->bg_color;
 		uv_ui_draw_shadowrrect(x + uv_uibb(this)->width - inc_w, y, inc_w, height,
 				CONFIG_UI_RADIUS, c,
-				uv_uic_brighten(c, 30 * ((this->modedata.incdec.pressed_button == 1) ? -1 : 1)),
-				uv_uic_brighten(c, -30 * ((this->modedata.incdec.pressed_button == 1) ? -1 : 1)));
+				uv_uic_brighten(c, 80 * ((this->modedata.incdec.pressed_button == 1) ? -1 : 1)),
+				uv_uic_brighten(c, -80 * ((this->modedata.incdec.pressed_button == 1) ? -1 : 1)));
 		uv_ui_draw_string("+", ((uv_uilabel_st*) this)->font,
 				x + uv_uibb(this)->width - inc_w / 2, y + height / 2,
 				ALIGN_CENTER, ((uv_uilabel_st*) this)->color);

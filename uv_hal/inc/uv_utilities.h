@@ -124,6 +124,36 @@ extern CONFIG_APP_ST;
 #define M_REPEAT28_(X) M_REPEAT27_(X) X(27)
 #define M_REPEAT29_(X) M_REPEAT28_(X) X(28)
 #define M_REPEAT30_(X) M_REPEAT29_(X) X(29)
+#define M_REPEAT31_(X) M_REPEAT30_(X) X(30)
+#define M_REPEAT32_(X) M_REPEAT31_(X) X(31)
+#define M_REPEAT33_(X) M_REPEAT32_(X) X(32)
+#define M_REPEAT34_(X) M_REPEAT33_(X) X(33)
+#define M_REPEAT35_(X) M_REPEAT34_(X) X(34)
+#define M_REPEAT36_(X) M_REPEAT35_(X) X(35)
+#define M_REPEAT37_(X) M_REPEAT36_(X) X(36)
+#define M_REPEAT38_(X) M_REPEAT37_(X) X(37)
+#define M_REPEAT39_(X) M_REPEAT38_(X) X(38)
+#define M_REPEAT40_(X) M_REPEAT39_(X) X(39)
+#define M_REPEAT41_(X) M_REPEAT40_(X) X(40)
+#define M_REPEAT42_(X) M_REPEAT41_(X) X(41)
+#define M_REPEAT43_(X) M_REPEAT42_(X) X(42)
+#define M_REPEAT44_(X) M_REPEAT43_(X) X(43)
+#define M_REPEAT45_(X) M_REPEAT44_(X) X(44)
+#define M_REPEAT46_(X) M_REPEAT45_(X) X(45)
+#define M_REPEAT47_(X) M_REPEAT46_(X) X(46)
+#define M_REPEAT48_(X) M_REPEAT47_(X) X(47)
+#define M_REPEAT49_(X) M_REPEAT48_(X) X(48)
+#define M_REPEAT50_(X) M_REPEAT49_(X) X(49)
+#define M_REPEAT51_(X) M_REPEAT50_(X) X(50)
+#define M_REPEAT52_(X) M_REPEAT51_(X) X(51)
+#define M_REPEAT53_(X) M_REPEAT52_(X) X(52)
+#define M_REPEAT54_(X) M_REPEAT53_(X) X(53)
+#define M_REPEAT55_(X) M_REPEAT54_(X) X(54)
+#define M_REPEAT56_(X) M_REPEAT55_(X) X(55)
+#define M_REPEAT57_(X) M_REPEAT56_(X) X(56)
+#define M_REPEAT58_(X) M_REPEAT57_(X) X(57)
+#define M_REPEAT59_(X) M_REPEAT58_(X) X(58)
+#define M_REPEAT60_(X) M_REPEAT59_(X) X(59)
 
 /// @brief: Repeat macro. Can be used to repeat a function call multiple times.
 ///
@@ -169,7 +199,43 @@ extern CONFIG_APP_ST;
 #define M_REPEAT27_ARG(X, ARG) M_REPEAT26_ARG(X, ARG) X(26, ARG)
 #define M_REPEAT28_ARG(X, ARG) M_REPEAT27_ARG(X, ARG) X(27, ARG)
 #define M_REPEAT29_ARG(X, ARG) M_REPEAT28_ARG(X, ARG) X(28, ARG)
-#define M_REPEAT30_ARG(X, ARG) M_REPEAT29_ARG X(29, ARG)
+#define M_REPEAT30_ARG(X, ARG) M_REPEAT29_ARG(X, ARG) X(29, ARG)
+#define M_REPEAT31_ARG(X, ARG) M_REPEAT30_ARG(X, ARG) X(30, ARG)
+#define M_REPEAT32_ARG(X, ARG) M_REPEAT31_ARG(X, ARG) X(31, ARG)
+#define M_REPEAT33_ARG(X, ARG) M_REPEAT32_ARG(X, ARG) X(32, ARG)
+#define M_REPEAT34_ARG(X, ARG) M_REPEAT33_ARG(X, ARG) X(33, ARG)
+#define M_REPEAT35_ARG(X, ARG) M_REPEAT34_ARG(X, ARG) X(34, ARG)
+#define M_REPEAT36_ARG(X, ARG) M_REPEAT35_ARG(X, ARG) X(35, ARG)
+#define M_REPEAT37_ARG(X, ARG) M_REPEAT36_ARG(X, ARG) X(36, ARG)
+#define M_REPEAT38_ARG(X, ARG) M_REPEAT37_ARG(X, ARG) X(37, ARG)
+#define M_REPEAT39_ARG(X, ARG) M_REPEAT38_ARG(X, ARG) X(38, ARG)
+#define M_REPEAT40_ARG(X, ARG) M_REPEAT39_ARG(X, ARG) X(39, ARG)
+#define M_REPEAT41_ARG(X, ARG) M_REPEAT40_ARG(X, ARG) X(40, ARG)
+#define M_REPEAT42_ARG(X, ARG) M_REPEAT41_ARG(X, ARG) X(41, ARG)
+#define M_REPEAT43_ARG(X, ARG) M_REPEAT42_ARG(X, ARG) X(42, ARG)
+#define M_REPEAT44_ARG(X, ARG) M_REPEAT43_ARG(X, ARG) X(43, ARG)
+#define M_REPEAT45_ARG(X, ARG) M_REPEAT44_ARG(X, ARG) X(44, ARG)
+#define M_REPEAT46_ARG(X, ARG) M_REPEAT45_ARG(X, ARG) X(45, ARG)
+#define M_REPEAT47_ARG(X, ARG) M_REPEAT46_ARG(X, ARG) X(46, ARG)
+#define M_REPEAT48_ARG(X, ARG) M_REPEAT47_ARG(X, ARG) X(47, ARG)
+#define M_REPEAT49_ARG(X, ARG) M_REPEAT48_ARG(X, ARG) X(48, ARG)
+#define M_REPEAT50_ARG(X, ARG) M_REPEAT49_ARG(X, ARG) X(49, ARG)
+#define M_REPEAT51_ARG(X, ARG) M_REPEAT50_ARG(X, ARG) X(50, ARG)
+#define M_REPEAT52_ARG(X, ARG) M_REPEAT51_ARG(X, ARG) X(51, ARG)
+#define M_REPEAT53_ARG(X, ARG) M_REPEAT52_ARG(X, ARG) X(52, ARG)
+#define M_REPEAT54_ARG(X, ARG) M_REPEAT53_ARG(X, ARG) X(53, ARG)
+#define M_REPEAT55_ARG(X, ARG) M_REPEAT54_ARG(X, ARG) X(54, ARG)
+#define M_REPEAT56_ARG(X, ARG) M_REPEAT55_ARG(X, ARG) X(55, ARG)
+#define M_REPEAT57_ARG(X, ARG) M_REPEAT56_ARG(X, ARG) X(56, ARG)
+#define M_REPEAT58_ARG(X, ARG) M_REPEAT57_ARG(X, ARG) X(57, ARG)
+#define M_REPEAT59_ARG(X, ARG) M_REPEAT58_ARG(X, ARG) X(59, ARG)
+#define M_REPEAT60_ARG(X, ARG) M_REPEAT59_ARG X(60, ARG)
+
+
+#define VILLE	varpelaide
+
+
+
 
 /// @brief: Repeat macro with an argument. The argument is given to the
 /// repeated function. The function should take two arguments, first the index and next the argument.
@@ -556,6 +622,39 @@ static inline bool uv_ipot(uint32_t x) {
 /// the hardware, an error is returned and logged to stdout.
 #define uv_set_int_priority(src, priority) NVIC_SetPriority(src, priority)
 
+
+/// @brief: Convert network byte order (MSB) to local byte order (LSB)
+uint64_t ntouint64(uint64_t netdata);
+
+/// @brief: Convert network byte order (MSB) to local byte order (LSB)
+uint32_t ntouint32(uint32_t netdata);
+
+/// @brief: Convert network byte order (MSB) to local byte order (LSB)
+uint16_t ntouint16(uint16_t netdata);
+
+
+extern int printf_flags(unsigned int flags, const char *format, ...);
+
+#define PRINTF_FLAGS_NOTXCALLB		CAN_SEND_FLAGS_NO_TX_CALLB
+#define PRINTF_FLAGS_NONE			CAN_SEND_FLAGS_NONE
+
+
+
+
+/// @brief: Structure to return the actual step time from last step cycle
+typedef struct {
+	int32_t last_tick_count;
+	uint32_t step_ms;
+} uv_ts_st;
+
+
+void uv_ts_init(uv_ts_st *t);
+
+void uv_ts_step(uv_ts_st *t);
+
+static inline uint32_t uv_ts_get_step_ms(uv_ts_st *t) {
+	return t->step_ms;
+}
 
 
 /**** PROTECTED FUNCTIONS ******/

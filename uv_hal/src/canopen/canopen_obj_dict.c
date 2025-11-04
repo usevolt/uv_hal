@@ -52,7 +52,7 @@ extern uint32_t CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS_COUNT (void);
 
 #define RXPDO_COM(x)	{	\
 	.main_index = CONFIG_CANOPEN_RXPDO_COM_INDEX + x,\
-	.array_max_size = CANOPEN_RXPDO_COM_ARRAY_SIZE,\
+	.array_max_size = CANOPEN_PDO_COM_ARRAY_SIZE,\
 	.permissions = CANOPEN_RW, \
 	.type = CANOPEN_ARRAY32, \
 	.data_ptr = &CONFIG_NON_VOLATILE_START.canopen_data.rxpdo_coms[x] \
@@ -68,7 +68,7 @@ extern uint32_t CONFIG_CANOPEN_OBJ_DICT_APP_PARAMS_COUNT (void);
 
 #define TXPDO_COM(x)	{ \
 	.main_index = CONFIG_CANOPEN_TXPDO_COM_INDEX + x, \
-	.array_max_size = CANOPEN_TXPDO_COM_ARRAY_SIZE, \
+	.array_max_size = CANOPEN_PDO_COM_ARRAY_SIZE, \
 	.permissions = CANOPEN_RW, \
 	.type = CANOPEN_ARRAY32, \
 	.data_ptr = &CONFIG_NON_VOLATILE_START.canopen_data.txpdo_coms[x] \
@@ -268,7 +268,7 @@ bool check(const canopen_object_st *src, uint8_t subindex) {
 const canopen_object_st *_uv_canopen_obj_dict_get(uint16_t main_index, uint8_t subindex) {
 	const canopen_object_st *ret = NULL;
 	if (main_index < 0x2000 ||
-			main_index >= 0x3000) {
+			main_index >= 0x5000) {
 		for (uint16_t i = 0; i < com_params_count(); i++) {
 			if (com_params[i].main_index == main_index) {
 				if (check(&com_params[i], subindex)) {

@@ -200,6 +200,10 @@ void _uv_canopen_sdo_rx(const uv_can_message_st *msg);
 void _uv_canopen_sdo_abort(uint16_t request_response, uint16_t main_index,
 		uint8_t sub_index, uv_sdo_error_codes_e err_code);
 
+/// @brief: For internal use only to send can message so that
+/// it is also echoed to us if necessary
+void _uv_canopen_sdo_send(uv_can_msg_st *msg);
+
 
 
 /// @brief: Finds the object dictionary object. Used by canopen_sdo_client and server modules

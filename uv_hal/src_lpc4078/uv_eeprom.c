@@ -61,7 +61,6 @@ uv_errors_e uv_eeprom_write(const void *data, uint16_t len, uint16_t eeprom_addr
 		ret = ERR_NOT_ENOUGH_MEMORY;
 	}
 	else {
-		uv_disable_int();
 		if (Chip_EEPROM_Write(LPC_EEPROM,
 				eeprom_addr % EEPROM_PAGE_SIZE,
 				eeprom_addr / EEPROM_PAGE_SIZE,
@@ -70,7 +69,6 @@ uv_errors_e uv_eeprom_write(const void *data, uint16_t len, uint16_t eeprom_addr
 				len) != SUCCESS) {
 			ret = ERR_HARDWARE_NOT_SUPPORTED;
 		}
-		uv_enable_int();
 	}
 	return ret;
 }
@@ -84,14 +82,12 @@ uv_errors_e uv_eeprom_read(void *dest, uint16_t len, uint16_t eeprom_addr) {
 	}
 	else {
 
-		uv_disable_int();
 		Chip_EEPROM_Read(LPC_EEPROM,
 				eeprom_addr % EEPROM_PAGE_SIZE,
 				eeprom_addr / EEPROM_PAGE_SIZE,
 				dest,
 				EEPROM_RWSIZE_8BITS,
 				len);
-		uv_enable_int();
 	}
 	return ret;
 }

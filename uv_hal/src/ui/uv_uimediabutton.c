@@ -55,11 +55,11 @@ static void draw_common(void *me, bool pressed, const uv_bounding_box_st *pbb) {
 			((uv_uitogglebutton_st*) this)->active_c :
 			((uv_uibutton_st*) this)->main_c;
 	color_t shadowc = (pressed) ?
-			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 30) :
-			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, -30);
+			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 80) :
+			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, -80);
 	color_t lightc = (pressed) ?
-			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, -30) :
-			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 30);
+			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, -80) :
+			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 80);
 	int16_t x = uv_ui_get_xglobal(this);
 	int16_t y = uv_ui_get_yglobal(this);
 	int16_t w = uv_uibb(this)->width;

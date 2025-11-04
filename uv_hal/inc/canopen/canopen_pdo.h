@@ -57,20 +57,10 @@ typedef enum {
 	CANOPEN_PDO_EXT = (1 << 29)
 } canopen_pdo_cob_id_mapping_e;
 
+// when set, PDO COB-iD linkage to our NODE-ID is broken.
+// Linkage is also broken by manually modifying NODE-ID via SDO
+#define CANOPEN_PDO_RESERVED_FLAGS_BREAKNODEIDLINKAGE	(1 << 0)
 
-
-/// @brief: a nice way for defining a RXPDO
-/// communication parameters in object dictionary
-typedef struct {
-	/// @brief: COB-ID for this PDO
-	uint32_t cob_id;
-	/// @brief: Transmission type. Currently only asynchronous
-	/// transmissions are supported, so this should be set to 0xFF
-	/// by the application.
-	canopen_pdo_transmission_types_e transmission_type;
-} canopen_rxpdo_com_parameter_st;
-#define CANOPEN_RXPDO_COM_ARRAY_TYPE	CANOPEN_ARRAY32
-#define CANOPEN_RXPDO_COM_ARRAY_SIZE	2
 
 
 /// @brief: a nice way for defining a TXPDO
@@ -84,13 +74,13 @@ typedef struct {
 	canopen_pdo_transmission_types_e transmission_type;
 	// minimum time the pdo can be sent
 	int32_t inhibit_time;
-	// reserved data for internal use
-	int32_t _reserved;
+	// reserved data for internal use, used to detect the default NODE-ID linkage
+	int32_t reserved;
 	// the time delay for sending the PDO messages
 	uint32_t event_timer;
-} canopen_txpdo_com_parameter_st;
-#define CANOPEN_TXPDO_COM_ARRAY_SIZE		5
-#define CANOPEN_TXPDO_COM_ARRAY_TYPE			CANOPEN_ARRAY32
+} canopen_pdo_com_parameter_st;
+#define CANOPEN_PDO_COM_ARRAY_SIZE		5
+#define CANOPEN_PDO_COM_ARRAY_TYPE			CANOPEN_ARRAY32
 
 
 
@@ -117,10 +107,10 @@ typedef struct {
 
 
 /// @brief: Enables the PDO message by clearing the 31'th bit from the cob id
-static inline void canopen_txpdo_enable(canopen_txpdo_com_parameter_st *pdo) {
+static inline void canopen_txpdo_enable(canopen_pdo_com_parameter_st *pdo) {
 	(pdo->cob_id &= ~(1 << 31));
 }
-static inline void canopen_rxpdo_enable(canopen_rxpdo_com_parameter_st *pdo) {
+static inline void canopen_rxpdo_enable(canopen_pdo_com_parameter_st *pdo) {
 	(pdo->cob_id &= ~(1 << 31));
 }
 
@@ -147,9 +137,9 @@ canopen_pdo_mapping_parameter_st *uv_canopen_txpdo_get_mapping(uint16_t txpdo);
 
 
 /// @brief: Returns the RXPDO communication parameter assigned to RXPDO with an index of *rxpdo*
-canopen_rxpdo_com_parameter_st *uv_canopen_rxpdo_get_com(uint16_t rxpdo);
+canopen_pdo_com_parameter_st *uv_canopen_rxpdo_get_com(uint16_t rxpdo);
 
-canopen_txpdo_com_parameter_st *uv_canopen_txpdo_get_com(uint16_t txpdo);
+canopen_pdo_com_parameter_st *uv_canopen_txpdo_get_com(uint16_t txpdo);
 
 /// @brief Configures the internal pdo mapping pointers according to obj dict mapping parameter
 ///

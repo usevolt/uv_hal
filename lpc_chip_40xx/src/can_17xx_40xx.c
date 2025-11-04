@@ -303,6 +303,7 @@ STATIC uint32_t getArrayVal(uint8_t *arr, uint32_t startIndex, uint8_t byteNum)
 }
 
 /* Search the index to insert the new entry */
+// Usevolt update: takes CAN channel as an argument
 STATIC int32_t searchInsertIndex(uint32_t *arr, uint32_t arrNum, uint32_t val, uint32_t mask, uint8_t unitSize)
 {
 	uint32_t LowerIndex, UpperIndex, MidIndex;
@@ -415,6 +416,7 @@ STATIC Status insertSTDEntry(LPC_CANAF_T *pCANAF,
 		getSectionAddress(pCANAF, CANAF_RAM_EFF_GRP_SEC, &StartAddr, &EndAddr);
 		setSectionEndAddress(pCANAF, CANAF_RAM_EFF_GRP_SEC, EndAddr + 2);
 	}
+
 
 	/* Shift rows behind the row of search index. If search index  is low index of the row, shift the row of search index also. */
 	if ((IDIndex % 2) == 0) {
@@ -1082,47 +1084,55 @@ Status Chip_CAN_InsertGroupSTDEntry(LPC_CANAF_T *pCANAF,
 	/* Search for Index of the entry which upper the new item */
 	for (InsertIndex = StartRow; InsertIndex <= EndRow; InsertIndex++) {
 		LowerID = (pCANAFRam->MASK[InsertIndex] >> (16 + CAN_STD_ENTRY_ID_POS)) & CAN_STD_ENTRY_ID_MASK;
+		uint16_t LowerChn = (pCANAFRam->MASK[InsertIndex] >> CAN_STD_ENTRY_CTRL_NO_POS) & CAN_STD_ENTRY_CTRL_NO_MASK;
 		UpperID = (pCANAFRam->MASK[InsertIndex] >> CAN_STD_ENTRY_ID_POS) & CAN_STD_ENTRY_ID_MASK;
-		if (LowerID >= pEntry->LowerID.ID_11) {
+		if (LowerID > pEntry->LowerID.ID_11 ||
+				(LowerID == pEntry->LowerID.ID_11 &&
+						LowerChn == pEntry->LowerID.CtrlNo)) {
 			break;
 		}
 	}
 
 	/* Compare to the previous row (if any)*/
-	if (InsertIndex > 0) {
-		uint16_t PrevUpperID;
-		PrevUpperID = (pCANAFRam->MASK[InsertIndex - 1] >> CAN_STD_ENTRY_ID_POS) & CAN_STD_ENTRY_ID_MASK;
-
-		if (PrevUpperID >= pEntry->UpperID.ID_11) {
-			return SUCCESS;
-		}
-
-		if (pEntry->UpperID.ID_11 < LowerID) {
-			if (pEntry->LowerID.ID_11 < PrevUpperID) {	/* The new range is merged to the range of the previous row */
-				uint32_t val = pCANAFRam->MASK[InsertIndex - 1] & 0xFFFF0000;
-				pCANAFRam->MASK[InsertIndex - 1] = val | createStdIDEntry(&pEntry->UpperID, false);
+	uint16_t chn = (pCANAFRam->MASK[InsertIndex - 1] >> CAN_STD_ENTRY_CTRL_NO_POS) & CAN_STD_ENTRY_CTRL_NO_MASK;
+	if (chn == pEntry->LowerID.CtrlNo) {
+		if (InsertIndex > 0) {
+			uint16_t PrevUpperID;
+			PrevUpperID = (pCANAFRam->MASK[InsertIndex - 1] >> CAN_STD_ENTRY_ID_POS) & CAN_STD_ENTRY_ID_MASK;
+			if (chn == pEntry->UpperID.CtrlNo &&
+					PrevUpperID >= pEntry->UpperID.ID_11) {
 				return SUCCESS;
 			}
-			else {
-				goto insert_grp_entry;
+
+			if (pEntry->UpperID.ID_11 < LowerID) {
+				if (pEntry->LowerID.ID_11 < PrevUpperID) {	/* The new range is merged to the range of the previous row */
+					uint32_t val = pCANAFRam->MASK[InsertIndex - 1] & 0xFFFF0000;
+					pCANAFRam->MASK[InsertIndex - 1] = val | createStdIDEntry(&pEntry->UpperID, false);
+					return SUCCESS;
+				}
+				else {
+					goto insert_grp_entry;
+				}
 			}
 		}
-	}
 
-	/* Compare to the next row  (if any)*/
-	if ((EndRow) && (InsertIndex <= EndRow)) {
-		if (pEntry->UpperID.ID_11 >= UpperID) {	/* The new range is merged to the range of the next row */
-			uint32_t val;
-			val = createStdIDEntry(&pEntry->LowerID, false) << 16;
-			val |= createStdIDEntry(&pEntry->UpperID, false);
-			pCANAFRam->MASK[InsertIndex] = val;
-			return SUCCESS;
-		}
-		else if (pEntry->UpperID.ID_11 < UpperID) {
-			if (pEntry->UpperID.ID_11 > LowerID) {	/* The new range is merged to the range of the next row */
-				uint32_t val = pCANAFRam->MASK[InsertIndex] & 0x0000FFFF;
-				pCANAFRam->MASK[InsertIndex] = val | (createStdIDEntry(&pEntry->LowerID, false) << 16);
+		/* Compare to the next row  (if any)*/
+		if ((EndRow) && (InsertIndex <= EndRow)) {
+			/* The new range is merged to the range of the next row */
+			if (pEntry->UpperID.ID_11 >= UpperID) {
+				uint32_t val;
+				val = createStdIDEntry(&pEntry->LowerID, false) << 16;
+				val |= createStdIDEntry(&pEntry->UpperID, false);
+				pCANAFRam->MASK[InsertIndex] = val;
 				return SUCCESS;
+			}
+			else if (pEntry->UpperID.ID_11 < UpperID) {
+				/* The new range is merged to the range of the next row */
+				if (pEntry->UpperID.ID_11 > LowerID) {
+					uint32_t val = pCANAFRam->MASK[InsertIndex] & 0x0000FFFF;
+					pCANAFRam->MASK[InsertIndex] = val | (createStdIDEntry(&pEntry->LowerID, false) << 16);
+					return SUCCESS;
+				}
 			}
 		}
 	}
@@ -1175,42 +1185,48 @@ Status Chip_CAN_InsertGroupEXTEntry(LPC_CANAF_T *pCANAF,
 	/* Search for Index of new entry */
 	for (InsertIndex = StartRow; InsertIndex <= EndRow; InsertIndex += 2) {
 		LowerID = (pCANAFRam->MASK[InsertIndex] >> CAN_EXT_ENTRY_ID_POS) & CAN_EXT_ENTRY_ID_MASK;
+		uint16_t LowerChn = (pCANAFRam->MASK[InsertIndex] >> CAN_EXT_ENTRY_CTRL_NO_POS) & CAN_EXT_ENTRY_CTRL_NO_MASK;
 		UpperID = (pCANAFRam->MASK[InsertIndex + 1] >> CAN_EXT_ENTRY_ID_POS) & CAN_EXT_ENTRY_ID_MASK;
-		if (LowerID >= pEntry->LowerID.ID_29) {
+		if (LowerID > pEntry->LowerID.ID_29 ||
+				(LowerID == pEntry->LowerID.ID_29 &&
+						LowerChn == pEntry->LowerID.CtrlNo)) {
 			break;
 		}
 	}
 
+	uint16_t chn = (pCANAFRam->MASK[InsertIndex] >> CAN_EXT_ENTRY_CTRL_NO_POS) & CAN_EXT_ENTRY_CTRL_NO_MASK;
 	/* Compare to the previous row (if any)*/
-	if (InsertIndex > 0) {
-		uint32_t PrevUpperID;
-		PrevUpperID = (pCANAFRam->MASK[(InsertIndex - 2) + 1] >> CAN_EXT_ENTRY_ID_POS) & CAN_EXT_ENTRY_ID_MASK;
+	if (chn == pEntry->LowerID.CtrlNo) {
+		if (InsertIndex > 0) {
+			uint32_t PrevUpperID;
+			PrevUpperID = (pCANAFRam->MASK[(InsertIndex - 2) + 1] >> CAN_EXT_ENTRY_ID_POS) & CAN_EXT_ENTRY_ID_MASK;
 
-		if (PrevUpperID >= pEntry->UpperID.ID_29) {
-			return SUCCESS;
-		}
-
-		if (pEntry->UpperID.ID_29 < LowerID) {
-			if (pEntry->LowerID.ID_29 < PrevUpperID) {
-				pCANAFRam->MASK[(InsertIndex - 2) + 1] = createExtIDEntry(&pEntry->UpperID);
+			if (PrevUpperID >= pEntry->UpperID.ID_29) {
 				return SUCCESS;
 			}
-			else {
-				goto insert_grp_entry;
+
+			if (pEntry->UpperID.ID_29 < LowerID) {
+				if (pEntry->LowerID.ID_29 < PrevUpperID) {
+					pCANAFRam->MASK[(InsertIndex - 2) + 1] = createExtIDEntry(&pEntry->UpperID);
+					return SUCCESS;
+				}
+				else {
+					goto insert_grp_entry;
+				}
 			}
 		}
-	}
 
-	if ((EndRow) && (InsertIndex < EndRow)) {
-		if (pEntry->UpperID.ID_29 >= UpperID) {
-			pCANAFRam->MASK[InsertIndex] = createExtIDEntry(&pEntry->LowerID);
-			pCANAFRam->MASK[InsertIndex + 1] = createExtIDEntry(&pEntry->UpperID);
-			return SUCCESS;
-		}
-		else if (pEntry->UpperID.ID_29 < UpperID) {
-			if (pEntry->UpperID.ID_29 > LowerID) {
+		if ((EndRow) && (InsertIndex < EndRow)) {
+			if (pEntry->UpperID.ID_29 >= UpperID) {
 				pCANAFRam->MASK[InsertIndex] = createExtIDEntry(&pEntry->LowerID);
+				pCANAFRam->MASK[InsertIndex + 1] = createExtIDEntry(&pEntry->UpperID);
 				return SUCCESS;
+			}
+			else if (pEntry->UpperID.ID_29 < UpperID) {
+				if (pEntry->UpperID.ID_29 > LowerID) {
+					pCANAFRam->MASK[InsertIndex] = createExtIDEntry(&pEntry->LowerID);
+					return SUCCESS;
+				}
 			}
 		}
 	}

@@ -53,6 +53,8 @@
 #if CONFIG_TERMINAL_USBDVCOM
 #include "cdc_vcom.h"
 #endif
+#include CONFIG_MAIN_H
+#include <uv_hal_config.h>
 
 
 
@@ -86,6 +88,7 @@ void uv_terminal_disable(void) {
 void uv_terminal_help_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 void uv_terminal_dev_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 void uv_terminal_nodeid_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
+void uv_terminal_baud_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 #if CONFIG_TERMINAL_INSTRUCTIONS
 void uv_terminal_man_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv);
 #endif
@@ -119,6 +122,14 @@ const uv_command_st common_cmds[] = {
 				.instructions = "Returns or sets the device's CANopen Node ID.",
 #endif
 				.callback = &uv_terminal_nodeid_callb
+		},
+		{
+				.id = CMD_NODEID,
+				.str = "baud",
+#if CONFIG_TERMINAL_INSTRUCTIONS
+				.instructions = "Returns or sets the CAN bus baudrate",
+#endif
+				.callback = &uv_terminal_baud_callb
 		},
 #if CONFIG_TERMINAL_INSTRUCTIONS
 		{
@@ -379,6 +390,26 @@ void uv_terminal_nodeid_callb(void *me, unsigned int cmd, unsigned int args, arg
 		printf("Node ID: 0x%x\n", uv_canopen_get_our_nodeid());
 	}
 }
+
+
+void uv_terminal_baud_callb(void *me, unsigned int cmd, unsigned int args, argument_st * argv) {
+	if (args && argv[0].type == ARG_INTEGER) {
+		if (argv[0].number == 125000 ||
+				argv[0].number == 250000 ||
+				argv[0].number == 500000 ||
+				argv[0].number == 1000000) {
+			CONFIG_NON_VOLATILE_START.can_baudrate = argv[0].number;
+			printf("CAN baudrate set to %u. Save and reset to apply changes.\n",
+					argv[0].number);
+		}
+		else {
+			printf("Supported baudrates are 125000, 250000, 500000 or 1000000\n");
+		}
+
+		printf("CAN baudrate: %u baud/s\n", CONFIG_NON_VOLATILE_START.can_baudrate);
+	}
+}
+
 
 
 #if CONFIG_TERMINAL_INSTRUCTIONS

@@ -459,7 +459,9 @@ void HardFault_Handler(void) {
 #if defined(CONFIG_HARDFAULT_CALLBACK)
 	CONFIG_HARDFAULT_CALLBACK ();
 #endif
+#if CONFIG_PRINTF_MUTEX
 	uv_mutex_unlock(&printf_mutex);
+#endif
 	printf("HardFault\r");
 }
 void MemManage_Handler(void) {
@@ -480,3 +482,63 @@ void IntDefaultHandler(void) {
 bool uv_isdigit(char c) {
 	return (c >= '0') && (c <= '9');
 }
+
+
+uint64_t ntouint64(uint64_t netdata) {
+	uint64_t ret = 0;
+
+	ret |= (((uint64_t) ((uint8_t*) &netdata)[0]) << 56);
+	ret |= (((uint64_t) ((uint8_t*) &netdata)[1]) << 48);
+	ret |= (((uint64_t) ((uint8_t*) &netdata)[2]) << 40);
+	ret |= (((uint64_t) ((uint8_t*) &netdata)[3]) << 32);
+	ret |= (((uint64_t) ((uint8_t*) &netdata)[4]) << 24);
+	ret |= (((uint64_t) ((uint8_t*) &netdata)[5]) << 16);
+	ret |= (((uint64_t) ((uint8_t*) &netdata)[6]) << 8);
+	ret |= (((uint64_t) ((uint8_t*) &netdata)[7]) << 0);
+
+	return ret;
+}
+
+uint32_t ntouint32(uint32_t netdata) {
+	uint32_t ret = 0;
+
+	ret |= (((uint32_t) ((uint8_t*) &netdata)[0]) << 24);
+	ret |= (((uint32_t) ((uint8_t*) &netdata)[1]) << 16);
+	ret |= (((uint32_t) ((uint8_t*) &netdata)[2]) << 8);
+	ret |= (((uint32_t) ((uint8_t*) &netdata)[3]) << 0);
+
+	return ret;
+}
+
+
+
+uint16_t ntouint16(uint16_t netdata) {
+	uint16_t ret = 0;
+
+	ret |= (((uint16_t) ((uint8_t*) &netdata)[0]) << 8);
+	ret |= (((uint16_t) ((uint8_t*) &netdata)[1]) << 0);
+
+	return ret;
+}
+
+
+
+void uv_ts_init(uv_ts_st *t) {
+	t->last_tick_count = uv_rtos_get_tick_count();
+	t->step_ms = 0;
+}
+
+
+
+void uv_ts_step(uv_ts_st *t) {
+	uint32_t tick_count = uv_rtos_get_tick_count();
+	if (tick_count < t->last_tick_count) {
+		t->step_ms = UINT32_MAX - t->last_tick_count + tick_count;
+	}
+	else {
+		t->step_ms = tick_count - t->last_tick_count;
+	}
+	t->last_tick_count = tick_count;
+}
+
+

@@ -111,7 +111,9 @@ typedef uint32_t uv_bootloader_wait_t;
 /// @brief: Data type which should be used to mark the start of
 /// non-volatile data section. Define a variable of this type as the
 /// first variable in the data section.
-typedef struct __attribute__((packed)) {
+///
+/// @note: Data should be packed and aligned, as at least LPC4078 requires word align
+typedef struct __attribute__((packed)) __attribute__((aligned(4))) {
 	// *****************************************************************************
 	// NOTE: THE BYTE ORDER OF THIS IS HARDCODED IN UV_BOOTLOADER. DO NOT CHANGE IT!
 	//	****************************************************************************

@@ -55,6 +55,7 @@ uv_errors_e uv_timer_init(uv_timers_e timer) {
 	}
 	else {
 		Chip_TIMER_Init(timers[timer]);
+		Chip_TIMER_PrescaleSet(timers[timer], 0);
 	}
 
 	return ret;
@@ -87,7 +88,14 @@ void uv_timer_clear(uv_timers_e timer) {
 
 uint32_t uv_timer_get_us(uv_timers_e timer) {
 	uint32_t count = (uint64_t) Chip_TIMER_ReadCount(timers[timer]) * 1000000 /
-			Chip_Clock_GetSystemClockRate();
+			Chip_Clock_GetPeripheralClockRate();
+	return count;
+}
+
+
+uint32_t uv_timer_get_ns(uv_timers_e timer) {
+	uint32_t count = (uint64_t) Chip_TIMER_ReadCount(timers[timer]) * 1000 /
+			(Chip_Clock_GetPeripheralClockRate() / 1000000);
 	return count;
 }
 

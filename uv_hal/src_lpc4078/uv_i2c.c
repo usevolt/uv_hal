@@ -61,9 +61,6 @@ static void i2c_transfer_int_callb(uint32_t err_code, uint32_t n);
 
 
 
-#if CONFIG_I2C_ASYNC
-#error "I2C_ASYNC mode not implemented on LPC4078"
-#endif
 
 
 uv_errors_e _uv_i2c_init(void) {
@@ -73,7 +70,7 @@ uv_errors_e _uv_i2c_init(void) {
 #if CONFIG_I2C0_SDA_IO == P0_27
 	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 27, FUNC1 | MD_HS_ENA);
 #elif CONFIG_I2C0_SDA_IO == P1_30
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 30, FUNC4 | MD_HS_ENA | MD_ANA_DIS);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 30, FUNC4 | MD_HS_ENA | MD_ANA_DIS | MD_OD_ENA);
 #elif CONFIG_I2C0_SDA_IO == P5_2
 #if CONFIG_I2C0_BAUDRATE <= 40000
 	Chip_IOCON_PinMuxSet(LPC_IOCON, 5, 2, FUNC5 | MD_HS_ENA);
@@ -84,7 +81,7 @@ uv_errors_e _uv_i2c_init(void) {
 #error "CONFIG_I2C0_SDA_IO doesnt define suitable IO pin"
 #endif
 #if CONFIG_I2C0_SCL_IO == P1_31
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 31, FUNC4 | MD_HS_ENA | MD_ANA_DIS);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 31, FUNC4 | MD_HS_ENA | MD_ANA_DIS | MD_OD_ENA);
 #elif CONFIG_I2C0_SCL_IO == P0_28
 	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 28, FUNC1 | MD_HS_ENA);
 #elif CONFIG_I2C0_SCL_IO == P5_3
@@ -106,20 +103,20 @@ uv_errors_e _uv_i2c_init(void) {
 
 #if CONFIG_I2C1
 #if CONFIG_I2C1_SDA_IO == P0_0
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 0, FUNC3 | MD_HS_ENA);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 0, FUNC3 | MD_HS_ENA | MD_OD_ENA);
 #elif CONFIG_I2C1_SDA_IO == P1_19
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 19, FUNC3 | MD_HS_ENA);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 19, FUNC3 | MD_HS_ENA | MD_OD_ENA);
 #elif CONFIG_I2C1_SDA_IO == P2_14
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 2, 14, FUNC2 | MD_HS_ENA);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 2, 14, FUNC2 | MD_HS_ENA | MD_OD_ENA);
 #else
 #error "CONFIG_I2C1_SDA_IO doesnt define suitable IO pin"
 #endif
 #if CONFIG_I2C1_SCL_IO == P0_1
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 1, FUNC3 | MD_HS_ENA);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 1, FUNC3 | MD_HS_ENA | MD_OD_ENA);
 #elif CONFIG_I2C1_SCL_IO == P0_20
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 20, FUNC3 | MD_HS_ENA);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 20, FUNC3 | MD_HS_ENA | MD_OD_ENA);
 #elif CONFIG_I2C1_SCL_IO == P2_15
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 2, 15, FUNC2 | MD_HS_ENA);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 2, 15, FUNC2 | MD_HS_ENA | MD_OD_ENA);
 #else
 #error "CONFIG_I2C1_SCL_IO doesnt define suitable IO pin"
 #endif
@@ -131,20 +128,20 @@ uv_errors_e _uv_i2c_init(void) {
 
 #if CONFIG_I2C2
 #if CONFIG_I2C2_SDA_IO == P0_10
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 10, FUNC2 | MD_HS_ENA);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 10, FUNC2 | MD_HS_ENA | MD_OD_ENA);
 #elif CONFIG_I2C2_SDA_IO == P1_15
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 15, FUNC3 | MD_HS_ENA);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 1, 15, FUNC3 | MD_HS_ENA | MD_OD_ENA);
 #elif CONFIG_I2C2_SDA_IO == P2_30
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 2, 30, FUNC2 | MD_HS_ENA);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 2, 30, FUNC2 | MD_HS_ENA | MD_OD_ENA);
 #else
 #error "CONFIG_I2C2_SDA_IO doesnt define suitable IO pin"
 #endif
 #if CONFIG_I2C2_SCL_IO == P0_11
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 11, FUNC2 | MD_HS_ENA);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 0, 11, FUNC2 | MD_HS_ENA | MD_OD_ENA);
 #elif CONFIG_I2C2_SCL_IO == P2_31
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 2, 31, FUNC2 | MD_HS_ENA);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 2, 31, FUNC2 | MD_HS_ENA | MD_OD_ENA);
 #elif CONFIG_I2C2_SCL_IO == P4_21
-	Chip_IOCON_PinMuxSet(LPC_IOCON, 4, 21, FUNC2 | MD_HS_ENA);
+	Chip_IOCON_PinMuxSet(LPC_IOCON, 4, 21, FUNC2 | MD_HS_ENA | MD_OD_ENA);
 #else
 #error "CONFIG_I2C2_SCL_IO doesnt define suitable IO pin"
 #endif

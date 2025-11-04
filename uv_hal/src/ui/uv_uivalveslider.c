@@ -91,8 +91,8 @@ static void draw_handle(void *me, int16_t handle_index, int16_t x_global, int16_
 	uv_ui_draw_shadowrrect(x_mid - CONFIG_UIVALVESLIDER_HANDLE_WIDTH / 2,
 			y_global, CONFIG_UIVALVESLIDER_HANDLE_WIDTH, height,
 			CONFIG_UI_RADIUS, handle_c,
-			uv_uic_brighten(handle_c, 30),
-			uv_uic_brighten(handle_c, -30));
+			uv_uic_brighten(handle_c, 80),
+			uv_uic_brighten(handle_c, -80));
 
 	uv_ui_draw_string(this->handle_strs[handle_index], this->font,
 			x_mid, y_global + height / 2 -

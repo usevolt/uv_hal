@@ -78,29 +78,7 @@
 /// @brief: Defines UARTS usable on the target system
 /// @note: All systems must define UART_COUNT member which defines the maximum number of UARTs.
 typedef enum {
-#if CONFIG_TARGET_LPC11C14
-#if CONFIG_UART0
-	UART0		= 0,
-#endif
-	UART_COUNT 	= 1
-#elif CONFIG_TARGET_LPC1785
-#if CONFIG_UART0
-	UART0 		= 0,
-#endif
-#if CONFIG_UART1
-	UART1 		= 1,
-#endif
-#if CONFIG_UART2
-	UART2 		= 2,
-#endif
-#if CONFIG_UART3
-	UART3 		= 3,
-#endif
-#if CONFIG_UART4
-	UART4 		= 4,
-#endif
-	UART_COUNT 	= 5
-#elif CONFIG_TARGET_LPC15XX
+#if CONFIG_TARGET_LPC15XX
 #if CONFIG_UART0
 	UART0 = (uint32_t) LPC_USART0,
 #endif
@@ -111,6 +89,15 @@ typedef enum {
 	UART2 = (uint32_t) LPC_USART2,
 #endif
 	UART_COUNT = 3
+#elif CONFIG_TARGET_LPC40XX
+	UART0 = 0,
+	UART1,
+	UART2,
+	UART3,
+	UART_COUNT
+#else
+	UART0 = 0,
+	UART_COUNT
 #endif
 } uv_uarts_e;
 
@@ -134,13 +121,13 @@ uv_errors_e _uv_uart_init(uv_uarts_e uart);
 /// @return: uv_errors_e describing if an error occurred. If succesful, ERR_NONE is returned.
 uv_errors_e uv_uart_send_char 	(uv_uarts_e uart, char buffer);
 
-/// @brief: sends a string synchronously
+/// @brief: sends a string asynchronously
 /// function returns when last character has put into transfer buffer
 ///
-/// @return: uv_errors_e describing if an error occurred. If succesful, ERR_NONE is returned.
+/// @return: Count of bytes succesfully written
 ///
 /// @param length How many characters will be sent
-uv_errors_e uv_uart_send     	(uv_uarts_e uart, char *buffer, uint32_t length);
+int32_t uv_uart_send     	(uv_uarts_e uart, char *buffer, uint32_t length);
 
 /// @brief: sends a string synchronously
 /// function returns when last character has put into transfer buffer.
@@ -151,11 +138,42 @@ uv_errors_e uv_uart_send     	(uv_uarts_e uart, char *buffer, uint32_t length);
 /// String to be send MUST be null-terminated string
 uv_errors_e uv_uart_send_str		(uv_uarts_e uart, char *buffer);
 
+
+int32_t uv_uart_get_tx_free_space(uv_uarts_e uart);
+
+
+/// @brief: Starts to send serial break -condition to UART, forcing TX line to low
+/// until *uv_uart_break_stop()* is called
+void uv_uart_break_start(uv_uarts_e uart);
+
+void uv_uart_break_stop(uv_uarts_e uart);
+
+
 /// @brief: Gets the oldest received byte from the UART buffer and stores it
 /// to 'dest'.
-uv_errors_e uv_uart_get_char(uv_uarts_e uart, char *dest);
+int32_t uv_uart_get(uv_uarts_e uart, char *dest, uint32_t max_len, int wait_ms);
 
 
+/// @brief: Receive up to *max_len* bytes from uart and compare that to *str*.
+/// Returns true if received data matches, false otherwise or if *wait_ms*
+/// time has passed without receiving anything
+bool uv_uart_receive_cmp(uv_uarts_e uart, char *str, uint32_t max_len, int wait_ms);
+
+
+
+/// @brief: Sets the baudrate on-the-go
+#if CONFIG_TARGET_LPC15XX
+static inline void uv_uart_set_baudrate(uv_uarts_e uart, unsigned int baudrate) {
+	Chip_UART_SetBaud((LPC_USART_T*) uart, baudrate);
+}
+#else
+void uv_uart_set_baudrate(uv_uarts_e uart, unsigned int baudrate);
+
+#endif
+
+
+
+void uv_uart_clear_rx_buffer(uv_uarts_e uart);
 
 /// @brief: Registers a receive callback function when anything is received via uart
 ///
@@ -165,6 +183,10 @@ uv_errors_e uv_uart_get_char(uv_uarts_e uart, char *dest);
 /// @return: uv_errors_e describing if an error occurred. If succesful, ERR_NONE is returned.
 void uv_uart_add_callback(uv_uarts_e uart,
 		void (*callback_function)(void* user_ptr, uv_uarts_e uart));
+
+
+/// @brief: Step function meant to be called inside hal task
+void _uv_uart_hal_step(uint16_t step_ms);
 
 
 #endif

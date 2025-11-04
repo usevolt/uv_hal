@@ -67,6 +67,10 @@ uv_errors_e uv_gpio_enable_int(uv_gpios_e gpio, uv_gpio_interrupt_config_e confs
 
 		uv_gpio_disable_int(gpio);
 
+		Chip_GPIOINT_ClearIntStatus(LPC_GPIOINT,
+				uv_gpio_get_port(gpio),
+				(1 << uv_gpio_get_pin(gpio)));
+
 		if ((confs & INT_RISING_EDGE) ||
 				(confs & INT_LEVEL_HIGH)) {
 			Chip_GPIOINT_SetIntRising(LPC_GPIOINT, uv_gpio_get_port(gpio),
@@ -110,7 +114,7 @@ void GPIO_IRQHandler(void) {
 		}
 		if (p0_pins | (1 << i)) {
 			callback(P0_0 + i);
-			Chip_GPIOINT_ClearIntStatus(LPC_GPIOINT, 0, i);
+			Chip_GPIOINT_ClearIntStatus(LPC_GPIOINT, 0, (1 << i));
 		}
 	}
 	uint32_t p2_pins = Chip_GPIOINT_GetStatusFalling(LPC_GPIOINT, 2) |
@@ -121,7 +125,7 @@ void GPIO_IRQHandler(void) {
 		}
 		if (p2_pins | (1 << i)) {
 			callback(P2_0 + i);
-			Chip_GPIOINT_ClearIntStatus(LPC_GPIOINT, 2, i);
+			Chip_GPIOINT_ClearIntStatus(LPC_GPIOINT, 2, (1 << i));
 		}
 	}
 }

@@ -59,19 +59,26 @@ uv_errors_e _uv_eeprom_init(void) {
 
 uv_errors_e uv_eeprom_write(const void *data, uint16_t len, uint16_t eeprom_addr) {
 	uv_errors_e ret = ERR_NONE;
-	// top 64 bytes are reserved
-	eeprom_addr += 64;
 
 	// out of EEPROM memory
 	if (eeprom_addr + len > _UV_EEPROM_SIZE) {
 		ret = ERR_NOT_ENOUGH_MEMORY;
 	}
 	else {
-		uv_disable_int();
-		if (Chip_EEPROM_Write(eeprom_addr, (void*) data, len) != IAP_CMD_SUCCESS) {
-			ret = ERR_HARDWARE_NOT_SUPPORTED;
+		bool new_data = false;
+		for (uint32_t i = 0; i < len; i++) {
+			uint8_t d;
+			uv_eeprom_read(&d, 1, eeprom_addr + i);
+			if (d != ((uint8_t*) data)[i]) {
+				new_data = true;
+				break;
+			}
 		}
-		uv_enable_int();
+		if (new_data) {
+			if (Chip_EEPROM_Write(eeprom_addr, (void*) data, len) != IAP_CMD_SUCCESS) {
+				ret = ERR_HARDWARE_NOT_SUPPORTED;
+			}
+		}
 	}
 	return ret;
 }
@@ -79,19 +86,15 @@ uv_errors_e uv_eeprom_write(const void *data, uint16_t len, uint16_t eeprom_addr
 
 uv_errors_e uv_eeprom_read(void *dest, uint16_t len, uint16_t eeprom_addr) {
 	uv_errors_e ret = ERR_NONE;
-	// top 64 bytes are reserved
-	eeprom_addr += 64;
 
 	if (eeprom_addr + len > _UV_EEPROM_SIZE) {
 		ret = ERR_NOT_ENOUGH_MEMORY;
 	}
 	else {
 
-		uv_disable_int();
 		if (Chip_EEPROM_Read(eeprom_addr, dest, len) != IAP_CMD_SUCCESS) {
 			ret = ERR_HARDWARE_NOT_SUPPORTED;
 		}
-		uv_enable_int();
 	}
 	return ret;
 }

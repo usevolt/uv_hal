@@ -83,10 +83,11 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 		int16_t hx = uv_lerpi(hpx, 0, uv_uibb(this)->width - CONFIG_UI_SLIDER_WIDTH - 1);
 
 		uv_ui_draw_shadowrrect(x, y + h / 2 - 5, w, 10, CONFIG_UI_RADIUS,
-				this->bg_c, uv_uic_brighten(this->bg_c, 30), uv_uic_brighten(this->bg_c, -30));
+				this->bg_c, uv_uic_brighten(this->bg_c, 80), uv_uic_brighten(this->bg_c, -80));
 		// handle
 		uv_ui_draw_shadowrrect(x + hx, y, CONFIG_UI_SLIDER_WIDTH, h, CONFIG_UI_RADIUS,
-				this->handle_c, uv_uic_brighten(this->handle_c, 30), uv_uic_brighten(this->handle_c, -30));
+				this->handle_c, uv_uic_brighten(this->handle_c, 80),
+				uv_uic_brighten(this->handle_c, -80));
 		// handle text
 		if (this->show_value) {
 			char str[10] = {};
@@ -113,16 +114,16 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 						(uv_ui_get_string_height(this->title, this->font) + 5) : 0), 0);
 
 		uv_ui_draw_rrect(x + w / 2 - 7, y, 10, h - 5,
-				CONFIG_UI_RADIUS, uv_uic_brighten(this->bg_c, -30));
+				CONFIG_UI_RADIUS, uv_uic_brighten(this->bg_c, -80));
 		uv_ui_draw_rrect(x + 4 + w / 2 - 7, y + 4, 10, h - 5,
-				CONFIG_UI_RADIUS, uv_uic_brighten(this->bg_c, 30));
+				CONFIG_UI_RADIUS, uv_uic_brighten(this->bg_c, 80));
 		uv_ui_draw_rrect(x + 2 + w / 2 - 7, y + 2, 10, h - 5,
 				CONFIG_UI_RADIUS, this->bg_c);
 		// handle
 		uv_ui_draw_rrect(x, y + hy, w - 4, CONFIG_UI_SLIDER_WIDTH - 4,
-				CONFIG_UI_RADIUS, uv_uic_brighten(this->handle_c, -30));
+				CONFIG_UI_RADIUS, uv_uic_brighten(this->handle_c, -80));
 		uv_ui_draw_rrect(x + 4, y + hy + 4, w - 4, CONFIG_UI_SLIDER_WIDTH - 4,
-				CONFIG_UI_RADIUS, uv_uic_brighten(this->handle_c, 30));
+				CONFIG_UI_RADIUS, uv_uic_brighten(this->handle_c, 80));
 		uv_ui_draw_rrect(x + 2, y + hy + 2, w - 4, CONFIG_UI_SLIDER_WIDTH - 4,
 				CONFIG_UI_RADIUS, this->handle_c);
 		// handle text

@@ -37,6 +37,7 @@
 #include <uv_gpio.h>
 #if CONFIG_ADC || CONFIG_ADC1 || CONFIG_ADC0
 
+#if CONFIG_TARGET_LPC15XX
 
 #define ADC_MAX_FREQ	50000000
 
@@ -47,6 +48,7 @@
 #error "CONFIG_ADC_CONVERSION_FREQ exceeds the maximum frequency on this target MCU"
 #endif
 
+#endif
 
 
 #if !defined(CONFIG_ADC0)

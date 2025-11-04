@@ -50,7 +50,18 @@
 #if CONFIG_TERMINAL_USBDVCOM
 #include "cdc_vcom.h"
 #endif
+#include "uv_terminal.h"
 
+
+
+void vAssertCalled( const char * const pcFileName,  unsigned long ulLine ) {
+	uv_terminal_enable(TERMINAL_CAN);
+	printf_flags(PRINTF_FLAGS_NOTXCALLB,
+			"Assert in '%s', line %u\n",
+			pcFileName,
+			(unsigned int) ulLine);
+	while(true);
+}
 
 
 typedef struct {
@@ -137,19 +148,23 @@ void uv_rtos_start_scheduler(void) {
 /// hal step functions
 void hal_task(void *);
 
+void canopen_task(void *);
+
 
 int32_t uv_rtos_task_create(void (*task_function)(void *this_ptr), char *task_name,
 		unsigned int stack_depth, void *this_ptr,
 		unsigned int task_priority, uv_rtos_task_ptr* handle) {
 	static unsigned int size = 0;
-	size += stack_depth * 4;
-	if (size >= CONFIG_RTOS_HEAP_SIZE) {
-		while(true) {
-			printf("Out of memory\r");
-		}
-	}
-	return xTaskCreate(task_function, (const char * const)task_name, stack_depth,
+
+	int32_t ret = xTaskCreate(task_function, (const char * const)task_name, stack_depth,
 			this_ptr, task_priority, handle);
+
+	if (ret == errCOULD_NOT_ALLOCATE_REQUIRED_MEMORY) {
+		uv_terminal_enable(TERMINAL_CAN);
+		printf("RTOS ERR: Could not allocate memory for task '%s'\n",
+				task_name);
+	}
+	return ret;
 }
 
 
@@ -183,10 +198,10 @@ void vApplicationIdleHook(void)
 }
 
 /* FreeRTOS stack overflow hook */
-void vApplicationStackOverflowHook(xTaskHandle pxTask, signed char *pcTaskName)
+void vApplicationStackOverflowHook( TaskHandle_t xTask,
+                                          char * pcTaskName )
 {
-	(void) pxTask;
-	(void) pcTaskName;
+	(void) xTask;
 
 	printf("stack overflow from task: %s\n", pcTaskName);
 	/* Run time stack overflow checking is performed if
@@ -299,6 +314,8 @@ void uv_init(void *device) {
 
 	uv_rtos_task_create(hal_task, "uv_hal",
 			UV_RTOS_MIN_STACK_SIZE, NULL, CONFIG_HAL_TASK_PRIORITY, &hal_task_ptr);
+	uv_rtos_task_create(canopen_task, "canopen",
+			UV_RTOS_MIN_STACK_SIZE, NULL, UV_RTOS_IDLE_PRIORITY + 1, NULL);
 }
 
 
@@ -316,24 +333,29 @@ void uv_data_reset() {
 
 
 
+
 void hal_task(void *nullptr) {
 
 	uint16_t step_ms = CONFIG_HAL_STEP_MS;
+	uv_ts_st ts;
+	uv_ts_init(&ts);
 	rtos_init = true;
 
 	while (true) {
+		uv_ts_step(&ts);
+
 		_uv_rtos_halmutex_lock();
 
 #if CONFIG_CAN
-		_uv_can_hal_step(step_ms);
+		_uv_can_hal_step(uv_ts_get_step_ms(&ts));
+#endif
+
+#if CONFIG_UART
+		_uv_uart_hal_step(uv_ts_get_step_ms(&ts));
 #endif
 
 #if CONFIG_TERMINAL_CAN
-		_uv_stdout_hal_step(step_ms);
-#endif
-
-#if CONFIG_CANOPEN
-		_uv_canopen_step(step_ms);
+		_uv_stdout_hal_step(uv_ts_get_step_ms(&ts));
 #endif
 
 		_uv_rtos_halmutex_unlock();
@@ -342,6 +364,24 @@ void hal_task(void *nullptr) {
 	}
 }
 
+
+
+void canopen_task(void *nullptr) {
+
+	uint16_t step_ms = CONFIG_HAL_STEP_MS;
+
+	uv_ts_st ts;
+	uv_ts_init(&ts);
+
+	while (true) {
+#if CONFIG_CANOPEN
+		uv_ts_step(&ts);
+
+		_uv_canopen_step(uv_ts_get_step_ms(&ts));
+#endif
+		uv_rtos_task_delay(step_ms);
+	}
+}
 
 
 

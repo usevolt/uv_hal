@@ -150,9 +150,7 @@ void _uv_canopen_sdo_rx(const uv_can_message_st *msg) {
 				_uv_canopen_sdo_server_rx(msg, msg_type);
 	#endif
 			}
-			// SDO Client receives only SDO responses from other nodes than this device
-			else if ((GET_NODEID(msg) != NODEID) &&
-					(IS_SDO_RESPONSE(msg) ||
+			else if ((IS_SDO_RESPONSE(msg) ||
 							msg_type == ABORT_DOMAIN_TRANSFER)) {
 				_uv_canopen_sdo_client_rx(msg, msg_type, GET_NODEID(msg));
 			}
@@ -262,6 +260,16 @@ bool _canopen_write_data(const canopen_object_st *dest,
 
 
 
+void _uv_canopen_sdo_send(uv_can_msg_st *msg) {
+	uv_can_send(CONFIG_CANOPEN_CHANNEL, msg);
+	if ((msg->id & 0x7F) == NODEID) {
+		// send reply also locally if it was directed to us
+		uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, msg,
+				CAN_SEND_FLAGS_LOCAL |
+				CAN_SEND_FLAGS_NO_TX_CALLB);
+	}
+}
+
 
 
 void _uv_canopen_sdo_abort(uint16_t request_response, uint16_t main_index,
@@ -275,7 +283,7 @@ void _uv_canopen_sdo_abort(uint16_t request_response, uint16_t main_index,
 	msg.data_8bit[2] = main_index / 256;
 	msg.data_8bit[3] = sub_index;
 	msg.data_32bit[1] = err_code;
-	uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
+	_uv_canopen_sdo_send(&msg);
 }
 
 

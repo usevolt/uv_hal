@@ -47,8 +47,11 @@
 
 #include "uv_errors.h"
 #include "FreeRTOS.h"
+#include "stream_buffer.h"
+#include "message_buffer.h"
 #include "task.h"
 #include "semphr.h"
+#include "uv_utilities.h"
 #include <uv_hal_config.h>
 
 #if !defined(CONFIG_RTOS_HEAP_SIZE)
@@ -97,9 +100,6 @@
 #elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 #define uv_disable_int()
 #endif
-/// @brief: Disabled all interrupts. This is meant to be called from
-/// inside interrupt routines.
-#define uv_disable_int_ISR()	taskENTER_CRITICAL_FROM_ISR()
 /// @brief: Enables all interrupts. This shouldn't be called from
 /// interrupt routines, use uv_enable_int_ISR instead!
 #if (CONFIG_TARGET_LPC15XX || CONFIG_TARGET_LPC40XX)
@@ -107,21 +107,21 @@
 #elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 #define uv_enable_int()
 #endif
-/// @brief: Enabled all interrupts. This is meant to be called from
-/// inside interrupt routines.
-#define uv_enable_int_ISR()		taskEXIT_CRITICAL_FROM_ISR(1)
 
 #if (CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN)
-#define uv_enter_critical()
+#define uv_enter_critical_isr()		__NOP()
+#define uv_exit_critical_isr()		__NOP()
+#define uv_enter_critical() 		__NOP()
+#define uv_exit_critical()			__NOP()
 #else
+#define uv_enter_critical_isr()	taskENTER_CRITICAL_FROM_ISR()
+#define uv_exit_critical_isr()		taskEXIT_CRITICAL_FROM_ISR(1)
 #define uv_enter_critical()		taskENTER_CRITICAL()
-#endif
-
-#if (CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN)
-#define uv_exit_critical()
-#else
 #define uv_exit_critical()		taskEXIT_CRITICAL()
 #endif
+
+#define enter_critical(isr) do { isr ? uv_enter_critical_isr() : uv_enter_critical(); } while (0)
+#define exit_critical(isr) do { isr ? uv_exit_critical_isr() : uv_exit_critical(); } while (0)
 
 
 
@@ -161,6 +161,9 @@ static inline bool uv_mutex_lock_isr(uv_mutex_st *mutex) {
 
 void uv_mutex_unlock_isr(uv_mutex_st *mutex);
 
+
+
+
 typedef QueueHandle_t uv_queue_st;
 
 /// @brief: Creates a FreeRTOS thread-safe queue
@@ -173,6 +176,11 @@ static inline uv_queue_st uv_queue_init(uv_queue_st *this,
 	return *this;
 }
 
+/// @brief: Deletes a queue and frees all memory allocated for it
+static inline void uv_queue_delete(uv_queue_st *this) {
+	vQueueDelete(*this);
+}
+
 /// @brief: Empties the queue
 static inline void uv_queue_clear(uv_queue_st *this) {
 	xQueueReset(*this);
@@ -183,6 +191,12 @@ static inline void uv_queue_clear(uv_queue_st *this) {
 static inline int32_t uv_queue_get_len(uv_queue_st *this) {
 	return uxQueueMessagesWaiting(*this);
 }
+
+/// @brief: Returns the count of elements currently in the queue
+static inline int32_t uv_queue_get_len_isr(uv_queue_st *this) {
+	return uxQueueMessagesWaitingFromISR(*this);
+}
+
 
 /// @brief: Peeks into a buffer without removing the element
 ///
@@ -206,6 +220,126 @@ uv_errors_e uv_queue_pop(uv_queue_st *this, void *dest, int32_t wait_ms);
 uv_errors_e uv_queue_pop_isr(uv_queue_st *this, void *dest);
 
 
+typedef StreamBufferHandle_t uv_streambuffer_st;
+
+
+/// @brief: Initializes the streambuffer
+static inline uv_errors_e uv_streambuffer_init(
+		uv_streambuffer_st *this, uint32_t len_bytes) {
+	*this = xStreamBufferCreate(len_bytes, 1);
+	return (this) ? ERR_NONE : ERR_NOT_ENOUGH_MEMORY;
+}
+
+
+
+
+/// @brief: Returns the number of data currently in stream buffer, in bytes
+static inline uint32_t uv_streambuffer_get_len(uv_streambuffer_st *this) {
+	return xStreamBufferBytesAvailable(*((uv_streambuffer_st*) this));
+}
+
+/// @brief: Returns the free data space available in the stream buffer
+static inline uint32_t uv_streambuffer_get_free_space(uv_streambuffer_st *this) {
+	return xStreamBufferSpacesAvailable(*((uv_streambuffer_st*) this));
+}
+
+static inline int32_t uv_streambuffer_get_max_len(uv_streambuffer_st *this) {
+	return xStreamBufferBytesAvailable(*((uv_streambuffer_st*) this)) +
+			xStreamBufferSpacesAvailable(*((uv_streambuffer_st*) this));
+}
+
+/// @return: true if streambuffer is currently empty, false otherwise
+static inline bool uv_streambuffer_is_empty(uv_streambuffer_st *this) {
+	return xStreamBufferIsEmpty(*this);
+}
+
+/// @brief: Pushes new data to stream buffer
+static inline uint32_t uv_streambuffer_push(uv_streambuffer_st *this,
+		void *data, uint32_t len, int32_t wait_ms) {
+	return xStreamBufferSend(*this, data, len, wait_ms);
+}
+
+
+/// @brief: Puses new data into the stream buffef. Only to be used inside ISR
+static inline uint32_t uv_streambuffer_push_isr(uv_streambuffer_st *this,
+		void *data, uint32_t len) {
+	BaseType_t woken;
+	return xStreamBufferSendFromISR(*this, data, len, &woken);
+}
+
+/// @brief: Pops data out from streambuffer in FIFO manner
+static inline uint32_t uv_streambuffer_pop(uv_streambuffer_st *this,
+		void *data, uint32_t len, int32_t wait_ms) {
+	return xStreamBufferReceive(*this, data, len, wait_ms);
+}
+
+/// @brief: Pops data out from streambuffer in FIFO manner, only to be used in ISRs
+static inline uint32_t uv_streambuffer_pop_isr(uv_streambuffer_st *this,
+		void *data, uint32_t len) {
+	return xStreamBufferReceiveFromISR(*this, data, len, NULL);
+}
+
+/// @brief: Clears and resets all data stored in the stream
+static inline void uv_streambuffer_clear(uv_streambuffer_st *this) {
+	xStreamBufferReset(*this);
+}
+
+
+typedef MessageBufferHandle_t uv_msgbuffer_st;
+
+
+/// @brief: Initializes the msgbuffer
+static inline uv_errors_e uv_msgbuffer_init(
+		uv_msgbuffer_st *this, uint32_t len_bytes) {
+	*this = xMessageBufferCreate(len_bytes);
+	return (this) ? ERR_NONE : ERR_NOT_ENOUGH_MEMORY;
+}
+
+
+
+
+
+/// @brief: Returns the free data space available in the msg buffer
+static inline uint32_t uv_msgbuffer_get_free_space(uv_msgbuffer_st *this) {
+	return xMessageBufferSpacesAvailable(*((uv_msgbuffer_st*) this));
+}
+
+
+/// @return: true if msgbuffer is currently empty, false otherwise
+static inline bool uv_msgbuffer_is_empty(uv_msgbuffer_st *this) {
+	return xMessageBufferIsEmpty(*this);
+}
+
+/// @brief: Pushes new data to msg buffer
+static inline uint32_t uv_msgbuffer_push(uv_msgbuffer_st *this,
+		void *data, uint32_t len, int32_t wait_ms) {
+	return xMessageBufferSend(*this, data, len, wait_ms);
+}
+
+
+/// @brief: Puses new data into the msg buffef. Only to be used inside ISR
+static inline uint32_t uv_msgbuffer_push_isr(uv_msgbuffer_st *this,
+		void *data, uint32_t len) {
+	BaseType_t woken;
+	return xMessageBufferSendFromISR(*this, data, len, &woken);
+}
+
+/// @brief: Pops data out from msgbuffer in FIFO manner
+static inline uint32_t uv_msgbuffer_pop(uv_msgbuffer_st *this,
+		void *data, uint32_t len, int32_t wait_ms) {
+	return xMessageBufferReceive(*this, data, len, wait_ms);
+}
+
+/// @brief: Pops data out from msgbuffer in FIFO manner, only to be used in ISRs
+static inline uint32_t uv_msgbuffer_pop_isr(uv_msgbuffer_st *this,
+		void *data, uint32_t len) {
+	return xMessageBufferReceiveFromISR(*this, data, len, NULL);
+}
+
+/// @brief: Clears and resets all data stored in the msg
+static inline void uv_msgbuffer_clear(uv_msgbuffer_st *this) {
+	xMessageBufferReset(*this);
+}
 
 
 
@@ -285,7 +419,8 @@ static inline void uv_rtos_task_yield(void) {
 
 
 #if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
-#define __NOP()
+static inline void __nop(void) { }
+#define __NOP()	__nop()
 #endif
 
 

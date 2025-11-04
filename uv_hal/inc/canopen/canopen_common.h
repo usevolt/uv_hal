@@ -174,10 +174,6 @@ typedef struct {
 
 
 
-/// @brief: Usewood Vendor ID.
-/// Vendor ID can be got from CiA
-#define USEWOOD_VENDOR_ID	0
-
 /// @brief: A nice way for defining object dictionary's identity object
 /// @note: Every CANopen device should specify an identity object at index 0x1018.
 /// Difference from Cia 307 CANopen: Serial number is 16 bytes long instead of 4
@@ -190,7 +186,7 @@ typedef struct {
 	/// @brief: This device's vendor specific revision number
 	uint32_t revision_number;
 } canopen_identity_object_st;
-#define CANOPEN_IDENTITY_OBJECT_ARRAY_SIZE	7
+#define CANOPEN_IDENTITY_OBJECT_ARRAY_SIZE	12
 
 
 

@@ -56,11 +56,11 @@ static void uv_uiduallabelbutton_draw(void *me, const uv_bounding_box_st *pbb) {
 			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 20) :
 			((uv_uibutton_st*) this)->main_c;
 	color_t shadowc = ((uv_uibutton_st*) me)->state ?
-			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 30) :
-			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, -30);
+			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 80) :
+			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, -80);
 	color_t lightc = (((uv_uibutton_st*) this)->state) ?
-			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, -30) :
-			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 30);
+			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, -80) :
+			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 80);
 	color_t fontc = ((uv_uibutton_st*) this)->text_c;
 
 

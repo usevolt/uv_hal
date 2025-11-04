@@ -59,9 +59,9 @@ void uv_uibutton_draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t h = uv_uibb(this)->height;
 	color_t bgc = (this->state) ? uv_uic_brighten(this->main_c, 20) : this->main_c;
 	color_t shadowc = (this->state) ?
-			uv_uic_brighten(this->main_c, 30) : uv_uic_brighten(this->main_c, -30);
+			uv_uic_brighten(this->main_c, 80) : uv_uic_brighten(this->main_c, -80);
 	color_t lightc = (this->state) ?
-			uv_uic_brighten(this->main_c, -30) : uv_uic_brighten(this->main_c, 30);
+			uv_uic_brighten(this->main_c, -80) : uv_uic_brighten(this->main_c, 80);
 	color_t fontc = this->text_c;
 
 

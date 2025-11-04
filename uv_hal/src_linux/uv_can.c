@@ -98,6 +98,7 @@ typedef struct {
 	int32_t dev_count;
 
 	bool (*rx_callback)(void *user_ptr, uv_can_msg_st *msg);
+	bool (*tx_callb)(void *user_ptr, uv_can_msg_st *msg, can_send_flags_e flags);
 
 #if CONFIG_TERMINAL_CAN
 	uv_ring_buffer_st char_buffer;
@@ -112,9 +113,20 @@ static can_st _can = {
 		.baudrate = 250000,
 		.dev = "can0",
 		.dev_count = 0,
-		.soc = -1
+		.soc = -1,
+		.rx_callback = NULL,
+		.tx_callb = NULL
 };
 #define this (&_can)
+
+
+void uv_can_set_rx_msg_callbacks(void (*config_callb)(uv_can_channels_e chn,
+		unsigned int id,
+		unsigned int mask,
+		uv_can_msg_types_e type),
+		void (*clear_callb)(uv_can_channels_e chn)) {
+
+}
 
 
 void _uv_can_hal_send(uv_can_channels_e chn);
@@ -210,6 +222,14 @@ static bool cclose(void) {
 
 void uv_can_close(void) {
 	cclose();
+}
+
+uv_errors_e uv_can_add_tx_callback(uv_can_channels_e channel,
+		bool (*callback_function)(void *user_ptr, uv_can_msg_st *msg,
+				can_send_flags_e flags)) {
+	this->tx_callb = callback_function;
+
+	return ERR_NONE;
 }
 
 
@@ -327,6 +347,16 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 }
 
 
+uv_errors_e uv_can_config_rx_message_no_callb(
+		uv_can_channels_e chn,
+		unsigned int id,
+		unsigned int mask,
+		uv_can_msg_types_e type) {
+
+	return ERR_NONE;
+}
+
+
 uv_errors_e _uv_can_init() {
 	uv_errors_e ret = ERR_NONE;
 
@@ -371,7 +401,7 @@ uv_errors_e uv_can_add_rx_callback(uv_can_channels_e channel,
 
 
 
-uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message) {
+static uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message) {
 	uv_errors_e ret = ERR_NONE;
 
 	if (this->state == CAN_STATE_INIT) {
@@ -408,13 +438,26 @@ uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* me
 }
 
 
-uv_errors_e uv_can_send_local(uv_can_chn_e chn, uv_can_msg_st *msg) {
+
+uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
+		can_send_flags_e flags) {
+	uv_errors_e ret = ERR_NONE;
 	uv_disable_int();
-	uv_errors_e ret = uv_ring_buffer_push(&this->rx_buffer, msg);
+	if (flags & CAN_SEND_FLAGS_LOCAL) {
+		ret = uv_ring_buffer_push(&this->rx_buffer, msg);
+	}
+	if ((flags & CAN_SEND_FLAGS_SYNC) ||
+			(flags & CAN_SEND_FLAGS_NORMAL)) {
+		ret = uv_can_send_message(chn, msg);
+	}
+	if (!(flags & CAN_SEND_FLAGS_NO_TX_CALLB) &&
+			(this->tx_callb != NULL)) {
+		this->tx_callb(__uv_get_user_ptr(), msg, flags);
+	}
+
 	uv_enable_int();
 	return ret;
 }
-
 
 
 uv_errors_e uv_can_pop_message(uv_can_channels_e channel, uv_can_message_st *message) {

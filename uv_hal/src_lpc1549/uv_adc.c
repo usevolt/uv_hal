@@ -113,19 +113,22 @@ int16_t uv_adc_read(uv_adc_channels_e channel) {
 	// channel 1
 	if (channel != 0 &&
 			channel < ADC1_0) {
-		uv_disable_int();
 		Chip_ADC_DisableSequencer(LPC_ADC0, ADC_SEQA_IDX);
 		Chip_ADC_SetupSequencer(LPC_ADC0, ADC_SEQA_IDX,
 				ADC_SEQ_CTRL_CHANSEL(channel - 1) | ADC_SEQ_CTRL_HWTRIG_POLPOS);
-		for (uint16_t i = 0; i < 0x800; i++) {
-			__NOP();
+		// for some reason LPC1549 needs a bit time for ADC1 sequencer to setup.
+		// 24.10.2025 __NOP() command changed to freertos yield so that
+		// other tasks dont interrupt because of this
+		for (uint16_t i = 0; i < 0x400; i++) {
+			uv_rtos_task_yield();
 		}
 		Chip_ADC_EnableSequencer(LPC_ADC0, ADC_SEQA_IDX);
 		Chip_ADC_StartSequencer(LPC_ADC0, ADC_SEQA_IDX);
 		// wait for the conversion to finish
-		while (!(LPC_ADC0->SEQ_GDAT[ADC_SEQA_IDX] & (1 << 31)));
+		while (!(LPC_ADC0->SEQ_GDAT[ADC_SEQA_IDX] & (1 << 31))) {
+			uv_rtos_task_yield();
+		}
 		uint32_t raw = Chip_ADC_GetDataReg(LPC_ADC0, channel - 1);
-		uv_enable_int();
 		ret = ADC_DR_RESULT(raw);
 	}
 #endif
@@ -133,16 +136,16 @@ int16_t uv_adc_read(uv_adc_channels_e channel) {
 	// channel 2
 	if (channel >= ADC1_0 && channel < ADC_COUNT) {
 		channel -= ADC1_0 - 1;
-		uv_disable_int();
 		Chip_ADC_DisableSequencer(LPC_ADC1, ADC_SEQA_IDX);
 		Chip_ADC_SetupSequencer(LPC_ADC1, ADC_SEQA_IDX,
 				ADC_SEQ_CTRL_CHANSEL(channel - 1) | ADC_SEQ_CTRL_HWTRIG_POLPOS);
 		Chip_ADC_EnableSequencer(LPC_ADC1, ADC_SEQA_IDX);
 		Chip_ADC_StartSequencer(LPC_ADC1, ADC_SEQA_IDX);
 		// wait for the conversion to finish
-		while (!(LPC_ADC1->SEQ_GDAT[ADC_SEQA_IDX] & (1 << 31)));
+		while (!(LPC_ADC1->SEQ_GDAT[ADC_SEQA_IDX] & (1 << 31))) {
+			uv_rtos_task_yield();
+		}
 		uint32_t raw = Chip_ADC_GetDataReg(LPC_ADC1, channel - 1);
-		uv_enable_int();
 		ret = ADC_DR_RESULT(raw);
 	}
 #endif

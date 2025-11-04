@@ -157,16 +157,43 @@ typedef struct {
 	char char_buffer_data[CONFIG_TERMINAL_BUFFER_SIZE];
 #endif
 	bool (*rx_callback[CAN_COUNT])(void *user_ptr, uv_can_msg_st *msg);
+	bool (*tx_callback[CAN_COUNT])(void *user_ptr, uv_can_msg_st *msg, can_send_flags_e flags);
+	void (*config_rx_callb)(uv_can_channels_e chn,
+			unsigned int id,
+			unsigned int mask,
+			uv_can_msg_types_e type);
+	void (*clear_rx_callb)(uv_can_channels_e chn);
+	uint8_t sending;
 
 } can_st;
 
 
 
 static can_st _can = {
-		.init = false
+		.init = false,
+		.tx_callback[0] = NULL,
+		.rx_callback[0] = NULL,
+		.config_rx_callb = NULL,
+		.clear_rx_callb = NULL,
+		.sending = 0
 };
 #define this (&_can)
 
+
+
+static inline void can_enter_critical(void) {
+	uv_disable_int();
+	this->sending++;
+}
+
+static inline void can_exit_critical(void) {
+	if (this->sending) {
+		this->sending--;
+	}
+	if (!this->sending) {
+		uv_enable_int();
+	}
+}
 
 void _uv_can_hal_send(uv_can_channels_e chn);
 
@@ -272,6 +299,38 @@ uv_errors_e uv_can_add_rx_callback(uv_can_channels_e channel,
 }
 
 
+uv_errors_e uv_can_add_tx_callback(uv_can_channels_e channel,
+		bool (*callback_function)(void *user_ptr, uv_can_msg_st *msg,
+				can_send_flags_e flags)) {
+	this->tx_callback[channel] = callback_function;
+
+	return ERR_NONE;
+}
+
+
+static bool send_terminal(uv_can_msg_st *msg) {
+	bool ret = false;
+#if CONFIG_TERMINAL_CAN
+	// terminal characters are sent to their specific buffer
+	if (msg->id == UV_TERMINAL_CAN_RX_ID + uv_canopen_get_our_nodeid() &&
+			msg->type == CAN_STD &&
+			msg->data_8bit[0] == 0x22 &&
+			msg->data_8bit[1] == (UV_TERMINAL_CAN_INDEX & 0xFF) &&
+			msg->data_8bit[2] == UV_TERMINAL_CAN_INDEX >> 8 &&
+			msg->data_8bit[3] == UV_TERMINAL_CAN_SUBINDEX &&
+			msg->data_length > 4) {
+		uint8_t i;
+		for (i = 0; i < msg->data_length - 4; i++) {
+			uv_ring_buffer_push(&this->char_buffer,
+					(char*) &msg->data_8bit[4 + i]);
+		}
+		ret = true;
+	}
+#endif
+
+	return ret;
+}
+
 
 void CAN_IRQHandler(void) {
 	volatile uint32_t p = LPC_CAN->INT;
@@ -284,7 +343,7 @@ void CAN_IRQHandler(void) {
 			for (msg_obj = 0; msg_obj < 32; msg_obj++) {
 				if (int_pend & (1 << msg_obj)) {
 
-					__disable_irq();
+					can_enter_critical();
 
 					// read the pending object
 					read_msg_obj(msg_obj + 1);
@@ -305,31 +364,14 @@ void CAN_IRQHandler(void) {
 
 						}
 						else {
-#if CONFIG_TERMINAL_CAN
-							// terminal characters are sent to their specific buffer
-							if (msg.id == UV_TERMINAL_CAN_RX_ID + uv_canopen_get_our_nodeid() &&
-									msg.type == CAN_STD &&
-									msg.data_8bit[0] == 0x22 &&
-									msg.data_8bit[1] == (UV_TERMINAL_CAN_INDEX & 0xFF) &&
-									msg.data_8bit[2] == UV_TERMINAL_CAN_INDEX >> 8 &&
-									msg.data_8bit[3] == UV_TERMINAL_CAN_SUBINDEX &&
-									msg.data_length > 4) {
-								uint8_t i;
-								for (i = 0; i < msg.data_length - 4; i++) {
-									uv_ring_buffer_push(&this->char_buffer, (char*) &msg.data_8bit[4 + i]);
-								}
-							}
-							else {
-#endif
+							if (!send_terminal(&msg)) {
 								uv_ring_buffer_push(&this->rx_buffer, &msg);
-#if CONFIG_TERMINAL_CAN
 							}
-#endif
 						}
 					}
 					int_pend &= ~(1 << msg_obj);
 
-					__enable_irq();
+					can_exit_critical();
 
 					if ((msg_obj + 1) == TX_MSG_OBJ) {
 						_uv_can_hal_send(CAN0);
@@ -353,10 +395,6 @@ void CAN_IRQHandler(void) {
 
 
 uv_errors_e _uv_can_init() {
-	uint8_t i;
-	for (i = 0; i < CAN_COUNT; i++) {
-		this->rx_callback[i] = NULL;
-	}
 	this->init = true;
 	this->used_msg_objs = (1 << (TX_MSG_OBJ - 1));
 
@@ -441,7 +479,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		uv_can_msg_types_e type) {
 	uv_errors_e ret = ERR_NONE;
 
-	__disable_irq();
+	NVIC_DisableIRQ(CAN_IRQn);
 
 	// check if any message objects are configured to receive this type of data already
 	bool match = false;
@@ -459,8 +497,16 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 				uint32_t bits_differ = masked_id ^ masked_ifid;
 				if (masked_id == masked_ifid) {
 					// if new msg matches with msgif message and mask, we dont
-					// need to configure new message
+					// need to configure new message but mask should be updated
 					if ((msgif_id & msgif_mask) == (id & msgif_mask)) {
+						if (msgif_mask != mask) {
+							msg_obj_disable(i + 1);
+							read_msg_obj(i + 1);
+							set_msgif_mask(msgif_mask & mask, type);
+							set_msgif_id(msgif_id, (msgif_type == CAN_EXT));
+							write_msg_obj(i + 1, false);
+							msg_obj_enable(i + 1);
+						}
 						match = true;
 						break;
 					}
@@ -528,19 +574,62 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		printf("CAN config rxmsgobj err: %u\n", ret);
 	}
 
-	__enable_irq();
+	NVIC_EnableIRQ(CAN_IRQn);
+
+	// call callback if assigned
+	if (this->config_rx_callb) {
+		this->config_rx_callb(channel, id, mask, type);
+	}
 
 	return ret;
 }
 
 
+uv_errors_e uv_can_config_rx_message_no_callb(
+		uv_can_channels_e chn,
+		unsigned int id,
+		unsigned int mask,
+		uv_can_msg_types_e type) {
+	void (*call1)(uv_can_channels_e chn,
+			unsigned int id,
+			unsigned int mask,
+			uv_can_msg_types_e type) = this->config_rx_callb;
+	void (*call2)(uv_can_channels_e chn) = this->clear_rx_callb;
+	this->config_rx_callb = NULL;
+	this->clear_rx_callb = NULL;
+	uv_errors_e ret = uv_can_config_rx_message(
+			chn, id, mask, type);
+	uv_can_set_rx_msg_callbacks(call1, call2);
+
+	return ret;
+}
+
+
+
+void uv_can_set_rx_msg_callbacks(void (*config_callb)(uv_can_channels_e chn,
+		unsigned int id,
+		unsigned int mask,
+		uv_can_msg_types_e type),
+		void (*clear_callb)(uv_can_channels_e chn)) {
+	this->config_rx_callb = config_callb;
+	this->clear_rx_callb = clear_callb;
+}
+
+
+
 void uv_can_clear_rx_messages(uv_can_chn_e chn) {
+	NVIC_DisableIRQ(CAN_IRQn);
 	if (chn);
 	this->used_msg_objs = (1 << (TX_MSG_OBJ - 1));
 
 	// clear all rx message objects
 	for (int i = TX_MSG_OBJ; i < 32; i++) {
 		msg_obj_disable(i + 1);
+	}
+	NVIC_EnableIRQ(CAN_IRQn);
+
+	if (this->clear_rx_callb) {
+		this->clear_rx_callb(chn);
 	}
 }
 
@@ -612,7 +701,7 @@ uv_can_errors_e uv_can_get_error_state(uv_can_channels_e channel) {
 }
 
 
-uv_errors_e uv_can_send_sync(uv_can_channels_e channel, uv_can_message_st *msg) {
+static uv_errors_e uv_can_send_sync(uv_can_channels_e channel, uv_can_message_st *msg) {
 	uv_errors_e ret = ERR_NONE;
 
 	if (this->init) {
@@ -625,11 +714,12 @@ uv_errors_e uv_can_send_sync(uv_can_channels_e channel, uv_can_message_st *msg) 
 				ret = ERR_CAN_BUS_OFF;
 				break;
 			}
+			uv_rtos_task_yield();
 		}
 
 		if (ret == ERR_NONE) {
 
-		uv_disable_int();
+			can_enter_critical();
 
 			msg_obj_disable(TX_MSG_OBJ);
 
@@ -654,8 +744,7 @@ uv_errors_e uv_can_send_sync(uv_can_channels_e channel, uv_can_message_st *msg) 
 
 			msg_obj_enable(TX_MSG_OBJ);
 
-
-			uv_enable_int();
+			can_exit_critical();
 
 			// wait until message is transferred or CAN status changes
 			bool br = false;
@@ -708,29 +797,39 @@ uv_errors_e uv_can_get_char(char *dest) {
 
 
 
-uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message_st* message) {
-	uv_disable_int();
+
+uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
+		can_send_flags_e flags) {
 	uv_errors_e ret = ERR_NONE;
-	ret = uv_ring_buffer_push(&this->tx_buffer, message);
-	uv_enable_int();
+	can_enter_critical();
+	if (flags & CAN_SEND_FLAGS_LOCAL) {
+		if (!send_terminal(msg)) {
+			ret |= uv_ring_buffer_push(&this->rx_buffer, msg);
+		}
+	}
+	if (flags & CAN_SEND_FLAGS_SYNC) {
+		ret |= uv_can_send_sync(chn, msg);
+	}
+	if (flags & CAN_SEND_FLAGS_NORMAL) {
+		ret |= uv_ring_buffer_push(&this->tx_buffer, msg);
+	}
+	can_exit_critical();
+	if (!(flags & CAN_SEND_FLAGS_NO_TX_CALLB) &&
+			(this->tx_callback[chn] != NULL)) {
+		this->tx_callback[chn](__uv_get_user_ptr(), msg, flags);
+	}
+
 	return ret;
 }
 
-
-uv_errors_e uv_can_send_local(uv_can_chn_e chn, uv_can_msg_st *msg) {
-	uv_disable_int();
-	uv_errors_e ret = uv_ring_buffer_push(&this->rx_buffer, msg);
-	uv_enable_int();
-	return ret;
-}
 
 
 
 uv_errors_e uv_can_pop_message(uv_can_channels_e channel, uv_can_message_st *message) {
 	uv_errors_e ret = ERR_NONE;
-	uv_disable_int();
+	can_enter_critical();
 	ret = uv_ring_buffer_pop(&this->rx_buffer, message);
-	uv_enable_int();
+	can_exit_critical();
 	return ret;
 }
 

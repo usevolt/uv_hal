@@ -222,6 +222,8 @@ void uv_memory_set_can_baudrate(uint32_t baudrate) {
 uv_errors_e uv_memory_clear(memory_scope_e scope) {
 	uv_errors_e ret = ERR_NONE;
 
+	printf("Memory clear not implemented on Linux target\n");
+
 	return ret;
 }
 

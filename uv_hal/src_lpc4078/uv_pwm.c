@@ -74,7 +74,9 @@ void TIMER0_IRQHandler(void) {
 	}
 	Chip_TIMER_SetMatch(LPC_TIMER0, 0, this->pwm[0].match[0]);
 	Chip_TIMER_SetMatch(LPC_TIMER0, 1, this->pwm[0].match[1]);
+	Chip_TIMER_ClearMatch(LPC_TIMER0, 3);
 	Chip_TIMER_Enable(LPC_TIMER0);
+
 }
 void TIMER1_IRQHandler(void) {
 	// set PWM matches high
@@ -86,6 +88,7 @@ void TIMER1_IRQHandler(void) {
 	}
 	Chip_TIMER_SetMatch(LPC_TIMER1, 0, this->pwm[1].match[0]);
 	Chip_TIMER_SetMatch(LPC_TIMER1, 1, this->pwm[1].match[1]);
+	Chip_TIMER_ClearMatch(LPC_TIMER1, 3);
 	Chip_TIMER_Enable(LPC_TIMER1);
 }
 void TIMER2_IRQHandler(void) {
@@ -98,6 +101,7 @@ void TIMER2_IRQHandler(void) {
 	}
 	Chip_TIMER_SetMatch(LPC_TIMER2, 0, this->pwm[2].match[0]);
 	Chip_TIMER_SetMatch(LPC_TIMER2, 1, this->pwm[2].match[1]);
+	Chip_TIMER_ClearMatch(LPC_TIMER2, 3);
 	Chip_TIMER_Enable(LPC_TIMER2);
 }
 void TIMER3_IRQHandler(void) {
@@ -110,6 +114,7 @@ void TIMER3_IRQHandler(void) {
 	}
 	Chip_TIMER_SetMatch(LPC_TIMER3, 0, this->pwm[3].match[0]);
 	Chip_TIMER_SetMatch(LPC_TIMER3, 1, this->pwm[3].match[1]);
+	Chip_TIMER_ClearMatch(LPC_TIMER3, 3);
 	Chip_TIMER_Enable(LPC_TIMER3);
 }
 
@@ -372,11 +377,12 @@ void uv_pwm_set_freq(uv_pwm_channel_t chn, uint32_t value) {
 	uint8_t module = PWMEXT_GET_MODULE(chn);
 	if (module == PWMEXT_MODULE_THIS &&
 			PWMEXT_GET_CHN(chn) != 0) {
-		if (this->pwm_freq[PWM_GET_MODULE(chn)] != value) {
-			Chip_TIMER_SetMatch(this->modules[module], 2,
-					Chip_Clock_GetSystemClockRate() * value);
+		if (this->modules[PWM_GET_MODULE(chn)]->MR[2] !=
+				Chip_Clock_GetPeripheralClockRate() / value) {
+			Chip_TIMER_SetMatch(this->modules[PWM_GET_MODULE(chn)], 2,
+					Chip_Clock_GetPeripheralClockRate() / value);
 			this->pwm_freq[PWM_GET_MODULE(chn)] = value;
-			this->modules[module]->TC = 0;
+			this->modules[PWM_GET_MODULE(chn)]->TC = 0;
 		}
 	}
 #if CONFIG_PWMEXT_MODULE_COUNT

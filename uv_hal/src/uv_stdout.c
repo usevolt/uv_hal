@@ -57,7 +57,7 @@ static int8_t can_delay = 0;
 #endif
 
 #if CONFIG_TERMINAL_CAN
-static void send_can_msg(void) {
+static void send_can_msg(unsigned int flags) {
 	uv_can_message_st msg = {
 			.data_length = 4 + uv_vector_size(&can_vec),
 			.type = CAN_STD
@@ -72,30 +72,32 @@ static void send_can_msg(void) {
 		msg.data_8bit[4 + i] = *((uint8_t*)uv_vector_at(&can_vec, i));
 	}
 	uv_vector_clear(&can_vec);
+
 #if !CONFIG_TARGET_LPC15XX && !CONFIG_TARGET_LPC40XX
 	can_delay = CAN_DELAY_MS;
 
 	// if CAN is in active state, wait until putting the message to the queue was succeeded.
 	// otherwise just try to put it in queue. If the queue is full, message will be discarded.
 	if (uv_can_get_error_state(CONFIG_CANOPEN_CHANNEL) == CAN_ERROR_ACTIVE) {
-		while (uv_can_send_message(CONFIG_CANOPEN_CHANNEL, &msg) != ERR_NONE) {
+		while (uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg) != ERR_NONE) {
 			uv_rtos_task_yield();
 		}
 	}
 	else {
-		uv_can_send_message(CONFIG_CANOPEN_CHANNEL, &msg);
+		uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
 	}
 #else
-	uv_can_send_sync(CAN0, &msg);
+	uv_can_send_flags(CAN0, &msg, CAN_SEND_FLAGS_SYNC | flags);
+
 #endif
+
 
 }
 #endif
 
 
-int outbyte(int c) {
+int outbyte(unsigned int flags, int c) {
 #if CONFIG_TERMINAL
-	if (uv_rtos_initialized()) {
 #if CONFIG_TERMINAL_UART
 
 		if (uv_active_terminal() == TERMINAL_UART) {
@@ -109,10 +111,10 @@ int outbyte(int c) {
 			uv_vector_push_back(&can_vec, &ch);
 #if !CONFIG_TARGET_LPC15XX && !CONFIG_TARGET_LPC40XX
 			if (uv_vector_size(&can_vec) == uv_vector_max_size(&can_vec)) {
-				send_can_msg();
+				send_can_msg(flags);
 			}
 #else
-			send_can_msg();
+			send_can_msg(flags);
 #endif
 		}
 #endif
@@ -124,7 +126,6 @@ int outbyte(int c) {
 		}
 #endif
 
-	}
 #endif
 	return 1;
 }
@@ -134,7 +135,7 @@ int outbyte(int c) {
 void uv_stdout_send(char* str, unsigned int count) {
 	int i;
 	for (i = 0; i < count; i++) {
-		outbyte(str[i]);
+		outbyte(PRINTF_FLAGS_NONE, str[i]);
 	}
 }
 
@@ -146,7 +147,7 @@ void _uv_stdout_hal_step(unsigned int step_ms) {
 			can_delay -= step_ms;
 		}
 		else {
-			send_can_msg();
+			send_can_msg(PRINTF_FLAGS_NONE);
 		}
 	}
 #endif

@@ -105,8 +105,8 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 		if (this->active_tab != i) {
 			uv_ui_draw_shadowrrect(x, y, tab_w, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
 					CONFIG_UI_RADIUS, ((uv_uiwindow_st*) this)->bg_c,
-					uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, 30),
-					uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, -30));
+					uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, 80),
+					uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, -80));
 			uv_ui_draw_string(get_tab_name(this, i), this->font,
 					x + 4, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, ALIGN_CENTER_LEFT,
 					this->text_c);
@@ -121,12 +121,12 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	uv_ui_draw_line(thisx, y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT - 1,
 			thisx + uv_uibb(this)->width,
 			y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT- 1, 1,
-			uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, 30));
+			C(0xFFFFFFFF));
 	// draw active tab
 	uv_ui_draw_shadowrrect(active_tab_x, y, active_tab_w, CONFIG_UI_TABWINDOW_HEADER_HEIGHT,
 			CONFIG_UI_RADIUS, uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, 20),
-			uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, 30),
-			uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, -30));
+			C(0xFFFFFFFF),
+			C(0xFFFFFFFF));
 	uv_ui_draw_string(get_tab_name(this, this->active_tab),
 			this->font, active_tab_x + 5,
 			y + CONFIG_UI_TABWINDOW_HEADER_HEIGHT / 2, ALIGN_CENTER_LEFT,
