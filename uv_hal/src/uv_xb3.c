@@ -1068,7 +1068,7 @@ void uv_xb3_network_reset(uv_xb3_st *this, bool xb3_step_task) {
 }
 
 
-void uv_xb3_join_network(uv_xb3_st *this, uint64_t pan64, uint16_t pan16, uint8_t chn,
+void uv_xb3_join_network(uv_xb3_st *this, uint64_t pan64,
 		bool xb3_step_task) {
 	uv_mutex_lock(&this->atreq_mutex);
 	char data[8] = {};
@@ -1080,9 +1080,10 @@ void uv_xb3_join_network(uv_xb3_st *this, uint64_t pan64, uint16_t pan16, uint8_
 	uv_xb3_local_at_cmd_req(this, "ID", data, sizeof(data));
 	at_wait_for_reply(this, 500, xb3_step_task);
 
-	// set channel
-	uv_xb3_local_at_cmd_req(this, "CH", (char*) &chn, 1);
+	// read ID
+	uv_xb3_local_at_cmd_req(this, "ID", "", 0);
 	at_wait_for_reply(this, 500, xb3_step_task);
+	uint64_t d = ntouint64_queue(this, &this->rx_at_queue);
 
 	// save changes
 	uv_xb3_local_at_cmd_req(this, "WR", "", 0);

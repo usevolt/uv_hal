@@ -133,8 +133,8 @@ typedef struct {
 	uv_delay_st transmit_delay;
 
 	// stores the currently active network settings.
-	// packed struct to help mapping it to canopen object dictionary
-	struct __attribute__((packed)) {
+	// order of member variables is important since this is mapped to obj dict
+	struct {
 		uint64_t op;
 		uint16_t oi;
 		uint16_t ch;
@@ -301,7 +301,7 @@ static inline void uv_xb3_leave_network(uv_xb3_st *this, bool xb3_step_task) {
 
 /// @brief: Leaves current network and tries to join a new one with given
 /// *pan64*, *pan16* and *channel*
-void uv_xb3_join_network(uv_xb3_st *this, uint64_t pan64, uint16_t pan16, uint8_t chn,
+void uv_xb3_join_network(uv_xb3_st *this, uint64_t pan64,
 		bool xb3_step_task);
 
 
