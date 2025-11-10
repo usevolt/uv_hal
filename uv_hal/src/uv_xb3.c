@@ -114,6 +114,12 @@ static uint8_t ntouint8_queue(uv_xb3_st *this, uv_queue_st *srcqueue) {
 }
 
 
+static void uint16ton(char *dest, uint16_t value) {
+	dest[0] = (value >> 8) & 0xFF;
+	dest[1] = (value >> 0) & 0xFF;
+}
+
+
 static void uint64ton(char *dest, uint64_t value) {
 	dest[0] = (value >> 56) & 0xFF;
 	dest[1] = (value >> 48) & 0xFF;
@@ -495,7 +501,6 @@ uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
 				}
 			}
 			else {
-				const char *name = pcTaskGetName(NULL);
 				if (uv_mutex_lock_ms(&this->txstream_mutex, wait_ms)) {
 					int p = uv_streambuffer_push(&this->tx_streambuffer,
 							data, datalen, wait_ms);
@@ -1065,13 +1070,32 @@ void uv_xb3_network_reset(uv_xb3_st *this, bool xb3_step_task) {
 
 void uv_xb3_join_network(uv_xb3_st *this, uint64_t pan64, uint16_t pan16, uint8_t chn,
 		bool xb3_step_task) {
+	uv_mutex_lock(&this->atreq_mutex);
+	char data[8] = {};
 
+	XB3_DEBUG(this, "Joining network\n");
+
+	// set 64-bit pan ID
+	uint64ton(data, pan64);
+	uv_xb3_local_at_cmd_req(this, "ID", data, sizeof(data));
+	at_wait_for_reply(this, 500, xb3_step_task);
+
+	// set channel
+	uv_xb3_local_at_cmd_req(this, "CH", (char*) &chn, 1);
+	at_wait_for_reply(this, 500, xb3_step_task);
+
+	// save changes
+	uv_xb3_local_at_cmd_req(this, "WR", "", 0);
+	at_wait_for_reply(this, 500, xb3_step_task);
+
+	// apply changes without rebooting
+	uv_xb3_local_at_cmd_req(this, "AC", "", 0);
+	at_wait_for_reply(this, 500, xb3_step_task);
+
+	uv_mutex_unlock(&this->atreq_mutex);
 }
 
 
-void uv_xb3_leave_network(uv_xb3_st *this, bool xb3_step_task) {
-
-}
 
 
 
