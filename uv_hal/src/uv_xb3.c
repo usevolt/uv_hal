@@ -114,11 +114,6 @@ static uint8_t ntouint8_queue(uv_xb3_st *this, uv_queue_st *srcqueue) {
 }
 
 
-static void uint16ton(char *dest, uint16_t value) {
-	dest[0] = (value >> 8) & 0xFF;
-	dest[1] = (value >> 0) & 0xFF;
-}
-
 
 static void uint64ton(char *dest, uint64_t value) {
 	dest[0] = (value >> 56) & 0xFF;
@@ -550,10 +545,33 @@ void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart
 	char dest[11] = { };
 	uv_uart_clear_rx_buffer(uart);
 
+	// restore XB3 defaults
+	sprintf(dest, "ATRE\r", 5);
+	printf("%s\n", dest);
+	uv_uart_send(uart, dest, strlen(dest));
+	if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
+		printf("OK\n");
+	}
+	else {
+		printf("ERROR\n");
+	}
+
+	sprintf(dest, "ATAC\r", 5);
+	printf("%s\n", dest);
+	uv_uart_send(uart, dest, strlen(dest));
+	if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
+		printf("OK\n");
+	}
+	else {
+		printf("ERROR\n");
+	}
+
+
 	if (flags_def & XB3_CONF_FLAGS_OPERATE_AS_COORDINATOR) {
 		// clear ID
-		uv_uart_send(uart, "ATID0\r", 6);
+		sprintf(dest, "ATID0\r", 6);
 		printf("%s\n", dest);
+		uv_uart_send(uart, dest, strlen(dest));
 		if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
 			printf("OK\n");
 		}
@@ -562,8 +580,9 @@ void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart
 		}
 
 		// operate as COORDINATOR
-		uv_uart_send(uart, "ATCE1\r", 6);
+		sprintf(dest, "ATCE1\r", 6);
 		printf("%s\n", dest);
+		uv_uart_send(uart, dest, strlen(dest));
 		if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
 			printf("OK\n");
 		}
@@ -572,8 +591,9 @@ void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart
 		}
 
 		// Node join time is infinite
-		uv_uart_send(uart, "ATNJFF\r", 7);
+		sprintf(dest, "ATNJFF\r", 7);
 		printf("%s\n", dest);
+		uv_uart_send(uart, dest, strlen(dest));
 		if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
 			printf("OK\n");
 		}
@@ -583,8 +603,9 @@ void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart
 	}
 	else {
 		// write join device controls
-		uv_uart_send(uart, "ATDC48\r", 7);
+		sprintf(dest, "ATDC48\r", 7);
 		printf("%s\n", dest);
+		uv_uart_send(uart, dest, strlen(dest));
 		if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
 			printf("OK\n");
 		}
@@ -593,8 +614,9 @@ void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart
 		}
 
 		// clear ID
-		uv_uart_send(uart, "ATID0\r", 6);
+		sprintf(dest, "ATID0\r", 6);
 		printf("%s\n", dest);
+		uv_uart_send(uart, dest, strlen(dest));
 		if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
 			printf("OK\n");
 		}
