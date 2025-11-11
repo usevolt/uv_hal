@@ -165,6 +165,7 @@ void uv_mutex_unlock_isr(uv_mutex_st *mutex);
 
 
 typedef QueueHandle_t uv_queue_st;
+typedef StaticQueue_t uv_staticqueue_st;
 
 /// @brief: Creates a FreeRTOS thread-safe queue
 ///
@@ -173,6 +174,18 @@ typedef QueueHandle_t uv_queue_st;
 static inline uv_queue_st uv_queue_init(uv_queue_st *this,
 		int32_t queue_len, uint32_t element_size) {
 	*this = xQueueCreate(queue_len, element_size);
+	return *this;
+}
+
+static inline uv_queue_st uv_queue_init_static(uv_queue_st *this,
+											   int32_t queue_len,
+											   uint32_t element_size,
+											   void *buffer,
+											   uv_staticqueue_st *staticqueue) {
+	*this = xQueueCreateStatic(queue_len,
+							   element_size,
+							   buffer,
+							   staticqueue);
 	return *this;
 }
 
@@ -221,6 +234,7 @@ uv_errors_e uv_queue_pop_isr(uv_queue_st *this, void *dest);
 
 
 typedef StreamBufferHandle_t uv_streambuffer_st;
+typedef StaticStreamBuffer_t uv_staticstreambuffer_st;
 
 
 /// @brief: Initializes the streambuffer
@@ -230,6 +244,16 @@ static inline uv_errors_e uv_streambuffer_init(
 	return (this) ? ERR_NONE : ERR_NOT_ENOUGH_MEMORY;
 }
 
+
+static inline uv_errors_e uv_streambuffer_init_static(
+		uv_streambuffer_st *this, void *buffer, uint32_t len_bytes,
+		uv_staticstreambuffer_st *staticstreambuffer) {
+	*this = xStreamBufferCreateStatic(len_bytes,
+									  1,
+									  buffer,
+									  staticstreambuffer);
+	return (this) ? ERR_NONE : ERR_ABORTED;
+}
 
 
 
@@ -286,6 +310,7 @@ static inline void uv_streambuffer_clear(uv_streambuffer_st *this) {
 
 
 typedef MessageBufferHandle_t uv_msgbuffer_st;
+typedef StaticMessageBuffer_t uv_staticmsgbuffer_st;
 
 
 /// @brief: Initializes the msgbuffer
@@ -295,6 +320,18 @@ static inline uv_errors_e uv_msgbuffer_init(
 	return (this) ? ERR_NONE : ERR_NOT_ENOUGH_MEMORY;
 }
 
+
+/// @brief: Initializes the msgbuffer with static memory. Needs
+/// pointer to message data and pointer to uv_staticmsgbuffer_st structure
+/// as additional parameters.
+static inline uv_errors_e uv_msgbuffer_init_static(
+		uv_msgbuffer_st *this,
+		void *buffer,
+		uint32_t len_bytes,
+		uv_staticmsgbuffer_st *staticmsgbuffer) {
+	*this = xMessageBufferCreateStatic(len_bytes, buffer, staticmsgbuffer);
+	return (this) ? ERR_NONE : ERR_NOT_ENOUGH_MEMORY;
+}
 
 
 

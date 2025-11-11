@@ -147,10 +147,13 @@ typedef struct {
 	// defined here to be global instead of local
 	hal_can_msg_obj_st temp_obj;
 	bool init;
-	uv_can_message_st rx_buffer_data[CONFIG_CAN0_RX_BUFFER_SIZE];
-	uv_ring_buffer_st rx_buffer;
-	uv_can_message_st tx_buffer_data[CONFIG_CAN0_TX_BUFFER_SIZE];
-	uv_ring_buffer_st tx_buffer;
+	uv_msgbuffer_st rx_msgbuffer;
+	uv_can_msg_st rx_buffer[CONFIG_CAN0_RX_BUFFER_SIZE];
+	uv_staticmsgbuffer_st rx_staticmsgbuffer;
+	uv_msgbuffer_st tx_msgbuffer;
+	uv_can_msg_st tx_buffer[CONFIG_CAN0_TX_BUFFER_SIZE];
+	uv_staticmsgbuffer_st tx_staticmsgbuffer;
+	uv_mutex_st mutex;
 	int16_t tx_pending;
 #if CONFIG_TERMINAL_CAN
 	uv_ring_buffer_st char_buffer;
@@ -163,7 +166,6 @@ typedef struct {
 			unsigned int mask,
 			uv_can_msg_types_e type);
 	void (*clear_rx_callb)(uv_can_channels_e chn);
-	uint8_t sending;
 
 } can_st;
 
@@ -174,28 +176,14 @@ static can_st _can = {
 		.tx_callback[0] = NULL,
 		.rx_callback[0] = NULL,
 		.config_rx_callb = NULL,
-		.clear_rx_callb = NULL,
-		.sending = 0
+		.clear_rx_callb = NULL
 };
 #define this (&_can)
 
 
 
-static inline void can_enter_critical(void) {
-	uv_disable_int();
-	this->sending++;
-}
 
-static inline void can_exit_critical(void) {
-	if (this->sending) {
-		this->sending--;
-	}
-	if (!this->sending) {
-		uv_enable_int();
-	}
-}
-
-void _uv_can_hal_send(uv_can_channels_e chn);
+void _uv_can_hal_send(uv_can_channels_e chn, bool isr);
 
 
 
@@ -209,7 +197,7 @@ void _uv_can_hal_send(uv_can_channels_e chn);
 #define PENDING_MSG_OBJ_TIME_LIMIT_MS		8
 
 
-static uint32_t get_msgif_id(uv_can_msg_types_e ext) {
+static uint32_t get_msgif_id_if1(uv_can_msg_types_e ext) {
 	uint32_t id;
 	if (ext) {
 		id = LPC_CAN->IF1_ARB1;
@@ -221,7 +209,19 @@ static uint32_t get_msgif_id(uv_can_msg_types_e ext) {
 	return id;
 }
 
-static void set_msgif_id(const uint32_t id, const bool ext) {
+static uint32_t get_msgif_id_if2(uv_can_msg_types_e ext) {
+	uint32_t id;
+	if (ext) {
+		id = LPC_CAN->IF2_ARB1;
+		id += (LPC_CAN->IF2_ARB2 & 0x1FFF) << 16;
+	}
+	else {
+		id = (LPC_CAN->IF2_ARB2 & 0x1FFF) >> 2;
+	}
+	return id;
+}
+
+static void set_msgif_id_if1(const uint32_t id, const bool ext) {
 	// clear the ARB2 register, since otherwise some settings might come from the
 	// last message transmitted
 	LPC_CAN->IF1_ARB2 = 0;
@@ -234,7 +234,20 @@ static void set_msgif_id(const uint32_t id, const bool ext) {
 	}
 }
 
-static uint32_t get_msgif_mask(const uv_can_msg_types_e type) {
+static void set_msgif_id_if2(const uint32_t id, const bool ext) {
+	// clear the ARB2 register, since otherwise some settings might come from the
+	// last message transmitted
+	LPC_CAN->IF2_ARB2 = 0;
+	if (ext) {
+		LPC_CAN->IF2_ARB1 = id & 0xFFFF;
+		LPC_CAN->IF2_ARB2 |= ((id >> 16) & 0x1FFF) | (1 << 14);
+	}
+	else {
+		LPC_CAN->IF2_ARB2 |= ((id & 0x7FF) << 2);
+	}
+}
+
+static uint32_t get_msgif_mask_if1(const uv_can_msg_types_e type) {
 	uint32_t mask;
 	if (type == CAN_EXT) {
 		mask = LPC_CAN->IF1_MSK1 + ((LPC_CAN->IF1_MSK2 & 0x1FFF) << 16);
@@ -245,7 +258,18 @@ static uint32_t get_msgif_mask(const uv_can_msg_types_e type) {
 	return mask;
 }
 
-static void set_msgif_mask(const uint32_t mask, const uv_can_msg_types_e type) {
+static uint32_t get_msgif_mask_if2(const uv_can_msg_types_e type) {
+	uint32_t mask;
+	if (type == CAN_EXT) {
+		mask = LPC_CAN->IF2_MSK1 + ((LPC_CAN->IF2_MSK2 & 0x1FFF) << 16);
+	}
+	else {
+		mask = (LPC_CAN->IF2_MSK2 & 0x1FFF) >> 2;
+	}
+	return mask;
+}
+
+static void set_msgif_mask_if1(const uint32_t mask, const uv_can_msg_types_e type) {
 	if (type == CAN_EXT) {
 		LPC_CAN->IF1_MSK1 = mask & 0xFFFF;
 		LPC_CAN->IF1_MSK2 &= ~(0x1FFF);
@@ -258,36 +282,80 @@ static void set_msgif_mask(const uint32_t mask, const uv_can_msg_types_e type) {
 	}
 }
 
+
+static void set_msgif_mask_if2(const uint32_t mask, const uv_can_msg_types_e type) {
+	if (type == CAN_EXT) {
+		LPC_CAN->IF2_MSK1 = mask & 0xFFFF;
+		LPC_CAN->IF2_MSK2 &= ~(0x1FFF);
+		LPC_CAN->IF2_MSK2 |= ((mask >> 16) & 0x1FFF);
+	}
+	else {
+		LPC_CAN->IF2_MSK1 = 0xFFFF;
+		LPC_CAN->IF2_MSK2 &= ~(0x1FFF);
+		LPC_CAN->IF2_MSK2 |= ((mask & 0x7FF) << 2);
+	}
+}
+
 /// @return: CAN_EXT if extended, CAN_STD if standard
-static inline uv_can_msg_types_e get_msgif_type(void) {
+static inline uv_can_msg_types_e get_msgif_type_if1(void) {
 	return ((LPC_CAN->IF1_ARB2 & (1 << 14)) >> 14) ? CAN_EXT : CAN_STD;
 }
 
-static void read_msg_obj(uint8_t msg_obj) {
+static inline uv_can_msg_types_e get_msgif_type_if2(void) {
+	return ((LPC_CAN->IF2_ARB2 & (1 << 14)) >> 14) ? CAN_EXT : CAN_STD;
+}
+
+static void read_msg_obj_if1(uint8_t msg_obj) {
 	// load the whole message
 	LPC_CAN->IF1_CMDMSK = 0x7F;
 	while (LPC_CAN->IF1_CMDREQ & (1 << 15));
 	LPC_CAN->IF1_CMDREQ = msg_obj;
 	while (LPC_CAN->IF1_CMDREQ & (1 << 15));
 }
+static void read_msg_obj_if2(uint8_t msg_obj) {
+	// load the whole message
+	LPC_CAN->IF2_CMDMSK = 0x7F;
+	while (LPC_CAN->IF2_CMDREQ & (1 << 15));
+	LPC_CAN->IF2_CMDREQ = msg_obj;
+	while (LPC_CAN->IF2_CMDREQ & (1 << 15));
+}
 
-static void write_msg_obj(uint8_t msg_obj, bool txrqst) {
+static void write_msg_obj_if1(uint8_t msg_obj, bool txrqst) {
 	LPC_CAN->IF1_CMDMSK = 0xFB | ((txrqst ? 1 : 0) << 2);
 	while(LPC_CAN->IF1_CMDREQ & (1 << 15));
 	LPC_CAN->IF1_CMDREQ = msg_obj;
 	while(LPC_CAN->IF1_CMDREQ & (1 << 15));
 }
 
-static void msg_obj_enable(uint8_t msg_obj) {
-	read_msg_obj(msg_obj);
-	LPC_CAN->IF1_ARB2 |= (1 << 15);
-	write_msg_obj(msg_obj, false);
+static void write_msg_obj_if2(uint8_t msg_obj, bool txrqst) {
+	LPC_CAN->IF2_CMDMSK = 0xFB | ((txrqst ? 1 : 0) << 2);
+	while(LPC_CAN->IF2_CMDREQ & (1 << 15));
+	LPC_CAN->IF2_CMDREQ = msg_obj;
+	while(LPC_CAN->IF2_CMDREQ & (1 << 15));
 }
 
-static void msg_obj_disable(uint8_t msg_obj) {
-	read_msg_obj(msg_obj);
+static void msg_obj_enable_if1(uint8_t msg_obj) {
+	read_msg_obj_if1(msg_obj);
+	LPC_CAN->IF1_ARB2 |= (1 << 15);
+	write_msg_obj_if1(msg_obj, false);
+}
+
+static void msg_obj_enable_if2(uint8_t msg_obj) {
+	read_msg_obj_if2(msg_obj);
+	LPC_CAN->IF2_ARB2 |= (1 << 15);
+	write_msg_obj_if2(msg_obj, false);
+}
+
+static void msg_obj_disable_if1(uint8_t msg_obj) {
+	read_msg_obj_if1(msg_obj);
 	LPC_CAN->IF1_ARB2 &= ~(1 << 15);
-	write_msg_obj(msg_obj, false);
+	write_msg_obj_if1(msg_obj, false);
+}
+
+static void msg_obj_disable_if2(uint8_t msg_obj) {
+	read_msg_obj_if2(msg_obj);
+	LPC_CAN->IF2_ARB2 &= ~(1 << 15);
+	write_msg_obj_if2(msg_obj, false);
 }
 
 
@@ -343,17 +411,16 @@ void CAN_IRQHandler(void) {
 			for (msg_obj = 0; msg_obj < 32; msg_obj++) {
 				if (int_pend & (1 << msg_obj)) {
 
-					can_enter_critical();
-
 					// read the pending object
-					read_msg_obj(msg_obj + 1);
+					read_msg_obj_if1(msg_obj + 1);
 
 					if ((msg_obj + 1) != TX_MSG_OBJ) {
 						// copy the message data and push it into rx ring buffer
 						uv_can_msg_st msg;
-						msg.type = (LPC_CAN->IF1_ARB2 & (1 << 14)) ? CAN_EXT : CAN_STD;
+						msg.type = (LPC_CAN->IF1_ARB2 & (1 << 14)) ?
+								CAN_EXT : CAN_STD;
 						msg.data_length = LPC_CAN->IF1_MCTRL & 0b1111;
-						msg.id = get_msgif_id(msg.type);
+						msg.id = get_msgif_id_if1(msg.type);
 						msg.data_16bit[0] = LPC_CAN->IF1_DA1;
 						msg.data_16bit[1] = LPC_CAN->IF1_DA2;
 						msg.data_16bit[2] = LPC_CAN->IF1_DB1;
@@ -365,17 +432,16 @@ void CAN_IRQHandler(void) {
 						}
 						else {
 							if (!send_terminal(&msg)) {
-								uv_ring_buffer_push(&this->rx_buffer, &msg);
+								uv_msgbuffer_push_isr(&this->rx_msgbuffer,
+													  &msg, sizeof(msg));
 							}
 						}
 					}
-					int_pend &= ~(1 << msg_obj);
-
-					can_exit_critical();
-
-					if ((msg_obj + 1) == TX_MSG_OBJ) {
-						_uv_can_hal_send(CAN0);
+					else {
+						// TX_MSG_OBJ
+						_uv_can_hal_send(CAN0, true);
 					}
+					int_pend &= ~(1 << msg_obj);
 				}
 			}
 
@@ -389,7 +455,7 @@ void CAN_IRQHandler(void) {
 	}
 
 	// clear status interrupts by reading the status register
-	// clear succesfull rx & tx
+	// clear successful rx & tx
 	LPC_CAN->STAT &= ~(0b11 << 3);
 }
 
@@ -398,10 +464,16 @@ uv_errors_e _uv_can_init() {
 	this->init = true;
 	this->used_msg_objs = (1 << (TX_MSG_OBJ - 1));
 
-	uv_ring_buffer_init(&this->rx_buffer, this->rx_buffer_data,
-			CONFIG_CAN0_RX_BUFFER_SIZE, sizeof(uv_can_message_st));
-	uv_ring_buffer_init(&this->tx_buffer, this->tx_buffer_data,
-			CONFIG_CAN0_TX_BUFFER_SIZE, sizeof(uv_can_message_st));
+	uv_msgbuffer_init_static(&this->tx_msgbuffer,
+					  this->tx_buffer,
+					  sizeof(this->tx_buffer),
+					  &this->tx_staticmsgbuffer);
+	uv_msgbuffer_init_static(&this->rx_msgbuffer,
+					  this->rx_buffer,
+					  sizeof(this->rx_buffer),
+					  &this->rx_staticmsgbuffer);
+	uv_mutex_init(&this->mutex);
+	uv_mutex_unlock(&this->mutex);
 
 	SystemCoreClockUpdate();
 
@@ -430,7 +502,8 @@ uv_errors_e _uv_can_init() {
 
 	// init all message objects
 	for (int i = 0; i < 32; i++) {
-		msg_obj_disable(i + 1);
+		msg_obj_disable_if1(i + 1);
+		msg_obj_disable_if2(i + 1);
 	}
 
 	/* Enable the CAN Interrupt */
@@ -480,16 +553,17 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 	uv_errors_e ret = ERR_NONE;
 
 	NVIC_DisableIRQ(CAN_IRQn);
+	uv_mutex_lock(&this->mutex);
 
 	// check if any message objects are configured to receive this type of data already
 	bool match = false;
 	for (uint8_t i = TX_MSG_OBJ; i < 32; i++) {
 		if (GET_MASKED(this->used_msg_objs, (1 << i))) {
 
-			read_msg_obj(i + 1);
-			uv_can_msg_types_e msgif_type = get_msgif_type();
-			uint32_t msgif_id = get_msgif_id(msgif_type),
-					msgif_mask = get_msgif_mask(msgif_type);
+			read_msg_obj_if2(i + 1);
+			uv_can_msg_types_e msgif_type = get_msgif_type_if2();
+			uint32_t msgif_id = get_msgif_id_if2(msgif_type),
+					msgif_mask = get_msgif_mask_if2(msgif_type);
 			if (msgif_type == type) {
 				// check if new id is a subset of the existing msgif mask
 				uint32_t masked_id = id & mask;
@@ -500,12 +574,12 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 					// need to configure new message but mask should be updated
 					if ((msgif_id & msgif_mask) == (id & msgif_mask)) {
 						if (msgif_mask != mask) {
-							msg_obj_disable(i + 1);
-							read_msg_obj(i + 1);
-							set_msgif_mask(msgif_mask & mask, type);
-							set_msgif_id(msgif_id, (msgif_type == CAN_EXT));
-							write_msg_obj(i + 1, false);
-							msg_obj_enable(i + 1);
+							msg_obj_disable_if2(i + 1);
+							read_msg_obj_if2(i + 1);
+							set_msgif_mask_if2(msgif_mask & mask, type);
+							set_msgif_id_if2(msgif_id, (msgif_type == CAN_EXT));
+							write_msg_obj_if2(i + 1, false);
+							msg_obj_enable_if2(i + 1);
 						}
 						match = true;
 						break;
@@ -517,13 +591,13 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 						(msgif_mask & ~mask) == 0) {
 					// only 1 bit differs in ID. Modify mask to include both messages
 					msgif_mask &= ~bits_differ;
-					msg_obj_disable(i + 1);
-					read_msg_obj(i + 1);
+					msg_obj_disable_if2(i + 1);
+					read_msg_obj_if2(i + 1);
 					// write receive message data to msg obj
-					set_msgif_mask(msgif_mask, type);
-					set_msgif_id(msgif_id, (msgif_type == CAN_EXT));
-					write_msg_obj(i + 1, false);
-					msg_obj_enable(i + 1);
+					set_msgif_mask_if2(msgif_mask, type);
+					set_msgif_id_if2(msgif_id, (msgif_type == CAN_EXT));
+					write_msg_obj_if2(i + 1, false);
+					msg_obj_enable_if2(i + 1);
 					match = true;
 					break;
 				}
@@ -543,20 +617,20 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 			// search for a unused message object to be used for receiving the messages
 			if (!GET_MASKED(this->used_msg_objs, (1 << i))) {
 
-				msg_obj_disable(i + 1);
+				msg_obj_disable_if2(i + 1);
 
-				read_msg_obj(i + 1);
+				read_msg_obj_if2(i + 1);
 				// write receive message data to msg obj
-				set_msgif_mask(mask, type);
+				set_msgif_mask_if2(mask, type);
 				// use msg type and dir for filtering
-				LPC_CAN->IF1_MSK2 |= (0b11 << 14);
-				set_msgif_id(id, (type == CAN_EXT));
-				LPC_CAN->IF1_MCTRL = (1 << 7) |		// single message (end of buffer)
+				LPC_CAN->IF2_MSK2 |= (0b11 << 14);
+				set_msgif_id_if2(id, (type == CAN_EXT));
+				LPC_CAN->IF2_MCTRL = (1 << 7) |		// single message (end of buffer)
 						(1 << 10) |					// receive interrupt enabled
 						(1 << 12);					// use mask for filtering
 
-				write_msg_obj(i + 1, false);
-				msg_obj_enable(i + 1);
+				write_msg_obj_if2(i + 1, false);
+				msg_obj_enable_if2(i + 1);
 
 				this->used_msg_objs |= (1 << i);
 				match = true;
@@ -575,6 +649,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 	}
 
 	NVIC_EnableIRQ(CAN_IRQn);
+	uv_mutex_unlock(&this->mutex);
 
 	// call callback if assigned
 	if (this->config_rx_callb) {
@@ -619,14 +694,18 @@ void uv_can_set_rx_msg_callbacks(void (*config_callb)(uv_can_channels_e chn,
 
 void uv_can_clear_rx_messages(uv_can_chn_e chn) {
 	NVIC_DisableIRQ(CAN_IRQn);
+	uv_mutex_lock(&this->mutex);
+
 	if (chn);
 	this->used_msg_objs = (1 << (TX_MSG_OBJ - 1));
 
 	// clear all rx message objects
 	for (int i = TX_MSG_OBJ; i < 32; i++) {
-		msg_obj_disable(i + 1);
+		msg_obj_disable_if1(i + 1);
 	}
+
 	NVIC_EnableIRQ(CAN_IRQn);
+	uv_mutex_unlock(&this->mutex);
 
 	if (this->clear_rx_callb) {
 		this->clear_rx_callb(chn);
@@ -635,11 +714,12 @@ void uv_can_clear_rx_messages(uv_can_chn_e chn) {
 
 
 
-void _uv_can_hal_send(uv_can_channels_e chn) {
+void _uv_can_hal_send(uv_can_channels_e chn, bool isr) {
 	if (chn);
 
 	// if tx object is pending, try to wait for the HAl task to release the pending msg obj
-	if ((LPC_CAN->TXREQ1 & 1) || !this->init) {
+	if ((LPC_CAN->TXREQ1 & 1) ||
+			!this->init) {
 		return;
 	}
 
@@ -647,34 +727,41 @@ void _uv_can_hal_send(uv_can_channels_e chn) {
 
 	NVIC_DisableIRQ(CAN_IRQn);
 
-	uv_errors_e e = uv_ring_buffer_pop(&this->tx_buffer, &msg);
+	if (isr ?
+			uv_mutex_lock_isr(&this->mutex) :
+			uv_mutex_lock_ms(&this->mutex, 0)) {
+		uint32_t s = isr ?
+				uv_msgbuffer_pop_isr(&this->tx_msgbuffer, &msg, sizeof(msg)) :
+				uv_msgbuffer_pop(&this->tx_msgbuffer, &msg, sizeof(msg), 0);
 
-	if (e == ERR_NONE) {
+		if (s != 0) {
 
+			msg_obj_disable_if2(TX_MSG_OBJ);
 
-		msg_obj_disable(TX_MSG_OBJ);
+			set_msgif_id_if2(msg.id, (msg.type == CAN_EXT));
 
-		set_msgif_id(msg.id, (msg.type == CAN_EXT));
+			LPC_CAN->IF2_ARB2 |= (1 << 13) |					// transmit msg
+					(((msg.type == CAN_EXT) ? 1 : 0) << 14) |	// frame type
+					(1 << 15);									// message valid
 
-		LPC_CAN->IF1_ARB2 |= (1 << 13) |					// transmit msg
-				(((msg.type == CAN_EXT) ? 1 : 0) << 14) |	// frame type
-				(1 << 15);									// message valid
+			LPC_CAN->IF2_MCTRL = (msg.data_length << 0) |		// data length
+					(1 << 7) |									// single message (end of buffer)
+					(1 << 8) |									// transmit request
+					(1 << 11) |									// transmit int enabled
+					(1 << 15);									// new data written by CPU
+			LPC_CAN->IF2_DA1 = msg.data_16bit[0];
+			LPC_CAN->IF2_DA2 = msg.data_16bit[1];
+			LPC_CAN->IF2_DB1 = msg.data_16bit[2];
+			LPC_CAN->IF2_DB2 = msg.data_16bit[3];
 
-		LPC_CAN->IF1_MCTRL = (msg.data_length << 0) |		// data length
-				(1 << 7) |									// single message (end of buffer)
-				(1 << 8) |									// transmit request
-				(1 << 11) |									// transmit int enabled
-				(1 << 15);									// new data written by CPU
-		LPC_CAN->IF1_DA1 = msg.data_16bit[0];
-		LPC_CAN->IF1_DA2 = msg.data_16bit[1];
-		LPC_CAN->IF1_DB1 = msg.data_16bit[2];
-		LPC_CAN->IF1_DB2 = msg.data_16bit[3];
+			// load the message into msg obj
+			write_msg_obj_if2(TX_MSG_OBJ, true);
 
-		// load the message into msg obj
-		write_msg_obj(TX_MSG_OBJ, true);
+			msg_obj_enable_if2(TX_MSG_OBJ);
 
-		msg_obj_enable(TX_MSG_OBJ);
-
+		}
+		isr ? uv_mutex_unlock_isr(&this->mutex) :
+				uv_mutex_unlock(&this->mutex);
 	}
 	NVIC_EnableIRQ(CAN_IRQn);
 }
@@ -719,32 +806,32 @@ static uv_errors_e uv_can_send_sync(uv_can_channels_e channel, uv_can_message_st
 
 		if (ret == ERR_NONE) {
 
-			can_enter_critical();
+			uv_mutex_lock(&this->mutex);
 
-			msg_obj_disable(TX_MSG_OBJ);
+			msg_obj_disable_if2(TX_MSG_OBJ);
 
-			set_msgif_id(msg->id, (msg->type == CAN_EXT));
+			set_msgif_id_if2(msg->id, (msg->type == CAN_EXT));
 
-			LPC_CAN->IF1_ARB2 |= (1 << 13) |					// transmit msg
+			LPC_CAN->IF2_ARB2 |= (1 << 13) |					// transmit msg
 					(((msg->type == CAN_EXT) ? 1 : 0) << 14) |	// frame type
 					(1 << 15);									// message valid
 
-			LPC_CAN->IF1_MCTRL = (msg->data_length << 0) |		// data length
+			LPC_CAN->IF2_MCTRL = (msg->data_length << 0) |		// data length
 					(1 << 7) |									// single message (end of buffer)
 					(1 << 8) |									// transmit request
 					(1 << 11) |									// transmit int enabled
 					(1 << 15);									// new data written by CPU
-			LPC_CAN->IF1_DA1 = msg->data_16bit[0];
-			LPC_CAN->IF1_DA2 = msg->data_16bit[1];
-			LPC_CAN->IF1_DB1 = msg->data_16bit[2];
-			LPC_CAN->IF1_DB2 = msg->data_16bit[3];
+			LPC_CAN->IF2_DA1 = msg->data_16bit[0];
+			LPC_CAN->IF2_DA2 = msg->data_16bit[1];
+			LPC_CAN->IF2_DB1 = msg->data_16bit[2];
+			LPC_CAN->IF2_DB2 = msg->data_16bit[3];
 
 			// load the message into msg obj
-			write_msg_obj(TX_MSG_OBJ, true);
+			write_msg_obj_if2(TX_MSG_OBJ, true);
 
-			msg_obj_enable(TX_MSG_OBJ);
+			msg_obj_enable_if2(TX_MSG_OBJ);
 
-			can_exit_critical();
+			uv_mutex_unlock(&this->mutex);
 
 			// wait until message is transferred or CAN status changes
 			bool br = false;
@@ -762,6 +849,7 @@ static uv_errors_e uv_can_send_sync(uv_can_channels_e channel, uv_can_message_st
 				if (br) {
 					break;
 				}
+				uv_rtos_task_yield();
 			}
 		}
 	}
@@ -801,19 +889,29 @@ uv_errors_e uv_can_get_char(char *dest) {
 uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 		can_send_flags_e flags) {
 	uv_errors_e ret = ERR_NONE;
-	can_enter_critical();
+
 	if (flags & CAN_SEND_FLAGS_LOCAL) {
 		if (!send_terminal(msg)) {
-			ret |= uv_ring_buffer_push(&this->rx_buffer, msg);
+			uv_mutex_lock(&this->mutex);
+			uint32_t s = uv_msgbuffer_push(&this->rx_msgbuffer, msg, sizeof(*msg), 0);
+			uv_mutex_unlock(&this->mutex);
+			if (s != sizeof(*msg)) {
+				ret = ERR_BUFFER_OVERFLOW;
+			}
 		}
 	}
 	if (flags & CAN_SEND_FLAGS_SYNC) {
 		ret |= uv_can_send_sync(chn, msg);
 	}
 	if (flags & CAN_SEND_FLAGS_NORMAL) {
-		ret |= uv_ring_buffer_push(&this->tx_buffer, msg);
+		uv_mutex_lock(&this->mutex);
+		uint32_t s = uv_msgbuffer_push(&this->tx_msgbuffer, msg, sizeof(*msg), 0);
+		uv_mutex_unlock(&this->mutex);
+		if (s != sizeof(*msg)) {
+			ret = ERR_BUFFER_OVERFLOW;
+		}
 	}
-	can_exit_critical();
+
 	if (!(flags & CAN_SEND_FLAGS_NO_TX_CALLB) &&
 			(this->tx_callback[chn] != NULL)) {
 		this->tx_callback[chn](__uv_get_user_ptr(), msg, flags);
@@ -826,11 +924,11 @@ uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 
 
 uv_errors_e uv_can_pop_message(uv_can_channels_e channel, uv_can_message_st *message) {
-	uv_errors_e ret = ERR_NONE;
-	can_enter_critical();
-	ret = uv_ring_buffer_pop(&this->rx_buffer, message);
-	can_exit_critical();
-	return ret;
+	uint32_t s = uv_msgbuffer_pop(
+			&this->rx_msgbuffer,
+			message,
+			sizeof(uv_can_msg_st), 0);
+	return (s == sizeof(uv_can_msg_st)) ? ERR_NONE : ERR_BUFFER_EMPTY;
 }
 
 
@@ -857,10 +955,10 @@ void _uv_can_hal_step(unsigned int step_ms) {
 
 	// send the next message from the buffer
 #if CONFIG_CAN0
-	_uv_can_hal_send(CAN0);
+	_uv_can_hal_send(CAN0, false);
 #endif
 #if CONFIG_CAN1
-	_uv_can_hal_send(CAN1);
+	_uv_can_hal_send(CAN1, false);
 #endif
 }
 
