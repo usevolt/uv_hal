@@ -517,7 +517,6 @@ uv_errors_e _uv_can_init() {
 	// init all message objects
 	for (int i = 0; i < 32; i++) {
 		msg_obj_disable_if1(i + 1);
-		msg_obj_disable_if2(i + 1);
 	}
 
 	/* Enable the CAN Interrupt */

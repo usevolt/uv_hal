@@ -300,7 +300,7 @@ standard names - or at least those used in the unmodified vector table. */
 #define configUSE_ALTERNATIVE_API				0
 #define configUSE_QUEUE_SETS					1
 #define configUSE_TASK_NOTIFICATIONS			1
-#define configSUPPORT_STATIC_ALLOCATION			0
+#define configSUPPORT_STATIC_ALLOCATION			1
 
 /* Software timer related configuration options.  The maximum possible task
 priority is configMAX_PRIORITIES - 1.  The priority of the timer task is
