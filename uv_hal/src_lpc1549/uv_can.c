@@ -492,13 +492,27 @@ uv_errors_e _uv_can_init() {
 #else
 	baudrate = CONFIG_CAN0_BAUDRATE;
 #endif
-	if (!baudrate || (baudrate > 2000000)) {
-		baudrate = CONFIG_CAN0_BAUDRATE;
-		CONFIG_NON_VOLATILE_START.can_baudrate = baudrate;
+	switch (baudrate) {
+		case 125000:
+			break;
+		case 500000:
+			break;
+		case 1000000:
+			break;
+		default:
+			baudrate = 250000;
+	}
+	if (baudrate == 125000) {
+		// multiply baudrate by 2 since can module has problems getting 125k baudarates
+		baudrate *= 2;
+		// divide clock to get right baudrate
+		LPC_CAN->CLKDIV = 1;
+	}
+	else {
+		LPC_CAN->CLKDIV = 0;
 	}
 	LPC_CAN->BT = ((SystemCoreClock / (baudrate * 8) - 1) & 0x3F)
 				  | (3 << 8) | (2 << 12);
-	LPC_CAN->CLKDIV = 0;
 
 	// init all message objects
 	for (int i = 0; i < 32; i++) {
