@@ -119,9 +119,9 @@ int16_t uv_adc_read(uv_adc_channels_e channel) {
 		// for some reason LPC1549 needs a bit time for ADC1 sequencer to setup.
 		// 24.10.2025 __NOP() command changed to freertos yield so that
 		// other tasks dont interrupt because of this
-		for (uint16_t i = 0; i < 0x400; i++) {
-			uv_rtos_task_yield();
-		}
+//		for (uint16_t i = 0; i < 0x400; i++) {
+////			uv_rtos_task_yield();
+//		}
 		Chip_ADC_EnableSequencer(LPC_ADC0, ADC_SEQA_IDX);
 		Chip_ADC_StartSequencer(LPC_ADC0, ADC_SEQA_IDX);
 		// wait for the conversion to finish
