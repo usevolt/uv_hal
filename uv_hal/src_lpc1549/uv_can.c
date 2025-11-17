@@ -905,9 +905,12 @@ uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 
 	if (flags & CAN_SEND_FLAGS_LOCAL) {
 		if (!send_terminal(msg)) {
-			uv_mutex_lock(&this->mutex);
+			// rx_msgbuffer is written by CAN interrupts.
+			// Since msgbuffers can only be written from one task at time,
+			// disable interrupts when pushing to it
+			NVIC_DisableIRQ(CAN_IRQn);
 			uint32_t s = uv_msgbuffer_push(&this->rx_msgbuffer, msg, sizeof(*msg), 0);
-			uv_mutex_unlock(&this->mutex);
+			NVIC_EnableIRQ(CAN_IRQn);
 			if (s != sizeof(*msg)) {
 				ret = ERR_BUFFER_OVERFLOW;
 			}
