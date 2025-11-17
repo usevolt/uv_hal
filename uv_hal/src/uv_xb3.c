@@ -780,7 +780,7 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 		this->initialized = true;
 	}
 	else {
-		uv_terminal_enable(TERMINAL_CAN);
+//		uv_terminal_enable(TERMINAL_CAN);
 		printf("XB3 init error. To reverting all settings to defaults.\n");
 		ret = ERR_HARDWARE_NOT_SUPPORTED;
 	}
