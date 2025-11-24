@@ -375,6 +375,10 @@ void signal_callb(int signum) {
 	fflush(stdout);
    // Terminate program
 	exit(signum);
+//	abort();
+
+	printf("exit doesnt kill program!\n");
+	fflush(stdout);
 }
 
 void uv_deinit(void) {
