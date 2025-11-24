@@ -152,9 +152,15 @@ uv_errors_e _uv_can_init() {
 #else
 	baudrate = CONFIG_CAN0_BAUDRATE;
 #endif
-	if (!baudrate || (baudrate > 2000000)) {
-		baudrate = CONFIG_CAN0_BAUDRATE;
-		CONFIG_NON_VOLATILE_START.can_baudrate = baudrate;
+	switch (baudrate) {
+		case 125000:
+			break;
+		case 500000:
+			break;
+		case 1000000:
+			break;
+		default:
+			baudrate = 250000;
 	}
 	Chip_CAN_Init(this->can[0].lpc_can, LPC_CANAF, LPC_CANAF_RAM);
 	Chip_CAN_SetBitRate(this->can[0].lpc_can, baudrate);

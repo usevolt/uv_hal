@@ -196,6 +196,9 @@ static inline uint16_t uv_halsensor_get_out_adc(uv_halsensor_st *this) {
 	return this->out_adc;
 }
 
+uint32_t uv_halsensor_get_progression_value(uint32_t input,
+		uint32_t numberspace, halsensor_progression_e prog);
+
 
 
 #endif

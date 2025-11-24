@@ -20,6 +20,8 @@
 
 #if CONFIG_XB3 && CONFIG_UART
 
+#define XB3_UART_BAUDRATE		921600
+
 
 #ifndef CONFIG_XB3_COORDINATOR_MAX_DEV_COUNT
 #error "CONFIG_XB3_COORDINATOR_MAX_DEV_COUNT should define maximum count of end-devices\
@@ -98,6 +100,10 @@ typedef struct __attribute__((packed)) {
 #define XB3_RF_PACKET_MAX_LEN		255
 
 
+#define XB3_TX_BUF_SIZE		(700)
+#define XB3_RX_BUF_SIZE		300
+
+
 /// @brief: Main struct for XB3 wireless module
 typedef struct {
 	uv_xb3_conf_st *conf;
@@ -110,13 +116,22 @@ typedef struct {
 	// buffer for writing data and AT commands to XB3.
 	// This queue holds API packetized data
 	uv_streambuffer_st tx_streambuffer;
+	char tx_buffer[XB3_TX_BUF_SIZE];
+	uv_staticstreambuffer_st tx_staticstreambuffer;
+
 	uv_mutex_st txstream_mutex;
 	// mutex that should belocked when AT command is ongoing
 	uv_mutex_st atreq_mutex;
+
 	// buffer for read data from XB3. Holds raw data parsed from API packages
-	uv_streambuffer_st rx_data_streambuffer;
+	uv_streambuffer_st rx_streambuffer;
+	char rx_buffer[XB3_RX_BUF_SIZE];
+	uv_staticstreambuffer_st rx_staticstreambuffer;
+
 	// buffer for read AT commands from XB3. Holds raw data parsed from API packages
 	uv_queue_st rx_at_queue;
+	char at_buffer[64];
+	uv_staticqueue_st rx_at_staticqueue;
 	uv_mutex_st tx_mutex;
 
 	uint64_t ieee_serial;
@@ -133,8 +148,8 @@ typedef struct {
 	uv_delay_st transmit_delay;
 
 	// stores the currently active network settings.
-	// packed struct to help mapping it to canopen object dictionary
-	struct __attribute__((packed)) {
+	// order of member variables is important since this is mapped to obj dict
+	struct {
 		uint64_t op;
 		uint16_t oi;
 		uint16_t ch;
@@ -186,7 +201,7 @@ void uv_xb3_step(uv_xb3_st *this, uint16_t step_ms);
 ///
 /// @param dest: Destination where data is copied
 static inline bool uv_xb3_get_data(uv_xb3_st *this, char *dest, uint16_t wait_ms) {
-	return uv_streambuffer_pop(&this->rx_data_streambuffer, dest, 1, wait_ms);
+	return uv_streambuffer_pop(&this->rx_streambuffer, dest, 1, wait_ms);
 }
 
 
@@ -292,15 +307,17 @@ static inline uint64_t uv_xb3_get_serial(uv_xb3_st *this) {
 void uv_xb3_network_reset(uv_xb3_st *this, bool xb3_step_task);
 
 
-/// @brief: Leaves current network and tries to join a new one with given
-/// *pan64*, *pan16* and *channel*
-void uv_xb3_join_network(uv_xb3_st *this, uint64_t pan64, uint16_t pan16, uint8_t chn,
-		bool xb3_step_task);
-
-
 /// @brief: Leaves current network by clearing all default network data and performing
 /// XB3 network reset.
-void uv_xb3_leave_network(uv_xb3_st *this, bool xb3_step_task);
+static inline void uv_xb3_leave_network(uv_xb3_st *this, bool xb3_step_task) {
+	uv_xb3_network_reset(this, xb3_step_task);
+}
+
+
+/// @brief: Leaves current network and tries to join a new one with given
+/// *pan64*, *pan16* and *channel*
+void uv_xb3_join_network(uv_xb3_st *this, uint64_t pan64,
+		bool xb3_step_task);
 
 
 /// @brief: Writes a local AT command to XB3 module

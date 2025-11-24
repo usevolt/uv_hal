@@ -114,6 +114,7 @@ static uint8_t ntouint8_queue(uv_xb3_st *this, uv_queue_st *srcqueue) {
 }
 
 
+
 static void uint64ton(char *dest, uint64_t value) {
 	dest[0] = (value >> 56) & 0xFF;
 	dest[1] = (value >> 48) & 0xFF;
@@ -254,6 +255,8 @@ static void rx(uv_xb3_st *this, int32_t wait_ms) {
 				// since we dont have any crc checking and corrupting
 				// this might freeze communication for a long time
 				LIMITS(this->rx_size, 0, 255 + 5);
+				if (this->rx_size >= 255) {
+				}
 				break;
 			// API Frame type
 			case 4:
@@ -318,7 +321,7 @@ static void rx(uv_xb3_st *this, int32_t wait_ms) {
 						break;
 					case APIFRAME_RECEIVEPACKET:
 						if (offset >= 15) {
-							if (!uv_streambuffer_push(&this->rx_data_streambuffer,
+							if (!uv_streambuffer_push(&this->rx_streambuffer,
 									&rx, 1, 0)) {
 								XB3_DEBUG(this, "XB3 receive buffer overflow\n");
 							}
@@ -469,8 +472,6 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd,
 	XB3_DEBUG(this, __VA_ARGS__);
 
 
-#define TX_BUF_SIZE		(700)
-#define RX_BUF_SIZE		300
 
 #include <uv_timer.h>
 
@@ -495,7 +496,6 @@ uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
 				}
 			}
 			else {
-				const char *name = pcTaskGetName(NULL);
 				if (uv_mutex_lock_ms(&this->txstream_mutex, wait_ms)) {
 					int p = uv_streambuffer_push(&this->tx_streambuffer,
 							data, datalen, wait_ms);
@@ -545,10 +545,33 @@ void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart
 	char dest[11] = { };
 	uv_uart_clear_rx_buffer(uart);
 
+	// restore XB3 defaults
+	sprintf(dest, "ATRE\r");
+	printf("%s\n", dest);
+	uv_uart_send(uart, dest, strlen(dest));
+	if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
+		printf("OK\n");
+	}
+	else {
+		printf("ERROR\n");
+	}
+
+	sprintf(dest, "ATAC\r");
+	printf("%s\n", dest);
+	uv_uart_send(uart, dest, strlen(dest));
+	if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
+		printf("OK\n");
+	}
+	else {
+		printf("ERROR\n");
+	}
+
+
 	if (flags_def & XB3_CONF_FLAGS_OPERATE_AS_COORDINATOR) {
 		// clear ID
-		uv_uart_send(uart, "ATID0\r", 6);
+		sprintf(dest, "ATID0\r");
 		printf("%s\n", dest);
+		uv_uart_send(uart, dest, strlen(dest));
 		if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
 			printf("OK\n");
 		}
@@ -557,8 +580,9 @@ void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart
 		}
 
 		// operate as COORDINATOR
-		uv_uart_send(uart, "ATCE1\r", 6);
+		sprintf(dest, "ATCE1\r");
 		printf("%s\n", dest);
+		uv_uart_send(uart, dest, strlen(dest));
 		if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
 			printf("OK\n");
 		}
@@ -567,8 +591,9 @@ void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart
 		}
 
 		// Node join time is infinite
-		uv_uart_send(uart, "ATNJFF\r", 7);
+		sprintf(dest, "ATNJFF\r");
 		printf("%s\n", dest);
+		uv_uart_send(uart, dest, strlen(dest));
 		if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
 			printf("OK\n");
 		}
@@ -578,8 +603,9 @@ void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart
 	}
 	else {
 		// write join device controls
-		uv_uart_send(uart, "ATDC48\r", 7);
+		sprintf(dest, "ATDC48\r");
 		printf("%s\n", dest);
+		uv_uart_send(uart, dest, strlen(dest));
 		if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
 			printf("OK\n");
 		}
@@ -588,8 +614,9 @@ void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart
 		}
 
 		// clear ID
-		uv_uart_send(uart, "ATID0\r", 6);
+		sprintf(dest, "ATID0\r");
 		printf("%s\n", dest);
+		uv_uart_send(uart, dest, strlen(dest));
 		if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
 			printf("OK\n");
 		}
@@ -634,7 +661,7 @@ void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart
 		printf("ERROR\n");
 	}
 
-	uv_uart_set_baudrate(uart, 921600);
+	uv_uart_set_baudrate(uart, XB3_UART_BAUDRATE);
 }
 
 
@@ -644,7 +671,7 @@ static bool xb3_reset(uv_xb3_st *this) {
 	bool ret = true;
 
 	uv_queue_clear(&this->rx_at_queue);
-	uv_streambuffer_clear(&this->rx_data_streambuffer);
+	uv_streambuffer_clear(&this->rx_streambuffer);
 	uv_streambuffer_clear(&this->tx_streambuffer);
 	uv_mutex_unlock(&this->txstream_mutex);
 
@@ -703,23 +730,22 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 		uv_terminal_enable(TERMINAL_CAN);
 	}
 
-	if (uv_streambuffer_init(&this->tx_streambuffer, TX_BUF_SIZE) != ERR_NONE) {
-		uv_terminal_enable(TERMINAL_CAN);
-		printf("XB3: Creating TX streambuffer failed, not enough memory\n");
-		ret = ERR_NOT_ENOUGH_MEMORY;
-	}
+	uv_streambuffer_init_static(&this->tx_streambuffer,
+								this->tx_buffer,
+								sizeof(this->tx_buffer),
+								&this->tx_staticstreambuffer);
 	uv_mutex_init(&this->txstream_mutex);
 	uv_mutex_unlock(&this->txstream_mutex);
-	if (uv_streambuffer_init(&this->rx_data_streambuffer, RX_BUF_SIZE) != ERR_NONE) {
-		uv_terminal_enable(TERMINAL_CAN);
-		printf("XB3: Creating RX streambuffer failed, not enough memory\n");
-		ret = ERR_NOT_ENOUGH_MEMORY;
-	}
-	if (uv_queue_init(&this->rx_at_queue, 100, sizeof(char)) == NULL) {
-		uv_terminal_enable(TERMINAL_CAN);
-		printf("XB3: Creating RX AT queue failed\n");
-		ret = ERR_NOT_ENOUGH_MEMORY;
-	}
+	uv_streambuffer_init_static(
+			&this->rx_streambuffer,
+			this->rx_buffer,
+			sizeof(this->rx_buffer),
+			&this->rx_staticstreambuffer);
+	uv_queue_init_static(&this->rx_at_queue,
+							 sizeof(this->at_buffer),
+							 sizeof(char),
+							 this->at_buffer,
+							 &this->rx_at_staticqueue);
 
 	uv_mutex_init(&this->atreq_mutex);
 	uv_mutex_unlock(&this->atreq_mutex);
@@ -734,8 +760,13 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	uv_rtos_task_create(&tx_rx, "xb3", UV_RTOS_MIN_STACK_SIZE * 2,
 			this, UV_RTOS_IDLE_PRIORITY + 1, NULL);
 
+	uv_rtos_task_delay(1000);
+
+	uv_uart_clear_rx_buffer(this->uart);
+
 	XB3_DEBUG(this, "Setting device identification string to '%s'\n", nodeid);
-	uv_xb3_at_response_e res = set_nodename(this, nodeid, true);
+	uv_xb3_at_response_e res = 0;
+	set_nodename(this, nodeid, true);
 
 	uv_xb3_local_at_cmd_req(this, "SH", "", 0);
 	res |= at_wait_for_reply(this, 1000, true);
@@ -1063,15 +1094,30 @@ void uv_xb3_network_reset(uv_xb3_st *this, bool xb3_step_task) {
 }
 
 
-void uv_xb3_join_network(uv_xb3_st *this, uint64_t pan64, uint16_t pan16, uint8_t chn,
+void uv_xb3_join_network(uv_xb3_st *this, uint64_t pan64,
 		bool xb3_step_task) {
+	uv_mutex_lock(&this->atreq_mutex);
+	char data[8] = {};
 
+	XB3_DEBUG(this, "Joining network\n");
+
+	// set 64-bit pan ID
+	uint64ton(data, pan64);
+	uv_xb3_local_at_cmd_req(this, "ID", data, sizeof(data));
+	at_wait_for_reply(this, 500, xb3_step_task);
+
+	// save changes
+	uv_xb3_local_at_cmd_req(this, "WR", "", 0);
+	at_wait_for_reply(this, 500, xb3_step_task);
+
+	// apply changes without rebooting
+	uv_xb3_local_at_cmd_req(this, "AC", "", 0);
+	at_wait_for_reply(this, 500, xb3_step_task);
+
+	uv_mutex_unlock(&this->atreq_mutex);
 }
 
 
-void uv_xb3_leave_network(uv_xb3_st *this, bool xb3_step_task) {
-
-}
 
 
 
@@ -1301,9 +1347,9 @@ void uv_xb3_terminal(uv_xb3_st *this,
 				!!(this->conf->flags & XB3_CONF_FLAGS_AT_ECHO),
 				!!(this->conf->flags & XB3_CONF_FLAGS_AT_HEX),
 				(int) uv_streambuffer_get_len(&this->tx_streambuffer),
-				(int) TX_BUF_SIZE,
-				(int) uv_streambuffer_get_len(&this->rx_data_streambuffer),
-				(int) RX_BUF_SIZE);
+				(int) XB3_TX_BUF_SIZE,
+				(int) uv_streambuffer_get_len(&this->rx_streambuffer),
+				(int) XB3_RX_BUF_SIZE);
 	}
 }
 
