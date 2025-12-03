@@ -47,7 +47,7 @@ static uint16_t current_func(void *this_ptr, uint16_t adc) {
 	// of synchronization is not available, we measure the average current and
 	// compensate the PWM output **off** time out from the value
 	uint16_t pwmdc = uv_moving_aver_get_val(&this->pwmaver);
-	if (pwmdc) {
+	if (pwmdc > 10) {
 		current = (int32_t) current * PWM_MAX_VALUE / pwmdc;
 	}
 
@@ -142,6 +142,7 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 		}
 		this->pwm = 0;
 		uv_delay_init(&this->openloop_delay, OPENLOOP_DELAY_MS);
+		uv_moving_aver_reset(&this->pwmaver);
 	}
 	else {
 		// output is ON
