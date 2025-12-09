@@ -280,12 +280,12 @@ int32_t uv_uart_send(uv_uarts_e uart, char *buffer, uint32_t length) {
 	int32_t len = 0;
 
 	if (length) {
-		uv_enter_critical();
+		uv_enter_critical_isr();
 		// Note: When calling FreeRTOS API functions from critical sections,
 		// wait_ms has to be 0!
 		len = uv_streambuffer_push(&this->tx_buffer[i], buffer, length, 0);
 		send_next_byte(uart);
-		uv_exit_critical();
+		uv_exit_critical_isr();
 	}
 
 
