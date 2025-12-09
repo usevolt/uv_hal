@@ -536,18 +536,23 @@ char *uv_jsonreader_get_child(char *parent, uint16_t index) {
 
 bool uv_jsonreader_get_obj_name(char *object, char *dest, unsigned int dest_length) {
 	bool ret = true;
-	object++;
-	int16_t i = 0;
-	while (*object != '"') {
-		if (i == dest_length) {
-			ret = false;
-			break;
+	if (object) {
+		object++;
+		int16_t i = 0;
+		while (*object != '"') {
+			if (i == dest_length) {
+				ret = false;
+				break;
+			}
+			else {
+				dest[i++] = *(object++);
+			}
 		}
-		else {
-			dest[i++] = *(object++);
-		}
+		dest[i] = '\0';
 	}
-	dest[i] = '\0';
+	else {
+		return false;
+	}
 	return ret;
 }
 
