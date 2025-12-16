@@ -346,15 +346,17 @@ canopen_pdo_mapping_parameter_st *uv_canopen_txpdo_get_mapping(uint16_t txpdo) {
 
 
 
-canopen_pdo_com_parameter_st *uv_canopen_rxpdo_get_com(uint16_t rxpdo) {
-	if (rxpdo >= CONFIG_CANOPEN_RXPDO_COUNT) {
+canopen_pdo_com_parameter_st *uv_canopen_rxpdo_get_com(int16_t rxpdo) {
+	if (rxpdo < 0 ||
+			rxpdo >= CONFIG_CANOPEN_RXPDO_COUNT) {
 		rxpdo = CONFIG_CANOPEN_RXPDO_COUNT - 1;
 	}
 	return &thisnv->rxpdo_coms[rxpdo];
 }
 
-canopen_pdo_com_parameter_st *uv_canopen_txpdo_get_com(uint16_t txpdo) {
-	if (txpdo >= CONFIG_CANOPEN_TXPDO_COUNT) {
+canopen_pdo_com_parameter_st *uv_canopen_txpdo_get_com(int16_t txpdo) {
+	if (txpdo < 0 ||
+			txpdo >= CONFIG_CANOPEN_TXPDO_COUNT) {
 		txpdo = CONFIG_CANOPEN_TXPDO_COUNT - 1;
 	}
 	return &thisnv->txpdo_coms[txpdo];

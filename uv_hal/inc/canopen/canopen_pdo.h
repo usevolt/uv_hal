@@ -137,9 +137,9 @@ canopen_pdo_mapping_parameter_st *uv_canopen_txpdo_get_mapping(uint16_t txpdo);
 
 
 /// @brief: Returns the RXPDO communication parameter assigned to RXPDO with an index of *rxpdo*
-canopen_pdo_com_parameter_st *uv_canopen_rxpdo_get_com(uint16_t rxpdo);
+canopen_pdo_com_parameter_st *uv_canopen_rxpdo_get_com(int16_t rxpdo);
 
-canopen_pdo_com_parameter_st *uv_canopen_txpdo_get_com(uint16_t txpdo);
+canopen_pdo_com_parameter_st *uv_canopen_txpdo_get_com(int16_t txpdo);
 
 /// @brief Configures the internal pdo mapping pointers according to obj dict mapping parameter
 ///

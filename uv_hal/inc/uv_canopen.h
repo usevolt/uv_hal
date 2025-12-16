@@ -631,6 +631,9 @@ void uv_canopen_pdo_cobid_update_isr(void);
 /// @brief: Returns true if the given index RXPDO is received within the specified time
 bool uv_canopen_rxpdo_is_received(uint16_t rxpdo_i);
 
+
+int16_t uv_canopen_rxpdo_get_receive_timer_ms(uint16_t rxpdo_i);
+
 /// @brief: Marks the given rxpdo as received or not received
 void uv_canopen_rxpdo_set_received(uint16_t rxpdo_i, bool value);
 
