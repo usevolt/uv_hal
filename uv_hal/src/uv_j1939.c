@@ -6,6 +6,7 @@
  */
 
 #include "uv_j1939.h"
+#include CONFIG_MAIN_H
 
 
 void uv_j1939_transport_init(uv_j1939_transport_st *this,
