@@ -40,11 +40,17 @@
 #endif
 
 
+typedef enum {
+	UILISTBUTTON_CONTENT_ARRAYOFPOINTER = 0,
+	UILISTBUTTON_CONTENT_ARRAYOFSTRINGS
+} uv_uilistbutton_content_e;
+
 /// @brief: Button structure
 typedef struct   {
 	EXTENDS(uv_uibutton_st);
 	char **content;
 	char *title;
+	uv_uilistbutton_content_e content_type;
 	color_t activebar_c;
 	color_t bar_c;
 	uint8_t content_len;
@@ -70,14 +76,16 @@ void uv_uilistbutton_init(void *me, char **content,
 /// @brief: Sets the content type to array-of-pointers. This is the default behaviour.
 /// The content buffer should be an array of pointers that point to the location of the strings.
 static inline void uv_uilistbutton_set_content_type_arrayofpointers(void *me) {
-	this->content_string_len = 0;
+	this->content_type = UILISTBUTTON_CONTENT_ARRAYOFPOINTER;
 }
 
 /// @brief: Sets the content type to array-of-strings. The content buffer
 /// should be an array of constant length null-terminated strings. Good if
 /// the content array is completely strored in RAM memory.
+/// If custom length strings are needed, set this to 0.
 static inline void uv_uilistbutton_set_content_type_arrayofstring(
 		void *me, uint16_t string_lengths) {
+	this->content_type = UILISTBUTTON_CONTENT_ARRAYOFSTRINGS;
 	this->content_string_len = string_lengths;
 }
 

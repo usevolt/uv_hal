@@ -46,9 +46,28 @@ void uv_uilistbutton_draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t y = uv_ui_get_yglobal(this);
 	int16_t w = uv_uibb(this)->width;
 	int16_t h = uv_uibb(this)->height;
-	char *content = (this->content_string_len == 0) ?
-			this->content[this->current_index] :
-			(&((char*) this->content)[this->content_string_len * this->current_index]);
+	char *content = NULL;
+	switch(this->content_type) {
+		case UILISTBUTTON_CONTENT_ARRAYOFPOINTER:
+			content = this->content[this->current_index];
+			break;
+		default:
+			//UILISTBUTTON_CONTENT_ARRAYOFSTRINGS
+			if (this->content_string_len != 0) {
+				content = (&((char*) this->content)[
+								this->content_string_len * this->current_index]);
+			}
+			else {
+				// find indexed string
+				// start from begin
+				content = ((char*) this->content);
+				// loop through strings
+				for (uint16_t i = 0; i < this->current_index; i++) {
+					content += strlen(content) + 1;
+				}
+			}
+			break;
+	}
 
 	color_t bgc = (((uv_uibutton_st*) this)->state) ?
 			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 20) :
@@ -106,6 +125,7 @@ void uv_uilistbutton_init(void *me, char **content,
 	this->content = content;
 	this->current_index = current_index;
 	this->content_string_len = 0;
+	this->content_type = UILISTBUTTON_CONTENT_ARRAYOFPOINTER;
 	if (this->current_index >= this->content_len) {
 		this->current_index = 0;
 	}
