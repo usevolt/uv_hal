@@ -116,7 +116,7 @@ static inline uint16_t uv_uimedia_get_bitmapheight(uv_uimedia_st *this) {
 
 /// @brief: Returns the size of the bitmap in bytes
 static inline uint32_t uv_uimedia_get_size(uv_uimedia_st *this) {
-	return this->size;
+	return (this == NULL) ? 0 : this->size;
 }
 
 #endif

@@ -203,7 +203,7 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 	else {
 		if (uv_delay(&this->touch_ind_delay, step_ms) ||
 				!uv_delay_has_ended(&this->touch_ind_delay)) {
-			// updte every second step cycle to make display react better
+			// update every second step cycle to make display react better
 			if ((this->touch_ind_delay % (step_ms * 2)) == 0) {
 				uv_ui_refresh(this);
 			}

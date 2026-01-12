@@ -158,8 +158,91 @@ static inline color_t uv_uilistbutton_get_main_color(void *me) {
 void uv_uilistbutton_draw(void *me, const uv_bounding_box_st *pbb);
 
 
-
 #undef this
+#define this ((uv_uimedialistbutton_st*)me)
+
+
+/// @brief: uimedialistbutton is a listbutton that adds a media bitmap
+typedef struct {
+	EXTENDS(uv_uilistbutton_st);
+	uv_uimedia_st *bitmap;
+} uv_uimedialistbutton_st;
+
+/// @brief: Initializes the uimedialistbutton
+void uv_uimedialistbutton_init(void *me, char **content,
+		uint8_t content_len, uint8_t current_index,
+		uv_uimedia_st *bitmap,
+		const uv_uistyle_st *style);
+
+
+static inline uv_uimedia_st *uv_uimedialistbutton_get_media(void *me) {
+	return this->bitmap;
+}
+
+void uv_uimedialistbutton_set_media(void *me, uv_uimedia_st *media);
+
+static inline void uv_uimedialistbutton_set_content_type_arrayofpointers(void *me) {
+	uv_uilistbutton_set_content_type_arrayofpointers(me);
+}
+
+static inline void uv_uimedialistbutton_set_content_type_arrayofstring(
+		void *me, uint16_t string_lengths) {
+	uv_uilistbutton_set_content_type_arrayofstring(me, string_lengths);
+}
+
+static inline void uv_uimedialistbutton_set_title(void *me, char *value) {
+	uv_uilistbutton_set_title(me, value);
+}
+
+static inline char *uv_uimedialistbutton_get_title(void *me) {
+	return uv_uilistbutton_get_title(me);
+}
+
+static inline uint8_t uv_uimedialistbutton_get_current_index(void *me) {
+	return uv_uilistbutton_get_current_index(me);
+}
+
+static inline uint8_t uv_uimedialistbutton_get_index(void *me) {
+	return uv_uilistbutton_get_index(me);
+}
+
+static inline uint8_t uv_uimedialistbutton_get_content_len(void *me) {
+	return uv_uilistbutton_get_content_len(me);
+}
+
+static inline void uv_uimedialistbutton_set_current_index(void *me, uint8_t value) {
+	uv_uilistbutton_set_current_index(me, value);
+}
+
+
+static inline void uv_uimedialistbutton_set_content(
+		void *me, char **buffer, uint8_t content_len) {
+	uv_uilistbutton_set_content(me, buffer, content_len);
+}
+
+static inline bool uv_uimedialistbutton_clicked(void *me) {
+	return uv_uilistbutton_clicked(me);
+}
+
+static inline bool uv_uimedialistbutton_is_down(void *me) {
+	return uv_uilistbutton_is_down(me);
+}
+
+
+static inline bool uv_uimedialistbutton_long_pressed(void *me) {
+	return uv_uilistbutton_long_pressed(me);
+}
+
+static inline void uv_uimedialistbutton_set_main_color(void *me, color_t c) {
+	uv_uilistbutton_set_main_color(me, c);
+}
+
+static inline color_t uv_uimedialistbutton_get_main_color(void *me) {
+	return uv_uilistbutton_get_main_color(me);
+}
+
+void uv_uimedialistbutton_draw(void *me, const uv_bounding_box_st *pbb);
+
 
 #endif
 

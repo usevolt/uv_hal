@@ -299,7 +299,7 @@ typedef void uv_w25q128_st;
 /// @param exmem: The external non-volatile memory module to be used for data download
 /// @param filename: The filename of the image. The file should be found from *exmem*.
 uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
-		uint32_t dest_addr, uv_w25q128_st *exmem, char *filename);
+		uint32_t dest_addr, uv_w25q128_st *exmem, const char *filename);
 
 
 

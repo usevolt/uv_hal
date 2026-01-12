@@ -108,12 +108,12 @@ typedef struct {
 } uimedia_ll_st;
 
 /// @brief: Creates new uimedia_ll_st module and adds it into the linked list
-uimedia_ll_st *uimedia_ll_st_create(char *filename, uint8_t* data,
+uimedia_ll_st *uimedia_ll_st_create(const char *filename, uint8_t* data,
 		uint32_t width, uint32_t height, uint32_t data_len);
 
 /// @brief: Finds the already existing uimedia_ll struct and returns it.
 /// Returns NULL if not found.
-uimedia_ll_st *uimedia_ll_st_find(char *filename);
+uimedia_ll_st *uimedia_ll_st_find(const char *filename);
 
 typedef struct {
     uint32_t TextureID;  // ID handle of the glyph texture
@@ -186,7 +186,7 @@ static uv_uiobject_ret_e confwindow_step(void *, uint16_t);
 
 
 
-uimedia_ll_st *uimedia_ll_st_create(char *filename, uint8_t* data,
+uimedia_ll_st *uimedia_ll_st_create(const char *filename, uint8_t* data,
 		uint32_t width, uint32_t height, uint32_t data_len) {
 	uimedia_ll_st *ret = this->uimediall;
 	uimedia_ll_st *parent = NULL;
@@ -242,8 +242,15 @@ uimedia_ll_st *uimedia_ll_st_create(char *filename, uint8_t* data,
 	return ret;
 }
 
-uimedia_ll_st *uimedia_ll_st_find(char *filename) {
-	uimedia_ll_st *ret = this->uimediall;
+uimedia_ll_st *uimedia_ll_st_find(const char *filename) {
+	uimedia_ll_st *ret;
+	if (filename == NULL ||
+			strlen(filename) == 0) {
+		ret = NULL;
+	}
+	else {
+		ret = this->uimediall;
+	}
 
 	while (ret != NULL) {
 		if (strcmp(ret->filename, filename) == 0) {
@@ -823,10 +830,16 @@ int16_t uv_ui_get_string_width(char *str, ui_font_st *font) {
 
 
 uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
-		uint32_t dest_addr, uv_w25q128_st *exmem, char *filename) {
+		uint32_t dest_addr, uv_w25q128_st *exmem, const char *filename) {
 	uint32_t ret = 0;
 	uimedia_ll_st *media = uimedia_ll_st_find(filename);
-	if (media == NULL) {
+	memset(bitmap, 0, sizeof(*bitmap));
+	bitmap->filename = "";
+	bitmap->type = UV_UIMEDIA_IMAGE;
+
+	if (media == NULL &&
+			filename != NULL &&
+			strlen(filename) != 0) {
 		// load the pixel data
 		unsigned error;
 		unsigned char* image = NULL;
@@ -845,12 +858,8 @@ uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
 		bitmap->filename = media->filename;
 		bitmap->width = media->width;
 		bitmap->height = media->height;
-		bitmap->type = UV_UIMEDIA_IMAGE;
 		bitmap->size = media->data_len;
 		ret = media->data_len;
-	}
-	else {
-		bitmap->size = 0;
 	}
 
 	return ret;
