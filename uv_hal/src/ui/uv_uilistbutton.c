@@ -34,7 +34,9 @@
 
 
 
-
+#ifdef this
+#undef this
+#endif
 #define this ((uv_uilistbutton_st*)me)
 
 
