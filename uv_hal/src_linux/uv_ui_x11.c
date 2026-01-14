@@ -605,7 +605,7 @@ int16_t uv_ui_get_string_width(char *str, ui_font_st *font) {
 
 
 uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
-		uint32_t dest_addr, uv_w25q128_st *exmem, char *filename) {
+		uint32_t dest_addr, uv_w25q128_st *exmem, const char *filename) {
 	uint32_t ret = 0;
 
 	bool match = false;

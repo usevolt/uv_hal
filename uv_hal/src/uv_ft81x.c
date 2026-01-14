@@ -1014,7 +1014,7 @@ uint32_t uv_ft81x_get_ramdl_usage(void) {
 
 #define LOAD_BUFFER_LEN		60
 uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
-		uint32_t dest_addr, uv_w25q128_st *exmem, char *filename) {
+		uint32_t dest_addr, uv_w25q128_st *exmem, const char *filename) {
 	uint8_t cmd_header_len_bytes = 12;
 	uint32_t buffer[LOAD_BUFFER_LEN / 4 + cmd_header_len_bytes / 4];
 	uint32_t offset = 0;
