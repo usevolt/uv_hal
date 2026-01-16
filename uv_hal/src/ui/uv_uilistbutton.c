@@ -55,18 +55,14 @@ void uv_uilistbutton_draw(void *me, const uv_bounding_box_st *pbb) {
 			break;
 		default:
 			//UILISTBUTTON_CONTENT_ARRAYOFSTRINGS
-			if (this->content_string_len != 0) {
-				content = (&((char*) this->content)[
-								this->content_string_len * this->current_index]);
-			}
-			else {
-				// find indexed string
-				// start from begin
-				content = ((char*) this->content);
-				// loop through strings
-				for (uint16_t i = 0; i < this->current_index; i++) {
+			// find indexed string
+			// start from begin
+			content = ((char*) this->content);
+			// loop through strings, not calculating zero-length strings
+			for (uint16_t i = 0; i < this->current_index; i++) {
+				do {
 					content += strlen(content) + 1;
-				}
+				} while (strlen(content) == 0);
 			}
 			break;
 	}
@@ -128,7 +124,6 @@ void uv_uilistbutton_init(void *me, char **content,
 	this->content_len = content_len;
 	this->content = content;
 	this->current_index = current_index;
-	this->content_string_len = 0;
 	this->content_type = UILISTBUTTON_CONTENT_ARRAYOFPOINTER;
 	if (this->current_index >= this->content_len) {
 		this->current_index = 0;
@@ -168,18 +163,14 @@ void uv_uimedialistbutton_draw(void *me, const uv_bounding_box_st *pbb) {
 			break;
 		default:
 			//UILISTBUTTON_CONTENT_ARRAYOFSTRINGS
-			if (listthis->content_string_len != 0) {
-				content = (&((char*) listthis->content)[
-								listthis->content_string_len * listthis->current_index]);
-			}
-			else {
-				// find indexed string
-				// start from begin
-				content = ((char*) listthis->content);
-				// loop through strings
-				for (uint16_t i = 0; i < listthis->current_index; i++) {
+			// find indexed string
+			// start from begin
+			content = ((char*) listthis->content);
+			// loop through strings
+			for (uint16_t i = 0; i < listthis->current_index; i++) {
+				do {
 					content += strlen(content) + 1;
-				}
+				} while (strlen(content) == 0);
 			}
 			break;
 	}

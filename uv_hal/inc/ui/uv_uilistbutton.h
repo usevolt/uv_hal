@@ -55,7 +55,6 @@ typedef struct   {
 	color_t bar_c;
 	uint8_t content_len;
 	uint8_t current_index;
-	uint16_t content_string_len;
 } uv_uilistbutton_st;
 
 #ifdef this
@@ -84,9 +83,8 @@ static inline void uv_uilistbutton_set_content_type_arrayofpointers(void *me) {
 /// the content array is completely strored in RAM memory.
 /// If custom length strings are needed, set this to 0.
 static inline void uv_uilistbutton_set_content_type_arrayofstring(
-		void *me, uint16_t string_lengths) {
+		void *me) {
 	this->content_type = UILISTBUTTON_CONTENT_ARRAYOFSTRINGS;
-	this->content_string_len = string_lengths;
 }
 
 /// @brief: Sets the title text. The title will be shown as a prefix to the actual content
@@ -186,8 +184,8 @@ static inline void uv_uimedialistbutton_set_content_type_arrayofpointers(void *m
 }
 
 static inline void uv_uimedialistbutton_set_content_type_arrayofstring(
-		void *me, uint16_t string_lengths) {
-	uv_uilistbutton_set_content_type_arrayofstring(me, string_lengths);
+		void *me) {
+	uv_uilistbutton_set_content_type_arrayofstring(me);
 }
 
 static inline void uv_uimedialistbutton_set_title(void *me, char *value) {
