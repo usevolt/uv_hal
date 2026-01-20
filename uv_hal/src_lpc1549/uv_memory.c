@@ -43,6 +43,7 @@
 // This is usually done in makefile. If no such symbol is defined, the default is 1 sector,
 // i.e. 4 kB.
 #if !defined(CONFIG_NVKB)
+#warning "CONFIG_NVKB not defined"
 #define CONFIG_NVKB		4
 #endif
 
@@ -138,6 +139,7 @@ uv_errors_e uv_memory_save(void) {
 			((uint32_t) &CONFIG_NON_VOLATILE_START);
 
 	bool match = true;
+
 	for (uint32_t i = 0; i < length; i++) {
 		if (((uint8_t*) &CONFIG_NON_VOLATILE_START)[i] !=
 				((uint8_t*) NON_VOLATILE_MEMORY_START_ADDRESS)[i]) {
@@ -149,6 +151,7 @@ uv_errors_e uv_memory_save(void) {
 			hal_crc != CONFIG_NON_VOLATILE_END.hal_crc) {
 		match = false;
 	}
+
 
 	if (match) {
 		printf("CRC matched (0x%x, hal 0x%x), no new data to save\n", crc, hal_crc);
@@ -169,6 +172,7 @@ uv_errors_e uv_memory_save(void) {
 			CONFIG_NON_VOLATILE_END.hal_crc = hal_crc;
 			CONFIG_NON_VOLATILE_END.crc = crc;
 
+			// write to flash sector by sector
 			for (uint32_t i = 0; i < length; i += FLASH_SECTOR_SIZE) {
 				uv_iap_status_e status = uv_erase_and_write_to_flash(
 						(uint32_t) &CONFIG_NON_VOLATILE_START + i,
