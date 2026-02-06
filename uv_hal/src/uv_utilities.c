@@ -325,6 +325,37 @@ uv_errors_e uv_vector_remove(uv_vector_st *this, uint16_t index, uint16_t count)
 }
 
 
+void* uv_vector_binary_search(uv_vector_st *this,
+							 void *match,
+							 int (*compare_func)(void *element1, void *element2)) {
+	void *ret = NULL;
+
+	int left = 0;
+	int right = uv_vector_size(this) - 1;
+
+	void *e1;
+	while (left <= right) {
+		int mid = left + (right - left) / 2;
+
+		e1 = uv_vector_at(this, mid);
+
+		int compare = compare_func(e1, match);
+		if (compare == 0) {
+			ret = e1;
+			break;
+		}
+		else if (compare > 0) {
+			right = mid - 1;
+		}
+		else {
+			left = mid + 1;
+		}
+	}
+
+	return ret;
+}
+
+
 
 /// @brief: Linear interpolation for floating points.
 ///

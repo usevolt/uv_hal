@@ -628,6 +628,10 @@ void uv_canopen_pdo_cobid_update(void);
 void uv_canopen_pdo_cobid_update_isr(void);
 
 
+/// @brief: Returns true if given can message ID belongs to PDO messages
+bool uv_canopen_is_pdo(uint32_t id);
+
+
 /// @brief: Returns true if the given index RXPDO is received within the specified time
 bool uv_canopen_rxpdo_is_received(uint16_t rxpdo_i);
 

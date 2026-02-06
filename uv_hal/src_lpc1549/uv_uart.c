@@ -265,7 +265,7 @@ uv_errors_e uv_uart_send_char(uv_uarts_e uart, char buffer) {
 void send_next_byte(uv_uarts_e uart) {
 	uint8_t i = get_i(uart);
 	if (cts(uart) &&
-			Chip_UART_GetStatus((void*) uart) & UART_STAT_TXRDY) {
+			(Chip_UART_GetStatus((void*) uart) & UART_STAT_TXRDY)) {
 		char c;
 		if (uv_streambuffer_pop(&this->tx_buffer[i], &c, 1, 0)) {
 			Chip_UART_SendByte((void*) uart, c);

@@ -277,6 +277,7 @@ static inline bool uv_streambuffer_is_empty(uv_streambuffer_st *this) {
 	return xStreamBufferIsEmpty(*this);
 }
 
+
 /// @brief: Pushes new data to stream buffer
 static inline uint32_t uv_streambuffer_push(uv_streambuffer_st *this,
 		void *data, uint32_t len, int32_t wait_ms) {

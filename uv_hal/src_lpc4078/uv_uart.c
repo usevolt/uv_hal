@@ -141,6 +141,10 @@ void UART0_IRQHandler(void) {
 	if (Chip_UART_ReadLineStatus(u[0]->uart) & UART_LSR_RDR) {
 		if (Chip_UART_Read(LPC_UART0, &c, 1)) {
 			uv_streambuffer_push_isr((void*) &u[0]->rx_buffer, &c, 1);
+#if CONFIG_UART0_RTS_IO != 0
+			uv_gpio_set(CONFIG_UART0_RTS_IO,
+						uv_streambuffer_get_free_space(&u[0]->rx_buffer) < 2);
+#endif
 			if (u[0]->callback) {
 				u[0]->callback(__uv_get_user_ptr(), UART0);
 			}
@@ -214,8 +218,17 @@ uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 
 		NVIC_SetPriority(UART0_IRQn, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY);
 		NVIC_EnableIRQ(UART0_IRQn);
-	}
 #endif
+#if CONFIG_UART0_RTS_IO != 0
+		// initialize RTS (request to send) as false, meaning
+		// there is space in rx buffer to receive data
+		uv_gpio_init_output(CONFIG_UART0_RTS_IO, false);
+#endif
+	}
+
+
+
+
 #if CONFIG_UART1
 	if (uart == UART1) {
 #error "UART1 not yet implemented"
@@ -298,6 +311,10 @@ int32_t uv_uart_get(uv_uarts_e uart, char *dest, uint32_t max_len, int wait_ms) 
 	uv_enter_critical();
 	ret = uv_streambuffer_pop((void*) &this->rx_buffer, dest, max_len, wait_ms);
 	uv_exit_critical();
+#if CONFIG_UART0_RTS_IO != 0
+	uv_gpio_set(CONFIG_UART0_RTS_IO,
+				uv_streambuffer_get_free_space(&this->rx_buffer) < 2);
+#endif
 
 	return ret;
 }

@@ -406,5 +406,16 @@ void uv_canopen_rxpdo_set_received(uint16_t rxpdo_i, bool value) {
 
 
 
+bool uv_canopen_is_pdo(uint32_t id) {
+	bool ret = false;
+	// clear NODEID
+	id = id & ~0x7F;
+	if (id >= CANOPEN_TXPDO1_ID &&
+			id <= CANOPEN_RXPDO4_ID + 0x7F) {
+		ret = true;
+	}
+}
+
+
 
 #endif

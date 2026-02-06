@@ -555,6 +555,20 @@ static inline void uv_vector_clear(uv_vector_st *this) {
 	this->len = 0;
 }
 
+/// @brief: Performs a binary search algorithm on uv_vector.
+///
+/// @param return: Pointer where matching element is returned.
+/// If match was not found, returns NULL
+///
+/// @param match: Pointer to element that is searched from vector
+/// @param compare_func: Function pointer to compare to elements.
+/// Should return 1 if element1 is greater than element2,
+/// -1 if element1 is less than element2,
+/// 0 if element1 is equal to element2 i.e. match is found.
+void* uv_vector_binary_search(uv_vector_st *this,
+									 void *match,
+										   int (*compare_func)(void *element1, void *element2));
+
 
 /// @brief: Linear interpolation for floating points.
 ///
