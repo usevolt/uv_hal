@@ -414,20 +414,25 @@ void uv_terminal_baud_callb(void *me, unsigned int cmd, unsigned int args, argum
 
 #if CONFIG_TERMINAL_INSTRUCTIONS
 void uv_terminal_man_callb(void *me, unsigned int cmd, unsigned int args, argument_st *argv) {
-	int i;
-	for (i = 0; i < this->commands_count; i++) {
-		if (strcmp(argv[0].str, this->commands_ptr[i].str) == 0) {
-			printf("\n%s:\n%s\n\n", this->commands_ptr[i].str, this->commands_ptr[i].instructions);
-			return;
+	bool found = false;
+	if (args > 0) {
+		int i;
+		for (i = 0; i < this->commands_count && !found; i++) {
+			if (strcmp(argv[0].str, this->commands_ptr[i].str) == 0) {
+				printf("\n%s:\n%s\n\n", this->commands_ptr[i].str, this->commands_ptr[i].instructions);
+				found = true;
+			}
+		}
+		for (i = 0; i < sizeof(common_cmds) / sizeof(uv_command_st) && !found; i++) {
+			if (strcmp(argv[0].str, common_cmds[i].str) == 0) {
+				printf("\n%s:\n%s\n\n", common_cmds[i].str, common_cmds[i].instructions);
+				found = true;
+			}
 		}
 	}
-	for (i = 0; i < sizeof(common_cmds) / sizeof(uv_command_st); i++) {
-		if (strcmp(argv[0].str, common_cmds[i].str) == 0) {
-			printf("\n%s:\n%s\n\n", common_cmds[i].str, common_cmds[i].instructions);
-			return;
-		}
+	if (!found) {
+		printf("Give a command name as a string argument\n");
 	}
-	printf("Give a command name as a string argument\n");
 }
 #endif
 void uv_terminal_reset_callb(void *me, unsigned int cmd, unsigned int args, argument_st *argv) {

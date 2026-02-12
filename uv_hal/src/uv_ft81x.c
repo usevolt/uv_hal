@@ -1369,12 +1369,14 @@ void uv_ui_touchscreen_calibrate(ui_transfmat_st *transform_matrix) {
 
 
 void uv_ui_touchscreen_set_transform_matrix(ui_transfmat_st *transform_matrix) {
-	write32(REG_TOUCH_TRANSFORM_A, transform_matrix->mat[0]);
-	write32(REG_TOUCH_TRANSFORM_B, transform_matrix->mat[1]);
-	write32(REG_TOUCH_TRANSFORM_C, transform_matrix->mat[2]);
-	write32(REG_TOUCH_TRANSFORM_D, transform_matrix->mat[3]);
-	write32(REG_TOUCH_TRANSFORM_E, transform_matrix->mat[4]);
-	write32(REG_TOUCH_TRANSFORM_F, transform_matrix->mat[5]);
+	if (transform_matrix != NULL) {
+		write32(REG_TOUCH_TRANSFORM_A, transform_matrix->mat[0]);
+		write32(REG_TOUCH_TRANSFORM_B, transform_matrix->mat[1]);
+		write32(REG_TOUCH_TRANSFORM_C, transform_matrix->mat[2]);
+		write32(REG_TOUCH_TRANSFORM_D, transform_matrix->mat[3]);
+		write32(REG_TOUCH_TRANSFORM_E, transform_matrix->mat[4]);
+		write32(REG_TOUCH_TRANSFORM_F, transform_matrix->mat[5]);
+	}
 }
 
 
@@ -1400,22 +1402,24 @@ bool uv_ui_get_touch(int16_t *x, int16_t *y) {
 
 int16_t uv_ui_get_string_width(char *str, ui_font_st *font) {
 	int16_t ret = 0;
-	int16_t line_len = 0;
+	if (str != NULL && font != NULL) {
+		int16_t line_len = 0;
 
-	for (uint32_t i = 0; i < strlen(str); i++) {
-		// clear the calculated width on every new line character
-		if (str[i] == '\n') {
-			line_len = 0;
-		}
-		else {
-			// fetch the width of this character from FT81X
-			int16_t w = read8(FONT_METRICS_BASE_ADDR +
-					(font->index - 16) * FONT_METRICS_FONT_LEN +
-					FONT_METRICS_CHAR_WIDTH_OFFSET + str[i]);
-			line_len += w;
-		}
-		if (line_len > ret) {
-			ret = line_len;
+		for (uint32_t i = 0; i < strlen(str); i++) {
+			// clear the calculated width on every new line character
+			if (str[i] == '\n') {
+				line_len = 0;
+			}
+			else {
+				// fetch the width of this character from FT81X
+				int16_t w = read8(FONT_METRICS_BASE_ADDR +
+						(font->index - 16) * FONT_METRICS_FONT_LEN +
+						FONT_METRICS_CHAR_WIDTH_OFFSET + str[i]);
+				line_len += w;
+			}
+			if (line_len > ret) {
+				ret = line_len;
+			}
 		}
 	}
 	return ret;
@@ -1425,42 +1429,43 @@ int16_t uv_ui_get_string_width(char *str, ui_font_st *font) {
 
 void uv_ui_draw_string(char *str, ui_font_st *font,
 		int16_t x, int16_t y, ui_align_e align, color_t color) {
-	char *str_ptr = str;
-	int16_t len = 0;
+	if (str != NULL && font != NULL) {
+		char *str_ptr = str;
+		int16_t len = 0;
 
-	// find out the line count to adjust start y
-	if ((align == UI_ALIGN_CENTER) ||
-			(align == UI_ALIGN_LEFT_CENTER) ||
-			(align == UI_ALIGN_RIGHT_CENTER)) {
-		uint16_t line_count = 0;
-		while (*str_ptr != '\0') {
-			if (*str_ptr++ == '\n') {
-				line_count++;
+		// find out the line count to adjust start y
+		if ((align == UI_ALIGN_CENTER) ||
+				(align == UI_ALIGN_LEFT_CENTER) ||
+				(align == UI_ALIGN_RIGHT_CENTER)) {
+			uint16_t line_count = 0;
+			while (*str_ptr != '\0') {
+				if (*str_ptr++ == '\n') {
+					line_count++;
+				}
 			}
+			y -= uv_ui_get_font_height(font) * line_count / 2;
+			str_ptr = str;
 		}
-		y -= uv_ui_get_font_height(font) * line_count / 2;
-		str_ptr = str;
+
+		while (true) {
+			if (*str_ptr == '\0') {
+				draw_line(str, font, x, y, align, color, len);
+				break;
+			}
+			else if (*str_ptr == '\n') {
+				draw_line(str, font, x, y, align, color, len);
+				y += uv_ui_get_font_height(font);
+				str = str_ptr + 1;
+				len = -1;
+			}
+			else {
+
+			}
+
+			str_ptr++;
+			len++;
+		}
 	}
-
-	while (true) {
-		if (*str_ptr == '\0') {
-			draw_line(str, font, x, y, align, color, len);
-			break;
-		}
-		else if (*str_ptr == '\n') {
-			draw_line(str, font, x, y, align, color, len);
-			y += uv_ui_get_font_height(font);
-			str = str_ptr + 1;
-			len = -1;
-		}
-		else {
-
-		}
-
-		str_ptr++;
-		len++;
-	}
-
 }
 
 

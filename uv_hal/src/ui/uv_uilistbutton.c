@@ -66,6 +66,9 @@ void uv_uilistbutton_draw(void *me, const uv_bounding_box_st *pbb) {
 			}
 			break;
 	}
+	if (content == NULL) {
+		content = "";
+	}
 
 	color_t bgc = (((uv_uibutton_st*) this)->state) ?
 			uv_uic_brighten(((uv_uibutton_st*) this)->main_c, 20) :
@@ -173,6 +176,9 @@ void uv_uimedialistbutton_draw(void *me, const uv_bounding_box_st *pbb) {
 				} while (strlen(content) == 0);
 			}
 			break;
+	}
+	if (content == NULL) {
+		content = "";
 	}
 
 	color_t bgc = (((uv_uibutton_st*) this)->state) ?

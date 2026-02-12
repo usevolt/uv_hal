@@ -63,11 +63,13 @@ void uv_uitreeobject_init(void *me, uv_uiobject_st **object_array,
 static void touch(void *me, uv_touch_st *touch) {
 	if (touch->action == TOUCH_CLICKED) {
 		if ((touch->y >= 0) && (touch->y < CONFIG_UI_TREEVIEW_ITEM_HEIGHT)) {
-			if (((uv_uiobject_st *) this)->enabled) {
-				uv_uitreeview_close(((uv_uiobject_st*) this)->parent, this);
-			}
-			else {
-				uv_uitreeview_open(((uv_uiobject_st*) this)->parent, this);
+			if (((uv_uiobject_st*) this)->parent != NULL) {
+				if (((uv_uiobject_st *) this)->enabled) {
+					uv_uitreeview_close(((uv_uiobject_st*) this)->parent, this);
+				}
+				else {
+					uv_uitreeview_open(((uv_uiobject_st*) this)->parent, this);
+				}
 			}
 			touch->action = TOUCH_NONE;
 		}

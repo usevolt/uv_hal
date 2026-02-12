@@ -79,6 +79,7 @@ void _uv_canopen_sdo_server_init(void) {
 	uv_delay_end(&this->delay);
 	this->state = CANOPEN_SDO_STATE_READY;
 	this->write_callb = NULL;
+	this->read_callb = NULL;
 }
 
 void _uv_canopen_sdo_server_reset(void) {
@@ -267,7 +268,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 		// Initiate block download (write)
 		else if (sdo_type == INITIATE_BLOCK_DOWNLOAD) {
 			if ((obj = _canopen_find_object(msg, CANOPEN_WO))) {
-				if (obj->type == CANOPEN_STRING) {
+				if (obj->type == CANOPEN_STRING && obj->data_ptr != NULL) {
 					this->state = CANOPEN_SDO_STATE_BLOCK_DOWNLOAD;
 					this->obj = obj;
 					this->seq = 0;
@@ -287,7 +288,7 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 		// Initiate block upload (read)
 		else if (sdo_type == INITIATE_BLOCK_UPLOAD) {
 			if ((obj = _canopen_find_object(msg, CANOPEN_RO))) {
-				if (obj->type == CANOPEN_STRING) {
+				if (obj->type == CANOPEN_STRING && obj->data_ptr != NULL) {
 					this->state = CANOPEN_SDO_STATE_BLOCK_UPLOAD_WFR;
 					this->obj = obj;
 					this->seq = 0;

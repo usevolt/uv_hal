@@ -79,7 +79,9 @@ static void uv_uiduallabelbutton_draw(void *me, const uv_bounding_box_st *pbb) {
 
 
 void uv_uiduallabelbutton_set_dual_text(void *me, char *dualtext) {
-	if (strcmp(this->dualtext, dualtext) != 0) {
+	if (this->dualtext != NULL &&
+			dualtext != NULL &&
+			strcmp(this->dualtext, dualtext) != 0) {
 		uv_ui_refresh(this);
 	}
 	this->dualtext = dualtext;

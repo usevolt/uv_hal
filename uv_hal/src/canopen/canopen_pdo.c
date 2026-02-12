@@ -138,8 +138,10 @@ void _uv_canopen_pdo_init() {
 			// PDO communication parameter found
 			canopen_pdo_com_parameter_st *com;
 			com = obj->data_ptr;
-			uv_delay_init((uv_delay_st*) &this->txpdo[i].time, com->event_timer);
-			this->txpdo[i].inhibit_time = 0;
+			if (com != NULL) {
+				uv_delay_init((uv_delay_st*) &this->txpdo[i].time, com->event_timer);
+				this->txpdo[i].inhibit_time = 0;
+			}
 		}
 		else {
 			// something went wrong
@@ -188,7 +190,7 @@ void _uv_canopen_pdo_step(uint16_t step_ms) {
 		}
 
 		// if PDO is not enabled, skip it
-		if (IS_ENABLED(com)) {
+		if (com && IS_ENABLED(com)) {
 			// check if event timer in this PDO triggers and the inhibit time has passed
 			// since last transmission
 			uv_delay((uv_delay_st*) &this->txpdo[i].time, step_ms);
@@ -276,8 +278,8 @@ void _uv_canopen_pdo_rx(const uv_can_message_st *msg) {
 	 * RXPDO
 	 */
 	for (uint8_t i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
-		valid = true;
 		const canopen_pdo_com_parameter_st *com = this->rxpdo[i].com_ptr;
+		valid = (com != NULL);
 		if (com) {
 			if (com->cob_id & CANOPEN_PDO_DISABLED) {
 				valid = false;
@@ -321,11 +323,13 @@ void uv_canopen_pdo_mapping_update(uint16_t main_index, uint8_t subindex) {
 		if ((obj = _uv_canopen_obj_dict_get(
 				CONFIG_CANOPEN_TXPDO_MAP_INDEX + i, 0))) {
 			canopen_pdo_mapping_parameter_st *mapping_par = obj->data_ptr;
-			for (uint8_t j = 0; j < CONFIG_CANOPEN_PDO_MAPPING_COUNT; j++) {
-				if ((mapping_par->mappings[j].main_index == main_index) &&
-						(mapping_par->mappings[j].sub_index == subindex)) {
-					uv_delay_trigger(&this->txpdo[i].time);
-					break;
+			if (mapping_par != NULL) {
+				for (uint8_t j = 0; j < CONFIG_CANOPEN_PDO_MAPPING_COUNT; j++) {
+					if ((mapping_par->mappings[j].main_index == main_index) &&
+							(mapping_par->mappings[j].sub_index == subindex)) {
+						uv_delay_trigger(&this->txpdo[i].time);
+						break;
+					}
 				}
 			}
 		}
@@ -378,7 +382,7 @@ void _uv_canopen_pdo_mapping_ptr_conf(canopen_pdo_mapping_parameter_st *mapping_
 		const canopen_object_st *obj =
 				_uv_canopen_obj_dict_get(map->main_index, map->sub_index);
 
-		if (obj != NULL) {
+		if (obj != NULL && obj->data_ptr != NULL) {
 			if ((obj->permissions & permissions)) {
 				uint8_t *ptr = NULL;
 				if (uv_canopen_is_array(obj)) {

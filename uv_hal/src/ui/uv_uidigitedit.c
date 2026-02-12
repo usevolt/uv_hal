@@ -145,12 +145,15 @@ void uv_uidigitedit_draw(void *me, const uv_bounding_box_st *pbb) {
 		height = uv_ui_get_string_height(((uv_uilabel_st*) this)->str,
 				((uv_uilabel_st*) this)->font);
 	}
-	int16_t title_height = (this->mode == UIDIGITEDIT_MODE_RODIGIT &&
-			this->modedata.rodigit.title_font) ?
-					uv_ui_get_string_height(this->title,
-							this->modedata.rodigit.title_font) :
-					uv_ui_get_string_height(this->title,
-							((uv_uilabel_st*) this)->font);
+	int16_t title_height = 0;
+	if (this->title != NULL) {
+		title_height = (this->mode == UIDIGITEDIT_MODE_RODIGIT &&
+				this->modedata.rodigit.title_font) ?
+						uv_ui_get_string_height(this->title,
+								this->modedata.rodigit.title_font) :
+						uv_ui_get_string_height(this->title,
+								((uv_uilabel_st*) this)->font);
+	}
 	y += (uv_uibb(this)->h - (height + title_height + TITLE_OFFSET)) / 2;
 
 	int16_t inc_w = (this->mode == UIDIGITEDIT_MODE_INCDEC) ?

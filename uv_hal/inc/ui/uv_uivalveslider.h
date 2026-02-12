@@ -136,7 +136,7 @@ static inline uv_uivalveslider_handles_e uv_uivalveslider_get_selected_handle(vo
 /// @brief: Sets the cursor position and the shown text. The text has to point to a volatile
 /// memory address.
 ///
-/// @param position: -100 ... 100 for shouwing the cursor, any other value hides it
+/// @param position: -100 ... 100 for showing the cursor, any other value hides it
 void uv_uivalveslider_set_cursor(void *me, int16_t position, char *text);
 
 

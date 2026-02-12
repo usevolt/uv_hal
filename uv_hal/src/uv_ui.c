@@ -33,7 +33,7 @@
 
 
 char *uv_uitr(uint8_t lang_index, ...) {
-	char *ret = NULL;
+	char *ret = "";
 
 	va_list args;
 	va_start(args, lang_index);

@@ -109,10 +109,16 @@ uv_errors_e uv_jsonreader_init(char *buffer_ptr, unsigned int buffer_length) {
 
 uv_errors_e uv_jsonwriter_init(uv_json_st *json, char *buffer_ptr,
 		unsigned int buffer_length) {
-	json->start_ptr = buffer_ptr;
- 	json->buffer_length = buffer_length;
-	sprintf(json->start_ptr, "{");
-	return ERR_NONE;
+	uv_errors_e ret = ERR_NONE;
+	if (json != NULL && buffer_ptr != NULL) {
+		json->start_ptr = buffer_ptr;
+		json->buffer_length = buffer_length;
+		sprintf(json->start_ptr, "{");
+	}
+	else {
+		ret = ERR_NULL_PTR;
+	}
+	return ret;
 }
 
 
@@ -467,25 +473,30 @@ char *uv_jsonreader_find_child(char *parent, char *child_name) {
 		// jump to the start of this object
 		parent = get_value_ptr(parent);
 		ptr = parent;
-		if (*ptr == '{') {
-			ptr++;
+		if (*ptr == '\0') {
+			ret = false;
 		}
-		while (*ptr != '\0') {
-			bool br = false;
-
-			// child found, check if child has the name requested
-			if (strncmp(ptr + 1, child_name, name_len) == 0 &&
-					*(ptr + 1 + name_len) == '"') {
-				ret = ptr;
-				br = true;
+		else {
+			if (*ptr == '{') {
+				ptr++;
 			}
-			else {
-				if (!uv_jsonreader_get_next_sibling(ptr, &ptr)) {
+			while (*ptr != '\0') {
+				bool br = false;
+
+				// child found, check if child has the name requested
+				if (strncmp(ptr + 1, child_name, name_len) == 0 &&
+						*(ptr + 1 + name_len) == '"') {
+					ret = ptr;
 					br = true;
 				}
-			}
-			if (br) {
-				break;
+				else {
+					if (!uv_jsonreader_get_next_sibling(ptr, &ptr)) {
+						br = true;
+					}
+				}
+				if (br) {
+					break;
+				}
 			}
 		}
 	}
@@ -558,7 +569,7 @@ bool uv_jsonreader_get_obj_name(char *object, char *dest, unsigned int dest_leng
 
 
 static char *get_value_ptr(char *ptr) {
-	while (*ptr != ':') {
+	while (*ptr != ':' && *ptr != '\0') {
 		if (*ptr == '{') {
 			ptr--;
 			break;
@@ -702,7 +713,10 @@ int uv_jsonreader_get_int(char *object) {
 			ret = strtol(c, NULL, 0);
 		}
 		else if (type == JSON_STRING) {
-			ret = strtol(uv_jsonreader_get_string_ptr(object), NULL, 0);
+			char *str = uv_jsonreader_get_string_ptr(object);
+			if (str != NULL) {
+				ret = strtol(str, NULL, 0);
+			}
 		}
 		else {
 
@@ -714,7 +728,8 @@ int uv_jsonreader_get_int(char *object) {
 
 
 int uv_json_array_get_int(char *object, unsigned int index) {
-	return strtol(array_index(object, index), NULL, 0);
+	char *p = array_index(object, index);
+	return (p != NULL) ? strtol(p, NULL, 0) : 0;
 }
 
 

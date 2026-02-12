@@ -107,13 +107,15 @@ void uv_ui_hide(void *me) {
 
 void uv_ui_refresh_parent(void *me) {
 #if CONFIG_LCD
-	if (this->parent)  {
-		((uv_uiobject_st*) this->parent)->refresh = true;
-		// on FT81x the refresh request goes recursively all the way to
-		// uidisplay. This way the whole display is updated when needed
-		uv_ui_refresh_parent(this->parent);
+	if (me != NULL) {
+		if (this->parent)  {
+			((uv_uiobject_st*) this->parent)->refresh = true;
+			// on FT81x the refresh request goes recursively all the way to
+			// uidisplay. This way the whole display is updated when needed
+			uv_ui_refresh_parent(this->parent);
+		}
+		this->refresh = true;
 	}
-	this->refresh = true;
 #elif CONFIG_FT81X
 	uv_ui_refresh(me);
 #endif

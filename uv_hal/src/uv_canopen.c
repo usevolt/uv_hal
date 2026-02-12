@@ -237,7 +237,7 @@ void uv_canopen_config_rx_msgs(void) {
 	for (int i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
 		if ((obj = _uv_canopen_obj_dict_get(CONFIG_CANOPEN_RXPDO_COM_INDEX + i, 0))) {
 			canopen_pdo_com_parameter_st* com = obj->data_ptr;
-			if (uv_canopen_is_array(obj)) {
+			if (com != NULL && uv_canopen_is_array(obj)) {
 				this->rxpdo[i].com_ptr = com;
 				if (!(com->cob_id & CANOPEN_PDO_DISABLED)) {
 					// only config the receive msg object if the pdo is enabled
@@ -258,15 +258,16 @@ void uv_canopen_config_rx_msgs(void) {
 	}
 	// TXPDO
 	for (int i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
-		if ((obj = _uv_canopen_obj_dict_get(CONFIG_CANOPEN_TXPDO_COM_INDEX + i, 0))) {
+		obj = _uv_canopen_obj_dict_get(CONFIG_CANOPEN_TXPDO_COM_INDEX + i, 0);
+		if (obj != NULL) {
 			canopen_pdo_com_parameter_st *com = obj->data_ptr;
 			if (uv_canopen_is_array(obj)) {
 				this->txpdo[i].com_ptr = com;
 			}
+			// configure mapping pointers
+			_uv_canopen_pdo_mapping_ptr_conf(&this_nonvol->txpdo_maps[i],
+					this->txpdo[i].mapping_ptr, CANOPEN_RO);
 		}
-		// configure mapping pointers
-		_uv_canopen_pdo_mapping_ptr_conf(&this_nonvol->txpdo_maps[i],
-				this->txpdo[i].mapping_ptr, CANOPEN_RO);
 	}
 
 

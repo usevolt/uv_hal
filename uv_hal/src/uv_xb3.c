@@ -420,8 +420,10 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd,
 	uv_queue_clear(&this->rx_at_queue);
 	uint8_t crc = 0;
 	uint16_t paramvaluelen = data_len;
-	if (data != NULL &&
-			paramvaluelen == 0) {
+	if (data == NULL) {
+		paramvaluelen = 0;
+	}
+	else if (paramvaluelen == 0) {
 		paramvaluelen = strlen(data);
 	}
 
@@ -459,7 +461,7 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd,
 
 	if (this->conf->flags & XB3_CONF_FLAGS_AT_ECHO) {
 		printf("AT %s ", atcmd);
-		for (uint16_t i = 0; i < data_len; i++) {
+		for (uint16_t i = 0; i < paramvaluelen; i++) {
 			printf("0x%02x ", data[i]);
 		}
 		printf("\n");
@@ -939,7 +941,9 @@ uv_xb3_at_response_e uv_xb3_scan_networks(uv_xb3_st *this,
 			uv_queue_pop(&this->rx_at_queue, &d.lqi, 0);
 			uv_queue_pop(&this->rx_at_queue, &d.rssi, 0);
 			memcpy(&dest[i], &d, sizeof(d));
-			(*network_count)++;
+			if (network_count != NULL) {
+				(*network_count)++;
+			}
 		}
 		else {
 			br = true;

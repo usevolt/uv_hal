@@ -445,7 +445,7 @@ void uv_uigraph_touch(void *me, uv_touch_st *touch) {
 					p->y += dy;
 					this->point_changed = true;
 					uv_ui_refresh(this);
-					touch = TOUCH_NONE;
+					touch->action = TOUCH_NONE;
 				}
 			}
 			else {

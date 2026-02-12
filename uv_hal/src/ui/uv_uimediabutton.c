@@ -80,7 +80,9 @@ static void draw_common(void *me, bool pressed, const uv_bounding_box_st *pbb) {
 				y + h / 2, ALIGN_CENTER, fontc);
 	}
 	else {
-		int16_t contenth = uv_uimedia_get_bitmapheight(this->media) +
+		int16_t mediah = (this->media != NULL) ?
+				uv_uimedia_get_bitmapheight(this->media) : 0;
+		int16_t contenth = mediah +
 				uv_ui_get_string_height(((uv_uibutton_st*) this)->text,
 						((uv_uibutton_st*)this)->font);
 		int16_t space = (uv_uibb(me)->height - contenth) /
@@ -92,7 +94,7 @@ static void draw_common(void *me, bool pressed, const uv_bounding_box_st *pbb) {
 		}
 		uv_ui_draw_string(((uv_uibutton_st*) this)->text,
 				((uv_uibutton_st*) this)->font, x + w / 2,
-				MIN((y + space * 2 + uv_uimedia_get_bitmapheight(this->media)),
+				MIN((y + space * 2 + mediah),
 						y + h - uv_ui_get_string_height(
 								((uv_uibutton_st*) this)->text,
 								((uv_uibutton_st*) this)->font)),

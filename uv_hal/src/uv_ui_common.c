@@ -198,12 +198,14 @@ int16_t uv_str_get_line_count(const char *str) {
 
 
 const char *uv_str_next_line(const char *str) {
-	while (*str != '\0' &&
-			*str != '\n') {
-		str++;
-	}
-	if (*str == '\n') {
-		str++;
+	if (str != NULL) {
+		while (*str != '\0' &&
+				*str != '\n') {
+			str++;
+		}
+		if (*str == '\n') {
+			str++;
+		}
 	}
 	return str;
 }

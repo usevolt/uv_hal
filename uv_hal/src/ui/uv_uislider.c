@@ -136,8 +136,10 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 		}
 	}
 
-	uv_ui_draw_string(this->title, this->font, x + w / 2, y + h + 5,
-			ALIGN_TOP_CENTER, this->text_c);
+	if (this->title != NULL) {
+		uv_ui_draw_string(this->title, this->font, x + w / 2, y + h + 5,
+				ALIGN_TOP_CENTER, this->text_c);
+	}
 
 
 }

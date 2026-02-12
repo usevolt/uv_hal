@@ -467,7 +467,7 @@ uint32_t uv_exmem_write(uv_w25q128_st *this, char *filename, uint32_t filesize,
 		if (!found) {
 			// file couldn't be found, search for a suitable place
 			fd.data_addr = get_free_addr(this, filesize);
-			if (offset == 0) {
+			if (fd.data_addr != -1 && offset == 0) {
 				// start by clearing the old file if the offset was zero,
 				// i.e. the first write was requested
 				for (uint32_t i = 0;
