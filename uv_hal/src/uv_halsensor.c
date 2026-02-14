@@ -31,9 +31,8 @@
 
 #if CONFIG_HALSENSOR
 
-#define MAX_VAL_THRESHOLD	(ADC_MAX_VALUE / 50)
+#define MAX_VAL_THRESHOLD	(CONFIG_HALSENSOR_INPUT_MAX / 50)
 #define MIN_VAL_THRESHOLD	MAX_VAL_THRESHOLD
-#define ADC_COUNT			3
 
 void uv_halsensor_config_reset(uv_halsensor_config_st *this) {
 	this->max = CONFIG_HALSENSOR_MAX_DEF;
@@ -46,10 +45,8 @@ void uv_halsensor_config_reset(uv_halsensor_config_st *this) {
 
 
 void uv_halsensor_init(uv_halsensor_st *this, uv_halsensor_config_st *config,
-		uv_adc_channels_e adc_chn, uint32_t fault_emcy) {
+		uint32_t fault_emcy) {
 	this->config = config;
-	this->adc_chn = adc_chn;
-	uv_adc_enable_ain(adc_chn);
 	this->fault_emcy = fault_emcy;
 	this->state = HALSENSOR_STATE_ON;
 	this->last_state = HALSENSOR_STATE_ON;
@@ -58,7 +55,7 @@ void uv_halsensor_init(uv_halsensor_st *this, uv_halsensor_config_st *config,
 	this->output32 = 0;
 	this->out_adc = 0;
 	this->out_mv = 0;
-	this->calib_start_adc = 0;
+	this->calib_start_val = 0;
 }
 
 
@@ -82,29 +79,9 @@ uint32_t uv_halsensor_get_progression_value(uint32_t input,
 	return ret;
 }
 
-static int sort(const void *val1, const void *val2) {
-	const uint16_t v1 = *((uint16_t*) val1),
-			v2 = *((uint16_t*) val2);
-	int ret;
-	if (v1 > v2) {
-		ret = 1;
-	}
-	else if (v1 < v2) {
-		ret = -1;
-	}
-	else {
-		ret = 0;
-	}
-	return ret;
-}
-
-int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
-	uint16_t adc_buf[ADC_COUNT] = {};
-	for (uint8_t i = 0; i < ADC_COUNT; i++) {
-		adc_buf[i] = uv_adc_read(this->adc_chn);
-	}
-	qsort(adc_buf, ADC_COUNT, sizeof(adc_buf[0]), &sort);
-	uint16_t adc = adc_buf[ADC_COUNT / 2];
+int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms,
+		uint16_t input_value) {
+	uint16_t adc = input_value;
 	this->out_adc = adc;
 
 	halsensor_state_e state = this->state;
@@ -112,11 +89,11 @@ int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 	// the sensor was set to calibration mode
 	if (state == HALSENSOR_STATE_CALIBRATION &&
 			this->last_state != state) {
-		this->calib_start_adc = adc;
+		this->calib_start_val = adc;
 	}
 
 	// voltage output is always calculated
-	this->out_mv = adc * 3300 / ADC_MAX_VALUE;
+	this->out_mv = adc * 3300 / CONFIG_HALSENSOR_INPUT_MAX;
 
 
 	if (state == HALSENSOR_STATE_ON) {
@@ -128,10 +105,10 @@ int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 		}
 		else {
 			// check if there's a fault in the input
-			// fault limits are double of the config min & max values relative to ADC_MAX_VALUE
-			// In case the max value is too close to ADC_MAX_VALUE, the upper limit is disabled
-			int32_t max_val = (this->config->max > (ADC_MAX_VALUE - MAX_VAL_THRESHOLD)) ?
-					(ADC_MAX_VALUE + 1) : (ADC_MAX_VALUE - MAX_VAL_THRESHOLD);
+			// fault limits are double of the config min & max values relative to CONFIG_HALSENSOR_INPUT_MAX
+			// In case the max value is too close to CONFIG_HALSENSOR_INPUT_MAX, the upper limit is disabled
+			int32_t max_val = (this->config->max > (CONFIG_HALSENSOR_INPUT_MAX - MAX_VAL_THRESHOLD)) ?
+					(CONFIG_HALSENSOR_INPUT_MAX + 1) : (CONFIG_HALSENSOR_INPUT_MAX - MAX_VAL_THRESHOLD);
 			int32_t min_val = (this->config->min < MIN_VAL_THRESHOLD) ?
 					this->config->min / 2 : MIN_VAL_THRESHOLD;
 			if ((adc < min_val) ||
@@ -229,7 +206,7 @@ int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 		}
 	}
 	else if (state == HALSENSOR_STATE_CALIBRATION) {
-		if (this->calib_start_adc == -1) {
+		if (this->calib_start_val == -1) {
 			if (adc < this->config->min) {
 				this->config->min = adc;
 			}
@@ -244,9 +221,9 @@ int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms) {
 		else {
 			// calibration has started but the adc value has not yet changed enough for
 			// us to forgot the old values
-			if (abs(this->calib_start_adc - adc) > CONFIG_HALSENSOR_CALIB_PASS) {
+			if (abs(this->calib_start_val - adc) > CONFIG_HALSENSOR_CALIB_PASS) {
 				// now we can forget the old values
-				this->calib_start_adc = -1;
+				this->calib_start_val = -1;
 				this->config->max = adc;
 				this->config->min = adc;
 				this->config->middle = adc;

@@ -32,11 +32,11 @@
 
 #include "uv_utilities.h"
 #include "uv_canopen.h"
-#include "uv_adc.h"
 #include "uv_filters.h"
 #include <uv_hal_config.h>
 
-/// @file: Module for reading HAL sensors with ADC channel
+/// @file: Module for reading HAL sensors. The input value is passed
+/// as an argument to the step function.
 
 
 #define HALSENSOR_CONFIG_MIN_SUBINDEX				1
@@ -50,25 +50,30 @@
 #if CONFIG_HALSENSOR
 
 
+// Maximum input value for the halsensor module.
+// Defaults to 12-bit ADC range (0x1000).
+#if !defined(CONFIG_HALSENSOR_INPUT_MAX)
+#define CONFIG_HALSENSOR_INPUT_MAX				0x1000
+#endif
 
 #if !defined(CONFIG_HALSENSOR_MIN_DEF)
-#define CONFIG_HALSENSOR_MIN_DEF				(ADC_MAX_VALUE / 2)
+#define CONFIG_HALSENSOR_MIN_DEF				(CONFIG_HALSENSOR_INPUT_MAX / 2)
 #endif
 #if !defined(CONFIG_HALSENSOR_MAX_DEF)
-#define CONFIG_HALSENSOR_MAX_DEF				(ADC_MAX_VALUE / 2)
+#define CONFIG_HALSENSOR_MAX_DEF				(CONFIG_HALSENSOR_INPUT_MAX / 2)
 #endif
 #if !defined(CONFIG_HALSENSOR_MIDDLE_DEF)
-#define CONFIG_HALSENSOR_MIDDLE_DEF				(ADC_MAX_VALUE / 2)
+#define CONFIG_HALSENSOR_MIDDLE_DEF				(CONFIG_HALSENSOR_INPUT_MAX / 2)
 #endif
 #if !defined(CONFIG_HALSENSOR_MIDDLE_TOLERANCE_DEF)
-#define CONFIG_HALSENSOR_MIDDLE_TOLERANCE_DEF	(ADC_MAX_VALUE / 40)
+#define CONFIG_HALSENSOR_MIDDLE_TOLERANCE_DEF	(CONFIG_HALSENSOR_INPUT_MAX / 40)
 #endif
 #if !defined(CONFIG_HALSENSOR_CALIB_PASS)
-// Defines the amount of measured adc value to be changed when calibrating the sensor
-// to implicate a successful calibration. If the adc value during the calibration
+// Defines the amount of measured input value to be changed when calibrating the sensor
+// to implicate a successful calibration. If the input value during the calibration
 // doesnt change this much, the calibration fails and the halsensor state is set to
 // HALSENSOR_STATE_NOT_CALIBRATED.
-#define CONFIG_HALSENSOR_CALIB_PASS				(ADC_MAX_VALUE / 40)
+#define CONFIG_HALSENSOR_CALIB_PASS				(CONFIG_HALSENSOR_INPUT_MAX / 40)
 #endif
 
 
@@ -119,16 +124,14 @@ void uv_halsensor_config_reset(uv_halsensor_config_st *this);
 
 /// @brief: The main hal sensor module
 typedef struct {
-	// adc channel for reading the sensor value
-	uv_adc_channels_e adc_chn;
 
 	// halsensor state variable. Can be mapped to CANopen object dictionary.
 	halsensor_state_e state;
 	halsensor_state_e last_state;
-	// the adc value at the start of the calibration. Set to -1 when the adc value
+	// the input value at the start of the calibration. Set to -1 when the input value
 	// has changed enough that the calibration can actually start and the
 	// old config values can be forgotten
-	int16_t calib_start_adc;
+	int16_t calib_start_val;
 
 	// output value, between range INTX_MIN + 1 ... INTX_MAX, where X is 8, 16 or 32.
 	// if fault is detected, output is driven to 0.
@@ -138,7 +141,7 @@ typedef struct {
 
 	// output raw value in millivolts
 	uint16_t out_mv;
-	// output value in adc
+	// last input value
 	uint16_t out_adc;
 
 	// emcy which will be sent if the sensor goes into fault mode
@@ -152,13 +155,15 @@ typedef struct {
 
 /// @brief: Initializes the module
 void uv_halsensor_init(uv_halsensor_st *this, uv_halsensor_config_st *config,
-		uv_adc_channels_e adc_chn, uint32_t fault_emcy);
+		uint32_t fault_emcy);
 
 
 /// @brief: Step function should be called every step cycle
 ///
+/// @param input_value: The raw input value in range 0 ... CONFIG_HALSENSOR_INPUT_MAX
 /// @return: output value. Can be also fetched with *uv_halsensor_get_output32*
-int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms);
+int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms,
+		uint16_t input_value);
 
 
 /// @brief: Puts the hal sensor into calibration state or out from it
