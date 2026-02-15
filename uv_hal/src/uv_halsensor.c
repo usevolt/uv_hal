@@ -31,22 +31,20 @@
 
 #if CONFIG_HALSENSOR
 
-#define MAX_VAL_THRESHOLD	(CONFIG_HALSENSOR_INPUT_MAX / 50)
-#define MIN_VAL_THRESHOLD	MAX_VAL_THRESHOLD
-
-void uv_halsensor_config_reset(uv_halsensor_config_st *this) {
-	this->max = CONFIG_HALSENSOR_MAX_DEF;
-	this->min = CONFIG_HALSENSOR_MIN_DEF;
-	this->middle = CONFIG_HALSENSOR_MIDDLE_DEF;
-	this->middle_tolerance = CONFIG_HALSENSOR_MIDDLE_TOLERANCE_DEF;
+void uv_halsensor_config_reset(uv_halsensor_config_st *this, uint16_t input_max) {
+	this->max = input_max / 2;
+	this->min = input_max / 2;
+	this->middle = input_max / 2;
+	this->middle_tolerance = input_max / 40;
 	this->progression = HALSENSOR_PROG_2;
 	this->invert = 0;
 }
 
 
 void uv_halsensor_init(uv_halsensor_st *this, uv_halsensor_config_st *config,
-		uint32_t fault_emcy) {
+		uint16_t input_max, uint32_t fault_emcy) {
 	this->config = config;
+	this->input_max = input_max;
 	this->fault_emcy = fault_emcy;
 	this->state = HALSENSOR_STATE_ON;
 	this->last_state = HALSENSOR_STATE_ON;
@@ -93,24 +91,25 @@ int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms,
 	}
 
 	// voltage output is always calculated
-	this->out_mv = adc * 3300 / CONFIG_HALSENSOR_INPUT_MAX;
+	this->out_mv = adc * 3300 / this->input_max;
 
 
 	if (state == HALSENSOR_STATE_ON) {
 		// check if the config values are valid. If not, set the sensor state
 		// to not calibrated.
-		if (abs(this->config->max - this->config->min) < CONFIG_HALSENSOR_CALIB_PASS) {
+		if (abs(this->config->max - this->config->min) < this->config->middle_tolerance) {
 			this->state = HALSENSOR_STATE_NOT_CALIBRATED;
 			this->output16 = 0;
 		}
 		else {
 			// check if there's a fault in the input
-			// fault limits are double of the config min & max values relative to CONFIG_HALSENSOR_INPUT_MAX
-			// In case the max value is too close to CONFIG_HALSENSOR_INPUT_MAX, the upper limit is disabled
-			int32_t max_val = (this->config->max > (CONFIG_HALSENSOR_INPUT_MAX - MAX_VAL_THRESHOLD)) ?
-					(CONFIG_HALSENSOR_INPUT_MAX + 1) : (CONFIG_HALSENSOR_INPUT_MAX - MAX_VAL_THRESHOLD);
-			int32_t min_val = (this->config->min < MIN_VAL_THRESHOLD) ?
-					this->config->min / 2 : MIN_VAL_THRESHOLD;
+			// fault limits are double of the config min & max values relative to input_max
+			// In case the max value is too close to input_max, the upper limit is disabled
+			int32_t val_threshold = this->input_max / 50;
+			int32_t max_val = (this->config->max > (this->input_max - val_threshold)) ?
+					(this->input_max + 1) : (this->input_max - val_threshold);
+			int32_t min_val = (this->config->min < val_threshold) ?
+					this->config->min / 2 : val_threshold;
 			if ((adc < min_val) ||
 					(adc > max_val)) {
 				uv_canopen_emcy_send(CANOPEN_EMCY_DEVICE_SPECIFIC, this->fault_emcy);
@@ -221,7 +220,7 @@ int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms,
 		else {
 			// calibration has started but the adc value has not yet changed enough for
 			// us to forgot the old values
-			if (abs(this->calib_start_val - adc) > CONFIG_HALSENSOR_CALIB_PASS) {
+			if (abs(this->calib_start_val - adc) > this->config->middle_tolerance) {
 				// now we can forget the old values
 				this->calib_start_val = -1;
 				this->config->max = adc;
@@ -233,7 +232,7 @@ int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms,
 	}
 	else if (state == HALSENSOR_STATE_NOT_CALIBRATED) {
 		// set the halsensor to ON state if the config values have been modified by hand
-		if (abs(this->config->max - this->config->min) >= CONFIG_HALSENSOR_CALIB_PASS) {
+		if (abs(this->config->max - this->config->min) >= this->config->middle_tolerance) {
 			this->state = HALSENSOR_STATE_ON;
 			this->output16 = 0;
 		}

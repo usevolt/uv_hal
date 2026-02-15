@@ -54,6 +54,51 @@ void uv_esp32_step(uv_esp32_st *this, uint16_t step_ms) {
 
 
 
+void uv_esp32_conf_reset(uv_esp32_conf_st *conf) {
+	memset(conf, 0, sizeof(*conf));
+}
+
+
+uv_errors_e uv_esp32_get_data(uv_esp32_st *this, char *dest) {
+	return ERR_HARDWARE_NOT_SUPPORTED;
+}
+
+
+uv_errors_e uv_esp32_write(uv_esp32_st *this,
+		char *data, uint16_t datalen, int32_t wait_ms) {
+	return ERR_HARDWARE_NOT_SUPPORTED;
+}
+
+
+uv_errors_e uv_esp32_write_isr(uv_esp32_st *this,
+		char *data, uint16_t datalen) {
+	return ERR_HARDWARE_NOT_SUPPORTED;
+}
+
+
+uint64_t uv_esp32_get_mac(uv_esp32_st *this) {
+	return 0;
+}
+
+
+char *uv_esp32_get_connected_ssid(uv_esp32_st *this) {
+	return "";
+}
+
+
+void uv_esp32_network_reset(uv_esp32_st *this) {
+}
+
+
+void uv_esp32_network_leave(uv_esp32_st *this) {
+}
+
+
+void uv_esp32_network_join(uv_esp32_st *this, char ssid[32],
+						   char passwd[64]) {
+}
+
+
 void uv_esp32_terminal(uv_esp32_st *this,
 		unsigned int args, argument_st *argv) {
 	printf("ESP32:\n");

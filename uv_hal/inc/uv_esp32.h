@@ -23,9 +23,9 @@
 
 
 
+#define SSID_STR_MAX_LEN	34
+#define PASSWD_STR_MAX_LEN	66
 #define IPV6_STR_MAX_LEN	46
-#define SSID_STR_MAX_LEN	33
-#define PASSWD_STR_MAX_LEN	65
 
 typedef struct {
 	uint8_t flags;

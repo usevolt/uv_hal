@@ -50,32 +50,6 @@
 #if CONFIG_HALSENSOR
 
 
-// Maximum input value for the halsensor module.
-// Defaults to 12-bit ADC range (0x1000).
-#if !defined(CONFIG_HALSENSOR_INPUT_MAX)
-#define CONFIG_HALSENSOR_INPUT_MAX				0x1000
-#endif
-
-#if !defined(CONFIG_HALSENSOR_MIN_DEF)
-#define CONFIG_HALSENSOR_MIN_DEF				(CONFIG_HALSENSOR_INPUT_MAX / 2)
-#endif
-#if !defined(CONFIG_HALSENSOR_MAX_DEF)
-#define CONFIG_HALSENSOR_MAX_DEF				(CONFIG_HALSENSOR_INPUT_MAX / 2)
-#endif
-#if !defined(CONFIG_HALSENSOR_MIDDLE_DEF)
-#define CONFIG_HALSENSOR_MIDDLE_DEF				(CONFIG_HALSENSOR_INPUT_MAX / 2)
-#endif
-#if !defined(CONFIG_HALSENSOR_MIDDLE_TOLERANCE_DEF)
-#define CONFIG_HALSENSOR_MIDDLE_TOLERANCE_DEF	(CONFIG_HALSENSOR_INPUT_MAX / 40)
-#endif
-#if !defined(CONFIG_HALSENSOR_CALIB_PASS)
-// Defines the amount of measured input value to be changed when calibrating the sensor
-// to implicate a successful calibration. If the input value during the calibration
-// doesnt change this much, the calibration fails and the halsensor state is set to
-// HALSENSOR_STATE_NOT_CALIBRATED.
-#define CONFIG_HALSENSOR_CALIB_PASS				(CONFIG_HALSENSOR_INPUT_MAX / 40)
-#endif
-
 
 /// @brief: HAL sensor states
 enum {
@@ -115,8 +89,8 @@ typedef struct {
 	uint16_t invert;
 } uv_halsensor_config_st;
 
-/// @brief: resets the configuration structure to default values defined in uv_hal_config.h
-void uv_halsensor_config_reset(uv_halsensor_config_st *this);
+/// @brief: resets the configuration structure to default values derived from input_max
+void uv_halsensor_config_reset(uv_halsensor_config_st *this, uint16_t input_max);
 
 
 #define HALSENSOR_OUTPUT_MAX	INT8_MAX
@@ -147,6 +121,9 @@ typedef struct {
 	// emcy which will be sent if the sensor goes into fault mode
 	uint32_t fault_emcy;
 
+	// maximum input value for the halsensor module
+	uint16_t input_max;
+
 	// pointer to configuration structure which should be stored in non-volatile memory
 	uv_halsensor_config_st *config;
 
@@ -154,13 +131,15 @@ typedef struct {
 
 
 /// @brief: Initializes the module
+///
+/// @param input_max: Maximum input value for the halsensor, e.g. ADC range (0x1000 for 12-bit)
 void uv_halsensor_init(uv_halsensor_st *this, uv_halsensor_config_st *config,
-		uint32_t fault_emcy);
+		uint16_t input_max, uint32_t fault_emcy);
 
 
 /// @brief: Step function should be called every step cycle
 ///
-/// @param input_value: The raw input value in range 0 ... CONFIG_HALSENSOR_INPUT_MAX
+/// @param input_value: The raw input value in range 0 ... input_max
 /// @return: output value. Can be also fetched with *uv_halsensor_get_output32*
 int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms,
 		uint16_t input_value);
