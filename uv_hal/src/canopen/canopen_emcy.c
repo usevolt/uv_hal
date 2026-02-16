@@ -83,6 +83,12 @@ void uv_canopen_emcy_send(const uv_emcy_codes_e err_code, uint32_t data) {
 			msg.data_16bit[3] = err_code;
 			msg.data_32bit[0] = data;
 			uv_can_send(CONFIG_CANOPEN_CHANNEL, &msg);
+			if ((msg.id & 0x7F) == NODEID) {
+				// send reply also locally if it was directed to us
+				uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, &msg,
+						CAN_SEND_FLAGS_LOCAL |
+						CAN_SEND_FLAGS_NO_TX_CALLB);
+			}
 
 			// call the emcy callback if one has been assigned
 			if (this->emcy_callb != NULL) {
