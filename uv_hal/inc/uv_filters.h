@@ -84,9 +84,7 @@ void uv_ewma_init(uv_ewma_st *this, uint32_t tau, int32_t val);
 
 
 /// @brief: Resets the ewma filter to the given value
-static inline void uv_ewma_reset(uv_ewma_st *this, int32_t val) {
-	this->val = val;
-}
+void uv_ewma_reset(uv_ewma_st *this, int32_t val);
 
 
 /// @brief: Ewma filter step function.

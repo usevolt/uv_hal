@@ -67,6 +67,10 @@ void uv_ewma_init(uv_ewma_st *this, uint32_t tau, int32_t val) {
 	this->tau = tau;
 }
 
+void uv_ewma_reset(uv_ewma_st *this, int32_t val) {
+	this->val = val;
+}
+
 
 int32_t uv_ewma_step(uv_ewma_st *this, int64_t val, uint16_t step_ms) {
 	int64_t alpha;
