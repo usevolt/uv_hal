@@ -146,9 +146,7 @@ int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms,
 
 
 /// @brief: Puts the hal sensor into calibration state or out from it
-static inline void uv_halsensor_set_calbration(uv_halsensor_st *this, bool value) {
-	this->state = (value) ? HALSENSOR_STATE_CALIBRATION : HALSENSOR_STATE_ON;
-}
+void uv_halsensor_set_calibration(uv_halsensor_st *this, bool value);
 
 
 /// @brief: Returns the halsensor state
