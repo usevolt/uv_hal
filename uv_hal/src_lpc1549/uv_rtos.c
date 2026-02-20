@@ -387,7 +387,7 @@ void uv_init(void *device) {
 	uv_rtos_task_create(hal_task, "uv_hal",
 			UV_RTOS_MIN_STACK_SIZE, NULL, CONFIG_HAL_TASK_PRIORITY, &hal_task_ptr);
 	uv_rtos_task_create(canopen_task, "canopen",
-			UV_RTOS_MIN_STACK_SIZE * 2, NULL, CONFIG_HAL_TASK_PRIORITY, NULL);
+			UV_RTOS_MIN_STACK_SIZE * 2, NULL, UV_RTOS_IDLE_PRIORITY + 1, NULL);
 
 	rtos_init = true;
 }
