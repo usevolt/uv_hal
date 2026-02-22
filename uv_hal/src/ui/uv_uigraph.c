@@ -68,6 +68,16 @@ void uv_uigraph_init(void *me, uv_uigraph_point_st *points_buffer,
 	this->grid_size_y = 0;
 	this->point_selected = false;
 	this->point_changed = false;
+	this->point_added = false;
+	this->point_removed = false;
+	this->add_point_button = NULL;
+	this->remove_point_button = NULL;
+	this->left_button = NULL;
+	this->right_button = NULL;
+	this->up_button = NULL;
+	this->down_button = NULL;
+	this->points_buffer_size = 0;
+	uv_delay_end(&this->arrow_delay);
 	this->current_val_x = this->min_x - 1;
 	this->current_val_y = this->min_y - 1;
 	this->coordinate_c = this->style->text_color;
@@ -439,6 +449,22 @@ void uv_uigraph_touch(void *me, uv_touch_st *touch) {
 
 				}
 
+				// constrain X so that point cannot pass adjacent interactive points
+				if (this->active_point > 0 &&
+						this->points[this->active_point - 1].interactive) {
+					int16_t prev_x = this->points[this->active_point - 1].x;
+					if (p->x + dx <= prev_x) {
+						dx = prev_x + 1 - p->x;
+					}
+				}
+				if (this->active_point < this->points_count - 1 &&
+						this->points[this->active_point + 1].interactive) {
+					int16_t next_x = this->points[this->active_point + 1].x;
+					if (p->x + dx >= next_x) {
+						dx = next_x - 1 - p->x;
+					}
+				}
+
 				if (this->point_moved_callb(this->active_point,
 						p->x + dx, p->y + dy)) {
 					p->x += dx;
@@ -466,6 +492,141 @@ void uv_uigraph_touch(void *me, uv_touch_st *touch) {
 uv_uiobject_ret_e uv_uigraph_step(void *me, uint16_t step_ms) {
 	uv_uiobject_ret_e ret = UIOBJECT_RETURN_ALIVE;
 
+	this->point_added = false;
+	this->point_removed = false;
+
+	if (this->add_point_button != NULL &&
+			uv_uibutton_clicked(this->add_point_button) &&
+			this->points_count < this->points_buffer_size) {
+		int16_t insert_idx;
+		if (this->active_point != -1) {
+			insert_idx = this->active_point + 1;
+		}
+		else {
+			insert_idx = (this->points_count > 0) ?
+					this->points_count - 1 : 0;
+		}
+		int16_t prev_idx = (insert_idx > 0) ? insert_idx - 1 : 0;
+		int16_t next_idx = (insert_idx < this->points_count) ?
+				insert_idx : this->points_count - 1;
+		int16_t new_x = (this->points[prev_idx].x +
+				this->points[next_idx].x) / 2;
+		int16_t new_y = (this->points[prev_idx].y +
+				this->points[next_idx].y) / 2;
+
+		memmove(&this->points[insert_idx + 1],
+				&this->points[insert_idx],
+				(this->points_count - insert_idx) *
+				sizeof(uv_uigraph_point_st));
+		uv_uigraph_point_init(&this->points[insert_idx],
+				new_x, new_y, true);
+		this->points_count++;
+		this->point_added = true;
+		uv_ui_refresh(this);
+	}
+	else if (this->remove_point_button != NULL &&
+			uv_uibutton_clicked(this->remove_point_button) &&
+			this->active_point != -1) {
+		int16_t remove_idx = this->active_point;
+		memmove(&this->points[remove_idx],
+				&this->points[remove_idx + 1],
+				(this->points_count - remove_idx - 1) *
+				sizeof(uv_uigraph_point_st));
+		this->points_count--;
+		memset(&this->points[this->points_count], 0,
+				sizeof(uv_uigraph_point_st));
+		this->active_point = -1;
+		this->point_removed = true;
+		uv_ui_refresh(this);
+	}
+	else {
+
+	}
+
+	// add/remove button enable/disable
+	if (this->add_point_button != NULL) {
+		if (this->points_count < this->points_buffer_size) {
+			uv_uiobject_enable(this->add_point_button);
+		}
+		else {
+			uv_uiobject_disable(this->add_point_button);
+		}
+	}
+	if (this->remove_point_button != NULL) {
+		if (this->active_point != -1) {
+			uv_uiobject_enable(this->remove_point_button);
+		}
+		else {
+			uv_uiobject_disable(this->remove_point_button);
+		}
+	}
+
+	// arrow button enable/disable and movement handling
+	if (this->left_button != NULL) {
+		bool any_down = uv_uibutton_is_down(this->left_button) ||
+				uv_uibutton_is_down(this->right_button) ||
+				uv_uibutton_is_down(this->up_button) ||
+				uv_uibutton_is_down(this->down_button);
+
+		if (this->active_point != -1) {
+			uv_uiobject_enable(this->left_button);
+			uv_uiobject_enable(this->right_button);
+			uv_uiobject_enable(this->up_button);
+			uv_uiobject_enable(this->down_button);
+		}
+		else {
+			uv_uiobject_disable(this->left_button);
+			uv_uiobject_disable(this->right_button);
+			uv_uiobject_disable(this->up_button);
+			uv_uiobject_disable(this->down_button);
+		}
+
+		if (!any_down) {
+			uv_delay_trigger(&this->arrow_delay);
+		}
+
+		if (this->active_point != -1 && any_down &&
+				uv_delay(&this->arrow_delay, step_ms)) {
+			uv_delay_init(&this->arrow_delay, POINT_MOVE_DELAY_MS * 2);
+			uv_uigraph_point_st *p = &this->points[this->active_point];
+
+			if (uv_uibutton_is_down(this->left_button)) {
+				p->x--;
+			}
+			else if (uv_uibutton_is_down(this->right_button)) {
+				p->x++;
+			}
+			else if (uv_uibutton_is_down(this->up_button)) {
+				p->y++;
+			}
+			else {
+				p->y--;
+			}
+
+			// clamp to graph boundaries
+			LIMITS(p->x, (int16_t) this->min_x, (int16_t) this->max_x);
+			LIMITS(p->y, (int16_t) this->min_y, (int16_t) this->max_y);
+
+			// constrain X so that point cannot pass adjacent interactive points
+			if (this->active_point > 0 &&
+					this->points[this->active_point - 1].interactive) {
+				int16_t prev_x = this->points[this->active_point - 1].x;
+				if (p->x <= prev_x) {
+					p->x = prev_x + 1;
+				}
+			}
+			if (this->active_point < this->points_count - 1 &&
+					this->points[this->active_point + 1].interactive) {
+				int16_t next_x = this->points[this->active_point + 1].x;
+				if (p->x >= next_x) {
+					p->x = next_x - 1;
+				}
+			}
+			this->point_changed = true;
+			uv_ui_refresh(this);
+		}
+	}
+
 	return ret;
 }
 
@@ -491,6 +652,22 @@ void uv_uigraph_set_current_val(void *me, int16_t val_x, int16_t val_y) {
 }
 
 
+void uv_uigraph_set_point_uibuttons(void *me, uv_uibutton_st *add_button,
+		uv_uibutton_st *remove_button, uint16_t points_buffer_size) {
+	this->add_point_button = add_button;
+	this->remove_point_button = remove_button;
+	this->points_buffer_size = points_buffer_size;
+}
+
+
+void uv_uigraph_set_arrow_uibuttons(void *me, uv_uibutton_st *left_button,
+		uv_uibutton_st *right_button, uv_uibutton_st *up_button,
+		uv_uibutton_st *down_button) {
+	this->left_button = left_button;
+	this->right_button = right_button;
+	this->up_button = up_button;
+	this->down_button = down_button;
+}
 
 
 #endif

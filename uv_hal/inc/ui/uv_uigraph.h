@@ -32,6 +32,7 @@
 #include <uv_hal_config.h>
 #include "uv_utilities.h"
 #include "uv_uiobject.h"
+#include "uv_uibutton.h"
 
 /// @file: defines a uigraph module. Uigraph is a graph that draws a graph background
 /// and a graph specified by the given values.
@@ -76,6 +77,16 @@ typedef struct   {
 	int16_t active_point;
 	bool point_selected;
 	bool point_changed;
+	bool point_added;
+	bool point_removed;
+	uv_uibutton_st *add_point_button;
+	uv_uibutton_st *remove_point_button;
+	uv_uibutton_st *left_button;
+	uv_uibutton_st *right_button;
+	uv_uibutton_st *up_button;
+	uv_uibutton_st *down_button;
+	uv_delay_st arrow_delay;
+	uint16_t points_buffer_size;
 	int32_t min_x;
 	int32_t min_y;
 	int32_t max_x;
@@ -202,6 +213,18 @@ static inline bool uv_uigraph_point_value_changed(void *me) {
 	return this->point_changed;
 }
 
+
+/// @brief: Returns true for 1 step cycle when a point was added via the add button
+static inline bool uv_uigraph_point_added(void *me) {
+	return this->point_added;
+}
+
+
+/// @brief: Returns true for 1 step cycle when a point was removed via the remove button
+static inline bool uv_uigraph_point_removed(void *me) {
+	return this->point_removed;
+}
+
 /// @brief: Sets the main color of the uibutton. The button should be refreshed after
 /// calling this.
 static inline void uv_uigraph_set_graph_color(void *me, color_t c) {
@@ -271,6 +294,27 @@ static inline void uv_uigraph_set_grid(void *me, int16_t size_x, int16_t size_y)
 	this->grid_size_y = size_y;
 }
 
+
+/// @brief: Sets external add/remove point buttons for the graph.
+/// When set, the graph handles inserting and removing points when
+/// the buttons are clicked.
+/// @param add_button: Pointer to the add point button, or NULL to disable
+/// @param remove_button: Pointer to the remove point button, or NULL to disable
+/// @param points_buffer_size: Maximum number of points that fit in the buffer
+void uv_uigraph_set_point_uibuttons(void *me, uv_uibutton_st *add_button,
+		uv_uibutton_st *remove_button, uint16_t points_buffer_size);
+
+
+/// @brief: Sets external directional arrow buttons for moving the selected point.
+/// When set, the graph handles enabling/disabling buttons based on point selection
+/// and moves the active point by 1 unit while the button is held down.
+/// @param left_button: Pointer to the left arrow button, or NULL to disable
+/// @param right_button: Pointer to the right arrow button, or NULL to disable
+/// @param up_button: Pointer to the up arrow button, or NULL to disable
+/// @param down_button: Pointer to the down arrow button, or NULL to disable
+void uv_uigraph_set_arrow_uibuttons(void *me, uv_uibutton_st *left_button,
+		uv_uibutton_st *right_button, uv_uibutton_st *up_button,
+		uv_uibutton_st *down_button);
 
 
 /// @brief: Step function should be called every step cycle
