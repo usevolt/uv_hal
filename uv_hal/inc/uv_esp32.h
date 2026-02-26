@@ -56,8 +56,10 @@ typedef enum {
 
 
 
+
 #define ESP32_TX_BUF_SIZE		(700)
 #define ESP32_RX_BUF_SIZE		(300)
+#define ESP32_AT_RESP_LEN		(48)
 
 
 /// @brief: Main struct for ESP32 wifi module
@@ -74,10 +76,16 @@ typedef struct {
 	uv_mutex_st txstream_mutex;
 	uv_mutex_st tx_mutex;
 
-	// buffer for received data from ESP32
-	uv_streambuffer_st rx_streambuffer;
-	char rx_buffer[ESP32_RX_BUF_SIZE];
-	uv_staticstreambuffer_st rx_staticstreambuffer;
+	// streambuffer for received data from ESP32
+	uv_streambuffer_st rx_datastream;
+	uint8_t rx_datastream_buffer[ESP32_RX_BUF_SIZE];
+	uv_staticstreambuffer_st rx_static_datastream;
+
+	// AT response line parser
+	char at_resp[ESP32_AT_RESP_LEN];
+	uint8_t at_resp_i;
+	bool at_resp_escape;
+	const char *rx_at_cmd;
 
 	uv_esp32_states_e state;
 } uv_esp32_st;
