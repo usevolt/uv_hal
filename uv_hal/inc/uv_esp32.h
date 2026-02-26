@@ -23,6 +23,8 @@
 
 
 
+#define ESP32_CONF_FLAGS_DEBUG		(1 << 0)
+
 #define SSID_STR_MAX_LEN	34
 #define PASSWD_STR_MAX_LEN	66
 #define IPV6_STR_MAX_LEN	46
@@ -34,21 +36,28 @@ typedef struct {
 	char destaddr_ipv6[IPV6_STR_MAX_LEN];
 } uv_esp32_conf_st;
 
+
 /// @brief: Resets the configuration structure
 void uv_esp32_conf_reset(uv_esp32_conf_st *conf);
 
-
-#define ESP32_TX_BUF_SIZE		(700)
-#define ESP32_RX_BUF_SIZE		300
 
 
 
 typedef enum {
 	ESP32_STATE_INIT = 0,
+	ESP32_STATE_WAIT_READY,
+	ESP32_STATE_TEST_AT,
+	ESP32_STATE_DISABLE_ECHO,
+	ESP32_STATE_SET_CWMODE,
+	ESP32_STATE_CONNECT_WIFI,
 	ESP32_STATE_JOINED_NETWORK,
 	ESP32_STATE_LEFT_NETWORK
 } uv_esp32_states_e;
 
+
+
+#define ESP32_TX_BUF_SIZE		(700)
+#define ESP32_RX_BUF_SIZE		(300)
 
 
 /// @brief: Main struct for ESP32 wifi module
@@ -57,6 +66,18 @@ typedef struct {
 
 	uv_uarts_e uart;
 	uv_gpios_e reset_io;
+
+	// buffer for writing data to ESP32
+	uv_streambuffer_st tx_streambuffer;
+	char tx_buffer[ESP32_TX_BUF_SIZE];
+	uv_staticstreambuffer_st tx_staticstreambuffer;
+	uv_mutex_st txstream_mutex;
+	uv_mutex_st tx_mutex;
+
+	// buffer for received data from ESP32
+	uv_streambuffer_st rx_streambuffer;
+	char rx_buffer[ESP32_RX_BUF_SIZE];
+	uv_staticstreambuffer_st rx_staticstreambuffer;
 
 	uv_esp32_states_e state;
 } uv_esp32_st;
