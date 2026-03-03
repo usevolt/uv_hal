@@ -449,18 +449,20 @@ void uv_uigraph_touch(void *me, uv_touch_st *touch) {
 
 				}
 
-				// constrain X so that point cannot pass adjacent interactive points
+				// constrain X so that point cannot pass adjacent interactive points.
+				// Only apply when the move would create a new crossing,
+				// not when points are already at the same position or out of order.
 				if (this->active_point > 0 &&
 						this->points[this->active_point - 1].interactive) {
 					int16_t prev_x = this->points[this->active_point - 1].x;
-					if (p->x + dx <= prev_x) {
+					if (p->x + dx <= prev_x && p->x > prev_x) {
 						dx = prev_x + 1 - p->x;
 					}
 				}
 				if (this->active_point < this->points_count - 1 &&
 						this->points[this->active_point + 1].interactive) {
 					int16_t next_x = this->points[this->active_point + 1].x;
-					if (p->x + dx >= next_x) {
+					if (p->x + dx >= next_x && p->x < next_x) {
 						dx = next_x - 1 - p->x;
 					}
 				}
@@ -494,6 +496,7 @@ uv_uiobject_ret_e uv_uigraph_step(void *me, uint16_t step_ms) {
 
 	this->point_added = false;
 	this->point_removed = false;
+	this->point_changed = false;
 
 	if (this->add_point_button != NULL &&
 			uv_uibutton_clicked(this->add_point_button) &&
@@ -589,6 +592,8 @@ uv_uiobject_ret_e uv_uigraph_step(void *me, uint16_t step_ms) {
 				uv_delay(&this->arrow_delay, step_ms)) {
 			uv_delay_init(&this->arrow_delay, POINT_MOVE_DELAY_MS * 2);
 			uv_uigraph_point_st *p = &this->points[this->active_point];
+			int16_t orig_x = p->x;
+			int16_t orig_y = p->y;
 
 			if (uv_uibutton_is_down(this->left_button)) {
 				p->x--;
@@ -607,23 +612,27 @@ uv_uiobject_ret_e uv_uigraph_step(void *me, uint16_t step_ms) {
 			LIMITS(p->x, (int16_t) this->min_x, (int16_t) this->max_x);
 			LIMITS(p->y, (int16_t) this->min_y, (int16_t) this->max_y);
 
-			// constrain X so that point cannot pass adjacent interactive points
+			// constrain X so that point cannot pass adjacent interactive points.
+			// Only apply when the move would create a new crossing,
+			// not when points are already at the same position or out of order.
 			if (this->active_point > 0 &&
 					this->points[this->active_point - 1].interactive) {
 				int16_t prev_x = this->points[this->active_point - 1].x;
-				if (p->x <= prev_x) {
+				if (p->x <= prev_x && orig_x > prev_x) {
 					p->x = prev_x + 1;
 				}
 			}
 			if (this->active_point < this->points_count - 1 &&
 					this->points[this->active_point + 1].interactive) {
 				int16_t next_x = this->points[this->active_point + 1].x;
-				if (p->x >= next_x) {
+				if (p->x >= next_x && orig_x < next_x) {
 					p->x = next_x - 1;
 				}
 			}
-			this->point_changed = true;
-			uv_ui_refresh(this);
+			if (p->x != orig_x || p->y != orig_y) {
+				this->point_changed = true;
+				uv_ui_refresh(this);
+			}
 		}
 	}
 
