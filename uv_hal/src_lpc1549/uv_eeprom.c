@@ -43,6 +43,7 @@ typedef struct {
 	int16_t front_addr;
 	// size of the entry in bytes plus 2 bytes (index field)
 	uint16_t entry_len;
+	uv_mutex_st mutex;
 } this_st;
 
 static this_st _this;
@@ -52,12 +53,29 @@ uv_errors_e _uv_eeprom_init(void) {
 	Chip_SYSCTL_PowerUp(SYSCTL_POWERDOWN_EEPROM_PD);
 	Chip_Clock_EnablePeriphClock(SYSCTL_CLOCK_EEPROM);
 	Chip_SYSCTL_PeriphReset(RESET_EEPROM);
+	uv_mutex_init(&this->mutex);
 
 	return ERR_NONE;
 }
 
 
-uv_errors_e uv_eeprom_write(const void *data, uint16_t len, uint16_t eeprom_addr) {
+static uv_errors_e eeprom_read(void *dest, uint16_t len, uint16_t eeprom_addr) {
+	uv_errors_e ret = ERR_NONE;
+
+	if (eeprom_addr + len > _UV_EEPROM_SIZE) {
+		ret = ERR_NOT_ENOUGH_MEMORY;
+	}
+	else {
+
+		if (Chip_EEPROM_Read(eeprom_addr, dest, len) != IAP_CMD_SUCCESS) {
+			ret = ERR_HARDWARE_NOT_SUPPORTED;
+		}
+	}
+	return ret;
+}
+
+
+static uv_errors_e eeprom_write(const void *data, uint16_t len, uint16_t eeprom_addr) {
 	uv_errors_e ret = ERR_NONE;
 
 	// out of EEPROM memory
@@ -68,7 +86,7 @@ uv_errors_e uv_eeprom_write(const void *data, uint16_t len, uint16_t eeprom_addr
 		bool new_data = false;
 		for (uint32_t i = 0; i < len; i++) {
 			uint8_t d;
-			uv_eeprom_read(&d, 1, eeprom_addr + i);
+			eeprom_read(&d, 1, eeprom_addr + i);
 			if (d != ((uint8_t*) data)[i]) {
 				new_data = true;
 				break;
@@ -84,18 +102,18 @@ uv_errors_e uv_eeprom_write(const void *data, uint16_t len, uint16_t eeprom_addr
 }
 
 
+uv_errors_e uv_eeprom_write(const void *data, uint16_t len, uint16_t eeprom_addr) {
+	uv_mutex_lock(&this->mutex);
+	uv_errors_e ret = eeprom_write(data, len, eeprom_addr);
+	uv_mutex_unlock(&this->mutex);
+	return ret;
+}
+
+
 uv_errors_e uv_eeprom_read(void *dest, uint16_t len, uint16_t eeprom_addr) {
-	uv_errors_e ret = ERR_NONE;
-
-	if (eeprom_addr + len > _UV_EEPROM_SIZE) {
-		ret = ERR_NOT_ENOUGH_MEMORY;
-	}
-	else {
-
-		if (Chip_EEPROM_Read(eeprom_addr, dest, len) != IAP_CMD_SUCCESS) {
-			ret = ERR_HARDWARE_NOT_SUPPORTED;
-		}
-	}
+	uv_mutex_lock(&this->mutex);
+	uv_errors_e ret = eeprom_read(dest, len, eeprom_addr);
+	uv_mutex_unlock(&this->mutex);
 	return ret;
 }
 
@@ -114,12 +132,14 @@ void uv_eeprom_ring_buffer_init(const uint16_t entry_len) {
 
 	this->entry_len = entry_len + sizeof(uint16_t);
 
+	uv_mutex_lock(&this->mutex);
+
 	this->back_addr = this->front_addr = CONFIG_EEPROM_RING_BUFFER_START_ADDR;
 	uint16_t index;
 	for (i = CONFIG_EEPROM_RING_BUFFER_START_ADDR;
 			i <= CONFIG_EEPROM_RING_BUFFER_START_ADDR + RING_BUFFER_LEN - this->entry_len;
 			i += this->entry_len) {
-		uv_eeprom_read((unsigned char*) &index, sizeof(uint16_t),
+		eeprom_read((unsigned char*) &index, sizeof(uint16_t),
 				i + this->entry_len - sizeof(uint16_t));
 		if (index == 0) {
 			continue;
@@ -135,10 +155,12 @@ void uv_eeprom_ring_buffer_init(const uint16_t entry_len) {
 			max_index = index;
 		}
 	}
+
+	uv_mutex_unlock(&this->mutex);
 }
 
 
-uv_errors_e uv_eeprom_ring_buffer_push_back(const void *src) {
+static uv_errors_e ring_buffer_push_back(const void *src) {
 	uv_errors_e ret = ERR_NONE;
 
 	// check for overflow
@@ -153,7 +175,7 @@ uv_errors_e uv_eeprom_ring_buffer_push_back(const void *src) {
 
 		uint16_t index;
 		// read the last index number
-		uv_eeprom_read((unsigned char*) &index, sizeof(uint16_t),
+		eeprom_read((unsigned char*) &index, sizeof(uint16_t),
 				this->back_addr + this->entry_len - sizeof(uint16_t));
 
 		// if index number was zero, first data was empty
@@ -163,7 +185,7 @@ uv_errors_e uv_eeprom_ring_buffer_push_back(const void *src) {
 		if (this->back_addr + this->entry_len > CONFIG_EEPROM_RING_BUFFER_END_ADDR) {
 			this->back_addr = CONFIG_EEPROM_RING_BUFFER_START_ADDR;
 		}
-		uv_eeprom_write(src, this->entry_len - sizeof(uint16_t), this->back_addr);
+		eeprom_write(src, this->entry_len - sizeof(uint16_t), this->back_addr);
 
 		// check that index number cannot overflow
 		if (index == 0xFFFF) {
@@ -174,19 +196,19 @@ uv_errors_e uv_eeprom_ring_buffer_push_back(const void *src) {
 			for (i = CONFIG_EEPROM_RING_BUFFER_START_ADDR;
 					i <= CONFIG_EEPROM_RING_BUFFER_END_ADDR - this->entry_len;
 					i += this->entry_len) {
-				uv_eeprom_read((unsigned char*) &new_index,  sizeof(uint16_t),
+				eeprom_read((unsigned char*) &new_index,  sizeof(uint16_t),
 						i + this->entry_len - sizeof(uint16_t));
 				if (new_index) {
 					new_index -= (0xFFFF - CONFIG_EEPROM_RING_BUFFER_END_ADDR);
 				}
-				uv_eeprom_write((unsigned char *) &new_index, sizeof(uint16_t),
+				eeprom_write((unsigned char *) &new_index, sizeof(uint16_t),
 						i + this->entry_len - sizeof(uint16_t));
 			}
 		}
 
 		// increase the index and write it at the end of the data
 		index++;
-		uv_eeprom_write((unsigned char*) &index, sizeof(uint16_t),
+		eeprom_write((unsigned char*) &index, sizeof(uint16_t),
 				this->back_addr + this->entry_len - sizeof(uint16_t));
 	}
 
@@ -194,35 +216,48 @@ uv_errors_e uv_eeprom_ring_buffer_push_back(const void *src) {
 }
 
 
+uv_errors_e uv_eeprom_ring_buffer_push_back(const void *src) {
+	uv_mutex_lock(&this->mutex);
+	uv_errors_e ret = ring_buffer_push_back(src);
+	uv_mutex_unlock(&this->mutex);
+	return ret;
+}
+
+
+static uv_errors_e ring_buffer_pop_front(void *dest);
+
 uv_errors_e uv_eeprom_ring_buffer_push_back_force(const void *src) {
-	uv_errors_e ret = ERR_NONE;
-	if ((ret = uv_eeprom_ring_buffer_push_back(src)) == ERR_BUFFER_OVERFLOW) {
+	uv_mutex_lock(&this->mutex);
+	uv_errors_e ret = ring_buffer_push_back(src);
+	if (ret == ERR_BUFFER_OVERFLOW) {
 		uint8_t d[this->entry_len];
-		ret = uv_eeprom_ring_buffer_pop_front(d);
+		ret = ring_buffer_pop_front(d);
 		if (ret == ERR_NONE) {
-			ret = uv_eeprom_ring_buffer_push_back(src);
+			ret = ring_buffer_push_back(src);
 		}
 	}
+	uv_mutex_unlock(&this->mutex);
 	return ret;
 }
 
 
 
 uv_errors_e uv_eeprom_ring_buffer_pop_back(void *dest) {
+	uv_mutex_lock(&this->mutex);
 	uv_errors_e ret = ERR_NONE;
 	uint8_t d = 0;
 	uint16_t i;
-	uv_eeprom_read((unsigned char *) &i, sizeof(uint16_t),
+	eeprom_read((unsigned char *) &i, sizeof(uint16_t),
 			this->back_addr + this->entry_len - sizeof(uint16_t));
 	if (i == 0) {
 		ret = ERR_BUFFER_EMPTY;
 	}
 	else {
 		if (dest) {
-			uv_eeprom_read(dest, this->entry_len - sizeof(uint16_t), this->back_addr);
+			eeprom_read(dest, this->entry_len - sizeof(uint16_t), this->back_addr);
 		}
 		for (i = 0; i < this->entry_len; i++) {
-			uv_eeprom_write(&d, 1, this->back_addr + i);
+			eeprom_write(&d, 1, this->back_addr + i);
 		}
 		if (this->back_addr != this->front_addr) {
 			this->back_addr = (this->back_addr - this->entry_len);
@@ -233,26 +268,27 @@ uv_errors_e uv_eeprom_ring_buffer_pop_back(void *dest) {
 		}
 	}
 
+	uv_mutex_unlock(&this->mutex);
 	return ret;
 }
 
 
 
-uv_errors_e uv_eeprom_ring_buffer_pop_front(void *dest) {
+static uv_errors_e ring_buffer_pop_front(void *dest) {
 	uv_errors_e ret = ERR_NONE;
 	uint8_t d = 0;
 	uint16_t i;
-	uv_eeprom_read((unsigned char *) &i, sizeof(uint16_t),
+	eeprom_read((unsigned char *) &i, sizeof(uint16_t),
 			this->front_addr + this->entry_len - sizeof(uint16_t));
 	if (i == 0) {
 		ret = ERR_BUFFER_EMPTY;
 	}
 	else {
 		if (dest) {
-			uv_eeprom_read(dest, this->entry_len - sizeof(uint16_t), this->front_addr);
+			eeprom_read(dest, this->entry_len - sizeof(uint16_t), this->front_addr);
 		}
 		for (i = 0; i < this->entry_len; i++) {
-			uv_eeprom_write(&d, 1, this->front_addr + i);
+			eeprom_write(&d, 1, this->front_addr + i);
 		}
 		if (this->back_addr != this->front_addr) {
 			this->front_addr += this->entry_len;
@@ -266,11 +302,19 @@ uv_errors_e uv_eeprom_ring_buffer_pop_front(void *dest) {
 }
 
 
-uv_errors_e uv_eeprom_ring_buffer_at(void *dest, uint16_t *eeprom_addr, uint16_t index) {
+uv_errors_e uv_eeprom_ring_buffer_pop_front(void *dest) {
+	uv_mutex_lock(&this->mutex);
+	uv_errors_e ret = ring_buffer_pop_front(dest);
+	uv_mutex_unlock(&this->mutex);
+	return ret;
+}
+
+
+static uv_errors_e ring_buffer_at(void *dest, uint16_t *eeprom_addr, uint16_t index) {
 	uv_errors_e ret = ERR_NONE;
 	uint16_t i;
 
-	uv_eeprom_read((unsigned char *) &i, sizeof(uint16_t),
+	eeprom_read((unsigned char *) &i, sizeof(uint16_t),
 			this->back_addr + this->entry_len - sizeof(uint16_t));
 	if (!i) {
 		ret = ERR_BUFFER_EMPTY;
@@ -295,7 +339,7 @@ uv_errors_e uv_eeprom_ring_buffer_at(void *dest, uint16_t *eeprom_addr, uint16_t
 
 		if (!err) {
 			if (dest) {
-				uv_eeprom_read(dest, this->entry_len - sizeof(uint16_t), addr);
+				eeprom_read(dest, this->entry_len - sizeof(uint16_t), addr);
 			}
 			if (eeprom_addr) {
 				*eeprom_addr = addr;
@@ -306,11 +350,21 @@ uv_errors_e uv_eeprom_ring_buffer_at(void *dest, uint16_t *eeprom_addr, uint16_t
 	return ret;
 }
 
+
+uv_errors_e uv_eeprom_ring_buffer_at(void *dest, uint16_t *eeprom_addr, uint16_t index) {
+	uv_mutex_lock(&this->mutex);
+	uv_errors_e ret = ring_buffer_at(dest, eeprom_addr, index);
+	uv_mutex_unlock(&this->mutex);
+	return ret;
+}
+
 uint32_t uv_eeprom_ring_buffer_get_count(void) {
+	uv_mutex_lock(&this->mutex);
 	uint32_t ret = 0;
-	while (uv_eeprom_ring_buffer_at(NULL, NULL, ret) == ERR_NONE) {
+	while (ring_buffer_at(NULL, NULL, ret) == ERR_NONE) {
 		ret++;
 	}
+	uv_mutex_unlock(&this->mutex);
 	return ret;
 }
 
@@ -319,12 +373,14 @@ uint32_t uv_eeprom_ring_buffer_get_count(void) {
 
 
 void uv_eeprom_clear(void) {
+	uv_mutex_lock(&this->mutex);
 	uint32_t i, p = 0;
 	for (i = 0; i < uv_eeprom_size() / sizeof(p); i++) {
-		uv_eeprom_write((unsigned char *) &p, sizeof(p), i * sizeof(p));
+		eeprom_write((unsigned char *) &p, sizeof(p), i * sizeof(p));
 	}
 	this->back_addr = 0;
 	this->front_addr = 0;
+	uv_mutex_unlock(&this->mutex);
 }
 
 

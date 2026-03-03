@@ -829,8 +829,8 @@ int16_t uv_ui_get_string_width(char *str, ui_font_st *font) {
 }
 
 
-uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
-		uint32_t dest_addr, uv_w25q128_st *exmem, const char *filename) {
+uint32_t uv_uimedia_newbitmapexmem(uv_uimedia_st *bitmap,
+		uv_w25q128_st *exmem, const char *filename) {
 	uint32_t ret = 0;
 	uimedia_ll_st *media = uimedia_ll_st_find(filename);
 	memset(bitmap, 0, sizeof(*bitmap));
@@ -863,6 +863,11 @@ uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
 	}
 
 	return ret;
+}
+
+
+void uv_uimedia_free(uv_uimedia_st *bitmap) {
+	memset(bitmap, 0, sizeof(*bitmap));
 }
 
 

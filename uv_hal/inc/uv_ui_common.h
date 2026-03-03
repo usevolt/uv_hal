@@ -270,6 +270,8 @@ bool uv_ui_get_refresh_request(void);
 typedef void uv_w25q128_st;
 #endif
 /// @brief: Loads and decompresses a jpg image to the media RAM of FT81x from external memory module.
+/// The destination address is managed by an internal bump allocator. Use uv_uimedia_free to
+/// release the bitmap and compact the remaining allocations.
 ///
 /// @return: The number of bytes that the image took from the memory. Since
 /// the image is decompressed, the returned value is larger than the downloaded value.
@@ -295,11 +297,15 @@ typedef void uv_w25q128_st;
 /// if there isn't any semitransparent pixels in the image. This is because FT81X supports
 /// png's only with alpha channel. To fix this, add some transparency into the image
 ///
-/// @param dest_addr: The destination address where the data is loaded in FT81X memory
 /// @param exmem: The external non-volatile memory module to be used for data download
 /// @param filename: The filename of the image. The file should be found from *exmem*.
-uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
-		uint32_t dest_addr, uv_w25q128_st *exmem, const char *filename);
+uint32_t uv_uimedia_newbitmapexmem(uv_uimedia_st *bitmap,
+		uv_w25q128_st *exmem, const char *filename);
+
+/// @brief: Frees a bitmap previously allocated with uv_uimedia_newbitmapexmem.
+/// On embedded targets, compacts remaining allocations in FT81X RAM and updates
+/// all owner pointers. The bitmap struct is zeroed after freeing.
+void uv_uimedia_free(uv_uimedia_st *bitmap);
 
 
 

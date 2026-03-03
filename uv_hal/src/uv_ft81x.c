@@ -1012,20 +1012,42 @@ uint32_t uv_ft81x_get_ramdl_usage(void) {
 
 
 
+// Dynamic bitmap memory allocator state.
+// Each allocation in FT81X RAM is: [uint32_t data_size][uint32_t owner_ptr][pixel data...]
+#define FT81X_ALLOC_HEADER_SIZE		8
+static uint32_t ft81x_alloc_next = 0;
+
+
+static void ft81x_cmd_memcpy(uint32_t dest, uint32_t src, uint32_t num) {
+	uint32_t buffer[4];
+	buffer[0] = CMD_MEMCPY;
+	buffer[1] = dest;
+	buffer[2] = src;
+	buffer[3] = num;
+	writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr,
+			(const char *) buffer, NULL, 16);
+	this->cmdwriteaddr = (this->cmdwriteaddr + 16) % RAMCMD_SIZE;
+	write16(REG_CMD_WRITE, this->cmdwriteaddr);
+	cmd_wait();
+}
+
+
 #define LOAD_BUFFER_LEN		60
-uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
-		uint32_t dest_addr, uv_w25q128_st *exmem, const char *filename) {
+uint32_t uv_uimedia_newbitmapexmem(uv_uimedia_st *bitmap,
+		uv_w25q128_st *exmem, const char *filename) {
 	uint8_t cmd_header_len_bytes = 12;
 	uint32_t buffer[LOAD_BUFFER_LEN / 4 + cmd_header_len_bytes / 4];
 	uint32_t offset = 0;
 	uv_fd_st fd;
 	uint32_t size = 0;
+	uint32_t header_addr = ft81x_alloc_next;
+	uint32_t pixel_addr = header_addr + FT81X_ALLOC_HEADER_SIZE;
 
-	bool found = uv_exmem_find(exmem, filename, &fd);
+	bool found = uv_exmem_find(exmem, (char*) filename, &fd);
 
-	bitmap->addr = dest_addr;
+	bitmap->addr = pixel_addr;
 	bitmap->type = UV_UIMEDIA_IMAGE;
-	bitmap->filename = filename;
+	bitmap->filename = (char*) filename;
 
 	// specify the bitmap format
 	if (strstr(bitmap->filename, ".jp" ) != NULL ||
@@ -1179,6 +1201,7 @@ uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
 	if (size == 0) {
 		// error occurred, specify the settings for bitmap
 		// data which wont cause anything unexpected
+		bitmap->addr = 0;
 		bitmap->width = 40;
 		bitmap->height = 40;
 		bitmap->size = bitmap->width * bitmap->height * 2;
@@ -1188,9 +1211,50 @@ uint32_t uv_uimedia_loadbitmapexmem(uv_uimedia_st *bitmap,
 		bitmap->format = BITMAP_FORMAT_RGB565;
 		bitmap->palette_size = 0;
 	}
-
+	else {
+		// write allocation header to FT81X RAM: [data_size][owner_ptr]
+		uint32_t hdr[2];
+		hdr[0] = bitmap->size;
+		hdr[1] = (uint32_t)(uintptr_t) bitmap;
+		writestr(header_addr, (const char *) hdr, NULL, FT81X_ALLOC_HEADER_SIZE);
+		ft81x_alloc_next = header_addr + FT81X_ALLOC_HEADER_SIZE + bitmap->size;
+	}
 
 	return size;
+}
+
+
+void uv_uimedia_free(uv_uimedia_st *bitmap) {
+	if (bitmap->addr < FT81X_ALLOC_HEADER_SIZE) {
+		memset(bitmap, 0, sizeof(*bitmap));
+	}
+	else {
+		uint32_t header_addr = bitmap->addr - FT81X_ALLOC_HEADER_SIZE;
+		uint32_t data_size = read32(header_addr);
+		uint32_t block_size = FT81X_ALLOC_HEADER_SIZE + data_size;
+		uint32_t src = header_addr + block_size;
+
+		// compact: move each block individually to avoid overlapping
+		// memcpy regions, since ft81x_cmd_memcpy does not support overlap.
+		uint32_t dest = header_addr;
+		uint32_t cur = src;
+		while (cur < ft81x_alloc_next) {
+			uint32_t cur_size = read32(cur);
+			uint32_t owner = read32(cur + 4);
+			uv_uimedia_st *owner_bmp = (uv_uimedia_st *)(uintptr_t) owner;
+			uint32_t cur_block_size = FT81X_ALLOC_HEADER_SIZE + cur_size;
+
+			ft81x_cmd_memcpy(dest, cur, cur_block_size);
+
+			owner_bmp->addr = dest + FT81X_ALLOC_HEADER_SIZE;
+
+			cur += cur_block_size;
+			dest += cur_block_size;
+		}
+		ft81x_alloc_next -= block_size;
+
+		memset(bitmap, 0, sizeof(*bitmap));
+	}
 }
 
 void uv_ui_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,

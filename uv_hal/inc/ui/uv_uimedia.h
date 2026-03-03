@@ -86,6 +86,11 @@ static inline char *uv_uimedia_get_filename(uv_uimedia_st *this) {
 	return this->filename;
 }
 
+/// @brief: Sets the filename of the media file
+static inline void uv_uimedia_set_filename(uv_uimedia_st *this, char *filename) {
+	this->filename = filename;
+}
+
 /// @brief: Returns the type of the initialized media file
 static inline uv_uimedia_types_e uv_uimedia_get_type(uv_uimedia_st *this) {
 	return this->type;
