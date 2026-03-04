@@ -283,8 +283,8 @@ static void rx(uv_xb3_st *this, int32_t wait_ms) {
 						}
 						if (this->rx_index - 4 == this->rx_size - 1) {
 							// last byte of this response, update AT response status
-							if (this->conf->flags & XB3_CONF_FLAGS_AT_ECHO ||
-									this->conf->flags & XB3_CONF_FLAGS_DEBUG) {
+							if ((this->conf->flags & XB3_CONF_FLAGS_AT_ECHO) ||
+									(this->conf->flags & XB3_CONF_FLAGS_DEBUG)) {
 								switch(this->at_response_req) {
 								case XB3_AT_RESPONSE_OK:
 									printf("OK\n");

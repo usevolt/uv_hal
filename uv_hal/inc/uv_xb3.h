@@ -376,6 +376,17 @@ static inline uv_xb3_at_response_e uv_xb3_get_at_response(uv_xb3_st *this) {
 }
 
 
+/// @brief: Converts dest_addr to a string in "0x%08x%08x" format.
+///
+/// @param dest: Destination buffer, must be at least 19 bytes
+/// @param dest_len: Size of dest buffer
+static inline void uv_xb3_conf_dest_addr_to_str(const uv_xb3_conf_st *conf,
+		char *dest, uint16_t dest_len) {
+	snprintf(dest, dest_len, "0x%08x%08x",
+			 (unsigned int) (conf->dest_addr >> 32),
+			 (unsigned int) (conf->dest_addr & 0xFFFFFFFF));
+}
+
 /// @brief: Parses the "xb" termnal command
 void uv_xb3_terminal(uv_xb3_st *this,
 		unsigned int args, argument_st *argv);
