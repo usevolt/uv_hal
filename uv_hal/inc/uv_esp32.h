@@ -30,7 +30,7 @@
 #define IPV6_STR_MAX_LEN	46
 
 typedef struct {
-	uint8_t flags;
+	uint16_t flags;
 	char ssid[SSID_STR_MAX_LEN];
 	char passwd[PASSWD_STR_MAX_LEN];
 	char destaddr_ipv6[IPV6_STR_MAX_LEN];
@@ -88,7 +88,16 @@ typedef struct {
 	const char *rx_at_cmd;
 
 	uv_esp32_states_e state;
+
+	uint32_t written_byte_count;
+	uint32_t transmitted_byte_count;
+
 } uv_esp32_st;
+
+
+static inline uint32_t uv_esp32_get_transmitted_byte_count(uv_esp32_st *this) {
+	return this->transmitted_byte_count;
+}
 
 
 
@@ -118,10 +127,11 @@ uv_errors_e uv_esp32_get_data(uv_esp32_st *this, char *dest);
 
 /// @brief: Writes data to ESP32
 uv_errors_e uv_esp32_write(uv_esp32_st *this,
-		char *data, uint16_t datalen, int32_t wait_ms);
+		char *data, uint16_t datalen, int32_t wait_ms,
+		uint32_t *transmitting_index);
 
 uv_errors_e uv_esp32_write_isr(uv_esp32_st *this,
-		char *data, uint16_t datalen);
+		char *data, uint16_t datalen, uint32_t *transmitting_index);
 
 /// @brief: Returns the ESP32 MAC address
 uint64_t uv_esp32_get_mac(uv_esp32_st *this);

@@ -164,7 +164,15 @@ typedef struct {
 	uint8_t rx_frame_type;
 	uint8_t max_retransmit;
 
+	uint32_t written_byte_count;
+	uint32_t transmitted_byte_count;
+
 } uv_xb3_st;
+
+
+static inline uint32_t uv_xb3_get_transmitted_byte_count(uv_xb3_st *this) {
+	return this->transmitted_byte_count;
+}
 
 
 /// @brief: Resets the configuration structure
@@ -207,21 +215,23 @@ static inline bool uv_xb3_get_data(uv_xb3_st *this, char *dest, uint16_t wait_ms
 
 /// @brief: Generic write function for internal use
 uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
-		uint16_t datalen, bool isr, uint16_t wait_ms);
+		uint16_t datalen, bool isr, uint16_t wait_ms,
+		uint32_t *transmitting_index);
 
 
 /// @brief: Writes data to device specified by IEEE serial *dest_addr*
 /// To be used inside ISRs
 static inline uv_errors_e uv_xb3_write_isr(uv_xb3_st *this,
-		char *data, uint16_t datalen) {
-	return uv_xb3_generic_write(this, data, datalen, true, 0);
+		char *data, uint16_t datalen, uint32_t *transmitting_index) {
+	return uv_xb3_generic_write(this, data, datalen, true, 0, transmitting_index);
 }
 
 
 /// @brief: Writes data to device specified by IEEE serial *dest_addr*
 static inline uv_errors_e uv_xb3_write(uv_xb3_st *this,
-		char *data, uint16_t datalen, uint16_t wait_ms) {
-	return uv_xb3_generic_write(this, data, datalen, false, wait_ms);
+		char *data, uint16_t datalen, uint16_t wait_ms,
+		uint32_t *transmitting_index) {
+	return uv_xb3_generic_write(this, data, datalen, false, wait_ms, transmitting_index);
 }
 
 

@@ -24,12 +24,14 @@ static void tx(uv_esp32_st *this) {
 	int32_t tx_count = uv_streambuffer_get_len(&this->tx_streambuffer);
 	if (tx_count > 0) {
 		char c;
-		for (int32_t i = 0; i < tx_count; i++) {
+		int32_t i;
+		for (i = 0; i < tx_count; i++) {
 			uv_streambuffer_pop(&this->tx_streambuffer, &c, 1, 0);
 			if (!uv_uart_send(this->uart, &c, 1)) {
 				break;
 			}
 		}
+		this->transmitted_byte_count += i;
 	}
 
 	uv_mutex_unlock(&this->tx_mutex);
@@ -323,6 +325,8 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 	this->uart = uart;
 	this->reset_io = reset_io;
 	this->state = ESP32_STATE_INIT;
+	this->written_byte_count = 0;
+	this->transmitted_byte_count = 0;
 
 	uv_streambuffer_init_static(&this->tx_streambuffer,
 								this->tx_buffer,
@@ -379,13 +383,14 @@ uv_errors_e uv_esp32_get_data(uv_esp32_st *this, char *dest) {
 
 
 uv_errors_e uv_esp32_write(uv_esp32_st *this,
-		char *data, uint16_t datalen, int32_t wait_ms) {
+		char *data, uint16_t datalen, int32_t wait_ms,
+		uint32_t *transmitting_index) {
 	return ERR_HARDWARE_NOT_SUPPORTED;
 }
 
 
 uv_errors_e uv_esp32_write_isr(uv_esp32_st *this,
-		char *data, uint16_t datalen) {
+		char *data, uint16_t datalen, uint32_t *transmitting_index) {
 	return ERR_HARDWARE_NOT_SUPPORTED;
 }
 

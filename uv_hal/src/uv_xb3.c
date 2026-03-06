@@ -218,6 +218,7 @@ static void tx(uv_xb3_st *this) {
 				}
 				crc += (uint8_t) c;
 			}
+			this->transmitted_byte_count += tx_count;
 
 			c = 0xFF - crc;
 
@@ -478,15 +479,12 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd,
 #include <uv_timer.h>
 
 uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
-		uint16_t datalen, bool isr, uint16_t wait_ms) {
+		uint16_t datalen, bool isr, uint16_t wait_ms,
+		uint32_t *transmitting_index) {
 	uv_errors_e ret = ERR_NONE;
 	if (this->initialized) {
 		if ((isr || !wait_ms) &&
 				uv_streambuffer_get_free_space(&this->tx_streambuffer) < datalen) {
-//			XB3_DEBUG(this, "XB3 Write: buffer full %i / %i, required %i\n",
-//					(int) uv_streambuffer_get_len(&this->tx_streambuffer),
-//					TX_BUF_SIZE,
-//					(int) datalen);
 			ret = ERR_NOT_ENOUGH_MEMORY;
 		}
 		else {
@@ -494,6 +492,10 @@ uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
 				// try to lock the mutex and send data
 				if (uv_mutex_lock_isr(&this->txstream_mutex)) {
 					uv_streambuffer_push_isr(&this->tx_streambuffer, data, datalen);
+					this->written_byte_count += datalen;
+					if (transmitting_index != NULL) {
+						*transmitting_index = this->written_byte_count;
+					}
 					uv_mutex_unlock_isr(&this->txstream_mutex);
 				}
 			}
@@ -504,6 +506,12 @@ uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
 					if (p != datalen) {
 						XB3_DEBUG(this, "XB3 Write: TX time out\n");
 						ret = ERR_NOT_RESPONDING;
+					}
+					else {
+						this->written_byte_count += datalen;
+						if (transmitting_index != NULL) {
+							*transmitting_index = this->written_byte_count;
+						}
 					}
 
 					uv_mutex_unlock(&this->txstream_mutex);
@@ -727,6 +735,8 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	this->pkg_id = 1;
 	this->transmitting = false;
 	uv_delay_init(&this->transmit_delay, TRANSMIT_DELAY_MS);
+	this->written_byte_count = 0;
+	this->transmitted_byte_count = 0;
 
 	if (this->conf->flags & XB3_CONF_FLAGS_DEBUG) {
 		uv_terminal_enable(TERMINAL_CAN);
@@ -1294,7 +1304,7 @@ void uv_xb3_terminal(uv_xb3_st *this,
 						(unsigned int) (this->conf->dest_addr & 0xFFFFFFFF),
 						argv[1].str);
 				uv_xb3_write(this, argv[1].str,
-						strlen(argv[1].str), 0);
+						strlen(argv[1].str), 0, NULL);
 			}
 			else {
 				printf("Give data to write as a second argument\n");
