@@ -50,9 +50,8 @@ typedef struct {
 	/// @brief: The size of the bitmap in bytes
 	uint32_t size;
 	uv_uimedia_types_e type;
-	// Name of the file name which should be loaded to the graphics RAM memory.
-	// This is used only if the media file should be loaded from external memory
-	char *filename;
+	/// @brief: when false, this bitmap is hidden and is not drawn
+	bool visible;
 	// union of file type dependent properties
 	union {
 		struct {
@@ -81,15 +80,6 @@ typedef struct {
 } uv_uimedia_st;
 
 
-/// @brief: returns the filename of the media file
-static inline char *uv_uimedia_get_filename(uv_uimedia_st *this) {
-	return this->filename;
-}
-
-/// @brief: Sets the filename of the media file
-static inline void uv_uimedia_set_filename(uv_uimedia_st *this, char *filename) {
-	this->filename = filename;
-}
 
 /// @brief: Returns the type of the initialized media file
 static inline uv_uimedia_types_e uv_uimedia_get_type(uv_uimedia_st *this) {
@@ -101,6 +91,14 @@ static inline uint32_t uv_uimedia_get_address(uv_uimedia_st *this) {
 	return this->addr;
 }
 
+
+static inline void uv_uimedia_set_visible(uv_uimedia_st *this, bool value) {
+	this->visible = value;
+}
+
+static inline bool uv_uimedia_get_visible(uv_uimedia_st *this) {
+	return this->visible;
+}
 
 /// @brief: Returns the end address of the image. A new media file can be
 /// loaded right to this address

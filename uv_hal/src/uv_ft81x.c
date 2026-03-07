@@ -1047,11 +1047,11 @@ uint32_t uv_uimedia_newbitmapexmem(uv_uimedia_st *bitmap,
 
 	bitmap->addr = pixel_addr;
 	bitmap->type = UV_UIMEDIA_IMAGE;
-	bitmap->filename = (char*) filename;
+	bitmap->visible = true;
 
 	// specify the bitmap format
-	if (strstr(bitmap->filename, ".jp" ) != NULL ||
-			strstr(bitmap->filename, ".JP") != NULL) {
+	if (strstr(filename, ".jp" ) != NULL ||
+			strstr(filename, ".JP") != NULL) {
 		// color jpgs are in RGB565
 		bitmap->format = BITMAP_FORMAT_RGB565;
 	}
@@ -1065,7 +1065,7 @@ uint32_t uv_uimedia_newbitmapexmem(uv_uimedia_st *bitmap,
 		if (bitdepth != 8) {
 			uv_terminal_enable(TERMINAL_CAN);
 			printf("Error parsing PNG bitmap %s: Bit depth has to be 8, but was %u\n",
-					bitmap->filename, bitdepth);
+					filename, bitdepth);
 		}
 		if (ctype & 0x1) {
 			// paletted image
@@ -1260,7 +1260,8 @@ void uv_uimedia_free(uv_uimedia_st *bitmap) {
 void uv_ui_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 		int16_t w, int16_t h, uint32_t wrap, color_t c) {
 
-	if (uv_ui_is_visible(x, y, bitmap->width, bitmap->height)) {
+	if (bitmap->visible &&
+			uv_ui_is_visible(x, y, bitmap->width, bitmap->height)) {
 		// set the blend color
 		set_color(c);
 
