@@ -81,6 +81,11 @@ typedef struct {
 
 
 
+/// @brief: Initializes the media structure as empty
+static inline void uv_uimedia_init(uv_uimedia_st *this) {
+	memset(this, 0, sizeof(*this));
+}
+
 /// @brief: Returns the type of the initialized media file
 static inline uv_uimedia_types_e uv_uimedia_get_type(uv_uimedia_st *this) {
 	return this->type;

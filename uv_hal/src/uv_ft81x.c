@@ -1234,8 +1234,10 @@ void uv_uimedia_free(uv_uimedia_st *bitmap) {
 		uint32_t block_size = FT81X_ALLOC_HEADER_SIZE + data_size;
 		uint32_t src = header_addr + block_size;
 
-		// compact: move each block individually to avoid overlapping
-		// memcpy regions, since ft81x_cmd_memcpy does not support overlap.
+		// compact: move each block in chunks no larger than block_size
+		// to avoid overlapping memcpy regions, since ft81x_cmd_memcpy
+		// does not support overlap. The gap between dest and cur is
+		// always block_size, so chunks of that size never overlap.
 		uint32_t dest = header_addr;
 		uint32_t cur = src;
 		while (cur < ft81x_alloc_next) {
@@ -1244,7 +1246,16 @@ void uv_uimedia_free(uv_uimedia_st *bitmap) {
 			uv_uimedia_st *owner_bmp = (uv_uimedia_st *)(uintptr_t) owner;
 			uint32_t cur_block_size = FT81X_ALLOC_HEADER_SIZE + cur_size;
 
-			ft81x_cmd_memcpy(dest, cur, cur_block_size);
+			uint32_t remaining = cur_block_size;
+			uint32_t chunk_dest = dest;
+			uint32_t chunk_src = cur;
+			while (remaining > 0) {
+				uint32_t chunk = (remaining < block_size) ? remaining : block_size;
+				ft81x_cmd_memcpy(chunk_dest, chunk_src, chunk);
+				chunk_dest += chunk;
+				chunk_src += chunk;
+				remaining -= chunk;
+			}
 
 			owner_bmp->addr = dest + FT81X_ALLOC_HEADER_SIZE;
 
