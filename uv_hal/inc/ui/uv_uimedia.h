@@ -77,6 +77,9 @@ typedef struct {
 		/// or a pointer to cairo_surface_t on simulator target. For CONFIG_UI_X11 only
 		void *surface_ptr;
 	};
+#if CONFIG_TARGET_LINUX
+	const char *filename;
+#endif
 } uv_uimedia_st;
 
 
