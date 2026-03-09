@@ -378,6 +378,10 @@ void uv_init(void *device) {
 	_uv_can_init();
 #endif
 
+#if CONFIG_EEPROM
+	_uv_eeprom_init();
+#endif
+
 	// try to load non-volatile settings. If loading failed,
 	// reset all peripherals which are denpending on the
 	// non-volatile settings.

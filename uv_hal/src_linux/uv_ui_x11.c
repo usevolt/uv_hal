@@ -611,6 +611,7 @@ uint32_t uv_uimedia_newbitmapexmem(uv_uimedia_st *bitmap,
 	bool match = false;
 	uimedia_ll_st *m = this->uimediall;
 	uimedia_ll_st *last = NULL;
+	this->visible = true;
 	// try to find the uimedia file if it's already loaded
 	while (m != NULL) {
 		if (strcmp(filename, m->filename) == 0) {

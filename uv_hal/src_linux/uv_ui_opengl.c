@@ -429,6 +429,7 @@ void uv_ui_clear(color_t col) {
 
 void uv_ui_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 		int16_t w, int16_t h, uint32_t wrap, color_t c) {
+	if (bitmap->visible) {
 	uimedia_ll_st *media = uimedia_ll_st_find(bitmap->filename);
 
 	if (media == NULL) {
@@ -481,7 +482,7 @@ void uv_ui_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 
 		glUseProgram(0);
 	}
-
+	}
 }
 
 
@@ -835,6 +836,7 @@ uint32_t uv_uimedia_newbitmapexmem(uv_uimedia_st *bitmap,
 	uimedia_ll_st *media = uimedia_ll_st_find(filename);
 	memset(bitmap, 0, sizeof(*bitmap));
 	bitmap->filename = "";
+	bitmap->visible = true;
 	bitmap->type = UV_UIMEDIA_IMAGE;
 
 	if (media == NULL &&
