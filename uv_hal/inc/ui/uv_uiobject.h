@@ -283,6 +283,15 @@ static inline uv_bounding_box_st *uv_uibb(const void *me) {
 }
 
 
+/// @brief: Sets the bounding box of a UI object. Only updates and refreshes
+/// if the new bounding box differs from the current one.
+static inline void uv_uibb_set(void *me, uv_bounding_box_st bb) {
+	if (memcmp(&this->bb, &bb, sizeof(this->bb)) != 0) {
+		this->bb = bb;
+		uv_ui_refresh(me);
+	}
+}
+
 
 /// @brief: Returns the X coordinate as global
 ///
