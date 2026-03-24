@@ -428,18 +428,18 @@ void uv_init(void *device) {
 
 
 void signal_callb(int signum) {
-	PRINT("Caught signal %u\n", signum);
+	// Use write() instead of printf/PRINT since we're in a signal handler
+	// and stdio functions are not async-signal-safe.
+	const char msg[] = "Caught signal, terminating\n";
+	write(STDERR_FILENO, msg, sizeof(msg) - 1);
 
 	uv_deinit();
-	PRINT("TERMINATING\n");
 
-	fflush(stdout);
-   // Terminate program
-	exit(signum);
-//	abort();
-
-	printf("exit doesnt kill program!\n");
-	fflush(stdout);
+	// Use _exit() instead of exit() to avoid deadlock: exit() flushes
+	// all stdio streams which requires the FILE lock, but if the signal
+	// interrupted fgets/fread, that lock is already held by the
+	// interrupted thread, causing a deadlock.
+	_exit(signum);
 }
 
 void uv_deinit(void) {
