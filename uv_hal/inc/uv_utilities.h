@@ -302,6 +302,7 @@ extern CONFIG_APP_ST;
 #define PRINT_MAGENTA "\033[35m"      /* Magenta */
 #define PRINT_CYAN    "\033[36m"      /* Cyan */
 #define PRINT_WHITE   "\033[37m"      /* White */
+#define PRINT_BOLD        "\033[1m"              /* Bold */
 #define PRINT_BOLDBLACK   "\033[1m\033[30m"      /* Bold Black */
 #define PRINT_BOLDRED     "\033[1m\033[31m"      /* Bold Red */
 #define PRINT_BOLDGREEN   "\033[1m\033[32m"      /* Bold Green */
