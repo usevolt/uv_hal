@@ -38,6 +38,17 @@
 
 #define CANOPEN_SDO_CLIENT_WAIT_CALLB_DELAY_MS	100
 
+/// @brief: Number of additional attempts the SDO client makes when an
+/// expedited/segmented read or write aborts because the server did not
+/// respond within CONFIG_CANOPEN_SDO_TIMEOUT_MS. A value of 0 disables
+/// retries (single attempt); the default of 1 gives 2 total attempts.
+/// Retries only trigger on protocol timeout (device not responding) —
+/// server-side abort codes are surfaced to the caller immediately. The
+/// default may be overridden from uv_hal_config.h.
+#ifndef CONFIG_CANOPEN_SDO_CLIENT_RETRY_COUNT
+#define CONFIG_CANOPEN_SDO_CLIENT_RETRY_COUNT	1
+#endif
+
 #if CONFIG_CANOPEN
 
 typedef struct {
