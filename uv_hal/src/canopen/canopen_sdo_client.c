@@ -462,52 +462,71 @@ uv_errors_e _uv_canopen_sdo_client_write(uint8_t node_id,
 		this->server_node_id = node_id;
 		this->mindex = mindex;
 		this->sindex = sindex;
-		uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 
-		if (data_len <= 4) {
-			// expedited write
-			// if the data_len is given, size is indicated. Otherwise
-			// 4 bytes of data is copied from *data* to the message and the
-			// SDO receiver (server) is responsible to read only the amount of
-			// bytes that it requires.
-			this->state = CANOPEN_SDO_STATE_EXPEDITED_DOWNLOAD;
-			if (data_len == 0) {
-				SET_CMD_BYTE(&msg, INITIATE_DOMAIN_DOWNLOAD | 0b10);
+		// Retry loop: re-send the request if the transfer aborted because
+		// the server did not respond in time (CANOPEN_SDO_ERROR_SDO_PROTOCOL_TIMED_OUT).
+		// Total attempts = 1 + CONFIG_CANOPEN_SDO_CLIENT_RETRY_COUNT.
+		// Other abort codes (server-side refusal) are surfaced immediately.
+		for (uint8_t attempt = 0;
+				attempt <= CONFIG_CANOPEN_SDO_CLIENT_RETRY_COUNT;
+				attempt++) {
+			uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
+
+			if (data_len <= 4) {
+				// expedited write
+				// if the data_len is given, size is indicated. Otherwise
+				// 4 bytes of data is copied from *data* to the message and the
+				// SDO receiver (server) is responsible to read only the amount of
+				// bytes that it requires.
+				this->state = CANOPEN_SDO_STATE_EXPEDITED_DOWNLOAD;
+				if (data_len == 0) {
+					SET_CMD_BYTE(&msg, INITIATE_DOMAIN_DOWNLOAD | 0b10);
+				}
+				else {
+					SET_CMD_BYTE(&msg, INITIATE_DOMAIN_DOWNLOAD | 0b11 | ((4 - data_len) << 2));
+				}
+				memcpy(&msg.data_32bit[1], data, (data_len == 0) ? 4 : data_len);
+				_uv_canopen_sdo_send(&msg);
 			}
 			else {
-				SET_CMD_BYTE(&msg, INITIATE_DOMAIN_DOWNLOAD | 0b11 | ((4 - data_len) << 2));
-			}
-			memcpy(&msg.data_32bit[1], data, (data_len == 0) ? 4 : data_len);
-			_uv_canopen_sdo_send(&msg);
-		}
-		else {
 #if CONFIG_CANOPEN_SDO_SEGMENTED
-			// segmented write
-			this->state = CANOPEN_SDO_STATE_SEGMENTED_DOWNLOAD;
-			this->data_count = data_len;
-			this->data_index = 0;
-			this->data_ptr = data;
-			this->toggle = 0;
-			SET_CMD_BYTE(&msg, INITIATE_DOMAIN_DOWNLOAD | (1 << 0));
-			// data count indicated in the data bytes
-			msg.data_32bit[1] = this->data_count;
-			_uv_canopen_sdo_send(&msg);
+				// segmented write
+				this->state = CANOPEN_SDO_STATE_SEGMENTED_DOWNLOAD;
+				this->data_count = data_len;
+				this->data_index = 0;
+				this->data_ptr = data;
+				this->toggle = 0;
+				SET_CMD_BYTE(&msg, INITIATE_DOMAIN_DOWNLOAD | (1 << 0));
+				// data count indicated in the data bytes
+				msg.data_32bit[1] = this->data_count;
+				_uv_canopen_sdo_send(&msg);
 #endif
-		}
-		// wait for transfer to finish
-		while ((this->state != CANOPEN_SDO_STATE_READY) &&
-				(this->state != CANOPEN_SDO_STATE_TRANSFER_ABORTED)) {
-			// check wait callback request and call it
-			if (this->wait_callb_req && this->wait_callb) {
-				this->wait_callb_req = false;
-				this->wait_callb(this->mindex, this->sindex);
 			}
-			uv_rtos_task_delay(1);
-		}
+			// wait for transfer to finish
+			while ((this->state != CANOPEN_SDO_STATE_READY) &&
+					(this->state != CANOPEN_SDO_STATE_TRANSFER_ABORTED)) {
+				// check wait callback request and call it
+				if (this->wait_callb_req && this->wait_callb) {
+					this->wait_callb_req = false;
+					this->wait_callb(this->mindex, this->sindex);
+				}
+				uv_rtos_task_delay(1);
+			}
 
-		if (this->state == CANOPEN_SDO_STATE_TRANSFER_ABORTED) {
-			this->state = CANOPEN_SDO_STATE_READY;
-			ret = ERR_ABORTED;
+			if (this->state == CANOPEN_SDO_STATE_TRANSFER_ABORTED) {
+				this->state = CANOPEN_SDO_STATE_READY;
+				ret = ERR_ABORTED;
+				// Retry only if the abort was a protocol timeout; any
+				// other abort reason comes from the server and a retry
+				// would just reproduce the same error.
+				if (this->last_err_code != CANOPEN_SDO_ERROR_SDO_PROTOCOL_TIMED_OUT) {
+					break;
+				}
+			}
+			else {
+				ret = ERR_NONE;
+				break;
+			}
 		}
 	}
 
@@ -547,28 +566,48 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 		ret = ERR_HW_BUSY;
 	}
 	else {
-		uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
+		// Retry loop: re-send the upload request if the transfer aborts
+		// because the server did not respond in time. See the write path
+		// for the rationale on retrying only protocol timeouts.
+		for (uint8_t attempt = 0;
+				attempt <= CONFIG_CANOPEN_SDO_CLIENT_RETRY_COUNT;
+				attempt++) {
+			// Reset the per-attempt state machine fields so each retry
+			// starts from a clean slate (data_index was reset before the
+			// loop but a partial segmented upload may have advanced it).
+			this->data_index = 0;
+			this->data_count = data_len;
+			this->toggle = 0;
+			uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 
-		// just in case put us to segmented upload state.
-		// expedited answers from server are handled as well
-		this->state = CANOPEN_SDO_STATE_SEGMENTED_UPLOAD;
-		SET_CMD_BYTE(&msg, INITIATE_DOMAIN_UPLOAD);
-		_uv_canopen_sdo_send(&msg);
+			// just in case put us to segmented upload state.
+			// expedited answers from server are handled as well
+			this->state = CANOPEN_SDO_STATE_SEGMENTED_UPLOAD;
+			SET_CMD_BYTE(&msg, INITIATE_DOMAIN_UPLOAD);
+			_uv_canopen_sdo_send(&msg);
 
-		// wait for reply
-		while ((this->state != CANOPEN_SDO_STATE_READY) &&
-				(this->state != CANOPEN_SDO_STATE_TRANSFER_ABORTED)) {
-			// check wait callback request and call it
-			if (this->wait_callb_req && this->wait_callb) {
-				this->wait_callb_req = false;
-				this->wait_callb(this->mindex, this->sindex);
+			// wait for reply
+			while ((this->state != CANOPEN_SDO_STATE_READY) &&
+					(this->state != CANOPEN_SDO_STATE_TRANSFER_ABORTED)) {
+				// check wait callback request and call it
+				if (this->wait_callb_req && this->wait_callb) {
+					this->wait_callb_req = false;
+					this->wait_callb(this->mindex, this->sindex);
+				}
+				uv_rtos_task_yield();
 			}
-			uv_rtos_task_yield();
-		}
 
-		if (this->state == CANOPEN_SDO_STATE_TRANSFER_ABORTED) {
-			this->state = CANOPEN_SDO_STATE_READY;
-			ret = ERR_ABORTED;
+			if (this->state == CANOPEN_SDO_STATE_TRANSFER_ABORTED) {
+				this->state = CANOPEN_SDO_STATE_READY;
+				ret = ERR_ABORTED;
+				if (this->last_err_code != CANOPEN_SDO_ERROR_SDO_PROTOCOL_TIMED_OUT) {
+					break;
+				}
+			}
+			else {
+				ret = ERR_NONE;
+				break;
+			}
 		}
 		// data should now be copied and transfer is finished
 	}
