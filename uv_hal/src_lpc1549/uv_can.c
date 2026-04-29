@@ -563,7 +563,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		unsigned int id,
 		unsigned int mask,
 		uv_can_msg_types_e type) {
-	uv_errors_e ret = ERR_NONE;
+	uv_errors_e ret = ERR_CAN_RX_MESSAGE_COUNT_FULL;
 
 	NVIC_DisableIRQ(CAN_IRQn);
 	uv_mutex_lock(&this->mutex);
@@ -621,6 +621,7 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 		}
 	}
 
+
 	if (!match) {
 		// this message is not yet configured.
 		// If any message objects are still not in use,
@@ -646,26 +647,23 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e channel,
 				msg_obj_enable_if2(i + 1);
 
 				this->used_msg_objs |= (1 << i);
-				match = true;
+				ret = ERR_NONE;
 				break;
 			}
 		}
 	}
 
-	if (!match) {
-		ret = ERR_CAN_RX_MESSAGE_COUNT_FULL;
-	}
-
-	if (ret) {
-		uv_terminal_enable(TERMINAL_CAN);
-		printf("CAN config rxmsgobj err: %u\n", ret);
-	}
+//	if (ret) {
+//		uv_terminal_enable(TERMINAL_CAN);
+//		printf("CAN config rxmsgobj err: %u\n", ret);
+//	}
 
 	NVIC_EnableIRQ(CAN_IRQn);
 	uv_mutex_unlock(&this->mutex);
 
 	// call callback if assigned
-	if (this->config_rx_callb) {
+	if (ret == ERR_NONE &&
+			this->config_rx_callb) {
 		this->config_rx_callb(channel, id, mask, type);
 	}
 

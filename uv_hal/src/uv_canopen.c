@@ -271,12 +271,11 @@ void uv_canopen_config_rx_msgs(void) {
 	}
 
 
-	// SDO Client
-	// configure to receive all SDO response messages
-	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
-			CANOPEN_SDO_RESPONSE_ID, ~0x7F, CAN_STD);
+	// SDO client responses not configured here.
+	// They are instead in sdo_read & sdo_write functions
 
 	// SDO Server
+	// receive out sdo requests
 	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
 			CANOPEN_SDO_REQUEST_ID + NODEID, CAN_ID_MASK_DEFAULT, CAN_STD);
 

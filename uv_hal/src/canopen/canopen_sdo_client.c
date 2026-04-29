@@ -451,6 +451,10 @@ uv_errors_e _uv_canopen_sdo_client_write(uint8_t node_id,
 	SET_MINDEX(&msg, mindex);
 	SET_SINDEX(&msg, sindex);
 
+	// configure to receive target device's SDO response messages
+	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
+			CANOPEN_SDO_RESPONSE_ID + node_id, CAN_ID_MASK_DEFAULT, CAN_STD);
+
 	if (this->state != CANOPEN_SDO_STATE_READY) {
 		ret = ERR_HW_BUSY;
 	}
@@ -535,6 +539,10 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 	this->data_count = data_len;
 	this->toggle = 0;
 
+	// configure to receive target device's SDO response messages
+	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
+			CANOPEN_SDO_RESPONSE_ID + node_id, CAN_ID_MASK_DEFAULT, CAN_STD);
+
 	if (this->state != CANOPEN_SDO_STATE_READY) {
 		ret = ERR_HW_BUSY;
 	}
@@ -589,6 +597,10 @@ uv_errors_e _uv_canopen_sdo_client_block_write(uint8_t node_id,
 	this->data_index = 0;
 	this->seq = 0;
 
+	// configure to receive target device's SDO response messages
+	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
+			CANOPEN_SDO_RESPONSE_ID + node_id, CAN_ID_MASK_DEFAULT, CAN_STD);
+
 	while (this->state != CANOPEN_SDO_STATE_READY) {
 		uv_rtos_task_yield();
 	}
@@ -632,6 +644,10 @@ uv_errors_e _uv_canopen_sdo_client_block_read(uint8_t node_id,
 	this->data_index = 0;
 	this->new_data = false;
 	this->seq = 0;
+
+	// configure to receive target device's SDO response messages
+	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
+			CANOPEN_SDO_RESPONSE_ID + node_id, CAN_ID_MASK_DEFAULT, CAN_STD);
 
 	if (this->state != CANOPEN_SDO_STATE_READY) {
 		ret = ERR_HW_BUSY;
