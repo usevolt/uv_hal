@@ -30,10 +30,42 @@
 #define PASSWD_STR_MAX_LEN	66
 #define IPV6_STR_MAX_LEN	46
 
+
+#define ESP32_MQTT_URL_MAX_LEN			64
+#define ESP32_MQTT_CLIENT_ID_MAX_LEN	32
+#define ESP32_MQTT_USER_MAX_LEN			32
+#define ESP32_MQTT_PASSWD_MAX_LEN		64
+#define ESP32_MQTT_TOPIC_MAX_LEN		64
+#define ESP32_MQTT_PAYLOAD_MAX_LEN		256
+#define ESP32_MQTT_DEFAULT_KEEPALIVE_S	60
+#define ESP32_MQTT_LINK_ID				0
+
+
+/// @brief: MQTT(S) client configuration consumed by the ESP-AT MQTT commands.
+/// Default scheme is 4 (TLS without server-cert verification). For scheme 5
+/// (server-cert verification), provision a CA cert into the ESP32 customized
+/// certs partition and set ca_id to that slot.
+typedef struct {
+	char broker_url[ESP32_MQTT_URL_MAX_LEN];
+	uint16_t broker_port;
+	char client_id[ESP32_MQTT_CLIENT_ID_MAX_LEN];
+	char user[ESP32_MQTT_USER_MAX_LEN];
+	char passwd[ESP32_MQTT_PASSWD_MAX_LEN];
+	uint8_t scheme;
+	uint8_t ca_id;
+	uint8_t cert_key_id;
+	uint16_t keepalive_s;
+} uv_esp32_mqtt_conf_st;
+
+
+void uv_esp32_mqtt_conf_reset(uv_esp32_mqtt_conf_st *conf);
+
+
 typedef struct {
 	uint16_t flags;
 	char ssid[SSID_STR_MAX_LEN];
 	char passwd[PASSWD_STR_MAX_LEN];
+	uv_esp32_mqtt_conf_st mqtt;
 } uv_esp32_conf_st;
 
 
@@ -55,6 +87,32 @@ typedef enum {
 	ESP32_STATE_SCAN_NETWORKS,
 	ESP32_STATE_GET_MAC
 } uv_esp32_states_e;
+
+
+/// @brief: MQTT client state, advances independently of the main esp32 state
+/// once Wi-Fi has joined a network. Future protocol modules (ESPNOW, etc.)
+/// follow the same pattern with their own *_state field.
+typedef enum {
+	ESP32_MQTT_STATE_DISABLED = 0,
+	ESP32_MQTT_STATE_INIT,
+	ESP32_MQTT_STATE_USERCFG,
+	ESP32_MQTT_STATE_CONNCFG,
+	ESP32_MQTT_STATE_CONN,
+	ESP32_MQTT_STATE_CONNECTED,
+	ESP32_MQTT_STATE_ERROR,
+	ESP32_MQTT_STATE_COUNT
+} uv_esp32_mqtt_states_e;
+
+
+const char *uv_esp32_mqtt_state_to_str(uv_esp32_mqtt_states_e state);
+
+
+/// @brief: Invoked from the rxtx task when an MQTT message arrives on a
+/// subscribed topic. The buffers are owned by the driver and only valid for
+/// the duration of the callback.
+typedef void (*uv_esp32_mqtt_rx_callb_t)(
+		const char *topic, const uint8_t *data, uint16_t len);
+
 
 #define ESP32_MAC_STR_LEN	18
 
@@ -102,6 +160,38 @@ typedef struct {
 	uv_esp32_states_e state;
 	uv_esp32_states_e scan_return_state;
 	uv_delay_st timeout;
+
+	uv_esp32_mqtt_states_e mqtt_state;
+	uv_delay_st mqtt_timeout;
+	uint8_t mqtt_retry_backoff_s;
+	uv_esp32_mqtt_rx_callb_t mqtt_rx_callb;
+
+	// scratch for parsing +MQTTSUBRECV payload (binary, raw bytes follow header)
+	struct {
+		char topic[ESP32_MQTT_TOPIC_MAX_LEN];
+		uint8_t data[ESP32_MQTT_PAYLOAD_MAX_LEN];
+		uint16_t expected_len;
+		uint16_t received_len;
+		bool active;
+	} mqtt_subrecv;
+
+	// Pending publish request handed off to the rxtx task. Only one publish
+	// in flight at a time; uv_esp32_mqtt_publish blocks while phase != IDLE.
+	struct {
+		bool pending;
+		uint8_t phase;
+		char topic[ESP32_MQTT_TOPIC_MAX_LEN];
+		uint8_t data[ESP32_MQTT_PAYLOAD_MAX_LEN];
+		uint16_t datalen;
+		uint8_t qos;
+		bool retain;
+	} mqtt_publish_req;
+
+	// Pending-line buffer used by at_get_line. When pump_mqtt_async pops a
+	// completed line that is not an MQTT async event, the line is held here
+	// so the state machine's next at_get_line call can consume it.
+	char at_resp_pending[ESP32_AT_RESP_LEN];
+	bool at_resp_has_pending;
 
 	union {
 		struct {
@@ -196,6 +286,37 @@ uv_errors_e uv_esp32_network_scan(uv_esp32_st *this, bool blocking);
 /// @brief: Parses the "esp" terminal command
 void uv_esp32_terminal(uv_esp32_st *this,
 		unsigned int args, argument_st *argv);
+
+
+/// @brief: Returns the current MQTT state.
+static inline uv_esp32_mqtt_states_e uv_esp32_mqtt_state_get(uv_esp32_st *this) {
+	return this->mqtt_state;
+}
+
+
+/// @brief: Publishes a binary payload to a topic via AT+MQTTPUBRAW.
+/// Returns ERR_NOT_READY if MQTT is not connected, ERR_BUFFER_OVERFLOW if
+/// datalen exceeds ESP32_MQTT_PAYLOAD_MAX_LEN.
+uv_errors_e uv_esp32_mqtt_publish(uv_esp32_st *this,
+		const char *topic, const uint8_t *data, uint16_t datalen,
+		uint8_t qos, bool retain);
+
+
+/// @brief: Subscribes to a topic via AT+MQTTSUB.
+/// Returns ERR_NOT_READY if MQTT is not connected.
+uv_errors_e uv_esp32_mqtt_subscribe(uv_esp32_st *this,
+		const char *topic, uint8_t qos);
+
+
+/// @brief: Unsubscribes from a topic via AT+MQTTUNSUB.
+/// Returns ERR_NOT_READY if MQTT is not connected.
+uv_errors_e uv_esp32_mqtt_unsubscribe(uv_esp32_st *this, const char *topic);
+
+
+/// @brief: Registers a callback to be invoked when an MQTT message arrives
+/// on a subscribed topic. Pass NULL to clear.
+void uv_esp32_mqtt_set_rx_callb(uv_esp32_st *this, uv_esp32_mqtt_rx_callb_t cb);
+
 
 #endif
 
