@@ -60,11 +60,9 @@ typedef struct {
 	char *buffer;
 	/// @brief: Size of *buffer* in bytes, including the null terminator.
 	uint16_t buf_len;
-	/// @brief: Optional title text drawn below the field. NULL = no title.
+	/// @brief: Optional title text drawn below the field, and also used as
+	/// the on-screen keyboard popup title on MCU targets. NULL = no title.
 	char *title;
-	/// @brief: Title shown on the on-screen keyboard popup (MCU targets).
-	/// If NULL, *title* is used as a fallback.
-	char *keyboard_title;
 	color_t bg_color;
 	bool changed;
 	const uv_uistyle_st *style;
@@ -107,19 +105,14 @@ static inline bool uv_uitextedit_value_changed(void *me) {
 }
 
 
-/// @brief: Sets the title text drawn below the field.
+/// @brief: Sets the title text drawn below the field, also used as
+/// the on-screen keyboard popup title on MCU targets.
 static inline void uv_uitextedit_set_title(void *me, char *value) {
 	this->title = value;
 }
 
 static inline char *uv_uitextedit_get_title(void *me) {
 	return this->title;
-}
-
-
-/// @brief: Sets the title shown on the on-screen keyboard popup (MCU targets).
-static inline void uv_uitextedit_set_keyboard_title(void *me, char *value) {
-	this->keyboard_title = value;
 }
 
 

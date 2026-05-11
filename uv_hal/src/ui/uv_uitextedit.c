@@ -53,7 +53,6 @@ void uv_uitextedit_init(void *me, char *buffer, uint16_t buf_len,
 	this->buffer = buffer;
 	this->buf_len = buf_len;
 	this->title = NULL;
-	this->keyboard_title = NULL;
 	this->bg_color = style->bg_c;
 	this->changed = false;
 	this->flags = flags;
@@ -247,12 +246,10 @@ static void touch(void *me, uv_touch_st *touch) {
 		while (uv_ui_get_key_press() != '\0') { }
 		uv_ui_refresh(this);
 #else
-		const char *kb_title = this->keyboard_title ?
-				this->keyboard_title : this->title;
 		// snapshot to detect whether the user actually changed anything
 		char snapshot[this->buf_len];
 		memcpy(snapshot, this->buffer, this->buf_len);
-		uv_uikeyboard_show(kb_title, this->buffer, this->buf_len, this->style);
+		uv_uikeyboard_show(this->title, this->buffer, this->buf_len, this->style);
 		if ((this->flags & UITEXTEDIT_FLAG_ONELINE) != 0) {
 			for (uint16_t i = 0; i < this->buf_len && this->buffer[i] != '\0'; i++) {
 				if (this->buffer[i] == '\n' || this->buffer[i] == '\r') {
