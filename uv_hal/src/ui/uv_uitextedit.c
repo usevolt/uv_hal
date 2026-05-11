@@ -47,7 +47,7 @@ static void touch(void *me, uv_touch_st *touch);
 
 
 void uv_uitextedit_init(void *me, char *buffer, uint16_t buf_len,
-		const uv_uistyle_st *style) {
+		uv_uitextedit_flags_e flags, const uv_uistyle_st *style) {
 	uv_uilabel_init(this, style->font, ALIGN_CENTER, style->text_color, "");
 	this->style = style;
 	this->buffer = buffer;
@@ -56,6 +56,7 @@ void uv_uitextedit_init(void *me, char *buffer, uint16_t buf_len,
 	this->keyboard_title = NULL;
 	this->bg_color = style->bg_c;
 	this->changed = false;
+	this->flags = flags;
 #if CONFIG_TARGET_LINUX
 	this->editing = false;
 	this->was_touched = false;
@@ -74,6 +75,15 @@ void uv_uitextedit_init(void *me, char *buffer, uint16_t buf_len,
 		buffer[0] = '\0';
 	}
 
+	if ((flags & UITEXTEDIT_FLAG_ONELINE) != 0) {
+		for (uint16_t i = 0; i < buf_len && buffer[i] != '\0'; i++) {
+			if (buffer[i] == '\n' || buffer[i] == '\r') {
+				buffer[i] = '\0';
+				break;
+			}
+		}
+	}
+
 	// keep the inherited uilabel's str pointer pointing at our buffer so
 	// uilabel-aware code paths see the live text.
 	uv_uilabel_set_text(this, this->buffer);
@@ -90,6 +100,14 @@ void uv_uitextedit_set_text(void *me, const char *text) {
 	}
 	strncpy(this->buffer, text, this->buf_len - 1);
 	this->buffer[this->buf_len - 1] = '\0';
+	if ((this->flags & UITEXTEDIT_FLAG_ONELINE) != 0) {
+		for (uint16_t i = 0; this->buffer[i] != '\0'; i++) {
+			if (this->buffer[i] == '\n' || this->buffer[i] == '\r') {
+				this->buffer[i] = '\0';
+				break;
+			}
+		}
+	}
 	uv_ui_refresh(this);
 }
 
@@ -100,8 +118,10 @@ void uv_uitextedit_draw(void *me, const uv_bounding_box_st *pbb) {
 	uv_font_st *font = ((uv_uilabel_st*) this)->font;
 	color_t text_color = ((uv_uilabel_st*) this)->color;
 
-	uint16_t height = uv_ui_get_string_height(this->buffer, font) +
-			TITLE_OFFSET * 2;
+	uint16_t text_height = (this->buffer[0] == '\0') ?
+			uv_ui_get_font_height(font) :
+			uv_ui_get_string_height(this->buffer, font);
+	uint16_t height = text_height + TITLE_OFFSET * 2;
 	int16_t title_height = 0;
 	if (this->title != NULL) {
 		title_height = uv_ui_get_string_height(this->title, font);
@@ -233,6 +253,14 @@ static void touch(void *me, uv_touch_st *touch) {
 		char snapshot[this->buf_len];
 		memcpy(snapshot, this->buffer, this->buf_len);
 		uv_uikeyboard_show(kb_title, this->buffer, this->buf_len, this->style);
+		if ((this->flags & UITEXTEDIT_FLAG_ONELINE) != 0) {
+			for (uint16_t i = 0; i < this->buf_len && this->buffer[i] != '\0'; i++) {
+				if (this->buffer[i] == '\n' || this->buffer[i] == '\r') {
+					this->buffer[i] = '\0';
+					break;
+				}
+			}
+		}
 		if (strncmp(snapshot, this->buffer, this->buf_len) != 0) {
 			this->changed = true;
 		}

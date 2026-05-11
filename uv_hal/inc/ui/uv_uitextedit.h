@@ -41,6 +41,14 @@
 #define UITEXTEDIT_CURSOR_BLINK_MS	500
 
 
+/// @brief: Bitmask flags controlling textedit behavior.
+typedef enum {
+	UITEXTEDIT_FLAG_NONE	= 0,
+	/// @brief: Rejects newline characters so the buffer never contains '\n'.
+	UITEXTEDIT_FLAG_ONELINE	= (1u << 0)
+} uv_uitextedit_flags_e;
+
+
 /// @brief: Editable text field. Behaves like uidigitedit but for strings:
 /// on MCU targets a click opens the on-screen keyboard, on TARGET_LINUX
 /// a click activates an in-place cursor and characters are read from the
@@ -60,6 +68,8 @@ typedef struct {
 	color_t bg_color;
 	bool changed;
 	const uv_uistyle_st *style;
+	/// @brief: Bitmask of UITEXTEDIT_FLAG_*.
+	uv_uitextedit_flags_e flags;
 #if CONFIG_TARGET_LINUX
 	bool editing;
 	bool was_touched;
@@ -75,8 +85,9 @@ typedef struct {
 /// @brief: Initializes the textedit. *buffer* must remain valid for the
 /// lifetime of the widget. If *buffer* does not yet contain a null-terminated
 /// string, it is initialized to a zero-length string.
+/// *flags* is a bitmask of UITEXTEDIT_FLAG_*; pass UITEXTEDIT_FLAG_NONE for defaults.
 void uv_uitextedit_init(void *me, char *buffer, uint16_t buf_len,
-		const uv_uistyle_st *style);
+		uv_uitextedit_flags_e flags, const uv_uistyle_st *style);
 
 
 /// @brief: Replaces the current text with *text*. Truncates to buf_len-1.

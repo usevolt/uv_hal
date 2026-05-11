@@ -45,15 +45,17 @@
 /// Default scheme is 4 (TLS without server-cert verification). For scheme 5
 /// (server-cert verification), provision a CA cert into the ESP32 customized
 /// certs partition and set ca_id to that slot.
+/// All fields are 16-bit aligned so the struct can be exposed verbatim as a
+/// CANOPEN_ARRAY16 dictionary entry.
 typedef struct {
 	char broker_url[ESP32_MQTT_URL_MAX_LEN];
 	uint16_t broker_port;
 	char client_id[ESP32_MQTT_CLIENT_ID_MAX_LEN];
 	char user[ESP32_MQTT_USER_MAX_LEN];
 	char passwd[ESP32_MQTT_PASSWD_MAX_LEN];
-	uint8_t scheme;
-	uint8_t ca_id;
-	uint8_t cert_key_id;
+	uint16_t scheme;
+	uint16_t ca_id;
+	uint16_t cert_key_id;
 	uint16_t keepalive_s;
 } uv_esp32_mqtt_conf_st;
 

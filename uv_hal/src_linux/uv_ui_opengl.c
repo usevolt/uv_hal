@@ -57,6 +57,7 @@
 
 static void key_callback(GLFWwindow* window,
 		int key, int scancode, int action, int mods);
+static void char_callback(GLFWwindow* window, unsigned int codepoint);
 static void cursor_position_callback(GLFWwindow* window,
 		double xpos, double ypos);
 static void mouse_button_callback(GLFWwindow* window,
@@ -918,8 +919,39 @@ void uv_ui_dlswap(void) {
 
 static void key_callback(GLFWwindow* window,
 		int key, int scancode, int action, int mods) {
-	if (action == GLFW_PRESS) {
-		char c = (char) key;
+	if (action == GLFW_PRESS || action == GLFW_REPEAT) {
+		char c;
+		switch (key) {
+		case GLFW_KEY_BACKSPACE:
+			c = '\b';
+			break;
+		case GLFW_KEY_ENTER:
+		case GLFW_KEY_KP_ENTER:
+			c = '\n';
+			break;
+		case GLFW_KEY_ESCAPE:
+			c = 0x1b;
+			break;
+		case GLFW_KEY_DELETE:
+			c = 0x7f;
+			break;
+		case GLFW_KEY_TAB:
+			c = '\t';
+			break;
+		default:
+			// printable characters arrive via char_callback so that
+			// shift/caps/layout are applied correctly by GLFW.
+			return;
+		}
+		taskENTER_CRITICAL();
+		uv_ring_buffer_push(&this->key_press, &c);
+		taskEXIT_CRITICAL();
+	}
+}
+
+static void char_callback(GLFWwindow* window, unsigned int codepoint) {
+	if (codepoint < 0x80) {
+		char c = (char) codepoint;
 		taskENTER_CRITICAL();
 		uv_ring_buffer_push(&this->key_press, &c);
 		taskEXIT_CRITICAL();
@@ -1185,6 +1217,7 @@ bool uv_ui_init(void) {
 			glfwMakeContextCurrent(this->window);
 			// add key listener
 			glfwSetKeyCallback(this->window, &key_callback);
+			glfwSetCharCallback(this->window, &char_callback);
 			// add cursor position listener
 			glfwSetCursorPosCallback(this->window, &cursor_position_callback);
 			// add mouse button listener

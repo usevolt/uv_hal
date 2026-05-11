@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#if CONFIG_ESP32
+#if CONFIG_ESP32 && !CONFIG_TARGET_LINUX
 
 #define ESP32_DEBUG(esp, ...) do { if ((esp)->conf->flags & ESP32_CONF_FLAGS_DEBUG) { \
 	printf_flags(PRINTF_FLAGS_NOTXCALLB, __VA_ARGS__);}} while (0)
