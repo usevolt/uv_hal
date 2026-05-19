@@ -13,6 +13,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #if CONFIG_ESP32 && CONFIG_TARGET_LINUX
 
@@ -319,7 +320,11 @@ uv_errors_e uv_esp32_write_isr(uv_esp32_st *this,
 
 void uv_esp32_mac_get_str(uv_esp32_st *this, char *dest) {
 	(void) this;
-	strncpy(dest, "00:00:00:00:00:00", ESP32_MAC_STR_LEN);
+	const char *user = getenv("USER");
+	if (user == NULL || user[0] == '\0') {
+		user = "unknown";
+	}
+	snprintf(dest, ESP32_MAC_STR_LEN, "%s:%d", user, (int) getpid());
 	dest[ESP32_MAC_STR_LEN - 1] = '\0';
 }
 
