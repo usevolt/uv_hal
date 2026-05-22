@@ -40,39 +40,47 @@
 #define ESP32_MQTT_DEFAULT_KEEPALIVE_S	60
 #define ESP32_MQTT_LINK_ID				0
 
+/// Depth of the publish slot pool. Each slot owns its own topic + payload
+/// buffer, so this trades RAM for tolerance to bursts of uncoalesced events
+/// before ERR_BUFFER_OVERFLOW kicks in.
+#define ESP32_MQTT_PUBLISH_SLOT_COUNT	8
 
-/// @brief: MQTT(S) client configuration consumed by the ESP-AT MQTT commands.
-/// Default scheme is 4 (TLS without server-cert verification). For scheme 5
-/// (server-cert verification), provision a CA cert into the ESP32 customized
-/// certs partition and set ca_id to that slot.
-/// All fields are 16-bit aligned so the struct can be exposed verbatim as a
-/// CANOPEN_ARRAY16 dictionary entry.
+
+/// @brief: Publish priority. Lower numeric value drains first. Within a
+/// priority, ties break by FIFO (oldest seq wins).
+typedef enum {
+	UV_ESP32_MQTT_PRIO_HIGH   = 0,	///< commands, alarms
+	UV_ESP32_MQTT_PRIO_NORMAL = 1,	///< announce, status
+	UV_ESP32_MQTT_PRIO_LOW    = 2,	///< periodic process data
+	UV_ESP32_MQTT_PRIO_COUNT
+} uv_esp32_mqtt_prio_e;
+
+
+/// @brief: One entry in the publish slot pool.
 typedef struct {
-	char broker_url[ESP32_MQTT_URL_MAX_LEN];
-	uint16_t broker_port;
-	char client_id[ESP32_MQTT_CLIENT_ID_MAX_LEN];
-	char user[ESP32_MQTT_USER_MAX_LEN];
-	char passwd[ESP32_MQTT_PASSWD_MAX_LEN];
-	uint16_t scheme;
-	uint16_t ca_id;
-	uint16_t cert_key_id;
-	uint16_t keepalive_s;
-} uv_esp32_mqtt_conf_st;
+	bool in_use;
+	uint8_t phase;	///< MQTT_PUB_PHASE_* internal to uv_esp32.c
+	uv_esp32_mqtt_prio_e priority;
+	uint16_t stream_id;	///< 0 = uncoalesced event; non-zero = coalescing key
+	uint32_t seq;	///< monotonic insertion order, FIFO tiebreak within priority
+	char topic[ESP32_MQTT_TOPIC_MAX_LEN];
+	uint8_t data[ESP32_MQTT_PAYLOAD_MAX_LEN];
+	uint16_t datalen;
+	uint8_t qos;
+	bool retain;
+} uv_esp32_mqtt_slot_st;
 
 
-void uv_esp32_mqtt_conf_reset(uv_esp32_mqtt_conf_st *conf);
-
-
-typedef struct {
-	uint16_t flags;
-	char ssid[SSID_STR_MAX_LEN];
-	char passwd[PASSWD_STR_MAX_LEN];
-	uv_esp32_mqtt_conf_st mqtt;
-} uv_esp32_conf_st;
-
-
-/// @brief: Resets the configuration structure
-void uv_esp32_conf_reset(uv_esp32_conf_st *conf);
+/// @brief: MQTT scheme values are passed directly to AT+MQTTUSERCFG and
+/// follow the Espressif ESP-AT spec:
+///   1 = MQTT over TCP (no TLS)
+///   2 = TLS, no certificate verification
+///   3 = TLS, verify server cert (one-way TLS — typical MQTTS against a
+///       public broker; provision a CA into the ESP32 customized certs
+///       partition and set `ca_id` to that slot)
+///   4 = TLS, provide client cert (no server verify); set `cert_key_id`
+///   5 = TLS, mutual auth (verify server cert + provide client cert); set
+///       both `ca_id` and `cert_key_id`
 
 
 
@@ -134,9 +142,27 @@ typedef struct {
 #define ESP32_AT_RESP_LEN		(96)
 
 
-/// @brief: Main struct for ESP32 wifi module
+/// @brief: Main struct for ESP32 wifi module. All config strings/flags are
+/// caller-owned: the WiFi side (wifi_flags / wifi_ssid / wifi_passwd) is
+/// supplied via uv_esp32_init() and may be written back by the driver
+/// (network_join / network_leave / terminal debug toggle). The MQTT side
+/// (mqtt_broker_url / mqtt_client_id / mqtt_user / mqtt_passwd plus the
+/// scalar settings) is supplied via uv_esp32_mqtt_init(); the driver only
+/// reads them — caller storage must outlive the driver.
 typedef struct {
-	uv_esp32_conf_st *conf;
+	uint16_t *wifi_flags;
+	char *wifi_ssid;
+	char *wifi_passwd;
+
+	const char *mqtt_broker_url;
+	const char *mqtt_client_id;
+	const char *mqtt_user;
+	const char *mqtt_passwd;
+	uint16_t mqtt_broker_port;
+	uint16_t mqtt_scheme;
+	uint16_t mqtt_ca_id;
+	uint16_t mqtt_cert_key_id;
+	uint16_t mqtt_keepalive_s;
 
 	uv_uarts_e uart;
 	uv_gpios_e reset_io;
@@ -177,17 +203,13 @@ typedef struct {
 		bool active;
 	} mqtt_subrecv;
 
-	// Pending publish request handed off to the rxtx task. Only one publish
-	// in flight at a time; uv_esp32_mqtt_publish blocks while phase != IDLE.
-	struct {
-		bool pending;
-		uint8_t phase;
-		char topic[ESP32_MQTT_TOPIC_MAX_LEN];
-		uint8_t data[ESP32_MQTT_PAYLOAD_MAX_LEN];
-		uint16_t datalen;
-		uint8_t qos;
-		bool retain;
-	} mqtt_publish_req;
+	// Publish slot pool. Caller threads fill slots via uv_esp32_mqtt_publish
+	// (non-blocking); the rxtx task drains them in priority + FIFO order.
+	// mqtt_pub_mutex guards mqtt_pub_slots / mqtt_publish_seq mutations from
+	// both sides.
+	uv_mutex_st mqtt_pub_mutex;
+	uint32_t mqtt_publish_seq;
+	uv_esp32_mqtt_slot_st mqtt_pub_slots[ESP32_MQTT_PUBLISH_SLOT_COUNT];
 
 	// Pending-line buffer used by at_get_line. When pump_mqtt_async pops a
 	// completed line that is not an MQTT async event, the line is held here
@@ -221,15 +243,41 @@ static inline uint8_t uv_esp32_get_network_count(uv_esp32_st *this) {
 
 
 
-/// @brief: Initializes the ESP32 module
+/// @brief: Initializes the ESP32 module.
+///
+/// @param wifi_flags: Pointer to caller-owned flags word (ESP32_CONF_FLAGS_*).
+///                    The driver reads and may write to this location.
+/// @param wifi_ssid: Pointer to caller-owned SSID buffer of at least
+///                   SSID_STR_MAX_LEN bytes. Written by uv_esp32_network_join
+///                   and cleared by uv_esp32_network_leave.
+/// @param wifi_passwd: Pointer to caller-owned WiFi password buffer of at
+///                     least PASSWD_STR_MAX_LEN bytes. Same lifetime rules
+///                     as wifi_ssid.
 ///
 /// @ref: ERR_NONE if initialized succesfully
-///
-/// @param nodeid: Node Identifier, custom string
 uv_errors_e uv_esp32_init(uv_esp32_st *this,
-		uv_esp32_conf_st *conf,
 		uv_gpios_e reset_io,
-		uv_uarts_e uart);
+		uv_uarts_e uart,
+		uint16_t *wifi_flags,
+		char *wifi_ssid,
+		char *wifi_passwd);
+
+
+/// @brief: Configures the MQTT(S) client. Caller-owned string pointers must
+/// outlive the driver; the driver reads them each time it transitions
+/// through the MQTT state machine. Scheme follows the ESP-AT spec (see the
+/// header-level scheme comment). May be called again to retarget — if MQTT
+/// is currently connected, the change takes effect on the next reconnect.
+void uv_esp32_mqtt_init(uv_esp32_st *this,
+		const char *broker_url,
+		uint16_t broker_port,
+		const char *client_id,
+		const char *user,
+		const char *passwd,
+		uint16_t scheme,
+		uint16_t ca_id,
+		uint16_t cert_key_id,
+		uint16_t keepalive_s);
 
 
 /// @brief: Step function
@@ -296,12 +344,30 @@ static inline uv_esp32_mqtt_states_e uv_esp32_mqtt_state_get(uv_esp32_st *this) 
 }
 
 
-/// @brief: Publishes a binary payload to a topic via AT+MQTTPUBRAW.
-/// Returns ERR_NOT_READY if MQTT is not connected, ERR_BUFFER_OVERFLOW if
-/// datalen exceeds ESP32_MQTT_PAYLOAD_MAX_LEN.
+/// @brief: Queues an MQTT publish onto the slot pool. Returns immediately;
+/// the rxtx task drains slots in priority order (lower numeric priority
+/// first, FIFO within a priority).
+///
+/// @param priority: see uv_esp32_mqtt_prio_e — picks drain order so
+///        infrequent high-priority traffic (alarms, announce) is never
+///        starved by a high-rate low-priority stream.
+/// @param stream_id: 0 = uncoalesced event — appended to the pool; returns
+///        ERR_BUFFER_OVERFLOW if the pool is full. Non-zero = coalescing
+///        key — if a pending slot already carries the same stream_id, its
+///        payload is overwritten in place (latest-value semantics for
+///        periodic data; a slow link can never accumulate stale samples).
+///
+/// @return ERR_NONE on success;
+///         ERR_BUFFER_OVERFLOW if datalen > ESP32_MQTT_PAYLOAD_MAX_LEN,
+///                             topic too long, or pool is full and
+///                             stream_id is 0;
+///         (Publish is queued even when not yet connected — it will be
+///          sent once the MQTT state machine reaches CONNECTED.)
 uv_errors_e uv_esp32_mqtt_publish(uv_esp32_st *this,
 		const char *topic, const uint8_t *data, uint16_t datalen,
-		uint8_t qos, bool retain);
+		uint8_t qos, bool retain,
+		uv_esp32_mqtt_prio_e priority,
+		uint16_t stream_id);
 
 
 /// @brief: Subscribes to a topic via AT+MQTTSUB.

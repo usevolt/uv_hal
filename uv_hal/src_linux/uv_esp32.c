@@ -21,7 +21,8 @@
 
 
 #define ESP32_DEBUG(esp, ...) do { \
-		if ((esp)->conf->flags & ESP32_CONF_FLAGS_DEBUG) { \
+		if ((esp)->wifi_flags != NULL && \
+				(*((esp)->wifi_flags) & ESP32_CONF_FLAGS_DEBUG)) { \
 			printf(__VA_ARGS__); \
 		} \
 	} while (0)
@@ -75,28 +76,33 @@ static void on_message(struct mosquitto *m, void *userdata,
 
 
 static void apply_tls(uv_esp32_st *this) {
-	// scheme 0..3 = no TLS, 4..6 = TLS variants. Mirror the embedded
-	// behavior: skip TLS for plain MQTT, set hostname-only verification
-	// for scheme 4, full verification with CA for scheme 5+.
-	if (this->conf->mqtt.scheme >= 4) {
+	// `scheme` follows the ESP-AT AT+MQTTUSERCFG spec: 1 = TCP, 2..5 = TLS
+	// variants. Schemes 2 and 4 skip server-cert verification; schemes 3
+	// and 5 verify the server cert against the provisioned CA.
+	if (this->mqtt_scheme >= 2) {
 		mosquitto_tls_insecure_set(s_mosq,
-				this->conf->mqtt.scheme == 4);
+				this->mqtt_scheme == 2 ||
+				this->mqtt_scheme == 4);
 	}
 	else {
-		/* plain MQTT (scheme 0..3); no TLS setup */
+		/* plain MQTT (scheme 1); no TLS setup */
 	}
 }
 
 
 uv_errors_e uv_esp32_init(uv_esp32_st *this,
-		uv_esp32_conf_st *conf,
 		uv_gpios_e reset_io,
-		uv_uarts_e uart) {
+		uv_uarts_e uart,
+		uint16_t *wifi_flags,
+		char *wifi_ssid,
+		char *wifi_passwd) {
 	(void) reset_io;
 	(void) uart;
 	uv_errors_e ret = ERR_NONE;
 	memset(this, 0, sizeof(*this));
-	this->conf = conf;
+	this->wifi_flags = wifi_flags;
+	this->wifi_ssid = wifi_ssid;
+	this->wifi_passwd = wifi_passwd;
 	this->state = ESP32_STATE_INIT;
 	this->mqtt_state = ESP32_MQTT_STATE_DISABLED;
 	this->mqtt_rx_callb = NULL;
@@ -130,13 +136,14 @@ void uv_esp32_step(uv_esp32_st *this, uint16_t step_ms) {
 
 	// Lazy-connect once an MQTT broker URL has been configured.
 	if (this->mqtt_state == ESP32_MQTT_STATE_DISABLED &&
-			this->conf->mqtt.broker_url[0] != '\0') {
+			this->mqtt_broker_url != NULL &&
+			this->mqtt_broker_url[0] != '\0') {
 		this->mqtt_state = ESP32_MQTT_STATE_INIT;
 
-		if (this->conf->mqtt.user[0] != '\0') {
+		if (this->mqtt_user != NULL && this->mqtt_user[0] != '\0') {
 			mosquitto_username_pw_set(s_mosq,
-					this->conf->mqtt.user,
-					this->conf->mqtt.passwd);
+					this->mqtt_user,
+					this->mqtt_passwd);
 		}
 		else {
 			/* anonymous broker */
@@ -144,10 +151,10 @@ void uv_esp32_step(uv_esp32_st *this, uint16_t step_ms) {
 		apply_tls(this);
 
 		int rc = mosquitto_connect_async(s_mosq,
-				this->conf->mqtt.broker_url,
-				(int) this->conf->mqtt.broker_port,
-				this->conf->mqtt.keepalive_s ?
-						this->conf->mqtt.keepalive_s :
+				this->mqtt_broker_url,
+				(int) this->mqtt_broker_port,
+				this->mqtt_keepalive_s ?
+						this->mqtt_keepalive_s :
 						ESP32_MQTT_DEFAULT_KEEPALIVE_S);
 		if (rc == MOSQ_ERR_SUCCESS) {
 			this->mqtt_state = ESP32_MQTT_STATE_CONN;
@@ -179,7 +186,15 @@ void uv_esp32_step(uv_esp32_st *this, uint16_t step_ms) {
 
 uv_errors_e uv_esp32_mqtt_publish(uv_esp32_st *this,
 		const char *topic, const uint8_t *data, uint16_t datalen,
-		uint8_t qos, bool retain) {
+		uint8_t qos, bool retain,
+		uv_esp32_mqtt_prio_e priority,
+		uint16_t stream_id) {
+	(void) priority;
+	(void) stream_id;
+	// libmosquitto has its own outbound queue and mosquitto_publish never
+	// blocks on the broker; the priority/coalescing pool is only meaningful
+	// on the embedded side where AT bandwidth is the bottleneck. On the sim
+	// we just hand off straight to mosquitto.
 	uv_errors_e ret = ERR_NONE;
 	if (this->mqtt_state != ESP32_MQTT_STATE_CONNECTED) {
 		ret = ERR_NOT_READY;
@@ -267,15 +282,25 @@ void uv_esp32_reset(uv_esp32_st *this) {
 
 
 void uv_esp32_network_leave(uv_esp32_st *this) {
-	this->conf->ssid[0] = '\0';
+	if (this->wifi_ssid != NULL) {
+		this->wifi_ssid[0] = '\0';
+	}
+	if (this->wifi_passwd != NULL) {
+		this->wifi_passwd[0] = '\0';
+	}
 	this->state = ESP32_STATE_LEFT_NETWORK;
 }
 
 
 void uv_esp32_network_join(uv_esp32_st *this, char ssid[32], char passwd[64]) {
-	(void) passwd;
-	strncpy(this->conf->ssid, ssid, SSID_STR_MAX_LEN - 1);
-	this->conf->ssid[SSID_STR_MAX_LEN - 1] = '\0';
+	if (this->wifi_ssid != NULL) {
+		strncpy(this->wifi_ssid, ssid, SSID_STR_MAX_LEN - 1);
+		this->wifi_ssid[SSID_STR_MAX_LEN - 1] = '\0';
+	}
+	if (this->wifi_passwd != NULL) {
+		strncpy(this->wifi_passwd, passwd, PASSWD_STR_MAX_LEN - 1);
+		this->wifi_passwd[PASSWD_STR_MAX_LEN - 1] = '\0';
+	}
 	this->state = ESP32_STATE_JOINED_NETWORK;
 }
 
@@ -330,7 +355,7 @@ void uv_esp32_mac_get_str(uv_esp32_st *this, char *dest) {
 
 
 char *uv_esp32_get_connected_ssid(uv_esp32_st *this) {
-	return this->conf->ssid;
+	return (this->wifi_ssid != NULL) ? this->wifi_ssid : "";
 }
 
 
@@ -379,17 +404,25 @@ const char *uv_esp32_mqtt_state_to_str(uv_esp32_mqtt_states_e state) {
 }
 
 
-void uv_esp32_conf_reset(uv_esp32_conf_st *conf) {
-	memset(conf, 0, sizeof(*conf));
-	uv_esp32_mqtt_conf_reset(&conf->mqtt);
-}
-
-
-void uv_esp32_mqtt_conf_reset(uv_esp32_mqtt_conf_st *conf) {
-	memset(conf, 0, sizeof(*conf));
-	conf->broker_port = 8883;
-	conf->scheme = 4;
-	conf->keepalive_s = ESP32_MQTT_DEFAULT_KEEPALIVE_S;
+void uv_esp32_mqtt_init(uv_esp32_st *this,
+		const char *broker_url,
+		uint16_t broker_port,
+		const char *client_id,
+		const char *user,
+		const char *passwd,
+		uint16_t scheme,
+		uint16_t ca_id,
+		uint16_t cert_key_id,
+		uint16_t keepalive_s) {
+	this->mqtt_broker_url = broker_url;
+	this->mqtt_broker_port = broker_port;
+	this->mqtt_client_id = client_id;
+	this->mqtt_user = user;
+	this->mqtt_passwd = passwd;
+	this->mqtt_scheme = scheme;
+	this->mqtt_ca_id = ca_id;
+	this->mqtt_cert_key_id = cert_key_id;
+	this->mqtt_keepalive_s = keepalive_s;
 }
 
 

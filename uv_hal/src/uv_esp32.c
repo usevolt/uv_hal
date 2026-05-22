@@ -12,8 +12,10 @@
 
 #if CONFIG_ESP32 && !CONFIG_TARGET_LINUX
 
-#define ESP32_DEBUG(esp, ...) do { if ((esp)->conf->flags & ESP32_CONF_FLAGS_DEBUG) { \
-	printf_flags(PRINTF_FLAGS_NOTXCALLB, __VA_ARGS__);}} while (0)
+#define ESP32_DEBUG(esp, ...) do { \
+	if ((esp)->wifi_flags != NULL && \
+			(*((esp)->wifi_flags) & ESP32_CONF_FLAGS_DEBUG)) { \
+		printf_flags(PRINTF_FLAGS_NOTXCALLB, __VA_ARGS__);}} while (0)
 
 #define ESP32_AT_TIMEOUT_MS			5000
 #define ESP32_WIFI_TIMEOUT_MS		15000
@@ -64,7 +66,8 @@ static void rx(uv_esp32_st *this, int32_t wait_ms) {
 	char c;
 	while (uv_streambuffer_get_free_space(&this->rx_datastream) > 0 &&
 			uv_uart_get(this->uart, &c, 1, wait_ms)) {
-		if (this->conf->flags & ESP32_CONF_FLAGS_ECHO) {
+		if (this->wifi_flags != NULL &&
+				(*(this->wifi_flags) & ESP32_CONF_FLAGS_ECHO)) {
 			printf("%c", c);
 		}
 		uv_streambuffer_push(&this->rx_datastream, &c, 1, 0);
@@ -545,6 +548,64 @@ static void mqtt_set_state(uv_esp32_st *this, uv_esp32_mqtt_states_e state) {
 }
 
 
+/// @brief: Picks which publish slot the drainer should service next.
+/// Returns the slot that is currently mid-AT-transaction (phase != IDLE)
+/// if any — at most one such slot exists, and we never preempt it. If no
+/// slot is mid-flight, picks the highest-priority pending slot (lowest
+/// numeric priority value; ties break by smallest seq for FIFO). Returns
+/// NULL when the pool is empty.
+static uv_esp32_mqtt_slot_st *mqtt_select_slot(uv_esp32_st *this) {
+	uv_esp32_mqtt_slot_st *active = NULL;
+	uv_esp32_mqtt_slot_st *best_queued = NULL;
+	uv_mutex_lock(&this->mqtt_pub_mutex);
+	for (uint8_t i = 0; i < ESP32_MQTT_PUBLISH_SLOT_COUNT; i++) {
+		uv_esp32_mqtt_slot_st *s = &this->mqtt_pub_slots[i];
+		if (!s->in_use) {
+			continue;
+		}
+		else if (s->phase != MQTT_PUB_PHASE_IDLE) {
+			active = s;
+			break;
+		}
+		else if (best_queued == NULL ||
+				s->priority < best_queued->priority ||
+				(s->priority == best_queued->priority &&
+						s->seq < best_queued->seq)) {
+			best_queued = s;
+		}
+		else {
+		}
+	}
+	uv_mutex_unlock(&this->mqtt_pub_mutex);
+	return (active != NULL) ? active : best_queued;
+}
+
+
+/// @brief: Releases a slot after the AT publish transaction completes
+/// (success or terminal failure). Drainer-side only.
+static void mqtt_slot_release(uv_esp32_st *this,
+		uv_esp32_mqtt_slot_st *slot) {
+	uv_mutex_lock(&this->mqtt_pub_mutex);
+	slot->in_use = false;
+	slot->phase = MQTT_PUB_PHASE_IDLE;
+	uv_mutex_unlock(&this->mqtt_pub_mutex);
+}
+
+
+/// @brief: Drops every queued publish. Called when MQTT leaves CONNECTED;
+/// any in-flight AT transaction is half-done from the ESP32's perspective
+/// so we cannot safely resume it, and queued messages will simply be
+/// republished by their producers (periodic streams) or lost (events).
+static void mqtt_slot_clear_all(uv_esp32_st *this) {
+	uv_mutex_lock(&this->mqtt_pub_mutex);
+	for (uint8_t i = 0; i < ESP32_MQTT_PUBLISH_SLOT_COUNT; i++) {
+		this->mqtt_pub_slots[i].in_use = false;
+		this->mqtt_pub_slots[i].phase = MQTT_PUB_PHASE_IDLE;
+	}
+	uv_mutex_unlock(&this->mqtt_pub_mutex);
+}
+
+
 static void rxtx_task(void *me_ptr) {
 	uv_esp32_st *this = me_ptr;
 	uv_ts_st ts;
@@ -560,8 +621,9 @@ static void rxtx_task(void *me_ptr) {
 		// Drain async +MQTT events. Skipped during the publish AT-prompt phase
 		// because we need to read the bare ">" byte directly from rx_datastream
 		// (it is not a line and would otherwise be swallowed into at_resp).
-		bool in_pub_at_sent = (this->mqtt_publish_req.pending &&
-				this->mqtt_publish_req.phase == MQTT_PUB_PHASE_AT_SENT);
+		uv_esp32_mqtt_slot_st *active_slot = mqtt_select_slot(this);
+		bool in_pub_at_sent = (active_slot != NULL &&
+				active_slot->phase == MQTT_PUB_PHASE_AT_SENT);
 		if (!in_pub_at_sent) {
 			pump_mqtt_async(this);
 		}
@@ -678,11 +740,11 @@ static void rxtx_task(void *me_ptr) {
 			else {
 				break;
 			}
-			if (strlen(this->conf->ssid) > 0) {
+			if (this->wifi_ssid != NULL && this->wifi_ssid[0] != '\0') {
 				ESP32_DEBUG(this, "ESP32: joining '%s'\n",
-						this->conf->ssid);
+						this->wifi_ssid);
 				send_at_cmd(this, "AT+CWJAP",
-						this->conf->ssid, this->conf->passwd);
+						this->wifi_ssid, this->wifi_passwd);
 				set_state(this, ESP32_STATE_CONNECT_WIFI);
 			}
 			else {
@@ -752,12 +814,12 @@ static void rxtx_task(void *me_ptr) {
 		}
 
 		case ESP32_STATE_LEFT_NETWORK:
-			if (strlen(this->conf->ssid) > 0 &&
+			if (this->wifi_ssid != NULL && this->wifi_ssid[0] != '\0' &&
 					uv_delay(&this->timeout, uv_ts_get_step_ms(&ts))) {
 				ESP32_DEBUG(this, "ESP32: reconnecting to '%s'\n",
-						this->conf->ssid);
+						this->wifi_ssid);
 				send_at_cmd(this, "AT+CWJAP",
-						this->conf->ssid, this->conf->passwd);
+						this->wifi_ssid, this->wifi_passwd);
 				set_state(this, ESP32_STATE_CONNECT_WIFI);
 			}
 			break;
@@ -774,7 +836,8 @@ static void rxtx_task(void *me_ptr) {
 		if (this->state == ESP32_STATE_JOINED_NETWORK) {
 			switch (this->mqtt_state) {
 			case ESP32_MQTT_STATE_DISABLED:
-				if (this->conf->mqtt.broker_url[0] != '\0') {
+				if (this->mqtt_broker_url != NULL &&
+						this->mqtt_broker_url[0] != '\0') {
 					mqtt_set_state(this, ESP32_MQTT_STATE_INIT);
 				}
 				else {
@@ -785,14 +848,17 @@ static void rxtx_task(void *me_ptr) {
 				snprintf(line, sizeof(line),
 						"AT+MQTTUSERCFG=%d,%u,\"%s\",\"%s\",\"%s\",%u,%u,\"\"",
 						ESP32_MQTT_LINK_ID,
-						(unsigned int) this->conf->mqtt.scheme,
-						this->conf->mqtt.client_id,
-						this->conf->mqtt.user,
-						this->conf->mqtt.passwd,
-						(unsigned int) this->conf->mqtt.cert_key_id,
-						(unsigned int) this->conf->mqtt.ca_id);
+						(unsigned int) this->mqtt_scheme,
+						this->mqtt_client_id != NULL ?
+								this->mqtt_client_id : "",
+						this->mqtt_user != NULL ?
+								this->mqtt_user : "",
+						this->mqtt_passwd != NULL ?
+								this->mqtt_passwd : "",
+						(unsigned int) this->mqtt_cert_key_id,
+						(unsigned int) this->mqtt_ca_id);
 				ESP32_DEBUG(this, "ESP32: MQTT USERCFG -> '%s'\n",
-						this->conf->mqtt.broker_url);
+						this->mqtt_broker_url);
 				send_at_cmd_raw(this, line);
 				mqtt_set_state(this, ESP32_MQTT_STATE_USERCFG);
 				break;
@@ -804,7 +870,7 @@ static void rxtx_task(void *me_ptr) {
 					snprintf(line, sizeof(line),
 							"AT+MQTTCONNCFG=%d,%u,0,\"\",\"\",0,0",
 							ESP32_MQTT_LINK_ID,
-							(unsigned int) this->conf->mqtt.keepalive_s);
+							(unsigned int) this->mqtt_keepalive_s);
 					send_at_cmd_raw(this, line);
 					mqtt_set_state(this, ESP32_MQTT_STATE_CONNCFG);
 				}
@@ -825,8 +891,8 @@ static void rxtx_task(void *me_ptr) {
 					snprintf(line, sizeof(line),
 							"AT+MQTTCONN=%d,\"%s\",%u,1",
 							ESP32_MQTT_LINK_ID,
-							this->conf->mqtt.broker_url,
-							(unsigned int) this->conf->mqtt.broker_port);
+							this->mqtt_broker_url,
+							(unsigned int) this->mqtt_broker_port);
 					send_at_cmd_raw(this, line);
 					mqtt_set_state(this, ESP32_MQTT_STATE_CONN);
 				}
@@ -856,25 +922,23 @@ static void rxtx_task(void *me_ptr) {
 				break;
 			}
 			case ESP32_MQTT_STATE_CONNECTED:
-				if (this->mqtt_publish_req.pending) {
-					if (this->mqtt_publish_req.phase ==
-							MQTT_PUB_PHASE_IDLE) {
+				if (active_slot != NULL) {
+					if (active_slot->phase == MQTT_PUB_PHASE_IDLE) {
 						char line[200];
 						snprintf(line, sizeof(line),
 								"AT+MQTTPUBRAW=%d,\"%s\",%u,%u,%u",
 								ESP32_MQTT_LINK_ID,
-								this->mqtt_publish_req.topic,
-								(unsigned int) this->mqtt_publish_req.datalen,
-								(unsigned int) this->mqtt_publish_req.qos,
+								active_slot->topic,
+								(unsigned int) active_slot->datalen,
+								(unsigned int) active_slot->qos,
 								(unsigned int)
-										(this->mqtt_publish_req.retain ? 1 : 0));
+										(active_slot->retain ? 1 : 0));
 						send_at_cmd_raw(this, line);
 						uv_delay_init(&this->mqtt_timeout,
 								ESP32_MQTT_AT_TIMEOUT_MS);
-						this->mqtt_publish_req.phase =
-								MQTT_PUB_PHASE_AT_SENT;
+						active_slot->phase = MQTT_PUB_PHASE_AT_SENT;
 					}
-					else if (this->mqtt_publish_req.phase ==
+					else if (active_slot->phase ==
 							MQTT_PUB_PHASE_AT_SENT) {
 						char c;
 						bool prompt_seen = false;
@@ -891,27 +955,24 @@ static void rxtx_task(void *me_ptr) {
 						if (prompt_seen) {
 							uv_mutex_lock(&this->txstream_mutex);
 							uv_streambuffer_push(&this->tx_streambuffer,
-									(char *) this->mqtt_publish_req.data,
-									this->mqtt_publish_req.datalen,
+									(char *) active_slot->data,
+									active_slot->datalen,
 									100);
 							uv_mutex_unlock(&this->txstream_mutex);
 							uv_delay_init(&this->mqtt_timeout,
 									ESP32_MQTT_AT_TIMEOUT_MS);
-							this->mqtt_publish_req.phase =
-									MQTT_PUB_PHASE_DATA_SENT;
+							active_slot->phase = MQTT_PUB_PHASE_DATA_SENT;
 						}
 						else if (uv_delay(&this->mqtt_timeout,
 								uv_ts_get_step_ms(&ts))) {
 							ESP32_DEBUG(this,
 									"ESP32: MQTT publish prompt timeout\n");
-							this->mqtt_publish_req.pending = false;
-							this->mqtt_publish_req.phase =
-									MQTT_PUB_PHASE_IDLE;
+							mqtt_slot_release(this, active_slot);
 						}
 						else {
 						}
 					}
-					else if (this->mqtt_publish_req.phase ==
+					else if (active_slot->phase ==
 							MQTT_PUB_PHASE_DATA_SENT) {
 						uint8_t match = rx_at_match(this, "OK", "ERROR");
 						if (match != 0 ||
@@ -923,9 +984,7 @@ static void rxtx_task(void *me_ptr) {
 							}
 							else {
 							}
-							this->mqtt_publish_req.pending = false;
-							this->mqtt_publish_req.phase =
-									MQTT_PUB_PHASE_IDLE;
+							mqtt_slot_release(this, active_slot);
 						}
 						else {
 						}
@@ -950,8 +1009,7 @@ static void rxtx_task(void *me_ptr) {
 		else {
 			if (this->mqtt_state != ESP32_MQTT_STATE_DISABLED) {
 				mqtt_set_state(this, ESP32_MQTT_STATE_DISABLED);
-				this->mqtt_publish_req.pending = false;
-				this->mqtt_publish_req.phase = MQTT_PUB_PHASE_IDLE;
+				mqtt_slot_clear_all(this);
 			}
 			else {
 			}
@@ -974,10 +1032,23 @@ static void rxtx_task(void *me_ptr) {
 
 
 uv_errors_e uv_esp32_init(uv_esp32_st *this,
-		uv_esp32_conf_st *conf,
 		uv_gpios_e reset_io,
-		uv_uarts_e uart) {
-	this->conf = conf;
+		uv_uarts_e uart,
+		uint16_t *wifi_flags,
+		char *wifi_ssid,
+		char *wifi_passwd) {
+	this->wifi_flags = wifi_flags;
+	this->wifi_ssid = wifi_ssid;
+	this->wifi_passwd = wifi_passwd;
+	this->mqtt_broker_url = NULL;
+	this->mqtt_client_id = NULL;
+	this->mqtt_user = NULL;
+	this->mqtt_passwd = NULL;
+	this->mqtt_broker_port = 0;
+	this->mqtt_scheme = 0;
+	this->mqtt_ca_id = 0;
+	this->mqtt_cert_key_id = 0;
+	this->mqtt_keepalive_s = 0;
 	this->uart = uart;
 	this->reset_io = reset_io;
 	this->state = ESP32_STATE_INIT;
@@ -989,7 +1060,10 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 	this->mqtt_retry_backoff_s = 0;
 	this->mqtt_rx_callb = NULL;
 	memset(&this->mqtt_subrecv, 0, sizeof(this->mqtt_subrecv));
-	memset(&this->mqtt_publish_req, 0, sizeof(this->mqtt_publish_req));
+	memset(this->mqtt_pub_slots, 0, sizeof(this->mqtt_pub_slots));
+	this->mqtt_publish_seq = 0;
+	uv_mutex_init(&this->mqtt_pub_mutex);
+	uv_mutex_unlock(&this->mqtt_pub_mutex);
 	this->at_resp_has_pending = false;
 
 	uv_streambuffer_init_static(&this->tx_streambuffer,
@@ -1036,51 +1110,107 @@ void uv_esp32_step(uv_esp32_st *this, uint16_t step_ms) {
 
 
 
-void uv_esp32_conf_reset(uv_esp32_conf_st *conf) {
-	memset(conf, 0, sizeof(*conf));
-	uv_esp32_mqtt_conf_reset(&conf->mqtt);
+void uv_esp32_mqtt_init(uv_esp32_st *this,
+		const char *broker_url,
+		uint16_t broker_port,
+		const char *client_id,
+		const char *user,
+		const char *passwd,
+		uint16_t scheme,
+		uint16_t ca_id,
+		uint16_t cert_key_id,
+		uint16_t keepalive_s) {
+	this->mqtt_broker_url = broker_url;
+	this->mqtt_broker_port = broker_port;
+	this->mqtt_client_id = client_id;
+	this->mqtt_user = user;
+	this->mqtt_passwd = passwd;
+	this->mqtt_scheme = scheme;
+	this->mqtt_ca_id = ca_id;
+	this->mqtt_cert_key_id = cert_key_id;
+	this->mqtt_keepalive_s = keepalive_s;
 }
 
 
-void uv_esp32_mqtt_conf_reset(uv_esp32_mqtt_conf_st *conf) {
-	memset(conf, 0, sizeof(*conf));
-	conf->broker_port = 8883;
-	conf->scheme = 4;
-	conf->keepalive_s = ESP32_MQTT_DEFAULT_KEEPALIVE_S;
+static void mqtt_slot_fill(uv_esp32_mqtt_slot_st *slot,
+		const char *topic, const uint8_t *data, uint16_t datalen,
+		uint8_t qos, bool retain,
+		uv_esp32_mqtt_prio_e priority, uint16_t stream_id) {
+	strncpy(slot->topic, topic, ESP32_MQTT_TOPIC_MAX_LEN - 1);
+	slot->topic[ESP32_MQTT_TOPIC_MAX_LEN - 1] = '\0';
+	memcpy(slot->data, data, datalen);
+	slot->datalen = datalen;
+	slot->qos = qos;
+	slot->retain = retain;
+	slot->priority = priority;
+	slot->stream_id = stream_id;
 }
 
 
 uv_errors_e uv_esp32_mqtt_publish(uv_esp32_st *this,
 		const char *topic, const uint8_t *data, uint16_t datalen,
-		uint8_t qos, bool retain) {
+		uint8_t qos, bool retain,
+		uv_esp32_mqtt_prio_e priority,
+		uint16_t stream_id) {
 	uv_errors_e ret = ERR_NONE;
-	if (this->mqtt_state != ESP32_MQTT_STATE_CONNECTED) {
-		ret = ERR_NOT_READY;
-	}
-	else if (datalen > ESP32_MQTT_PAYLOAD_MAX_LEN) {
+	if (datalen > ESP32_MQTT_PAYLOAD_MAX_LEN) {
 		ret = ERR_BUFFER_OVERFLOW;
 	}
 	else if (strlen(topic) >= ESP32_MQTT_TOPIC_MAX_LEN) {
 		ret = ERR_BUFFER_OVERFLOW;
 	}
 	else {
-		// Wait for any prior publish to complete.
-		while (this->mqtt_publish_req.pending) {
-			uv_rtos_task_delay(5);
+		uv_mutex_lock(&this->mqtt_pub_mutex);
+
+		// Coalesce: if a queued slot already carries this stream_id,
+		// overwrite its payload in place. Skip slots that are mid-AT-flight
+		// (phase != IDLE) — those are being read by the drainer; allocate
+		// fresh in that case so the in-flight one finishes uninterrupted.
+		uv_esp32_mqtt_slot_st *target = NULL;
+		if (stream_id != 0) {
+			for (uint8_t i = 0; i < ESP32_MQTT_PUBLISH_SLOT_COUNT; i++) {
+				uv_esp32_mqtt_slot_st *s = &this->mqtt_pub_slots[i];
+				if (s->in_use && s->stream_id == stream_id &&
+						s->phase == MQTT_PUB_PHASE_IDLE) {
+					target = s;
+					break;
+				}
+				else {
+				}
+			}
 		}
-		strncpy(this->mqtt_publish_req.topic, topic,
-				ESP32_MQTT_TOPIC_MAX_LEN - 1);
-		this->mqtt_publish_req.topic[ESP32_MQTT_TOPIC_MAX_LEN - 1] = '\0';
-		memcpy(this->mqtt_publish_req.data, data, datalen);
-		this->mqtt_publish_req.datalen = datalen;
-		this->mqtt_publish_req.qos = qos;
-		this->mqtt_publish_req.retain = retain;
-		this->mqtt_publish_req.phase = MQTT_PUB_PHASE_IDLE;
-		this->mqtt_publish_req.pending = true;
-		// Block until rxtx task completes the publish.
-		while (this->mqtt_publish_req.pending) {
-			uv_rtos_task_delay(5);
+		else {
 		}
+
+		if (target != NULL) {
+			// Overwrite — keep existing seq so FIFO position doesn't drift.
+			mqtt_slot_fill(target, topic, data, datalen, qos, retain,
+					priority, stream_id);
+		}
+		else {
+			// Allocate a fresh slot.
+			for (uint8_t i = 0; i < ESP32_MQTT_PUBLISH_SLOT_COUNT; i++) {
+				uv_esp32_mqtt_slot_st *s = &this->mqtt_pub_slots[i];
+				if (!s->in_use) {
+					target = s;
+					break;
+				}
+				else {
+				}
+			}
+			if (target == NULL) {
+				ret = ERR_BUFFER_OVERFLOW;
+			}
+			else {
+				mqtt_slot_fill(target, topic, data, datalen, qos, retain,
+						priority, stream_id);
+				target->seq = ++this->mqtt_publish_seq;
+				target->phase = MQTT_PUB_PHASE_IDLE;
+				target->in_use = true;
+			}
+		}
+
+		uv_mutex_unlock(&this->mqtt_pub_mutex);
 	}
 	return ret;
 }
@@ -1184,8 +1314,12 @@ void uv_esp32_reset(uv_esp32_st *this) {
 
 
 void uv_esp32_network_leave(uv_esp32_st *this) {
-	this->conf->ssid[0] = '\0';
-	this->conf->passwd[0] = '\0';
+	if (this->wifi_ssid != NULL) {
+		this->wifi_ssid[0] = '\0';
+	}
+	if (this->wifi_passwd != NULL) {
+		this->wifi_passwd[0] = '\0';
+	}
 	send_at_cmd(this, "AT+CWQAP", NULL, NULL);
 	set_state(this, ESP32_STATE_LEFT_NETWORK);
 }
@@ -1193,11 +1327,15 @@ void uv_esp32_network_leave(uv_esp32_st *this) {
 
 void uv_esp32_network_join(uv_esp32_st *this, char ssid[32],
 						   char passwd[64]) {
-	strncpy(this->conf->ssid, ssid, SSID_STR_MAX_LEN - 1);
-	this->conf->ssid[SSID_STR_MAX_LEN - 1] = '\0';
-	strncpy(this->conf->passwd, passwd, PASSWD_STR_MAX_LEN - 1);
-	this->conf->passwd[PASSWD_STR_MAX_LEN - 1] = '\0';
-	send_at_cmd(this, "AT+CWJAP", this->conf->ssid, this->conf->passwd);
+	if (this->wifi_ssid != NULL) {
+		strncpy(this->wifi_ssid, ssid, SSID_STR_MAX_LEN - 1);
+		this->wifi_ssid[SSID_STR_MAX_LEN - 1] = '\0';
+	}
+	if (this->wifi_passwd != NULL) {
+		strncpy(this->wifi_passwd, passwd, PASSWD_STR_MAX_LEN - 1);
+		this->wifi_passwd[PASSWD_STR_MAX_LEN - 1] = '\0';
+	}
+	send_at_cmd(this, "AT+CWJAP", this->wifi_ssid, this->wifi_passwd);
 	set_state(this, ESP32_STATE_CONNECT_WIFI);
 }
 
@@ -1207,22 +1345,22 @@ void uv_esp32_terminal(uv_esp32_st *this,
 
 	if (args && argv[0].type == ARG_STRING) {
 		if (strcmp(argv[0].str, "debug") == 0) {
-			if (args > 1) {
+			if (args > 1 && this->wifi_flags != NULL) {
 				if (argv[1].number) {
-					this->conf->flags |= ESP32_CONF_FLAGS_DEBUG;
+					*(this->wifi_flags) |= ESP32_CONF_FLAGS_DEBUG;
 				}
 				else {
-					this->conf->flags &= ~ESP32_CONF_FLAGS_DEBUG;
+					*(this->wifi_flags) &= ~ESP32_CONF_FLAGS_DEBUG;
 				}
 			}
 		}
 		else if (strcmp(argv[0].str, "echo") == 0) {
-			if (args > 1) {
+			if (args > 1 && this->wifi_flags != NULL) {
 				if (argv[1].number) {
-					this->conf->flags |= ESP32_CONF_FLAGS_ECHO;
+					*(this->wifi_flags) |= ESP32_CONF_FLAGS_ECHO;
 				}
 				else {
-					this->conf->flags &= ~ESP32_CONF_FLAGS_ECHO;
+					*(this->wifi_flags) &= ~ESP32_CONF_FLAGS_ECHO;
 				}
 			}
 		}
@@ -1254,6 +1392,7 @@ void uv_esp32_terminal(uv_esp32_st *this,
 	else {
 		char mac_str[ESP32_MAC_STR_LEN];
 		uv_esp32_mac_get_str(this, mac_str);
+		uint16_t flags = (this->wifi_flags != NULL) ? *(this->wifi_flags) : 0;
 		printf("ESP32:\n"
 				"    state: %s\n"
 				"    mac: %s\n"
@@ -1261,8 +1400,8 @@ void uv_esp32_terminal(uv_esp32_st *this,
 				"    echo: %u\n",
 					uv_esp32_state_to_str(this->state),
 					mac_str,
-					!!(this->conf->flags & ESP32_CONF_FLAGS_DEBUG),
-					!!(this->conf->flags & ESP32_CONF_FLAGS_ECHO));
+					!!(flags & ESP32_CONF_FLAGS_DEBUG),
+					!!(flags & ESP32_CONF_FLAGS_ECHO));
 	}
 }
 
