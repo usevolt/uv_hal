@@ -307,7 +307,10 @@ void uv_uigraph_draw(void *me, const uv_bounding_box_st *pbb) {
 
 void uv_uigraph_touch(void *me, uv_touch_st *touch) {
 	this->point_selected = false;
-	this->point_changed = false;
+	// point_changed is cleared in uv_uigraph_step, not here: the parent's
+	// app step callback runs before children, so arrow-button moves done in
+	// step would otherwise be cleared by the next tick's touch pass before
+	// the consumer can read them
 
 	// selecting the point
 	if (touch->action == TOUCH_PRESSED) {
