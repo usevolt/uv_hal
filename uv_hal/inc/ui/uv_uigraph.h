@@ -268,7 +268,7 @@ static inline uint16_t uv_uigraph_get_point_count(void *me) {
 
 /// @brief: Sets the current value on the graph. The *val_x* is shown
 /// as a vertical line, and *val_y* is shown as a horizontal line.
-// To disable any one of these, enter a value smaller than the minimum or bigger than
+/// To disable any one of these, enter a value smaller than the minimum or bigger than
 /// the maximum.
 void uv_uigraph_set_current_val(void *me, int16_t val_x, int16_t val_y);
 
