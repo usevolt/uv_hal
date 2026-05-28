@@ -97,15 +97,11 @@ int32_t uv_ewma_step(uv_ewma_st *this, int64_t val, uint16_t step_ms);
 
 
 /// @brief: Returns the output from the ewma filter
-static inline int32_t uv_ewma_get_val(uv_ewma_st *this) {
-	return (this->val / EWMA_ALPHA_MAX);
-}
+int32_t uv_ewma_get_val(uv_ewma_st *this);
 
 /// @brief: Sets the time constant *tau* to the ewma filter. See *uv_ewma_init* params
 /// for more info.
-static inline void uv_ewma_set_tau(uv_ewma_st *this, uint32_t val) {
-	this->tau = val;
-}
+void uv_ewma_set_tau(uv_ewma_st *this, uint32_t val);
 
 typedef struct {
 	int32_t trigger_value;
