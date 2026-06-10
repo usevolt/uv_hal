@@ -42,6 +42,7 @@
 #include "unistd.h"
 #include <string.h>
 #include <time.h>
+#include <sys/time.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <getopt.h>
@@ -296,6 +297,9 @@ void uv_rtos_start_scheduler(void) {
 // set in non-volatile parameters
 #define OPT_NODEID	'n'
 static int8_t arg_nodeid = 0;
+// the original argv is stored so that uv_app_restart() can re-exec the process
+// with the same arguments, emulating a hardware reset on the simulator.
+static char **uv_argv = NULL;
 static struct option long_opts[] =
 {
     {"can", required_argument, NULL, OPT_CAN},
@@ -308,6 +312,11 @@ static struct option long_opts[] =
 
 
 void uv_init_arg(void *device, int argc, char *argv[]) {
+
+	// store args for uv_app_restart(). argv from main() is NULL-terminated and
+	// remains valid for the lifetime of the process, so the pointer can be
+	// reused directly (getopt may permute the entries but keeps them all).
+	uv_argv = argv;
 
 	char opts[128] = { };
 	for (uint16_t i = 0; i < sizeof(long_opts) / sizeof(long_opts[0]); i++) {
@@ -446,6 +455,35 @@ void uv_deinit(void) {
 #if CONFIG_UI
 	uv_ui_destroy();
 #endif
+}
+
+
+void uv_app_restart(void) {
+	// Emulate a hardware reset on the simulator by re-executing the process
+	// image with the same arguments. execvp() replaces the whole process
+	// (all threads) atomically, so it is safe to call from any task. The CAN
+	// socket and X11 connection are opened with close-on-exec, so the kernel
+	// releases them during execve - this also makes the X server drop the old
+	// window. We deliberately do NOT call uv_deinit()/uv_ui_destroy() here:
+	// those make Xlib calls and would crash when invoked from a non-UI thread.
+
+	// The FreeRTOS Posix port drives its tick from setitimer(ITIMER_REAL),
+	// which keeps running across execve. Its SIGALRM handler is reset to the
+	// default (terminate) by execve, so a tick firing before the new image
+	// reinstalls the handler would kill the restarted process. Stop the timer
+	// and ignore SIGALRM (SIG_IGN survives execve) to cover that startup gap;
+	// the new process reinstalls its own timer and handler during init.
+	struct itimerval notimer = { { 0, 0 }, { 0, 0 } };
+	setitimer(ITIMER_REAL, &notimer, NULL);
+	signal(SIGALRM, SIG_IGN);
+
+	if (uv_argv != NULL && uv_argv[0] != NULL) {
+		execvp(uv_argv[0], uv_argv);
+		// execvp only returns on failure
+		fprintf(stderr, "uv_app_restart: execvp('%s') failed\n", uv_argv[0]);
+	}
+	// Fall back to a plain exit if the re-exec could not be performed.
+	exit(1);
 }
 
 

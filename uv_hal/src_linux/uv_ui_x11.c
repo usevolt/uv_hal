@@ -34,6 +34,7 @@
 #include "uv_memory.h"
 #include <math.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include "uv_ui.h"
 #include "uv_can.h"
 
@@ -714,6 +715,11 @@ bool uv_ui_init(void) {
 		printf("Failed to open X11 display\n");
 		exit(1);
 	}
+	// mark the X11 connection close-on-exec so that, if the application
+	// re-executes itself (uv_app_restart), the kernel closes this connection
+	// during execve. The X server then drops the old window instead of leaving
+	// a ghost window behind.
+	fcntl(ConnectionNumber(dsp), F_SETFD, FD_CLOEXEC);
 	printf("X11 Started\n");
 	screen = DefaultScreen(dsp);
 	da = XCreateSimpleWindow(dsp, DefaultRootWindow(dsp), 0, 0,

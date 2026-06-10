@@ -169,8 +169,10 @@ static bool copen(void) {
 		cclose();
 	}
 
-	/* open socket */
-	this->soc = socket(PF_CAN, SOCK_RAW, CAN_RAW);
+	/* open socket. SOCK_CLOEXEC so the socket is released automatically if the
+	 * application re-executes itself (uv_app_restart), instead of leaking into
+	 * the new process image. */
+	this->soc = socket(PF_CAN, SOCK_RAW | SOCK_CLOEXEC, CAN_RAW);
 	if(this->soc < 0) {
 		PRINT("Opening the socket failed with error code %i\n", this->soc);
 		ret = false;

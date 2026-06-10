@@ -42,8 +42,11 @@
 
 
 void uv_system_reset(void) {
-#if CONFIG_UV_BOOTLOADER
-	// if bootloader is enabled, make sure bootloader shared memory is cleared
+#if CONFIG_UV_BOOTLOADER && !CONFIG_TARGET_LINUX && !CONFIG_TARGET_WIN
+	// if bootloader is enabled, make sure bootloader shared memory is cleared.
+	// UV_BOOTLOADER_DATA_ADDR is a fixed MCU RAM address; on the simulator
+	// (Linux/Win) it points to unmapped memory and would segfault, so it is
+	// skipped there - there is no bootloader to signal anyway.
 	memset(UV_BOOTLOADER_DATA_ADDR, 0, UV_BOOTLOADER_DATA_LEN);
 #endif
 	uv_bootloader_start();
@@ -64,6 +67,11 @@ void uv_bootloader_start(void) {
 	NVIC_SystemReset();
 #elif CONFIG_TARGET_LPC4078
 	NVIC_SystemReset();
+#elif CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
+	// On the simulator there is no MCU to reset; re-execute the process to
+	// emulate a reset so the application restarts (e.g. after a CANopen
+	// node-id collision changes the node-id) instead of terminating.
+	uv_app_restart();
 #else
 	exit(0);
 #endif

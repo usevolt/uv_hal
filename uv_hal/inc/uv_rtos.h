@@ -400,6 +400,12 @@ void uv_init_arg(void *device, int argc, char *argv[]);
 
 /// @brief: Deinitializes all modules and closes open sockets.
 void uv_deinit(void);
+
+
+/// @brief: Restarts the application by re-executing the process with the
+/// original command line arguments. Used on computer targets to emulate the
+/// hardware system reset (uv_system_reset / uv_bootloader_start).
+void uv_app_restart(void);
 #endif
 
 

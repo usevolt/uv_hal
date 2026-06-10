@@ -46,6 +46,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <signal.h>
+#include <process.h>
 #include "main.h"
 
 
@@ -296,6 +297,9 @@ void uv_rtos_start_scheduler(void) {
 // set in non-volatile parameters
 #define OPT_NODEID	'n'
 static int8_t arg_nodeid = 0;
+// the original argv is stored so that uv_app_restart() can re-exec the process
+// with the same arguments, emulating a hardware reset on the simulator.
+static char **uv_argv = NULL;
 static struct option long_opts[] =
 {
     {"can", required_argument, NULL, OPT_CAN},
@@ -308,6 +312,11 @@ static struct option long_opts[] =
 
 
 void uv_init_arg(void *device, int argc, char *argv[]) {
+
+	// store args for uv_app_restart(). argv from main() is NULL-terminated and
+	// remains valid for the lifetime of the process, so the pointer can be
+	// reused directly (getopt may permute the entries but keeps them all).
+	uv_argv = argv;
 
 	char opts[128] = { };
 	for (uint16_t i = 0; i < sizeof(long_opts) / sizeof(long_opts[0]); i++) {
@@ -446,6 +455,23 @@ void uv_deinit(void) {
 #if CONFIG_UI
 	uv_ui_destroy();
 #endif
+}
+
+
+void uv_app_restart(void) {
+	// Emulate a hardware reset on the simulator by re-executing the process
+	// with the same arguments. On Windows _execvp() terminates the current
+	// process (and all its threads) and starts a fresh one, closing the open
+	// handles (CAN device, window) in the process, so no explicit cleanup is
+	// needed. We deliberately do NOT call uv_deinit()/uv_ui_destroy() here:
+	// those touch the UI from a non-UI thread and would not be safe.
+	if (uv_argv != NULL && uv_argv[0] != NULL) {
+		_execvp(uv_argv[0], (const char * const *) uv_argv);
+		// _execvp only returns on failure
+		fprintf(stderr, "uv_app_restart: _execvp('%s') failed\n", uv_argv[0]);
+	}
+	// Fall back to a plain exit if the re-exec could not be performed.
+	exit(1);
 }
 
 
