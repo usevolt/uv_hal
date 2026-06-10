@@ -46,6 +46,8 @@
 #include <GLFW/glfw3.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
+// font glyph data compiled into the binary (used when no font file is found)
+#include "ui/embedded_font.h"
 
 
 #if !defined(CONFIG_UI_NAME)
@@ -83,12 +85,12 @@ static const uint8_t font_sizes[UI_MAX_FONT_COUNT] = {
 };
 
 static const uv_uistyle_st uistyle  = {
-		.bg_c = C(0xFFCCCCCC),
-		.fg_c = C(0xFFAAAAAA),
-		.window_c = C(0xFFFFFFFF),
-		.display_c = C(0xFFFFFFFF),
+		.bg_c = C(0xFF373a44),
+		.fg_c = C(0xFF945dd2),
+		.window_c = C(0xFF040404),
+		.display_c = C(0xFF151516),
 		.font = &font16,
-		.text_color = C(0xFF000000)
+		.text_color = C(0xFFFFFFFF)
 };
 
 
@@ -423,7 +425,16 @@ static glc_st c_to_glc(color_t color) {
 
 void uv_ui_clear(color_t col) {
 	glc_st c = c_to_glc(col);
-    glClearColor(c.r, c.g, c.b, c.a); //clear background screen to black
+    glClearColor(c.r, c.g, c.b, c.a);
+    // Clear the colour buffer immediately, before any widgets are drawn, so the
+    // background colour is correct from the very first frame. (The clear used to
+    // be deferred to uv_ui_dlswap() after the buffer swap, so the first frame was
+    // drawn over the default black init clear and looked dark until a later
+    // refresh.) Only the colour buffer is cleared here: the depth buffer is left
+    // to uv_ui_dlswap() as before, since the 2D widgets rely on that existing
+    // depth-clear timing for correct draw ordering (clearing depth here breaks
+    // text rendering).
+    glClear(GL_COLOR_BUFFER_BIT);
 }
 
 
@@ -999,7 +1010,15 @@ static void load_fonts(void) {
 	}
 	else {
 		FT_Face face;
-		if (FT_New_Face(ft, "fonts/LiberationSans-Regular.ttf", 0, &face)) {
+		// Use the font file if present (per-project override), otherwise fall
+		// back to the font compiled into the binary so the UI renders text
+		// regardless of the working directory.
+		FT_Error fterr = FT_New_Face(ft, "fonts/LiberationSans-Regular.ttf", 0, &face);
+		if (fterr) {
+			fterr = FT_New_Memory_Face(ft, embedded_font_ttf,
+					embedded_font_ttf_len, 0, &face);
+		}
+		if (fterr) {
 			printf("Could not load font '%s'\n", DEFAULT_FONT);
 		}
 		else {
@@ -1076,61 +1095,110 @@ static void free_fonts(void) {
 }
 
 
-static GLuint load_shader(GLenum shader_type, const char* source) {
-	// Create the shader
-	GLuint shader = 0;
-	printf("Loading shader '%s'\n", source);
-	FILE *f = fopen(source, "r");
-	if (f != NULL) {
-		fseek(f, 0, SEEK_END);
-		int32_t size = ftell(f);
-		fseek(f, 0, SEEK_SET);
-		char *s = malloc(size + 1);
-		memset(s, 0, size + 1);
-		if (fread(s, 1, size, f)) {};
+// GLSL shader sources embedded into the binary, so the host UI works from any
+// working directory. Previously these were fopen'd from a relative "shaders/"
+// directory, so the UI only rendered correctly when run from the binary's own
+// directory (otherwise the shaders failed to load and text/bitmaps disappeared).
+// A matching file under shaders/ still takes precedence, allowing per-project
+// overrides during development.
+static const char *const text_shader_vs_src =
+		"attribute vec4 coord;\n"
+		"varying vec2 texpos;\n"
+		"\n"
+		"void main(void) {\n"
+		"  gl_Position = vec4(coord.xy, 0, 1);\n"
+		"  texpos = coord.zw;\n"
+		"}\n";
+static const char *const text_shader_fs_src =
+		"varying vec2 texpos;\n"
+		"uniform sampler2D tex;\n"
+		"uniform vec4 color;\n"
+		"\n"
+		"void main(void) {\n"
+		"  gl_FragColor = vec4(1, 1, 1, texture2D(tex, texpos).a) * color;\n"
+		"}\n";
+static const char *const bitmap_shader_vs_src =
+		"#version 330 core\n"
+		"layout (location = 0) in vec3 aPos;\n"
+		"layout (location = 1) in vec3 aColor;\n"
+		"layout (location = 2) in vec2 aTexCoord;\n"
+		"\n"
+		"out vec3 ourColor;\n"
+		"out vec2 TexCoord;\n"
+		"\n"
+		"void main()\n"
+		"{\n"
+		"    gl_Position = vec4(aPos, 1.0);\n"
+		"    ourColor = aColor;\n"
+		"    TexCoord = aTexCoord;\n"
+		"}\n";
+static const char *const bitmap_shader_fs_src =
+		"#version 330 core\n"
+		"out vec4 FragColor;\n"
+		"\n"
+		"in vec3 ourColor;\n"
+		"in vec2 TexCoord;\n"
+		"\n"
+		"uniform sampler2D ourTexture;\n"
+		"\n"
+		"void main()\n"
+		"{\n"
+		"    FragColor = texture(ourTexture, TexCoord);\n"
+		"}\n";
 
-		shader = glCreateShader(shader_type);
-		if ( shader ) {
-			// Pass the shader source code
-			glShaderSource(shader, 1, (const GLchar* const*) &s, NULL);
 
-			// Compile the shader source code
-			glCompileShader(shader);
+// Compile a shader from GLSL source code. Returns the shader id, or 0 on error.
+static GLuint compile_shader(GLenum shader_type, const char *src) {
+	GLuint shader = glCreateShader(shader_type);
+	if (shader) {
+		glShaderSource(shader, 1, (const GLchar* const*) &src, NULL);
+		glCompileShader(shader);
 
-			// Check the status of compilation
-			GLint compiled = 0;
-			glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
-			if (!compiled) {
-
-				// Get the info log for compilation failure
-				GLint infoLen = 0;
-				glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLen);
-				if (infoLen) {
-					char* buf = (char*) malloc(infoLen);
-					glGetShaderInfoLog(shader, infoLen, NULL, buf);
-					printf("%s: %s\n", source, buf);
-					free(buf);
-
-					// Delete the shader program
-					glDeleteShader(shader);
-					shader = 0;
-				}
+		GLint compiled = 0;
+		glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+		if (!compiled) {
+			GLint infoLen = 0;
+			glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLen);
+			if (infoLen) {
+				char* buf = (char*) malloc(infoLen);
+				glGetShaderInfoLog(shader, infoLen, NULL, buf);
+				printf("Shader compile error: %s\n", buf);
+				free(buf);
 			}
+			glDeleteShader(shader);
+			shader = 0;
 		}
-		free(s);
-	}
-	else {
-		printf("Failed to open file '%s'\n", source);
 	}
 	return shader;
 }
 
 
-static unsigned int load_shader_program(const char *vertex_shader, const char *fragment_shader) {
+// Load a shader: use the file at *path* if it exists (per-project override),
+// otherwise fall back to the *embedded* source compiled into the binary.
+static GLuint load_shader(GLenum shader_type, const char *path, const char *embedded) {
+	char *file_src = NULL;
+	FILE *f = fopen(path, "r");
+	if (f != NULL) {
+		fseek(f, 0, SEEK_END);
+		int32_t size = ftell(f);
+		fseek(f, 0, SEEK_SET);
+		file_src = malloc(size + 1);
+		memset(file_src, 0, size + 1);
+		if (fread(file_src, 1, size, f)) {};
+		fclose(f);
+		printf("Loaded shader '%s' from file\n", path);
+	}
+	GLuint shader = compile_shader(shader_type, file_src ? file_src : embedded);
+	free(file_src);
+	return shader;
+}
+
+
+static unsigned int load_shader_program(const char *vertex_path, const char *vertex_src,
+		const char *fragment_path, const char *fragment_src) {
 	unsigned int ret = 0;
-	GLuint vertex, fragment;
-	vertex = load_shader(GL_VERTEX_SHADER, vertex_shader);
-	fragment = load_shader(GL_FRAGMENT_SHADER, fragment_shader);
+	GLuint vertex = load_shader(GL_VERTEX_SHADER, vertex_path, vertex_src);
+	GLuint fragment = load_shader(GL_FRAGMENT_SHADER, fragment_path, fragment_src);
 	if (vertex != 0 && fragment != 0) {
 		ret = glCreateProgram();
 		glAttachShader(ret, vertex);
@@ -1144,7 +1212,7 @@ static unsigned int load_shader_program(const char *vertex_shader, const char *f
 		}
 	}
 	else {
-		printf("ERROR loading vertez & fragment shaders\n");
+		printf("ERROR loading vertex & fragment shaders\n");
 	}
 	return ret;
 }
@@ -1252,12 +1320,14 @@ bool uv_ui_init(void) {
 				load_fonts();
 
 				this->text_shader_program = load_shader_program(
-						"shaders/text_shader.vs", "shaders/text_shader.ts");
+						"shaders/text_shader.vs", text_shader_vs_src,
+						"shaders/text_shader.ts", text_shader_fs_src);
 				// Create the vertex buffer object
 				glGenBuffers(1, &this->text_vbo);
 
 				this->bitmap_shader_program = load_shader_program(
-						"shaders/bitmap_shader.vs", "shaders/bitmap_shader.ts");
+						"shaders/bitmap_shader.vs", bitmap_shader_vs_src,
+						"shaders/bitmap_shader.ts", bitmap_shader_fs_src);
 
 				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			}
