@@ -485,7 +485,7 @@ void uv_ui_set_mask(int16_t x, int16_t y, int16_t width, int16_t height);
 
 /// @brief: OpenGL impelemtetaion of mask is commented since it takes long time to render the screen.
 /// This forces the mask
-#if CONFIG_TARGET_LINUX
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 void uv_ui_force_mask(int16_t x, int16_t y, int16_t width, int16_t height);
 #else
 static inline void uv_ui_force_mask(int16_t x, int16_t y, int16_t width, int16_t height) {

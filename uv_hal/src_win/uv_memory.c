@@ -40,10 +40,30 @@
 #ifdef CONFIG_RTOS
 #include "uv_rtos.h"
 #endif
+#include <stdio.h>
+#include <fcntl.h>
+#include <errno.h>
 
+#if !defined(PRINT)
+#define PRINT(...) printf(__VA_ARGS__)
+#endif
+
+
+#if defined(__UV_PROGRAM_VERSION)
+#undef __UV_PROGRAM_VERSION
+#define __UV_PROGRAM_VERSION 1
+#endif
 const char uv_projname[] = STRINGIFY(__UV_PROJECT_NAME);
 const char uv_datetime[] = __DATE__ " " __TIME__;
 const uint32_t uv_prog_version = __UV_PROGRAM_VERSION;
+#if defined(CONFIG_SAVE_CALLBACK)
+extern void CONFIG_SAVE_CALLBACK (void);
+#endif
+#if defined(CONFIG_LOAD_CALLBACK)
+extern void CONFIG_LOAD_CALLBACK (void);
+#endif
+
+char nonvol_filepath[128] = "./" STRINGIFY(__UV_PROJECT_NAME) ".nvconf";
 
 
 
@@ -54,30 +74,146 @@ void uv_get_device_serial(unsigned int dest[4]) {
 uv_errors_e uv_memory_save(void) {
 	uv_errors_e ret = ERR_NONE;
 
-	int64_t length = ((unsigned long long) &CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
-			(unsigned long long) &CONFIG_NON_VOLATILE_START;
+#if defined(CONFIG_SAVE_CALLBACK)
+		CONFIG_SAVE_CALLBACK ();
+#endif
 
-	bool match = true;
-	// todo: check if old data doesnt match with new data
-	if (match) {
-		ret = ERR_NONE;
+
+	uint32_t len = (unsigned long int) &CONFIG_NON_VOLATILE_END -
+			(unsigned long int) &CONFIG_NON_VOLATILE_START - sizeof(uv_data_start_t);
+	uint16_t crc = uv_memory_calc_crc(((uint8_t*) &CONFIG_NON_VOLATILE_START) +
+			sizeof(uv_data_start_t), len);
+	uint16_t hal_crc = uv_memory_calc_crc(&CONFIG_NON_VOLATILE_START, sizeof(uv_data_start_t));
+
+
+	int32_t length = (((unsigned long int) &CONFIG_NON_VOLATILE_END) + sizeof(uv_data_end_t)) -
+			((unsigned long int) &CONFIG_NON_VOLATILE_START);
+
+	PRINT("Flashing %u bytes\n", (int) length);
+	if (length < 0) {
+		ret = ERR_END_ADDR_LESS_THAN_START_ADDR;
 	}
-	else {
-		printf("Flashing %u bytes\n", (unsigned int) length);
+	if (ret == ERR_NONE) {
+
+		// add the right value to data checksum
+		CONFIG_NON_VOLATILE_END.hal_crc = hal_crc;
+		CONFIG_NON_VOLATILE_END.crc = crc;
+
+		// open the file and write
+		FILE *file = fopen(nonvol_filepath, "wb");
+		if (file == NULL) {
+			PRINT("Creating the non-volatile memory file '%s' failed\n",
+					nonvol_filepath);
+			ret = ERR_INTERNAL;
+		}
+		else {
+			fwrite(& CONFIG_NON_VOLATILE_START, 1, length, file);
+			fclose(file);
+		}
 	}
+
 	return ret;
 }
 
 
 uv_errors_e uv_memory_load(memory_scope_e scope) {
-	// on linux memory cannot be saved for now
-	uv_errors_e ret = ERR_HARDWARE_NOT_SUPPORTED;
+	uv_errors_e ret = ERR_NOT_INITIALIZED;
 
-	//todo: load the data
+	char *scope_str;
+	if (scope == MEMORY_ALL_PARAMS) {
+		scope_str = "ALL_PARAMS";
+	}
+	else if (scope == MEMORY_APP_PARAMS) {
+		scope_str = "APP_PARAMS";
+	}
+	else {
+		scope_str = "COM_PARAMS";
+	}
+	PRINT("Loading non-volatile %s data from '%s'\n",
+			scope_str, nonvol_filepath);
 
-	//todo: check crc
+	// try to open the nonvolatile file
+	FILE* file = fopen(nonvol_filepath, "r");
+	if (file != NULL) {
+		void* d;
+		int32_t length;
+
+		if (scope & MEMORY_COM_PARAMS) {
+			d = (uint8_t*) & CONFIG_NON_VOLATILE_START;
+			// source is the start of the file
+		}
+		else {
+			d = ((uint8_t*) & CONFIG_NON_VOLATILE_START) + sizeof(uv_data_start_t);
+			// source is the start of application data
+			fseek(file, sizeof(uv_data_start_t), SEEK_SET);
+		}
+
+		if (scope & MEMORY_APP_PARAMS) {
+			length = ((unsigned long int) & CONFIG_NON_VOLATILE_END + sizeof(uv_data_end_t)) -
+					(unsigned long int) d;
+		}
+		else {
+			length = sizeof(uv_data_start_t);
+		}
+
+		// copy the data
+		int size = fread(d, 1, length, file);
+
+		if (size >= length) {
+			// copy the end structure if it was not copied yet
+			if (!(scope & MEMORY_APP_PARAMS)) {
+				fseek(file,
+						(unsigned long int) & CONFIG_NON_VOLATILE_END -
+						(unsigned long int) & CONFIG_NON_VOLATILE_START, SEEK_SET);
+				size = fread(& CONFIG_NON_VOLATILE_END, 1, sizeof(uv_data_end_t), file);
+			}
+			ret = ERR_NONE;
+		}
+	}
+	else {
+		PRINT("Failed to open the non-volatile data file.\n");
+	}
+
+
+	if (ret == ERR_NONE) {
+		//check crc
+		if (scope & MEMORY_APP_PARAMS) {
+			uint32_t len = (unsigned long int) & CONFIG_NON_VOLATILE_END -
+					(unsigned long int) & CONFIG_NON_VOLATILE_START - sizeof(uv_data_start_t);
+			uint16_t crc = uv_memory_calc_crc(((uint8_t*) & CONFIG_NON_VOLATILE_START) +
+					sizeof(uv_data_start_t), len);
+
+			if (CONFIG_NON_VOLATILE_END.crc != crc) {
+				ret = ERR_END_CHECKSUM_NOT_MATCH;
+			}
+		}
+		if (scope & MEMORY_COM_PARAMS) {
+			// calculate the HAL checksum and compare it to the loaded value
+			uint16_t crc = uv_memory_calc_crc(& CONFIG_NON_VOLATILE_START, sizeof(uv_data_start_t));
+			if (crc != CONFIG_NON_VOLATILE_END.hal_crc) {
+				PRINT("calculated crc 0x%x don't match with 0x%x\n",
+						crc,
+						CONFIG_NON_VOLATILE_END.hal_crc);
+				// hal crc didn't match, which means that we have loaded invalid settings.
+				// Revert the HAL system defaults
+				_uv_rtos_hal_reset();
+				ret = ERR_START_CHECKSUM_NOT_MATCH;
+			}
+		}
+	}
+
+	if (ret == ERR_NONE) {
+#if defined(CONFIG_LOAD_CALLBACK)
+		CONFIG_LOAD_CALLBACK ();
+#endif
+	}
 
 	return ret;
+}
+
+
+void uv_memory_set_can_baudrate(uint32_t baudrate) {
+	uv_can_set_baudrate(CONFIG_CANOPEN_CHANNEL, baudrate);
 }
 
 
@@ -85,6 +221,8 @@ uv_errors_e uv_memory_load(memory_scope_e scope) {
 
 uv_errors_e uv_memory_clear(memory_scope_e scope) {
 	uv_errors_e ret = ERR_NONE;
+
+	printf("Memory clear not implemented on Linux target\n");
 
 	return ret;
 }
@@ -140,5 +278,14 @@ const char *uv_memory_get_project_date(uv_data_start_t *start_ptr) {
 }
 
 
+
+void uv_memory_set_nonvol_filepath(char *filepath) {
+	strcpy(nonvol_filepath, filepath);
+}
+
+
+char *uv_memory_get_nonvol_filepath(void) {
+	return nonvol_filepath;
+}
 
 

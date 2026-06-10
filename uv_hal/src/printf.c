@@ -29,7 +29,7 @@
 #include <uv_hal_config.h>
 
 
-#if !CONFIG_TARGET_LINUX
+#if !CONFIG_TARGET_LINUX && !CONFIG_TARGET_WIN
 
 
 #include <stdarg.h>

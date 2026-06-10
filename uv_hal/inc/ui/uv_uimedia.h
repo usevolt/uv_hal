@@ -32,6 +32,7 @@
 
 #include <uv_hal_config.h>
 #include "uv_utilities.h"
+#include <string.h>
 
 #if CONFIG_UI
 
@@ -77,7 +78,7 @@ typedef struct {
 		/// or a pointer to cairo_surface_t on simulator target. For CONFIG_UI_X11 only
 		void *surface_ptr;
 	};
-#if CONFIG_TARGET_LINUX
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 	const char *filename;
 #endif
 } uv_uimedia_st;
