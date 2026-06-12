@@ -162,7 +162,7 @@ static void touch(void *me, uv_touch_st *touch) {
 			int16_t total_w = 0;
 			for (int16_t i = 0; i < this->tab_count; i++) {
 				int16_t tab_w =
-						uv_ui_get_string_height(get_tab_name(this, i), this->font) + 10;
+						uv_ui_get_string_width(get_tab_name(this, i), this->font) + 10;
 				if (tab_w < CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH) {
 					tab_w = CONFIG_UI_TABWINDOW_HEADER_MIN_WIDTH;
 				}
