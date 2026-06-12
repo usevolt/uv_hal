@@ -105,7 +105,7 @@ int32_t uv_halsensor_step(uv_halsensor_st *this, uint16_t step_ms,
 			// check if there's a fault in the input
 			// fault limits are double of the config min & max values relative to input_max
 			// In case the max value is too close to input_max, the upper limit is disabled
-			int32_t val_threshold = this->input_max / 50;
+			int32_t val_threshold = this->input_max / 25;
 			int32_t max_val = (this->config->max > (this->input_max - val_threshold)) ?
 					(this->input_max + 1) : (this->input_max - val_threshold);
 			int32_t min_val = (this->config->min < val_threshold) ?
