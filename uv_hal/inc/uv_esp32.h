@@ -42,8 +42,14 @@
 
 /// Depth of the publish slot pool. Each slot owns its own topic + payload
 /// buffer, so this trades RAM for tolerance to bursts of uncoalesced events
-/// before ERR_BUFFER_OVERFLOW kicks in.
-#define ESP32_MQTT_PUBLISH_SLOT_COUNT	8
+/// before ERR_BUFFER_OVERFLOW kicks in. Override with
+/// CONFIG_ESP32_MQTT_PUBLISH_SLOT_COUNT in uv_hal_config.h to trade publish
+/// burst tolerance for RAM on devices that use the ESP32 lightly (or only as
+/// a transport).
+#ifndef CONFIG_ESP32_MQTT_PUBLISH_SLOT_COUNT
+#define CONFIG_ESP32_MQTT_PUBLISH_SLOT_COUNT	8
+#endif
+#define ESP32_MQTT_PUBLISH_SLOT_COUNT	CONFIG_ESP32_MQTT_PUBLISH_SLOT_COUNT
 
 
 /// @brief: Publish priority. Lower numeric value drains first. Within a
