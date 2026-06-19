@@ -51,6 +51,7 @@
 #include "ui/uv_uinumpad.h"
 #include "ui/uv_uidigitedit.h"
 #include "ui/uv_uitextedit.h"
+#include "ui/uv_uifileedit.h"
 #include "ui/uv_uiimage.h"
 #include "ui/uv_uimediabutton.h"
 #include "ui/uv_uilistbutton.h"

@@ -141,11 +141,16 @@ static uv_uiobject_ret_e confwindow_step(void *, uint16_t);
 
 
 
-void uv_ui_confwindow_exec(void) {
+void uv_ui_confwindow_exec(const uv_uistyle_st *style) {
+	// fall back to this backend's built-in style when the caller gives none
+	if (style == NULL) {
+		style = &uistyle;
+	}
+
 	uv_ui_init();
 
 	this->confwindow.terminate = false;
-	uv_uidisplay_init(&this->confwindow.display, this->confwindow.display_buffer, &uistyle);
+	uv_uidisplay_init(&this->confwindow.display, this->confwindow.display_buffer, style);
 	uv_uiwindow_set_stepcallback(&this->confwindow.display, &confwindow_step, NULL);
 
 	uv_uistrlayout_st layout;
@@ -161,19 +166,32 @@ void uv_ui_confwindow_exec(void) {
 #if CONFIG_CAN
 	bb = uv_uistrlayout_find(&layout, "can");
 	uint32_t index = 0;
+	uint32_t count = 0;
 	// load the list of CAN devices
 	uv_can_set_baudrate(uv_can_get_dev(), 250000);
 	this->confwindow.can_listbutton_content[0] = "NONE";
-	for (uint32_t i = 0; i < uv_can_get_device_count(); i++) {
-		printf("%s\n", uv_can_get_device_name(i));
-		this->confwindow.can_listbutton_content[i] = uv_can_get_device_name(i);
-		if (strcmp(this->confwindow.can_listbutton_content[i], uv_can_get_dev()) == 0) {
-			index = i;
+	// list the CAN devices ordered: physical "can*" first, then virtual "vcan*",
+	// then any others, so the most relevant interfaces appear at the top
+	for (uint8_t pass = 0; pass < 3; pass++) {
+		for (uint32_t i = 0; i < uv_can_get_device_count(); i++) {
+			char *name = uv_can_get_device_name(i);
+			bool is_can = (strncmp(name, "can", 3) == 0);
+			bool is_vcan = (strncmp(name, "vcan", 4) == 0);
+			bool match = (pass == 0) ? is_can :
+						 (pass == 1) ? is_vcan :
+						 (!is_can && !is_vcan);
+			if (match) {
+				this->confwindow.can_listbutton_content[count] = name;
+				if (strcmp(name, uv_can_get_dev()) == 0) {
+					index = count;
+				}
+				count++;
+			}
 		}
 	}
 	uv_uilistbutton_init(&this->confwindow.can_listbutton, this->confwindow.can_listbutton_content,
 			MAX(uv_can_get_device_count(), 1),
-			index, &uistyle);
+			index, style);
 	uv_uilistbutton_set_content_type_arrayofpointers(&this->confwindow.can_listbutton);
 	uv_uilistbutton_set_title(&this->confwindow.can_listbutton, "CAN dev:");
 	uv_uidialog_add(&this->confwindow.display, &this->confwindow.can_listbutton, &bb);
@@ -181,7 +199,7 @@ void uv_ui_confwindow_exec(void) {
 	bb = uv_uistrlayout_find(&layout, "baud");
 	uv_uidigitedit_init(&this->confwindow.baud_digiedit,
 			uv_can_get_baudrate(uv_can_get_dev()) / 1000,
-			&uistyle);
+			style);
 	uv_uidigitedit_set_title(&this->confwindow.baud_digiedit, "CAN baudrate (kBaud)");
 	uv_uidigitedit_set_limits(&this->confwindow.baud_digiedit, 0, 1000);
 	uv_uidigitedit_set_mode(&this->confwindow.baud_digiedit, UIDIGITEDIT_MODE_INCDEC);
@@ -190,7 +208,7 @@ void uv_ui_confwindow_exec(void) {
 #endif
 
 	bb = uv_uistrlayout_find(&layout, "close");
-	uv_uibutton_init(&this->confwindow.ok_button, "OK", &uistyle);
+	uv_uibutton_init(&this->confwindow.ok_button, "OK", style);
 	uv_uidisplay_add(&this->confwindow.display, &this->confwindow.ok_button, &bb);
 
 	while (true) {

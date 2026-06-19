@@ -163,7 +163,7 @@ typedef struct {
 		uv_uilistbutton_st can_listbutton;
 		char *can_listbutton_content[10];
 
-		uv_uidigitedit_st baud_digiedit;
+		uv_uilistbutton_st baud_listbutton;
 
 		uv_uibutton_st ok_button;
 	} confwindow;
@@ -268,11 +268,27 @@ uimedia_ll_st *uimedia_ll_st_find(const char *filename) {
 
 
 
-void uv_ui_confwindow_exec(void) {
+// selectable CAN baudrates shown in the baud listbutton, and their values in Hz
+static char *baud_listbutton_content[] = {
+		"125k", "250k", "500k", "1M"
+};
+static const unsigned int baud_listbutton_values[] = {
+		125000, 250000, 500000, 1000000
+};
+#define BAUD_LISTBUTTON_COUNT \
+	(sizeof(baud_listbutton_values) / sizeof(baud_listbutton_values[0]))
+
+
+void uv_ui_confwindow_exec(const uv_uistyle_st *style) {
+	// fall back to this backend's built-in style when the caller gives none
+	if (style == NULL) {
+		style = &uistyle;
+	}
+
 	uv_ui_init();
 
 	this->confwindow.terminate = false;
-	uv_uidisplay_init(&this->confwindow.display, this->confwindow.display_buffer, &uistyle);
+	uv_uidisplay_init(&this->confwindow.display, this->confwindow.display_buffer, style);
 	uv_uiwindow_set_stepcallback(&this->confwindow.display, &confwindow_step, NULL);
 
 	uv_uistrlayout_st layout;
@@ -289,35 +305,53 @@ void uv_ui_confwindow_exec(void) {
 	// load the list of CAN devices
 #if CONFIG_CAN
 	uint32_t index = 0;
+	uint32_t count = 0;
 	uv_can_set_baudrate(uv_can_get_dev(), 250000);
 	this->confwindow.can_listbutton_content[0] = "NONE";
-	for (uint32_t i = 0; i < uv_can_get_device_count(); i++) {
-		printf("%s\n", uv_can_get_device_name(i));
-		this->confwindow.can_listbutton_content[i] = uv_can_get_device_name(i);
-		if (strcmp(this->confwindow.can_listbutton_content[i], uv_can_get_dev()) == 0) {
-			index = i;
+	// list the CAN devices ordered: physical "can*" first, then virtual "vcan*",
+	// then any others, so the most relevant interfaces appear at the top
+	for (uint8_t pass = 0; pass < 3; pass++) {
+		for (uint32_t i = 0; i < uv_can_get_device_count(); i++) {
+			char *name = uv_can_get_device_name(i);
+			bool is_can = (strncmp(name, "can", 3) == 0);
+			bool is_vcan = (strncmp(name, "vcan", 4) == 0);
+			bool match = (pass == 0) ? is_can :
+						 (pass == 1) ? is_vcan :
+						 (!is_can && !is_vcan);
+			if (match) {
+				this->confwindow.can_listbutton_content[count] = name;
+				if (strcmp(name, uv_can_get_dev()) == 0) {
+					index = count;
+				}
+				count++;
+			}
 		}
 	}
 	uv_uilistbutton_init(&this->confwindow.can_listbutton, this->confwindow.can_listbutton_content,
 			MAX(uv_can_get_device_count(), 1),
-			index, &uistyle);
+			index, style);
 	uv_uilistbutton_set_content_type_arrayofpointers(&this->confwindow.can_listbutton);
 	uv_uilistbutton_set_title(&this->confwindow.can_listbutton, "CAN dev:");
 	uv_uidialog_add(&this->confwindow.display, &this->confwindow.can_listbutton, &bb);
 
 	bb = uv_uistrlayout_find(&layout, "baud");
-	uv_uidigitedit_init(&this->confwindow.baud_digiedit,
-			uv_can_get_baudrate(uv_can_get_dev()) / 1000,
-			&uistyle);
-	uv_uidigitedit_set_title(&this->confwindow.baud_digiedit, "CAN baudrate (kBaud)");
-	uv_uidigitedit_set_limits(&this->confwindow.baud_digiedit, 0, 1000);
-	uv_uidigitedit_set_mode(&this->confwindow.baud_digiedit, UIDIGITEDIT_MODE_INCDEC);
-	uv_uidigitedit_set_inc_step(&this->confwindow.baud_digiedit, 50);
-	uv_uidisplay_add(&this->confwindow.display, &this->confwindow.baud_digiedit, &bb);
+	// select the listbutton entry matching the current baudrate, defaulting to the first
+	uint8_t baud_index = 0;
+	unsigned int cur_baud = uv_can_get_baudrate(uv_can_get_dev());
+	for (uint8_t i = 0; i < BAUD_LISTBUTTON_COUNT; i++) {
+		if (baud_listbutton_values[i] == cur_baud) {
+			baud_index = i;
+		}
+	}
+	uv_uilistbutton_init(&this->confwindow.baud_listbutton, baud_listbutton_content,
+			BAUD_LISTBUTTON_COUNT, baud_index, style);
+	uv_uilistbutton_set_content_type_arrayofpointers(&this->confwindow.baud_listbutton);
+	uv_uilistbutton_set_title(&this->confwindow.baud_listbutton, "CAN baudrate:");
+	uv_uidisplay_add(&this->confwindow.display, &this->confwindow.baud_listbutton, &bb);
 #endif
 
 	bb = uv_uistrlayout_find(&layout, "close");
-	uv_uibutton_init(&this->confwindow.ok_button, "OK", &uistyle);
+	uv_uibutton_init(&this->confwindow.ok_button, "OK", style);
 	uv_uidisplay_add(&this->confwindow.display, &this->confwindow.ok_button, &bb);
 
 	while (true) {
@@ -345,11 +379,13 @@ static uv_uiobject_ret_e confwindow_step(void *me, uint16_t step_ms) {
 		uv_can_set_dev(this->confwindow.can_listbutton_content[
 		   uv_uilistbutton_get_current_index(&this->confwindow.can_listbutton)]);
 		uv_can_set_baudrate(uv_can_get_dev(),
-				uv_uidigitedit_get_value(&this->confwindow.baud_digiedit) * 1000);
+				baud_listbutton_values[
+				uv_uilistbutton_get_current_index(&this->confwindow.baud_listbutton)]);
 	}
-	if (uv_uidigitedit_value_changed(&this->confwindow.baud_digiedit)) {
+	if (uv_uilistbutton_clicked(&this->confwindow.baud_listbutton)) {
 		uv_can_set_baudrate(uv_can_get_dev(),
-				uv_uidigitedit_get_value(&this->confwindow.baud_digiedit) * 1000);
+				baud_listbutton_values[
+				uv_uilistbutton_get_current_index(&this->confwindow.baud_listbutton)]);
 	}
 #endif
 	if (uv_uibutton_clicked(&this->confwindow.ok_button)) {
@@ -865,6 +901,46 @@ uint32_t uv_uimedia_newbitmapexmem(uv_uimedia_st *bitmap,
 		}
 		else {
 			media = uimedia_ll_st_create(filename, image,
+					width, height, width * height * 4);
+		}
+	}
+	if (media != NULL) {
+		bitmap->filename = media->filename;
+		bitmap->width = media->width;
+		bitmap->height = media->height;
+		bitmap->size = media->data_len;
+		ret = media->data_len;
+	}
+
+	return ret;
+}
+
+
+uint32_t uv_uimedia_newbitmapexmem_mem(uv_uimedia_st *bitmap,
+		const char *name, const uint8_t *data, uint32_t datalen) {
+	uint32_t ret = 0;
+	// the decoded bitmap is cached (and later found at draw time) by *name*,
+	// exactly like the file variant caches by filename
+	uimedia_ll_st *media = uimedia_ll_st_find(name);
+	memset(bitmap, 0, sizeof(*bitmap));
+	bitmap->filename = "";
+	bitmap->visible = true;
+	bitmap->type = UV_UIMEDIA_IMAGE;
+
+	if (media == NULL &&
+			name != NULL && strlen(name) != 0 &&
+			data != NULL && datalen != 0) {
+		// decode the PNG straight from the memory buffer
+		unsigned error;
+		unsigned char* image = NULL;
+		unsigned width, height;
+		printf("Loading embedded bitmap '%s'\n", name);
+		error = lodepng_decode32(&image, &width, &height, data, datalen);
+		if (error) {
+			printf("Loading embedded bitmap '%s' failed\n", name);
+		}
+		else {
+			media = uimedia_ll_st_create(name, image,
 					width, height, width * height * 4);
 		}
 	}

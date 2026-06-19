@@ -349,7 +349,7 @@ void uv_init_arg(void *device, int argc, char *argv[]) {
 #if CONFIG_UI
 	         case OPT_UI:
 	        	 PRINT("Showing the configuration UI\n");
-	        	 uv_ui_confwindow_exec();
+	        	 uv_ui_confwindow_exec(NULL);
 	        	 break;
 #endif
 	         case OPT_NONVOL:

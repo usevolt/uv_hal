@@ -302,6 +302,16 @@ typedef void uv_w25q128_st;
 uint32_t uv_uimedia_newbitmapexmem(uv_uimedia_st *bitmap,
 		uv_w25q128_st *exmem, const char *filename);
 
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
+/// @brief: Host-only variant of uv_uimedia_newbitmapexmem that decodes a PNG
+/// image straight from a memory buffer (e.g. one compiled into the binary)
+/// instead of reading a file. *name* is a unique key used to cache the decoded
+/// bitmap and to look it up again at draw time, mirroring the role the filename
+/// plays in the file-based variant (so it must be non-empty).
+uint32_t uv_uimedia_newbitmapexmem_mem(uv_uimedia_st *bitmap,
+		const char *name, const uint8_t *data, uint32_t datalen);
+#endif
+
 /// @brief: Frees a bitmap previously allocated with uv_uimedia_newbitmapexmem.
 /// On embedded targets, compacts remaining allocations in FT81X RAM and updates
 /// all owner pointers. The bitmap struct is zeroed after freeing.
@@ -501,10 +511,16 @@ bool uv_ui_is_visible(const int16_t x, const int16_t y,
 
 
 
-/// @brief: Shows the X11 configuration window that is triggered on start up to
+/// @brief: Shows the configuration window that is triggered on start up to
 /// define all the configuration settings for the hardware, such as the CAN device and
-/// non-volatile memory storage path
-void uv_ui_confwindow_exec(void);
+/// non-volatile memory storage path.
+///
+/// @param style: The UI style to render the window with. Pass NULL to use the
+/// backend's own built-in style.
+// forward declaration: the full uv_uistyle_st lives in ui/uv_ui_styles.h, which
+// includes this header, so it cannot be included back here
+typedef struct uv_uistyle_st uv_uistyle_st;
+void uv_ui_confwindow_exec(const uv_uistyle_st *style);
 
 
 

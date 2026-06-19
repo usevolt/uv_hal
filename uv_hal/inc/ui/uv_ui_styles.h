@@ -50,7 +50,9 @@
 #endif
 
 /// @brief: Generic style structure for UI
-typedef struct {
+// tagged so it can be forward-declared (e.g. in uv_ui_common.h, which this
+// header includes, creating a cycle that prevents including it back)
+typedef struct uv_uistyle_st {
 	color_t bg_c;
 	color_t fg_c;
 	color_t window_c;
