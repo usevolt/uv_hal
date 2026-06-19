@@ -485,6 +485,15 @@ void uv_ui_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 	}
 	else {
 		glUseProgram(this->bitmap_shader_program);
+
+		// blend colour: the texture's RGBA is multiplied by this ARGB value,
+		// matching the FT81X BITMAP blend behaviour (white = unchanged).
+		color_st blendcol = uv_uic(c);
+		GLfloat blend[4] = { blendcol.r / 255.0f, blendcol.g / 255.0f,
+				blendcol.b / 255.0f, blendcol.a / 255.0f };
+		glUniform4fv(get_uniform(this->bitmap_shader_program, "blendColor"),
+				1, blend);
+
 		glBindTexture(GL_TEXTURE_2D, media->texture);
 
 		float sx = 2.0f / (this->width / this->scalex);
@@ -1216,10 +1225,11 @@ static const char *const bitmap_shader_fs_src =
 		"in vec2 TexCoord;\n"
 		"\n"
 		"uniform sampler2D ourTexture;\n"
+		"uniform vec4 blendColor;\n"
 		"\n"
 		"void main()\n"
 		"{\n"
-		"    FragColor = texture(ourTexture, TexCoord);\n"
+		"    FragColor = texture(ourTexture, TexCoord) * blendColor;\n"
 		"}\n";
 
 
