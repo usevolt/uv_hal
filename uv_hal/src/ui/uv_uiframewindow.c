@@ -82,7 +82,7 @@ void uv_uiframewindow_init(void *me, uv_uiobject_st **obj_array,
 	this->title = NULL;
 	this->font = style->font;
 	this->text_c = style->text_color;
-	this->frame_c = style->fg_c;
+	this->frame_c = style->text_color;
 	// offset the children so they sit inside the frame
 	uv_uiwindow_set_content_bb_default_pos(this, side_inset(), top_inset(this));
 	uv_uiobject_set_draw_callb(this, &draw);
