@@ -105,7 +105,7 @@ static void build_win_filter(const uv_uifileedit_filter_st *filters,
 
 static bool filedialog_open(const char *title,
 		const uv_uifileedit_filter_st *filters, uint8_t filter_count,
-		char *out, uint16_t out_len) {
+		bool save, char *out, uint16_t out_len) {
 	if ((out == NULL) || (out_len == 0)) {
 		return false;
 	}
@@ -122,8 +122,10 @@ static bool filedialog_open(const char *title,
 	ofn.lpstrFilter = wfilter;
 	ofn.nFilterIndex = 1;
 	// OFN_NOCHANGEDIR keeps the process' working directory untouched, otherwise
-	// the dialog would silently chdir() the whole application.
-	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
+	// the dialog would silently chdir() the whole application. For "save as" the
+	// file need not exist; prompt before overwriting an existing one instead.
+	ofn.Flags = OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR |
+			(save ? OFN_OVERWRITEPROMPT : OFN_FILEMUSTEXIST);
 	if (title != NULL) {
 		MultiByteToWideChar(CP_UTF8, 0, title, -1, wtitle,
 				sizeof(wtitle) / sizeof(wtitle[0]));
@@ -131,7 +133,8 @@ static bool filedialog_open(const char *title,
 	}
 
 	bool ret = false;
-	if (GetOpenFileNameW(&ofn)) {
+	BOOL ok = save ? GetSaveFileNameW(&ofn) : GetOpenFileNameW(&ofn);
+	if (ok) {
 		WideCharToMultiByte(CP_UTF8, 0, file, -1, out, out_len, NULL, NULL);
 		out[out_len - 1] = '\0';
 		ret = true;
@@ -217,7 +220,7 @@ static void append_linux_filters(char *cmd, size_t cmdlen, int *n,
 
 static bool filedialog_open(const char *title,
 		const uv_uifileedit_filter_st *filters, uint8_t filter_count,
-		char *out, uint16_t out_len) {
+		bool save, char *out, uint16_t out_len) {
 	if ((out == NULL) || (out_len == 0)) {
 		return false;
 	}
@@ -252,11 +255,13 @@ static bool filedialog_open(const char *title,
 		int n = 0;
 		if (backends[i].type == BACKEND_ZENITY) {
 			n += snprintf(cmd + n, sizeof(cmd) - n,
-					"%s --file-selection --title=%s", backends[i].bin, qtitle);
+					"%s --file-selection --title=%s%s", backends[i].bin, qtitle,
+					save ? " --save --confirm-overwrite" : "");
 		}
 		else {
 			n += snprintf(cmd + n, sizeof(cmd) - n,
-					"%s --title %s --getopenfilename .", backends[i].bin, qtitle);
+					"%s --title %s %s .", backends[i].bin, qtitle,
+					save ? "--getsavefilename" : "--getopenfilename");
 		}
 		append_linux_filters(cmd, sizeof(cmd), &n, backends[i].type,
 				filters, filter_count);
@@ -302,16 +307,35 @@ static bool filedialog_open(const char *title,
 // MCU targets have no host file system; the field is inert.
 static bool filedialog_open(const char *title,
 		const uv_uifileedit_filter_st *filters, uint8_t filter_count,
-		char *out, uint16_t out_len) {
+		bool save, char *out, uint16_t out_len) {
 	(void) title;
 	(void) filters;
 	(void) filter_count;
+	(void) save;
 	(void) out;
 	(void) out_len;
 	return false;
 }
 
 #endif
+
+
+bool uv_uifiledialog_exec(const char *title,
+		const uv_uifileedit_filter_st *filters, uint8_t filter_count,
+		bool save, char *out, uint16_t out_len) {
+	// The native chooser blocks (popen/fgets on Linux, GetOpenFileName on
+	// Windows). When the UI runs under the FreeRTOS scheduler the periodic tick
+	// signal (SIGALRM on the POSIX port) would interrupt that blocking call
+	// (EINTR) and the chosen path would be lost; disable preemption around it.
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
+	portDISABLE_INTERRUPTS();
+#endif
+	bool ret = filedialog_open(title, filters, filter_count, save, out, out_len);
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
+	portENABLE_INTERRUPTS();
+#endif
+	return ret;
+}
 
 
 /* ------------------------------------------------------------------------- */
@@ -364,6 +388,7 @@ void uv_uifileedit_init(void *me, char *buffer, uint16_t buf_len,
 	this->title = NULL;
 	this->bg_color = style->bg_c;
 	this->changed = false;
+	this->save_mode = false;
 	this->filters = NULL;
 	this->filter_count = 0;
 
@@ -448,19 +473,8 @@ static void touch(void *me, uv_touch_st *touch) {
 		// snapshot to detect whether the user actually changed the path
 		char snapshot[this->buf_len];
 		memcpy(snapshot, this->buffer, this->buf_len);
-		// The native chooser blocks (popen/fgets on Linux, GetOpenFileName on
-		// Windows). When the UI runs under the FreeRTOS scheduler the periodic
-		// tick signal (SIGALRM on the POSIX port) would interrupt that blocking
-		// call (EINTR) and the chosen path would be lost. Disable preemption
-		// around it, the same idiom used for protected blocking stdin reads.
-#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
-		portDISABLE_INTERRUPTS();
-#endif
-		bool opened = filedialog_open(this->title, this->filters,
-				this->filter_count, this->buffer, this->buf_len);
-#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
-		portENABLE_INTERRUPTS();
-#endif
+		bool opened = uv_uifiledialog_exec(this->title, this->filters,
+				this->filter_count, this->save_mode, this->buffer, this->buf_len);
 		if (opened) {
 			if (strncmp(snapshot, this->buffer, this->buf_len) != 0) {
 				this->changed = true;

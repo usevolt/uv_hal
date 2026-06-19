@@ -70,6 +70,9 @@ typedef struct {
 	char *title;
 	color_t bg_color;
 	bool changed;
+	/// @brief: When true, a click opens a "save as" chooser (lets the user name a
+	/// new file) instead of an "open" chooser. Defaults to false.
+	bool save_mode;
 	const uv_uistyle_st *style;
 	/// @brief: Caller-owned array of selectable file-type filters, or NULL to
 	/// allow all files. Must outlive the widget.
@@ -82,6 +85,17 @@ typedef struct {
 #define this ((uv_uifileedit_st*)me)
 
 
+/// @brief: Opens the operating system's native file chooser directly (without a
+/// fileedit widget) and writes the chosen path into *out*. *save* selects a
+/// "save as" chooser that lets the user name a new file, over an "open existing"
+/// chooser. Returns true if the user picked a file. Blocking; safe to call under
+/// the FreeRTOS scheduler (preemption is disabled around the native dialog). On
+/// MCU targets there is no host file system, so this returns false.
+bool uv_uifiledialog_exec(const char *title,
+		const uv_uifileedit_filter_st *filters, uint8_t filter_count,
+		bool save, char *out, uint16_t out_len);
+
+
 /// @brief: Initializes the fileedit. *buffer* must remain valid for the
 /// lifetime of the widget. If *buffer* does not yet contain a null-terminated
 /// string, it is initialized to a zero-length string.
@@ -92,6 +106,14 @@ void uv_uifileedit_init(void *me, char *buffer, uint16_t buf_len,
 /// @brief: Replaces the current path with *path*. Truncates to buf_len-1.
 /// Does not set the *changed* flag (programmatic update, not a user choice).
 void uv_uifileedit_set_path(void *me, const char *path);
+
+
+/// @brief: Selects whether a click opens an "open file" chooser (false, the
+/// default) or a "save as" chooser that lets the user type a new file name
+/// (true).
+static inline void uv_uifileedit_set_save_mode(void *me, bool value) {
+	this->save_mode = value;
+}
 
 
 static inline const char *uv_uifileedit_get_path(void *me) {

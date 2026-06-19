@@ -389,6 +389,16 @@ static uv_uiobject_ret_e confwindow_step(void *me, uint16_t step_ms) {
 	}
 #endif
 	if (uv_uibutton_clicked(&this->confwindow.ok_button)) {
+#if CONFIG_CAN
+		// Apply the currently shown CAN dev and baudrate even if the listbuttons
+		// were never pressed, so closing the window uses the shown value (the
+		// first list entry by default) instead of the initial built-in default.
+		uv_can_set_dev(this->confwindow.can_listbutton_content[
+		   uv_uilistbutton_get_current_index(&this->confwindow.can_listbutton)]);
+		uv_can_set_baudrate(uv_can_get_dev(),
+				baud_listbutton_values[
+				uv_uilistbutton_get_current_index(&this->confwindow.baud_listbutton)]);
+#endif
 		this->confwindow.terminate = true;
 	}
 
