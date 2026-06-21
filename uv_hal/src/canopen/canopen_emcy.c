@@ -42,6 +42,7 @@ void _uv_canopen_emcy_init(void) {
 			CONFIG_CANOPEN_EMCY_RX_BUFFER_SIZE, sizeof(canopen_emcy_msg_st));
 	uv_delay_init(&this->emcy_inihbit_delay, CONFIG_CANOPEN_EMCY_INHIBIT_TIME_MS);
 	this->emcy_callb = NULL;
+	this->emcy_suppressed = false;
 }
 
 void _uv_canopen_emcy_reset(void) {
@@ -74,7 +75,8 @@ uv_errors_e uv_canopen_emcy_get(canopen_emcy_msg_st *dest) {
 
 void uv_canopen_emcy_send(const uv_emcy_codes_e err_code, uint32_t data) {
 
-	if (uv_canopen_get_state() != CANOPEN_STOPPED) {
+	if ((uv_canopen_get_state() != CANOPEN_STOPPED) &&
+			!this->emcy_suppressed) {
 		if (uv_delay_has_ended(&this->emcy_inihbit_delay)) {
 			uv_can_message_st msg = { };
 			msg.id = CANOPEN_EMCY_ID + NODEID;

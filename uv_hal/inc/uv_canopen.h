@@ -352,6 +352,8 @@ typedef struct {
 	canopen_emcy_msg_st emcy_rx_buffer[CONFIG_CANOPEN_EMCY_RX_BUFFER_SIZE];
 	uv_delay_st emcy_inihbit_delay;
 	void (*emcy_callb) (uint32_t emcy, uint32_t data);
+	// when set to true, sending of all EMCY messages is suppressed
+	uint8_t emcy_suppressed;
 
 	// SDO member variables
 	struct {
@@ -567,6 +569,16 @@ static inline void uv_canopen_set_sdo_read_callback(void (*callb)(uint16_t minde
 
 static inline void uv_canopen_set_emcy_callback(void (*callb)(uint32_t emcy, uint32_t data)) {
 	_canopen.emcy_callb = callb;
+}
+
+/// @brief: When set to true, suppresses the sending of all EMCY messages
+static inline void uv_canopen_set_emcy_suppressed(bool value) {
+	_canopen.emcy_suppressed = value;
+}
+
+/// @brief: Returns true if the sending of all EMCY messages is suppressed
+static inline bool uv_canopen_get_emcy_suppressed(void) {
+	return _canopen.emcy_suppressed;
 }
 
 
