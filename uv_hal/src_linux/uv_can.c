@@ -423,7 +423,11 @@ static uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message
 			uv_can_set_up(false);
 			retval = write(this->soc, &frame, sizeof(struct can_frame));
 		}
-		else if (errno &&
+		// Only inspect errno when the write actually failed. A successful write
+		// leaves errno untouched, so it may hold a stale value from an earlier
+		// unrelated syscall (e.g. ENOTTY from the isatty() in the logging macros
+		// once stdout is a pipe) that must not be misreported as a CAN error.
+		if (retval != sizeof(struct can_frame) &&
 				errno != EINTR &&
 				errno != EAGAIN &&
 				errno != ENOENT) {

@@ -94,6 +94,8 @@ typedef struct {
 	bool pressed;
 	int32_t x;
 	int32_t y;
+	// accumulated mouse-wheel notches since the last uv_ui_get_scroll()
+	int32_t scroll;
 	double scalex;
 	double scaley;
 	uimedia_ll_st *uimediall;
@@ -296,6 +298,17 @@ bool uv_ui_get_touch(int16_t *x, int16_t *y) {
 				this->y = (int16_t) e.xbutton.y;
 //				printf("%i %i\n", this->x, this->y);
 			}
+			else if (e.xbutton.button == 4) {
+				// mouse wheel up
+				this->scroll += 1;
+			}
+			else if (e.xbutton.button == 5) {
+				// mouse wheel down
+				this->scroll -= 1;
+			}
+			else {
+				// other buttons unused
+			}
 			break;
 		case ButtonRelease:
 			if (e.xbutton.button == 1) {
@@ -349,6 +362,13 @@ bool uv_ui_get_touch(int16_t *x, int16_t *y) {
 	*x = this->x;
 	*y = this->y;
 
+	return ret;
+}
+
+
+int16_t uv_ui_get_scroll(void) {
+	int16_t ret = (int16_t) this->scroll;
+	this->scroll = 0;
 	return ret;
 }
 

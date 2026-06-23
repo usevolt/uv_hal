@@ -439,6 +439,13 @@ void uv_ui_touchscreen_set_transform_matrix(ui_transfmat_st *transform_matrix);
 bool uv_ui_get_touch(int16_t *x, int16_t *y);
 
 
+/// @brief: Returns and clears the mouse-wheel movement accumulated since the
+/// previous call, in wheel notches (positive = scrolled up / away from the user,
+/// negative = down). Implemented on the host (Linux/Windows) UI backends; returns
+/// 0 on targets without a mouse wheel.
+int16_t uv_ui_get_scroll(void);
+
+
 
 /// @brief: Returns the key pressed. If no keys were pressed,
 /// returns '\0'. This is implemented only on targets with a physical keyboard.

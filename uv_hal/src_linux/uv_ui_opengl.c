@@ -64,6 +64,8 @@ static void cursor_position_callback(GLFWwindow* window,
 		double xpos, double ypos);
 static void mouse_button_callback(GLFWwindow* window,
 		int button, int action, int mods);
+static void scroll_callback(GLFWwindow* window,
+		double xoffset, double yoffset);
 static void resize_callback(GLFWwindow* window,
 		int width, int height);
 static void load_fonts(void);
@@ -136,6 +138,9 @@ typedef struct {
 	bool pressed;
 	int32_t x;
 	int32_t y;
+	// accumulated mouse-wheel notches since the last uv_ui_get_scroll() (positive
+	// = scrolled up / away from the user)
+	int32_t scroll;
 	double scalex;
 	double scaley;
 	double scale;
@@ -440,6 +445,14 @@ bool uv_ui_get_touch(int16_t *x, int16_t *y) {
 	*y = this->y;
 
 
+	return ret;
+}
+
+
+int16_t uv_ui_get_scroll(void) {
+	// return and clear the accumulated wheel notches (filled by scroll_callback)
+	int16_t ret = (int16_t) this->scroll;
+	this->scroll = 0;
 	return ret;
 }
 
@@ -1073,6 +1086,11 @@ static void mouse_button_callback(GLFWwindow* window, int button, int action, in
 	this->pressed = (action == GLFW_PRESS);
 }
 
+static void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+	// accumulate vertical wheel notches; drained by uv_ui_get_scroll()
+	this->scroll += (int32_t) yoffset;
+}
+
 
 static void resize_callback(GLFWwindow* window, int width, int height) {
     taskENTER_CRITICAL();
@@ -1386,6 +1404,7 @@ bool uv_ui_init(void) {
 			glfwSetCursorPosCallback(this->window, &cursor_position_callback);
 			// add mouse button listener
 			glfwSetMouseButtonCallback(this->window, &mouse_button_callback);
+			glfwSetScrollCallback(this->window, &scroll_callback);
 			glfwSetWindowSizeCallback(this->window, &resize_callback);
 
 			// initialize GLEW
