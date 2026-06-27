@@ -186,7 +186,13 @@ typedef struct {
 	/// @brief: This device's vendor specific revision number
 	uint32_t revision_number;
 } canopen_identity_object_st;
-#define CANOPEN_IDENTITY_OBJECT_ARRAY_SIZE	12
+// Number of sub-entries in the 0x1018 identity array (vendor id, product code,
+// revision number). This is used as the object's array_max_size, which is the
+// element COUNT, not a byte size. It must match the number of fields above: a
+// too-large value makes the SDO server report (and read past) trailing entries
+// that do not exist, so a read of e.g. sub 3 returns the whole tail of the
+// array as one oversized, partly-garbage transfer.
+#define CANOPEN_IDENTITY_OBJECT_ARRAY_SIZE	3
 
 
 
