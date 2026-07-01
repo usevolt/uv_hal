@@ -53,6 +53,10 @@
 #define WRITE16_LEN						5
 #define WRITE32_LEN						7
 #define DRAW_LINE_BUF_LEN				6
+// glyphs are translated and streamed to RAM_CMD in small chunks of this many
+// bytes, so a drawn text line needs only a tiny stack buffer regardless of its
+// length (lines themselves are not length-limited anymore)
+#define DRAW_LINE_GLYPH_CHUNK			32
 #define FONT_METRICS_BASE_ADDR			0x201EE0
 #define FONT_METRICS_FONT_LEN			148
 #define FONT_METRICS_CHAR_WIDTH_OFFSET	0
@@ -570,9 +574,14 @@ bool uv_ui_init(void) {
 					(10 + i) * FONT_METRICS_FONT_LEN +
 					FONT_METRICS_FONT_HEIGHT_OFFSET);
 			ui_fonts[i].handle = FONT_HANDLE + i;
+			ui_fonts[i].custom_metric_addr = 0;
 			printf("Font %u height: %u\n", i, ui_fonts[i].char_height);
 			cmd_romfont(ui_fonts[i].handle, ui_fonts[i].index);
 		}
+
+		// let the project install custom fonts (ASCII + Nordic glyphs) over the
+		// ROM fonts on the slots that render translatable text
+		uv_ui_load_custom_fonts();
 
 		// lastly wait until the screen is not pressed.
 		uv_delay_st d;
@@ -660,7 +669,7 @@ static void writestr(const ft81x_reg_e address,
 		if (addr >= MEMMAP_RAM_CMD_END) {
 			addr -= MEMMAP_RAM_CMD_END - MEMMAP_RAM_CMD_BEGIN;
 		}
-		uint32_t l = uv_mini(WRITESTR_BUFFER_LEN, len);
+		uint32_t l = uv_mini(WRITESTR_BUFFER_LEN, len - written);
 		spi_data_t wb[l + ADDR_OFFSET];
 		wb[0] = FT81X_PREFIX_WRITE | ((addr >> 16) & 0x3F);
 		wb[1] = (addr >> 8) & 0xFF;
@@ -886,6 +895,29 @@ static void cmd_romfont(uint8_t bitmap_handle, uint8_t font_number) {
 }
 
 
+// Registers a custom font metric block (already written to RAM_G at
+// *metric_addr*) on the given bitmap handle. *firstchar* is the character code
+// of the first glyph cell in the bitmap.
+static void cmd_setfont2(uint8_t bitmap_handle, uint32_t metric_addr,
+		uint8_t firstchar) {
+	write16(REG_CMD_DL, this->dl_index);
+
+	uint32_t cmd[4];
+	cmd[0] = CMD_SETFONT2;
+	cmd[1] = bitmap_handle;
+	cmd[2] = metric_addr;
+	cmd[3] = firstchar;
+	writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr,
+			(const char*) cmd, NULL, sizeof(cmd));
+	this->cmdwriteaddr = (this->cmdwriteaddr + sizeof(cmd)) % RAMCMD_SIZE;
+
+	write16(REG_CMD_WRITE, this->cmdwriteaddr);
+
+	cmd_wait();
+	this->dl_index = read16(REG_CMD_DL);
+}
+
+
 static void draw_line(char *str, ui_font_st *font,
 		int16_t x, int16_t y, ui_align_e align, color_t color, uint16_t len) {
 	set_color(color);
@@ -906,10 +938,29 @@ static void draw_line(char *str, ui_font_st *font,
 			(const char*) buf, NULL, DRAW_LINE_BUF_LEN * 2);
 	this->cmdwriteaddr = (this->cmdwriteaddr + DRAW_LINE_BUF_LEN * 2) % RAMCMD_SIZE;
 
-	DEBUG("Writing '%s'\n", str);
-	// write the whole string and termination character
-	writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, str, NULL, len);
-	this->cmdwriteaddr = (this->cmdwriteaddr + len) % RAMCMD_SIZE;
+	// Translate the UTF-8 line into single-byte font glyph codes (ASCII passes
+	// through, ä ö å etc. map to their low glyph slots) so the codes match the
+	// font's glyph table, and stream the result to RAM_CMD a chunk at a time.
+	// Using a small fixed chunk buffer keeps the stack footprint constant and
+	// independent of the line length.
+	// ROM fonts (custom_metric_addr == 0) lack ä ö å, so fall back to ASCII.
+	bool nordic = (font->custom_metric_addr != 0);
+	const char *src_ptr = str;
+	const char *src_end = str + len;
+	while (src_ptr < src_end) {
+		char glyphs[DRAW_LINE_GLYPH_CHUNK];
+		uint16_t n = 0;
+		// fill one chunk, consuming whole UTF-8 codepoints at a time. The line
+		// boundary (len) sits on a '\n'/'\0', i.e. a codepoint boundary, so a
+		// multi-byte sequence is never split across src_end.
+		while ((src_ptr < src_end) && (n < sizeof(glyphs))) {
+			uint32_t cp = uv_ui_utf8_next(&src_ptr);
+			glyphs[n] = (char) uv_ui_codepoint_glyph(cp, nordic);
+			n++;
+		}
+		writestr(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, glyphs, NULL, n);
+		this->cmdwriteaddr = (this->cmdwriteaddr + n) % RAMCMD_SIZE;
+	}
 
 	// write null termination marks until cmdwriteaddr is in world boundary
 	uint8_t nul = 4 - (this->cmdwriteaddr % 4);
@@ -1016,6 +1067,89 @@ uint32_t uv_ft81x_get_ramdl_usage(void) {
 // Each allocation in FT81X RAM is: [uint32_t data_size][uint32_t owner_ptr][pixel data...]
 #define FT81X_ALLOC_HEADER_SIZE		8
 static uint32_t ft81x_alloc_next = 0;
+
+
+// default weak hook: projects override this to install custom fonts
+__attribute__((weak)) void uv_ui_load_custom_fonts(void) {
+}
+
+
+// bytes streamed from external memory to RAM_G per chunk
+#define FONT_LOAD_CHUNK		512
+
+bool uv_ft81x_load_custom_font(uint8_t ui_font_index, uv_w25q128_st *exmem,
+		const char *filename) {
+	bool ret = false;
+	uv_fd_st fd;
+	uv_ft81x_font_header_st hdr;
+
+	// locate the font file and read & validate its header. Any failure here
+	// leaves the ROM font in place (graceful fallback, Nordic letters absent).
+	if ((ui_font_index < UI_MAX_FONT_COUNT) && (exmem != NULL) &&
+			(filename != NULL) &&
+			uv_exmem_find(exmem, (char*) filename, &fd) &&
+			(uv_exmem_read_fd(exmem, &fd, &hdr, sizeof(hdr), 0) == sizeof(hdr)) &&
+			(memcmp(hdr.magic, UV_FT81X_FONT_MAGIC, 4) == 0) &&
+			(hdr.version == UV_FT81X_FONT_VERSION) &&
+			(hdr.stride > 0) && (hdr.height > 0)) {
+
+		uint32_t glyphs_len = (uint32_t) hdr.stride * hdr.height * 128u;
+
+		// reserve RAM_G ahead of any media bitmaps (this runs during display
+		// init, before the app loads media). Keep everything 4-byte aligned.
+		uint32_t glyph_addr = (ft81x_alloc_next + 3u) & ~3u;
+
+		// stream the glyph bitmap from external memory into RAM_G in chunks so
+		// we never need a large RAM buffer for the whole font
+		uint8_t buf[FONT_LOAD_CHUNK];
+		uint32_t file_off = sizeof(hdr) + 128u;	// header + width table
+		uint32_t done = 0;
+		bool ok = true;
+		while ((done < glyphs_len) && ok) {
+			uint32_t want = uv_mini(FONT_LOAD_CHUNK, glyphs_len - done);
+			uint32_t got = uv_exmem_read_fd(exmem, &fd, buf, want, file_off + done);
+			if (got == 0) {
+				ok = false;
+			}
+			else {
+				writestr(MEMMAP_RAM_G_BEGIN + glyph_addr + done,
+						(const char*) buf, NULL, got);
+				done += got;
+			}
+		}
+
+		if (ok) {
+			// build the 148-byte metric block as 37 words so the uint32 fields
+			// stay aligned: widths[128], format, stride, width, height, data ptr
+			uint32_t metric[FONT_METRICS_FONT_LEN / 4];
+			memset(metric, 0, sizeof(metric));
+			// the per-character width table follows the header in the file
+			if (uv_exmem_read_fd(exmem, &fd, metric, 128, sizeof(hdr)) == 128) {
+				metric[32] = BITMAP_FORMAT_L4;
+				metric[33] = hdr.stride;
+				metric[34] = hdr.width;
+				metric[35] = hdr.height;
+				metric[36] = MEMMAP_RAM_G_BEGIN + glyph_addr;
+
+				uint32_t metric_addr = (glyph_addr + glyphs_len + 3u) & ~3u;
+				writestr(MEMMAP_RAM_G_BEGIN + metric_addr, (const char*) metric,
+						NULL, FONT_METRICS_FONT_LEN);
+
+				// advance the allocator so media bitmaps load after the font data
+				ft81x_alloc_next = metric_addr + FONT_METRICS_FONT_LEN;
+
+				// replace the ROM font on this handle with the custom font
+				cmd_setfont2(ui_fonts[ui_font_index].handle,
+						MEMMAP_RAM_G_BEGIN + metric_addr, 0);
+				ui_fonts[ui_font_index].char_height = hdr.height;
+				ui_fonts[ui_font_index].custom_metric_addr =
+						MEMMAP_RAM_G_BEGIN + metric_addr;
+				ret = true;
+			}
+		}
+	}
+	return ret;
+}
 
 
 static void ft81x_cmd_memcpy(uint32_t dest, uint32_t src, uint32_t num) {
@@ -1387,6 +1521,69 @@ void uv_ui_draw_linestrip(const uv_ui_linestrip_point_st *points,
 
 
 
+void uv_ui_draw_polygon(const uv_ui_linestrip_point_st *points,
+		const uint16_t point_count, const color_t color) {
+	if (point_count >= 3) {
+		// Filled polygon via the stencil buffer (even-odd rule), as recommended
+		// in the FT81X programming guide: render the closed outline into the
+		// stencil with INVERT and color writes masked off, then paint the
+		// polygon's bounding rectangle only where the stencil bit is set.
+		int16_t minx = points[0].x;
+		int16_t maxx = points[0].x;
+		int16_t miny = points[0].y;
+		int16_t maxy = points[0].y;
+		for (uint16_t i = 1; i < point_count; i++) {
+			minx = MIN(minx, points[i].x);
+			maxx = MAX(maxx, points[i].x);
+			miny = MIN(miny, points[i].y);
+			maxy = MAX(maxy, points[i].y);
+		}
+
+		set_end();
+		// clear the stencil scratch (honors the active scissor) and render the
+		// closed outline into it, toggling the stencil bit on every coverage
+		writedl(CLEAR_STENCIL(0));
+		writedl(CLEAR(0, 1, 0));
+		writedl(COLOR_MASK(0, 0, 0, 0));
+		writedl(STENCIL_OP(STENCIL_OP_KEEP, STENCIL_OP_INVERT));
+		writedl(STENCIL_FUNC(STENCIL_FUNC_ALWAYS, 0, 0xFF));
+		set_begin(BEGIN_EDGE_STRIP_B);
+		for (uint16_t i = 0; i < point_count; i++) {
+			vertex2f_st v;
+			v.sx = points[i].x;
+			v.sy = points[i].y;
+			writedl(VERTEX2F(v.ux, v.uy));
+		}
+		// close the outline back to the first point
+		vertex2f_st vc;
+		vc.sx = points[0].x;
+		vc.sy = points[0].y;
+		writedl(VERTEX2F(vc.ux, vc.uy));
+		set_end();
+
+		// paint the bounding rectangle where the stencil bit is set
+		writedl(COLOR_MASK(1, 1, 1, 1));
+		writedl(STENCIL_FUNC(STENCIL_FUNC_NOTEQUAL, 0, 0xFF));
+		set_color(color);
+		set_begin(BEGIN_RECTS);
+		vertex2f_st vmin;
+		vmin.sx = minx;
+		vmin.sy = miny;
+		writedl(VERTEX2F(vmin.ux, vmin.uy));
+		vertex2f_st vmax;
+		vmax.sx = maxx;
+		vmax.sy = maxy;
+		writedl(VERTEX2F(vmax.ux, vmax.uy));
+		set_end();
+
+		// restore the default stencil state for following draws
+		writedl(STENCIL_FUNC(STENCIL_FUNC_ALWAYS, 0, 0xFF));
+		writedl(STENCIL_OP(STENCIL_OP_KEEP, STENCIL_OP_KEEP));
+	}
+}
+
+
+
 void uv_ui_touchscreen_calibrate(ui_transfmat_st *transform_matrix) {
 	DEBUG("Starting the screen calibration\n");
 
@@ -1480,17 +1677,28 @@ int16_t uv_ui_get_string_width(char *str, ui_font_st *font) {
 	int16_t ret = 0;
 	if (str != NULL && font != NULL) {
 		int16_t line_len = 0;
+		// custom fonts keep their width table in RAM_G; ROM fonts use the
+		// built-in metric table indexed by the font index
+		uint32_t width_base = (font->custom_metric_addr != 0) ?
+				font->custom_metric_addr :
+				(FONT_METRICS_BASE_ADDR +
+						(font->index - 16) * FONT_METRICS_FONT_LEN);
+		const char *p = str;
 
-		for (uint32_t i = 0; i < strlen(str); i++) {
+		while (*p != '\0') {
+			// decode UTF-8 and map to the font glyph code (ä ö å -> low slots)
+			uint32_t cp = uv_ui_utf8_next(&p);
 			// clear the calculated width on every new line character
-			if (str[i] == '\n') {
+			if (cp == '\n') {
 				line_len = 0;
 			}
 			else {
-				// fetch the width of this character from FT81X
-				int16_t w = read8(FONT_METRICS_BASE_ADDR +
-						(font->index - 16) * FONT_METRICS_FONT_LEN +
-						FONT_METRICS_CHAR_WIDTH_OFFSET + str[i]);
+				// ROM fonts lack the Nordic glyphs, so fall back to ASCII
+				uint8_t glyph = uv_ui_codepoint_glyph(cp,
+						font->custom_metric_addr != 0);
+				// fetch the width of this glyph from FT81X
+				int16_t w = read8(width_base +
+						FONT_METRICS_CHAR_WIDTH_OFFSET + glyph);
 				line_len += w;
 			}
 			if (line_len > ret) {

@@ -185,6 +185,50 @@ extern volatile uint8_t ft81x_buffer[FT81X_PREPROCESSOR_SIZE];
 uint32_t uv_ft81x_get_ramdl_usage(void);
 
 
+/// @brief: Magic marker at the start of a custom font binary (".bin" media file)
+#define UV_FT81X_FONT_MAGIC		"UVFT"
+#define UV_FT81X_FONT_VERSION	1
+
+/// @brief: Header of a custom font binary stored on external memory. It is
+/// followed by a 128-byte per-character width table and then the L4 glyph
+/// bitmap (stride * height * 128 bytes, one fixed-size cell per character code).
+/// All multi-byte fields are little-endian (the FT81X and the MCU are both LE).
+typedef struct __attribute__((packed)) {
+	char magic[4];			///< UV_FT81X_FONT_MAGIC ("UVFT")
+	uint8_t version;		///< UV_FT81X_FONT_VERSION
+	uint8_t font_index;		///< informational: target ui_fonts[] index
+	uint8_t width;			///< glyph cell width in pixels
+	uint8_t height;			///< glyph cell height in pixels
+	uint16_t stride;		///< bytes per glyph row ( == (width + 1) / 2 for L4 )
+	uint16_t reserved;
+} uv_ft81x_font_header_st;
+
+
+/// @brief: Downloads a custom anti-aliased (L4) font from external memory into
+/// FT81X RAM_G and installs it over the built-in ROM font on the ui_fonts[]
+/// slot's bitmap handle. The font is a ".bin" file (see uv_ft81x_font_header_st)
+/// previously stored on the W25Q128 with the media files. The glyph bitmap holds
+/// 128 fixed-size cells (cell index == character code), so CMD_SETFONT2 is called
+/// with firstchar 0.
+///
+/// If the file is missing or unreadable nothing is changed and the ROM font keeps
+/// rendering ASCII (the Nordic letters simply do not appear) — this is the
+/// intended graceful fallback when fonts have not been loaded to the device.
+///
+/// @param ui_font_index: index into ui_fonts[] (0..UI_MAX_FONT_COUNT-1).
+/// @param exmem: the W25Q128 holding the font file.
+/// @param filename: the font file name as stored on the W25Q128.
+/// @return: true if the font was installed, false on any failure (ROM font kept).
+bool uv_ft81x_load_custom_font(uint8_t ui_font_index, uv_w25q128_st *exmem,
+		const char *filename);
+
+
+/// @brief: Weak hook called once during display init, after the ROM fonts are
+/// set up. Override it (e.g. from generated font data) to install custom fonts
+/// via uv_ft81x_load_custom_font(). The default implementation does nothing.
+void uv_ui_load_custom_fonts(void);
+
+
 
 
 

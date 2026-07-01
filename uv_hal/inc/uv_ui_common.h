@@ -74,6 +74,10 @@ typedef struct {
 	uint8_t index;
 	// handle defines the bitmap handle to be used for this font
 	uint8_t handle;
+	// RAM_G address of a custom font metric block installed via
+	// uv_ft81x_load_custom_font(), or 0 when this font uses the built-in ROM
+	// font. Character widths are read from here instead of ROM when nonzero.
+	uint32_t custom_metric_addr;
 #endif
 } ui_font_st;
 typedef ui_font_st uv_font_st;
@@ -83,6 +87,46 @@ typedef ui_font_st uv_font_st;
 /// @brief: FT81x library supports only anti-aliased fonts with index 26 - 34
 #define UI_MAX_FONT_COUNT				9
 extern ui_font_st ui_fonts[UI_MAX_FONT_COUNT];
+
+
+
+/// @brief: Glyph slots for the non-ASCII letters provided by the UI fonts.
+///
+/// The FT81X ROM fonts (and the simulator's FreeType tables) only cover the
+/// ASCII range 0x20..0x7E. The Nordic letters needed by the Finnish/Swedish
+/// translations are remapped into otherwise-unused low control-code slots, so
+/// that every target's per-font glyph table stays 128 entries wide and the
+/// signed-char width lookups keep working. Source strings stay UTF-8; the
+/// conversion happens at draw time via uv_ui_str_to_glyphs().
+#define UV_UI_GLYPH_a_UML		0x01	///< ä  U+00E4
+#define UV_UI_GLYPH_o_UML		0x02	///< ö  U+00F6
+#define UV_UI_GLYPH_a_RING		0x03	///< å  U+00E5
+#define UV_UI_GLYPH_A_UML		0x04	///< Ä  U+00C4
+#define UV_UI_GLYPH_O_UML		0x05	///< Ö  U+00D6
+#define UV_UI_GLYPH_A_RING		0x06	///< Å  U+00C5
+
+
+/// @brief: Decodes one UTF-8 codepoint from *str_ptr and advances *str_ptr
+/// past the consumed byte(s). Malformed/truncated sequences consume one byte.
+uint32_t uv_ui_utf8_next(const char **str_ptr);
+
+/// @brief: Maps a Unicode codepoint to a 0..127 font glyph slot. ASCII passes
+/// through unchanged.
+///
+/// @param nordic_glyphs: when true the target font carries the Nordic letters in
+/// the UV_UI_GLYPH_* slots, so ä ö å Ä Ö Å map there. When false (a plain ROM
+/// font that lacks those glyphs) they fall back to the closest base ASCII letter
+/// (a o a A O A) so the text stays legible instead of showing blanks.
+/// Returns '?' for other codepoints that have no glyph.
+uint8_t uv_ui_codepoint_glyph(uint32_t codepoint, bool nordic_glyphs);
+
+/// @brief: Converts a UTF-8 string into single-byte font glyph slots written to
+/// *dst* (at most *dst_len* bytes including the null terminator). '\n'/'\r'/'\0'
+/// pass through so existing line-splitting keeps working. *nordic_glyphs* is
+/// forwarded to uv_ui_codepoint_glyph(). Returns the number of glyph bytes
+/// written (excluding the terminator).
+uint16_t uv_ui_str_to_glyphs(const char *src, char *dst, uint16_t dst_len,
+		bool nordic_glyphs);
 
 
 
@@ -405,6 +449,18 @@ typedef enum {
 void uv_ui_draw_linestrip(const uv_ui_linestrip_point_st *points,
 		const uint16_t point_count, const uint16_t line_width, const color_t color,
 		const uv_ui_strip_type_e type);
+
+
+
+/// @brief: Draws a filled polygon defined by *points*. The polygon should be
+/// convex. The points are given in order around the perimeter; the shape is
+/// implicitly closed (last point connects back to the first).
+///
+/// @param points: Buffer of the perimeter point coordinates
+/// @param point_count: Number of points (>= 3)
+/// @param color: The fill color
+void uv_ui_draw_polygon(const uv_ui_linestrip_point_st *points,
+		const uint16_t point_count, const color_t color);
 
 
 

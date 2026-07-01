@@ -134,8 +134,11 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	if (has_title(this)) {
 		int16_t tx = lx + TITLE_LEFT_PAD;
 		int16_t tw = uv_ui_get_string_width(this->title, this->font);
-		// top line in two parts, leaving a gap for the title text
-		if ((tx - TITLE_GAP) > lx) {
+		// top line in two parts, leaving a gap for the title text. The left
+		// part is only drawn when a full-length segment fits between the corner
+		// and the title gap; otherwise the title sits cleanly in the corner
+		// instead of leaving a stray couple-pixel sliver poking out.
+		if ((tx - TITLE_GAP) > (lx + TITLE_GAP)) {
 			uv_ui_draw_line(lx, ty, tx - TITLE_GAP, ty, 1, c);
 		}
 		int16_t rstart = tx + tw + TITLE_GAP;

@@ -64,6 +64,17 @@ static inline void sdo_client_abort(uint16_t main_index,
 }
 
 
+/// @brief: Returns true if a transfer that aborted with *err_code* is worth
+/// retrying. Retrying makes sense when the server gave no answer at all
+/// (protocol timeout) or when it was busy serving another SDO transfer, in
+/// which case it replies with CMD_SPECIFIER_NOT_FOUND. Every other abort code
+/// is a permanent error that a retry would only reproduce.
+static inline bool sdo_client_retryable(uint32_t err_code) {
+	return (err_code == CANOPEN_SDO_ERROR_SDO_PROTOCOL_TIMED_OUT) ||
+			(err_code == CANOPEN_SDO_ERROR_CMD_SPECIFIER_NOT_FOUND);
+}
+
+
 void _uv_canopen_sdo_client_init(void) {
 	this->state = CANOPEN_SDO_STATE_READY;
 	this->delay = -1;
@@ -516,12 +527,15 @@ uv_errors_e _uv_canopen_sdo_client_write(uint8_t node_id,
 			if (this->state == CANOPEN_SDO_STATE_TRANSFER_ABORTED) {
 				this->state = CANOPEN_SDO_STATE_READY;
 				ret = ERR_ABORTED;
-				// Retry only if the abort was a protocol timeout; any
-				// other abort reason comes from the server and a retry
-				// would just reproduce the same error.
-				if (this->last_err_code != CANOPEN_SDO_ERROR_SDO_PROTOCOL_TIMED_OUT) {
+				// Retry protocol timeouts (no answer) and server-busy
+				// aborts (CMD_SPECIFIER_NOT_FOUND); every other abort
+				// reason is permanent and a retry would just reproduce it.
+				if (!sdo_client_retryable(this->last_err_code)) {
 					break;
 				}
+				// back off so a busy server can finish the other transfer
+				// before we re-send.
+				uv_rtos_task_delay(CONFIG_CANOPEN_SDO_CLIENT_RETRY_DELAY_MS);
 			}
 			else {
 				ret = ERR_NONE;
@@ -600,9 +614,15 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 			if (this->state == CANOPEN_SDO_STATE_TRANSFER_ABORTED) {
 				this->state = CANOPEN_SDO_STATE_READY;
 				ret = ERR_ABORTED;
-				if (this->last_err_code != CANOPEN_SDO_ERROR_SDO_PROTOCOL_TIMED_OUT) {
+				// Retry protocol timeouts (no answer) and server-busy
+				// aborts (CMD_SPECIFIER_NOT_FOUND); every other abort
+				// reason is permanent and a retry would just reproduce it.
+				if (!sdo_client_retryable(this->last_err_code)) {
 					break;
 				}
+				// back off so a busy server can finish the other transfer
+				// before we re-send.
+				uv_rtos_task_delay(CONFIG_CANOPEN_SDO_CLIENT_RETRY_DELAY_MS);
 			}
 			else {
 				ret = ERR_NONE;
