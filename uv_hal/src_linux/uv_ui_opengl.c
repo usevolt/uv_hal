@@ -471,6 +471,9 @@ static glc_st c_to_glc(color_t color) {
 
 void uv_ui_clear(color_t col) {
 	glc_st c = c_to_glc(col);
+    // disable any active scissor box so the whole framebuffer is cleared, not
+    // just the last mask rectangle left over from the previous frame
+    glDisable(GL_SCISSOR_TEST);
     glClearColor(c.r, c.g, c.b, c.a);
     // Clear the colour buffer immediately, before any widgets are drawn, so the
     // background colour is correct from the very first frame. (The clear used to
@@ -637,48 +640,41 @@ void uv_ui_draw_linestrip(const uv_ui_linestrip_point_st *points,
 		glColor4ub(c.r, c.g, c.b, c.a);
 		glLineWidth(line_width);
 
-		if (type ==  UI_STRIP_TYPE_ABOVE) {
-			glBegin(GL_POLYGON);
-			glVertex2i(points[0].x, 0);
-		}
-		else if (type == UI_STRIP_TYPE_BELOW) {
-			glBegin(GL_POLYGON);
-			glVertex2i(points[0].x, CONFIG_FT81X_VSIZE);
-		}
-		else if (type == UI_STRIP_TYPE_LEFT) {
-			glBegin(GL_POLYGON);
-			glVertex2i(0, points[0].y);
-		}
-		else if (type == UI_STRIP_TYPE_RIGHT) {
-			glBegin(GL_POLYGON);
-			glVertex2i(CONFIG_FT81X_HSIZE, points[0].y);
-		}
-		else { // UI_STRIP_TYPE_LINE
+		if (type == UI_STRIP_TYPE_LINE) {
 			glBegin(GL_LINE_STRIP);
-			glVertex2i(points[0].x, points[0].y);
-		}
-
-		for (uint16_t i = 0; i < point_count; i++) {
-			glVertex2i(points[i].x, points[i].y);
-		}
-
-		if (type ==  UI_STRIP_TYPE_ABOVE) {
-			glVertex2i(points[point_count - 1].x, 0);
-		}
-		else if (type == UI_STRIP_TYPE_BELOW) {
-			glVertex2i(points[point_count - 1].x, CONFIG_FT81X_VSIZE);
-		}
-		else if (type == UI_STRIP_TYPE_LEFT) {
-			glVertex2i(0, points[point_count - 1].y);
-		}
-		else if (type == UI_STRIP_TYPE_RIGHT) {
-			glVertex2i(CONFIG_FT81X_HSIZE, points[point_count - 1].y);
+			for (uint16_t i = 0; i < point_count; i++) {
+				glVertex2i(points[i].x, points[i].y);
+			}
+			glEnd();
 		}
 		else {
-
+			// Edge strips fill the area between the polyline and one screen
+			// edge. Emulate the FT81X EDGE_STRIP primitives with a quad strip
+			// pairing every point with its projection onto that edge. Unlike a
+			// single GL_POLYGON (which only fills convex shapes correctly), a
+			// quad strip fills correctly even when the polyline is concave -
+			// e.g. a pie sector whose apex dips back to the centre.
+			glBegin(GL_QUAD_STRIP);
+			for (uint16_t i = 0; i < point_count; i++) {
+				glVertex2i(points[i].x, points[i].y);
+				if (type == UI_STRIP_TYPE_ABOVE) {
+					glVertex2i(points[i].x, 0);
+				}
+				else if (type == UI_STRIP_TYPE_BELOW) {
+					glVertex2i(points[i].x, CONFIG_FT81X_VSIZE);
+				}
+				else if (type == UI_STRIP_TYPE_LEFT) {
+					glVertex2i(0, points[i].y);
+				}
+				else if (type == UI_STRIP_TYPE_RIGHT) {
+					glVertex2i(CONFIG_FT81X_HSIZE, points[i].y);
+				}
+				else {
+					glVertex2i(points[i].x, points[i].y);
+				}
+			}
+			glEnd();
 		}
-
-		glEnd();
 	}
 }
 
@@ -728,8 +724,15 @@ static void render_line(char *str, ui_font_st *font,
 	glBindBuffer(GL_ARRAY_BUFFER, this->text_vbo);
 	glVertexAttribPointer(attribute_coord, 4, GL_FLOAT, GL_FALSE, 0, 0);
 
+	/* Translate the UTF-8 line into single-byte font glyph slots so the Nordic
+	 * letters map to their loaded glyphs (see uv_ui_str_to_glyphs). */
+	// the simulator always loads the Nordic glyphs from FreeType, so they are
+	// available (nordic_glyphs = true)
+	char glyphs[strlen(str) + 1];
+	uv_ui_str_to_glyphs(str, glyphs, sizeof(glyphs), true);
+
 	/* Loop through all characters */
-	for (char *p = str; *p; p++) {
+	for (char *p = glyphs; *p; p++) {
 		glBindTexture(GL_TEXTURE_2D, font->ft_char[(unsigned char) *p].TextureID);
 
 		float sx = 2.0f / this->width;
@@ -815,31 +818,37 @@ void uv_ui_draw_string(char *str, ui_font_st *font,
 }
 
 
-void uv_ui_set_mask(int16_t x, int16_t y, int16_t width, int16_t height) {
-// NOTE: Mask implementation commented as it seems to take forever to render
-	//	// stencil test is used for masking objects
-//	glEnable(GL_STENCIL_TEST);
-//	glClearStencil(0);
-//	glStencilMask(0xFF);
-//	// clear the old stencil to zero
-//	glClear(GL_STENCIL_BUFFER_BIT);
-//
-//	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-//	glStencilFunc(GL_ALWAYS, 1, 0xFF);
-//	glStencilMask(0xFF);
-//	glStencilOp(GL_REPLACE, GL_REPLACE, GL_REPLACE);
-//
-//	glBegin(GL_POLYGON);
-//	glVertex2i(x, y);
-//	glVertex2i(x + width, y);
-//	glVertex2i(x + width, y + height);
-//	glVertex2i(x, y + height);
-//	glEnd();
-//
-//	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-//	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-//	glStencilFunc(GL_EQUAL, 1, 0xFF);
+void uv_ui_draw_polygon(const uv_ui_linestrip_point_st *points,
+		const uint16_t point_count, const color_t color) {
+	if (point_count >= 3) {
+		color_st c = uv_uic(color);
+		glColor4ub(c.r, c.g, c.b, c.a);
+		// a triangle fan fills a convex polygon (apex = first point) exactly,
+		// with true straight edges between the perimeter points
+		glBegin(GL_TRIANGLE_FAN);
+		for (uint16_t i = 0; i < point_count; i++) {
+			glVertex2i(points[i].x, points[i].y);
+		}
+		glEnd();
+	}
+}
 
+
+
+void uv_ui_set_mask(int16_t x, int16_t y, int16_t width, int16_t height) {
+	// Rectangular clip via the GL scissor box. This mirrors the FT81X SCISSOR
+	// display-list commands. The earlier stencil-based implementation was
+	// commented out because it was slow; glScissor is essentially free.
+	//
+	// Our draw coordinates are FT81X pixels with a top-left origin, scaled to
+	// the window by scalex/scaley. glScissor expects window framebuffer pixels
+	// with a bottom-left origin, so scale and flip Y here.
+	int32_t sx = (int32_t) (x * this->scalex);
+	int32_t sw = (int32_t) (width * this->scalex);
+	int32_t sh = (int32_t) (height * this->scaley);
+	int32_t sy = (int32_t) (this->height - (int32_t)(y + height) * this->scaley);
+	glEnable(GL_SCISSOR_TEST);
+	glScissor(sx, sy, sw, sh);
 }
 
 
@@ -877,15 +886,16 @@ int16_t uv_ui_get_string_width(char *str, ui_font_st *font) {
 	int16_t ret = 0;
 	int line_width = 0;
 	if (str) {
-		for (int i = 0; i < strlen(str); i++) {
-			if (str[i] == '\n' ||
-					str[i] == '\r') {
-				if (line_width > ret) {
-					line_width = 0;
-				}
+		const char *p = str;
+		while (*p != '\0') {
+			uint32_t cp = uv_ui_utf8_next(&p);
+			if (cp == '\n' ||
+					cp == '\r') {
+				line_width = 0;
 			}
 			else {
-				line_width += font->ft_char[(unsigned char) str[i]].advance / 64;
+				uint8_t glyph = uv_ui_codepoint_glyph(cp, true);
+				line_width += font->ft_char[glyph].advance / 64;
 				if (line_width > ret) {
 					ret = line_width;
 				}
@@ -1002,6 +1012,8 @@ void uv_ui_dlswap(void) {
 //		    printf("fps %f\n", fps);
 
 			glClearStencil(1);
+		    // clear the full back buffer, not just the last mask rectangle
+		    glDisable(GL_SCISSOR_TEST);
 		    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 		    this->refresh = false;
 
@@ -1095,6 +1107,44 @@ static void resize_callback(GLFWwindow* window, int width, int height) {
 
 
 
+// Uploads the currently loaded FreeType glyph (face->glyph) into a texture and
+// stores it in the given font glyph slot. Any texture previously held by the
+// slot is deleted first so repeated load_fonts() calls (e.g. on resize) do not
+// leak textures.
+static void store_glyph(ui_font_st *font, FT_GlyphSlot glyph, uint8_t slot) {
+	glDeleteTextures(1, &font->ft_char[slot].TextureID);
+
+	unsigned int texture;
+	glActiveTexture(GL_TEXTURE0);
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	// set texture options
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	/* Upload the "bitmap", which contains an 8-bit grayscale image,
+	 * as an alpha texture */
+	glTexImage2D(
+			GL_TEXTURE_2D,
+			0,
+			GL_ALPHA,
+			glyph->bitmap.width,
+			glyph->bitmap.rows,
+			0,
+			GL_ALPHA,
+			GL_UNSIGNED_BYTE,
+			glyph->bitmap.buffer);
+	// now store character for later use
+	font->ft_char[slot].TextureID = texture;
+	font->ft_char[slot].advance = glyph->advance.x;
+	font->ft_char[slot].bearing_x = glyph->bitmap_left;
+	font->ft_char[slot].bearing_y = glyph->bitmap_top;
+	font->ft_char[slot].size_x = glyph->bitmap.width;
+	font->ft_char[slot].size_y = glyph->bitmap.rows;
+}
+
+
 	// free the previously loaded fonts
 static void load_fonts(void) {
 	free_fonts();
@@ -1138,35 +1188,33 @@ static void load_fonts(void) {
 						memset(&font->ft_char[c], 0, sizeof(font->ft_char[c]));
 					}
 					else {
-						// generate texture
-						unsigned int texture;
-						glActiveTexture(GL_TEXTURE0);
-						glGenTextures(1, &texture);
-						glBindTexture(GL_TEXTURE_2D, texture);
-						// set texture options
-						glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-						glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-						glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-						glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-						/* Upload the "bitmap", which contains an 8-bit grayscale image,
-						 * as an alpha texture */
-						glTexImage2D(
-								GL_TEXTURE_2D,
-								0,
-								GL_ALPHA,
-								face->glyph->bitmap.width,
-								face->glyph->bitmap.rows,
-								0,
-								GL_ALPHA,
-								GL_UNSIGNED_BYTE,
-								face->glyph->bitmap.buffer);
-						// now store character for later use
-						font->ft_char[c].TextureID = texture;
-						font->ft_char[c].advance = face->glyph->advance.x;
-						font->ft_char[c].bearing_x = face->glyph->bitmap_left;
-						font->ft_char[c].bearing_y = face->glyph->bitmap_top;
-						font->ft_char[c].size_x = face->glyph->bitmap.width;
-						font->ft_char[c].size_y = face->glyph->bitmap.rows;
+						store_glyph(font, face->glyph, c);
+					}
+				}
+
+				// load the non-ASCII glyphs into their remapped low slots. The
+				// Unicode codepoints map to UV_UI_GLYPH_* (see uv_ui_common.h),
+				// so UTF-8 source strings render once uv_ui_str_to_glyphs() has
+				// translated them.
+				static const struct {
+					uint8_t slot;
+					uint32_t codepoint;
+				} extra_glyphs[] = {
+						{ UV_UI_GLYPH_a_UML, 0x00E4 },
+						{ UV_UI_GLYPH_o_UML, 0x00F6 },
+						{ UV_UI_GLYPH_a_RING, 0x00E5 },
+						{ UV_UI_GLYPH_A_UML, 0x00C4 },
+						{ UV_UI_GLYPH_O_UML, 0x00D6 },
+						{ UV_UI_GLYPH_A_RING, 0x00C5 },
+				};
+				for (uint32_t j = 0; j < sizeof(extra_glyphs) / sizeof(extra_glyphs[0]); j++) {
+					if (FT_Load_Char(face, extra_glyphs[j].codepoint, FT_LOAD_RENDER)) {
+						printf("Failed to load glyph U+%04X from font '%s'\n",
+								extra_glyphs[j].codepoint, DEFAULT_FONT);
+						fflush(stdout);
+					}
+					else {
+						store_glyph(font, face->glyph, extra_glyphs[j].slot);
 					}
 				}
 				printf("done\n");

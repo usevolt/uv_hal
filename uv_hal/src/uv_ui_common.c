@@ -33,6 +33,102 @@
 #if CONFIG_UI
 
 
+uint32_t uv_ui_utf8_next(const char **str_ptr) {
+	const uint8_t *s = (const uint8_t *) *str_ptr;
+	uint32_t cp;
+	uint8_t consumed;
+	uint8_t c = s[0];
+	if (c < 0x80u) {
+		// plain ASCII
+		cp = c;
+		consumed = 1;
+	}
+	else if (((c & 0xE0u) == 0xC0u) && ((s[1] & 0xC0u) == 0x80u)) {
+		// two-byte sequence
+		cp = ((uint32_t) (c & 0x1Fu) << 6) | (uint32_t) (s[1] & 0x3Fu);
+		consumed = 2;
+	}
+	else if (((c & 0xF0u) == 0xE0u) && ((s[1] & 0xC0u) == 0x80u) &&
+			((s[2] & 0xC0u) == 0x80u)) {
+		// three-byte sequence
+		cp = ((uint32_t) (c & 0x0Fu) << 12) |
+				((uint32_t) (s[1] & 0x3Fu) << 6) |
+				(uint32_t) (s[2] & 0x3Fu);
+		consumed = 3;
+	}
+	else if (((c & 0xF8u) == 0xF0u) && ((s[1] & 0xC0u) == 0x80u) &&
+			((s[2] & 0xC0u) == 0x80u) && ((s[3] & 0xC0u) == 0x80u)) {
+		// four-byte sequence
+		cp = ((uint32_t) (c & 0x07u) << 18) |
+				((uint32_t) (s[1] & 0x3Fu) << 12) |
+				((uint32_t) (s[2] & 0x3Fu) << 6) |
+				(uint32_t) (s[3] & 0x3Fu);
+		consumed = 4;
+	}
+	else {
+		// invalid / truncated lead byte: consume a single byte
+		cp = c;
+		consumed = 1;
+	}
+	*str_ptr = (const char *) (s + consumed);
+	return cp;
+}
+
+
+uint8_t uv_ui_codepoint_glyph(uint32_t codepoint, bool nordic_glyphs) {
+	uint8_t ret;
+	if (codepoint < 0x80u) {
+		ret = (uint8_t) codepoint;
+	}
+	else if (codepoint == 0x00E4u) {
+		// ä -> custom glyph slot, or fall back to 'a'
+		ret = nordic_glyphs ? UV_UI_GLYPH_a_UML : (uint8_t) 'a';
+	}
+	else if (codepoint == 0x00F6u) {
+		// ö -> 'o'
+		ret = nordic_glyphs ? UV_UI_GLYPH_o_UML : (uint8_t) 'o';
+	}
+	else if (codepoint == 0x00E5u) {
+		// å -> 'a'
+		ret = nordic_glyphs ? UV_UI_GLYPH_a_RING : (uint8_t) 'a';
+	}
+	else if (codepoint == 0x00C4u) {
+		// Ä -> 'A'
+		ret = nordic_glyphs ? UV_UI_GLYPH_A_UML : (uint8_t) 'A';
+	}
+	else if (codepoint == 0x00D6u) {
+		// Ö -> 'O'
+		ret = nordic_glyphs ? UV_UI_GLYPH_O_UML : (uint8_t) 'O';
+	}
+	else if (codepoint == 0x00C5u) {
+		// Å -> 'A'
+		ret = nordic_glyphs ? UV_UI_GLYPH_A_RING : (uint8_t) 'A';
+	}
+	else {
+		// no glyph available for this codepoint
+		ret = (uint8_t) '?';
+	}
+	return ret;
+}
+
+
+uint16_t uv_ui_str_to_glyphs(const char *src, char *dst, uint16_t dst_len,
+		bool nordic_glyphs) {
+	uint16_t n = 0;
+	if ((src != NULL) && (dst != NULL) && (dst_len > 0)) {
+		const char *p = src;
+		while ((*p != '\0') && (n < (dst_len - 1))) {
+			uint32_t cp = uv_ui_utf8_next(&p);
+			dst[n] = (char) uv_ui_codepoint_glyph(cp, nordic_glyphs);
+			n++;
+		}
+		dst[n] = '\0';
+	}
+	return n;
+}
+
+
+
 static struct {
 	int8_t grayscale_luminosity;
 	ui_color_modes_e color_mode;

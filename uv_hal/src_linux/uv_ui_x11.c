@@ -388,6 +388,24 @@ void uv_ui_draw_point(int16_t x, int16_t y, color_t col, uint16_t diameter) {
 
 
 
+void uv_ui_draw_polygon(const uv_ui_linestrip_point_st *points,
+		const uint16_t point_count, const color_t color) {
+	if (point_count >= 3) {
+		color_st c = uv_uic(color);
+		cairo_set_source_rgba(this->cairo,
+				CAIRO_C(c.r), CAIRO_C(c.g), CAIRO_C(c.b), CAIRO_C(c.a));
+		cairo_move_to(this->cairo, (double) points[0].x, (double) points[0].y);
+		for (uint16_t i = 1; i < point_count; i++) {
+			cairo_line_to(this->cairo, (double) points[i].x, (double) points[i].y);
+		}
+		cairo_close_path(this->cairo);
+		cairo_fill(this->cairo);
+		cairo_move_to(this->cairo, 0, 0);
+	}
+}
+
+
+
 void uv_ui_draw_rrect(const int16_t x, const int16_t y,
 		const uint16_t w, const uint16_t h,
 		const uint16_t radius, const color_t col) {
