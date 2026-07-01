@@ -113,6 +113,9 @@ static void uv_uitreeobject_draw(void *me, const uv_bounding_box_st *pbb) {
 			uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, 30));
 
 	_uv_uiwindow_draw_children(this, pbb);
+
+	// scroll bars on top of the children
+	uv_uiwindow_draw_scrollbars(this, pbb);
 }
 
 

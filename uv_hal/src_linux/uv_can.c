@@ -237,6 +237,28 @@ uv_errors_e uv_can_add_tx_callback(uv_can_channels_e channel,
 
 #if CONFIG_TARGET_LINUX
 
+/// @brief: Runs shell command *command* and reads its first line of output into
+/// *dest* (a buffer of *dest_len* bytes). Returns true if a line was read.
+///
+/// fgets is retried on EINTR: when this runs under the FreeRTOS POSIX scheduler,
+/// the periodic tick is delivered as a signal that interrupts the blocking read,
+/// making a plain fgets return NULL (errno == EINTR) even though the command
+/// produced output. Without the retry the caller would misread the netdev state.
+static bool popen_read_line(const char *command, char *dest, size_t dest_len) {
+	bool ret = false;
+	FILE *fp = popen(command, "r");
+	if (fp != NULL) {
+		char *line;
+		do {
+			errno = 0;
+			line = fgets(dest, dest_len, fp);
+		} while (line == NULL && ferror(fp) && errno == EINTR);
+		ret = (line != NULL);
+		pclose(fp);
+	}
+	return ret;
+}
+
 char *uv_can_set_up(bool force_set_up) {
 	char *ret = NULL;
 	char cmd[128];
@@ -244,15 +266,12 @@ char *uv_can_set_up(bool force_set_up) {
 
 	// get the net dev baudrate. If dev was not available, baudrate will be 0.
 	sprintf(cmd, "ip -det link show %s | grep bitrate | awk '{print $2}'", this->dev);
-	FILE *fp = popen(cmd, "r");
-	if (fgets(cmd, sizeof(cmd), fp)) {
+	if (popen_read_line(cmd, cmd, sizeof(cmd))) {
 		current_baud = strtol(cmd, NULL, 0);
 	}
-	pclose(fp);
 	// If the net dev is not UP, force it to be set up by setting baudrate to incorrect value.
 	sprintf(cmd, "ip link show %s | grep state | awk '{print $9}'", this->dev);
-	fp = popen(cmd, "r");
-	if (fgets(cmd, sizeof(cmd), fp)) {
+	if (popen_read_line(cmd, cmd, sizeof(cmd))) {
 		if (strstr(cmd, "UP") != NULL) {
 			current_baud = this->baudrate;
 		}
@@ -266,7 +285,6 @@ char *uv_can_set_up(bool force_set_up) {
 			current_baud = -1;
 		}
 	}
-	pclose(fp);
 
 	if (this->baudrate != current_baud ||
 			force_set_up) {

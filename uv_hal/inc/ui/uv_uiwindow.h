@@ -197,6 +197,13 @@ void uv_uiwindow_set_enabled(void *me, bool value);
 void uv_uiwindow_draw(void *me, const uv_bounding_box_st *pbb);
 
 
+/// @brief: Draws the window's scroll bars (when its content area is larger than
+/// the window). Call this at the very end of a custom draw function, after the
+/// children, so the scroll bars are drawn on top of them instead of being painted
+/// over by an edge child.
+void uv_uiwindow_draw_scrollbars(void *me, const uv_bounding_box_st *pbb);
+
+
 /// @brief: Draws the children objects. Will be called inside _uv_uiwindow_draw function,
 /// but if custom draw function is added to this uiwindow, this should
 /// be called at the end of that custom function to update the children.

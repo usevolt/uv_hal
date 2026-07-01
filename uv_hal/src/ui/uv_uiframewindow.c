@@ -152,6 +152,9 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	}
 
 	_uv_uiwindow_draw_children(this, pbb);
+
+	// scroll bars on top of the children, when the content overflows the frame
+	uv_uiwindow_draw_scrollbars(this, pbb);
 }
 
 

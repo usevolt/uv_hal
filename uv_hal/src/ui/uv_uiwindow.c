@@ -110,7 +110,15 @@ void uv_uiwindow_draw(void *me, const uv_bounding_box_st *pbb) {
 	if (!this->transparent) {
 		uv_ui_draw_rrect(bb.x, bb.y, bb.width, bb.height, 0, this->bg_c);
 	}
+	// note: the scrollbars are drawn by uv_uiwindow_draw_scrollbars(), called
+	// after the children so they are not painted over by an edge child
+}
 
+
+void uv_uiwindow_draw_scrollbars(void *me, const uv_bounding_box_st *pbb) {
+	// restore the window's own scissor mask: a child may have left it narrowed
+	uv_ui_set_mask(uv_ui_get_xglobal(this), uv_ui_get_yglobal(this),
+			uv_uibb(this)->width, uv_uibb(this)->height);
 	if (this->content_bb.height > uv_uibb(this)->height) {
 		draw_scrollbar(this, false, pbb);
 	}
@@ -155,6 +163,7 @@ void _uv_uiwindow_draw_children(void *me, const uv_bounding_box_st *pbb) {
 static void _uv_uiwindow_draw(void *me, const uv_bounding_box_st *pbb) {
 	uv_uiwindow_draw(this, pbb);
 	_uv_uiwindow_draw_children(this, pbb);
+	uv_uiwindow_draw_scrollbars(this, pbb);
 }
 
 
@@ -183,10 +192,22 @@ void uv_uiwindow_add(void *me, void *object, uv_bounding_box_st *bb) {
 	((uv_uiobject_st*) object)->parent = this;
 	uv_ui_refresh(object);
 	this->objects[this->objects_count++] = object;
-	if (this->content_bb.width == 0) {
+	// grow the content bounding box to encompass this child (measured from the
+	// content origin), so a scroll bar appears and dragging scrolls when the
+	// children overflow the window. The content box is never smaller than the
+	// window itself.
+	int16_t child_right = bb->x + bb->width;
+	int16_t child_bottom = bb->y + bb->height;
+	if (this->content_bb.width < child_right) {
+		this->content_bb.width = child_right;
+	}
+	if (this->content_bb.height < child_bottom) {
+		this->content_bb.height = child_bottom;
+	}
+	if (this->content_bb.width < uv_uibb(this)->width) {
 		this->content_bb.width = uv_uibb(this)->width;
 	}
-	if (this->content_bb.height == 0) {
+	if (this->content_bb.height < uv_uibb(this)->height) {
 		this->content_bb.height = uv_uibb(this)->height;
 	}
 }

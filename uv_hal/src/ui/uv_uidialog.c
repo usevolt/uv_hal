@@ -42,6 +42,9 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	// draw all the objects added to the screen
 	_uv_uiwindow_draw_children(this, pbb);
 
+	// scroll bars on top of the children
+	uv_uiwindow_draw_scrollbars(this, pbb);
+
 	uv_uidisplay_draw_touch_ind(this);
 
 	// all UI components should now be updated, swap display list buffers
