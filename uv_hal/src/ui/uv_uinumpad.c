@@ -66,6 +66,69 @@ static void add_number(void *me, char value) {
 }
 
 
+// appends a single digit / hex character to the value string, mirroring the
+// on-screen number buttons (add_number applies the limit checks, this removes
+// the redundant leading zeroes and recomputes the value)
+static void append_digit(void *me, char value) {
+	add_number(this, value);
+	// remove leading zeroes
+	uint8_t i = (this->sign >= 0) ? 0 : 1;
+	while (this->value_str[i] == '0') {
+		memmove(&this->value_str[i],
+				&this->value_str[i + 1],
+				strlen(this->value_str) - i);
+	}
+	this->value = strtol(this->value_str, NULL,
+			(this->flags & UINUMPAD_FLAGS_HEX) ? 16 : 0);
+}
+
+
+// applies the current sign to the value string (adds or removes a leading '-')
+static void sign_apply(void *me) {
+	if (this->sign > 0) {
+		if (strlen(this->value_str)) {
+			memmove(this->value_str, &this->value_str[1],
+					MIN(strlen(this->value_str) + 1, sizeof(this->value_str)));
+		}
+	}
+	else {
+		// add the minus sign to the value
+		memmove(&this->value_str[1], this->value_str,
+				MIN(strlen(this->value_str) + 1, sizeof(this->value_str)));
+		this->value_str[0] = '-';
+	}
+	this->value = strtol(this->value_str, NULL,
+			(this->flags & UINUMPAD_FLAGS_HEX) ? 16 : 0);
+	uv_ui_refresh(this);
+}
+
+
+// deletes the last entered character. Returns false if there was nothing to delete
+static bool backspace(void *me) {
+	bool ret = false;
+	uint8_t len = strlen(this->value_str);
+	if (len) {
+		if (len == 2 && this->value_str[0] == '-') {
+			// make sure negative sign cannot be the only character
+			len = 1;
+			this->sign = 1;
+			uv_ui_refresh(this);
+		}
+		this->value_str[len - 1] = '\0';
+		if (strlen(this->value_str)) {
+			this->value = strtol(this->value_str, NULL,
+					(this->flags & UINUMPAD_FLAGS_HEX) ? 16 : 0);
+		}
+		else {
+			this->value = 0;
+		}
+		uv_ui_refresh(this);
+		ret = true;
+	}
+	return ret;
+}
+
+
 void uv_uinumpad_init(void *me, const char *title, const uv_uistyle_st *style) {
 	uv_uiobject_init(this);
 	uv_uiobject_set_draw_callb(this, &draw);
@@ -84,6 +147,12 @@ void uv_uinumpad_init(void *me, const char *title, const uv_uistyle_st *style) {
 	this->limit_max = INT32_MAX;
 	this->limit_min = 0;
 	strcpy(this->value_str, "");
+
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
+	// discard any keys queued before the numpad was opened so that e.g. a
+	// stray Enter does not immediately submit the dialog
+	while (uv_ui_get_key_press() != '\0') { }
+#endif
 }
 
 #define SIGN_INDEX			99
@@ -284,43 +353,11 @@ static uv_uiobject_ret_e numpad_step(void *me, uint16_t step_ms) {
 		// nothing pressed
 	}
 	else if (this->released_index == SIGN_INDEX) {
-		if (this->sign > 0) {
-			if (strlen(this->value_str)) {
-				memmove(this->value_str, &this->value_str[1],
-						MIN(strlen(this->value_str) + 1, sizeof(this->value_str)));
-			}
-		}
-		else {
-			// add the minus sign to the value
-			memmove(&this->value_str[1], this->value_str,
-					MIN(strlen(this->value_str) + 1, sizeof(this->value_str)));
-			this->value_str[0] = '-';
-		}
-		this->value = strtol(this->value_str, NULL,
-				(this->flags & UINUMPAD_FLAGS_HEX) ? 16 : 0);
-		uv_ui_refresh(this);
+		sign_apply(this);
 	}
 	// back pressed
 	else if (strcmp(labels[this->released_index], "CANCEL") == 0) {
-		uint8_t len = strlen(this->value_str);
-		if (len) {
-			if (len == 2 && this->value_str[0] == '-') {
-				// make sure negative sign cannot be the only character
-				len = 1;
-				this->sign = 1;
-				uv_ui_refresh(this);
-			}
-			this->value_str[len - 1] = '\0';
-			if (strlen(this->value_str)) {
-				this->value = strtol(this->value_str, NULL,
-						(this->flags & UINUMPAD_FLAGS_HEX) ? 16 : 0);
-			}
-			else {
-				this->value = 0;
-			}
-			uv_ui_refresh(this);
-		}
-		else {
+		if (!backspace(this)) {
 			this->cancelled = true;
 		}
 	}
@@ -330,22 +367,50 @@ static uv_uiobject_ret_e numpad_step(void *me, uint16_t step_ms) {
 	}
 	// other numbers pressed
 	else if (strlen(labels[this->released_index]) != 0) {
-		add_number(this, *labels[this->released_index]);
-		// remove trailing zeroes
-		uint8_t i = (this->sign >= 0) ? 0 : 1;
-		while (this->value_str[i] == '0') {
-			memmove(&this->value_str[i],
-					&this->value_str[i + 1],
-					strlen(this->value_str) - i);
-		}
-		this->value = strtol(this->value_str, NULL,
-				(this->flags & UINUMPAD_FLAGS_HEX) ? 16 : 0);
+		append_digit(this, *labels[this->released_index]);
 	}
 	else {
 
 	}
 
 	this->released_index = -1;
+
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
+	// accept physical keyboard input in addition to the on-screen buttons.
+	// Decimal mode takes 0-9 only, hex mode also takes a-f / A-F.
+	bool hex = (this->flags & UINUMPAD_FLAGS_HEX);
+	char c;
+	while ((c = uv_ui_get_key_press()) != '\0') {
+		if (c >= '0' && c <= '9') {
+			append_digit(this, c);
+		}
+		else if (hex && (c >= 'a' && c <= 'f')) {
+			// normalise to upper case to match the on-screen A-F labels
+			append_digit(this, (char) (c - 'a' + 'A'));
+		}
+		else if (hex && (c >= 'A' && c <= 'F')) {
+			append_digit(this, c);
+		}
+		else if ((c == '-' || c == '+') && this->limit_min < 0) {
+			this->sign = (this->sign > 0) ? -1 : 1;
+			sign_apply(this);
+		}
+		else if (c == '\b' || c == 0x7f) {
+			backspace(this);
+		}
+		else if (c == '\n' || c == '\r') {
+			this->submitted = true;
+			break;
+		}
+		else if (c == 0x1b) {
+			this->cancelled = true;
+			break;
+		}
+		else {
+			// ignore all other keys
+		}
+	}
+#endif
 
 	return ret;
 }

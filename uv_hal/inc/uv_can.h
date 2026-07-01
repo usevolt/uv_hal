@@ -357,6 +357,13 @@ int32_t uv_can_get_device_count(void);
 /// @brief: Returns true if the connection to the CAN dev is open
 bool uv_can_is_connected(void);
 
+/// @brief: Selects how the root password for the privileged "ip link" commands
+/// (needed to bring the CAN netdev up) is requested. When *enable* is true the
+/// commands are run through pkexec, which shows a native graphical password
+/// dialog; when false (the default) sudo is used, prompting on the controlling
+/// terminal. Applications with a graphical UI should enable this.
+void uv_can_use_gui_password(bool enable);
+
 /// @brief: Sets the CAN dev up and running
 ///
 /// @return: NULL if succesfull, or pointer to a string describing the error

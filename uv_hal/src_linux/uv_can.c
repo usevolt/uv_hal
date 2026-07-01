@@ -119,6 +119,17 @@ static can_st _can = {
 };
 #define this (&_can)
 
+// When true, the privileged "ip link" commands needed to bring the CAN netdev
+// up are run through pkexec, which shows a native graphical password dialog,
+// instead of sudo, which prompts on the controlling terminal. Enabled by the
+// application when it runs with a graphical UI (see uv_can_use_gui_password()).
+static bool can_gui_password = false;
+
+
+void uv_can_use_gui_password(bool enable) {
+	can_gui_password = enable;
+}
+
 
 void uv_can_set_rx_msg_callbacks(void (*config_callb)(uv_can_channels_e chn,
 		unsigned int id,
@@ -292,21 +303,25 @@ char *uv_can_set_up(bool force_set_up) {
 			// close the socket if one is open
 			cclose();
 		}
-		// since baudrate is not what we want, we need to set network dev down
-		sprintf(cmd, "sudo ip link set dev %s down", this->dev);
-		PRINT("%s\n", cmd);
-		if (system(cmd));
+		// Bring the netdev down, configure the CAN parameters and bring it back
+		// up. All four steps require root, so they are chained into a single
+		// privileged shell invocation: that way the user is asked for the
+		// password only once instead of once per command.
+		char ipcmds[256];
+		snprintf(ipcmds, sizeof(ipcmds),
+				"ip link set dev %s down; "
+				"ip link set %s type can bitrate %u; "
+				"ip link set %s txqueuelen 1000; "
+				"ip link set dev %s up",
+				this->dev, this->dev, this->baudrate, this->dev);
 
-		// set the net dev up and configure all parameters
-		sprintf(cmd, "sudo ip link set %s type can bitrate %u", this->dev, this->baudrate);
-		PRINT("%s\n", cmd);
-		if (system(cmd));
-		sprintf(cmd, "sudo ip link set %s txqueuelen 1000", this->dev);
-		PRINT("%s\n", cmd);
-		if (system(cmd));
-		sprintf(cmd, "sudo ip link set dev %s up", this->dev);
-		PRINT("%s\n", cmd);
-		if (system(cmd));
+		// In GUI mode escalate with pkexec, which pops up a native password
+		// dialog; otherwise use sudo, which prompts on the controlling terminal.
+		char privcmd[384];
+		snprintf(privcmd, sizeof(privcmd), "%s sh -c \"%s\"",
+				can_gui_password ? "pkexec" : "sudo", ipcmds);
+		PRINT("%s\n", privcmd);
+		if (system(privcmd));
 	}
 
 	/* open socket */

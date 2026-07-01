@@ -233,6 +233,13 @@ uv_errors_e uv_can_add_tx_callback(uv_can_channels_e channel,
 }
 
 
+void uv_can_use_gui_password(bool enable) {
+	// No-op on Windows: the PCAN driver needs no privileged bring-up commands,
+	// so there is no root password to ask for.
+	(void) enable;
+}
+
+
 char *uv_can_set_up(bool force_set_up) {
 	char *ret = NULL;
 
