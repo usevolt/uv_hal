@@ -86,6 +86,12 @@ typedef struct {
 	// uv_ft81x_load_custom_font(), or 0 when this font uses the built-in ROM
 	// font. Character widths are read from here instead of ROM when nonzero.
 	uint32_t custom_metric_addr;
+	// RAM_G address of the custom font's L4 glyph atlas (0 for ROM fonts).
+	// CMD_SETFONT2 only registers the char-width metrics; the bitmap handle's
+	// BITMAP_SOURCE/LAYOUT/SIZE must be set from these fields before drawing.
+	uint32_t custom_glyph_addr;
+	uint16_t custom_stride;		// bytes per glyph row (L4)
+	uint16_t custom_width;		// glyph cell width in pixels
 #endif
 } ui_font_st;
 typedef ui_font_st uv_font_st;

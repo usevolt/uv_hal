@@ -575,6 +575,9 @@ bool uv_ui_init(void) {
 					FONT_METRICS_FONT_HEIGHT_OFFSET);
 			ui_fonts[i].handle = FONT_HANDLE + i;
 			ui_fonts[i].custom_metric_addr = 0;
+			ui_fonts[i].custom_glyph_addr = 0;
+			ui_fonts[i].custom_stride = 0;
+			ui_fonts[i].custom_width = 0;
 			printf("Font %u height: %u\n", i, ui_fonts[i].char_height);
 			cmd_romfont(ui_fonts[i].handle, ui_fonts[i].index);
 		}
@@ -922,6 +925,21 @@ static void draw_line(char *str, ui_font_st *font,
 		int16_t x, int16_t y, ui_align_e align, color_t color, uint16_t len) {
 	set_color(color);
 
+	// Custom (RAM_G) fonts need their bitmap handle pointed at the glyph atlas
+	// every frame: CMD_SETFONT2 only sets the char-width metrics, not
+	// BITMAP_SOURCE/LAYOUT/SIZE, and handle state does not survive a DL swap
+	// (ROM fonts persist only because handles default to ROM in hardware).
+	// Emit these into the DL before CMD_TEXT, which then draws CELL(code) from
+	// this source. Font dimensions are always < 512/1024 so no _H commands.
+	if (font->custom_glyph_addr != 0) {
+		writedl(BITMAP_HANDLE(font->handle));
+		writedl(BITMAP_SOURCE(font->custom_glyph_addr));
+		writedl(BITMAP_LAYOUT(BITMAP_FORMAT_L4, font->custom_stride,
+				font->char_height));
+		writedl(BITMAP_SIZE(BITMAP_SIZE_FILTER_NEAREST, BITMAP_SIZE_WRAP_BORDER,
+				BITMAP_SIZE_WRAP_BORDER, font->custom_width, font->char_height));
+	}
+
 	// set the RAMDL offset where co-processor writes the DL entries
 	write16(REG_CMD_DL, this->dl_index);
 
@@ -1144,6 +1162,13 @@ bool uv_ft81x_load_custom_font(uint8_t ui_font_index, uv_w25q128_st *exmem,
 				ui_fonts[ui_font_index].char_height = hdr.height;
 				ui_fonts[ui_font_index].custom_metric_addr =
 						MEMMAP_RAM_G_BEGIN + metric_addr;
+				// CMD_SETFONT2 registers only the char-width metrics; remember
+				// the glyph atlas geometry so draw_line can point the bitmap
+				// handle's BITMAP_SOURCE/LAYOUT/SIZE at it every frame.
+				ui_fonts[ui_font_index].custom_glyph_addr =
+						MEMMAP_RAM_G_BEGIN + glyph_addr;
+				ui_fonts[ui_font_index].custom_stride = hdr.stride;
+				ui_fonts[ui_font_index].custom_width = hdr.width;
 				ret = true;
 			}
 		}
@@ -1178,6 +1203,18 @@ uint32_t uv_uimedia_newbitmapexmem(uv_uimedia_st *bitmap,
 	uint32_t pixel_addr = header_addr + FT81X_ALLOC_HEADER_SIZE;
 
 	bool found = uv_exmem_find(exmem, (char*) filename, &fd);
+
+	// RAM_G overflow guard: media bitmaps are decoded upward from pixel_addr and
+	// must stay below the media-download FIFO at the top of RAM_G. Custom fonts
+	// occupy the bottom of RAM_G, so a media-heavy screen can exhaust the space.
+	// If we are already at/over the FIFO there is no room at all, so refuse the
+	// load here rather than letting the co-processor scribble over the FIFO.
+	bool ram_full = (pixel_addr >= FT81X_MEDIAFIFO_ADDR);
+	if (ram_full) {
+		uv_terminal_enable(TERMINAL_CAN);
+		printf("FT81X RAM_G full: cannot load %s (next addr 0x%x >= FIFO 0x%x)\n",
+				filename, (unsigned) pixel_addr, (unsigned) FT81X_MEDIAFIFO_ADDR);
+	}
 
 	bitmap->addr = pixel_addr;
 	bitmap->type = UV_UIMEDIA_IMAGE;
@@ -1217,7 +1254,7 @@ uint32_t uv_uimedia_newbitmapexmem(uv_uimedia_st *bitmap,
 
 
 	// CONFIG_FT81X_MEDIA_MAXSIZE specifies the maximum media size available
-	if (found && fd.file_size <= CONFIG_FT81X_MEDIA_MAXSIZE) {
+	if (found && !ram_full && fd.file_size <= CONFIG_FT81X_MEDIA_MAXSIZE) {
 		// set the RAMDL offset where co-processor writes the DL entries
 		write16(REG_CMD_DL, this->dl_index);
 
@@ -1320,6 +1357,16 @@ uint32_t uv_uimedia_newbitmapexmem(uv_uimedia_st *bitmap,
 			if (!bitmap->width || !bitmap->height) {
 				size = 0;
 			}
+			// the decode may have run past the media FIFO at the top of RAM_G,
+			// corrupting it. Reject the bitmap and report it rather than drawing
+			// a corrupted image (peak media + fonts exceed the RAM_G budget).
+			else if ((bitmap->addr + bitmap->size) > FT81X_MEDIAFIFO_ADDR) {
+				uv_terminal_enable(TERMINAL_CAN);
+				printf("FT81X RAM_G overflow: %s at 0x%x size %u crosses FIFO 0x%x\n",
+						filename, (unsigned) bitmap->addr, (unsigned) bitmap->size,
+						(unsigned) FT81X_MEDIAFIFO_ADDR);
+				size = 0;
+			}
 			else {
 				size = bitmap->size;
 			}
@@ -1333,6 +1380,16 @@ uint32_t uv_uimedia_newbitmapexmem(uv_uimedia_st *bitmap,
 	}
 
 	if (size == 0) {
+		// The bitmap failed to load. Report why and which file, since the
+		// fallback below points the bitmap at RAM_G address 0 (which now holds
+		// the first custom-font glyph atlas), so a bad/missing media file shows
+		// up on screen as a garbled 40x40 image.
+		uv_terminal_enable(TERMINAL_CAN);
+		printf("FT81X media load FAILED: %s (%s)\n", filename,
+				(!found) ? "not found on exmem" :
+				ram_full ? "RAM_G full" :
+				(fd.file_size > CONFIG_FT81X_MEDIA_MAXSIZE) ? "file too large" :
+				"decode failed / corrupt");
 		// error occurred, specify the settings for bitmap
 		// data which wont cause anything unexpected
 		bitmap->addr = 0;
