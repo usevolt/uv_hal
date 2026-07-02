@@ -57,8 +57,16 @@ typedef struct {
 	uint16_t char_height;
 
 #if CONFIG_UI_OPENGL
+	// All glyphs of the font are packed into a single atlas texture, so a whole
+	// string can be rendered with one texture bind and one draw call instead of a
+	// per-glyph bind + draw. ft_char[] then holds each glyph's position within the
+	// atlas rather than its own texture id.
+	uint32_t atlas_tex;
+	int16_t atlas_w;
+	int16_t atlas_h;
 	struct {
-	    uint32_t TextureID;  // ID handle of the glyph texture
+	    int16_t atlas_x;  // glyph's top-left position within the atlas (pixels)
+	    int16_t atlas_y;
 	    int16_t size_x;
 	    int16_t size_y;
 	    int16_t bearing_x;
@@ -87,6 +95,9 @@ typedef ui_font_st uv_font_st;
 /// @brief: FT81x library supports only anti-aliased fonts with index 26 - 34
 #define UI_MAX_FONT_COUNT				9
 extern ui_font_st ui_fonts[UI_MAX_FONT_COUNT];
+// Monospace counterpart of ui_fonts[], loaded at the same sizes from a fixed-pitch
+// font. Used for text where columns must line up (log view, device terminal).
+extern ui_font_st ui_mono_fonts[UI_MAX_FONT_COUNT];
 
 
 

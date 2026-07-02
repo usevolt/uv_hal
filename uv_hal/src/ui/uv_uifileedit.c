@@ -39,6 +39,8 @@
 #elif CONFIG_TARGET_LINUX
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
+#include <signal.h>
 #endif
 
 
@@ -320,21 +322,74 @@ static bool filedialog_open(const char *title,
 #endif
 
 
+#if CONFIG_TARGET_LINUX
+// Arguments and result for the background file-chooser thread (see below).
+struct filedialog_async {
+	const char *title;
+	const uv_uifileedit_filter_st *filters;
+	uint8_t filter_count;
+	bool save;
+	char *out;
+	uint16_t out_len;
+	volatile bool done;
+	volatile bool result;
+};
+
+// Runs the (blocking, modal) native chooser on a dedicated thread so the UI task
+// is free to keep stepping while it is open. Every signal is blocked here: the
+// FreeRTOS POSIX port drives its tick and context switches with signals, and this
+// helper is not a FreeRTOS task — blocking them keeps the port's handlers off this
+// thread and stops the tick from interrupting (EINTR) the popen()/fgets() inside.
+static void *filedialog_thread(void *arg) {
+	struct filedialog_async *a = arg;
+	sigset_t set;
+	sigfillset(&set);
+	pthread_sigmask(SIG_BLOCK, &set, NULL);
+
+	a->result = filedialog_open(a->title, a->filters, a->filter_count,
+			a->save, a->out, a->out_len);
+	a->done = true;
+	return NULL;
+}
+#endif
+
+
 bool uv_uifiledialog_exec(const char *title,
 		const uv_uifileedit_filter_st *filters, uint8_t filter_count,
 		bool save, char *out, uint16_t out_len) {
-	// The native chooser blocks (popen/fgets on Linux, GetOpenFileName on
-	// Windows). When the UI runs under the FreeRTOS scheduler the periodic tick
-	// signal (SIGALRM on the POSIX port) would interrupt that blocking call
-	// (EINTR) and the chosen path would be lost; disable preemption around it.
-#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
+#if CONFIG_TARGET_LINUX
+	// The native chooser is modal and blocks its caller until dismissed. Running it
+	// inline on the UI task would stop the task from stepping, so the GL window
+	// would stop pumping its events and the desktop would flag the app as "not
+	// responding". Instead run it on a background thread and, meanwhile, keep the
+	// UI task pumping window events and yielding to other tasks until it returns.
+	struct filedialog_async a = {
+		title, filters, filter_count, save, out, out_len, false, false
+	};
+	pthread_t tid;
+	if (pthread_create(&tid, NULL, &filedialog_thread, &a) != 0) {
+		// could not spawn the helper: fall back to a direct (blocking) call
+		return filedialog_open(title, filters, filter_count, save, out, out_len);
+	}
+	while (!a.done) {
+		int16_t x, y;
+		// pumps the windowing system's event queue (glfwPollEvents), which keeps
+		// the window responsive to the compositor while the chooser is up
+		uv_ui_get_touch(&x, &y);
+		uv_rtos_task_delay(20);
+	}
+	pthread_join(tid, NULL);
+	return a.result;
+#elif CONFIG_TARGET_WIN
+	// The Win32 chooser is modal and runs its own message pump; disable the
+	// scheduler tick around it so the blocking call is not interrupted (EINTR).
 	portDISABLE_INTERRUPTS();
-#endif
 	bool ret = filedialog_open(title, filters, filter_count, save, out, out_len);
-#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
 	portENABLE_INTERRUPTS();
-#endif
 	return ret;
+#else
+	return filedialog_open(title, filters, filter_count, save, out, out_len);
+#endif
 }
 
 

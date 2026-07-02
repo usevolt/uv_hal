@@ -60,6 +60,7 @@ void uv_uitextedit_init(void *me, char *buffer, uint16_t buf_len,
 	this->editing = false;
 	this->was_touched = false;
 	this->blink_ms = 0;
+	this->submitted = false;
 #endif
 
 	// ensure the buffer is null-terminated
@@ -131,17 +132,23 @@ void uv_uitextedit_draw(void *me, const uv_bounding_box_st *pbb) {
 			this->bg_color, uv_uic_brighten(this->bg_color, -30),
 			uv_uic_brighten(this->bg_color, 30));
 
-	uv_ui_draw_string(this->buffer, font,
-			x + uv_uibb(this)->width / 2, y + height / 2 + CONFIG_UI_RADIUS,
-			UI_ALIGN_CENTER, text_color);
+	// honor the (inherited) label alignment: left-aligned fields draw the text at
+	// a small left padding, otherwise it is centered
+	alignment_e al = ((uv_uilabel_st *) this)->align;
+	bool leftalign = ((al & UI_HALIGN_MASK) == UI_HALIGN_LEFT);
+	int16_t textcy = y + height / 2 + CONFIG_UI_RADIUS;
+	int16_t textx = leftalign ?
+			(x + TITLE_OFFSET) : (x + uv_uibb(this)->width / 2);
+	alignment_e stral = leftalign ? ALIGN_CENTER_LEFT : UI_ALIGN_CENTER;
+	uv_ui_draw_string(this->buffer, font, textx, textcy, stral, text_color);
 
 #if CONFIG_TARGET_LINUX
 	if (this->editing && this->blink_ms < UITEXTEDIT_CURSOR_BLINK_MS) {
 		int16_t text_w = uv_ui_get_string_width(this->buffer, font);
-		int16_t cursor_x = x + uv_uibb(this)->width / 2 + text_w / 2 + 1;
-		uv_ui_draw_string("|", font, cursor_x,
-				y + height / 2 + CONFIG_UI_RADIUS,
-				UI_ALIGN_CENTER, text_color);
+		int16_t cursor_x = leftalign ?
+				(x + TITLE_OFFSET + text_w + 1) :
+				(x + uv_uibb(this)->width / 2 + text_w / 2 + 1);
+		uv_ui_draw_string("|", font, cursor_x, textcy, stral, text_color);
 	}
 #endif
 
@@ -159,24 +166,37 @@ static uv_uiobject_ret_e step(void *me, uint16_t step_ms) {
 	this->changed = false;
 
 #if CONFIG_TARGET_LINUX
+	bool cmdline = (this->flags & UITEXTEDIT_FLAG_CMDLINE) != 0;
+	this->submitted = false;
 	if (this->editing) {
-		// blink the cursor: refresh on every phase boundary
-		uint16_t prev_phase = this->blink_ms / UITEXTEDIT_CURSOR_BLINK_MS;
-		this->blink_ms += step_ms;
-		if (this->blink_ms >= UITEXTEDIT_CURSOR_BLINK_MS * 2) {
-			this->blink_ms = 0;
-		}
-		uint16_t new_phase = this->blink_ms / UITEXTEDIT_CURSOR_BLINK_MS;
-		if (prev_phase != new_phase) {
-			uv_ui_refresh(this);
+		// blink the cursor, refreshing on every phase boundary. In command-line
+		// mode the cursor is kept steady (blink_ms stays 0): a persistent command
+		// line is often shown over a full-screen console, where a twice-a-second
+		// full-display refresh for the blink is wasteful.
+		if (!cmdline) {
+			uint16_t prev_phase = this->blink_ms / UITEXTEDIT_CURSOR_BLINK_MS;
+			this->blink_ms += step_ms;
+			if (this->blink_ms >= UITEXTEDIT_CURSOR_BLINK_MS * 2) {
+				this->blink_ms = 0;
+			}
+			uint16_t new_phase = this->blink_ms / UITEXTEDIT_CURSOR_BLINK_MS;
+			if (prev_phase != new_phase) {
+				uv_ui_refresh(this);
+			}
 		}
 
 		// drain typed characters
 		char c;
 		while ((c = uv_ui_get_key_press()) != '\0') {
 			if (c == '\n' || c == '\r') {
-				this->editing = false;
-				this->changed = true;
+				if (cmdline) {
+					// submit but keep focus; the owner reads the line
+					this->submitted = true;
+				}
+				else {
+					this->editing = false;
+					this->changed = true;
+				}
 				uv_ui_refresh(this);
 				break;
 			}
@@ -188,11 +208,14 @@ static uv_uiobject_ret_e step(void *me, uint16_t step_ms) {
 				}
 			}
 			else if (c == 0x1b) {
-				// ESC: blur (single "blur commits" path)
-				this->editing = false;
-				this->changed = true;
-				uv_ui_refresh(this);
-				break;
+				// ESC: blur (single "blur commits" path). Ignored in command-line
+				// mode, where focus is owned by the application.
+				if (!cmdline) {
+					this->editing = false;
+					this->changed = true;
+					uv_ui_refresh(this);
+					break;
+				}
 			}
 			else if (c >= 0x20 && c < 0x7f) {
 				uint16_t len = strlen(this->buffer);
@@ -207,21 +230,24 @@ static uv_uiobject_ret_e step(void *me, uint16_t step_ms) {
 			}
 		}
 
-		// click-outside detection (rising edge on touch)
-		int16_t tx = 0, ty = 0;
-		bool touched = uv_ui_get_touch(&tx, &ty);
-		if (touched && !this->was_touched) {
-			int16_t gx = uv_ui_get_xglobal(this);
-			int16_t gy = uv_ui_get_yglobal(this);
-			int16_t w = uv_uibb(this)->width;
-			int16_t h = uv_uibb(this)->height;
-			if (tx < gx || tx > gx + w || ty < gy || ty > gy + h) {
-				this->editing = false;
-				this->changed = true;
-				uv_ui_refresh(this);
+		// click-outside detection (rising edge on touch). In command-line mode the
+		// field is never blurred by a click; its focus is app-controlled.
+		if (!cmdline) {
+			int16_t tx = 0, ty = 0;
+			bool touched = uv_ui_get_touch(&tx, &ty);
+			if (touched && !this->was_touched) {
+				int16_t gx = uv_ui_get_xglobal(this);
+				int16_t gy = uv_ui_get_yglobal(this);
+				int16_t w = uv_uibb(this)->width;
+				int16_t h = uv_uibb(this)->height;
+				if (tx < gx || tx > gx + w || ty < gy || ty > gy + h) {
+					this->editing = false;
+					this->changed = true;
+					uv_ui_refresh(this);
+				}
 			}
+			this->was_touched = touched;
 		}
-		this->was_touched = touched;
 	}
 	else {
 		this->was_touched = false;
@@ -236,6 +262,12 @@ static uv_uiobject_ret_e step(void *me, uint16_t step_ms) {
 
 
 static void touch(void *me, uv_touch_st *touch) {
+#if CONFIG_TARGET_LINUX
+	// command-line fields are focused by the application, not by clicks
+	if ((this->flags & UITEXTEDIT_FLAG_CMDLINE) != 0) {
+		return;
+	}
+#endif
 	if (touch->action == TOUCH_CLICKED) {
 		touch->action = TOUCH_NONE;
 #if CONFIG_TARGET_LINUX

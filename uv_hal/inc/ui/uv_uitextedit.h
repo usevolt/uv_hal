@@ -45,7 +45,15 @@
 typedef enum {
 	UITEXTEDIT_FLAG_NONE	= 0,
 	/// @brief: Rejects newline characters so the buffer never contains '\n'.
-	UITEXTEDIT_FLAG_ONELINE	= (1u << 0)
+	UITEXTEDIT_FLAG_ONELINE	= (1u << 0),
+	/// @brief: Command-line mode (TARGET_LINUX). The field's focus is driven by
+	/// the application (uv_uitextedit_set_focused) rather than by clicks: while
+	/// focused it captures every key press and shows a steady (non-blinking)
+	/// cursor, Enter raises uv_uitextedit_submitted() WITHOUT dropping focus, and
+	/// clicks elsewhere never blur it. Used for persistent command lines (e.g. a
+	/// terminal or a log console). On MCU targets this has no effect — the field
+	/// keeps using the on-screen keyboard as usual.
+	UITEXTEDIT_FLAG_CMDLINE	= (1u << 1)
 } uv_uitextedit_flags_e;
 
 
@@ -72,6 +80,9 @@ typedef struct {
 	bool editing;
 	bool was_touched;
 	uint16_t blink_ms;
+	/// @brief: Set for one step cycle when Enter is pressed in command-line mode
+	/// (UITEXTEDIT_FLAG_CMDLINE). See uv_uitextedit_submitted().
+	bool submitted;
 #endif
 } uv_uitextedit_st;
 
@@ -102,6 +113,44 @@ static inline const char *uv_uitextedit_get_text(void *me) {
 /// (Enter pressed, on-screen keyboard accepted, or focus lost on Linux).
 static inline bool uv_uitextedit_value_changed(void *me) {
 	return this->changed;
+}
+
+
+/// @brief: Command-line mode only: sets whether this field currently owns the
+/// keyboard. While focused it captures key presses and draws its cursor; while
+/// not, it is inert and leaves the keys for whichever field is focused (only ever
+/// one at a time). Call every cycle from the owner. No-op off TARGET_LINUX.
+static inline void uv_uitextedit_set_focused(void *me, bool focused) {
+#if CONFIG_TARGET_LINUX
+	if (this->editing != focused) {
+		this->editing = focused;
+		uv_ui_refresh(this);
+	}
+#else
+	(void) me;
+	(void) focused;
+#endif
+}
+
+
+/// @brief: Command-line mode only: returns true for the single cycle in which the
+/// user pressed Enter (focus is kept). The typed line is still in the buffer;
+/// read uv_uitextedit_get_text() then uv_uitextedit_set_text(me, "") to clear.
+static inline bool uv_uitextedit_submitted(void *me) {
+#if CONFIG_TARGET_LINUX
+	return this->submitted;
+#else
+	(void) me;
+	return false;
+#endif
+}
+
+
+/// @brief: Sets the horizontal alignment of the field's text (e.g. ALIGN_CENTER,
+/// the default, or ALIGN_CENTER_LEFT). Reuses the inherited label alignment.
+static inline void uv_uitextedit_set_align(void *me, alignment_e align) {
+	((uv_uilabel_st *) me)->align = align;
+	uv_ui_refresh(me);
 }
 
 

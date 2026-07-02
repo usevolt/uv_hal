@@ -53,6 +53,10 @@
 
 
 ui_font_st ui_fonts[UI_MAX_FONT_COUNT];
+// Monospace fonts. The Cairo backend selects font faces at draw time, so these
+// only carry per-size metrics; they exist so the shared ui_mono_fonts[] symbol
+// resolves and column-based views degrade to the proportional face gracefully.
+ui_font_st ui_mono_fonts[UI_MAX_FONT_COUNT];
 static const uint8_t font_sizes[UI_MAX_FONT_COUNT] = {
 		13,
 		16,
@@ -820,6 +824,7 @@ bool uv_ui_init(void) {
 	// initialize the font sizes
 	for (uint32_t i = 0; i < UI_MAX_FONT_COUNT; i++) {
 		ui_fonts[i].char_height = font_sizes[i];
+		ui_mono_fonts[i].char_height = font_sizes[i];
 	}
 	// initialize the key press buffer
 	uv_ring_buffer_init(&this->key_press, this->key_press_buffer,

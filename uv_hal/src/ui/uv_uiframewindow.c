@@ -53,6 +53,23 @@ static bool has_title(uv_uiframewindow_st *me) {
 }
 
 
+// Vertical offset from the frame's top edge to the top border line, which is also
+// the vertical center of the title text. Normally FRAME_MARGIN, but when a title
+// is shown it is at least half the title height so the title (centered on the
+// line) never extends above the frame's own bounding box — where a clipping parent
+// (e.g. a tab window's content area) would otherwise shave off the top of it.
+static int16_t title_line_y(uv_uiframewindow_st *me) {
+	int16_t ret = FRAME_MARGIN;
+	if (has_title(this)) {
+		int16_t half = uv_ui_get_string_height(this->title, this->font) / 2;
+		if (half > ret) {
+			ret = half;
+		}
+	}
+	return ret;
+}
+
+
 // Horizontal inset (left/right) and bottom inset of the content area.
 static int16_t side_inset(void) {
 	return FRAME_MARGIN + CONTENT_PAD;
@@ -64,7 +81,7 @@ static int16_t top_inset(uv_uiframewindow_st *me) {
 	int16_t ret = side_inset();
 	if (has_title(this)) {
 		int16_t th = uv_ui_get_string_height(this->title, this->font);
-		int16_t with_title = FRAME_MARGIN + th / 2 + CONTENT_PAD;
+		int16_t with_title = title_line_y(this) + th / 2 + CONTENT_PAD;
 		if (with_title > ret) {
 			ret = with_title;
 		}
@@ -120,10 +137,11 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t h = uv_uibb(this)->height;
 	color_t c = this->frame_c;
 
-	// corners of the frame rectangle
+	// corners of the frame rectangle. The top line sits low enough that a title
+	// centered on it stays within the frame's bounding box (see title_line_y).
 	int16_t lx = x + FRAME_MARGIN;
 	int16_t rx = x + w - FRAME_MARGIN;
-	int16_t ty = y + FRAME_MARGIN;
+	int16_t ty = y + title_line_y(this);
 	int16_t by = y + h - FRAME_MARGIN;
 
 	// left, right and bottom lines

@@ -41,6 +41,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "GL/glew.h"
 #include <GLFW/glfw3.h>
@@ -55,6 +56,7 @@
 #endif
 
 #define DEFAULT_FONT	"LiberationSans-Regular.ttf"
+#define MONO_FONT		"LiberationMono-Regular.ttf"
 
 
 static void key_callback(GLFWwindow* window,
@@ -74,6 +76,7 @@ static GLint get_uniform(GLuint shader_program, const char *name);
 static GLint get_attrib(GLuint program, const char *name);
 
 ui_font_st ui_fonts[UI_MAX_FONT_COUNT] = {};
+ui_font_st ui_mono_fonts[UI_MAX_FONT_COUNT] = {};
 static const uint8_t font_sizes[UI_MAX_FONT_COUNT] = {
 		13,
 		16,
@@ -699,43 +702,22 @@ void uv_ui_touchscreen_calibrate(ui_transfmat_st *transform_matrix) {
 
 
 
-static void render_line(char *str, ui_font_st *font,
-		int16_t x, int16_t y, color_t color) {
+// Appends the triangle vertices for one line of *str* to *verts* (4 floats per
+// vertex: clip-space x, y and atlas texture s, t), starting from pen position
+// (x, y) in application space. Advances *vcount* by the number of vertices added
+// (6 per drawn glyph). All glyphs come from the font's single atlas texture, so
+// the whole batch is later drawn in one glDrawArrays call (see uv_ui_draw_string).
+static void append_line_verts(char *str, ui_font_st *font,
+		int16_t x, int16_t y, GLfloat *verts, size_t *vcount) {
 	// coordinates are in application space, and since uv_ui uses fixed window size,
 	// we resize these accordingly
-	x *= this->scalex;
-	y *= this->scaley;
+	float fx = x * this->scalex;
+	float fy = y * this->scaley;
 
-	// activate corresponding render state
-	glUseProgram(this->text_shader_program);
-
-	color_st col = uv_uic(color);
-	GLfloat c[4] = { col.r / 255.0f, col.g / 255.0f, col.b / 255.0f, col.a / 255.0f };
-
-	GLint uniform_color;
-	GLint uniform_tex;
-	GLint attribute_coord;
-	uniform_tex = get_uniform(this->text_shader_program, "tex");
-	uniform_color = get_uniform(this->text_shader_program, "color");
-	attribute_coord = get_attrib(this->text_shader_program, "coord");
-	if (uniform_tex == -1 ||
-			uniform_color == -1 ||
-			attribute_coord == -1) {
-		printf("ERROR loading OPENGL text shader program\n");
-	}
-
-	glUniform4fv(uniform_color, 1, c);
-
-	glActiveTexture(GL_TEXTURE0);
-	glUniform1i(uniform_tex, 0);
-
-	/* We require 1 byte alignment when uploading texture data */
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-	/* Set up the VBO for our vertex data */
-	glEnableVertexAttribArray(attribute_coord);
-	glBindBuffer(GL_ARRAY_BUFFER, this->text_vbo);
-	glVertexAttribPointer(attribute_coord, 4, GL_FLOAT, GL_FALSE, 0, 0);
+	float sx = 2.0f / this->width;
+	float sy = 2.0f / this->height;
+	float aw = (font->atlas_w > 0) ? (float) font->atlas_w : 1.0f;
+	float ah = (font->atlas_h > 0) ? (float) font->atlas_h : 1.0f;
 
 	/* Translate the UTF-8 line into single-byte font glyph slots so the Nordic
 	 * letters map to their loaded glyphs (see uv_ui_str_to_glyphs). */
@@ -744,72 +726,109 @@ static void render_line(char *str, ui_font_st *font,
 	char glyphs[strlen(str) + 1];
 	uv_ui_str_to_glyphs(str, glyphs, sizeof(glyphs), true);
 
-	/* Loop through all characters */
 	for (char *p = glyphs; *p; p++) {
-		glBindTexture(GL_TEXTURE_2D, font->ft_char[(unsigned char) *p].TextureID);
-
-		float sx = 2.0f / this->width;
-		float sy = 2.0f / this->height;
+		unsigned char g = (unsigned char) *p;
 
 		/* Calculate the vertex and texture coordinates */
-		float x2 = (x + font->ft_char[(unsigned char) *p].bearing_x) * sx - 1.0f;
-		float y2 = (y - font->ft_char[(unsigned char) *p].bearing_y) * sy - 1.0f +
+		float x2 = (fx + font->ft_char[g].bearing_x) * sx - 1.0f;
+		float y2 = (fy - font->ft_char[g].bearing_y) * sy - 1.0f +
 				(font->ft_char['H'].size_y * sy);
-		float w = (font->ft_char[(unsigned char) *p].size_x) * sx;
-		float h = (font->ft_char[(unsigned char) *p].size_y) * sy;
+		float w = (font->ft_char[g].size_x) * sx;
+		float h = (font->ft_char[g].size_y) * sy;
 
-		struct point {
-			GLfloat x;
-			GLfloat y;
-			GLfloat s;
-			GLfloat t;
-		} box[4] = {
-				{x2, -y2, 0, 0},
-				{x2 + w, -y2, 1, 0},
-				{x2, -y2 - h, 0, 1},
-				{x2 + w, -y2 - h, 1, 1},
-		};
+		// texture coordinates of this glyph's rectangle within the atlas
+		float u0 = font->ft_char[g].atlas_x / aw;
+		float v0 = font->ft_char[g].atlas_y / ah;
+		float u1 = (font->ft_char[g].atlas_x + font->ft_char[g].size_x) / aw;
+		float v1 = (font->ft_char[g].atlas_y + font->ft_char[g].size_y) / ah;
 
-
-		/* Draw the character on the screen */
-		glBufferData(GL_ARRAY_BUFFER, sizeof box, box, GL_DYNAMIC_DRAW);
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		// skip zero-area glyphs (e.g. space) so they add no geometry
+		if ((font->ft_char[g].size_x > 0) && (font->ft_char[g].size_y > 0)) {
+			// two triangles (TL,TR,BL) and (TR,BR,BL)
+			const GLfloat quad[6][4] = {
+					{ x2,     -y2,     u0, v0 },
+					{ x2 + w, -y2,     u1, v0 },
+					{ x2,     -y2 - h, u0, v1 },
+					{ x2 + w, -y2,     u1, v0 },
+					{ x2 + w, -y2 - h, u1, v1 },
+					{ x2,     -y2 - h, u0, v1 },
+			};
+			GLfloat *dst = &verts[*vcount * 4];
+			memcpy(dst, quad, sizeof(quad));
+			*vcount += 6;
+		}
 
 		/* Advance the cursor to the start of the next character */
-		x += (font->ft_char[(unsigned char) *p].advance / 64);
+		fx += (font->ft_char[g].advance / 64);
 	}
-
-	glDisableVertexAttribArray(attribute_coord);
-
-	glUseProgram(0);
 }
 
 void uv_ui_draw_string(char *str, ui_font_st *font,
 		int16_t x, int16_t y, ui_align_e align, color_t color) {
-	if (str) {
-		char *s = malloc(strlen(str) + 2);
-		strcpy(s, str);
-		char *last_s = s;
+	if ((str == NULL) || (font == NULL)) {
+		return;
+	}
+	size_t len = strlen(str);
+	if (len == 0) {
+		return;
+	}
 
-		// calculate the number of lines
-		uint16_t line_count = 0;
-		for (uint32_t i = 0; i < strlen(str) + 1; i++) {
-			if (str[i] == '\n' || str[i] == '\0') {
-				line_count++;
-			}
+	// The text shader program is created once at start-up and never rebuilt, so
+	// its attribute/uniform locations are stable; look them up only on the first
+	// call rather than for every string (the -2 sentinel means "not yet queried").
+	static GLint uniform_tex = -2;
+	static GLint uniform_color = -1;
+	static GLint attribute_coord = -1;
+	if (uniform_tex == -2) {
+		uniform_tex = get_uniform(this->text_shader_program, "tex");
+		uniform_color = get_uniform(this->text_shader_program, "color");
+		attribute_coord = get_attrib(this->text_shader_program, "coord");
+		if (uniform_tex == -1 || uniform_color == -1 || attribute_coord == -1) {
+			printf("ERROR loading OPENGL text shader program\n");
 		}
-		if (align & VALIGN_CENTER) {
-			// reduce the y by the number of line counts
-			y -= (line_count * font->char_height / 2);
-		}
+	}
 
-		for (uint32_t i = 0; i < strlen(str) + 1; i++) {
-			if (s[i] == '\r' || s[i] == '\n' || s[i] == '\0') {
-				s[i] = '\0';
-				int16_t lx = x, ly = y;
+	// working copy so each line can be null-terminated in place
+	char *s = malloc(len + 2);
+	if (s == NULL) {
+		return;
+	}
+	memcpy(s, str, len + 1);
+
+	// count the lines once (the original re-ran strlen() every loop iteration,
+	// which is O(n^2) over the string length)
+	uint16_t line_count = 1;
+	for (size_t i = 0; i < len; i++) {
+		if (str[i] == '\n') {
+			line_count++;
+		}
+	}
+	if (align & VALIGN_CENTER) {
+		// reduce the y by the number of line counts
+		y -= (line_count * font->char_height / 2);
+	}
+
+	// Accumulate every glyph of the whole (possibly multi-line) string into a
+	// single vertex batch, then submit it with one texture bind and one draw call.
+	// Upper bound: 6 vertices per byte, 4 floats each (glyph count <= byte count).
+	GLfloat *verts = malloc((size_t) len * 6 * 4 * sizeof(GLfloat));
+	if (verts == NULL) {
+		free(s);
+		return;
+	}
+	size_t vcount = 0;
+
+	char *last_s = s;
+	for (size_t i = 0; i <= len; i++) {
+		if (s[i] == '\r' || s[i] == '\n' || s[i] == '\0') {
+			char sep = s[i];
+			s[i] = '\0';
+
+			// lay out one line at a time (kept identical to the original: empty
+			// lines are skipped and do not advance the baseline)
+			if (last_s[0] != '\0') {
+				int16_t lx = x;
 				int32_t str_width = uv_ui_get_string_width(last_s, font);
-
-				// draw one line of text at the time
 				if (align & HALIGN_CENTER) {
 					lx -= str_width / 2;
 				}
@@ -817,17 +836,45 @@ void uv_ui_draw_string(char *str, ui_font_st *font,
 					lx -= str_width;
 				}
 				else {
-
+					// left-aligned: the pen starts at x
 				}
-				if (strlen(last_s)) {
-					render_line(last_s, font, lx, ly, color);
-					y += font->char_height;
-				}
-				last_s = &s[i + 1];
+				append_line_verts(last_s, font, lx, y, verts, &vcount);
+				y += font->char_height;
+			}
+			last_s = &s[i + 1];
+			if (sep == '\0') {
+				break;
 			}
 		}
-		free(s);
 	}
+
+	if (vcount > 0) {
+		glUseProgram(this->text_shader_program);
+
+		color_st col = uv_uic(color);
+		GLfloat c[4] = { col.r / 255.0f, col.g / 255.0f,
+				col.b / 255.0f, col.a / 255.0f };
+		glUniform4fv(uniform_color, 1, c);
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, font->atlas_tex);
+		glUniform1i(uniform_tex, 0);
+
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+		glEnableVertexAttribArray(attribute_coord);
+		glBindBuffer(GL_ARRAY_BUFFER, this->text_vbo);
+		glBufferData(GL_ARRAY_BUFFER, vcount * 4 * sizeof(GLfloat), verts,
+				GL_DYNAMIC_DRAW);
+		glVertexAttribPointer(attribute_coord, 4, GL_FLOAT, GL_FALSE, 0, 0);
+
+		glDrawArrays(GL_TRIANGLES, 0, (GLsizei) vcount);
+
+		glDisableVertexAttribArray(attribute_coord);
+		glUseProgram(0);
+	}
+
+	free(verts);
+	free(s);
 }
 
 
@@ -1037,11 +1084,20 @@ void uv_ui_dlswap(void) {
 		    }
 		}
 		else {
-			printf("Terminating GLFW\n");
-			glfwTerminate();
-			this->window = NULL;
-			uv_ui_destroy();
-			exit(0);
+			// The user closed the window (X button / Alt-F4). Terminate the whole
+			// application. This is routed through the same path as Ctrl-C — raise
+			// SIGINT so the installed handler runs the application's cleanup and
+			// _exit()s — rather than exit(): calling exit() from this render thread
+			// flushes the captured stdout/stderr back through the log-capture pipe
+			// and runs atexit handlers, which can deadlock and leave the process
+			// running (the window "won't close"). If for any reason the handler
+			// does not terminate us promptly, _exit() below is a hard fallback so
+			// the window always closes.
+			kill(getpid(), SIGINT);
+			for (int i = 0; i < 200; i++) {
+				usleep(5000);	// up to ~1s for the SIGINT handler to _exit()
+			}
+			_exit(0);
 		}
 	}
 }
@@ -1125,133 +1181,182 @@ static void resize_callback(GLFWwindow* window, int width, int height) {
 
 
 
-// Uploads the currently loaded FreeType glyph (face->glyph) into a texture and
-// stores it in the given font glyph slot. Any texture previously held by the
-// slot is deleted first so repeated load_fonts() calls (e.g. on resize) do not
-// leak textures.
-static void store_glyph(ui_font_st *font, FT_GlyphSlot glyph, uint8_t slot) {
-	glDeleteTextures(1, &font->ft_char[slot].TextureID);
+// The glyph slots to bake into each font: the 128 ASCII slots (slot == codepoint)
+// followed by the non-ASCII glyphs remapped into their low UV_UI_GLYPH_* slots so
+// UTF-8 source strings render once uv_ui_str_to_glyphs() has translated them.
+#define FONT_ATLAS_PAD		2
+#define FONT_ATLAS_WIDTH	1024
 
-	unsigned int texture;
-	glActiveTexture(GL_TEXTURE0);
-	glGenTextures(1, &texture);
-	glBindTexture(GL_TEXTURE_2D, texture);
-	// set texture options
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	/* Upload the "bitmap", which contains an 8-bit grayscale image,
-	 * as an alpha texture */
-	glTexImage2D(
-			GL_TEXTURE_2D,
-			0,
-			GL_ALPHA,
-			glyph->bitmap.width,
-			glyph->bitmap.rows,
-			0,
-			GL_ALPHA,
-			GL_UNSIGNED_BYTE,
-			glyph->bitmap.buffer);
-	// now store character for later use
-	font->ft_char[slot].TextureID = texture;
-	font->ft_char[slot].advance = glyph->advance.x;
-	font->ft_char[slot].bearing_x = glyph->bitmap_left;
-	font->ft_char[slot].bearing_y = glyph->bitmap_top;
-	font->ft_char[slot].size_x = glyph->bitmap.width;
-	font->ft_char[slot].size_y = glyph->bitmap.rows;
+static const struct {
+	uint8_t slot;
+	uint32_t codepoint;
+} font_extra_glyphs[] = {
+		{ UV_UI_GLYPH_a_UML, 0x00E4 },
+		{ UV_UI_GLYPH_o_UML, 0x00F6 },
+		{ UV_UI_GLYPH_a_RING, 0x00E5 },
+		{ UV_UI_GLYPH_A_UML, 0x00C4 },
+		{ UV_UI_GLYPH_O_UML, 0x00D6 },
+		{ UV_UI_GLYPH_A_RING, 0x00C5 },
+};
+#define FONT_EXTRA_COUNT	(sizeof(font_extra_glyphs) / sizeof(font_extra_glyphs[0]))
+#define FONT_GLYPH_COUNT	(128 + FONT_EXTRA_COUNT)
+
+
+// Bakes every glyph of the currently-sized *face* into a single atlas texture for
+// *font*: the glyphs are shelf-packed left-to-right, wrapping rows, and the whole
+// atlas is uploaded with one glTexImage2D. ft_char[] then records each glyph's
+// pixel rectangle within the atlas (plus its metrics), so uv_ui_draw_string() can
+// render an entire string with one texture bind and one draw call rather than one
+// per glyph. Every glyph is rendered twice (once to measure/pack, once to blit);
+// this only runs at start-up and on window resize.
+static void build_font_atlas(ui_font_st *font, FT_Face face) {
+	// the codepoint to load for slot i, and which ft_char slot it lands in
+	uint32_t cp[FONT_GLYPH_COUNT];
+	uint8_t slot[FONT_GLYPH_COUNT];
+	for (uint32_t c = 0; c < 128; c++) {
+		cp[c] = c;
+		slot[c] = c;
+	}
+	for (uint32_t j = 0; j < FONT_EXTRA_COUNT; j++) {
+		cp[128 + j] = font_extra_glyphs[j].codepoint;
+		slot[128 + j] = font_extra_glyphs[j].slot;
+	}
+
+	// pass 1: load each glyph, record metrics, and shelf-pack to assign positions
+	int cur_x = FONT_ATLAS_PAD, cur_y = FONT_ATLAS_PAD, row_h = 0;
+	for (uint32_t i = 0; i < FONT_GLYPH_COUNT; i++) {
+		if (FT_Load_Char(face, cp[i], FT_LOAD_RENDER)) {
+			memset(&font->ft_char[slot[i]], 0, sizeof(font->ft_char[slot[i]]));
+			continue;
+		}
+		FT_GlyphSlot g = face->glyph;
+		int w = g->bitmap.width, h = g->bitmap.rows;
+		if (cur_x + w + FONT_ATLAS_PAD > FONT_ATLAS_WIDTH) {
+			// wrap to the next shelf
+			cur_x = FONT_ATLAS_PAD;
+			cur_y += row_h + FONT_ATLAS_PAD;
+			row_h = 0;
+		}
+		font->ft_char[slot[i]].atlas_x = cur_x;
+		font->ft_char[slot[i]].atlas_y = cur_y;
+		font->ft_char[slot[i]].size_x = w;
+		font->ft_char[slot[i]].size_y = h;
+		font->ft_char[slot[i]].bearing_x = g->bitmap_left;
+		font->ft_char[slot[i]].bearing_y = g->bitmap_top;
+		font->ft_char[slot[i]].advance = g->advance.x;
+		cur_x += w + FONT_ATLAS_PAD;
+		if (h > row_h) {
+			row_h = h;
+		}
+	}
+	int atlas_h = cur_y + row_h + FONT_ATLAS_PAD;
+
+	// pass 2: render each glyph again and blit it into the CPU atlas buffer
+	uint8_t *buf = calloc((size_t) FONT_ATLAS_WIDTH * atlas_h, 1);
+	if (buf != NULL) {
+		for (uint32_t i = 0; i < FONT_GLYPH_COUNT; i++) {
+			if (FT_Load_Char(face, cp[i], FT_LOAD_RENDER)) {
+				continue;
+			}
+			FT_GlyphSlot g = face->glyph;
+			int ax = font->ft_char[slot[i]].atlas_x;
+			int ay = font->ft_char[slot[i]].atlas_y;
+			for (unsigned int row = 0; row < g->bitmap.rows; row++) {
+				memcpy(buf + (size_t) (ay + row) * FONT_ATLAS_WIDTH + ax,
+						g->bitmap.buffer + (size_t) row * g->bitmap.pitch,
+						g->bitmap.width);
+			}
+		}
+
+		// upload the whole atlas as a single 8-bit alpha texture
+		glDeleteTextures(1, &font->atlas_tex);
+		unsigned int texture;
+		glActiveTexture(GL_TEXTURE0);
+		glGenTextures(1, &texture);
+		glBindTexture(GL_TEXTURE_2D, texture);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, FONT_ATLAS_WIDTH, atlas_h, 0,
+				GL_ALPHA, GL_UNSIGNED_BYTE, buf);
+		font->atlas_tex = texture;
+		font->atlas_w = FONT_ATLAS_WIDTH;
+		font->atlas_h = atlas_h;
+		free(buf);
+	}
 }
 
+
+// Load all UI_MAX_FONT_COUNT sizes from the TTF at *path* into *fonts*. If the
+// file cannot be opened and *mem* is given, falls back to that in-memory font so
+// the UI still renders text regardless of the working directory.
+static void load_font_face(FT_Library ft, const char *path, ui_font_st *fonts,
+		const unsigned char *mem, unsigned int mem_len) {
+	FT_Face face;
+	FT_Error fterr = FT_New_Face(ft, path, 0, &face);
+	if (fterr && (mem != NULL)) {
+		fterr = FT_New_Memory_Face(ft, mem, mem_len, 0, &face);
+	}
+	if (fterr) {
+		printf("Could not load font '%s'\n", path);
+	}
+	else {
+		printf("Loaded font '%s'\n", path);
+
+		// fetch the character dimensions from font sizes
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // disable byte-alignment restriction
+		for (uint32_t i = 0; i < UI_MAX_FONT_COUNT; i++) {
+			int32_t font_size = font_sizes[i] * this->scale;
+			printf("Loading font size %i... ", font_size);
+			fflush(stdout);
+			FT_Set_Pixel_Sizes(face, 0, font_size);
+			ui_font_st *font = &fonts[i];
+
+			font->char_height = face->size->metrics.height / 64 / this->scale;
+
+			build_font_atlas(font, face);
+
+			printf("done\n");
+			fflush(stdout);
+		}
+		FT_Done_Face(face);
+	}
+}
 
 	// free the previously loaded fonts
 static void load_fonts(void) {
 	free_fonts();
-	// install the font
+	// install the fonts
 	FT_Library ft;
 	if (FT_Init_FreeType(&ft)) {
 		printf("Could not init Freetype\n");
 	}
 	else {
-		FT_Face face;
-		// Use the font file if present (per-project override), otherwise fall
-		// back to the font compiled into the binary so the UI renders text
-		// regardless of the working directory.
-		FT_Error fterr = FT_New_Face(ft, "fonts/LiberationSans-Regular.ttf", 0, &face);
-		if (fterr) {
-			fterr = FT_New_Memory_Face(ft, embedded_font_ttf,
-					embedded_font_ttf_len, 0, &face);
-		}
-		if (fterr) {
-			printf("Could not load font '%s'\n", DEFAULT_FONT);
-		}
-		else {
-			printf("Loaded font '%s'\n", DEFAULT_FONT);
-
-			// fetch the character dimensions from font sizes
-			glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // disable byte-alignment restriction
-			for (uint32_t i = 0; i < UI_MAX_FONT_COUNT; i++) {
-				int32_t font_size = font_sizes[i] * this->scale;
-				printf("Loading font size %i... ", font_size);
-				fflush(stdout);
-				FT_Set_Pixel_Sizes(face, 0, font_size);
-				ui_font_st *font = &ui_fonts[i];
-
-				font->char_height = face->size->metrics.height / 64 / this->scale;
-
-				for (unsigned char c = 0; c < 128; c++) {
-					// load character glyph
-					if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
-						printf("Failed to load glyph '%c' from font '%s'\n", c, DEFAULT_FONT);
-						fflush(stdout);
-						memset(&font->ft_char[c], 0, sizeof(font->ft_char[c]));
-					}
-					else {
-						store_glyph(font, face->glyph, c);
-					}
-				}
-
-				// load the non-ASCII glyphs into their remapped low slots. The
-				// Unicode codepoints map to UV_UI_GLYPH_* (see uv_ui_common.h),
-				// so UTF-8 source strings render once uv_ui_str_to_glyphs() has
-				// translated them.
-				static const struct {
-					uint8_t slot;
-					uint32_t codepoint;
-				} extra_glyphs[] = {
-						{ UV_UI_GLYPH_a_UML, 0x00E4 },
-						{ UV_UI_GLYPH_o_UML, 0x00F6 },
-						{ UV_UI_GLYPH_a_RING, 0x00E5 },
-						{ UV_UI_GLYPH_A_UML, 0x00C4 },
-						{ UV_UI_GLYPH_O_UML, 0x00D6 },
-						{ UV_UI_GLYPH_A_RING, 0x00C5 },
-				};
-				for (uint32_t j = 0; j < sizeof(extra_glyphs) / sizeof(extra_glyphs[0]); j++) {
-					if (FT_Load_Char(face, extra_glyphs[j].codepoint, FT_LOAD_RENDER)) {
-						printf("Failed to load glyph U+%04X from font '%s'\n",
-								extra_glyphs[j].codepoint, DEFAULT_FONT);
-						fflush(stdout);
-					}
-					else {
-						store_glyph(font, face->glyph, extra_glyphs[j].slot);
-					}
-				}
-				printf("done\n");
-				fflush(stdout);
-			}
-			FT_Done_Face(face);
-		}
+		// Proportional UI font: use the font file if present (per-project
+		// override), otherwise fall back to the font compiled into the binary.
+		load_font_face(ft, "fonts/" DEFAULT_FONT, ui_fonts,
+				embedded_font_ttf, embedded_font_ttf_len);
+		// Monospace font for the log and device terminal views. Falls back to the
+		// embedded proportional font if its file is missing (so text still shows,
+		// just not fixed-pitch).
+		load_font_face(ft, "fonts/" MONO_FONT, ui_mono_fonts,
+				embedded_font_ttf, embedded_font_ttf_len);
 		FT_Done_FreeType(ft);
 	}
 }
 
 static void free_fonts(void) {
-	for (uint32_t i = 0; i < UI_MAX_FONT_COUNT; i++) {
-		if (ui_fonts[i].char_height != 0) {
-			for (unsigned char c = 0; c < 128; c++) {
-				glDeleteTextures(1, &ui_fonts[i].ft_char[c].TextureID);
+	ui_font_st *arrays[2] = { ui_fonts, ui_mono_fonts };
+	for (uint32_t a = 0; a < 2; a++) {
+		for (uint32_t i = 0; i < UI_MAX_FONT_COUNT; i++) {
+			if (arrays[a][i].char_height != 0) {
+				glDeleteTextures(1, &arrays[a][i].atlas_tex);
+				arrays[a][i].atlas_tex = 0;
 			}
+			arrays[a][i].char_height = 0;
 		}
-		ui_fonts[i].char_height = 0;
 	}
 }
 
@@ -1417,6 +1522,7 @@ bool uv_ui_init(void) {
 	// initialize the font sizes
 	for (uint32_t i = 0; i < UI_MAX_FONT_COUNT; i++) {
 		ui_fonts[i].char_height = font_sizes[i];
+		ui_mono_fonts[i].char_height = font_sizes[i];
 	}
 	// initialize the key press buffer
 	uv_ring_buffer_init(&this->key_press, this->key_press_buffer,

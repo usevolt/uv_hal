@@ -56,6 +56,18 @@
 #define font83	ui_fonts[7]
 #define font108	ui_fonts[8]
 
+// Monospace fonts, matched in size to font16..font108 above. Use these where
+// text is laid out in columns (e.g. the log and device terminal views).
+#define mono_font16		ui_mono_fonts[0]
+#define mono_font20		ui_mono_fonts[1]
+#define mono_font25		ui_mono_fonts[2]
+#define mono_font28		ui_mono_fonts[3]
+#define mono_font36		ui_mono_fonts[4]
+#define mono_font49		ui_mono_fonts[5]
+#define mono_font63		ui_mono_fonts[6]
+#define mono_font83		ui_mono_fonts[7]
+#define mono_font108	ui_mono_fonts[8]
+
 
 
 
