@@ -313,7 +313,7 @@ char *uv_can_set_up(bool force_set_up) {
 				"ip link set %s type can bitrate %u; "
 				"ip link set %s txqueuelen 1000; "
 				"ip link set dev %s up",
-				this->dev, this->dev, this->baudrate, this->dev);
+				this->dev, this->dev, this->baudrate, this->dev, this->dev);
 
 		// In GUI mode escalate with pkexec, which pops up a native password
 		// dialog; otherwise use sudo, which prompts on the controlling terminal.

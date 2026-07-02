@@ -42,6 +42,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <signal.h>
+#include <pthread.h>
 
 #include "GL/glew.h"
 #include <GLFW/glfw3.h>
@@ -1090,9 +1091,20 @@ void uv_ui_dlswap(void) {
 			// _exit()s — rather than exit(): calling exit() from this render thread
 			// flushes the captured stdout/stderr back through the log-capture pipe
 			// and runs atexit handlers, which can deadlock and leave the process
-			// running (the window "won't close"). If for any reason the handler
-			// does not terminate us promptly, _exit() below is a hard fallback so
-			// the window always closes.
+			// running (the window "won't close").
+			//
+			// Block SIGINT on THIS (render) thread first so the kernel delivers it
+			// to a different thread. Otherwise the handler could run right here and,
+			// if its cleanup blocks (e.g. writing to a full log-capture pipe, or a
+			// malloc/stdio lock held by the interrupted context), it would never
+			// return and the _exit() fallback below would never be reached — the
+			// process would hang with the window closed. With SIGINT masked here we
+			// always fall through to _exit(), guaranteeing the process dies even if
+			// the handler stalls on another thread.
+			sigset_t sigint_set;
+			sigemptyset(&sigint_set);
+			sigaddset(&sigint_set, SIGINT);
+			pthread_sigmask(SIG_BLOCK, &sigint_set, NULL);
 			kill(getpid(), SIGINT);
 			for (int i = 0; i < 200; i++) {
 				usleep(5000);	// up to ~1s for the SIGINT handler to _exit()
