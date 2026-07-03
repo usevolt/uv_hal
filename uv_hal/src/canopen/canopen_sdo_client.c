@@ -55,10 +55,31 @@
 
 
 
-/// @brief: Send a SDO Client abort response message
+/// @brief: Send a SDO Client abort request message to the server and mark the
+/// transfer as aborted.
+///
+/// The abort has to be addressed to the *server's* request COB-ID
+/// (CANOPEN_SDO_REQUEST_ID + server_node_id), exactly like every other frame
+/// this client sends (see the segmented paths that build their frames on
+/// CANOPEN_SDO_REQUEST_ID + node_id). The generic _uv_canopen_sdo_abort()
+/// helper instead builds the id from the *local* node id and the response
+/// base (CANOPEN_SDO_RESPONSE_ID), which is correct for the SDO server role
+/// but sends a client abort to the wrong COB-ID, so the server never sees it.
+/// When that happens a segmented transfer left open on the server is not
+/// cancelled and the server self-aborts with CANOPEN_SDO_ERROR_SDO_PROTOCOL_TIMED_OUT
+/// (0x05040000). Build and send the abort with the correct addressing here.
 static inline void sdo_client_abort(uint16_t main_index,
 				uint8_t sub_index, uv_sdo_error_codes_e err_code) {
-	_uv_canopen_sdo_abort(CANOPEN_SDO_RESPONSE_ID, main_index, sub_index, err_code);
+	uv_can_msg_st msg;
+	msg.type = CAN_STD;
+	msg.id = CANOPEN_SDO_REQUEST_ID + this->server_node_id;
+	msg.data_length = 8;
+	SET_CMD_BYTE(&msg, ABORT_DOMAIN_TRANSFER);
+	SET_MINDEX(&msg, main_index);
+	SET_SINDEX(&msg, sub_index);
+	msg.data_32bit[1] = err_code;
+	_uv_canopen_sdo_send(&msg);
+
 	this->last_err_code = err_code;
 	this->state = CANOPEN_SDO_STATE_TRANSFER_ABORTED;
 }
