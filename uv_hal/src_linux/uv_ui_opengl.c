@@ -50,6 +50,7 @@
 #include FT_FREETYPE_H
 // font glyph data compiled into the binary (used when no font file is found)
 #include "ui/embedded_font.h"
+#include "ui/embedded_mono_font.h"
 
 
 #if !defined(CONFIG_UI_NAME)
@@ -1308,6 +1309,7 @@ static void load_font_face(FT_Library ft, const char *path, ui_font_st *fonts,
 		const unsigned char *mem, unsigned int mem_len) {
 	FT_Face face;
 	FT_Error fterr = FT_New_Face(ft, path, 0, &face);
+	bool from_file = (fterr == 0);
 	if (fterr && (mem != NULL)) {
 		fterr = FT_New_Memory_Face(ft, mem, mem_len, 0, &face);
 	}
@@ -1315,7 +1317,15 @@ static void load_font_face(FT_Library ft, const char *path, ui_font_st *fonts,
 		printf("Could not load font '%s'\n", path);
 	}
 	else {
-		printf("Loaded font '%s'\n", path);
+		// Report the real source: reading "Loaded font '<path>'" while the file was
+		// actually missing (and the embedded fallback used) previously masked a
+		// wrong-fallback bug where the monospace view silently rendered proportional.
+		if (from_file) {
+			printf("Loaded font '%s'\n", path);
+		}
+		else {
+			printf("Loaded embedded fallback font (file '%s' not found)\n", path);
+		}
 
 		// fetch the character dimensions from font sizes
 		glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // disable byte-alignment restriction
@@ -1351,10 +1361,11 @@ static void load_fonts(void) {
 		load_font_face(ft, "fonts/" DEFAULT_FONT, ui_fonts,
 				embedded_font_ttf, embedded_font_ttf_len);
 		// Monospace font for the log and device terminal views. Falls back to the
-		// embedded proportional font if its file is missing (so text still shows,
-		// just not fixed-pitch).
+		// embedded monospace font if its file is missing, so the log/terminal stay
+		// fixed-pitch regardless of the working directory (e.g. when run from an
+		// installed location where no "fonts/" dir sits next to the binary).
 		load_font_face(ft, "fonts/" MONO_FONT, ui_mono_fonts,
-				embedded_font_ttf, embedded_font_ttf_len);
+				embedded_mono_font_ttf, embedded_mono_font_ttf_len);
 		FT_Done_FreeType(ft);
 	}
 }
