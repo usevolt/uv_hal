@@ -63,6 +63,14 @@ struct   _uv_uiwindow_st {
 	int16_t content_bb_xdef;
 	/// @brief: Content bounding boxes default y value
 	int16_t content_bb_ydef;
+	/// @brief: When true, uv_uiwindow_add() grows the content bounding box to
+	/// encompass children that overflow the window, so a scroll bar appears and
+	/// the content can be dragged. Defaults to false: most windows are fixed
+	/// layouts that must never scroll even if a child sits on - or a pixel past -
+	/// an edge. Windows that want auto-scrolling opt in via
+	/// uv_uiwindow_set_content_autogrow(). Explicitly setting a larger content
+	/// box with uv_uiwindow_set_contentbb() enables scrolling regardless.
+	bool content_autogrow;
 	/// @brief: Array which holds the objects. The alignment of the objects is
 	/// determined by the order which they reside in this array.
 	/// The first index is the back-most object,
@@ -116,6 +124,11 @@ uv_bounding_box_st uv_uiwindow_get_contentbb(const void *me);
 
 /// @brief: sets the content bounding box's width in pixels
 void uv_uiwindow_set_contentbb(void *me, const int16_t width_px, const int16_t height_px);
+
+/// @brief: Enables or disables automatic growing of the content bounding box
+/// to fit overflowing children (see the content_autogrow field). Disabled by
+/// default so fixed-layout windows never show a spurious scroll bar.
+void uv_uiwindow_set_content_autogrow(void *me, bool value);
 
 /// @brief: Moves the content area *dx* and *dy* pixels in horizontal and vertical directions,
 /// respectively.

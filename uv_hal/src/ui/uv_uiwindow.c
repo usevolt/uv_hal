@@ -172,6 +172,7 @@ void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array, const uv_ui
 	uv_bounding_box_init(&this->content_bb, 0, 0, 0, 0);
 	this->content_bb_xdef = 0;
 	this->content_bb_ydef = 0;
+	this->content_autogrow = false;
 	this->objects = object_array;
 	this->objects_count = 0;
 	this->bg_c = style->window_c;
@@ -194,16 +195,21 @@ void uv_uiwindow_add(void *me, void *object, uv_bounding_box_st *bb) {
 	this->objects[this->objects_count++] = object;
 	// grow the content bounding box to encompass this child (measured from the
 	// content origin), so a scroll bar appears and dragging scrolls when the
-	// children overflow the window. The content box is never smaller than the
-	// window itself.
-	int16_t child_right = bb->x + bb->width;
-	int16_t child_bottom = bb->y + bb->height;
-	if (this->content_bb.width < child_right) {
-		this->content_bb.width = child_right;
+	// children overflow the window. This is opt-in (uv_uiwindow_set_content_autogrow):
+	// most windows are fixed layouts that must never scroll even if a child sits
+	// on - or a pixel past - an edge. Explicit uv_uiwindow_set_contentbb() still
+	// enables scrolling regardless of this flag.
+	if (this->content_autogrow) {
+		int16_t child_right = bb->x + bb->width;
+		int16_t child_bottom = bb->y + bb->height;
+		if (this->content_bb.width < child_right) {
+			this->content_bb.width = child_right;
+		}
+		if (this->content_bb.height < child_bottom) {
+			this->content_bb.height = child_bottom;
+		}
 	}
-	if (this->content_bb.height < child_bottom) {
-		this->content_bb.height = child_bottom;
-	}
+	// the content box is never smaller than the window itself
 	if (this->content_bb.width < uv_uibb(this)->width) {
 		this->content_bb.width = uv_uibb(this)->width;
 	}
@@ -285,6 +291,10 @@ void uv_uiwindow_set_contentbb(void *me, const int16_t width_px, const int16_t h
 	this->content_bb.height = height_px;
 	uv_uiwindow_content_move(this, 0, 0);
 	uv_ui_refresh(this);
+}
+
+void uv_uiwindow_set_content_autogrow(void *me, bool value) {
+	this->content_autogrow = value;
 }
 
 void uv_uiwindow_content_move(const void *me, const int16_t dx, const int16_t dy) {
