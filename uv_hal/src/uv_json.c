@@ -356,7 +356,6 @@ bool uv_jsonwriter_append_json(uv_json_st *json, char *data) {
 	}
 	else {
 		snprintf(json->start_ptr + jsonlen, len + 2, "%s,", data);
-		printf("%s\n", json->start_ptr + strlen(json->start_ptr) - 1);
 	}
 	return ret;
 }
