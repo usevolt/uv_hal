@@ -60,6 +60,85 @@ static void transmit_next(i2c_e channel);
 static void i2c_transfer_int_callb(uint32_t err_code, uint32_t n);
 
 
+// Maximum number of no-progress poll iterations the blocking master transfer
+// will spin before it gives up, resets the peripheral and aborts. This guards
+// against a missing or stuck I2C slave (e.g. an unpopulated RTC) hanging the
+// calling task – and thus the whole system – forever. The value only needs to
+// be far larger than the idle-poll count of a legitimate byte transfer
+// (a few thousand at normal baudrates), which it is by a wide margin.
+#if !defined(CONFIG_I2C_POLL_TIMEOUT)
+#define CONFIG_I2C_POLL_TIMEOUT			1000000
+#endif
+
+
+// Returns the register block for the given I2C channel.
+static LPC_I2C_T *i2c_get_regs(i2c_e channel) {
+	LPC_I2C_T *ret;
+	if (channel == I2C1) {
+		ret = LPC_I2C1;
+	}
+	else if (channel == I2C2) {
+		ret = LPC_I2C2;
+	}
+	else {
+		ret = LPC_I2C0;
+	}
+	return ret;
+}
+
+
+// Disables and re-enables the I2C peripheral. Toggling I2EN resets the internal
+// state machine and clears a stuck STOP condition, releasing the bus so the
+// waiting loops (both the poll handler and Chip_I2C_MasterTransfer's bus-free
+// wait) can proceed after an aborted transfer.
+static void i2c_bus_reset(i2c_e channel) {
+	LPC_I2C_T *pI2C = i2c_get_regs(channel);
+	pI2C->CONCLR = I2C_CON_I2EN | I2C_CON_STA | I2C_CON_STO |
+			I2C_CON_SI | I2C_CON_AA;
+	pI2C->CONSET = I2C_CON_I2EN;
+}
+
+
+// Set when the chip driver signals a finished (or NAK'd / errored) transfer.
+static volatile bool i2c_xfer_done[I2C_NUM_INTERFACE];
+
+
+// Custom polling master event handler. Mirrors Chip_I2C_EventHandlerPolling but
+// bails out after CONFIG_I2C_POLL_TIMEOUT iterations with no bus state change,
+// so an absent/stuck slave cannot block the transfer forever. On timeout it
+// resets the peripheral to free the bus and aborts the transfer.
+static void i2c_master_event_handler(I2C_ID_T id, I2C_EVENT_T event) {
+	if (event == I2C_EVENT_DONE) {
+		i2c_xfer_done[id] = true;
+	}
+	else if (event == I2C_EVENT_WAIT) {
+		i2c_xfer_done[id] = false;
+		uint32_t idle = 0;
+		while (!i2c_xfer_done[id]) {
+			if (Chip_I2C_IsStateChanged(id)) {
+				// bus made progress: service the state machine
+				Chip_I2C_MasterStateHandler(id);
+				idle = 0;
+			}
+			else {
+				idle++;
+				if (idle >= CONFIG_I2C_POLL_TIMEOUT) {
+					// slave missing / bus stuck: give up and recover
+					i2c_bus_reset(id);
+					i2c_xfer_done[id] = true;
+				}
+				else {
+					// keep polling
+				}
+			}
+		}
+	}
+	else {
+		// I2C_EVENT_LOCK / I2C_EVENT_UNLOCK are not used in polling mode
+	}
+}
+
+
 
 
 
@@ -95,7 +174,7 @@ uv_errors_e _uv_i2c_init(void) {
 #endif
 	Chip_I2C_Init(I2C0);
 	Chip_I2C_SetClockRate(I2C0, CONFIG_I2C0_BAUDRATE);
-	Chip_I2C_SetMasterEventHandler(I2C0, Chip_I2C_EventHandlerPolling);
+	Chip_I2C_SetMasterEventHandler(I2C0, i2c_master_event_handler);
 
 #endif
 
@@ -122,7 +201,7 @@ uv_errors_e _uv_i2c_init(void) {
 #endif
 	Chip_I2C_Init(I2C1);
 	Chip_I2C_SetClockRate(I2C1, CONFIG_I2C1_BAUDRATE);
-	Chip_I2C_SetMasterEventHandler(I2C1, Chip_I2C_EventHandlerPolling);
+	Chip_I2C_SetMasterEventHandler(I2C1, i2c_master_event_handler);
 #endif
 
 
@@ -147,7 +226,7 @@ uv_errors_e _uv_i2c_init(void) {
 #endif
 	Chip_I2C_Init(I2C1);
 	Chip_I2C_SetClockRate(I2C1, CONFIG_I2C2_BAUDRATE);
-	Chip_I2C_SetMasterEventHandler(I2C2, Chip_I2C_EventHandlerPolling);
+	Chip_I2C_SetMasterEventHandler(I2C2, i2c_master_event_handler);
 #endif
 
 	return ret;
@@ -158,8 +237,18 @@ uv_errors_e uv_i2cm_read(i2c_e channel, uint8_t *tx_buffer, uint16_t tx_len,
 		uint8_t *rx_buffer, uint16_t rx_len) {
 	uv_errors_e ret = ERR_NONE;
 
+	// wait for any ongoing transfer to finish, but don't hang forever if the
+	// bus was left stuck by a missing/unresponsive slave: reset and continue
+	uint32_t busywait = 0;
 	while (Chip_I2C_IsMasterActive(channel)) {
-		uv_rtos_task_yield();
+		busywait++;
+		if (busywait >= CONFIG_I2C_POLL_TIMEOUT) {
+			i2c_bus_reset(channel);
+			break;
+		}
+		else {
+			uv_rtos_task_yield();
+		}
 	}
 	I2C_XFER_T xfer = {};
 	if (tx_len) {
