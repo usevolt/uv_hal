@@ -307,4 +307,119 @@ const char *uv_str_next_line(const char *str) {
 }
 
 
+
+// --- public drawing / touch wrappers ----------------------------------------
+//
+// Each public uv_ui_* primitive is a thin wrapper: it calls the active backend's
+// *_impl (uv_ft81x.c or uv_ui_opengl.c / uv_ui_x11.c) and, when CONFIG_UI_REMOTE
+// is enabled, tees the call into the remote UI encoder so the identical frame
+// can be rebuilt on a remote device. Keeping the tee here (backend-neutral)
+// means the encode logic is single-sourced and every widget keeps calling the
+// unchanged public API. The composite uv_ui_draw_shadow* helpers above are
+// mirrored for free since they decompose into these public primitives.
+
+void uv_ui_clear(color_t c) {
+	uv_ui_clear_impl(c);
+#if CONFIG_UI_REMOTE
+	uv_ui_remote_encode_clear(c);
+#endif
+}
+
+void uv_ui_dlswap(void) {
+	uv_ui_dlswap_impl();
+#if CONFIG_UI_REMOTE
+	uv_ui_remote_encode_frame_end();
+#endif
+}
+
+void uv_ui_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
+		int16_t w, int16_t h, uint32_t wrap, color_t c) {
+	uv_ui_draw_bitmap_ext_impl(bitmap, x, y, w, h, wrap, c);
+#if CONFIG_UI_REMOTE
+	uv_ui_remote_encode_bitmap(bitmap, x, y, w, h, wrap, c);
+#endif
+}
+
+void uv_ui_draw_point(int16_t x, int16_t y, color_t color, uint16_t diameter) {
+	uv_ui_draw_point_impl(x, y, color, diameter);
+#if CONFIG_UI_REMOTE
+	uv_ui_remote_encode_point(x, y, color, diameter);
+#endif
+}
+
+void uv_ui_draw_rrect(const int16_t x, const int16_t y,
+		const uint16_t width, const uint16_t height,
+		const uint16_t radius, const color_t color) {
+	uv_ui_draw_rrect_impl(x, y, width, height, radius, color);
+#if CONFIG_UI_REMOTE
+	uv_ui_remote_encode_rrect(x, y, width, height, radius, color);
+#endif
+}
+
+void uv_ui_draw_line(const int16_t start_x, const int16_t start_y,
+		const int16_t end_x, const int16_t end_y,
+		const uint16_t width, const color_t color) {
+	uv_ui_draw_line_impl(start_x, start_y, end_x, end_y, width, color);
+#if CONFIG_UI_REMOTE
+	uv_ui_remote_encode_line(start_x, start_y, end_x, end_y, width, color);
+#endif
+}
+
+void uv_ui_draw_linestrip(const uv_ui_linestrip_point_st *points,
+		const uint16_t point_count, const uint16_t line_width, const color_t color,
+		const uv_ui_strip_type_e type) {
+	uv_ui_draw_linestrip_impl(points, point_count, line_width, color, type);
+#if CONFIG_UI_REMOTE
+	uv_ui_remote_encode_linestrip(points, point_count, line_width, color, type);
+#endif
+}
+
+void uv_ui_draw_polygon(const uv_ui_linestrip_point_st *points,
+		const uint16_t point_count, const color_t color) {
+	uv_ui_draw_polygon_impl(points, point_count, color);
+#if CONFIG_UI_REMOTE
+	uv_ui_remote_encode_polygon(points, point_count, color);
+#endif
+}
+
+void uv_ui_draw_string(char *str, ui_font_st *font,
+		int16_t x, int16_t y, ui_align_e align, color_t color) {
+	uv_ui_draw_string_impl(str, font, x, y, align, color);
+#if CONFIG_UI_REMOTE
+	uv_ui_remote_encode_string(str, font, x, y, align, color);
+#endif
+}
+
+void uv_ui_set_mask(int16_t x, int16_t y, int16_t width, int16_t height) {
+	uv_ui_set_mask_impl(x, y, width, height);
+#if CONFIG_UI_REMOTE
+	uv_ui_remote_encode_mask(x, y, width, height);
+#endif
+}
+
+bool uv_ui_get_touch(int16_t *x, int16_t *y) {
+	bool ret;
+#if CONFIG_UI_REMOTE
+	int16_t rx = 0;
+	int16_t ry = 0;
+	if (uv_ui_remote_active() && uv_ui_remote_get_touch(&rx, &ry)) {
+		// a connected remote overrides the local hardware touch this cycle
+		if (x != NULL) {
+			*x = rx;
+		}
+		if (y != NULL) {
+			*y = ry;
+		}
+		ret = true;
+	}
+	else {
+		ret = uv_ui_get_touch_impl(x, y);
+	}
+#else
+	ret = uv_ui_get_touch_impl(x, y);
+#endif
+	return ret;
+}
+
+
 #endif

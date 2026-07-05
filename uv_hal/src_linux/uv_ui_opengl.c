@@ -439,7 +439,7 @@ uint8_t uv_ui_get_backlight(void) {
 
 
 
-bool uv_ui_get_touch(int16_t *x, int16_t *y) {
+bool uv_ui_get_touch_impl(int16_t *x, int16_t *y) {
 	bool ret;
 
 	// Poll for and process events
@@ -487,7 +487,7 @@ static glc_st c_to_glc(color_t color) {
 }
 
 
-void uv_ui_clear(color_t col) {
+void uv_ui_clear_impl(color_t col) {
 	glc_st c = c_to_glc(col);
     // disable any active scissor box so the whole framebuffer is cleared, not
     // just the last mask rectangle left over from the previous frame
@@ -495,10 +495,10 @@ void uv_ui_clear(color_t col) {
     glClearColor(c.r, c.g, c.b, c.a);
     // Clear the colour buffer immediately, before any widgets are drawn, so the
     // background colour is correct from the very first frame. (The clear used to
-    // be deferred to uv_ui_dlswap() after the buffer swap, so the first frame was
+    // be deferred to uv_ui_dlswap_impl() after the buffer swap, so the first frame was
     // drawn over the default black init clear and looked dark until a later
     // refresh.) Only the colour buffer is cleared here: the depth buffer is left
-    // to uv_ui_dlswap() as before, since the 2D widgets rely on that existing
+    // to uv_ui_dlswap_impl() as before, since the 2D widgets rely on that existing
     // depth-clear timing for correct draw ordering (clearing depth here breaks
     // text rendering).
     glClear(GL_COLOR_BUFFER_BIT);
@@ -506,7 +506,7 @@ void uv_ui_clear(color_t col) {
 
 
 
-void uv_ui_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
+void uv_ui_draw_bitmap_ext_impl(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 		int16_t w, int16_t h, uint32_t wrap, color_t c) {
 	if (bitmap->visible) {
 	uimedia_ll_st *media = uimedia_ll_st_find(bitmap->filename);
@@ -576,7 +576,7 @@ void uv_ui_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 
 
 
-void uv_ui_draw_point(int16_t x, int16_t y, color_t col, uint16_t diameter) {
+void uv_ui_draw_point_impl(int16_t x, int16_t y, color_t col, uint16_t diameter) {
 
 	color_st c = uv_uic(col);
     glColor4ub(c.r, c.g, c.b, c.a);
@@ -596,7 +596,7 @@ void uv_ui_draw_point(int16_t x, int16_t y, color_t col, uint16_t diameter) {
 
 
 
-void uv_ui_draw_rrect(const int16_t x, const int16_t y,
+void uv_ui_draw_rrect_impl(const int16_t x, const int16_t y,
 		const uint16_t w, const uint16_t h,
 		const uint16_t radius, const color_t col) {
 	color_st c = uv_uic(col);
@@ -636,7 +636,7 @@ void uv_ui_draw_rrect(const int16_t x, const int16_t y,
 
 
 
-void uv_ui_draw_line(const int16_t start_x, const int16_t start_y,
+void uv_ui_draw_line_impl(const int16_t start_x, const int16_t start_y,
 		const int16_t end_x, const int16_t end_y,
 		const uint16_t width, const color_t color) {
 	color_st c = uv_uic(color);
@@ -650,7 +650,7 @@ void uv_ui_draw_line(const int16_t start_x, const int16_t start_y,
 
 
 
-void uv_ui_draw_linestrip(const uv_ui_linestrip_point_st *points,
+void uv_ui_draw_linestrip_impl(const uv_ui_linestrip_point_st *points,
 		const uint16_t point_count, const uint16_t line_width, const color_t color,
 		const uv_ui_strip_type_e type) {
 	if (point_count) {
@@ -708,7 +708,7 @@ void uv_ui_touchscreen_calibrate(ui_transfmat_st *transform_matrix) {
 // vertex: clip-space x, y and atlas texture s, t), starting from pen position
 // (x, y) in application space. Advances *vcount* by the number of vertices added
 // (6 per drawn glyph). All glyphs come from the font's single atlas texture, so
-// the whole batch is later drawn in one glDrawArrays call (see uv_ui_draw_string).
+// the whole batch is later drawn in one glDrawArrays call (see uv_ui_draw_string_impl).
 static void append_line_verts(char *str, ui_font_st *font,
 		int16_t x, int16_t y, GLfloat *verts, size_t *vcount) {
 	// coordinates are in application space, and since uv_ui uses fixed window size,
@@ -765,7 +765,7 @@ static void append_line_verts(char *str, ui_font_st *font,
 	}
 }
 
-void uv_ui_draw_string(char *str, ui_font_st *font,
+void uv_ui_draw_string_impl(char *str, ui_font_st *font,
 		int16_t x, int16_t y, ui_align_e align, color_t color) {
 	if ((str == NULL) || (font == NULL)) {
 		return;
@@ -880,7 +880,7 @@ void uv_ui_draw_string(char *str, ui_font_st *font,
 }
 
 
-void uv_ui_draw_polygon(const uv_ui_linestrip_point_st *points,
+void uv_ui_draw_polygon_impl(const uv_ui_linestrip_point_st *points,
 		const uint16_t point_count, const color_t color) {
 	if (point_count >= 3) {
 		color_st c = uv_uic(color);
@@ -897,7 +897,7 @@ void uv_ui_draw_polygon(const uv_ui_linestrip_point_st *points,
 
 
 
-void uv_ui_set_mask(int16_t x, int16_t y, int16_t width, int16_t height) {
+void uv_ui_set_mask_impl(int16_t x, int16_t y, int16_t width, int16_t height) {
 	// Rectangular clip via the GL scissor box. This mirrors the FT81X SCISSOR
 	// display-list commands. The earlier stencil-based implementation was
 	// commented out because it was slow; glScissor is essentially free.
@@ -1058,7 +1058,7 @@ void uv_ui_touchscreen_set_transform_matrix(ui_transfmat_st *transform_matrix) {
 
 
 
-void uv_ui_dlswap(void) {
+void uv_ui_dlswap_impl(void) {
 	if (this->window) {
 		if (!glfwWindowShouldClose(this->window)) {
 
@@ -1218,7 +1218,7 @@ static const struct {
 // Bakes every glyph of the currently-sized *face* into a single atlas texture for
 // *font*: the glyphs are shelf-packed left-to-right, wrapping rows, and the whole
 // atlas is uploaded with one glTexImage2D. ft_char[] then records each glyph's
-// pixel rectangle within the atlas (plus its metrics), so uv_ui_draw_string() can
+// pixel rectangle within the atlas (plus its metrics), so uv_ui_draw_string_impl() can
 // render an entire string with one texture bind and one draw call rather than one
 // per glyph. Every glyph is rendered twice (once to measure/pack, once to blit);
 // this only runs at start-up and on window resize.

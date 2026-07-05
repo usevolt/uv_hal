@@ -604,6 +604,41 @@ void uv_ui_confwindow_exec(const uv_uistyle_st *style);
 
 
 
+/// @brief: Backend implementations of the drawing / touch primitives.
+///
+/// The public uv_ui_* functions above are thin wrappers implemented in the
+/// backend-neutral uv_ui_common.c: they call the matching *_impl (provided by
+/// the active backend, uv_ft81x.c or uv_ui_opengl.c) and, when CONFIG_UI_REMOTE
+/// is set, tee the call into the remote UI encoder. Backends define the *_impl
+/// symbols; nothing else should call them directly except internal backend code
+/// that must bypass the remote tee (e.g. the touchscreen calibration screen).
+void uv_ui_dlswap_impl(void);
+void uv_ui_clear_impl(color_t c);
+void uv_ui_draw_bitmap_ext_impl(uv_uimedia_st *bitmap, int16_t x, int16_t y,
+		int16_t w, int16_t h, uint32_t wrap, color_t c);
+void uv_ui_draw_point_impl(int16_t x, int16_t y, color_t color, uint16_t diameter);
+void uv_ui_draw_rrect_impl(const int16_t x, const int16_t y,
+		const uint16_t width, const uint16_t height,
+		const uint16_t radius, const color_t color);
+void uv_ui_draw_line_impl(const int16_t start_x, const int16_t start_y,
+		const int16_t end_x, const int16_t end_y,
+		const uint16_t width, const color_t color);
+void uv_ui_draw_linestrip_impl(const uv_ui_linestrip_point_st *points,
+		const uint16_t point_count, const uint16_t line_width, const color_t color,
+		const uv_ui_strip_type_e type);
+void uv_ui_draw_polygon_impl(const uv_ui_linestrip_point_st *points,
+		const uint16_t point_count, const color_t color);
+void uv_ui_draw_string_impl(char *str, ui_font_st *font,
+		int16_t x, int16_t y, ui_align_e align, color_t color);
+void uv_ui_set_mask_impl(int16_t x, int16_t y, int16_t width, int16_t height);
+bool uv_ui_get_touch_impl(int16_t *x, int16_t *y);
+
+
+// The remote UI encoder uses the types declared above; include it here so the
+// public wrappers in uv_ui_common.c can call the encode hooks.
+#include "uv_ui_remote.h"
+
+
 #endif
 
 #endif /* UV_UI_COMMON_H_ */

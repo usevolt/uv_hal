@@ -287,7 +287,7 @@ bool uv_ui_get_refresh_request(void) {
 }
 
 
-bool uv_ui_get_touch(int16_t *x, int16_t *y) {
+bool uv_ui_get_touch_impl(int16_t *x, int16_t *y) {
 	bool ret;
 
 	while (XPending(cairo_xlib_surface_get_display(this->surface))) {
@@ -385,7 +385,7 @@ char uv_ui_get_key_press(void) {
 
 
 
-void uv_ui_clear(color_t col) {
+void uv_ui_clear_impl(color_t col) {
 	color_st c = uv_uic(col);
 	cairo_set_source_rgba(this->cairo,
 			CAIRO_C(c.r), CAIRO_C(c.g), CAIRO_C(c.b), CAIRO_C(c.a));
@@ -394,7 +394,7 @@ void uv_ui_clear(color_t col) {
 
 
 
-void uv_ui_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
+void uv_ui_draw_bitmap_ext_impl(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 		int16_t w, int16_t h, uint32_t wrap, color_t c) {
 	cairo_set_source_surface(this->cairo, bitmap->surface_ptr, x, y);
 	cairo_paint(this->cairo);
@@ -402,7 +402,7 @@ void uv_ui_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 
 
 
-void uv_ui_draw_point(int16_t x, int16_t y, color_t col, uint16_t diameter) {
+void uv_ui_draw_point_impl(int16_t x, int16_t y, color_t col, uint16_t diameter) {
 	color_st c = uv_uic(col);
 	cairo_set_source_rgba(this->cairo,
 			CAIRO_C(c.r), CAIRO_C(c.g), CAIRO_C(c.b), CAIRO_C(c.a));
@@ -412,7 +412,7 @@ void uv_ui_draw_point(int16_t x, int16_t y, color_t col, uint16_t diameter) {
 
 
 
-void uv_ui_draw_polygon(const uv_ui_linestrip_point_st *points,
+void uv_ui_draw_polygon_impl(const uv_ui_linestrip_point_st *points,
 		const uint16_t point_count, const color_t color) {
 	if (point_count >= 3) {
 		color_st c = uv_uic(color);
@@ -430,7 +430,7 @@ void uv_ui_draw_polygon(const uv_ui_linestrip_point_st *points,
 
 
 
-void uv_ui_draw_rrect(const int16_t x, const int16_t y,
+void uv_ui_draw_rrect_impl(const int16_t x, const int16_t y,
 		const uint16_t w, const uint16_t h,
 		const uint16_t radius, const color_t col) {
 	color_st c = uv_uic(col);
@@ -462,7 +462,7 @@ void uv_ui_draw_rrect(const int16_t x, const int16_t y,
 
 
 
-void uv_ui_draw_line(const int16_t start_x, const int16_t start_y,
+void uv_ui_draw_line_impl(const int16_t start_x, const int16_t start_y,
 		const int16_t end_x, const int16_t end_y,
 		const uint16_t width, const color_t color) {
 	color_st c = uv_uic(color);
@@ -479,7 +479,7 @@ void uv_ui_draw_line(const int16_t start_x, const int16_t start_y,
 
 
 
-void uv_ui_draw_linestrip(const uv_ui_linestrip_point_st *points,
+void uv_ui_draw_linestrip_impl(const uv_ui_linestrip_point_st *points,
 		const uint16_t point_count, const uint16_t line_width, const color_t color,
 		const uv_ui_strip_type_e type) {
 	color_st c = uv_uic(color);
@@ -552,7 +552,7 @@ void uv_ui_touchscreen_calibrate(ui_transfmat_st *transform_matrix) {
 
 
 
-void uv_ui_draw_string(char *str, ui_font_st *font,
+void uv_ui_draw_string_impl(char *str, ui_font_st *font,
 		int16_t x, int16_t y, ui_align_e align, color_t color) {
 
 	if (str) {
@@ -636,11 +636,11 @@ void uv_ui_draw_string(char *str, ui_font_st *font,
 
 
 void uv_ui_force_mask(int16_t x, int16_t y, int16_t width, int16_t height) {
-	uv_ui_set_mask(x, y, width, height);
+	uv_ui_set_mask_impl(x, y, width, height);
 }
 
 
-void uv_ui_set_mask(int16_t x, int16_t y, int16_t width, int16_t height) {
+void uv_ui_set_mask_impl(int16_t x, int16_t y, int16_t width, int16_t height) {
 	cairo_reset_clip(this->cairo);
 	cairo_rectangle(this->cairo, (double) x, (double) y, (double) width, (double) height);
 	cairo_clip(this->cairo);
@@ -748,7 +748,7 @@ void uv_ui_touchscreen_set_transform_matrix(ui_transfmat_st *transform_matrix) {
 }
 
 
-void uv_ui_dlswap(void) {
+void uv_ui_dlswap_impl(void) {
 	if (this->cairo) {
 		cairo_pop_group_to_source(this->cairo);
 		cairo_paint(this->cairo);

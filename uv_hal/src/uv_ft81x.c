@@ -545,8 +545,8 @@ bool uv_ui_init(void) {
 		write16(REG_HSIZE, CONFIG_FT81X_HSIZE);
 		write16(REG_VSIZE, CONFIG_FT81X_VSIZE);
 
-		uv_ui_clear(C(0xFFFFFFFF));
-		uv_ui_dlswap();
+		uv_ui_clear_impl(C(0xFFFFFFFF));
+		uv_ui_dlswap_impl();
 
 		uint8_t pclk = (60000000 / CONFIG_FT81X_PCLK_HZ) % 0x7F;
 		write8(REG_PCLK, pclk);
@@ -559,7 +559,7 @@ bool uv_ui_init(void) {
 		write8(REG_GPIO_DIR, 0x80  | read8(REG_GPIO_DIR));
 		write8(REG_GPIO, 0x80 | read8(REG_GPIO));
 
-		uv_ui_dlswap();
+		uv_ui_dlswap_impl();
 
 
 
@@ -589,7 +589,7 @@ bool uv_ui_init(void) {
 		// lastly wait until the screen is not pressed.
 		uv_delay_st d;
 		uv_delay_init(&d, 100);
-		while (uv_ui_get_touch(NULL, NULL)) {
+		while (uv_ui_get_touch_impl(NULL, NULL)) {
 			uv_delay(&d, 20);
 			uv_rtos_task_delay(20);
 			uv_wdt_update();
@@ -1001,7 +1001,7 @@ static void draw_line(char *str, ui_font_st *font,
 
 
 
-void uv_ui_dlswap(void) {
+void uv_ui_dlswap_impl(void) {
 	writedl(DISPLAY());
 	write8(REG_DLSWAP, 0x2);
 	DEBUG("ramdl index: 0x%x\n", (unsigned int) this->dl_index);
@@ -1054,7 +1054,7 @@ uint8_t uv_ui_get_backlight(void) {
 
 
 
-void uv_ui_clear(color_t c) {
+void uv_ui_clear_impl(color_t c) {
 	if ((!this->clear_color_init) ||
 			(((color_st*) &c)->a != this->clear_color.a)) {
 		DEBUG("set clear alpha\n");
@@ -1459,7 +1459,7 @@ void uv_uimedia_free(uv_uimedia_st *bitmap) {
 	}
 }
 
-void uv_ui_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
+void uv_ui_draw_bitmap_ext_impl(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 		int16_t w, int16_t h, uint32_t wrap, color_t c) {
 
 	if (bitmap->visible &&
@@ -1499,7 +1499,7 @@ void uv_ui_draw_bitmap_ext(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 
 
 
-void uv_ui_draw_point(int16_t x, int16_t y, color_t color, uint16_t diameter) {
+void uv_ui_draw_point_impl(int16_t x, int16_t y, color_t color, uint16_t diameter) {
 	if (uv_ui_is_visible(x - diameter / 2, y - diameter / 2, diameter, diameter)) {
 		set_color(color);
 		set_begin(BEGIN_POINTS);
@@ -1513,7 +1513,7 @@ void uv_ui_draw_point(int16_t x, int16_t y, color_t color, uint16_t diameter) {
 }
 
 
-void uv_ui_draw_rrect(const int16_t x, const int16_t y,
+void uv_ui_draw_rrect_impl(const int16_t x, const int16_t y,
 		const uint16_t width, const uint16_t height,
 		const uint16_t radius, const color_t color) {
 	if (uv_ui_is_visible(x, y, width, height)) {
@@ -1538,7 +1538,7 @@ void uv_ui_draw_rrect(const int16_t x, const int16_t y,
 }
 
 
-void uv_ui_draw_line(const int16_t start_x, const int16_t start_y,
+void uv_ui_draw_line_impl(const int16_t start_x, const int16_t start_y,
 		const int16_t end_x, const int16_t end_y,
 		const uint16_t width, const color_t color) {
 	if (uv_ui_is_visible(start_x, start_y, end_x, end_y)) {
@@ -1558,7 +1558,7 @@ void uv_ui_draw_line(const int16_t start_x, const int16_t start_y,
 
 
 
-void uv_ui_draw_linestrip(const uv_ui_linestrip_point_st *points,
+void uv_ui_draw_linestrip_impl(const uv_ui_linestrip_point_st *points,
 		const uint16_t point_count, const uint16_t line_width, const color_t color,
 		const uv_ui_strip_type_e type) {
 	set_color(color);
@@ -1578,7 +1578,7 @@ void uv_ui_draw_linestrip(const uv_ui_linestrip_point_st *points,
 
 
 
-void uv_ui_draw_polygon(const uv_ui_linestrip_point_st *points,
+void uv_ui_draw_polygon_impl(const uv_ui_linestrip_point_st *points,
 		const uint16_t point_count, const color_t color) {
 	if (point_count >= 3) {
 		// Filled polygon via the stencil buffer (even-odd rule), as recommended
@@ -1644,10 +1644,10 @@ void uv_ui_draw_polygon(const uv_ui_linestrip_point_st *points,
 void uv_ui_touchscreen_calibrate(ui_transfmat_st *transform_matrix) {
 	DEBUG("Starting the screen calibration\n");
 
-	uv_ui_dlswap();
-	uv_ui_set_mask(0, 0, LCD_W_PX, LCD_H_PX);
-	uv_ui_clear(C(0xFF002040));
-	uv_ui_draw_string("Calibrate the touchscreen\n"
+	uv_ui_dlswap_impl();
+	uv_ui_set_mask_impl(0, 0, LCD_W_PX, LCD_H_PX);
+	uv_ui_clear_impl(C(0xFF002040));
+	uv_ui_draw_string_impl("Calibrate the touchscreen\n"
 			"by touching the flashing points",
 			&font28,
 			LCD_WPPT(500),
@@ -1658,7 +1658,7 @@ void uv_ui_touchscreen_calibrate(ui_transfmat_st *transform_matrix) {
 
 	while (true) {
 		// wait until the screen is not pressed
-		while (uv_ui_get_touch(NULL, NULL));
+		while (uv_ui_get_touch_impl(NULL, NULL));
 
 		write32(MEMMAP_RAM_CMD_BEGIN + this->cmdwriteaddr, CMD_CALIBRATE);
 		this->cmdwriteaddr += 8;
@@ -1682,9 +1682,9 @@ void uv_ui_touchscreen_calibrate(ui_transfmat_st *transform_matrix) {
 	}
 	this->dl_index = read16(REG_CMD_DL);
 	DEBUG("screen calibration done\n");
-	uv_ui_dlswap();
-	uv_ui_clear(CONFIG_FT81X_SCREEN_COLOR);
-	uv_ui_dlswap();
+	uv_ui_dlswap_impl();
+	uv_ui_clear_impl(CONFIG_FT81X_SCREEN_COLOR);
+	uv_ui_dlswap_impl();
 
 	if (transform_matrix) {
 		transform_matrix->mat[0] = read32(REG_TOUCH_TRANSFORM_A);
@@ -1711,7 +1711,7 @@ void uv_ui_touchscreen_set_transform_matrix(ui_transfmat_st *transform_matrix) {
 
 
 
-bool uv_ui_get_touch(int16_t *x, int16_t *y) {
+bool uv_ui_get_touch_impl(int16_t *x, int16_t *y) {
 	uint32_t t = read32(REG_TOUCH_SCREEN_XY);
 	int16_t tx = t >> 16;
 	int16_t ty = t & 0xFFFF;
@@ -1768,7 +1768,7 @@ int16_t uv_ui_get_string_width(char *str, ui_font_st *font) {
 
 
 
-void uv_ui_draw_string(char *str, ui_font_st *font,
+void uv_ui_draw_string_impl(char *str, ui_font_st *font,
 		int16_t x, int16_t y, ui_align_e align, color_t color) {
 	if (str != NULL && font != NULL) {
 		char *str_ptr = str;
@@ -1813,7 +1813,7 @@ void uv_ui_draw_string(char *str, ui_font_st *font,
 
 
 
-void uv_ui_set_mask(int16_t x, int16_t y, int16_t width, int16_t height) {
+void uv_ui_set_mask_impl(int16_t x, int16_t y, int16_t width, int16_t height) {
 	if (x < 0) {
 		width += x;
 		x = 0;
