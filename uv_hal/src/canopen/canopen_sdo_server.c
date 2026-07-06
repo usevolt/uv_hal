@@ -122,10 +122,6 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 		uv_bootloader_start();
 	}
 #endif
-#if (CONFIG_CANOPEN_UPDATE_PDO_MAPPINGS_ON_NODEID_WRITE == 1)
-	uint8_t last_nodeid = uv_canopen_get_our_nodeid();
-#endif
-
 	// receiving an abort message returns the node to default state
 	if (sdo_type == ABORT_DOMAIN_TRANSFER) {
 		uv_delay_end(&this->delay);
@@ -179,10 +175,19 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 						memcpy(&reply_msg.data_32bit[1], &msg->data_32bit[1], 4);
 						_uv_canopen_sdo_send(&reply_msg);
 
-						// break PDO linkage if new COB-ID is written
-						if ((this->mindex & ~0x700) == (CANOPEN_TXPDO1_ID & ~0x700) &&
-								this->sindex == 1) {
-							uint8_t pdo = ((this->mindex & 0x700) >> 8);
+						// break PDO linkage if a new COB-ID is written to a PDO
+						// communication parameter (COB-ID is subindex 1). Once a
+						// COB-ID has been configured explicitly it must no longer
+						// follow our NODE-ID when that changes.
+						// Note: the comm parameters live at object indices
+						// CONFIG_CANOPEN_TXPDO_COM_INDEX + pdo (0x1800 + pdo) and
+						// CONFIG_CANOPEN_RXPDO_COM_INDEX + pdo (0x1400 + pdo), NOT
+						// at the PDO message id (0x180 / 0x200) bases.
+						if (this->sindex == 1 &&
+								this->mindex >= CONFIG_CANOPEN_TXPDO_COM_INDEX &&
+								this->mindex < CONFIG_CANOPEN_TXPDO_COM_INDEX +
+										CONFIG_CANOPEN_TXPDO_COUNT) {
+							uint8_t pdo = this->mindex - CONFIG_CANOPEN_TXPDO_COM_INDEX;
 							canopen_pdo_com_parameter_st *p =
 									uv_canopen_txpdo_get_com(pdo);
 							if (p) {
@@ -190,10 +195,11 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 										CANOPEN_PDO_RESERVED_FLAGS_BREAKNODEIDLINKAGE;
 							}
 						}
-						else if ((this->mindex & ~0x700) ==
-								(CANOPEN_RXPDO1_ID & ~0x700) &&
-								this->sindex == 1) {
-							uint8_t pdo = ((this->mindex & 0x700) >> 8);
+						else if (this->sindex == 1 &&
+								this->mindex >= CONFIG_CANOPEN_RXPDO_COM_INDEX &&
+								this->mindex < CONFIG_CANOPEN_RXPDO_COM_INDEX +
+										CONFIG_CANOPEN_RXPDO_COUNT) {
+							uint8_t pdo = this->mindex - CONFIG_CANOPEN_RXPDO_COM_INDEX;
 							canopen_pdo_com_parameter_st *p =
 									uv_canopen_rxpdo_get_com(pdo);
 							if (p) {
@@ -559,34 +565,14 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 				CANOPEN_SDO_ERROR_CMD_SPECIFIER_NOT_FOUND);
 	}
 
-#if (CONFIG_CANOPEN_UPDATE_PDO_MAPPINGS_ON_NODEID_WRITE == 1)
-	if (GET_MINDEX(msg) == CONFIG_CANOPEN_NODEID_INDEX) {
-		uint8_t new_nodeid = CONFIG_NON_VOLATILE_START.id;
-
-
-		// copy new nodeid to all PDO's that had our nodeid in them
-		for (uint8_t i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
-			canopen_pdo_com_parameter_st *txcom = uv_canopen_txpdo_get_com(i);
-			if (!(txcom->cob_id & CANOPEN_PDO_EXT) &&
-					!(txcom->cob_id & CANOPEN_PDO_DISABLED)) {
-				if ((txcom->cob_id & 0x7F) == last_nodeid) {
-					txcom->cob_id &= ~(0x7F);
-					txcom->cob_id |= new_nodeid;
-				}
-			}
-		}
-		for (uint8_t i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
-			canopen_pdo_com_parameter_st *rxcom = uv_canopen_rxpdo_get_com(i);
-			if (!(rxcom->cob_id & CANOPEN_PDO_EXT) &&
-					!(rxcom->cob_id & CANOPEN_PDO_DISABLED)) {
-				if ((rxcom->cob_id & 0x7F) == last_nodeid) {
-					rxcom->cob_id &= ~(0x7F);
-					rxcom->cob_id |= new_nodeid;
-				}
-			}
-		}
-	}
-#endif
+	// NOTE: PDO cob-id remapping on a NODEID write is handled by
+	// uv_canopen_pdo_cobid_update() in the expedited-download branch above.
+	// That delta-based shift preserves any per-PDO offset from the node id
+	// (e.g. a PDO defined as CANOPEN_TXPDO1_ID + NODEID + 1) and honors the
+	// BREAKNODEIDLINKAGE flag. The previous mask-and-set block here forced
+	// (cob_id & 0x7F) = new nodeid, which destroyed such offsets and, running
+	// as a second pass after cobid_update(), could collapse an offset PDO onto
+	// another PDO's cob-id (double transmission on one id). Removed.
 
 }
 
