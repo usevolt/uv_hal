@@ -397,7 +397,10 @@ static uv_xb3_at_response_e at_wait_for_reply(uv_xb3_st *this, int32_t wait_ms,
 		bool xb3_task) {
 	while (this->at_response == XB3_AT_RESPONSE_COUNT &&
 			wait_ms > 0) {
-		// otherwise just wait, xb3 task handles all serial communication
+		// otherwise just wait, xb3 task handles all serial communication.
+		// Feed the watchdog: during uv_xb3_init this runs before the step task
+		// reaches its own feed, and nothing else services the WDT here.
+		uv_wdt_update();
 		uv_rtos_task_delay(1);
 		wait_ms -= 1;
 	}
@@ -428,8 +431,20 @@ void uv_xb3_local_at_cmd_req(uv_xb3_st *this, char *atcmd,
 		paramvaluelen = strlen(data);
 	}
 
-	while (uv_uart_get_tx_free_space(this->uart) < 8 + paramvaluelen) {
+	// Bound this wait: if paramvaluelen is corrupted/larger than the UART TX
+	// buffer can ever hold, uv_uart_get_tx_free_space() can never reach the
+	// requested amount and this would spin forever (WDT reset / freeze).
+	int32_t txwait_ms = 1000;
+	while (uv_uart_get_tx_free_space(this->uart) < 8 + paramvaluelen &&
+			txwait_ms > 0) {
 		uv_rtos_task_delay(1);
+		txwait_ms -= 1;
+	}
+	if (txwait_ms <= 0) {
+		printf("XB3 AT '%c%c' aborted: TX space for %u bytes never freed\n",
+				atcmd[0], atcmd[1], (unsigned int) (8 + paramvaluelen));
+		uv_mutex_unlock(&this->tx_mutex);
+		return;
 	}
 
 	int32_t len = 0;
@@ -529,6 +544,22 @@ uv_errors_e uv_xb3_generic_write(uv_xb3_st *this, char *data,
 
 
 
+// Blocking delay that keeps feeding the watchdog. uv_xb3_conf_reset runs
+// synchronously during first-boot defaults init and blocks for several seconds
+// (serial-break command mode entry + AT command handshakes); without feeding,
+// a short watchdog resets the MCU mid-reset, before the caller can persist the
+// freshly defaulted non-volatile data -> permanent reset loop.
+static void xb3_wdt_delay(uint32_t ms) {
+	uv_wdt_update();
+	while (ms > 0) {
+		uint32_t chunk = (ms > 250) ? 250 : ms;
+		uv_rtos_task_delay(chunk);
+		uv_wdt_update();
+		ms -= chunk;
+	}
+}
+
+
 void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart) {
 	memset(conf, 0, sizeof(uv_xb3_conf_st));
 	conf->flags = flags_def;
@@ -541,8 +572,9 @@ void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart
 	uv_uart_clear_rx_buffer(uart);
 
 	uv_uart_break_start(uart);
-	uv_rtos_task_delay(6000);
+	xb3_wdt_delay(6000);
 
+	uv_wdt_update();
 	if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
 		printf("OK\n");
 	}
@@ -550,7 +582,7 @@ void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart
 		printf("Couldn't put XB3 to command mode\n");
 	}
 	uv_uart_break_stop(uart);
-	uv_rtos_task_delay(2000);
+	xb3_wdt_delay(2000);
 
 	char dest[11] = { };
 	uv_uart_clear_rx_buffer(uart);
@@ -559,6 +591,7 @@ void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart
 	sprintf(dest, "ATRE\r");
 	printf("%s\n", dest);
 	uv_uart_send(uart, dest, strlen(dest));
+	uv_wdt_update();
 	if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
 		printf("OK\n");
 	}
@@ -569,6 +602,7 @@ void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart
 	sprintf(dest, "ATAC\r");
 	printf("%s\n", dest);
 	uv_uart_send(uart, dest, strlen(dest));
+	uv_wdt_update();
 	if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
 		printf("OK\n");
 	}
@@ -582,6 +616,7 @@ void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart
 		sprintf(dest, "ATID0\r");
 		printf("%s\n", dest);
 		uv_uart_send(uart, dest, strlen(dest));
+		uv_wdt_update();
 		if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
 			printf("OK\n");
 		}
@@ -593,6 +628,7 @@ void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart
 		sprintf(dest, "ATCE1\r");
 		printf("%s\n", dest);
 		uv_uart_send(uart, dest, strlen(dest));
+		uv_wdt_update();
 		if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
 			printf("OK\n");
 		}
@@ -604,6 +640,7 @@ void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart
 		sprintf(dest, "ATNJFF\r");
 		printf("%s\n", dest);
 		uv_uart_send(uart, dest, strlen(dest));
+		uv_wdt_update();
 		if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
 			printf("OK\n");
 		}
@@ -616,6 +653,7 @@ void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart
 		sprintf(dest, "ATDC48\r");
 		printf("%s\n", dest);
 		uv_uart_send(uart, dest, strlen(dest));
+		uv_wdt_update();
 		if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
 			printf("OK\n");
 		}
@@ -627,6 +665,7 @@ void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart
 		sprintf(dest, "ATID0\r");
 		printf("%s\n", dest);
 		uv_uart_send(uart, dest, strlen(dest));
+		uv_wdt_update();
 		if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
 			printf("OK\n");
 		}
@@ -640,6 +679,7 @@ void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart
 	sprintf(dest, "ATBDA\r");
 	uv_uart_send(uart, dest, strlen(dest));
 	printf("%s\n", dest);
+	uv_wdt_update();
 	if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
 		printf("OK\n");
 	}
@@ -652,6 +692,7 @@ void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart
 	uv_uart_clear_rx_buffer(uart);
 	uv_uart_send(uart, dest, strlen(dest));
 	printf("%s\n", dest);
+	uv_wdt_update();
 	if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
 		printf("OK\n");
 	}
@@ -664,6 +705,7 @@ void uv_xb3_conf_reset(uv_xb3_conf_st *conf, uint16_t flags_def, uv_uarts_e uart
 	uv_uart_clear_rx_buffer(uart);
 	uv_uart_send(uart, dest, strlen(dest));
 	printf("%s\n", dest);
+	uv_wdt_update();
 	if (uv_uart_receive_cmp(uart, "OK\r", 3, 1000)) {
 		printf("OK\n");
 	}
@@ -688,9 +730,9 @@ static bool xb3_reset(uv_xb3_st *this) {
 	uv_mutex_unlock(&this->tx_mutex);
 
 	uv_gpio_set(this->reset_gpio, false);
-	uv_rtos_task_delay(20);
+	xb3_wdt_delay(20);
 	uv_gpio_set(this->reset_gpio, true);
-	uv_rtos_task_delay(1000);
+	xb3_wdt_delay(1000);
 
 	return ret;
 }
@@ -772,7 +814,7 @@ uv_errors_e uv_xb3_init(uv_xb3_st *this,
 	uv_rtos_task_create(&tx_rx, "xb3", UV_RTOS_MIN_STACK_SIZE * 2,
 			this, UV_RTOS_IDLE_PRIORITY + 1, NULL);
 
-	uv_rtos_task_delay(1000);
+	xb3_wdt_delay(1000);
 
 	uv_uart_clear_rx_buffer(this->uart);
 
