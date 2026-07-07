@@ -1102,6 +1102,10 @@ void uv_ui_dlswap_impl(void) {
 			// process would hang with the window closed. With SIGINT masked here we
 			// always fall through to _exit(), guaranteeing the process dies even if
 			// the handler stalls on another thread.
+			//
+			// POSIX-only: Windows has no pthread_sigmask/kill/SIGINT-based cleanup
+			// path, so there we skip straight to the _exit(0) fallback below.
+#ifndef _WIN32
 			sigset_t sigint_set;
 			sigemptyset(&sigint_set);
 			sigaddset(&sigint_set, SIGINT);
@@ -1110,6 +1114,7 @@ void uv_ui_dlswap_impl(void) {
 			for (int i = 0; i < 200; i++) {
 				usleep(5000);	// up to ~1s for the SIGINT handler to _exit()
 			}
+#endif
 			_exit(0);
 		}
 	}
