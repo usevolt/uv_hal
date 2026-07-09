@@ -53,7 +53,12 @@ typedef enum {
 	/// clicks elsewhere never blur it. Used for persistent command lines (e.g. a
 	/// terminal or a log console). On MCU targets this has no effect — the field
 	/// keeps using the on-screen keyboard as usual.
-	UITEXTEDIT_FLAG_CMDLINE	= (1u << 1)
+	UITEXTEDIT_FLAG_CMDLINE	= (1u << 1),
+	/// @brief: Password mode: the field's content is drawn masked (each character
+	/// shown as '*') instead of in the clear. The buffer still holds the real text
+	/// (uv_uitextedit_get_text() returns it) - only the on-screen rendering and the
+	/// cursor position are masked.
+	UITEXTEDIT_FLAG_PASSWORD = (1u << 2)
 } uv_uitextedit_flags_e;
 
 

@@ -132,6 +132,21 @@ void uv_uitextedit_draw(void *me, const uv_bounding_box_st *pbb) {
 			this->bg_color, uv_uic_brighten(this->bg_color, -30),
 			uv_uic_brighten(this->bg_color, 30));
 
+	// password fields render each character as '*' instead of in the clear; the
+	// buffer itself keeps the real text. The mask is sized to the visible length,
+	// capped so a very long value cannot overflow the local buffer (cosmetic only).
+	char *drawstr = this->buffer;
+	char maskbuf[128];
+	if ((this->flags & UITEXTEDIT_FLAG_PASSWORD) != 0) {
+		size_t n = strlen(this->buffer);
+		if (n >= sizeof(maskbuf)) {
+			n = sizeof(maskbuf) - 1;
+		}
+		memset(maskbuf, '*', n);
+		maskbuf[n] = '\0';
+		drawstr = maskbuf;
+	}
+
 	// honor the (inherited) label alignment: left-aligned fields draw the text at
 	// a small left padding, otherwise it is centered
 	alignment_e al = ((uv_uilabel_st *) this)->align;
@@ -140,11 +155,11 @@ void uv_uitextedit_draw(void *me, const uv_bounding_box_st *pbb) {
 	int16_t textx = leftalign ?
 			(x + TITLE_OFFSET) : (x + uv_uibb(this)->width / 2);
 	alignment_e stral = leftalign ? ALIGN_CENTER_LEFT : UI_ALIGN_CENTER;
-	uv_ui_draw_string(this->buffer, font, textx, textcy, stral, text_color);
+	uv_ui_draw_string(drawstr, font, textx, textcy, stral, text_color);
 
 #if CONFIG_TARGET_LINUX
 	if (this->editing && this->blink_ms < UITEXTEDIT_CURSOR_BLINK_MS) {
-		int16_t text_w = uv_ui_get_string_width(this->buffer, font);
+		int16_t text_w = uv_ui_get_string_width(drawstr, font);
 		int16_t cursor_x = leftalign ?
 				(x + TITLE_OFFSET + text_w + 1) :
 				(x + uv_uibb(this)->width / 2 + text_w / 2 + 1);
