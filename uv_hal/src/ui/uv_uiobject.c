@@ -54,10 +54,25 @@ void uv_bb_set_marging(uv_bb_st *bb, uint16_t hmargin, uint16_t vmargin) {
 }
 
 
+/// @brief: Returns true only if the object and every one of its ancestors are
+/// enabled. A disabled parent forces the object (and thus its whole subtree) to
+/// be treated as disabled regardless of the object's own enabled flag, i.e. the
+/// parent's disabled state always wins over a child that is marked enabled.
+static bool uiobject_effective_enabled(const uv_uiobject_st *obj) {
+	bool ret = true;
+	const uv_uiobject_st *o = obj;
+	while ((o != NULL) && ret) {
+		ret = o->enabled;
+		o = (const uv_uiobject_st*) o->parent;
+	}
+	return ret;
+}
+
+
 bool _uv_uiobject_draw(void *me, const uv_bounding_box_st *pbb) {
 	bool ret = false;
 	if (this->refresh && this->vrtl_draw && this->visible) {
-		if (!this->enabled) {
+		if (!uiobject_effective_enabled(this)) {
 			uv_ui_set_color_mode(COLOR_MODE_GRAYSCALE);
 			uv_ui_set_grayscale_luminosity(CONFIG_UI_DISABLED_OBJECT_BRIGHTNESS);
 		}
