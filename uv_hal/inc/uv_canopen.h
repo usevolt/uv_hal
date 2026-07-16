@@ -339,6 +339,12 @@ typedef struct {
 	canopen_identity_object_st identity;
 	uv_delay_st heartbeat_time;
 	uint8_t current_node_id;
+	/// @brief: The node id which the stored PDO cob_ids are currently linked to.
+	/// Tracked separately from *current_node_id*, which is frozen at boot so that
+	/// the device keeps answering on its old node id until reset. Writing the node
+	/// id repeatedly without a reset would otherwise shift the cob_ids from the
+	/// same stale base every time.
+	uint8_t pdo_node_id;
 #if CONFIG_UV_BOOTLOADER
 	uint8_t prog_control;
 #endif

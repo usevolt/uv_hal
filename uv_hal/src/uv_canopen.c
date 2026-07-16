@@ -76,6 +76,9 @@ void _uv_canopen_init(uint8_t nodeid) {
 	if (this->current_node_id > 0x7F) {
 		this->current_node_id = 0x7F;
 	}
+	// The stored cob_ids were shifted against the stored node id, so the linkage
+	// follows that rather than current_node_id, which can be overridden via *nodeid*.
+	this->pdo_node_id = CONFIG_NON_VOLATILE_START.id;
 	this->can_callback = NULL;
 	this->device_type = 'U';
 	this->identity.vendor_id = CONFIG_CANOPEN_VENDOR_ID;
@@ -107,6 +110,9 @@ void _uv_canopen_reset(void) {
 	_uv_canopen_heartbeat_reset();
 	_uv_canopen_sdo_reset();
 	_uv_canopen_pdo_reset();
+	// the restored cob_ids are linked to the default node id which
+	// _uv_canopen_nmt_reset just restored
+	this->pdo_node_id = CONFIG_NON_VOLATILE_START.id;
 }
 
 
@@ -337,7 +343,11 @@ void uv_canopen_set_our_nodeid_isr(uint8_t nodeid) {
 }
 
 static void cobid_update(void) {
-	uint8_t last_nodeid = uv_canopen_get_our_nodeid();
+	// Shift from the node id the cob_ids are actually linked to, not from
+	// current_node_id: that one is frozen at boot, so using it would shift
+	// from the same stale base on every write and corrupt the cob_ids as
+	// soon as the node id is written twice without a reset in between.
+	uint8_t last_nodeid = this->pdo_node_id;
 	uint8_t nodeid = CONFIG_NON_VOLATILE_START.id;
 
 	for (uint8_t i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
@@ -354,6 +364,7 @@ static void cobid_update(void) {
 			com->cob_id += nodeid;
 		}
 	}
+	this->pdo_node_id = nodeid;
 }
 
 void uv_canopen_pdo_cobid_update_isr(void) {
