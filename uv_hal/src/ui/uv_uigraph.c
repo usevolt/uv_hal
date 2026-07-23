@@ -85,6 +85,7 @@ void uv_uigraph_init(void *me, uv_uigraph_point_st *points_buffer,
 	this->x_unit = NULL;
 	this->y_unit = NULL;
 	this->point_moved_callb = NULL;
+	this->dragging = false;
 	uv_delay_end(&this->press_delay);
 
 	uv_uiobject_set_draw_callb(this, &uv_uigraph_draw);
@@ -312,6 +313,23 @@ void uv_uigraph_touch(void *me, uv_touch_st *touch) {
 	// step would otherwise be cleared by the next tick's touch pass before
 	// the consumer can read them
 
+	// TOUCH_PRESSED and TOUCH_IS_DOWN are filtered by the parent's bounding
+	// box, TOUCH_DRAG is not: its coordinates are movement deltas instead of
+	// positions, so the parent hands drags to every child. Remember if the
+	// ongoing touch started inside this graph, so that a drag which started
+	// somewhere else, e.g. on the arrow buttons beside the graph, does not
+	// drag the active point (and overwrite the arrow button moves) here.
+	if (touch->action == TOUCH_PRESSED ||
+			touch->action == TOUCH_IS_DOWN) {
+		this->dragging = true;
+	}
+	else if (touch->action != TOUCH_DRAG) {
+		this->dragging = false;
+	}
+	else {
+
+	}
+
 	// selecting the point
 	if (touch->action == TOUCH_PRESSED) {
 		for (uint16_t i = MAX(0, this->active_point); i < this->points_count; i++) {
@@ -358,7 +376,7 @@ void uv_uigraph_touch(void *me, uv_touch_st *touch) {
 	// moving the point
 	if (touch->action == TOUCH_PRESSED ||
 			touch->action == TOUCH_IS_DOWN ||
-			touch->action == TOUCH_DRAG) {
+			(touch->action == TOUCH_DRAG && this->dragging)) {
 		if (this->active_point != -1 &&
 				this->point_moved_callb != NULL) {
 			uv_uigraph_point_st *p = &this->points[this->active_point];

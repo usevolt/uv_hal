@@ -95,6 +95,12 @@ typedef struct   {
 	int16_t current_val_y;
 	bool (*point_moved_callb)(int16_t, int16_t, int16_t);
 	uv_delay_st press_delay;
+	/// @brief: True while a touch which started inside this graph is still down.
+	/// TOUCH_DRAG events are delivered to every child regardless of the bounding
+	/// boxes (drag coordinates are deltas, not positions), so without this the
+	/// graph would also drag its points when the drag started somewhere else,
+	/// e.g. on the arrow buttons next to the graph.
+	bool dragging;
 	int16_t drag_start_x;
 	int16_t drag_start_y;
 	int16_t drag_x;
