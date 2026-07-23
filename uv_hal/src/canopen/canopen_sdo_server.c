@@ -171,7 +171,20 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 					// also on strings, but only if the string len is less than 4 bytes
 					SET_CMD_BYTE(&reply_msg,
 							INITIATE_DOMAIN_DOWNLOAD_REPLY);
-					if (_canopen_write_data(obj, msg, GET_SINDEX(msg))) {
+					// The node id is range checked before writing, the same way as
+					// the *nodeid* terminal command does. Node id 0 is reserved and
+					// values greater than 0x7F don't fit the CANopen addressing, and
+					// as the written value is stored as is, an invalid one would only
+					// be noticed after the device is reset.
+					if (GET_MINDEX(msg) == CONFIG_CANOPEN_NODEID_INDEX &&
+							(msg->data_8bit[4] == 0 ||
+									msg->data_8bit[4] > 0x7F)) {
+						sdo_server_abort(GET_MINDEX(msg), GET_SINDEX(msg),
+								(msg->data_8bit[4] == 0) ?
+										CANOPEN_SDO_ERROR_VALUE_OF_PARAMETER_TOO_LOW :
+										CANOPEN_SDO_ERROR_VALUE_OF_PARAMETER_TOO_HIGH);
+					}
+					else if (_canopen_write_data(obj, msg, GET_SINDEX(msg))) {
 						memcpy(&reply_msg.data_32bit[1], &msg->data_32bit[1], 4);
 						_uv_canopen_sdo_send(&reply_msg);
 
@@ -207,12 +220,10 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 										CANOPEN_PDO_RESERVED_FLAGS_BREAKNODEIDLINKAGE;
 							}
 						}
-						// update PDO's if nodeid was written
-						else if (this->mindex == CONFIG_CANOPEN_NODEID_INDEX) {
-							uv_canopen_pdo_cobid_update();
-						}
 						else {
-
+							// Note: a written node id needs no further action.
+							// The PDO cob_ids follow the node id which is taken
+							// into use at boot, see uv_canopen_pdo_cobid_update().
 						}
 
 						if (this->write_callb) {
@@ -565,13 +576,14 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 				CANOPEN_SDO_ERROR_CMD_SPECIFIER_NOT_FOUND);
 	}
 
-	// NOTE: PDO cob-id remapping on a NODEID write is handled by
-	// uv_canopen_pdo_cobid_update() in the expedited-download branch above.
-	// That delta-based shift preserves any per-PDO offset from the node id
-	// (e.g. a PDO defined as CANOPEN_TXPDO1_ID + NODEID + 1) and honors the
-	// BREAKNODEIDLINKAGE flag. The previous mask-and-set block here forced
-	// (cob_id & 0x7F) = new nodeid, which destroyed such offsets and, running
-	// as a second pass after cobid_update(), could collapse an offset PDO onto
+	// NOTE: a NODEID write does not remap the PDO cob-ids here. The written
+	// node id is stored as is and taken into use at the next boot, where
+	// uv_canopen_pdo_cobid_update() links the cob-ids of the PDO's which
+	// still follow our node id to it. That delta-based shift preserves any
+	// per-PDO offset from the node id (e.g. a PDO defined as
+	// CANOPEN_TXPDO1_ID + NODEID + 1) and honors the BREAKNODEIDLINKAGE flag.
+	// A mask-and-set block here used to force (cob_id & 0x7F) = new nodeid,
+	// which destroyed such offsets and could collapse an offset PDO onto
 	// another PDO's cob-id (double transmission on one id). Removed.
 
 }

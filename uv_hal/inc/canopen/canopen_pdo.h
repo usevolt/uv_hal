@@ -61,6 +61,19 @@ typedef enum {
 // Linkage is also broken by manually modifying NODE-ID via SDO
 #define CANOPEN_PDO_RESERVED_FLAGS_BREAKNODEIDLINKAGE	(1 << 0)
 
+// The NODE-ID which this PDO's COB-ID currently follows, stored in the
+// *reserved* field. It is stamped at boot, when the COB-ID's of all PDO's
+// which still follow our NODE-ID are linked to the NODE-ID taken into use.
+// Storing it is what makes the linkage survive a NODE-ID change: the new
+// NODE-ID is stored as is and the COB-ID's are shifted by the difference
+// at the next boot, which keeps any PDO specific offset from the NODE-ID
+// (e.g. a PDO defined as CANOPEN_TXPDO1_ID + NODEID + 1) intact.
+// Zero means not stamped, i.e. non-volatile data written before this
+// existed. Such COB-ID's follow the stored NODE-ID.
+#define CANOPEN_PDO_RESERVED_LINKEDNODEID_SHIFT			8
+#define CANOPEN_PDO_RESERVED_LINKEDNODEID_MASK			\
+	(0x7F << CANOPEN_PDO_RESERVED_LINKEDNODEID_SHIFT)
+
 
 
 /// @brief: a nice way for defining a TXPDO

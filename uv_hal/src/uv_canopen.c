@@ -60,6 +60,9 @@ extern const uv_canopen_non_volatile_st CONFIG_CANOPEN_INITIALIZER;
 
 
 
+static void cobid_link(uint8_t nodeid);
+
+
 void _uv_canopen_init(uint8_t nodeid) {
 #if defined(CONFIG_CANOPEN_INITIALIZER)
 	// calculate the initializer crc and compare it to ours
@@ -76,9 +79,12 @@ void _uv_canopen_init(uint8_t nodeid) {
 	if (this->current_node_id > 0x7F) {
 		this->current_node_id = 0x7F;
 	}
-	// The stored cob_ids were shifted against the stored node id, so the linkage
-	// follows that rather than current_node_id, which can be overridden via *nodeid*.
-	this->pdo_node_id = CONFIG_NON_VOLATILE_START.id;
+	// Link the PDO cob_ids to the node id in use. This is done here rather than
+	// when the node id is written, so that a node id change takes effect only
+	// after saving and resetting, all of the node's CAN ID's at once. Done
+	// before uv_canopen_config_rx_msgs() below, so the RXPDO receive messages
+	// are configured with the linked cob_ids.
+	cobid_link(this->current_node_id);
 	this->can_callback = NULL;
 	this->device_type = 'U';
 	this->identity.vendor_id = CONFIG_CANOPEN_VENDOR_ID;
@@ -110,9 +116,6 @@ void _uv_canopen_reset(void) {
 	_uv_canopen_heartbeat_reset();
 	_uv_canopen_sdo_reset();
 	_uv_canopen_pdo_reset();
-	// the restored cob_ids are linked to the default node id which
-	// _uv_canopen_nmt_reset just restored
-	this->pdo_node_id = CONFIG_NON_VOLATILE_START.id;
 }
 
 
@@ -331,52 +334,72 @@ uv_errors_e uv_canopen_sdo_store_params(uint8_t node_id, memory_scope_e_ param_s
 
 
 void uv_canopen_set_our_nodeid(uint8_t nodeid) {
-	CONFIG_NON_VOLATILE_START.id = nodeid;
-	// update all PDO's which where mapped for the previous node id
-	uv_canopen_pdo_cobid_update();
+	// The node id in use, the PDO cob_ids included, is resolved at boot only,
+	// thus nothing else has to be done here. Save and reset to take this into use.
+	if (nodeid != 0 &&
+			nodeid <= 0x7F) {
+		CONFIG_NON_VOLATILE_START.id = nodeid;
+	}
+	else {
+
+	}
 }
 
 void uv_canopen_set_our_nodeid_isr(uint8_t nodeid) {
-	CONFIG_NON_VOLATILE_START.id = nodeid;
-	// update all PDO's which where mapped for the previous node id
-	uv_canopen_pdo_cobid_update_isr();
+	uv_canopen_set_our_nodeid(nodeid);
 }
 
-static void cobid_update(void) {
-	// Shift from the node id the cob_ids are actually linked to, not from
-	// current_node_id: that one is frozen at boot, so using it would shift
-	// from the same stale base on every write and corrupt the cob_ids as
-	// soon as the node id is written twice without a reset in between.
-	uint8_t last_nodeid = this->pdo_node_id;
-	uint8_t nodeid = CONFIG_NON_VOLATILE_START.id;
-
-	for (uint8_t i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
-		canopen_pdo_com_parameter_st *com = &dev.data_start.canopen_data.txpdo_coms[i];
-		if (!(com->reserved & CANOPEN_PDO_RESERVED_FLAGS_BREAKNODEIDLINKAGE)) {
-			com->cob_id -= last_nodeid;
-			com->cob_id += nodeid;
+/// @brief: Links a single PDO's cob_id to *nodeid*, if the linkage to our
+/// node id hasn't been broken by configuring the cob_id explicitly.
+///
+/// The cob_id is shifted by the difference to the node id it is currently
+/// linked to, so that a PDO specific offset from the node id (e.g. a PDO
+/// defined as CANOPEN_TXPDO1_ID + NODEID + 1) is kept. The linkage is
+/// stamped into the com parameter, which makes this idempotent, and lets
+/// the linkage be resolved at boot even though the stored node id itself
+/// was changed after the cob_ids were last linked.
+static void com_link(canopen_pdo_com_parameter_st *com, uint8_t nodeid) {
+	if (!(com->reserved & CANOPEN_PDO_RESERVED_FLAGS_BREAKNODEIDLINKAGE)) {
+		uint8_t linked = (com->reserved & CANOPEN_PDO_RESERVED_LINKEDNODEID_MASK) >>
+				CANOPEN_PDO_RESERVED_LINKEDNODEID_SHIFT;
+		if (linked == 0) {
+			// Not stamped: either the defaults, or non-volatile data stored
+			// before the linkage was stamped. Both follow the stored node id.
+			linked = CONFIG_NON_VOLATILE_START.id & 0x7F;
 		}
+		else {
+
+		}
+		com->cob_id -= linked;
+		com->cob_id += nodeid;
+		com->reserved = (com->reserved & ~CANOPEN_PDO_RESERVED_LINKEDNODEID_MASK) |
+				(((int32_t) nodeid) << CANOPEN_PDO_RESERVED_LINKEDNODEID_SHIFT);
+	}
+	else {
+
+	}
+}
+
+/// @brief: Links the cob_id of every PDO which follows our node id to *nodeid*
+static void cobid_link(uint8_t nodeid) {
+	for (uint8_t i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
+		com_link(&dev.data_start.canopen_data.txpdo_coms[i], nodeid);
 	}
 	for (uint8_t i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
-		canopen_pdo_com_parameter_st *com = &dev.data_start.canopen_data.rxpdo_coms[i];
-		if (!(com->reserved & CANOPEN_PDO_RESERVED_FLAGS_BREAKNODEIDLINKAGE)) {
-			com->cob_id -= last_nodeid;
-			com->cob_id += nodeid;
-		}
+		com_link(&dev.data_start.canopen_data.rxpdo_coms[i], nodeid);
 	}
-	this->pdo_node_id = nodeid;
 }
 
 void uv_canopen_pdo_cobid_update_isr(void) {
 	uv_enter_critical_isr();
-	cobid_update();
+	cobid_link(this->current_node_id);
 	uv_exit_critical_isr();
 }
 
 
 void uv_canopen_pdo_cobid_update(void) {
 	uv_enter_critical();
-	cobid_update();
+	cobid_link(this->current_node_id);
 	uv_exit_critical();
 }
 

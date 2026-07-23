@@ -401,31 +401,10 @@ void uv_init(void *device) {
 	}
 
 #if CONFIG_CANOPEN
-	uint8_t last_nodeid = dev.data_start.id;
+	// _uv_canopen_init links the PDO cob_ids to the node id it takes into use,
+	// the *arg_nodeid* override included, and configures the CAN receive
+	// messages from the linked cob_ids. Nothing to do here for the override.
 	_uv_canopen_init(arg_nodeid);
-	if (arg_nodeid) {
-		// update all PDO's which where mapped for the previous node id
-		uv_enter_critical();
-		for (uint8_t i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
-			canopen_pdo_com_parameter_st *com =
-					&dev.data_start.canopen_data.txpdo_coms[i];
-			if ((com->cob_id & 0x7F) == last_nodeid) {
-				com->cob_id &= ~(0x7F);
-				com->cob_id |= arg_nodeid;
-			}
-		}
-		for (uint8_t i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
-			canopen_pdo_com_parameter_st *com =
-					&dev.data_start.canopen_data.rxpdo_coms[i];
-			if ((com->cob_id & 0x7F) == last_nodeid) {
-				com->cob_id &= ~(0x7F);
-				com->cob_id |= arg_nodeid;
-			}
-		}
-		uv_can_clear_rx_messages(CONFIG_CANOPEN_CHANNEL);
-		uv_canopen_config_rx_msgs();
-		uv_exit_critical();
-	}
 #endif
 
 	uv_rtos_task_create(hal_task, "uv_hal", UV_RTOS_MIN_STACK_SIZE, NULL, 0xFFFF, NULL);

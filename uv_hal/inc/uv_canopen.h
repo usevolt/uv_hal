@@ -339,12 +339,6 @@ typedef struct {
 	canopen_identity_object_st identity;
 	uv_delay_st heartbeat_time;
 	uint8_t current_node_id;
-	/// @brief: The node id which the stored PDO cob_ids are currently linked to.
-	/// Tracked separately from *current_node_id*, which is frozen at boot so that
-	/// the device keeps answering on its old node id until reset. Writing the node
-	/// id repeatedly without a reset would otherwise shift the cob_ids from the
-	/// same stale base every time.
-	uint8_t pdo_node_id;
 #if CONFIG_UV_BOOTLOADER
 	uint8_t prog_control;
 #endif
@@ -635,12 +629,24 @@ static inline uint8_t uv_canopen_get_our_nodeid(void) {
 }
 
 /// @brief: Sets the nodeid of this device. The change comes valid
-/// after saving non-volatile settings and resetting the device.
+/// after saving non-volatile settings and resetting the device. Nothing
+/// on the bus moves before that, PDO cob_ids included: they are linked to
+/// the node id at boot by uv_canopen_pdo_cobid_update().
+///
+/// @note: Values outside 0x1 ... 0x7F are rejected
 void uv_canopen_set_our_nodeid(uint8_t nodeid);
 
 void uv_canopen_set_our_nodeid_isr(uint8_t nodeid);
 
 
+/// @brief: Links the cob_id of every PDO which follows our node id to the
+/// node id currently in use, i.e. replaces the node id part of the cob_id.
+/// PDO's whose cob_id has been configured explicitly (CANOPEN_PDO_RESERVED_
+/// FLAGS_BREAKNODEIDLINKAGE) are left untouched.
+///
+/// This is called at boot, after the non-volatile settings are loaded and
+/// before the CAN receive messages are configured. Calling it again while
+/// running does nothing, as the node id in use only changes on reset.
 void uv_canopen_pdo_cobid_update(void);
 
 void uv_canopen_pdo_cobid_update_isr(void);
