@@ -85,11 +85,18 @@ static inline void uv_pid_set_target(uv_pid_st *this, int32_t value) {
 	this->target = value;
 }
 
-/// @brief: Resets the PID state to zero
+/// @brief: Clears the accumulated PID history, i.e. the error sum and the last
+/// error used by the D term.
+///
+/// @note: This does *not* change the enable state. It used to also force the
+/// state back to PID_STATE_ON, which meant that resetting a deliberately
+/// disabled controller silently re-enabled it - and, since uv_pid_step calls
+/// this when it shuts the controller down, that a disabled PID re-enabled
+/// itself on the very step that was supposed to stop it. Use uv_pid_enable to
+/// enable.
 static inline void uv_pid_reset(uv_pid_st *this) {
 	this->last_err = 0;
 	this->sum = 0;
-	this->state = PID_STATE_ON;
 }
 
 /// @brief: Sets the P factor. Valid range is from 0 to 65535.

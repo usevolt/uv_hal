@@ -79,21 +79,42 @@ static uv_errors_e check_overflow(uv_json_st *json, unsigned int length_req) {
 
 static void json_remove_whitespace(char *buffer_ptr, unsigned int buffer_len) {
 	unsigned int count = 0;
-	char *ptr;
+	unsigned int i;
 	bool in_string = false;
-	// remove all whitespace
-	for (ptr = buffer_ptr; ptr != buffer_ptr + buffer_len; ptr++) {
-		if (*ptr == '"') {
+
+	// Remove all whitespace that is not inside a string.
+	//
+	// The scan stops at the string terminator rather than running to
+	// *buffer_len*: walking past it would compact whatever uninitialised bytes
+	// happen to follow the JSON and count any whitespace among them, which
+	// moves the terminator written below to the wrong place.
+	for (i = 0; (i < buffer_len) && (buffer_ptr[i] != '\0'); i++) {
+		if (buffer_ptr[i] == '"') {
 			in_string = !in_string;
 		}
-		if (!in_string && isspace((int) *ptr)) {
+		if (!in_string && isspace((int) buffer_ptr[i])) {
 			count++;
 		}
 		else {
-			*(ptr - count) = *ptr;
+			buffer_ptr[i - count] = buffer_ptr[i];
 		}
 	}
-	*(buffer_ptr + buffer_len - count) = '\0';
+
+	// *i* is the number of characters examined, so (i - count) is the length of
+	// the compacted JSON and therefore the index of its terminator. Writing at
+	// (buffer_len - count) instead put the terminator one byte past the end of
+	// the caller's buffer whenever there was no whitespace to remove - which is
+	// exactly what uv_jsonwriter produces.
+	if ((i - count) < buffer_len) {
+		buffer_ptr[i - count] = '\0';
+	}
+	else if (buffer_len != 0) {
+		// no terminator found within the buffer: truncate in bounds
+		buffer_ptr[buffer_len - 1] = '\0';
+	}
+	else {
+
+	}
 }
 
 
@@ -539,7 +560,11 @@ char *uv_jsonreader_get_child(char *parent, uint16_t index) {
 			ptr++;
 		}
 		uint16_t i = 0;
-		while (*ptr != '\0') {
+		// Stop at the terminator of the object as well as at the end of the
+		// string. Without the '}' check an *empty* object left ptr looking
+		// straight at its own closing brace, which was then handed back as if
+		// it were a member - so every empty object appeared to have one child.
+		while ((*ptr != '\0') && (*ptr != '}') && (*ptr != ']')) {
 			bool br = false;
 
 			// child found, check if child has the name requested

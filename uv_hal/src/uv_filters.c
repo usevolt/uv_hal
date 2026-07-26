@@ -31,9 +31,12 @@
 
 void uv_moving_aver_init (uv_moving_aver_st *avr, int32_t cnt) {
 	avr->sum = 0;
-	avr->count = cnt;
 	avr->cur_count = 0;
 	avr->val = 0;
+	// route the count through the setter so that both entry points apply the
+	// same rule; assigning it directly here let a count of 0 through, which
+	// uv_moving_aver_set_count has always rejected
+	uv_moving_aver_set_count(avr, cnt);
 }
 
 void uv_moving_aver_reset (uv_moving_aver_st *avr) {
@@ -56,7 +59,8 @@ int32_t uv_moving_aver_step (uv_moving_aver_st *avr, int32_t val) {
 }
 
 void uv_moving_aver_set_count(uv_moving_aver_st *this, int32_t value) {
-	if (!value) {
+	// a count below 1 would make the filter meaningless
+	if (value < 1) {
 		value = 1;
 	}
 	this->count = value;

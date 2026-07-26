@@ -182,12 +182,21 @@ uv_errors_e uv_ring_buffer_pop_front(uv_ring_buffer_st *buffer, void *dest) {
 		ret = ERR_BUFFER_EMPTY;
 	}
 	else {
+		// *head* points at the next free slot, so the newest element is the one
+		// just before it. Step back first (wrapping around the start of the
+		// storage), then read: reading at *head* would return a slot that has
+		// never been written, and advancing *head* forwards would move it the
+		// same way a push does, leaving head, tail and element_count
+		// inconsistent.
+		if (buffer->head == buffer->buffer) {
+			buffer->head = buffer->buffer +
+					(buffer->buffer_size - 1) * buffer->element_size;
+		}
+		else {
+			buffer->head -= buffer->element_size;
+		}
 		if (dest) {
 			memcpy(dest, buffer->head, buffer->element_size);
-		}
-		buffer->head += buffer->element_size;
-		if (buffer->head == buffer->buffer + buffer->buffer_size * buffer->element_size) {
-			buffer->head = buffer->buffer;
 		}
 		buffer->element_count--;
 	}
@@ -234,9 +243,16 @@ uv_errors_e uv_vector_push_front(uv_vector_st *this, void *data) {
 		ret = ERR_BUFFER_OVERFLOW;
 	}
 	else {
-		memmove(this->buffer + this->element_size, this->buffer, this->element_size);
-		memcpy(this->buffer, data, this->element_size);
-		this->len--;
+		// the whole existing contents have to move up by one element, not just
+		// the first one, and the vector grows rather than shrinks
+		if (this->len != 0) {
+			memmove(this->buffer + this->element_size, this->buffer,
+					(size_t) this->element_size * this->len);
+		}
+		if (data != NULL) {
+			memcpy(this->buffer, data, this->element_size);
+		}
+		this->len++;
 	}
 	return ret;
 }
@@ -296,7 +312,12 @@ uv_errors_e uv_vector_pop_front(uv_vector_st *this, void *data) {
 		if (data) {
 			memcpy(data, this->buffer, this->element_size);
 		}
-		memmove(this->buffer, this->buffer + this->element_size, this->element_size);
+		// every element after the removed one has to move down, not just the
+		// first of them
+		if (this->len > 1) {
+			memmove(this->buffer, this->buffer + this->element_size,
+					(size_t) this->element_size * (this->len - 1));
+		}
 		this->len--;
 	}
 	return ret;
@@ -315,9 +336,12 @@ uv_errors_e uv_vector_remove(uv_vector_st *this, uint16_t index, uint16_t count)
 	}
 	else {
 		if (count > 0) {
+			// exactly (len - index - count) elements follow the removed range.
+			// Moving one more than that reads past the live data, and past the
+			// end of the caller's buffer entirely when the vector is full.
 			memmove(this->buffer + index * this->element_size,
-					this->buffer + index * this->element_size + count * this->element_size,
-					this->element_size * (this->len - index - (count - 1)));
+					this->buffer + (index + count) * this->element_size,
+					(size_t) this->element_size * (this->len - index - count));
 			this->len -= count;
 		}
 	}
@@ -410,7 +434,10 @@ int32_t uv_mini(int32_t a, int32_t b) {
 
 uint32_t uv_ctz(uint32_t a) {
 	uint32_t c = 32; // c will be the number of zero bits on the right
-	a &= - ((int32_t) a);
+	// isolate the lowest set bit. The negation is done in unsigned arithmetic:
+	// negating the signed value is undefined behaviour when a == 0x80000000,
+	// since INT32_MIN has no positive counterpart.
+	a &= (0U - a);
 	if (a) c--;
 	if (a & 0x0000FFFF) c -= 16;
 	if (a & 0x00FF00FF) c -= 8;
@@ -460,7 +487,9 @@ uint32_t uv_countofbit(uint32_t a, uint8_t bit) {
 	uint32_t ret = 0;
 
 	for (uint32_t i = 0; i < 32; i++) {
-		if (!!(a & (1 << i)) == !!bit) {
+		// the shift has to be done on an unsigned constant: 1 << 31 shifts into
+		// the sign bit of a signed int, which is undefined behaviour
+		if (!!(a & (1U << i)) == !!bit) {
 			ret++;
 		}
 	}

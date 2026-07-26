@@ -350,8 +350,18 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 			}
 			// last message
 			else {
+				// The count of bytes *not* containing data ("n" in CiA 301)
+				// belongs in bits 3..1, the same place this file decodes it
+				// from in the segmented download path below, and the same place
+				// canopen_sdo_client.c both writes and reads it. It used to be
+				// OR'red in unshifted, which put it in bits 2..0 where it
+				// overlapped the "no more segments" flag in bit 0 - so every
+				// final segment that did not happen to carry exactly 7 bytes
+				// announced the wrong length. Our own client never noticed,
+				// because it stops at the total size the initiate reply gave
+				// it, but a master that trusts "n" reads trailing garbage.
 				SET_CMD_BYTE(&reply_msg, UPLOAD_DOMAIN_SEGMENT_REPLY |
-						(this->toggle << 4) | (7 - data_count) | (1 << 0));
+						(this->toggle << 4) | ((7 - data_count) << 1) | (1 << 0));
 				uv_delay_end(&this->delay);
 				this->state = CANOPEN_SDO_STATE_READY;
 			}
