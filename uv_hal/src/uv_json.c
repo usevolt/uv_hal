@@ -175,6 +175,25 @@ uv_errors_e uv_jsonwriter_begin_object(uv_json_st *json) {
 	return ret;
 }
 
+uv_errors_e uv_jsonwriter_begin_object_named(uv_json_st *json, char *name) {
+	uv_errors_e ret = ERR_NONE;
+
+	if (name == NULL || strlen(name) == 0) {
+		ret = uv_jsonwriter_begin_object(json);
+	}
+	else {
+		unsigned int len = strlen(name) + 4;
+
+		ret = check_overflow(json, len);
+
+		if (ret == ERR_NONE) {
+			snprintf(json->start_ptr + strlen(json->start_ptr), len + 1, "\"%s\":{", name);
+		}
+	}
+
+	return ret;
+}
+
 uv_errors_e uv_jsonwriter_end_object(uv_json_st *json) {
 	uv_errors_e ret = ERR_NONE;
 

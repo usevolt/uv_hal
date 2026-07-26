@@ -134,6 +134,13 @@ uv_errors_e uv_jsonwriter_end(uv_json_st *json, uv_json_errors_e *errors);
 /// @param name: The name of the object
 uv_errors_e uv_jsonwriter_begin_object(uv_json_st *json);
 
+/// @brief: As *uv_jsonwriter_begin_object* except writes the object as a
+/// key-value pair with a name. Giving an empty name is the same as calling
+/// *uv_jsonwriter_begin_object*.
+///
+/// @param name: The name of the object
+uv_errors_e uv_jsonwriter_begin_object_named(uv_json_st *json, char *name);
+
 /// @brief: Ends a write of a JSON object
 ///
 /// @param name: The name of the object
