@@ -1008,10 +1008,13 @@ static bool needs_quotes(const char *str) {
 
 
 /// @brief: Returns the count of characters which writing *str* requires
-static unsigned int scalar_write_len(const char *str) {
+///
+/// @param quoted: True if the scalar is written inside quotes regardless of
+/// what the YAML syntax would require
+static unsigned int scalar_write_len(const char *str, bool quoted) {
 	unsigned int ret = strlen(str);
 
-	if (needs_quotes(str)) {
+	if (quoted || needs_quotes(str)) {
 		// the quotes and the worst case escaping of every character
 		ret = ret * 2 + 2;
 	}
@@ -1022,10 +1025,13 @@ static unsigned int scalar_write_len(const char *str) {
 
 /// @brief: Writes *str* to the end of the YAML buffer, quoting and escaping
 /// it if the YAML syntax requires it
-static void write_scalar(uv_yaml_st *yaml, const char *str) {
+///
+/// @param quoted: True if the scalar is written inside quotes regardless of
+/// what the YAML syntax would require
+static void write_scalar(uv_yaml_st *yaml, const char *str, bool quoted) {
 	char *ptr = yaml->start_ptr + strlen(yaml->start_ptr);
 
-	if (!needs_quotes(str)) {
+	if (!quoted && !needs_quotes(str)) {
 		strcpy(ptr, str);
 	}
 	else {
@@ -1076,7 +1082,7 @@ static uv_errors_e write_entry_start(uv_yaml_st *yaml, const char *name,
 		len += 2;
 	}
 	if (name != NULL && strlen(name) != 0) {
-		len += scalar_write_len(name) + 2;
+		len += scalar_write_len(name, false) + 2;
 	}
 
 	ret = check_overflow(yaml, len);
@@ -1087,7 +1093,7 @@ static uv_errors_e write_entry_start(uv_yaml_st *yaml, const char *name,
 			strcat(yaml->start_ptr, "- ");
 		}
 		if (name != NULL && strlen(name) != 0) {
-			write_scalar(yaml, name);
+			write_scalar(yaml, name, false);
 			strcat(yaml->start_ptr, ":");
 			if (value_len != 0) {
 				strcat(yaml->start_ptr, " ");
@@ -1109,6 +1115,7 @@ uv_errors_e uv_yamlwriter_init(uv_yaml_st *yaml, char *buffer_ptr,
 		yaml->depth = 0;
 		yaml->seq_mask = 0;
 		yaml->pending_dashes = 0;
+		yaml->quote_strings = false;
 		yaml->start_ptr[0] = '\0';
 	}
 	else {
@@ -1267,11 +1274,17 @@ uv_errors_e uv_yamlwriter_seq_add_bool(uv_yaml_st *yaml, bool value) {
 }
 
 
+void uv_yamlwriter_set_quote_strings(uv_yaml_st *yaml, bool value) {
+	yaml->quote_strings = value;
+}
+
+
 uv_errors_e uv_yamlwriter_add_string(uv_yaml_st *yaml, const char *name, const char *value) {
-	uv_errors_e ret = write_entry_start(yaml, name, scalar_write_len(value));
+	bool quoted = yaml->quote_strings;
+	uv_errors_e ret = write_entry_start(yaml, name, scalar_write_len(value, quoted));
 
 	if (ret == ERR_NONE) {
-		write_scalar(yaml, value);
+		write_scalar(yaml, value, quoted);
 		strcat(yaml->start_ptr, "\n");
 	}
 

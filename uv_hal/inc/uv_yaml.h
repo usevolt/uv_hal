@@ -155,6 +155,8 @@ typedef struct {
 	// a sequence without writing anything yet. Nested sequence entries
 	// ("- - value") need more than one.
 	uint8_t pending_dashes;
+	// true if the string values are always written inside double quotes
+	bool quote_strings;
 } uv_yaml_st;
 
 
@@ -235,8 +237,14 @@ uv_errors_e uv_yamlwriter_seq_add_int(uv_yaml_st *yaml, int value);
 /// @brief: Writes a hexadecimal integer value to a sequence
 uv_errors_e uv_yamlwriter_seq_add_int_hex(uv_yaml_st *yaml, uint32_t value);
 
+/// @brief: Selects if the string values are always written inside double
+/// quotes. By default they are quoted only when the YAML syntax requires it.
+/// The keys are not affected by this setting.
+void uv_yamlwriter_set_quote_strings(uv_yaml_st *yaml, bool value);
+
 /// @brief: Writes a string to a YAML key-value pair. The string is quoted
-/// and escaped if the YAML syntax requires it.
+/// and escaped if the YAML syntax requires it, or always when
+/// *uv_yamlwriter_set_quote_strings* was set.
 ///
 /// @param name: The name of the key
 /// @param value: The value
