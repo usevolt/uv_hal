@@ -947,6 +947,9 @@ static unsigned int line_start_len(uv_yaml_st *yaml) {
 /// entries' '-' characters if any are pending
 static void write_line_start(uv_yaml_st *yaml) {
 	char *ptr = yaml->start_ptr + strlen(yaml->start_ptr);
+	// whatever is written now is inside every level which is currently open,
+	// so none of them is an empty collection anymore
+	yaml->empty_mask = 0;
 	uint8_t dashes = (yaml->pending_dashes < yaml->depth) ?
 			yaml->pending_dashes : yaml->depth;
 	unsigned int indent = (yaml->depth - dashes) * CONFIG_YAML_INDENT;
@@ -1115,6 +1118,7 @@ uv_errors_e uv_yamlwriter_init(uv_yaml_st *yaml, char *buffer_ptr,
 		yaml->depth = 0;
 		yaml->seq_mask = 0;
 		yaml->pending_dashes = 0;
+		yaml->empty_mask = 0;
 		yaml->quote_strings = false;
 		yaml->start_ptr[0] = '\0';
 	}
@@ -1173,6 +1177,10 @@ static uv_errors_e begin_mapseq(uv_yaml_st *yaml, const char *name, bool seq) {
 			else {
 				yaml->seq_mask &= ~(1u << (yaml->depth - 1));
 			}
+			// nothing is inside the new level yet. Set after the name was
+			// written above: that write belongs to the parent level, not to
+			// this one.
+			yaml->empty_mask |= (1u << (yaml->depth - 1));
 		}
 	}
 
@@ -1188,14 +1196,38 @@ static uv_errors_e end_mapseq(uv_yaml_st *yaml, bool seq) {
 		ret = ERR_INTERNAL | HAL_MODULE_YAML;
 	}
 	else {
-		if (yaml->pending_dashes != 0) {
-			// the collection was written as a sequence entry but it was
-			// left empty. Write it as an empty flow collection.
+		// An empty collection has to be written out as an empty flow
+		// collection. Leaving it out entirely would drop the key, and writing
+		// only the key ("PARAMS:") gives it a null value, which reads back as
+		// "not a sequence" rather than as an empty one - a reader which asks
+		// for the collection's size then fails instead of getting zero.
+		bool empty = (yaml->empty_mask & (1u << (yaml->depth - 1))) != 0;
+		if (empty && (yaml->pending_dashes != 0)) {
+			// an entry of a sequence: nothing has been written for it yet, so
+			// the flow collection goes on a line of its own, after the dashes
 			ret = check_overflow(yaml, line_start_len(yaml) + 3);
 			if (ret == ERR_NONE) {
 				write_line_start(yaml);
 				strcat(yaml->start_ptr, seq ? "[]\n" : "{}\n");
 			}
+		}
+		else if (empty) {
+			// a named collection: its "name:" line was already written when
+			// the collection was opened, so the flow collection goes on that
+			// same line, in place of the newline which ended it
+			ret = check_overflow(yaml, 3);
+			if (ret == ERR_NONE) {
+				unsigned int len = strlen(yaml->start_ptr);
+				if ((len != 0) && (yaml->start_ptr[len - 1] == '\n')) {
+					yaml->start_ptr[len - 1] = '\0';
+				}
+				strcat(yaml->start_ptr, seq ? " []\n" : " {}\n");
+				// the parent level now has content
+				yaml->empty_mask = 0;
+			}
+		}
+		else {
+			// the collection has content of its own
 		}
 		yaml->depth--;
 	}

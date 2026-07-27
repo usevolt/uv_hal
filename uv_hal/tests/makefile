@@ -43,6 +43,7 @@ HAL_SOURCES := $(HALDIR)/src/uv_filters.c \
 				$(HALDIR)/src/uv_pid.c \
 				$(HALDIR)/src/uv_utilities.c \
 				$(HALDIR)/src/uv_json.c \
+				$(HALDIR)/src/uv_yaml.c \
 				$(HALDIR)/src/canopen/canopen_sdo.c \
 				$(HALDIR)/src/canopen/canopen_sdo_server.c \
 				$(HALDIR)/src/canopen/canopen_sdo_client.c \

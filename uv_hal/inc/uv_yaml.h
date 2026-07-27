@@ -155,6 +155,13 @@ typedef struct {
 	// a sequence without writing anything yet. Nested sequence entries
 	// ("- - value") need more than one.
 	uint8_t pending_dashes;
+	// bit mask telling which of the open levels have had nothing written
+	// into them yet. A level's bit is set when the level is opened and every
+	// written line clears the whole mask: anything written is inside all of
+	// the currently open levels, so none of them is empty anymore. Read when
+	// a level is closed, to write a collection which stayed empty as an
+	// empty flow collection ("[]" / "{}") instead of as a null value.
+	uint32_t empty_mask;
 	// true if the string values are always written inside double quotes
 	bool quote_strings;
 } uv_yaml_st;

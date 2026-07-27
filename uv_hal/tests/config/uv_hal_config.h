@@ -61,6 +61,7 @@
 /* Modules under test. */
 #define CONFIG_PID									1
 #define CONFIG_JSON									1
+#define CONFIG_YAML									1
 
 /* The CANopen SDO server and client are under test. CAN is configured only far
  * enough for the headers to be well formed and for the protocol code to compile;
