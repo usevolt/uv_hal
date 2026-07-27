@@ -388,7 +388,14 @@ uv_errors_e uv_jsonwriter_array_add_bool(uv_json_st *json, bool value) {
 
 bool uv_jsonwriter_append_json(uv_json_st *json, char *data) {
 	bool ret = true;
-	json_remove_whitespace(data, strlen(data));
+	// json_remove_whitespace() takes the size of the writable buffer, not the
+	// length of the text in it: it writes the compacted string's terminator and
+	// keeps that write inside the given size. *data* is NUL terminated, so the
+	// byte holding that terminator belongs to the buffer as well - hence the +1.
+	// Passing the bare strlen() made the terminator land on the last character
+	// whenever there was no whitespace to strip (which is what uv_jsonwriter
+	// itself produces), truncating the appended document's closing '}'.
+	json_remove_whitespace(data, strlen(data) + 1);
 	uint32_t len = strlen(data);
 	uint32_t jsonlen = strlen(json->start_ptr);
 	if (jsonlen + len + 2 > json->buffer_length) {

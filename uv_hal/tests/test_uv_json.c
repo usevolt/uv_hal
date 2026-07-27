@@ -183,6 +183,60 @@ TEST(json_writer, reports_an_unterminated_object) {
 }
 
 
+/* uv_jsonwriter_append_json() splices a finished document into the open array of
+ * another one. It compacts the appended text with json_remove_whitespace()
+ * first, which takes the size of the writable buffer and writes the compacted
+ * string's terminator inside it.
+ *
+ * The call used to pass the bare strlen() as that size. With no whitespace to
+ * strip - exactly what uv_jsonwriter produces - the compacted length equals the
+ * size given, so the terminator landed on the last character instead of after
+ * it, silently chopping the appended document's closing '}'. Every appended
+ * member then stayed open and the enclosing uv_jsonwriter_end() failed with
+ * JSON_ERR_UNTERMINATED_OBJ. */
+TEST(json_writer, appends_a_document_without_truncating_it) {
+	char sub[JSON_BUF_LEN];
+	char buf[JSON_BUF_LEN];
+	uv_json_st subjson;
+	uv_json_st json;
+	uv_json_errors_e json_err = JSON_ERR_NONE;
+
+	/* a document of its own, with no strippable whitespace in it */
+	uv_jsonwriter_init(&subjson, sub, sizeof(sub));
+	uv_jsonwriter_add_int(&subjson, "a", 1);
+	TEST_ASSERT_EQ(uv_jsonwriter_end(&subjson, NULL), ERR_NONE);
+	TEST_ASSERT_STR_EQ(sub, "{\"a\":1}");
+
+	uv_jsonwriter_init(&json, buf, sizeof(buf));
+	uv_jsonwriter_begin_array(&json, "objs");
+	TEST_ASSERT_TRUE(uv_jsonwriter_append_json(&json, sub));
+	uv_jsonwriter_end_array(&json);
+
+	TEST_ASSERT_EQ(uv_jsonwriter_end(&json, &json_err), ERR_NONE);
+	TEST_ASSERT_EQ(json_err, JSON_ERR_NONE);
+	TEST_ASSERT_STR_EQ(buf, "{\"objs\":[{\"a\":1}]}");
+}
+
+
+/* The whitespace stripping itself must still happen, and must leave the spaces
+ * that are inside string values alone. */
+TEST(json_writer, appends_a_document_stripping_only_whitespace_outside_strings) {
+	char sub[JSON_BUF_LEN];
+	char buf[JSON_BUF_LEN];
+	uv_json_st json;
+
+	strcpy(sub, "{ \"name\" : \"UV07 Handle\" }");
+
+	uv_jsonwriter_init(&json, buf, sizeof(buf));
+	uv_jsonwriter_begin_array(&json, "objs");
+	TEST_ASSERT_TRUE(uv_jsonwriter_append_json(&json, sub));
+	uv_jsonwriter_end_array(&json);
+
+	TEST_ASSERT_EQ(uv_jsonwriter_end(&json, NULL), ERR_NONE);
+	TEST_ASSERT_STR_EQ(buf, "{\"objs\":[{\"name\":\"UV07 Handle\"}]}");
+}
+
+
 /* ---------------------------------------------------------------------------
  * reader
  * ------------------------------------------------------------------------ */
