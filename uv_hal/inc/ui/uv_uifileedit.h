@@ -85,6 +85,19 @@ typedef struct {
 #define this ((uv_uifileedit_st*)me)
 
 
+/// @brief: Sets the directory the native file chooser opens in. *path* may name
+/// either a directory or a file (the file's directory is then used); NULL or an
+/// empty string clears the setting, leaving the chooser at its own default (the
+/// process' working directory). Useful when the application was started on a
+/// specific file, e.g. by double-clicking it in a file manager, since the file
+/// manager gives the process no meaningful working directory of its own.
+///
+/// The chooser keeps this up to date by itself: the directory of the file the
+/// user picks becomes the new default, so consecutive dialogs open where the
+/// previous one left off. On MCU targets this does nothing.
+void uv_uifiledialog_set_default_dir(const char *path);
+
+
 /// @brief: Opens the operating system's native file chooser directly (without a
 /// fileedit widget) and writes the chosen path into *out*. *save* selects a
 /// "save as" chooser that lets the user name a new file, over an "open existing"

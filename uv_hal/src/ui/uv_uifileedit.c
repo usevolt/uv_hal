@@ -36,11 +36,13 @@
 #if CONFIG_TARGET_WIN
 #include <windows.h>
 #include <commdlg.h>
+#include <sys/stat.h>
 #elif CONFIG_TARGET_LINUX
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
 #include <signal.h>
+#include <sys/stat.h>
 #endif
 
 
@@ -64,6 +66,55 @@ static void touch(void *me, uv_touch_st *touch);
  * no chooser is available. The call blocks (the dialog is modal) until the user
  * dismisses it.
  * ------------------------------------------------------------------------- */
+
+#if CONFIG_TARGET_WIN || CONFIG_TARGET_LINUX
+
+/// @brief: Directory the next chooser opens in, empty when unset. Written by
+/// uv_uifiledialog_set_default_dir() and refreshed to the containing directory
+/// of whatever the user picks.
+static char filedialog_dir[512] = "";
+
+
+/// @brief: Stores *path*'s directory into filedialog_dir. A path that already
+/// names an existing directory is stored as such, otherwise everything up to its
+/// last path separator is.
+static void filedialog_store_dir(const char *path) {
+	struct stat st;
+	if ((path == NULL) || (path[0] == '\0')) {
+		filedialog_dir[0] = '\0';
+	}
+	else if ((stat(path, &st) == 0) && S_ISDIR(st.st_mode)) {
+		strncpy(filedialog_dir, path, sizeof(filedialog_dir) - 1);
+		filedialog_dir[sizeof(filedialog_dir) - 1] = '\0';
+	}
+	else {
+		const char *sep = strrchr(path, '/');
+#if CONFIG_TARGET_WIN
+		// Windows accepts both separators; the last one of either ends the directory
+		const char *bsep = strrchr(path, '\\');
+		if ((bsep != NULL) && ((sep == NULL) || (bsep > sep))) {
+			sep = bsep;
+		}
+#endif
+		if (sep == NULL) {
+			// a bare file name carries no directory to remember
+			filedialog_dir[0] = '\0';
+		}
+		else {
+			// the separator itself is dropped, unless the file sits in the root
+			// directory, where it *is* the whole directory name
+			size_t len = (sep == path) ? 1 : (size_t) (sep - path);
+			if (len > sizeof(filedialog_dir) - 1) {
+				len = sizeof(filedialog_dir) - 1;
+			}
+			memcpy(filedialog_dir, path, len);
+			filedialog_dir[len] = '\0';
+		}
+	}
+}
+
+#endif
+
 
 #if CONFIG_TARGET_WIN
 
@@ -114,6 +165,7 @@ static bool filedialog_open(const char *title,
 	wchar_t file[1024] = L"";
 	wchar_t wtitle[256];
 	wchar_t wfilter[512];
+	wchar_t wdir[512];
 	OPENFILENAMEW ofn;
 	memset(&ofn, 0, sizeof(ofn));
 	ofn.lStructSize = sizeof(ofn);
@@ -133,18 +185,31 @@ static bool filedialog_open(const char *title,
 				sizeof(wtitle) / sizeof(wtitle[0]));
 		ofn.lpstrTitle = wtitle;
 	}
+	if (filedialog_dir[0] != '\0') {
+		MultiByteToWideChar(CP_UTF8, 0, filedialog_dir, -1, wdir,
+				sizeof(wdir) / sizeof(wdir[0]));
+		ofn.lpstrInitialDir = wdir;
+	}
 
 	bool ret = false;
 	BOOL ok = save ? GetSaveFileNameW(&ofn) : GetOpenFileNameW(&ofn);
 	if (ok) {
 		WideCharToMultiByte(CP_UTF8, 0, file, -1, out, out_len, NULL, NULL);
 		out[out_len - 1] = '\0';
+		// the next dialog opens where this one left off
+		filedialog_store_dir(out);
 		ret = true;
 	}
 	return ret;
 }
 
 #elif CONFIG_TARGET_LINUX
+
+// File name appended to the default directory to name a location inside it (see
+// where it is used below). Nothing is created under this name; it only has to be
+// a name that does not normally exist, so that the chooser starts with an empty
+// file name field.
+#define FILEDIALOG_PLACEHOLDER	"untitled"
 
 // Shell single-quote *src* into *dst* so it can be embedded safely in a
 // /bin/sh command line regardless of its contents.
@@ -253,17 +318,45 @@ static bool filedialog_open(const char *title,
 		}
 		found = true;
 
+		// Where to start, expressed as a path to a (nonexistent) file inside the
+		// default directory rather than as the directory itself: the choosers take
+		// the location they are given as the file to work on, so a bare directory
+		// opens its *parent* with the directory merely highlighted. Pointing at a
+		// file inside it opens the directory itself and leaves the file name empty.
+		// Stays empty when no default directory is set, which leaves both choosers
+		// at their own default, the process' working directory.
+		char qstart[600];
+		qstart[0] = '\0';
+		if (filedialog_dir[0] != '\0') {
+			char start[540];
+			size_t l = strlen(filedialog_dir);
+			snprintf(start, sizeof(start), "%s%s" FILEDIALOG_PLACEHOLDER,
+					filedialog_dir,
+					// the root directory already ends in the separator
+					(filedialog_dir[l - 1] == '/') ? "" : "/");
+			shell_quote(start, qstart, sizeof(qstart));
+		}
+		else {
+			// no default directory: let the chooser pick the location itself
+		}
+
 		char cmd[1024];
 		int n = 0;
 		if (backends[i].type == BACKEND_ZENITY) {
 			n += snprintf(cmd + n, sizeof(cmd) - n,
 					"%s --file-selection --title=%s%s", backends[i].bin, qtitle,
 					save ? " --save --confirm-overwrite" : "");
+			if (qstart[0] != '\0') {
+				n += snprintf(cmd + n, (n < (int) sizeof(cmd)) ? sizeof(cmd) - n : 0,
+						" --filename=%s", qstart);
+			}
 		}
 		else {
+			// kdialog always wants a startDir argument; "." is its working directory
 			n += snprintf(cmd + n, sizeof(cmd) - n,
-					"%s --title %s %s .", backends[i].bin, qtitle,
-					save ? "--getsavefilename" : "--getopenfilename");
+					"%s --title %s %s %s", backends[i].bin, qtitle,
+					save ? "--getsavefilename" : "--getopenfilename",
+					(qstart[0] != '\0') ? qstart : ".");
 		}
 		append_linux_filters(cmd, sizeof(cmd), &n, backends[i].type,
 				filters, filter_count);
@@ -287,6 +380,8 @@ static bool filedialog_open(const char *title,
 			if (l > 0) {
 				strncpy(out, line, out_len - 1);
 				out[out_len - 1] = '\0';
+				// the next dialog opens where this one left off
+				filedialog_store_dir(out);
 				ret = true;
 			}
 		}
@@ -352,6 +447,16 @@ static void *filedialog_thread(void *arg) {
 	return NULL;
 }
 #endif
+
+
+void uv_uifiledialog_set_default_dir(const char *path) {
+#if CONFIG_TARGET_WIN || CONFIG_TARGET_LINUX
+	filedialog_store_dir(path);
+#else
+	// MCU targets have no host file system and no chooser to point anywhere
+	(void) path;
+#endif
+}
 
 
 bool uv_uifiledialog_exec(const char *title,
