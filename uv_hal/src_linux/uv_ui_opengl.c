@@ -1165,6 +1165,18 @@ static void key_callback(GLFWwindow* window,
 		case GLFW_KEY_TAB:
 			c = '\t';
 			break;
+		case GLFW_KEY_LEFT:
+			c = UI_KEY_LEFT;
+			break;
+		case GLFW_KEY_RIGHT:
+			c = UI_KEY_RIGHT;
+			break;
+		case GLFW_KEY_HOME:
+			c = UI_KEY_HOME;
+			break;
+		case GLFW_KEY_END:
+			c = UI_KEY_END;
+			break;
 		case GLFW_KEY_V:
 			// ctrl+V is a paste request. Without the modifier this is an
 			// ordinary letter, which char_callback delivers instead.

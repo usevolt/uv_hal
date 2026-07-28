@@ -83,6 +83,10 @@ typedef struct {
 	uv_uitextedit_flags_e flags;
 #if CONFIG_TARGET_LINUX
 	bool editing;
+	/// @brief: Caret position as an index into the buffer, i.e. how many
+	/// characters sit before it. Typing, pasting and deleting all happen here
+	/// rather than at the end of the text.
+	uint16_t cursor;
 	bool was_touched;
 	uint16_t blink_ms;
 	/// @brief: Set for one step cycle when Enter is pressed in command-line mode

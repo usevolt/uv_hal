@@ -38,7 +38,16 @@
 
 
 static uv_uiobject_ret_e step(void *me, uint16_t step_ms);
+#if CONFIG_TARGET_LINUX
+// defined below, used by uv_uitextedit_set_text further up
+static void cursor_clamp(uv_uitextedit_st *this_);
+#endif
 static void touch(void *me, uv_touch_st *touch);
+
+
+// Longest prefix of a value that is masked or measured in one go. Only affects
+// very long values, and then only cosmetically.
+#define UITEXTEDIT_MASK_MAX		128
 
 
 #define TITLE_OFFSET	4
@@ -58,6 +67,7 @@ void uv_uitextedit_init(void *me, char *buffer, uint16_t buf_len,
 	this->flags = flags;
 #if CONFIG_TARGET_LINUX
 	this->editing = false;
+	this->cursor = 0;
 #if CONFIG_UI_ENABLEFOCUS
 	// a text field is the archetypal focus target: focused means the keyboard
 	// is typing into this one
@@ -114,6 +124,9 @@ void uv_uitextedit_set_text(void *me, const char *text) {
 		}
 	}
 	uv_ui_refresh(this);
+#if CONFIG_TARGET_LINUX
+	cursor_clamp(this);
+#endif
 }
 
 
@@ -148,7 +161,7 @@ void uv_uitextedit_draw(void *me, const uv_bounding_box_st *pbb) {
 	// buffer itself keeps the real text. The mask is sized to the visible length,
 	// capped so a very long value cannot overflow the local buffer (cosmetic only).
 	char *drawstr = this->buffer;
-	char maskbuf[128];
+	char maskbuf[UITEXTEDIT_MASK_MAX];
 	if ((this->flags & UITEXTEDIT_FLAG_PASSWORD) != 0) {
 		size_t n = strlen(this->buffer);
 		if (n >= sizeof(maskbuf)) {
@@ -172,10 +185,24 @@ void uv_uitextedit_draw(void *me, const uv_bounding_box_st *pbb) {
 #if CONFIG_TARGET_LINUX
 	if (this->editing && this->blink_ms < UITEXTEDIT_CURSOR_BLINK_MS) {
 		int16_t text_w = uv_ui_get_string_width(drawstr, font);
-		int16_t cursor_x = leftalign ?
-				(x + TITLE_OFFSET + text_w + 1) :
-				(x + uv_uibb(this)->width / 2 + text_w / 2 + 1);
-		uv_ui_draw_string("|", font, cursor_x, textcy, stral, text_color);
+		// width of the text before the caret. Measured on the string actually
+		// drawn, so a password field measures its mask rather than the value
+		// hiding behind it.
+		char head[UITEXTEDIT_MASK_MAX];
+		uint16_t n = this->cursor;
+		if (n >= sizeof(head)) {
+			n = sizeof(head) - 1;
+		}
+		memcpy(head, drawstr, n);
+		head[n] = '\0';
+		int16_t head_w = uv_ui_get_string_width(head, font);
+		// the text starts at the left edge when left aligned, and half its
+		// width to the left of the centre otherwise
+		int16_t text_x = leftalign ?
+				(x + TITLE_OFFSET) :
+				(x + uv_uibb(this)->width / 2 - text_w / 2);
+		uv_ui_draw_string("|", font, text_x + head_w + 1, textcy, stral,
+				text_color);
 	}
 #endif
 
@@ -185,6 +212,62 @@ void uv_uitextedit_draw(void *me, const uv_bounding_box_st *pbb) {
 				ALIGN_TOP_CENTER, text_color);
 	}
 }
+
+
+#if CONFIG_TARGET_LINUX
+/// @brief: Keeps the caret inside the text. Called after anything that can
+/// change the buffer from outside, since the caret is an index into it.
+static void cursor_clamp(uv_uitextedit_st *this_) {
+	uint16_t len = strlen(this_->buffer);
+	if (this_->cursor > len) {
+		this_->cursor = len;
+	}
+}
+
+
+/// @brief: Inserts one character at the caret and steps it past it.
+/// @return: false when the buffer is full.
+static bool cursor_insert(uv_uitextedit_st *this_, char c) {
+	bool ret = false;
+	uint16_t len = strlen(this_->buffer);
+	if ((uint16_t) (len + 1) < this_->buf_len) {
+		// shift the tail, terminator included, to open one slot
+		memmove(&this_->buffer[this_->cursor + 1], &this_->buffer[this_->cursor],
+				(size_t) (len - this_->cursor + 1));
+		this_->buffer[this_->cursor] = c;
+		this_->cursor++;
+		ret = true;
+	}
+	return ret;
+}
+
+
+/// @brief: Removes the character before the caret (backspace).
+static bool cursor_erase_left(uv_uitextedit_st *this_) {
+	bool ret = false;
+	if (this_->cursor > 0) {
+		uint16_t len = strlen(this_->buffer);
+		memmove(&this_->buffer[this_->cursor - 1], &this_->buffer[this_->cursor],
+				(size_t) (len - this_->cursor + 1));
+		this_->cursor--;
+		ret = true;
+	}
+	return ret;
+}
+
+
+/// @brief: Removes the character at the caret (delete).
+static bool cursor_erase_right(uv_uitextedit_st *this_) {
+	bool ret = false;
+	uint16_t len = strlen(this_->buffer);
+	if (this_->cursor < len) {
+		memmove(&this_->buffer[this_->cursor], &this_->buffer[this_->cursor + 1],
+				(size_t) (len - this_->cursor));
+		ret = true;
+	}
+	return ret;
+}
+#endif
 
 
 static uv_uiobject_ret_e step(void *me, uint16_t step_ms) {
@@ -205,6 +288,8 @@ static uv_uiobject_ret_e step(void *me, uint16_t step_ms) {
 		this->editing = uv_uiobject_get_focused(this);
 		this->blink_ms = 0;
 		if (this->editing) {
+			// start at the end of the value, which is where typing continues
+			this->cursor = strlen(this->buffer);
 			// drop anything typed before this field took the focus
 			while (uv_ui_get_key_press() != '\0') { }
 		}
@@ -252,11 +337,45 @@ static uv_uiobject_ret_e step(void *me, uint16_t step_ms) {
 				uv_ui_refresh(this);
 				break;
 			}
-			else if (c == '\b' || c == 0x7f) {
-				uint16_t len = strlen(this->buffer);
-				if (len > 0) {
-					this->buffer[len - 1] = '\0';
+			else if (c == '\b') {
+				if (cursor_erase_left(this)) {
 					uv_ui_refresh(this);
+				}
+			}
+			else if (c == 0x7f) {
+				// delete removes what is under the caret, backspace what is
+				// before it
+				if (cursor_erase_right(this)) {
+					uv_ui_refresh(this);
+				}
+			}
+			else if ((c == UI_KEY_LEFT) ||
+					(c == UI_KEY_RIGHT) ||
+					(c == UI_KEY_HOME) ||
+					(c == UI_KEY_END)) {
+				uint16_t len = strlen(this->buffer);
+				uint16_t prev = this->cursor;
+				if ((c == UI_KEY_LEFT) && (this->cursor > 0)) {
+					this->cursor--;
+				}
+				else if ((c == UI_KEY_RIGHT) && (this->cursor < len)) {
+					this->cursor++;
+				}
+				else if (c == UI_KEY_HOME) {
+					this->cursor = 0;
+				}
+				else if (c == UI_KEY_END) {
+					this->cursor = len;
+				}
+				else {
+				}
+				if (this->cursor != prev) {
+					// show the caret straight away rather than mid-blink, so
+					// holding an arrow key does not look like it is stuttering
+					this->blink_ms = 0;
+					uv_ui_refresh(this);
+				}
+				else {
 				}
 			}
 			else if (c == 0x1b) {
@@ -277,10 +396,8 @@ static uv_uiobject_ret_e step(void *me, uint16_t step_ms) {
 				// first line only, which is what pasting a copied row of text
 				// into an address or name field should do.
 				const char *paste = uv_ui_get_clipboard();
-				uint16_t len = strlen(this->buffer);
 				bool added = false;
-				for (uint16_t i = 0; (paste[i] != '\0') &&
-						(len < this->buf_len - 1); i++) {
+				for (uint16_t i = 0; paste[i] != '\0'; i++) {
 					char pc = paste[i];
 					if ((pc == '\n') ||
 							(pc == '\r')) {
@@ -298,11 +415,14 @@ static uv_uiobject_ret_e step(void *me, uint16_t step_ms) {
 					}
 					else {
 					}
-					this->buffer[len] = pc;
-					len++;
+					if (!cursor_insert(this, pc)) {
+						// buffer full
+						break;
+					}
+					else {
+					}
 					added = true;
 				}
-				this->buffer[len] = '\0';
 				if (added) {
 					uv_ui_refresh(this);
 				}
@@ -310,10 +430,7 @@ static uv_uiobject_ret_e step(void *me, uint16_t step_ms) {
 				}
 			}
 			else if (c >= 0x20 && c < 0x7f) {
-				uint16_t len = strlen(this->buffer);
-				if (len < this->buf_len - 1) {
-					this->buffer[len] = c;
-					this->buffer[len + 1] = '\0';
+				if (cursor_insert(this, c)) {
 					uv_ui_refresh(this);
 				}
 			}
@@ -369,6 +486,7 @@ static void touch(void *me, uv_touch_st *touch) {
 		uv_uiwindow_set_focus(this);
 #endif
 		this->editing = true;
+		this->cursor = strlen(this->buffer);
 		this->blink_ms = 0;
 		this->was_touched = true;
 		// drop any keys queued before the field was focused

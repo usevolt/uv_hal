@@ -530,6 +530,14 @@ char uv_ui_get_key_press(void);
 /// character or with the other keys the backends report.
 #define UI_KEY_PASTE		0x16
 
+/// @brief: Caret movement keys, reported by the backends as control codes so
+/// they travel through the same queue as ordinary characters without colliding
+/// with any of them.
+#define UI_KEY_LEFT			0x11
+#define UI_KEY_RIGHT		0x12
+#define UI_KEY_HOME			0x01
+#define UI_KEY_END			0x05
+
 
 /// @brief: Returns the system clipboard's text, or "" when it holds none or the
 /// backend cannot reach it. The returned string is owned by the backend and is
