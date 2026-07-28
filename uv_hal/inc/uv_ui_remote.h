@@ -50,6 +50,11 @@
 #endif
 
 // --- wire format ------------------------------------------------------------
+// Visible unconditionally alongside the opcodes below.
+/// @brief: Wire value returned for an unknown / unregisterable bitmap or font.
+#define UV_UI_REMOTE_ASSET_INVALID		0xFFFFu
+#define UV_UI_REMOTE_FONT_UNKNOWN		0xFFu
+
 // Visible unconditionally: a sink decodes this stream without compiling the
 // encoder, and both ends must agree on it.
 
@@ -110,11 +115,6 @@ typedef enum {
 #if !defined(CONFIG_UI_REMOTE_ASSET_MAX)
 #define CONFIG_UI_REMOTE_ASSET_MAX		32
 #endif
-
-/// @brief: Wire value returned for an unknown / unregisterable bitmap or font.
-#define UV_UI_REMOTE_ASSET_INVALID		0xFFFFu
-#define UV_UI_REMOTE_FONT_UNKNOWN		0xFFu
-
 
 /// @brief: Initializes the remote UI encoder (disabled until a sink connects).
 void uv_ui_remote_init(void);
