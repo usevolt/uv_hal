@@ -70,6 +70,12 @@ void uv_uibutton_draw(void *me, const uv_bounding_box_st *pbb) {
 
 	uv_ui_draw_shadowrrect(x, y, w, h, CONFIG_UI_RADIUS,
 			 bgc, lightc, shadowc);
+#if CONFIG_UI_ENABLEFOCUS
+	if (uv_uiobject_get_focused(this)) {
+		// a brighter version of the fill reads as a highlight on any theme
+		uv_uiobject_draw_focus(x, y, w, h, uv_uic_brighten(bgc, 120));
+	}
+#endif
 	uv_ui_draw_string(this->text, this->font, x + w / 2,
 			y + h / 2, ALIGN_CENTER, fontc);
 }

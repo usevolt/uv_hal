@@ -136,6 +136,13 @@ void uv_uitextedit_draw(void *me, const uv_bounding_box_st *pbb) {
 	uv_ui_draw_shadowrrect(x, y, uv_uibb(this)->width, height, 0,
 			this->bg_color, uv_uic_brighten(this->bg_color, -30),
 			uv_uic_brighten(this->bg_color, 30));
+#if CONFIG_UI_ENABLEFOCUS
+	if (uv_uiobject_get_focused(this)) {
+		// around the entry box only: the title below it is not typed into
+		uv_uiobject_draw_focus(x, y, uv_uibb(this)->width, height,
+				uv_uic_brighten(this->bg_color, 120));
+	}
+#endif
 
 	// password fields render each character as '*' instead of in the clear; the
 	// buffer itself keeps the real text. The mask is sized to the visible length,

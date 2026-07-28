@@ -49,6 +49,13 @@
 #define CONFIG_UI_ENABLEFOCUS			0
 #endif
 
+/// @brief: Thickness in pixels of the outline drawn around the focused object.
+/// Thick enough to be unmistakable next to the one pixel bevel every object
+/// already has.
+#if !defined(CONFIG_UI_FOCUS_LINE_W)
+#define CONFIG_UI_FOCUS_LINE_W			3
+#endif
+
 #if !defined(CONFIG_UI_DISABLED_OBJECT_BRIGHTNESS)
 #warning "CONFIG_UI_DISABLED_OBJECT_BRIGHTNESS not defined. Defaults to 1. Should be between INT8_MIN + 1 ... INT8_MAX"
 #endif
@@ -302,6 +309,16 @@ static inline void uv_uiobject_set_focused(void *me, bool value) {
 static inline bool uv_uiobject_get_focused(const void *me) {
 	return ((const uv_uiobject_st*) me)->focused;
 }
+
+
+/// @brief: Draws the focus outline just inside the given rectangle, in *color*.
+/// Called by an object's own draw function after it has drawn itself, so the
+/// outline sits on top of whatever it painted. The rectangle is passed
+/// explicitly rather than taken from the bounding box, because an object may
+/// want the outline around the part the user types into rather than around
+/// everything it owns (a text edit also owns its title).
+void uv_uiobject_draw_focus(int16_t x, int16_t y, int16_t w, int16_t h,
+		color_t color);
 
 #endif
 

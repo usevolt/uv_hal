@@ -209,4 +209,26 @@ void uv_ui_refresh(void *me) {
 
 
 
+
+#if CONFIG_UI_ENABLEFOCUS
+
+void uv_uiobject_draw_focus(int16_t x, int16_t y, int16_t w, int16_t h,
+		color_t color) {
+	// there is no unfilled rounded rectangle primitive, so the outline is four
+	// thick lines. Inset by half the width so it lands inside the object rather
+	// than bleeding over its neighbours.
+	int16_t i = CONFIG_UI_FOCUS_LINE_W / 2;
+	int16_t x0 = x + i;
+	int16_t y0 = y + i;
+	int16_t x1 = x + w - 1 - i;
+	int16_t y1 = y + h - 1 - i;
+	uv_ui_draw_line(x0, y0, x1, y0, CONFIG_UI_FOCUS_LINE_W, color);
+	uv_ui_draw_line(x1, y0, x1, y1, CONFIG_UI_FOCUS_LINE_W, color);
+	uv_ui_draw_line(x1, y1, x0, y1, CONFIG_UI_FOCUS_LINE_W, color);
+	uv_ui_draw_line(x0, y1, x0, y0, CONFIG_UI_FOCUS_LINE_W, color);
+}
+
+#endif
+
+
 #endif
