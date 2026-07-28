@@ -269,6 +269,46 @@ static uv_uiobject_ret_e step(void *me, uint16_t step_ms) {
 					break;
 				}
 			}
+			else if (c == UI_KEY_PASTE) {
+				// Append what the clipboard holds, as far as it fits. A newline
+				// would submit or blur the field if it were typed, so a pasted
+				// one is dropped rather than acted on: pasting is meant to fill
+				// the field in, not to activate it. A one-line field takes the
+				// first line only, which is what pasting a copied row of text
+				// into an address or name field should do.
+				const char *paste = uv_ui_get_clipboard();
+				uint16_t len = strlen(this->buffer);
+				bool added = false;
+				for (uint16_t i = 0; (paste[i] != '\0') &&
+						(len < this->buf_len - 1); i++) {
+					char pc = paste[i];
+					if ((pc == '\n') ||
+							(pc == '\r')) {
+						if ((this->flags & UITEXTEDIT_FLAG_ONELINE) != 0) {
+							break;
+						}
+						else {
+							continue;
+						}
+					}
+					else if ((pc < 0x20) ||
+							(pc >= 0x7f)) {
+						// tabs and other control bytes have no meaning here
+						continue;
+					}
+					else {
+					}
+					this->buffer[len] = pc;
+					len++;
+					added = true;
+				}
+				this->buffer[len] = '\0';
+				if (added) {
+					uv_ui_refresh(this);
+				}
+				else {
+				}
+			}
 			else if (c >= 0x20 && c < 0x7f) {
 				uint16_t len = strlen(this->buffer);
 				if (len < this->buf_len - 1) {

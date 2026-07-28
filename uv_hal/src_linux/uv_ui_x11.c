@@ -377,6 +377,14 @@ int16_t uv_ui_get_scroll(void) {
 }
 
 
+const char *uv_ui_get_clipboard(void) {
+	// Reading the X selection needs a request/notify round trip against the
+	// owning client, which this backend has no event loop for. Paste is a
+	// no-op here rather than pretending to work.
+	return "";
+}
+
+
 char uv_ui_peek_key_press(void) {
 	char ret = '\0';
 	uv_ring_buffer_peek(&this->key_press, &ret);

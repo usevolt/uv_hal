@@ -525,6 +525,18 @@ int16_t uv_ui_get_scroll(void);
 char uv_ui_get_key_press(void);
 
 
+/// @brief: Key code the backends report for a paste request (ctrl+V). ASCII SYN,
+/// which is what ctrl+V has always meant, so it cannot collide with a typed
+/// character or with the other keys the backends report.
+#define UI_KEY_PASTE		0x16
+
+
+/// @brief: Returns the system clipboard's text, or "" when it holds none or the
+/// backend cannot reach it. The returned string is owned by the backend and is
+/// only valid until the next call.
+const char *uv_ui_get_clipboard(void);
+
+
 /// @brief: Returns the next key press without consuming it, or '\0' when the
 /// queue is empty. Lets the display claim the keys it owns (Tab moves the
 /// focus) while leaving everything else for the focused object.

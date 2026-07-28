@@ -468,6 +468,15 @@ int16_t uv_ui_get_scroll(void) {
 }
 
 
+const char *uv_ui_get_clipboard(void) {
+	const char *ret = NULL;
+	if (this->window != NULL) {
+		ret = glfwGetClipboardString(this->window);
+	}
+	return (ret != NULL) ? ret : "";
+}
+
+
 char uv_ui_peek_key_press(void) {
 	char ret = '\0';
 	uv_ring_buffer_peek(&this->key_press, &ret);
@@ -1155,6 +1164,14 @@ static void key_callback(GLFWwindow* window,
 			break;
 		case GLFW_KEY_TAB:
 			c = '\t';
+			break;
+		case GLFW_KEY_V:
+			// ctrl+V is a paste request. Without the modifier this is an
+			// ordinary letter, which char_callback delivers instead.
+			if ((mods & GLFW_MOD_CONTROL) == 0) {
+				return;
+			}
+			c = UI_KEY_PASTE;
 			break;
 		default:
 			// printable characters arrive via char_callback so that
