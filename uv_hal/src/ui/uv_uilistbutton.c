@@ -84,6 +84,13 @@ void uv_uilistbutton_draw(void *me, const uv_bounding_box_st *pbb) {
 
 	uv_ui_draw_shadowrrect(x, y, w, h, CONFIG_UI_RADIUS,
 			 bgc, lightc, shadowc);
+#if CONFIG_UI_ENABLEFOCUS
+	if (uv_uiobject_get_focused(this)) {
+		// same highlight a plain button shows, drawn here because a list button
+		// paints its own background instead of borrowing uv_uibutton_draw
+		uv_uiobject_draw_focus(x, y, w, h, uv_uic_brighten(bgc, 120));
+	}
+#endif
 	uint16_t ty = h / 2;
 	if (this->title) {
 		uint16_t th = uv_ui_get_string_height(this->title,
@@ -195,6 +202,13 @@ void uv_uimedialistbutton_draw(void *me, const uv_bounding_box_st *pbb) {
 
 	uv_ui_draw_shadowrrect(x, y, w, h, CONFIG_UI_RADIUS,
 			 bgc, lightc, shadowc);
+#if CONFIG_UI_ENABLEFOCUS
+	if (uv_uiobject_get_focused(this)) {
+		// same highlight a plain button shows, drawn here because a list button
+		// paints its own background instead of borrowing uv_uibutton_draw
+		uv_uiobject_draw_focus(x, y, w, h, uv_uic_brighten(bgc, 120));
+	}
+#endif
 	uint16_t ty = h / 2;
 	int16_t bmw = uv_uimedia_get_bitmapwidth(this->bitmap),
 			bmh = uv_uimedia_get_bitmapheight(this->bitmap);
