@@ -462,3 +462,109 @@ void uv_uiwindow_set_enabled(void *me, bool value) {
 
 
 #endif
+
+
+#if CONFIG_UI_ENABLEFOCUS
+
+/// @brief: State carried through the recursive walk that finds the object which
+/// should take the focus next.
+typedef struct {
+	// first focusable object in tree order, used to wrap around and as the
+	// answer when nothing was focused
+	uv_uiobject_st *first;
+	// the object holding the focus now, if any
+	uv_uiobject_st *current;
+	// the focusable object that follows *current* in tree order
+	uv_uiobject_st *next;
+	// set once *current* has been passed, so the following one is taken
+	bool passed_current;
+} uiwindow_focus_st;
+
+
+/// @brief: Walks *win* and its nested windows in the order the objects were
+/// added, which is the order the user sees them in.
+static void focus_walk(uv_uiwindow_st *win, uiwindow_focus_st *w) {
+	for (int16_t i = 0; i < win->objects_count; i++) {
+		uv_uiobject_st *obj = (uv_uiobject_st*) win->objects[i];
+		if (obj == NULL) {
+			continue;
+		}
+
+		// A hidden or disabled object cannot be typed into, so Tab skips it
+		// rather than parking the keyboard somewhere the user cannot see.
+		if (obj->enablefocus &&
+				obj->visible &&
+				obj->enabled) {
+			if (w->first == NULL) {
+				w->first = obj;
+			}
+			if (w->passed_current &&
+					(w->next == NULL)) {
+				w->next = obj;
+			}
+			if (obj->focused) {
+				w->current = obj;
+				w->passed_current = true;
+			}
+		}
+
+		// Recurse into child windows. A window is recognised by its step
+		// callback: the object tree has no type tag, and every window installs
+		// this one in uv_uiwindow_init.
+		if ((obj->visible) &&
+				(obj->step_callb == &uv_uiwindow_step)) {
+			focus_walk((uv_uiwindow_st*) obj, w);
+		}
+	}
+}
+
+
+bool uv_uiwindow_focus_next(void *me) {
+	uiwindow_focus_st w = { NULL, NULL, NULL, false };
+	focus_walk(me, &w);
+
+	// after the last one, wrap around to the first
+	uv_uiobject_st *target = (w.next != NULL) ? w.next : w.first;
+	bool ret = false;
+	if ((target != NULL) &&
+			(target != w.current)) {
+		if (w.current != NULL) {
+			uv_uiobject_set_focused(w.current, false);
+		}
+		uv_uiobject_set_focused(target, true);
+		ret = true;
+	}
+	else {
+		// nothing focusable on screen, or it is the only one and already has it
+	}
+	return ret;
+}
+
+
+/// @brief: Climbs to the top of the object tree, which is the display itself.
+static uv_uiwindow_st *focus_root(void *me) {
+	uv_uiobject_st *obj = me;
+	while (obj->parent != NULL) {
+		obj = (uv_uiobject_st*) obj->parent;
+	}
+	return (uv_uiwindow_st*) obj;
+}
+
+
+void uv_uiwindow_set_focus(void *obj) {
+	// only one object in a display owns the keyboard, so take it from whoever
+	// has it before handing it over
+	uv_uiwindow_clear_focus(focus_root(obj));
+	uv_uiobject_set_focused(obj, true);
+}
+
+
+void uv_uiwindow_clear_focus(void *me) {
+	uiwindow_focus_st w = { NULL, NULL, NULL, false };
+	focus_walk(me, &w);
+	if (w.current != NULL) {
+		uv_uiobject_set_focused(w.current, false);
+	}
+}
+
+#endif

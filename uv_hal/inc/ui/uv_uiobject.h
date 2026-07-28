@@ -41,6 +41,14 @@
 
 #if CONFIG_UI
 
+/// @brief: Keyboard focus: one object at a time owns the keyboard, and Tab
+/// moves it to the next object that accepts it. Off by default — an embedded
+/// device is driven by its touch screen and has no Tab key, so the traversal
+/// and the per-object state are compiled out entirely there.
+#if !defined(CONFIG_UI_ENABLEFOCUS)
+#define CONFIG_UI_ENABLEFOCUS			0
+#endif
+
 #if !defined(CONFIG_UI_DISABLED_OBJECT_BRIGHTNESS)
 #warning "CONFIG_UI_DISABLED_OBJECT_BRIGHTNESS not defined. Defaults to 1. Should be between INT8_MIN + 1 ... INT8_MAX"
 #endif
@@ -158,6 +166,16 @@ typedef struct   uv_uiobject_st {
 	bool enabled;
 	/// @brief: Holds a pointer to a transition attached to this object (if any)
 	uv_uitransition_st *transition;
+#if CONFIG_UI_ENABLEFOCUS
+	/// @brief: True when this object can take the keyboard focus. Defaults to
+	/// false: most objects have nothing to do with the keyboard, so they are
+	/// skipped when Tab looks for the next one. Objects that do accept typed
+	/// input set it in their init (see uv_uitextedit_init, uv_uibutton_init).
+	bool enablefocus;
+	/// @brief: True while this object holds the focus. At most one object in a
+	/// display has it.
+	bool focused;
+#endif
 } uv_uiobject_st;
 
 
@@ -259,6 +277,34 @@ static inline bool uv_uiobject_get_enabled(const void *me) {
 }
 
 void uv_uiobject_set_visible(void *me, bool value);
+
+#if CONFIG_UI_ENABLEFOCUS
+
+/// @brief: Declares whether this object can take the keyboard focus.
+static inline void uv_uiobject_set_enablefocus(void *me, bool value) {
+	((uv_uiobject_st*) me)->enablefocus = value;
+}
+
+static inline bool uv_uiobject_get_enablefocus(const void *me) {
+	return ((const uv_uiobject_st*) me)->enablefocus;
+}
+
+/// @brief: Gives or takes the focus. Normally driven by the Tab traversal or by
+/// a click, not called directly.
+static inline void uv_uiobject_set_focused(void *me, bool value) {
+	uv_uiobject_st *this_ = me;
+	if (this_->focused != value) {
+		this_->focused = value;
+		this_->refresh = true;
+	}
+}
+
+static inline bool uv_uiobject_get_focused(const void *me) {
+	return ((const uv_uiobject_st*) me)->focused;
+}
+
+#endif
+
 
 static inline bool uv_uiobject_get_visible(void *me) {
 	return this->visible;

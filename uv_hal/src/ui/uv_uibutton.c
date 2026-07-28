@@ -37,6 +37,9 @@
 #define this ((uv_uibutton_st*)me)
 
 void uv_uibutton_init(void *me, char *text, const uv_uistyle_st *style) {
+#if CONFIG_UI_ENABLEFOCUS
+	uv_uiobject_set_enablefocus(this, true);
+#endif
 	uv_uiobject_init(me);
 	this->state = UIBUTTON_UP;
 	this->main_c = style->bg_c;

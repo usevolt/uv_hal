@@ -462,6 +462,13 @@ int16_t uv_ui_get_scroll(void) {
 }
 
 
+char uv_ui_peek_key_press(void) {
+	char ret = '\0';
+	uv_ring_buffer_peek(&this->key_press, &ret);
+	return ret;
+}
+
+
 char uv_ui_get_key_press(void) {
 	char ret = '\0';
 	uv_ring_buffer_pop(&this->key_press, &ret);

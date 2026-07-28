@@ -128,6 +128,16 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 	uv_uiobject_ret_e ret;
 	this->touch.action = TOUCH_NONE;
 
+#if CONFIG_UI_ENABLEFOCUS
+	// Tab belongs to the display, not to whatever is focused: it is what moves
+	// the focus on. Peeked rather than popped so every other key is left in the
+	// queue for the focused object to read.
+	while (uv_ui_peek_key_press() == '\t') {
+		(void) uv_ui_get_key_press();
+		(void) uv_uiwindow_focus_next(this);
+	}
+#endif
+
 	// get touch data from the LCD
 #if CONFIG_UI_TOUCHSCREEN
 	bool t = uv_ui_get_touch(&this->touch.x, &this->touch.y);

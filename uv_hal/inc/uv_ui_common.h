@@ -525,6 +525,12 @@ int16_t uv_ui_get_scroll(void);
 char uv_ui_get_key_press(void);
 
 
+/// @brief: Returns the next key press without consuming it, or '\0' when the
+/// queue is empty. Lets the display claim the keys it owns (Tab moves the
+/// focus) while leaving everything else for the focused object.
+char uv_ui_peek_key_press(void);
+
+
 /// @brief: Sets the color mode for the ft81x. The mode affects  how different colors
 /// are drawn on the screen.
 void uv_ui_set_color_mode(ui_color_modes_e value);

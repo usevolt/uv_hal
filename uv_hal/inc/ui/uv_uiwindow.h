@@ -109,6 +109,28 @@ struct   _uv_uiwindow_st {
 uv_uiobject_ret_e uv_uiwindow_step(void *me, uint16_t step_ms);
 
 
+#if CONFIG_UI_ENABLEFOCUS
+
+/// @brief: Moves the keyboard focus to the next object that accepts it, in the
+/// order the objects were added, descending into nested windows and wrapping
+/// around at the end. When nothing is focused yet, the first such object takes
+/// it. Hidden and disabled objects are skipped.
+///
+/// @return: true when the focus actually moved.
+bool uv_uiwindow_focus_next(void *me);
+
+
+/// @brief: Takes the focus away from whichever object in this tree holds it.
+void uv_uiwindow_clear_focus(void *me);
+
+
+/// @brief: Gives the focus to *obj*, taking it from whoever in the same display
+/// held it. This is what a click on a focusable object does.
+void uv_uiwindow_set_focus(void *obj);
+
+#endif
+
+
 #ifdef this
 #undef this
 #endif

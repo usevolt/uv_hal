@@ -58,6 +58,11 @@ void uv_uitextedit_init(void *me, char *buffer, uint16_t buf_len,
 	this->flags = flags;
 #if CONFIG_TARGET_LINUX
 	this->editing = false;
+#if CONFIG_UI_ENABLEFOCUS
+	// a text field is the archetypal focus target: focused means the keyboard
+	// is typing into this one
+	uv_uiobject_set_enablefocus(this, true);
+#endif
 	this->was_touched = false;
 	this->blink_ms = 0;
 	this->submitted = false;
@@ -286,6 +291,11 @@ static void touch(void *me, uv_touch_st *touch) {
 	if (touch->action == TOUCH_CLICKED) {
 		touch->action = TOUCH_NONE;
 #if CONFIG_TARGET_LINUX
+#if CONFIG_UI_ENABLEFOCUS
+		// clicking is the other way of moving the focus; take it from whoever
+		// had it so only one field is ever editing
+		uv_uiwindow_set_focus(this);
+#endif
 		this->editing = true;
 		this->blink_ms = 0;
 		this->was_touched = true;
