@@ -61,6 +61,12 @@ used on a touchscreen display."
 
 #define UIDISPLAY_PRESS_DELAY_MS	100
 
+/// @brief: How many step cycles a key may sit unclaimed at the head of the key
+/// queue before the display throws it away. Three is enough for an object that
+/// gains focus mid-cycle to still be offered it, and short enough (~60 ms at a
+/// 20 ms cycle) that nobody notices the key going.
+#define UIDISPLAY_UNCLAIMED_KEY_CYCLES	3
+
 /// @brief: Main display class. This represents a whole display.
 typedef struct {
 	EXTENDS(uv_uiwindow_st);
@@ -83,6 +89,14 @@ typedef struct {
 	bool touch_ind;
 	uv_delay_st touch_ind_delay;
 	uv_touch_st touch;
+#endif
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
+	/// @brief: The key left unclaimed at the head of the key queue, and for how
+	/// many cycles it has been sitting there. Keys are peeked rather than
+	/// popped, so one that nothing wants would otherwise block the queue for
+	/// good - see the end of uv_uidisplay_step().
+	char unclaimed_key;
+	uint8_t unclaimed_cycles;
 #endif
 } uv_uidisplay_st;
 

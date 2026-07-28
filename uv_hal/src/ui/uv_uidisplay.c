@@ -118,6 +118,10 @@ void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *
 	uv_moving_aver_init(&this->avr_y, UI_TOUCH_AVERAGE_COUNT);
 	this->press_state = RELEASED;
 #endif
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
+	this->unclaimed_key = '\0';
+	this->unclaimed_cycles = 0;
+#endif
 }
 
 
@@ -239,6 +243,37 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 	// call the step function and let it propagate through all objects in order
 	ret = uv_uiwindow_step(me, step_ms);
 
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
+	// Everything reads the key queue by peeking and only pops what it wants,
+	// which is what lets several objects look at the same key. The cost is that
+	// a key nobody wants - a space with nothing focused, a letter typed at a
+	// window with no text field - stays at the head for good, and every key
+	// after it queues up behind one that is never going to be taken. Once the
+	// queue fills, the keyboard is dead for the rest of the run.
+	//
+	// So a key that survives a few whole cycles unclaimed is dropped. It has to
+	// be several: the touch pass runs before the step, so an object that gains
+	// focus during one cycle only gets offered the key in the next one. Being
+	// counted here, after both passes, an actively consumed key never sits
+	// still long enough to be counted twice.
+	char pending = uv_ui_peek_key_press();
+	if (pending == '\0') {
+		this->unclaimed_key = '\0';
+		this->unclaimed_cycles = 0;
+	}
+	else if (pending == this->unclaimed_key) {
+		this->unclaimed_cycles++;
+		if (this->unclaimed_cycles >= UIDISPLAY_UNCLAIMED_KEY_CYCLES) {
+			(void) uv_ui_get_key_press();
+			this->unclaimed_key = '\0';
+			this->unclaimed_cycles = 0;
+		}
+	}
+	else {
+		this->unclaimed_key = pending;
+		this->unclaimed_cycles = 1;
+	}
+#endif
 
 	if (ret & UIOBJECT_RETURN_KILLED) {
 		// if UIOBJECT_RETURN_KILLED was returned, the children of objects might
