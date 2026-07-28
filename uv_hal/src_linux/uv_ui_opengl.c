@@ -60,6 +60,11 @@
 #define DEFAULT_FONT	"LiberationSans-Regular.ttf"
 #define MONO_FONT		"LiberationMono-Regular.ttf"
 
+/// @brief: How many CAN interfaces the configuration window lists, and how long
+/// an interface name may be (the kernel's IFNAMSIZ, including the terminator).
+#define CONFWINDOW_MAX_CAN_DEVS		10
+#define CONFWINDOW_IFNAME_LEN		16
+
 
 static void key_callback(GLFWwindow* window,
 		int key, int scancode, int action, int mods);
@@ -167,13 +172,27 @@ typedef struct {
 	// configuration window that is shown when setting the settings
 	struct {
 		bool terminate;
+		// set when a virtual bus has just been created: the window is rebuilt
+		// so the CAN device list picks the new interface up
+		bool rebuild;
 		uv_uidisplay_st display;
 		uv_uiobject_st *display_buffer[10];
 
 		uv_uilistbutton_st can_listbutton;
-		char *can_listbutton_content[10];
+		char *can_listbutton_content[CONFWINDOW_MAX_CAN_DEVS];
+		// the listbutton shows pointers, so the names have to outlive the
+		// device table that uv_can rebuilds under us
+		char can_listbutton_names[CONFWINDOW_MAX_CAN_DEVS][CONFWINDOW_IFNAME_LEN];
+		uint8_t can_listbutton_count;
 
 		uv_uilistbutton_st baud_listbutton;
+
+		// creating a virtual CAN bus, for working without hardware
+		uv_uitextedit_st vcan_textedit;
+		char vcan_name[CONFWINDOW_IFNAME_LEN];
+		uv_uibutton_st vcan_button;
+		uv_uilabel_st vcan_status;
+		char vcan_status_str[160];
 
 		uv_uibutton_st ok_button;
 	} confwindow;
@@ -278,6 +297,133 @@ uimedia_ll_st *uimedia_ll_st_find(const char *filename) {
 
 
 
+#if CONFIG_CAN
+
+/// @brief: True for the interfaces the CAN device list offers: the real ones
+/// and the virtual ones. Every host has a pile of other netdevs (lo, ethernet,
+/// wifi, docker bridges) that cannot carry CAN frames at all, and offering them
+/// only invites picking one.
+static bool confwindow_is_can_dev(const char *name) {
+	return ((strncmp(name, "can", 3) == 0) ||
+			(strncmp(name, "vcan", 4) == 0));
+}
+
+
+/// @brief: Suggests the name for a new virtual bus: "vcan" followed by the
+/// lowest free index, so pressing the button repeatedly makes vcan0, vcan1, …
+/// rather than failing on a name that is already taken.
+static void confwindow_next_vcan_name(char *dst, size_t dstlen) {
+	int32_t highest = -1;
+	for (int32_t i = 0; i < uv_can_get_device_count(); i++) {
+		const char *name = uv_can_get_device_name(i);
+		if (strncmp(name, "vcan", 4) == 0) {
+			char *end = NULL;
+			long n = strtol(&name[4], &end, 10);
+			// only "vcanN" counts; "vcanfoo" is somebody else's naming
+			if ((end != NULL) && (*end == '\0') && (n >= 0) &&
+					(n > (long) highest)) {
+				highest = (int32_t) n;
+			}
+		}
+	}
+	snprintf(dst, dstlen, "vcan%d", (int) (highest + 1));
+}
+
+
+/// @brief: True when *name* is safe to hand to the shell as an interface name.
+/// It is user input on its way into a command line, and the kernel would not
+/// take anything else anyway.
+static bool confwindow_ifname_valid(const char *name) {
+	bool ret = ((name != NULL) && (name[0] != '\0') &&
+			(strlen(name) < CONFWINDOW_IFNAME_LEN));
+	for (size_t i = 0; (ret) && (name[i] != '\0'); i++) {
+		char c = name[i];
+		if (!(((c >= 'a') && (c <= 'z')) || ((c >= 'A') && (c <= 'Z')) ||
+				((c >= '0') && (c <= '9')) || (c == '_') || (c == '-'))) {
+			ret = false;
+		}
+	}
+	return ret;
+}
+
+
+/// @brief: Creates the virtual CAN interface *name* and brings it up.
+///
+/// Needs privileges, and gets them in increasing order of nuisance: as root it
+/// just runs; then passwordless sudo, which asks nobody anything; then pkexec,
+/// which puts a dialog on the screen; then plain sudo, which asks on whatever
+/// terminal uvcan was started from. Trying the silent options first means a
+/// machine set up for it never sees a prompt at all.
+///
+/// Whatever went wrong is reported rather than swallowed - "nothing happened"
+/// is the worst possible answer to pressing a button.
+///
+/// @return: true when the interface exists and is up afterwards.
+static bool confwindow_create_vcan(const char *name, char *err, size_t err_len) {
+	bool ret = false;
+	err[0] = '\0';
+	if (!confwindow_ifname_valid(name)) {
+		snprintf(err, err_len, "'%s' is not a usable interface name "
+				"(letters, digits, '_' and '-', under %d characters).",
+				name, CONFWINDOW_IFNAME_LEN);
+	}
+	else {
+		// vcan may not be loaded yet on a machine that has never used one
+		char inner[256];
+		snprintf(inner, sizeof(inner),
+				"modprobe vcan 2>/dev/null; "
+				"ip link add dev %s type vcan && ip link set up %s",
+				name, name);
+
+		const char *prefixes[3];
+		uint8_t n = 0;
+		if (geteuid() == 0) {
+			prefixes[n++] = "";
+		}
+		else {
+			prefixes[n++] = "sudo -n ";
+			if (getenv("DISPLAY") != NULL) {
+				prefixes[n++] = "pkexec ";
+			}
+			prefixes[n++] = "sudo ";
+		}
+
+		char out[256] = { '\0' };
+		for (uint8_t i = 0; (i < n) && !ret; i++) {
+			char cmd[640];
+			snprintf(cmd, sizeof(cmd), "%ssh -c '%s' 2>&1", prefixes[i], inner);
+			FILE *f = popen(cmd, "r");
+			if (f != NULL) {
+				// keep the last line: that is where ip puts its complaint
+				char line[256];
+				while (fgets(line, sizeof(line), f) != NULL) {
+					line[strcspn(line, "\r\n")] = '\0';
+					if (line[0] != '\0') {
+						strncpy(out, line, sizeof(out) - 1);
+						out[sizeof(out) - 1] = '\0';
+					}
+				}
+				if (pclose(f) == 0) {
+					ret = true;
+				}
+			}
+		}
+		if (!ret) {
+			if (out[0] != '\0') {
+				snprintf(err, err_len, "%s", out);
+			}
+			else {
+				snprintf(err, err_len,
+						"Could not create '%s' (no privileges?).", name);
+			}
+		}
+	}
+	return ret;
+}
+
+#endif
+
+
 // selectable CAN baudrates shown in the baud listbutton, and their values in Hz
 static char *baud_listbutton_content[] = {
 		"125k", "250k", "500k", "1M"
@@ -289,23 +435,21 @@ static const unsigned int baud_listbutton_values[] = {
 	(sizeof(baud_listbutton_values) / sizeof(baud_listbutton_values[0]))
 
 
-void uv_ui_confwindow_exec(const uv_uistyle_st *style) {
-	// fall back to this backend's built-in style when the caller gives none
-	if (style == NULL) {
-		style = &uistyle;
-	}
-
-	uv_ui_init();
-
-	this->confwindow.terminate = false;
+/// @brief: Builds (or rebuilds) the configuration window's contents.
+///
+/// Separated from the loop below because creating a virtual CAN bus has to make
+/// the new interface selectable, and the device list is read once while the
+/// widgets are being made. Building it again is simpler, and more obviously
+/// correct, than reaching into a live listbutton to extend it.
+static void confwindow_build(const uv_uistyle_st *style) {
 	uv_uidisplay_init(&this->confwindow.display, this->confwindow.display_buffer, style);
 	uv_uiwindow_set_stepcallback(&this->confwindow.display, &confwindow_step, NULL);
 
 	uv_uistrlayout_st layout;
 	uv_uistrlayout_init(&layout,
 			"#3can|#2baud\n"
-			"nc\n"
-			"nc|nc|nc\n"
+			"#3vcanname|#2vcanbtn\n"
+			"vcanstatus\n"
 			"#4nc|close",
 			0, 0, uv_uibb(&this->confwindow.display)->w, uv_uibb(&this->confwindow.display)->h,
 			5, 5);
@@ -315,21 +459,28 @@ void uv_ui_confwindow_exec(const uv_uistyle_st *style) {
 	// load the list of CAN devices
 #if CONFIG_CAN
 	uint32_t index = 0;
-	uint32_t count = 0;
-	uv_can_set_baudrate(uv_can_get_dev(), 250000);
-	this->confwindow.can_listbutton_content[0] = "NONE";
-	// list the CAN devices ordered: physical "can*" first, then virtual "vcan*",
-	// then any others, so the most relevant interfaces appear at the top
-	for (uint8_t pass = 0; pass < 3; pass++) {
-		for (uint32_t i = 0; i < uv_can_get_device_count(); i++) {
-			char *name = uv_can_get_device_name(i);
-			bool is_can = (strncmp(name, "can", 3) == 0);
+	uint8_t count = 0;
+	// re-reads the interface list as a side effect, which is what makes a bus
+	// created a moment ago show up here
+	uv_can_set_baudrate(uv_can_get_dev(), uv_can_get_baudrate(uv_can_get_dev()));
+	// physical "can*" first, then virtual "vcan*", so the most relevant
+	// interfaces are at the top. Anything that is not a CAN interface is left
+	// out entirely - it could not carry frames anyway.
+	for (uint8_t pass = 0; pass < 2; pass++) {
+		for (int32_t i = 0;
+				(i < uv_can_get_device_count()) &&
+				(count < CONFWINDOW_MAX_CAN_DEVS); i++) {
+			const char *name = uv_can_get_device_name(i);
 			bool is_vcan = (strncmp(name, "vcan", 4) == 0);
-			bool match = (pass == 0) ? is_can :
-						 (pass == 1) ? is_vcan :
-						 (!is_can && !is_vcan);
+			bool match = (pass == 0) ? (confwindow_is_can_dev(name) && !is_vcan)
+									 : is_vcan;
 			if (match) {
-				this->confwindow.can_listbutton_content[count] = name;
+				strncpy(this->confwindow.can_listbutton_names[count], name,
+						CONFWINDOW_IFNAME_LEN - 1);
+				this->confwindow.can_listbutton_names[count]
+											 [CONFWINDOW_IFNAME_LEN - 1] = '\0';
+				this->confwindow.can_listbutton_content[count] =
+						this->confwindow.can_listbutton_names[count];
 				if (strcmp(name, uv_can_get_dev()) == 0) {
 					index = count;
 				}
@@ -337,9 +488,17 @@ void uv_ui_confwindow_exec(const uv_uistyle_st *style) {
 			}
 		}
 	}
-	uv_uilistbutton_init(&this->confwindow.can_listbutton, this->confwindow.can_listbutton_content,
-			MAX(uv_can_get_device_count(), 1),
-			index, style);
+	if (count == 0) {
+		// nothing to choose from: say so rather than showing an empty button
+		strncpy(this->confwindow.can_listbutton_names[0], "NONE",
+				CONFWINDOW_IFNAME_LEN - 1);
+		this->confwindow.can_listbutton_content[0] =
+				this->confwindow.can_listbutton_names[0];
+		count = 1;
+	}
+	this->confwindow.can_listbutton_count = count;
+	uv_uilistbutton_init(&this->confwindow.can_listbutton,
+			this->confwindow.can_listbutton_content, count, index, style);
 	uv_uilistbutton_set_content_type_arrayofpointers(&this->confwindow.can_listbutton);
 	uv_uilistbutton_set_title(&this->confwindow.can_listbutton, "CAN dev:");
 	uv_uidialog_add(&this->confwindow.display, &this->confwindow.can_listbutton, &bb);
@@ -358,6 +517,27 @@ void uv_ui_confwindow_exec(const uv_uistyle_st *style) {
 	uv_uilistbutton_set_content_type_arrayofpointers(&this->confwindow.baud_listbutton);
 	uv_uilistbutton_set_title(&this->confwindow.baud_listbutton, "CAN baudrate:");
 	uv_uidisplay_add(&this->confwindow.display, &this->confwindow.baud_listbutton, &bb);
+
+	// A virtual bus lets the tool be used with no CAN hardware present at all,
+	// which is how the simulator and most testing run. The name is suggested
+	// rather than fixed so several can exist side by side.
+	confwindow_next_vcan_name(this->confwindow.vcan_name,
+			sizeof(this->confwindow.vcan_name));
+	bb = uv_uistrlayout_find(&layout, "vcanname");
+	uv_uitextedit_init(&this->confwindow.vcan_textedit, this->confwindow.vcan_name,
+			sizeof(this->confwindow.vcan_name), UITEXTEDIT_FLAG_NONE, style);
+	uv_uitextedit_set_title(&this->confwindow.vcan_textedit,
+			"Virtual CAN-bus name:");
+	uv_uidisplay_add(&this->confwindow.display, &this->confwindow.vcan_textedit, &bb);
+
+	bb = uv_uistrlayout_find(&layout, "vcanbtn");
+	uv_uibutton_init(&this->confwindow.vcan_button, "Create virtual CAN-bus", style);
+	uv_uidisplay_add(&this->confwindow.display, &this->confwindow.vcan_button, &bb);
+
+	bb = uv_uistrlayout_find(&layout, "vcanstatus");
+	uv_uilabel_init(&this->confwindow.vcan_status, style->font, ALIGN_CENTER_LEFT,
+			style->text_color, this->confwindow.vcan_status_str);
+	uv_uidisplay_add(&this->confwindow.display, &this->confwindow.vcan_status, &bb);
 #endif
 
 	bb = uv_uistrlayout_find(&layout, "close");
@@ -369,6 +549,23 @@ void uv_ui_confwindow_exec(const uv_uistyle_st *style) {
 	uv_uiobject_set_enablefocus(&this->confwindow.ok_button, true);
 	uv_uiwindow_set_focus(&this->confwindow.ok_button);
 #endif
+}
+
+
+void uv_ui_confwindow_exec(const uv_uistyle_st *style) {
+	// fall back to this backend's built-in style when the caller gives none
+	if (style == NULL) {
+		style = &uistyle;
+	}
+
+	uv_ui_init();
+
+	this->confwindow.terminate = false;
+	this->confwindow.vcan_status_str[0] = '\0';
+#if CONFIG_CAN
+	uv_can_set_baudrate(uv_can_get_dev(), 250000);
+#endif
+	confwindow_build(style);
 
 	while (true) {
 		uint16_t step_ms = 20;
@@ -377,6 +574,10 @@ void uv_ui_confwindow_exec(const uv_uistyle_st *style) {
 
 		if (this->confwindow.terminate) {
 			break;
+		}
+		if (this->confwindow.rebuild) {
+			this->confwindow.rebuild = false;
+			confwindow_build(style);
 		}
 
 		usleep(step_ms * 1000);
@@ -402,6 +603,34 @@ static uv_uiobject_ret_e confwindow_step(void *me, uint16_t step_ms) {
 		uv_can_set_baudrate(uv_can_get_dev(),
 				baud_listbutton_values[
 				uv_uilistbutton_get_current_index(&this->confwindow.baud_listbutton)]);
+	}
+	if (uv_uibutton_clicked(&this->confwindow.vcan_button)) {
+		char name[CONFWINDOW_IFNAME_LEN];
+		strncpy(name, uv_uitextedit_get_text(&this->confwindow.vcan_textedit),
+				sizeof(name) - 1);
+		name[sizeof(name) - 1] = '\0';
+
+		char err[128];
+		if (confwindow_create_vcan(name, err, sizeof(err))) {
+			snprintf(this->confwindow.vcan_status_str,
+					sizeof(this->confwindow.vcan_status_str),
+					"Created '%s'.", name);
+			printf("Created virtual CAN bus '%s'\n", name);
+			fflush(stdout);
+			// select the bus that was just made: it is what the user asked
+			// for, and it is almost certainly the one they want to use
+			uv_can_set_dev(name);
+			// rebuilt by the caller's loop, not here, because this runs from
+			// inside the window's own step
+			this->confwindow.rebuild = true;
+		}
+		else {
+			snprintf(this->confwindow.vcan_status_str,
+					sizeof(this->confwindow.vcan_status_str), "%s", err);
+			printf("Could not create virtual CAN bus '%s': %s\n", name, err);
+			fflush(stdout);
+			uv_ui_refresh(&this->confwindow.vcan_status);
+		}
 	}
 #endif
 	if (uv_uibutton_clicked(&this->confwindow.ok_button)) {
