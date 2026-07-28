@@ -88,6 +88,33 @@ uv_uiobject_ret_e uv_uibutton_step(void *me, uint16_t step_ms) {
 		this->state = UIBUTTON_UP;
 	}
 
+#if CONFIG_UI_ENABLEFOCUS
+	// A keyboard click has to clear itself: a touch click is cleared by the
+	// next touch event, and no touch is coming. The window steps the
+	// application before its children, so the click has already been seen by
+	// the time we get here again.
+	if (this->kbd_click) {
+		this->kbd_click = false;
+		this->state = UIBUTTON_UP;
+		uv_ui_refresh(this);
+	}
+	else if (uv_uiobject_get_focused(this) &&
+			((uv_uiobject_st*) this)->enabled) {
+		// the focused object owns the keyboard, so only it consumes these
+		char c = uv_ui_peek_key_press();
+		if ((c == ' ') || (c == '\n')) {
+			(void) uv_ui_get_key_press();
+			this->state = UIBUTTON_CLICKED;
+			this->kbd_click = true;
+			uv_ui_refresh(this);
+		}
+		else {
+		}
+	}
+	else {
+	}
+#endif
+
 	if ((this->state == UIBUTTON_PRESSED)) {
 		if (uv_delay(&this->delay, step_ms)) {
 			this->state = UIBUTTON_LONGPRESSED;

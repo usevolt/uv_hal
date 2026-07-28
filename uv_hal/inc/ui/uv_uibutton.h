@@ -63,6 +63,12 @@ typedef struct   {
 	EXTENDS(uv_uiobject_st);
 
 	uibutton_state_e state;
+#if CONFIG_UI_ENABLEFOCUS
+	/// @brief: True for the cycle after the keyboard clicked this button, so
+	/// the state can be cleared again. A touch click is cleared by the next
+	/// touch event, but a keyboard one never sees a touch.
+	bool kbd_click;
+#endif
 	uv_delay_st delay;
 	char *text;
 	color_t main_c;

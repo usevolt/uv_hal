@@ -182,6 +182,11 @@ typedef struct   uv_uiobject_st {
 	/// @brief: True while this object holds the focus. At most one object in a
 	/// display has it.
 	bool focused;
+	/// @brief: True when this object is a uv_uiwindow_st (or anything deriving
+	/// from one), so the focus traversal knows it can descend into it. Set by
+	/// uv_uiwindow_init. The step callback cannot be used to tell: a tab window
+	/// installs its own.
+	bool is_window;
 #endif
 } uv_uiobject_st;
 
@@ -302,7 +307,11 @@ static inline void uv_uiobject_set_focused(void *me, bool value) {
 	uv_uiobject_st *this_ = me;
 	if (this_->focused != value) {
 		this_->focused = value;
-		this_->refresh = true;
+		// uv_ui_refresh(), not the refresh flag: only the root's flag actually
+		// starts a repaint, and each window then refreshes its children. Setting
+		// our own flag would leave the object that just lost the focus still
+		// drawn with its outline.
+		uv_ui_refresh(this_);
 	}
 }
 

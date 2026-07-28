@@ -184,6 +184,10 @@ void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array, const uv_ui
 	uv_uiobject_set_draw_callb(this, &_uv_uiwindow_draw);
 	uv_uiobject_set_touch_callb(this, &_uv_uiwindow_touch);
 	uv_uiobject_set_step_callb(this, &uv_uiwindow_step);
+#if CONFIG_UI_ENABLEFOCUS
+	// marks this as something the focus traversal may descend into
+	((uv_uiobject_st*) this)->is_window = true;
+#endif
 }
 
 
@@ -508,11 +512,11 @@ static void focus_walk(uv_uiwindow_st *win, uiwindow_focus_st *w) {
 			}
 		}
 
-		// Recurse into child windows. A window is recognised by its step
-		// callback: the object tree has no type tag, and every window installs
-		// this one in uv_uiwindow_init.
-		if ((obj->visible) &&
-				(obj->step_callb == &uv_uiwindow_step)) {
+		// Recurse into child windows. Recognised by the flag uv_uiwindow_init
+		// sets, not by the step callback: a tab window installs its own, and
+		// every field on screen lives inside one.
+		if (obj->visible &&
+				obj->is_window) {
 			focus_walk((uv_uiwindow_st*) obj, w);
 		}
 	}
