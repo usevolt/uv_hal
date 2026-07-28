@@ -49,24 +49,9 @@
 #define CONFIG_UI_REMOTE			0
 #endif
 
-#if CONFIG_UI_REMOTE
-
-/// @brief: Size of the single frame command buffer in bytes. A frame that
-/// exceeds this is dropped (never truncated / partially sent).
-#if !defined(CONFIG_UI_REMOTE_BUFFER_SIZE)
-#define CONFIG_UI_REMOTE_BUFFER_SIZE	4096
-#endif
-
-/// @brief: Maximum number of distinct bitmap assets that can be registered and
-/// referenced by a compact id on the wire.
-#if !defined(CONFIG_UI_REMOTE_ASSET_MAX)
-#define CONFIG_UI_REMOTE_ASSET_MAX		32
-#endif
-
-/// @brief: Wire value returned for an unknown / unregisterable bitmap or font.
-#define UV_UI_REMOTE_ASSET_INVALID		0xFFFFu
-#define UV_UI_REMOTE_FONT_UNKNOWN		0xFFu
-
+// --- wire format ------------------------------------------------------------
+// Visible unconditionally: a sink decodes this stream without compiling the
+// encoder, and both ends must agree on it.
 
 /// @brief: Command opcodes of the compact UI command stream.
 /// All multi-byte fields are little-endian. Coordinates are int16, sizes /
@@ -109,6 +94,26 @@ typedef enum {
 	UV_UI_REMOTE_INPUT_PRESS   = 1
 } uv_ui_remote_input_action_e;
 
+
+
+
+#if CONFIG_UI_REMOTE
+
+/// @brief: Size of the single frame command buffer in bytes. A frame that
+/// exceeds this is dropped (never truncated / partially sent).
+#if !defined(CONFIG_UI_REMOTE_BUFFER_SIZE)
+#define CONFIG_UI_REMOTE_BUFFER_SIZE	4096
+#endif
+
+/// @brief: Maximum number of distinct bitmap assets that can be registered and
+/// referenced by a compact id on the wire.
+#if !defined(CONFIG_UI_REMOTE_ASSET_MAX)
+#define CONFIG_UI_REMOTE_ASSET_MAX		32
+#endif
+
+/// @brief: Wire value returned for an unknown / unregisterable bitmap or font.
+#define UV_UI_REMOTE_ASSET_INVALID		0xFFFFu
+#define UV_UI_REMOTE_FONT_UNKNOWN		0xFFu
 
 
 /// @brief: Initializes the remote UI encoder (disabled until a sink connects).
