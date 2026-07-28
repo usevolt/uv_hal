@@ -36,9 +36,20 @@
 #define ESP32_MQTT_USER_MAX_LEN			32
 #define ESP32_MQTT_PASSWD_MAX_LEN		64
 #define ESP32_MQTT_TOPIC_MAX_LEN		64
-#define ESP32_MQTT_PAYLOAD_MAX_LEN		256
 #define ESP32_MQTT_DEFAULT_KEEPALIVE_S	60
 #define ESP32_MQTT_LINK_ID				0
+
+/// Largest MQTT payload that can be published or received in one message.
+/// Costs RAM twice over: once per publish slot (see the slot pool below) and
+/// once for the single receive-reassembly buffer. Override with
+/// CONFIG_ESP32_MQTT_PAYLOAD_MAX_LEN in uv_hal_config.h — raising it lets a
+/// producer batch many small application frames into one MQTT message, which
+/// on the AT transport matters a lot: each publish costs a full
+/// AT+MQTTPUBRAW / ">" prompt / OK round trip regardless of size.
+#ifndef CONFIG_ESP32_MQTT_PAYLOAD_MAX_LEN
+#define CONFIG_ESP32_MQTT_PAYLOAD_MAX_LEN		256
+#endif
+#define ESP32_MQTT_PAYLOAD_MAX_LEN		CONFIG_ESP32_MQTT_PAYLOAD_MAX_LEN
 
 /// Depth of the publish slot pool. Each slot owns its own topic + payload
 /// buffer, so this trades RAM for tolerance to bursts of uncoalesced events
@@ -50,6 +61,14 @@
 #define CONFIG_ESP32_MQTT_PUBLISH_SLOT_COUNT	8
 #endif
 #define ESP32_MQTT_PUBLISH_SLOT_COUNT	CONFIG_ESP32_MQTT_PUBLISH_SLOT_COUNT
+
+/// Number of topics that can be subscribed at once. The registry is kept
+/// across broker reconnects and replayed, so it also bounds how many
+/// subscriptions survive a reconnect.
+#ifndef CONFIG_ESP32_MQTT_SUBSCRIPTION_COUNT
+#define CONFIG_ESP32_MQTT_SUBSCRIPTION_COUNT	4
+#endif
+#define ESP32_MQTT_SUBSCRIPTION_COUNT	CONFIG_ESP32_MQTT_SUBSCRIPTION_COUNT
 
 
 /// @brief: Publish priority. Lower numeric value drains first. Within a
@@ -75,6 +94,21 @@ typedef struct {
 	uint8_t qos;
 	bool retain;
 } uv_esp32_mqtt_slot_st;
+
+
+/// @brief: One entry in the subscription registry. Entries are owned by the
+/// caller-facing uv_esp32_mqtt_subscribe / _unsubscribe and drained by the
+/// rxtx task, which is the only context allowed to write AT commands.
+typedef struct {
+	bool in_use;
+	/// AT+MQTTSUB has been acknowledged on the *current* broker connection.
+	/// Cleared on every (re)connect so the registry is replayed automatically.
+	bool sent;
+	/// Pending removal: send AT+MQTTUNSUB (if it was ever sent), then free.
+	bool unsub;
+	uint8_t qos;
+	char topic[ESP32_MQTT_TOPIC_MAX_LEN];
+} uv_esp32_mqtt_sub_st;
 
 
 /// @brief: MQTT scheme values are passed directly to AT+MQTTUSERCFG and
@@ -200,14 +234,35 @@ typedef struct {
 	uint8_t mqtt_retry_backoff_s;
 	uv_esp32_mqtt_rx_callb_t mqtt_rx_callb;
 
-	// scratch for parsing +MQTTSUBRECV payload (binary, raw bytes follow header)
+	// Scratch for parsing a +MQTTSUBRECV payload. The header is read through
+	// the normal line parser; the payload that follows the last comma is then
+	// captured as *raw bytes* straight off rx_datastream, bypassing both line
+	// splitting and ESP-AT escape decoding, so it stays binary-clean and is not
+	// bounded by the AT line buffer. `active` is true while that capture is in
+	// progress (it survives across step calls), `drop` marks a payload larger
+	// than the buffer: its bytes are still consumed so the stream stays in
+	// sync, but no callback is made for a truncated message.
 	struct {
 		char topic[ESP32_MQTT_TOPIC_MAX_LEN];
 		uint8_t data[ESP32_MQTT_PAYLOAD_MAX_LEN];
 		uint16_t expected_len;
 		uint16_t received_len;
 		bool active;
+		bool drop;
 	} mqtt_subrecv;
+
+	// Subscription registry. uv_esp32_mqtt_subscribe / _unsubscribe only
+	// mutate this list (guarded by mqtt_sub_mutex); the rxtx task issues the
+	// AT commands, serialized against the publish drainer so a subscribe can
+	// never be injected into a publish's data phase.
+	uv_mutex_st mqtt_sub_mutex;
+	uv_esp32_mqtt_sub_st mqtt_subs[ESP32_MQTT_SUBSCRIPTION_COUNT];
+	uv_esp32_mqtt_sub_st *mqtt_sub_active;
+	uint8_t mqtt_sub_phase;	///< MQTT_SUB_PHASE_* internal to uv_esp32.c
+	/// AT timeout while a (un)subscribe is in flight, retry backoff after a
+	/// failed one. Deliberately separate from mqtt_timeout, which the connect
+	/// and publish state machines already share.
+	uv_delay_st mqtt_sub_timeout;
 
 	// Publish slot pool. Caller threads fill slots via uv_esp32_mqtt_publish
 	// (non-blocking); the rxtx task drains them in priority + FIFO order.
@@ -231,6 +286,12 @@ typedef struct {
 	} state_data;
 
 	uint64_t mac;
+
+	// Signal strength of the AP we are joined to, in dBm, refreshed by a
+	// periodic AT+CWJAP? while joined. 0 means "not known": either not joined
+	// or no answer yet. A real measurement is always negative.
+	int8_t rssi;
+	uv_delay_st rssi_delay;
 
 	uint32_t written_byte_count;
 	uint32_t transmitted_byte_count;
@@ -294,6 +355,14 @@ const char *uv_esp32_state_to_str(uv_esp32_states_e state);
 
 static inline uv_esp32_states_e uv_esp32_state_get(uv_esp32_st *this) {
 	return this->state;
+}
+
+
+/// @brief: Signal strength of the joined AP in dBm, or 0 when it is not known
+/// (not joined, or joined but no answer to the strength query yet). Typical
+/// values run from about -40 (next to the AP) to -90 (barely usable).
+static inline int8_t uv_esp32_get_rssi(uv_esp32_st *this) {
+	return this->rssi;
 }
 
 
@@ -376,14 +445,29 @@ uv_errors_e uv_esp32_mqtt_publish(uv_esp32_st *this,
 		uint16_t stream_id);
 
 
-/// @brief: Subscribes to a topic via AT+MQTTSUB.
-/// Returns ERR_NOT_READY if MQTT is not connected.
+/// @brief: Adds a topic to the subscription registry. Returns immediately;
+/// the rxtx task issues the AT+MQTTSUB as soon as the broker connection is up
+/// and no publish is mid-transaction. Safe to call from any task — it never
+/// writes to the AT link itself.
+///
+/// The registry persists across broker reconnects and is replayed on every
+/// (re)connect, so callers subscribe once and do not have to watch for
+/// disconnects. Subscribing to a topic that is already registered just updates
+/// its qos and re-issues it.
+///
+/// @return ERR_NONE on success;
+///         ERR_BUFFER_OVERFLOW if the topic is too long or the registry is
+///                             full (see ESP32_MQTT_SUBSCRIPTION_COUNT).
+/// @note: Not ISR safe — takes a mutex.
 uv_errors_e uv_esp32_mqtt_subscribe(uv_esp32_st *this,
 		const char *topic, uint8_t qos);
 
 
-/// @brief: Unsubscribes from a topic via AT+MQTTUNSUB.
-/// Returns ERR_NOT_READY if MQTT is not connected.
+/// @brief: Removes a topic from the subscription registry. AT+MQTTUNSUB is
+/// sent by the rxtx task if the subscription was live; an entry that had not
+/// been issued yet is simply dropped. Returns ERR_NONE also when the topic was
+/// not subscribed.
+/// @note: Not ISR safe — takes a mutex.
 uv_errors_e uv_esp32_mqtt_unsubscribe(uv_esp32_st *this, const char *topic);
 
 

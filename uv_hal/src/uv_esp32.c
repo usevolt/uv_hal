@@ -25,6 +25,10 @@
 #define ESP32_MQTT_CONN_TIMEOUT_MS	15000
 #define ESP32_MQTT_BACKOFF_MIN_S	2
 #define ESP32_MQTT_BACKOFF_MAX_S	60
+// How often the signal strength of the joined AP is re-read. Rare on purpose:
+// the query shares the AT channel with the MQTT publish drainer, and signal
+// strength is a slowly changing, purely informational value.
+#define ESP32_RSSI_POLL_MS			10000
 
 // Pending-line buffer state, used to coordinate async-event dispatch and
 // AT-response matching without double-consuming lines from rx_datastream.
@@ -40,6 +44,19 @@
 #define MQTT_PUB_PHASE_IDLE			0
 #define MQTT_PUB_PHASE_AT_SENT		1
 #define MQTT_PUB_PHASE_DATA_SENT	2
+
+// Subscription drain phases. The registry is written by any task via
+// uv_esp32_mqtt_subscribe / _unsubscribe but the AT commands are issued only
+// here, in the rxtx task, and only while no publish is mid-transaction — a
+// subscribe injected into a publish's data phase would corrupt both.
+#define MQTT_SUB_PHASE_IDLE			0
+#define MQTT_SUB_PHASE_AT_SENT		1
+#define MQTT_SUB_PHASE_BACKOFF		2
+
+#define ESP32_MQTT_SUB_RETRY_MS		5000
+
+#define SUBRECV_PREFIX				"+MQTTSUBRECV:"
+#define SUBRECV_PREFIX_LEN			13
 
 
 static void tx(uv_esp32_st *this) {
@@ -87,6 +104,11 @@ static void esp32_reset(uv_esp32_st *this) {
 	uv_streambuffer_clear(&this->tx_streambuffer);
 	uv_streambuffer_clear(&this->rx_datastream);
 	at_resp_reset(this);
+	// the rx stream is gone, so any half-captured MQTT payload is unrecoverable
+	this->mqtt_subrecv.active = false;
+	this->mqtt_subrecv.received_len = 0;
+	this->mqtt_subrecv.expected_len = 0;
+	this->mqtt_subrecv.drop = false;
 	this->rx_at_cmd = NULL;
 	uv_mutex_unlock(&this->txstream_mutex);
 	uv_mutex_unlock(&this->tx_mutex);
@@ -233,68 +255,24 @@ static bool dispatch_mqtt_line(uv_esp32_st *this) {
 		}
 		dispatched = true;
 	}
-	else if (strstr(this->at_resp, "+MQTTSUBRECV") != NULL) {
-		// Parse: +MQTTSUBRECV:0,"topic",<len>,<data>
-		// topic and data are delivered with ESP-AT escapes already decoded
-		// by at_resp_accumulate. We assume topic does not contain ',' or '"'.
-		char *p = strchr(this->at_resp, ',');
-		if (p != NULL) {
-			char *topic_start = strchr(p, '"');
-			if (topic_start != NULL) {
-				topic_start++;
-				char *topic_end = strchr(topic_start, '"');
-				if (topic_end != NULL) {
-					uint16_t topic_len = (uint16_t) (topic_end - topic_start);
-					if (topic_len >= ESP32_MQTT_TOPIC_MAX_LEN) {
-						topic_len = ESP32_MQTT_TOPIC_MAX_LEN - 1;
-					}
-					else {
-					}
-					memcpy(this->mqtt_subrecv.topic, topic_start, topic_len);
-					this->mqtt_subrecv.topic[topic_len] = '\0';
-					char *len_start = topic_end + 1;
-					if (*len_start == ',') {
-						len_start++;
-						uint16_t datalen = (uint16_t) strtoul(
-								len_start, &p, 10);
-						if (datalen > ESP32_MQTT_PAYLOAD_MAX_LEN) {
-							datalen = ESP32_MQTT_PAYLOAD_MAX_LEN;
-						}
-						else {
-						}
-						if (p != NULL && *p == ',') {
-							p++;
-							// Remaining chars in at_resp ARE the payload.
-							uint16_t got = (uint16_t) strlen(p);
-							if (got > datalen) {
-								got = datalen;
-							}
-							else {
-							}
-							memcpy(this->mqtt_subrecv.data, p, got);
-							this->mqtt_subrecv.expected_len = datalen;
-							this->mqtt_subrecv.received_len = got;
-							if (got == datalen &&
-									this->mqtt_rx_callb != NULL) {
-								this->mqtt_rx_callb(
-										this->mqtt_subrecv.topic,
-										this->mqtt_subrecv.data,
-										got);
-							}
-							else {
-								// payload spans more than the line buffer; drop
-								ESP32_DEBUG(this,
-										"ESP32: SUBRECV payload truncated\n");
-							}
-						}
-						else {
-						}
-					}
-					else {
-					}
-				}
-				else {
-				}
+	else if (strstr(this->at_resp, "+CWJAP:") != NULL) {
+		// Answer to the periodic signal strength query:
+		// +CWJAP:<ssid>,<bssid>,<channel>,<rssi>[,...]. The ssid is quoted and
+		// may contain commas and (once the line parser has decoded the escapes)
+		// quotes of its own, so counting fields from the start of the line is
+		// not safe. The bssid is the last quoted field, so its closing quote is
+		// the last quote on the line — count from there.
+		char *s = strrchr(this->at_resp, '"');
+		if (s != NULL) {
+			// skip ,<channel>, to land on <rssi>
+			s = strchr(s, ',');
+			if (s != NULL) {
+				s = strchr(s + 1, ',');
+			}
+			else {
+			}
+			if (s != NULL) {
+				this->rssi = (int8_t) strtol(s + 1, NULL, 10);
 			}
 			else {
 			}
@@ -304,8 +282,140 @@ static bool dispatch_mqtt_line(uv_esp32_st *this) {
 		dispatched = true;
 	}
 	else {
+		// Note: +MQTTSUBRECV never reaches here. Its payload is raw binary and
+		// is captured off rx_datastream by at_feed_char below, before the line
+		// parser can escape-decode it, split it on '\n' or truncate it to the
+		// AT line buffer.
 	}
 	return dispatched;
+}
+
+
+/// @brief: Ends a raw payload capture, delivering it to the subscriber unless
+/// it was too big for the buffer.
+static void subrecv_finish(uv_esp32_st *this) {
+	if (!this->mqtt_subrecv.drop &&
+			(this->mqtt_rx_callb != NULL)) {
+		this->mqtt_rx_callb(this->mqtt_subrecv.topic,
+				this->mqtt_subrecv.data,
+				this->mqtt_subrecv.expected_len);
+	}
+	else {
+	}
+	this->mqtt_subrecv.active = false;
+	this->mqtt_subrecv.received_len = 0;
+	this->mqtt_subrecv.expected_len = 0;
+	this->mqtt_subrecv.drop = false;
+}
+
+
+/// @brief: Consumes one raw payload byte of the capture in progress.
+static void subrecv_feed(uv_esp32_st *this, char c) {
+	if (!this->mqtt_subrecv.drop &&
+			(this->mqtt_subrecv.received_len < ESP32_MQTT_PAYLOAD_MAX_LEN)) {
+		this->mqtt_subrecv.data[this->mqtt_subrecv.received_len] = (uint8_t) c;
+	}
+	else {
+		// oversized payload: still counted, so the stream stays in sync
+	}
+	this->mqtt_subrecv.received_len++;
+	if (this->mqtt_subrecv.received_len >= this->mqtt_subrecv.expected_len) {
+		subrecv_finish(this);
+	}
+	else {
+	}
+}
+
+
+/// @brief: Called right after a ',' has been accumulated into at_resp. If the
+/// partial line is now a complete '+MQTTSUBRECV:<link>,"<topic>",<len>,'
+/// header, switches the receiver into raw payload capture for <len> bytes.
+///
+/// @return: true if a capture was started.
+static bool subrecv_try_start(uv_esp32_st *this) {
+	bool ret = false;
+	// at_resp is only null-terminated once a line completes, so terminate the
+	// partial line in place to parse it. at_resp_accumulate guarantees
+	// at_resp_i <= ESP32_AT_RESP_LEN - 1, so this stays in bounds.
+	this->at_resp[this->at_resp_i] = '\0';
+	if (strncmp(this->at_resp, SUBRECV_PREFIX, SUBRECV_PREFIX_LEN) == 0) {
+		char *topic_start = strchr(&this->at_resp[SUBRECV_PREFIX_LEN], '"');
+		char *topic_end = (topic_start != NULL) ?
+				strchr(topic_start + 1, '"') : NULL;
+		if ((topic_end != NULL) &&
+				(topic_end[1] == ',')) {
+			char *len_start = &topic_end[2];
+			char *len_end = NULL;
+			unsigned long datalen = strtoul(len_start, &len_end, 10);
+			// The header ends exactly at the ',' just accumulated: the length
+			// field must be followed by that comma and nothing else yet.
+			// Anything else (an escaped ',' inside the topic, the comma after
+			// the link id) leaves the line incomplete and is ignored here.
+			if ((len_end != len_start) &&
+					(len_end[0] == ',') &&
+					(len_end[1] == '\0')) {
+				topic_start++;
+				uint16_t topic_len = (uint16_t) (topic_end - topic_start);
+				if (topic_len >= ESP32_MQTT_TOPIC_MAX_LEN) {
+					topic_len = ESP32_MQTT_TOPIC_MAX_LEN - 1;
+				}
+				else {
+				}
+				memcpy(this->mqtt_subrecv.topic, topic_start, topic_len);
+				this->mqtt_subrecv.topic[topic_len] = '\0';
+				this->mqtt_subrecv.expected_len = (uint16_t) datalen;
+				this->mqtt_subrecv.received_len = 0;
+				this->mqtt_subrecv.drop =
+						(datalen > ESP32_MQTT_PAYLOAD_MAX_LEN);
+				this->mqtt_subrecv.active = true;
+				if (this->mqtt_subrecv.drop) {
+					ESP32_DEBUG(this,
+							"ESP32: SUBRECV %u B exceeds payload buffer, "
+							"dropping\n", (unsigned int) datalen);
+				}
+				else {
+				}
+				at_resp_reset(this);
+				if (this->mqtt_subrecv.expected_len == 0) {
+					// zero-length payload completes without any further bytes
+					subrecv_finish(this);
+				}
+				else {
+				}
+				ret = true;
+			}
+			else {
+			}
+		}
+		else {
+		}
+	}
+	else {
+	}
+	return ret;
+}
+
+
+/// @brief: Feeds one received character into either the raw MQTT payload
+/// capture or the AT line parser, starting a capture when a +MQTTSUBRECV
+/// header completes.
+///
+/// @return: true if a complete AT line is now in at_resp.
+static bool at_feed_char(uv_esp32_st *this, char c) {
+	bool line_complete = false;
+	if (this->mqtt_subrecv.active) {
+		subrecv_feed(this, c);
+	}
+	else if (at_resp_accumulate(this, c)) {
+		this->at_resp_i = 0;
+		line_complete = true;
+	}
+	else if (c == ',') {
+		(void) subrecv_try_start(this);
+	}
+	else {
+	}
+	return line_complete;
 }
 
 
@@ -325,8 +435,7 @@ static bool at_get_line(uv_esp32_st *this) {
 	else {
 		char c;
 		while (uv_streambuffer_pop(&this->rx_datastream, &c, 1, 0)) {
-			if (at_resp_accumulate(this, c)) {
-				this->at_resp_i = 0;
+			if (at_feed_char(this, c)) {
 				ret = true;
 				break;
 			}
@@ -466,8 +575,14 @@ static void set_state(uv_esp32_st *this, uv_esp32_states_e state) {
 		case ESP32_STATE_GET_MAC:
 			uv_delay_init(&this->timeout, ESP32_AT_TIMEOUT_MS);
 			break;
+		case ESP32_STATE_JOINED_NETWORK:
+			// ask for the signal strength right away rather than after a full
+			// poll interval of showing "not known"
+			uv_delay_init(&this->rssi_delay, 0);
+			break;
 		case ESP32_STATE_LEFT_NETWORK:
 			uv_delay_init(&this->timeout, ESP32_RECONNECT_MS);
+			this->rssi = 0;
 			break;
 		default:
 			break;
@@ -508,12 +623,37 @@ const char *uv_esp32_mqtt_state_to_str(uv_esp32_mqtt_states_e state) {
 }
 
 
+/// @brief: Abandons any in-flight (un)subscribe and marks every registered
+/// subscription as not yet issued, so the registry is replayed on the next
+/// broker connection. A broker session starts with no subscriptions, so this
+/// runs on every MQTT state change.
+static void mqtt_sub_invalidate(uv_esp32_st *this) {
+	uv_mutex_lock(&this->mqtt_sub_mutex);
+	for (uint8_t i = 0; i < ESP32_MQTT_SUBSCRIPTION_COUNT; i++) {
+		uv_esp32_mqtt_sub_st *s = &this->mqtt_subs[i];
+		s->sent = false;
+		if (s->unsub) {
+			// nothing to unsubscribe from on a connection that no longer
+			// exists — just drop the entry
+			s->in_use = false;
+			s->unsub = false;
+		}
+		else {
+		}
+	}
+	uv_mutex_unlock(&this->mqtt_sub_mutex);
+	this->mqtt_sub_active = NULL;
+	this->mqtt_sub_phase = MQTT_SUB_PHASE_IDLE;
+}
+
+
 static void mqtt_set_state(uv_esp32_st *this, uv_esp32_mqtt_states_e state) {
 	if (this->mqtt_state != state) {
 		ESP32_DEBUG(this, "ESP32: MQTT %s -> %s\n",
 				uv_esp32_mqtt_state_to_str(this->mqtt_state),
 				uv_esp32_mqtt_state_to_str(state));
 		this->mqtt_state = state;
+		mqtt_sub_invalidate(this);
 		switch (state) {
 		case ESP32_MQTT_STATE_USERCFG:
 		case ESP32_MQTT_STATE_CONNCFG:
@@ -603,6 +743,82 @@ static void mqtt_slot_clear_all(uv_esp32_st *this) {
 		this->mqtt_pub_slots[i].phase = MQTT_PUB_PHASE_IDLE;
 	}
 	uv_mutex_unlock(&this->mqtt_pub_mutex);
+}
+
+
+/// @brief: Issues the next pending (un)subscribe, if any. Only called with the
+/// AT link free — no publish in flight and no subscribe already outstanding.
+static void mqtt_sub_start_next(uv_esp32_st *this) {
+	uv_esp32_mqtt_sub_st *target = NULL;
+	uv_mutex_lock(&this->mqtt_sub_mutex);
+	for (uint8_t i = 0; i < ESP32_MQTT_SUBSCRIPTION_COUNT; i++) {
+		uv_esp32_mqtt_sub_st *s = &this->mqtt_subs[i];
+		if (s->in_use &&
+				(s->unsub || !s->sent)) {
+			target = s;
+			break;
+		}
+		else {
+		}
+	}
+	uv_mutex_unlock(&this->mqtt_sub_mutex);
+
+	if (target != NULL) {
+		char line[ESP32_MQTT_TOPIC_MAX_LEN + 32];
+		if (target->unsub) {
+			snprintf(line, sizeof(line), "AT+MQTTUNSUB=%d,\"%s\"",
+					ESP32_MQTT_LINK_ID, target->topic);
+		}
+		else {
+			snprintf(line, sizeof(line), "AT+MQTTSUB=%d,\"%s\",%u",
+					ESP32_MQTT_LINK_ID, target->topic,
+					(unsigned int) target->qos);
+		}
+		ESP32_DEBUG(this, "ESP32: MQTT %s '%s'\n",
+				target->unsub ? "UNSUB" : "SUB", target->topic);
+		send_at_cmd_raw(this, line);
+		uv_delay_init(&this->mqtt_sub_timeout, ESP32_MQTT_AT_TIMEOUT_MS);
+		this->mqtt_sub_active = target;
+		this->mqtt_sub_phase = MQTT_SUB_PHASE_AT_SENT;
+	}
+	else {
+	}
+}
+
+
+/// @brief: Resolves the in-flight (un)subscribe. A failed subscribe keeps its
+/// registry entry with sent == false and backs off, so it is retried rather
+/// than lost.
+static void mqtt_sub_finish(uv_esp32_st *this, bool ok) {
+	uv_esp32_mqtt_sub_st *s = this->mqtt_sub_active;
+	if (s != NULL) {
+		uv_mutex_lock(&this->mqtt_sub_mutex);
+		if (s->unsub) {
+			// terminal either way: the caller no longer wants this topic
+			s->in_use = false;
+			s->unsub = false;
+			s->sent = false;
+		}
+		else if (ok) {
+			s->sent = true;
+		}
+		else {
+			ESP32_DEBUG(this, "ESP32: MQTT SUB '%s' failed\n", s->topic);
+		}
+		uv_mutex_unlock(&this->mqtt_sub_mutex);
+	}
+	else {
+	}
+	this->mqtt_sub_active = NULL;
+	if (ok) {
+		this->mqtt_sub_phase = MQTT_SUB_PHASE_IDLE;
+	}
+	else {
+		// don't hammer the AT link retrying a subscription the broker or the
+		// module just refused
+		uv_delay_init(&this->mqtt_sub_timeout, ESP32_MQTT_SUB_RETRY_MS);
+		this->mqtt_sub_phase = MQTT_SUB_PHASE_BACKOFF;
+	}
 }
 
 
@@ -714,6 +930,27 @@ static void rxtx_task(void *me_ptr) {
 		}
 
 		case ESP32_STATE_JOINED_NETWORK:
+			// Refresh the signal strength now and then. Fire and forget: the
+			// answer is recognized by dispatch_mqtt_line no matter which waiter
+			// happens to read the line, so this never occupies the AT matcher
+			// and cannot steal a response the MQTT state machine is waiting
+			// for. It is skipped entirely while a publish or a (un)subscribe is
+			// in flight, so the query is never injected into someone else's
+			// exchange; a sample missed that way is simply picked up on the
+			// next round.
+			if (uv_delay(&this->rssi_delay, uv_ts_get_step_ms(&ts))) {
+				uv_delay_init(&this->rssi_delay, ESP32_RSSI_POLL_MS);
+				if ((active_slot == NULL) &&
+						(this->mqtt_sub_active == NULL) &&
+						((this->mqtt_state == ESP32_MQTT_STATE_CONNECTED) ||
+						(this->mqtt_state == ESP32_MQTT_STATE_DISABLED))) {
+					send_at_cmd(this, "AT+CWJAP?", NULL, NULL);
+				}
+				else {
+				}
+			}
+			else {
+			}
 			break;
 
 		case ESP32_STATE_GET_MAC: {
@@ -922,7 +1159,22 @@ static void rxtx_task(void *me_ptr) {
 				break;
 			}
 			case ESP32_MQTT_STATE_CONNECTED:
-				if (active_slot != NULL) {
+				if (this->mqtt_sub_phase == MQTT_SUB_PHASE_AT_SENT) {
+					// An in-flight (un)subscribe owns the AT link until it
+					// resolves; publishes wait their turn.
+					uint8_t match = rx_at_match(this, "OK", "ERROR");
+					if (match != 0) {
+						mqtt_sub_finish(this, (match == 1));
+					}
+					else if (uv_delay(&this->mqtt_sub_timeout,
+							uv_ts_get_step_ms(&ts))) {
+						ESP32_DEBUG(this, "ESP32: MQTT SUB timeout\n");
+						mqtt_sub_finish(this, false);
+					}
+					else {
+					}
+				}
+				else if (active_slot != NULL) {
 					if (active_slot->phase == MQTT_PUB_PHASE_IDLE) {
 						char line[200];
 						snprintf(line, sizeof(line),
@@ -944,12 +1196,28 @@ static void rxtx_task(void *me_ptr) {
 						bool prompt_seen = false;
 						while (uv_streambuffer_pop(
 								&this->rx_datastream, &c, 1, 0)) {
-							if (c == '>') {
+							if (!this->mqtt_subrecv.active &&
+									(c == '>')) {
 								prompt_seen = true;
 								break;
 							}
 							else {
-								// discard pre-prompt chatter
+								// Not the prompt (or a '>' byte inside a binary
+								// payload). Feed it through the normal parser
+								// rather than discarding it, so a message
+								// arriving in this window is not silently
+								// eaten; complete lines are handed to the async
+								// dispatcher or held for the AT matcher.
+								if (at_feed_char(this, c)) {
+									if (dispatch_mqtt_line(this)) {
+										at_consume_line(this);
+									}
+									else {
+										at_save_pending(this);
+									}
+								}
+								else {
+								}
 							}
 						}
 						if (prompt_seen) {
@@ -993,6 +1261,23 @@ static void rxtx_task(void *me_ptr) {
 					}
 				}
 				else {
+					// AT link is free: retire the subscribe backoff, then issue
+					// whatever the registry still owes the broker.
+					if (this->mqtt_sub_phase == MQTT_SUB_PHASE_BACKOFF) {
+						if (uv_delay(&this->mqtt_sub_timeout,
+								uv_ts_get_step_ms(&ts))) {
+							this->mqtt_sub_phase = MQTT_SUB_PHASE_IDLE;
+						}
+						else {
+						}
+					}
+					else {
+					}
+					if (this->mqtt_sub_phase == MQTT_SUB_PHASE_IDLE) {
+						mqtt_sub_start_next(this);
+					}
+					else {
+					}
 				}
 				break;
 			case ESP32_MQTT_STATE_ERROR:
@@ -1053,6 +1338,8 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 	this->reset_io = reset_io;
 	this->state = ESP32_STATE_INIT;
 	this->mac = 0;
+	this->rssi = 0;
+	uv_delay_init(&this->rssi_delay, ESP32_RSSI_POLL_MS);
 	this->written_byte_count = 0;
 	this->transmitted_byte_count = 0;
 
@@ -1064,6 +1351,11 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 	this->mqtt_publish_seq = 0;
 	uv_mutex_init(&this->mqtt_pub_mutex);
 	uv_mutex_unlock(&this->mqtt_pub_mutex);
+	memset(this->mqtt_subs, 0, sizeof(this->mqtt_subs));
+	this->mqtt_sub_active = NULL;
+	this->mqtt_sub_phase = MQTT_SUB_PHASE_IDLE;
+	uv_mutex_init(&this->mqtt_sub_mutex);
+	uv_mutex_unlock(&this->mqtt_sub_mutex);
 	this->at_resp_has_pending = false;
 
 	uv_streambuffer_init_static(&this->tx_streambuffer,
@@ -1216,36 +1508,83 @@ uv_errors_e uv_esp32_mqtt_publish(uv_esp32_st *this,
 }
 
 
+/// @brief: Finds the registry entry for *topic*, or NULL. Caller holds
+/// mqtt_sub_mutex.
+static uv_esp32_mqtt_sub_st *mqtt_sub_find(uv_esp32_st *this,
+		const char *topic) {
+	uv_esp32_mqtt_sub_st *ret = NULL;
+	for (uint8_t i = 0; i < ESP32_MQTT_SUBSCRIPTION_COUNT; i++) {
+		uv_esp32_mqtt_sub_st *s = &this->mqtt_subs[i];
+		if (s->in_use &&
+				(strcmp(s->topic, topic) == 0)) {
+			ret = s;
+			break;
+		}
+		else {
+		}
+	}
+	return ret;
+}
+
+
 uv_errors_e uv_esp32_mqtt_subscribe(uv_esp32_st *this,
 		const char *topic, uint8_t qos) {
 	uv_errors_e ret = ERR_NONE;
-	if (this->mqtt_state != ESP32_MQTT_STATE_CONNECTED) {
-		ret = ERR_NOT_READY;
+	if (strlen(topic) >= ESP32_MQTT_TOPIC_MAX_LEN) {
+		ret = ERR_BUFFER_OVERFLOW;
 	}
 	else {
-		char line[128];
-		snprintf(line, sizeof(line),
-				"AT+MQTTSUB=%d,\"%s\",%u",
-				ESP32_MQTT_LINK_ID, topic, (unsigned int) qos);
-		send_at_cmd_raw(this, line);
+		uv_mutex_lock(&this->mqtt_sub_mutex);
+		uv_esp32_mqtt_sub_st *target = mqtt_sub_find(this, topic);
+		if (target == NULL) {
+			for (uint8_t i = 0; i < ESP32_MQTT_SUBSCRIPTION_COUNT; i++) {
+				if (!this->mqtt_subs[i].in_use) {
+					target = &this->mqtt_subs[i];
+					break;
+				}
+				else {
+				}
+			}
+		}
+		else {
+		}
+		if (target == NULL) {
+			ret = ERR_BUFFER_OVERFLOW;
+		}
+		else {
+			strncpy(target->topic, topic, ESP32_MQTT_TOPIC_MAX_LEN - 1);
+			target->topic[ESP32_MQTT_TOPIC_MAX_LEN - 1] = '\0';
+			target->qos = qos;
+			target->unsub = false;
+			// re-issued on the next drain; harmless if it was already live
+			target->sent = false;
+			target->in_use = true;
+		}
+		uv_mutex_unlock(&this->mqtt_sub_mutex);
 	}
 	return ret;
 }
 
 
 uv_errors_e uv_esp32_mqtt_unsubscribe(uv_esp32_st *this, const char *topic) {
-	uv_errors_e ret = ERR_NONE;
-	if (this->mqtt_state != ESP32_MQTT_STATE_CONNECTED) {
-		ret = ERR_NOT_READY;
+	uv_mutex_lock(&this->mqtt_sub_mutex);
+	uv_esp32_mqtt_sub_st *target = mqtt_sub_find(this, topic);
+	if (target != NULL) {
+		if (target->sent ||
+				(target == this->mqtt_sub_active)) {
+			// live on the broker (or being issued right now): let the drainer
+			// send AT+MQTTUNSUB and free the entry when it resolves
+			target->unsub = true;
+		}
+		else {
+			// never issued — nothing to tell the broker about
+			target->in_use = false;
+		}
 	}
 	else {
-		char line[128];
-		snprintf(line, sizeof(line),
-				"AT+MQTTUNSUB=%d,\"%s\"",
-				ESP32_MQTT_LINK_ID, topic);
-		send_at_cmd_raw(this, line);
 	}
-	return ret;
+	uv_mutex_unlock(&this->mqtt_sub_mutex);
+	return ERR_NONE;
 }
 
 

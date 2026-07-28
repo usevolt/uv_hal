@@ -20,6 +20,12 @@
 #include <mosquitto.h>
 
 
+// Signal strength reported while "joined" on the simulator. The host OS owns
+// the WiFi link, so there is no AP to measure; this is a plausible good-but-not
+// -perfect value that keeps the strength symbol meaningful in the sim.
+#define ESP32_SIM_RSSI		(-58)
+
+
 #define ESP32_DEBUG(esp, ...) do { \
 		if ((esp)->wifi_flags != NULL && \
 				(*((esp)->wifi_flags) & ESP32_CONF_FLAGS_DEBUG)) { \
@@ -35,16 +41,54 @@ static struct mosquitto *s_mosq = NULL;
 static uv_esp32_st *s_owner = NULL;
 
 
+// How long to wait for a connection to complete before giving up on it, and how
+// long to wait before retrying afterwards. The embedded driver has equivalents
+// (ESP32_MQTT_CONN_TIMEOUT_MS and an exponential backoff); without them here a
+// single failed connect would wedge the simulator in CONN or ERROR forever, with
+// no way to point it at another broker.
+#define ESP32_LINUX_CONN_TIMEOUT_MS		5000
+#define ESP32_LINUX_RETRY_MS			3000
+
+
+/// @brief: Enters the error state with a retry armed.
+static void mqtt_enter_error(uv_esp32_st *this) {
+	this->mqtt_state = ESP32_MQTT_STATE_ERROR;
+	uv_delay_init(&this->mqtt_timeout, ESP32_LINUX_RETRY_MS);
+}
+
+
+/// @brief: Marks every registered subscription as not yet issued, so step()
+/// replays the registry. A clean-session reconnect starts with none.
+static void mqtt_sub_invalidate(uv_esp32_st *this) {
+	for (uint8_t i = 0; i < ESP32_MQTT_SUBSCRIPTION_COUNT; i++) {
+		uv_esp32_mqtt_sub_st *s = &this->mqtt_subs[i];
+		s->sent = false;
+		if (s->unsub) {
+			s->in_use = false;
+			s->unsub = false;
+		}
+		else {
+		}
+	}
+}
+
+
 static void on_connect(struct mosquitto *m, void *userdata, int rc) {
 	(void) m;
 	uv_esp32_st *this = (uv_esp32_st *) userdata;
 	if (rc == 0) {
 		this->mqtt_state = ESP32_MQTT_STATE_CONNECTED;
 		this->state = ESP32_STATE_JOINED_NETWORK;
+		// The host OS owns the WiFi link here, so there is no AP to measure.
+		// Report a strong-but-not-perfect value so the signal strength symbol
+		// has something plausible to show on the simulator.
+		this->rssi = ESP32_SIM_RSSI;
+		// clean session: nothing is subscribed on the fresh connection
+		mqtt_sub_invalidate(this);
 		ESP32_DEBUG(this, "ESP32(linux): MQTT connected\n");
 	}
 	else {
-		this->mqtt_state = ESP32_MQTT_STATE_ERROR;
+		mqtt_enter_error(this);
 		ESP32_DEBUG(this, "ESP32(linux): MQTT connect rc=%d (%s)\n",
 				rc, mosquitto_connack_string(rc));
 	}
@@ -54,8 +98,13 @@ static void on_connect(struct mosquitto *m, void *userdata, int rc) {
 static void on_disconnect(struct mosquitto *m, void *userdata, int rc) {
 	(void) m;
 	uv_esp32_st *this = (uv_esp32_st *) userdata;
-	this->mqtt_state = (rc == 0) ?
-			ESP32_MQTT_STATE_DISABLED : ESP32_MQTT_STATE_ERROR;
+	if (rc == 0) {
+		this->mqtt_state = ESP32_MQTT_STATE_DISABLED;
+	}
+	else {
+		mqtt_enter_error(this);
+	}
+	mqtt_sub_invalidate(this);
 	ESP32_DEBUG(this, "ESP32(linux): MQTT disconnected rc=%d\n", rc);
 }
 
@@ -75,14 +124,55 @@ static void on_message(struct mosquitto *m, void *userdata,
 }
 
 
+/// @brief: CA the broker's certificate is verified against. Baked in by the
+/// makefile (MQTT_CA) and overridable at run time with the UV_MQTT_CA
+/// environment variable, because the compiled-in path is relative to the
+/// directory the simulator is started from.
+#ifndef UV_MQTT_CA_FILE
+#define UV_MQTT_CA_FILE		"certs/mqtt_ca.crt"
+#endif
+
+
 static void apply_tls(uv_esp32_st *this) {
 	// `scheme` follows the ESP-AT AT+MQTTUSERCFG spec: 1 = TCP, 2..5 = TLS
 	// variants. Schemes 2 and 4 skip server-cert verification; schemes 3
 	// and 5 verify the server cert against the provisioned CA.
 	if (this->mqtt_scheme >= 2) {
-		mosquitto_tls_insecure_set(s_mosq,
-				this->mqtt_scheme == 2 ||
-				this->mqtt_scheme == 4);
+		const char *ca = getenv("UV_MQTT_CA");
+		if ((ca == NULL) || (ca[0] == '\0')) {
+			ca = UV_MQTT_CA_FILE;
+		}
+		else {
+		}
+		bool insecure = ((this->mqtt_scheme == 2) ||
+				(this->mqtt_scheme == 4));
+
+		// TLS is switched on by mosquitto_tls_set. mosquitto_tls_insecure_set
+		// only selects whether the host name is checked and enables nothing on
+		// its own — calling it alone leaves a plain TCP connection, which then
+		// fails silently against a TLS-only port such as the broker's 8883.
+		int rc;
+		if (access(ca, R_OK) == 0) {
+			rc = mosquitto_tls_set(s_mosq, ca, NULL, NULL, NULL, NULL);
+			ESP32_DEBUG(this, "ESP32(linux): TLS with CA '%s'%s\n",
+					ca, insecure ? " (host name not checked)" : "");
+		}
+		else {
+			// The private CA is not where we expected. Fall back to the host
+			// trust store so a publicly signed broker still works, and say so —
+			// against the Usevolt broker this will fail the handshake.
+			rc = mosquitto_tls_set(s_mosq, NULL, "/etc/ssl/certs",
+					NULL, NULL, NULL);
+			ESP32_DEBUG(this, "ESP32(linux): CA '%s' not readable, "
+					"falling back to the system trust store\n", ca);
+		}
+		if (rc != MOSQ_ERR_SUCCESS) {
+			ESP32_DEBUG(this, "ESP32(linux): mosquitto_tls_set rc=%d (%s)\n",
+					rc, mosquitto_strerror(rc));
+		}
+		else {
+		}
+		mosquitto_tls_insecure_set(s_mosq, insecure);
 	}
 	else {
 		/* plain MQTT (scheme 1); no TLS setup */
@@ -107,37 +197,84 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 	this->mqtt_state = ESP32_MQTT_STATE_DISABLED;
 	this->mqtt_rx_callb = NULL;
 
+	// The handle is created lazily in uv_esp32_step, not here: libmosquitto
+	// fixes the client id at mosquitto_new() time and the id is not known yet
+	// (uv_esp32_mqtt_init has not been called). Creating it with a NULL id
+	// would give us a random one, and the broker ACL scopes an anonymous device
+	// by its client id (`pattern ... %c`), so every publish would be denied.
+	mosquitto_lib_init();
+
+	return ret;
+}
+
+
+/// @brief: Creates the process-wide mosquitto handle, bound to the configured
+/// client id. Returns false if it could not be created.
+static bool mosq_ensure(uv_esp32_st *this) {
+	bool ret = true;
 	if (s_mosq == NULL) {
-		mosquitto_lib_init();
-		s_mosq = mosquitto_new(NULL, true, this);
+		const char *id = ((this->mqtt_client_id != NULL) &&
+				(this->mqtt_client_id[0] != '\0')) ?
+						this->mqtt_client_id : NULL;
+		s_mosq = mosquitto_new(id, true, this);
 		if (s_mosq == NULL) {
-			ret = ERR_NOT_RESPONDING;
+			ret = false;
 		}
 		else {
 			s_owner = this;
 			mosquitto_connect_callback_set(s_mosq, on_connect);
 			mosquitto_disconnect_callback_set(s_mosq, on_disconnect);
 			mosquitto_message_callback_set(s_mosq, on_message);
+			ESP32_DEBUG(this, "ESP32(linux): client id '%s'\n",
+					(id != NULL) ? id : "(random)");
 		}
 	}
 	else {
-		/* lib already initialized for this process */
+		/* already created */
 	}
-
 	return ret;
 }
 
 
-void uv_esp32_step(uv_esp32_st *this, uint16_t step_ms) {
-	(void) step_ms;
-	if (s_mosq == NULL) {
-		return;
+/// @brief: Issues any registered subscriptions that the current connection
+/// does not have yet, and any pending unsubscribes.
+static void mqtt_sub_drain(uv_esp32_st *this) {
+	for (uint8_t i = 0; i < ESP32_MQTT_SUBSCRIPTION_COUNT; i++) {
+		uv_esp32_mqtt_sub_st *s = &this->mqtt_subs[i];
+		if (!s->in_use) {
+			continue;
+		}
+		else if (s->unsub) {
+			(void) mosquitto_unsubscribe(s_mosq, NULL, s->topic);
+			s->in_use = false;
+			s->unsub = false;
+			s->sent = false;
+		}
+		else if (!s->sent) {
+			int rc = mosquitto_subscribe(s_mosq, NULL, s->topic, (int) s->qos);
+			if (rc == MOSQ_ERR_SUCCESS) {
+				s->sent = true;
+				ESP32_DEBUG(this, "ESP32(linux): subscribed '%s'\n", s->topic);
+			}
+			else {
+				ESP32_DEBUG(this, "ESP32(linux): subscribe '%s' rc=%d (%s)\n",
+						s->topic, rc, mosquitto_strerror(rc));
+			}
+		}
+		else {
+			/* already live on this connection */
+		}
 	}
+}
+
+
+void uv_esp32_step(uv_esp32_st *this, uint16_t step_ms) {
 
 	// Lazy-connect once an MQTT broker URL has been configured.
 	if (this->mqtt_state == ESP32_MQTT_STATE_DISABLED &&
 			this->mqtt_broker_url != NULL &&
-			this->mqtt_broker_url[0] != '\0') {
+			this->mqtt_broker_url[0] != '\0' &&
+			mosq_ensure(this)) {
 		this->mqtt_state = ESP32_MQTT_STATE_INIT;
 
 		if (this->mqtt_user != NULL && this->mqtt_user[0] != '\0') {
@@ -158,9 +295,12 @@ void uv_esp32_step(uv_esp32_st *this, uint16_t step_ms) {
 						ESP32_MQTT_DEFAULT_KEEPALIVE_S);
 		if (rc == MOSQ_ERR_SUCCESS) {
 			this->mqtt_state = ESP32_MQTT_STATE_CONN;
+			// mosquitto_loop reports an unfinished connection as NO_CONN, which
+			// is indistinguishable from "still connecting", so bound the wait
+			uv_delay_init(&this->mqtt_timeout, ESP32_LINUX_CONN_TIMEOUT_MS);
 		}
 		else {
-			this->mqtt_state = ESP32_MQTT_STATE_ERROR;
+			mqtt_enter_error(this);
 			ESP32_DEBUG(this, "ESP32(linux): mosquitto_connect_async rc=%d\n",
 					rc);
 		}
@@ -169,17 +309,44 @@ void uv_esp32_step(uv_esp32_st *this, uint16_t step_ms) {
 		/* already connecting / connected */
 	}
 
-	// Pump network I/O. mosquitto_loop is a non-blocking single iteration
-	// when timeout=0; it dispatches reads, writes, keepalive, and triggers
-	// callbacks (on_connect / on_message / on_disconnect).
-	int rc = mosquitto_loop(s_mosq, 0, 1);
-	if (rc != MOSQ_ERR_SUCCESS && rc != MOSQ_ERR_NO_CONN) {
-		ESP32_DEBUG(this, "ESP32(linux): mosquitto_loop rc=%d (%s)\n",
-				rc, mosquitto_strerror(rc));
-		this->mqtt_state = ESP32_MQTT_STATE_ERROR;
+	if (s_mosq == NULL) {
+		/* nothing configured yet — no handle to pump */
 	}
 	else {
-		/* loop OK or not yet connected */
+		// Pump network I/O. mosquitto_loop is a non-blocking single iteration
+		// when timeout=0; it dispatches reads, writes, keepalive, and triggers
+		// callbacks (on_connect / on_message / on_disconnect).
+		int rc = mosquitto_loop(s_mosq, 0, 1);
+		if (rc != MOSQ_ERR_SUCCESS && rc != MOSQ_ERR_NO_CONN) {
+			ESP32_DEBUG(this, "ESP32(linux): mosquitto_loop rc=%d (%s)\n",
+					rc, mosquitto_strerror(rc));
+			mqtt_enter_error(this);
+		}
+		else {
+			/* loop OK or not yet connected */
+		}
+
+		// Give up on a connection that never completes, and retry after a
+		// failure, so a changed broker address always gets a fresh attempt.
+		if ((this->mqtt_state == ESP32_MQTT_STATE_CONN) &&
+				uv_delay(&this->mqtt_timeout, step_ms)) {
+			ESP32_DEBUG(this, "ESP32(linux): MQTT connect timeout\n");
+			(void) mosquitto_disconnect(s_mosq);
+			mqtt_enter_error(this);
+		}
+		else if ((this->mqtt_state == ESP32_MQTT_STATE_ERROR) &&
+				uv_delay(&this->mqtt_timeout, step_ms)) {
+			(void) mosquitto_disconnect(s_mosq);
+			this->mqtt_state = ESP32_MQTT_STATE_DISABLED;
+		}
+		else {
+		}
+
+		if (this->mqtt_state == ESP32_MQTT_STATE_CONNECTED) {
+			mqtt_sub_drain(this);
+		}
+		else {
+		}
 	}
 }
 
@@ -221,21 +388,57 @@ uv_errors_e uv_esp32_mqtt_publish(uv_esp32_st *this,
 }
 
 
+/// @brief: Finds the registry entry for *topic*, or NULL.
+static uv_esp32_mqtt_sub_st *mqtt_sub_find(uv_esp32_st *this,
+		const char *topic) {
+	uv_esp32_mqtt_sub_st *ret = NULL;
+	for (uint8_t i = 0; i < ESP32_MQTT_SUBSCRIPTION_COUNT; i++) {
+		uv_esp32_mqtt_sub_st *s = &this->mqtt_subs[i];
+		if (s->in_use &&
+				(strcmp(s->topic, topic) == 0)) {
+			ret = s;
+			break;
+		}
+		else {
+		}
+	}
+	return ret;
+}
+
+
+// Same contract as the embedded driver: the registry is the source of truth
+// and is replayed on every (re)connect, so callers subscribe once and never
+// have to watch for disconnects.
 uv_errors_e uv_esp32_mqtt_subscribe(uv_esp32_st *this,
 		const char *topic, uint8_t qos) {
 	uv_errors_e ret = ERR_NONE;
-	if (this->mqtt_state != ESP32_MQTT_STATE_CONNECTED) {
-		ret = ERR_NOT_READY;
+	if (strlen(topic) >= ESP32_MQTT_TOPIC_MAX_LEN) {
+		ret = ERR_BUFFER_OVERFLOW;
 	}
 	else {
-		int rc = mosquitto_subscribe(s_mosq, NULL, topic, (int) qos);
-		if (rc != MOSQ_ERR_SUCCESS) {
-			ESP32_DEBUG(this, "ESP32(linux): subscribe rc=%d (%s)\n",
-					rc, mosquitto_strerror(rc));
-			ret = ERR_NOT_RESPONDING;
+		uv_esp32_mqtt_sub_st *target = mqtt_sub_find(this, topic);
+		if (target == NULL) {
+			for (uint8_t i = 0; i < ESP32_MQTT_SUBSCRIPTION_COUNT; i++) {
+				if (!this->mqtt_subs[i].in_use) {
+					target = &this->mqtt_subs[i];
+					break;
+				}
+				else {
+				}
+			}
 		}
 		else {
-			/* subscription queued */
+		}
+		if (target == NULL) {
+			ret = ERR_BUFFER_OVERFLOW;
+		}
+		else {
+			strncpy(target->topic, topic, ESP32_MQTT_TOPIC_MAX_LEN - 1);
+			target->topic[ESP32_MQTT_TOPIC_MAX_LEN - 1] = '\0';
+			target->qos = qos;
+			target->unsub = false;
+			target->sent = false;
+			target->in_use = true;
 		}
 	}
 	return ret;
@@ -243,22 +446,19 @@ uv_errors_e uv_esp32_mqtt_subscribe(uv_esp32_st *this,
 
 
 uv_errors_e uv_esp32_mqtt_unsubscribe(uv_esp32_st *this, const char *topic) {
-	uv_errors_e ret = ERR_NONE;
-	if (this->mqtt_state != ESP32_MQTT_STATE_CONNECTED) {
-		ret = ERR_NOT_READY;
-	}
-	else {
-		int rc = mosquitto_unsubscribe(s_mosq, NULL, topic);
-		if (rc != MOSQ_ERR_SUCCESS) {
-			ESP32_DEBUG(this, "ESP32(linux): unsubscribe rc=%d (%s)\n",
-					rc, mosquitto_strerror(rc));
-			ret = ERR_NOT_RESPONDING;
+	uv_esp32_mqtt_sub_st *target = mqtt_sub_find(this, topic);
+	if (target != NULL) {
+		if (target->sent) {
+			target->unsub = true;
 		}
 		else {
-			/* unsubscription queued */
+			/* never issued — nothing to tell the broker about */
+			target->in_use = false;
 		}
 	}
-	return ret;
+	else {
+	}
+	return ERR_NONE;
 }
 
 
@@ -282,6 +482,7 @@ void uv_esp32_reset(uv_esp32_st *this) {
 
 
 void uv_esp32_network_leave(uv_esp32_st *this) {
+	this->rssi = 0;
 	if (this->wifi_ssid != NULL) {
 		this->wifi_ssid[0] = '\0';
 	}
@@ -302,15 +503,38 @@ void uv_esp32_network_join(uv_esp32_st *this, char ssid[32], char passwd[64]) {
 		this->wifi_passwd[PASSWD_STR_MAX_LEN - 1] = '\0';
 	}
 	this->state = ESP32_STATE_JOINED_NETWORK;
+	this->rssi = ESP32_SIM_RSSI;
 }
 
 
 uv_errors_e uv_esp32_network_scan(uv_esp32_st *this, bool blocking) {
-	(void) this;
 	(void) blocking;
-	// Scanning is the host OS's job; the simulator wifi tab does not call
-	// this path on TARGET_LINUX.
-	return ERR_NOT_IMPLEMENTED;
+	// The host OS owns the radio, so there is nothing real to scan for. Return
+	// a small synthetic list rather than nothing, so the scan command and any
+	// network picker can be exercised on the simulator. The names are
+	// deliberately obvious, so nobody mistakes these for real access points.
+	static const struct {
+		const char *ssid;
+		int8_t rssi;
+	} sim_nets[] = {
+			{ "sim-ap-strong", -45 },
+			{ "sim-ap-medium", -68 },
+			{ "sim-ap-weak",   -84 },
+	};
+	uint8_t count = (uint8_t) (sizeof(sim_nets) / sizeof(sim_nets[0]));
+	if (count > ESP32_SCAN_MAX_NETWORKS) {
+		count = ESP32_SCAN_MAX_NETWORKS;
+	}
+	else {
+	}
+	for (uint8_t i = 0; i < count; i++) {
+		strncpy(this->state_data.scan.networks[i].ssid, sim_nets[i].ssid,
+				SSID_STR_MAX_LEN - 1);
+		this->state_data.scan.networks[i].ssid[SSID_STR_MAX_LEN - 1] = '\0';
+		this->state_data.scan.networks[i].rssi = sim_nets[i].rssi;
+	}
+	this->state_data.scan.network_count = count;
+	return ERR_NONE;
 }
 
 
@@ -343,13 +567,22 @@ uv_errors_e uv_esp32_write_isr(uv_esp32_st *this,
 }
 
 
+// There is no MAC on the host, but callers use this string as the device's
+// identity — on MQTT it becomes the client id, which the broker treats as
+// unique: a second client connecting with the same id disconnects the first.
+// Several simulators are routinely run on one machine, so the pid comes FIRST
+// and the user name only fills whatever space is left. The other way round a
+// user name of 17+ characters would push the pid out of the buffer entirely and
+// every simulator that user starts would share one identity.
 void uv_esp32_mac_get_str(uv_esp32_st *this, char *dest) {
 	(void) this;
 	const char *user = getenv("USER");
 	if (user == NULL || user[0] == '\0') {
 		user = "unknown";
 	}
-	snprintf(dest, ESP32_MAC_STR_LEN, "%s:%d", user, (int) getpid());
+	else {
+	}
+	snprintf(dest, ESP32_MAC_STR_LEN, "sim%d:%s", (int) getpid(), user);
 	dest[ESP32_MAC_STR_LEN - 1] = '\0';
 }
 
