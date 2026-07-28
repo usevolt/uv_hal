@@ -88,32 +88,6 @@ uv_uiobject_ret_e uv_uibutton_step(void *me, uint16_t step_ms) {
 		this->state = UIBUTTON_UP;
 	}
 
-#if CONFIG_UI_ENABLEFOCUS
-	// A keyboard click has to clear itself: a touch click is cleared by the
-	// next touch event, and no touch is coming. The window steps the
-	// application before its children, so the click has already been seen by
-	// the time we get here again.
-	if (this->kbd_click) {
-		this->kbd_click = false;
-		this->state = UIBUTTON_UP;
-		uv_ui_refresh(this);
-	}
-	else if (uv_uiobject_get_focused(this) &&
-			((uv_uiobject_st*) this)->enabled) {
-		// the focused object owns the keyboard, so only it consumes these
-		char c = uv_ui_peek_key_press();
-		if ((c == ' ') || (c == '\n')) {
-			(void) uv_ui_get_key_press();
-			this->state = UIBUTTON_CLICKED;
-			this->kbd_click = true;
-			uv_ui_refresh(this);
-		}
-		else {
-		}
-	}
-	else {
-	}
-#endif
 
 	if ((this->state == UIBUTTON_PRESSED)) {
 		if (uv_delay(&this->delay, step_ms)) {
@@ -130,6 +104,31 @@ uv_uiobject_ret_e uv_uibutton_step(void *me, uint16_t step_ms) {
 
 
 void _uv_uibutton_touch(void *me, uv_touch_st *touch) {
+#if CONFIG_UI_ENABLEFOCUS
+	// The keyboard click is handled here rather than in the step function
+	// because of when the two run: the touch pass happens before the window
+	// steps the application, so a click registered here is polled in the same
+	// cycle, exactly like a real one. Setting it in the step would be too late
+	// - the application had already looked - and the next touch pass would
+	// clear it before it ever looked again.
+	if (uv_uiobject_get_focused(this) &&
+			((uv_uiobject_st*) this)->enabled) {
+		// the focused object owns the keyboard, so only it consumes these
+		char c = uv_ui_peek_key_press();
+		if ((c == ' ') ||
+				(c == '\n')) {
+			(void) uv_ui_get_key_press();
+			this->state = UIBUTTON_CLICKED;
+			uv_ui_refresh(this);
+			// leave before the touch handling below, which would clear it again
+			return;
+		}
+		else {
+		}
+	}
+	else {
+	}
+#endif
 	if (touch->action == TOUCH_IS_DOWN) {
 		if ((this->state != UIBUTTON_PRESSED) &&
 				(this->state != UIBUTTON_LONGPRESSED)) {

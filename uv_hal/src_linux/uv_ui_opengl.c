@@ -363,6 +363,12 @@ void uv_ui_confwindow_exec(const uv_uistyle_st *style) {
 	bb = uv_uistrlayout_find(&layout, "close");
 	uv_uibutton_init(&this->confwindow.ok_button, "OK", style);
 	uv_uidisplay_add(&this->confwindow.display, &this->confwindow.ok_button, &bb);
+#if CONFIG_UI_ENABLEFOCUS
+	// OK starts focused, so the window can be dismissed with enter or space
+	// without reaching for the mouse
+	uv_uiobject_set_enablefocus(&this->confwindow.ok_button, true);
+	uv_uiwindow_set_focus(&this->confwindow.ok_button);
+#endif
 
 	while (true) {
 		uint16_t step_ms = 20;

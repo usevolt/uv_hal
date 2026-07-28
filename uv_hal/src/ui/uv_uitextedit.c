@@ -195,6 +195,26 @@ static uv_uiobject_ret_e step(void *me, uint16_t step_ms) {
 #if CONFIG_TARGET_LINUX
 	bool cmdline = (this->flags & UITEXTEDIT_FLAG_CMDLINE) != 0;
 	this->submitted = false;
+#if CONFIG_UI_ENABLEFOCUS
+	// Editing follows the focus. Without this the field Tab moved away from
+	// would keep its cursor blinking and, worse, keep draining the key queue -
+	// swallowing the next Tab before the display could act on it.
+	// Command-line fields are focused by their owner, not by the traversal.
+	if (!cmdline &&
+			(this->editing != uv_uiobject_get_focused(this))) {
+		this->editing = uv_uiobject_get_focused(this);
+		this->blink_ms = 0;
+		if (this->editing) {
+			// drop anything typed before this field took the focus
+			while (uv_ui_get_key_press() != '\0') { }
+		}
+		else {
+		}
+		uv_ui_refresh(this);
+	}
+	else {
+	}
+#endif
 	if (this->editing) {
 		// blink the cursor, refreshing on every phase boundary. In command-line
 		// mode the cursor is kept steady (blink_ms stays 0): a persistent command
@@ -212,9 +232,14 @@ static uv_uiobject_ret_e step(void *me, uint16_t step_ms) {
 			}
 		}
 
-		// drain typed characters
+		// drain typed characters. Tab is left in the queue: the display owns it
+		// and uses it to move the focus on.
 		char c;
-		while ((c = uv_ui_get_key_press()) != '\0') {
+		while (
+#if CONFIG_UI_ENABLEFOCUS
+				(uv_ui_peek_key_press() != '\t') &&
+#endif
+				((c = uv_ui_get_key_press()) != '\0')) {
 			if (c == '\n' || c == '\r') {
 				if (cmdline) {
 					// submit but keep focus; the owner reads the line
