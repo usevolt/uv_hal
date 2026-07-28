@@ -120,6 +120,12 @@ uv_uiobject_ret_e uv_uiwindow_step(void *me, uint16_t step_ms);
 bool uv_uiwindow_focus_next(void *me);
 
 
+/// @brief: As uv_uiwindow_focus_next, the other way round: shift+Tab. Wraps to
+/// the last focusable object, which is also where it lands when nothing is
+/// focused yet.
+bool uv_uiwindow_focus_prev(void *me);
+
+
 /// @brief: Takes the focus away from whichever object in this tree holds it.
 void uv_uiwindow_clear_focus(void *me);
 

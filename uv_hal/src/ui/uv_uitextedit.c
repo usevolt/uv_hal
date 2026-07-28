@@ -294,6 +294,11 @@ static uv_uiobject_ret_e step(void *me, uint16_t step_ms) {
 			while (uv_ui_get_key_press() != '\0') { }
 		}
 		else {
+			// Losing the focus commits, exactly as clicking away or pressing
+			// enter does. Without this, a value typed and then tabbed out of
+			// was never reported as changed, so the application never stored
+			// it - the field looked filled in but nothing had been saved.
+			this->changed = true;
 		}
 		uv_ui_refresh(this);
 	}
@@ -323,6 +328,7 @@ static uv_uiobject_ret_e step(void *me, uint16_t step_ms) {
 		while (
 #if CONFIG_UI_ENABLEFOCUS
 				(uv_ui_peek_key_press() != '\t') &&
+				(uv_ui_peek_key_press() != UI_KEY_BACKTAB) &&
 #endif
 				((c = uv_ui_get_key_press()) != '\0')) {
 			if (c == '\n' || c == '\r') {

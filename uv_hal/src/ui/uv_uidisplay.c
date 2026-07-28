@@ -132,9 +132,15 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 	// Tab belongs to the display, not to whatever is focused: it is what moves
 	// the focus on. Peeked rather than popped so every other key is left in the
 	// queue for the focused object to read.
-	while (uv_ui_peek_key_press() == '\t') {
-		(void) uv_ui_get_key_press();
-		(void) uv_uiwindow_focus_next(this);
+	while ((uv_ui_peek_key_press() == '\t') ||
+			(uv_ui_peek_key_press() == UI_KEY_BACKTAB)) {
+		char c = uv_ui_get_key_press();
+		if (c == UI_KEY_BACKTAB) {
+			(void) uv_uiwindow_focus_prev(this);
+		}
+		else {
+			(void) uv_uiwindow_focus_next(this);
+		}
 	}
 #endif
 

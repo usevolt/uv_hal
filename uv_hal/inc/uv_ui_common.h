@@ -533,6 +533,9 @@ char uv_ui_get_key_press(void);
 /// @brief: Caret movement keys, reported by the backends as control codes so
 /// they travel through the same queue as ordinary characters without colliding
 /// with any of them.
+/// @brief: Shift+Tab, which walks the focus the other way.
+#define UI_KEY_BACKTAB		0x0f
+
 #define UI_KEY_LEFT			0x11
 #define UI_KEY_RIGHT		0x12
 #define UI_KEY_HOME			0x01

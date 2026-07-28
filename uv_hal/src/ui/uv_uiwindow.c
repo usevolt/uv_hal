@@ -476,10 +476,14 @@ typedef struct {
 	// first focusable object in tree order, used to wrap around and as the
 	// answer when nothing was focused
 	uv_uiobject_st *first;
+	// last focusable object seen so far; once the walk ends it is the last one
+	// in the tree, which is where a backwards move wraps to
+	uv_uiobject_st *last;
 	// the object holding the focus now, if any
 	uv_uiobject_st *current;
-	// the focusable object that follows *current* in tree order
+	// the focusable objects on either side of *current* in tree order
 	uv_uiobject_st *next;
+	uv_uiobject_st *prev;
 	// set once *current* has been passed, so the following one is taken
 	bool passed_current;
 } uiwindow_focus_st;
@@ -508,8 +512,11 @@ static void focus_walk(uv_uiwindow_st *win, uiwindow_focus_st *w) {
 			}
 			if (obj->focused) {
 				w->current = obj;
+				// whatever was last seen is the one before it
+				w->prev = w->last;
 				w->passed_current = true;
 			}
+			w->last = obj;
 		}
 
 		// Recurse into child windows. Recognised by the flag uv_uiwindow_init
@@ -523,17 +530,14 @@ static void focus_walk(uv_uiwindow_st *win, uiwindow_focus_st *w) {
 }
 
 
-bool uv_uiwindow_focus_next(void *me) {
-	uiwindow_focus_st w = { NULL, NULL, NULL, false };
-	focus_walk(me, &w);
-
-	// after the last one, wrap around to the first
-	uv_uiobject_st *target = (w.next != NULL) ? w.next : w.first;
+/// @brief: Shared by the two directions: walks the tree, then hands the focus
+/// to *target*.
+static bool focus_move(uv_uiobject_st *current, uv_uiobject_st *target) {
 	bool ret = false;
 	if ((target != NULL) &&
-			(target != w.current)) {
-		if (w.current != NULL) {
-			uv_uiobject_set_focused(w.current, false);
+			(target != current)) {
+		if (current != NULL) {
+			uv_uiobject_set_focused(current, false);
 		}
 		uv_uiobject_set_focused(target, true);
 		ret = true;
@@ -542,6 +546,28 @@ bool uv_uiwindow_focus_next(void *me) {
 		// nothing focusable on screen, or it is the only one and already has it
 	}
 	return ret;
+}
+
+
+bool uv_uiwindow_focus_next(void *me) {
+	uiwindow_focus_st w = { 0 };
+	focus_walk(me, &w);
+
+	// after the last one, wrap around to the first
+	uv_uiobject_st *target = (w.next != NULL) ? w.next : w.first;
+	return focus_move(w.current, target);
+}
+
+
+bool uv_uiwindow_focus_prev(void *me) {
+	uiwindow_focus_st w = { 0 };
+	focus_walk(me, &w);
+
+	// before the first one, wrap around to the last. With nothing focused this
+	// also lands on the last, which is what stepping backwards into a form
+	// should do.
+	uv_uiobject_st *target = (w.prev != NULL) ? w.prev : w.last;
+	return focus_move(w.current, target);
 }
 
 
@@ -564,7 +590,7 @@ void uv_uiwindow_set_focus(void *obj) {
 
 
 void uv_uiwindow_clear_focus(void *me) {
-	uiwindow_focus_st w = { NULL, NULL, NULL, false };
+	uiwindow_focus_st w = { 0 };
 	focus_walk(me, &w);
 	if (w.current != NULL) {
 		uv_uiobject_set_focused(w.current, false);

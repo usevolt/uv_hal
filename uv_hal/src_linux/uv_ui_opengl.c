@@ -1163,7 +1163,8 @@ static void key_callback(GLFWwindow* window,
 			c = 0x7f;
 			break;
 		case GLFW_KEY_TAB:
-			c = '\t';
+			// shift+tab walks the focus backwards
+			c = ((mods & GLFW_MOD_SHIFT) != 0) ? UI_KEY_BACKTAB : '\t';
 			break;
 		case GLFW_KEY_LEFT:
 			c = UI_KEY_LEFT;
