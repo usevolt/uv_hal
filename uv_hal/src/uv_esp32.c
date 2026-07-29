@@ -1439,6 +1439,26 @@ static void mqtt_slot_fill(uv_esp32_mqtt_slot_st *slot,
 }
 
 
+bool uv_esp32_mqtt_publish_pending(uv_esp32_st *this, uint16_t stream_id) {
+	bool ret = false;
+	if (stream_id != 0) {
+		uv_mutex_lock(&this->mqtt_pub_mutex);
+		for (uint8_t i = 0; (i < ESP32_MQTT_PUBLISH_SLOT_COUNT) && !ret; i++) {
+			if (this->mqtt_pub_slots[i].in_use &&
+					(this->mqtt_pub_slots[i].stream_id == stream_id)) {
+				ret = true;
+			}
+			else {
+			}
+		}
+		uv_mutex_unlock(&this->mqtt_pub_mutex);
+	}
+	else {
+	}
+	return ret;
+}
+
+
 uv_errors_e uv_esp32_mqtt_publish(uv_esp32_st *this,
 		const char *topic, const uint8_t *data, uint16_t datalen,
 		uint8_t qos, bool retain,

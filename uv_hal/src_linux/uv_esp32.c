@@ -109,6 +109,54 @@ static void on_disconnect(struct mosquitto *m, void *userdata, int rc) {
 }
 
 
+/// @brief: The publish this stream is still waiting on, by mosquitto message
+/// id, or 0 when it has nothing outstanding.
+///
+/// The embedded side answers "is this stream still busy?" from its own slot
+/// pool. Here mosquitto owns the queue, so the same question is answered by
+/// remembering the message id it gave us and clearing it when it reports the
+/// message sent. Without this the simulator would have no back-pressure at all
+/// and a producer holding one stream could run as far ahead as it liked -
+/// which is precisely what the pool exists to stop.
+#define ESP32_LINUX_STREAM_MAX	8
+static struct {
+	uint16_t stream_id;
+	int mid;
+} s_pending[ESP32_LINUX_STREAM_MAX];
+
+
+static void on_publish(struct mosquitto *m, void *userdata, int mid) {
+	(void) m;
+	(void) userdata;
+	for (uint8_t i = 0; i < ESP32_LINUX_STREAM_MAX; i++) {
+		if (s_pending[i].mid == mid) {
+			s_pending[i].stream_id = 0;
+			s_pending[i].mid = 0;
+		}
+		else {
+		}
+	}
+}
+
+
+bool uv_esp32_mqtt_publish_pending(uv_esp32_st *this, uint16_t stream_id) {
+	(void) this;
+	bool ret = false;
+	if (stream_id != 0) {
+		for (uint8_t i = 0; (i < ESP32_LINUX_STREAM_MAX) && !ret; i++) {
+			if (s_pending[i].stream_id == stream_id) {
+				ret = true;
+			}
+			else {
+			}
+		}
+	}
+	else {
+	}
+	return ret;
+}
+
+
 static void on_message(struct mosquitto *m, void *userdata,
 		const struct mosquitto_message *msg) {
 	(void) m;
@@ -225,6 +273,7 @@ static bool mosq_ensure(uv_esp32_st *this) {
 			mosquitto_connect_callback_set(s_mosq, on_connect);
 			mosquitto_disconnect_callback_set(s_mosq, on_disconnect);
 			mosquitto_message_callback_set(s_mosq, on_message);
+			mosquitto_publish_callback_set(s_mosq, on_publish);
 			ESP32_DEBUG(this, "ESP32(linux): client id '%s'\n",
 					(id != NULL) ? id : "(random)");
 		}
@@ -357,7 +406,6 @@ uv_errors_e uv_esp32_mqtt_publish(uv_esp32_st *this,
 		uv_esp32_mqtt_prio_e priority,
 		uint16_t stream_id) {
 	(void) priority;
-	(void) stream_id;
 	// libmosquitto has its own outbound queue and mosquitto_publish never
 	// blocks on the broker; the priority/coalescing pool is only meaningful
 	// on the embedded side where AT bandwidth is the bottleneck. On the sim
@@ -373,8 +421,24 @@ uv_errors_e uv_esp32_mqtt_publish(uv_esp32_st *this,
 		ret = ERR_BUFFER_OVERFLOW;
 	}
 	else {
-		int rc = mosquitto_publish(s_mosq, NULL, topic,
+		int mid = 0;
+		int rc = mosquitto_publish(s_mosq, &mid, topic,
 				(int) datalen, data, (int) qos, retain);
+		if ((rc == MOSQ_ERR_SUCCESS) && (stream_id != 0)) {
+			// remember it so this stream can be asked whether it is still busy
+			for (uint8_t i = 0; i < ESP32_LINUX_STREAM_MAX; i++) {
+				if ((s_pending[i].stream_id == 0) ||
+						(s_pending[i].stream_id == stream_id)) {
+					s_pending[i].stream_id = stream_id;
+					s_pending[i].mid = mid;
+					break;
+				}
+				else {
+				}
+			}
+		}
+		else {
+		}
 		if (rc != MOSQ_ERR_SUCCESS) {
 			ESP32_DEBUG(this, "ESP32(linux): publish rc=%d (%s)\n",
 					rc, mosquitto_strerror(rc));

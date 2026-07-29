@@ -438,6 +438,16 @@ static inline uv_esp32_mqtt_states_e uv_esp32_mqtt_state_get(uv_esp32_st *this) 
 ///                             stream_id is 0;
 ///         (Publish is queued even when not yet connected — it will be
 ///          sent once the MQTT state machine reaches CONNECTED.)
+/// @brief: True while a publish carrying *stream_id* is still queued or on its
+/// way out. Lets a producer that owns a stream hold its next payload back until
+/// the last one has actually gone, rather than filling the pool with a backlog
+/// of its own.
+///
+/// Only meaningful for a non-zero stream_id, which is what makes a stream one
+/// slot: uncoalesced publishes have no identity to ask after.
+bool uv_esp32_mqtt_publish_pending(uv_esp32_st *this, uint16_t stream_id);
+
+
 uv_errors_e uv_esp32_mqtt_publish(uv_esp32_st *this,
 		const char *topic, const uint8_t *data, uint16_t datalen,
 		uint8_t qos, bool retain,
