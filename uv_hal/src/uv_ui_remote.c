@@ -26,7 +26,6 @@
  * SOFTWARE.
  */
 
-
 #include "uv_ui_common.h"
 #include <string.h>
 
@@ -133,8 +132,30 @@ static uint8_t resolve_font_id(const ui_font_st *font) {
 }
 
 
-/// @brief: True when a new command may be appended to the current frame.
+/// @brief: True when a new command may be appended to the current frame,
+/// opening one first if a draw arrives with no frame in progress.
+///
+/// A normal screen opens its frame by clearing (uv_ui_clear -> FRAME_BEGIN).
+/// The dialogs that run their own exec loop - the save dialog, the accept and
+/// password dialogs, the numpad, the keyboard - never clear: they draw their
+/// window over what is already on the display list and swap. Without the
+/// implicit open below, the encoder sat in IDLE through all of it, every one of
+/// their draw calls was dropped, and the remote view froze on the last full
+/// screen until the dialog was dismissed.
+///
+/// Such a frame is opened with FRAME_BEGIN_KEEP, which tells the sink to draw
+/// over the frame it already has rather than starting from a cleared screen -
+/// the same thing the device is doing to its own display list.
 static bool gathering(void) {
+	if (this->enabled && (this->state == REMOTE_UI_IDLE)) {
+		this->buf_len = 0;
+		this->overflow = false;
+		ap8((uint8_t) UV_UI_REMOTE_OP_FRAME_BEGIN_KEEP);
+		this->state = REMOTE_UI_GATHER;
+	}
+	else {
+		// a frame is already open, or we are not capturing at all
+	}
 	return this->enabled && (this->state == REMOTE_UI_GATHER);
 }
 

@@ -64,6 +64,7 @@
 /// from FRAME_BEGIN (= uv_ui_clear) up to and including FRAME_END (= uv_ui_dlswap).
 ///
 ///   FRAME_BEGIN (5):  [op:1][color:4]
+///   FRAME_BEGIN_KEEP (1): [op:1]
 ///   BITMAP     (19):  [op:1][bitmap_id:2][x:2][y:2][w:2][h:2][wrap:4][color:4]
 ///   POINT      (11):  [op:1][x:2][y:2][diameter:2][color:4]
 ///   RRECT      (15):  [op:1][x:2][y:2][w:2][h:2][radius:2][color:4]
@@ -87,7 +88,13 @@ typedef enum {
 	UV_UI_REMOTE_OP_POLYGON     = 0x07,
 	UV_UI_REMOTE_OP_STRING      = 0x08,
 	UV_UI_REMOTE_OP_MASK        = 0x09,
-	UV_UI_REMOTE_OP_FRAME_END   = 0x0A
+	UV_UI_REMOTE_OP_FRAME_END   = 0x0A,
+	// Opens a frame that is drawn ON TOP of the one the sink already has,
+	// instead of over a cleared screen. Emitted for a screen that draws without
+	// clearing first, which is what the dialogs running their own exec loop do:
+	// they put their window over the existing display list and swap. The sink
+	// replays its last full frame before applying this one.
+	UV_UI_REMOTE_OP_FRAME_BEGIN_KEEP = 0x0B
 } uv_ui_remote_op_e;
 
 
