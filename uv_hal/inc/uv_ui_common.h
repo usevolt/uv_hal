@@ -30,8 +30,8 @@
 #ifndef UV_UI_COMMON_H_
 #define UV_UI_COMMON_H_
 
-#include "uv_utilities.h"
 #include <uv_hal_config.h>
+#include "uv_utilities.h"
 
 #if CONFIG_UI
 
