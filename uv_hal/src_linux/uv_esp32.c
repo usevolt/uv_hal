@@ -124,10 +124,20 @@ static struct {
 	int mid;
 } s_pending[ESP32_LINUX_STREAM_MAX];
 
+/// @brief: The message id the publish callback last reported.
+///
+/// For QoS 0 mosquitto calls that callback from inside mosquitto_publish, so a
+/// message can be finished before the call that sent it has even returned. Its
+/// id is kept here so the caller can tell that case apart from a message still
+/// on its way, instead of recording a pending message that has already gone and
+/// waiting for it for ever.
+static int s_last_pub_mid = -1;
+
 
 static void on_publish(struct mosquitto *m, void *userdata, int mid) {
 	(void) m;
 	(void) userdata;
+	s_last_pub_mid = mid;
 	for (uint8_t i = 0; i < ESP32_LINUX_STREAM_MAX; i++) {
 		if (s_pending[i].mid == mid) {
 			s_pending[i].stream_id = 0;
@@ -422,9 +432,14 @@ uv_errors_e uv_esp32_mqtt_publish(uv_esp32_st *this,
 	}
 	else {
 		int mid = 0;
+		s_last_pub_mid = -1;
 		int rc = mosquitto_publish(s_mosq, &mid, topic,
 				(int) datalen, data, (int) qos, retain);
-		if ((rc == MOSQ_ERR_SUCCESS) && (stream_id != 0)) {
+		// Only remember it if it has not already gone: at QoS 0 the callback
+		// runs inside the call above, and recording it afterwards would mark a
+		// finished message as pending with nothing left to clear it.
+		if ((rc == MOSQ_ERR_SUCCESS) && (stream_id != 0) &&
+				(s_last_pub_mid != mid)) {
 			// remember it so this stream can be asked whether it is still busy
 			for (uint8_t i = 0; i < ESP32_LINUX_STREAM_MAX; i++) {
 				if ((s_pending[i].stream_id == 0) ||
