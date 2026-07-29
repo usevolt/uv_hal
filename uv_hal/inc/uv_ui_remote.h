@@ -98,6 +98,49 @@ typedef enum {
 } uv_ui_remote_op_e;
 
 
+// --- assets ------------------------------------------------------------------
+//
+// The command stream refers to fonts and bitmaps but does not carry them: a
+// font is named by the font_id already in the STRING op, a bitmap by an id
+// derived from its file name. The sink asks for whatever it is missing and
+// caches it for the session, so nothing is sent that is not actually looked at.
+//
+// Visible unconditionally: the sink decodes these without compiling the encoder.
+
+/// @brief: What a UI_ASSET / UI_ASSET_REQ message is about.
+#define UV_UI_REMOTE_ASSET_KIND_FONT	0
+#define UV_UI_REMOTE_ASSET_KIND_BITMAP	1
+
+/// @brief: Asset payload bytes per chunk. Chosen so a chunk plus the transport's
+/// own header still fits the 200-byte UI chunk the link carries.
+#define UV_UI_REMOTE_ASSET_CHUNK		192
+
+/// @brief: The first chunk of an asset opens with this header, the rest are raw
+/// continuation bytes:
+///   [kind:1][id:4][total_len:4]
+/// A total_len of zero is the answer for an asset that cannot be served, so the
+/// sink stops asking for it.
+#define UV_UI_REMOTE_ASSET_HDR_LEN		9
+
+/// @brief: Marks the first and last chunk of an asset. Deliberately the same
+/// bit positions the transport uses for a UI frame, so it passes them straight
+/// through, but named here so this module needs to know nothing about the link.
+#define UV_UI_REMOTE_ASSET_FLAG_START	(1 << 0)
+#define UV_UI_REMOTE_ASSET_FLAG_END		(1 << 1)
+
+/// @brief: Body of a font asset, following the header above:
+///   [height:2][flags:1][stride:2][width:2][widths:128][glyph atlas]
+/// The atlas is 4 bits per pixel, *stride* bytes per row, *height* rows per
+/// glyph, 128 glyph slots, indexed by uv_ui_codepoint_glyph(). It is present
+/// only when UV_UI_REMOTE_FONT_FLAG_GLYPHS is set: the FT81X ROM fonts have no
+/// glyph data anywhere outside the chip, so those are described by their
+/// metrics alone and the sink draws them with a font of its own at the height
+/// and advances given here.
+#define UV_UI_REMOTE_FONT_FLAG_GLYPHS	(1 << 0)
+#define UV_UI_REMOTE_FONT_WIDTHS		128
+#define UV_UI_REMOTE_FONT_BODY_HDR_LEN	(7 + UV_UI_REMOTE_FONT_WIDTHS)
+
+
 /// @brief: Reverse input action byte (sink -> source). The sink reports raw
 /// press / release; this device's existing uv_uidisplay_step gesture state
 /// machine derives DRAG / CLICK from the stream.
@@ -123,6 +166,19 @@ typedef enum {
 #define CONFIG_UI_REMOTE_ASSET_MAX		32
 #endif
 
+/// @brief: How many outstanding asset requests are remembered. The sink asks
+/// only for what is on the screen it is looking at, and asks again the next
+/// time it sees it, so a handful is plenty.
+#if !defined(CONFIG_UI_REMOTE_ASSET_REQ_MAX)
+#define CONFIG_UI_REMOTE_ASSET_REQ_MAX	4
+#endif
+
+// One chunk is prepared per frame boundary, since that is where the UI task can
+// safely read flash, and only one is in flight at a time. That paces a transfer
+// at 192 bytes per frame - about 9 kB/s at 20 ms frames, so well under a second
+// for a bitmap and a few seconds for a full glyph atlas. Raising it means
+// staging several chunks, which is a ring buffer rather than a constant.
+
 /// @brief: Initializes the remote UI encoder (disabled until a sink connects).
 void uv_ui_remote_init(void);
 
@@ -144,6 +200,50 @@ bool uv_ui_remote_active(void);
 /// @brief: Assigns / returns the compact wire id of a bitmap asset.
 /// Returns UV_UI_REMOTE_ASSET_INVALID if the registry is full or m is NULL.
 uint16_t uv_ui_remote_register_bitmap(uv_uimedia_st *bitmap);
+
+
+// --- serving assets ----------------------------------------------------------
+
+/// @brief: Total size in bytes of asset (*kind*, *id*), or 0 when this device
+/// cannot serve it.
+typedef uint32_t (*uv_ui_remote_asset_size_t)(uint8_t kind, uint32_t id);
+
+/// @brief: Reads at most *len* bytes of asset (*kind*, *id*) from *offset* into
+/// *dest*. Returns the number of bytes read; 0 ends the transfer.
+typedef uint32_t (*uv_ui_remote_asset_read_t)(uint8_t kind, uint32_t id,
+		uint32_t offset, void *dest, uint32_t len);
+
+/// @brief: Installs the callbacks that produce asset bytes. Where they come
+/// from is the backend's business - external flash on the device, the media
+/// directory on the simulator - so this module never learns about either.
+///
+/// Both are called from the UI task, at a frame boundary, because on the device
+/// they read the same SPI bus the UI task is already using.
+void uv_ui_remote_set_asset_provider(uv_ui_remote_asset_size_t size_callb,
+		uv_ui_remote_asset_read_t read_callb);
+
+/// @brief: Records that the sink asked for an asset. Called from the transport
+/// task; the asset itself is read and chunked later, on the UI task.
+///
+/// Requests are held in a small ring - the sink only ever asks for what it is
+/// currently looking at, and a request that is somehow never served is pushed
+/// out by later ones rather than needing to be timed out.
+void uv_ui_remote_asset_requested(uint8_t kind, uint32_t id);
+
+/// @brief: Forgets any pending request for (*kind*, *id*). Called when the
+/// asset goes away - a bitmap being freed - so the transfer is abandoned
+/// instead of reading from something that is no longer there.
+void uv_ui_remote_asset_cancel(uint8_t kind, uint32_t id);
+
+/// @brief: Returns true and points *data / *len at the next prepared asset
+/// chunk, with *flags carrying REMOTE_UI_FLAG_FRAME_START / _END equivalents
+/// for the asset (first / last chunk). The buffer is owned by the encoder and
+/// stays valid until uv_ui_remote_asset_chunk_sent().
+bool uv_ui_remote_asset_chunk_pending(const uint8_t **data, uint16_t *len,
+		uint8_t *flags);
+
+/// @brief: Releases the chunk returned above once it is on the link.
+void uv_ui_remote_asset_chunk_sent(void);
 
 
 // --- transport pull interface (called by the uvcan REMOTE module) -----------

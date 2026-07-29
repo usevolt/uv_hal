@@ -65,6 +65,33 @@ static struct {
 	uv_uimedia_st *assets[CONFIG_UI_REMOTE_ASSET_MAX];
 	uint16_t asset_count;
 
+	// --- assets the sink has asked for --------------------------------------
+	// Written by the transport task, read and cleared by the UI task.
+	struct {
+		volatile uint8_t kind;
+		volatile uint32_t id;
+		volatile bool pending;
+	} wanted[CONFIG_UI_REMOTE_ASSET_REQ_MAX];
+
+	uv_ui_remote_asset_size_t asset_size_callb;
+	uv_ui_remote_asset_read_t asset_read_callb;
+
+	// The chunk being handed to the transport. Filled on the UI task at a frame
+	// boundary (the provider reads flash, which the UI task owns) and drained by
+	// the transport task, so only one chunk is in flight at a time.
+	struct {
+		uint8_t buf[UV_UI_REMOTE_ASSET_HDR_LEN + UV_UI_REMOTE_ASSET_CHUNK];
+		uint16_t len;
+		uint8_t flags;
+		volatile bool ready;
+		// the transfer in progress
+		bool active;
+		uint8_t kind;
+		uint32_t id;
+		uint32_t total;
+		uint32_t offset;
+	} tx_asset;
+
 	// reverse input latch (written by transport task, read by UI task)
 	volatile bool in_touched;
 	volatile int16_t in_x;
@@ -174,6 +201,11 @@ void uv_ui_remote_reset(void) {
 	this->state = REMOTE_UI_IDLE;
 	this->last_hash = 0;
 	this->asset_count = 0;
+	for (uint8_t i = 0; i < CONFIG_UI_REMOTE_ASSET_REQ_MAX; i++) {
+		this->wanted[i].pending = false;
+	}
+	this->tx_asset.ready = false;
+	this->tx_asset.active = false;
 	this->in_touched = false;
 	this->in_scroll = 0;
 	this->in_key = '\0';
@@ -298,6 +330,175 @@ char uv_ui_remote_get_key(void) {
 }
 
 
+// --- serving assets ---------------------------------------------------------
+
+void uv_ui_remote_set_asset_provider(uv_ui_remote_asset_size_t size_callb,
+		uv_ui_remote_asset_read_t read_callb) {
+	this->asset_size_callb = size_callb;
+	this->asset_read_callb = read_callb;
+}
+
+
+void uv_ui_remote_asset_requested(uint8_t kind, uint32_t id) {
+	bool placed = false;
+	// already queued: asking twice for the same thing is normal, the sink
+	// re-asks until it has it
+	for (uint8_t i = 0; (i < CONFIG_UI_REMOTE_ASSET_REQ_MAX) && !placed; i++) {
+		if (this->wanted[i].pending &&
+				(this->wanted[i].kind == kind) && (this->wanted[i].id == id)) {
+			placed = true;
+		}
+		else {
+		}
+	}
+	for (uint8_t i = 0; (i < CONFIG_UI_REMOTE_ASSET_REQ_MAX) && !placed; i++) {
+		if (!this->wanted[i].pending) {
+			this->wanted[i].kind = kind;
+			this->wanted[i].id = id;
+			this->wanted[i].pending = true;
+			placed = true;
+		}
+		else {
+		}
+	}
+	if (!placed) {
+		// full: drop the oldest by overwriting slot 0. The sink asks again the
+		// next time it draws something it is still missing, so nothing is lost
+		// for good.
+		this->wanted[0].kind = kind;
+		this->wanted[0].id = id;
+		this->wanted[0].pending = true;
+	}
+	else {
+	}
+}
+
+
+void uv_ui_remote_asset_cancel(uint8_t kind, uint32_t id) {
+	for (uint8_t i = 0; i < CONFIG_UI_REMOTE_ASSET_REQ_MAX; i++) {
+		if (this->wanted[i].pending &&
+				(this->wanted[i].kind == kind) && (this->wanted[i].id == id)) {
+			this->wanted[i].pending = false;
+		}
+		else {
+		}
+	}
+	if (this->tx_asset.active &&
+			(this->tx_asset.kind == kind) && (this->tx_asset.id == id)) {
+		// stop mid-transfer: the sink sees a truncated asset and asks again
+		this->tx_asset.active = false;
+	}
+	else {
+	}
+}
+
+
+/// @brief: Takes the next request off the queue and opens a transfer for it.
+/// An asset the provider cannot size is answered with an empty one, which tells
+/// the sink to stop asking rather than leaving it to guess.
+static void asset_start_next(void) {
+	for (uint8_t i = 0;
+			(i < CONFIG_UI_REMOTE_ASSET_REQ_MAX) && !this->tx_asset.active; i++) {
+		if (this->wanted[i].pending) {
+			this->tx_asset.kind = this->wanted[i].kind;
+			this->tx_asset.id = this->wanted[i].id;
+			this->wanted[i].pending = false;
+			this->tx_asset.total = (this->asset_size_callb != NULL) ?
+					this->asset_size_callb(this->tx_asset.kind,
+							this->tx_asset.id) : 0;
+			this->tx_asset.offset = 0;
+			this->tx_asset.active = true;
+		}
+		else {
+		}
+	}
+}
+
+
+/// @brief: Fills the outgoing chunk buffer, if there is an asset to send and
+/// the transport has taken the last one. Runs on the UI task at a frame
+/// boundary: the provider reads external flash, which the UI task owns.
+static void asset_prepare_chunk(void) {
+	if (!this->tx_asset.ready) {
+		if (!this->tx_asset.active) {
+			asset_start_next();
+		}
+		else {
+		}
+		if (this->tx_asset.active) {
+			uint16_t n = 0;
+			uint8_t flags = 0;
+			if (this->tx_asset.offset == 0) {
+				// first chunk carries what the asset is and how long it is
+				flags |= UV_UI_REMOTE_ASSET_FLAG_START;
+				this->tx_asset.buf[0] = this->tx_asset.kind;
+				this->tx_asset.buf[1] = (uint8_t) (this->tx_asset.id & 0xFFu);
+				this->tx_asset.buf[2] = (uint8_t) ((this->tx_asset.id >> 8) & 0xFFu);
+				this->tx_asset.buf[3] = (uint8_t) ((this->tx_asset.id >> 16) & 0xFFu);
+				this->tx_asset.buf[4] = (uint8_t) ((this->tx_asset.id >> 24) & 0xFFu);
+				this->tx_asset.buf[5] = (uint8_t) (this->tx_asset.total & 0xFFu);
+				this->tx_asset.buf[6] = (uint8_t) ((this->tx_asset.total >> 8) & 0xFFu);
+				this->tx_asset.buf[7] = (uint8_t) ((this->tx_asset.total >> 16) & 0xFFu);
+				this->tx_asset.buf[8] = (uint8_t) ((this->tx_asset.total >> 24) & 0xFFu);
+				n = UV_UI_REMOTE_ASSET_HDR_LEN;
+			}
+			else {
+			}
+
+			uint32_t left = this->tx_asset.total - this->tx_asset.offset;
+			uint32_t want = (left > UV_UI_REMOTE_ASSET_CHUNK) ?
+					UV_UI_REMOTE_ASSET_CHUNK : left;
+			uint32_t got = 0;
+			if ((want > 0) && (this->asset_read_callb != NULL)) {
+				got = this->asset_read_callb(this->tx_asset.kind,
+						this->tx_asset.id, this->tx_asset.offset,
+						&this->tx_asset.buf[n], want);
+			}
+			else {
+			}
+			n = (uint16_t) (n + got);
+			this->tx_asset.offset += got;
+
+			// the provider running dry ends the transfer as surely as reaching
+			// the total does, so a short read cannot leave it hanging
+			if ((got < want) || (this->tx_asset.offset >= this->tx_asset.total)) {
+				flags |= UV_UI_REMOTE_ASSET_FLAG_END;
+				this->tx_asset.active = false;
+			}
+			else {
+			}
+			this->tx_asset.len = n;
+			this->tx_asset.flags = flags;
+			this->tx_asset.ready = true;
+		}
+		else {
+		}
+	}
+	else {
+	}
+}
+
+
+bool uv_ui_remote_asset_chunk_pending(const uint8_t **data, uint16_t *len,
+		uint8_t *flags) {
+	bool ret = false;
+	if (this->enabled && this->tx_asset.ready) {
+		*data = this->tx_asset.buf;
+		*len = this->tx_asset.len;
+		*flags = this->tx_asset.flags;
+		ret = true;
+	}
+	else {
+	}
+	return ret;
+}
+
+
+void uv_ui_remote_asset_chunk_sent(void) {
+	this->tx_asset.ready = false;
+}
+
+
 // --- encode hooks -----------------------------------------------------------
 
 void uv_ui_remote_encode_clear(color_t c) {
@@ -340,6 +541,12 @@ void uv_ui_remote_encode_frame_end(void) {
 		else {
 			// IDLE or TX: nothing to close
 		}
+
+		// A frame boundary is the one moment the UI task is not drawing, so it
+		// is where an asset chunk is read out of flash. One per frame keeps the
+		// reads off the critical path and off the transport task, which shares
+		// the bus with nobody's permission.
+		asset_prepare_chunk();
 	}
 }
 
