@@ -92,6 +92,9 @@ static struct {
 		uint32_t offset;
 	} tx_asset;
 
+	// a font asset is built here when its transfer opens, and chunked out of it
+	uint8_t font_body[UV_UI_REMOTE_FONT_BODY_HDR_LEN];
+
 	// reverse input latch (written by transport task, read by UI task)
 	volatile bool in_touched;
 	volatile int16_t in_x;
@@ -332,6 +335,68 @@ char uv_ui_remote_get_key(void) {
 
 // --- serving assets ---------------------------------------------------------
 
+/// @brief: Builds the body of a font asset into this->font_body.
+///
+/// Fonts are served from here rather than through the installed provider
+/// because a font is not stored anywhere the backend has to look it up: it is
+/// ui_fonts[], which this module can already see. The provider exists for
+/// assets that do live in storage - bitmap files - and knows nothing about
+/// fonts.
+///
+/// Metrics only, for now. The FT81X ROM fonts keep their glyphs inside the chip
+/// with no copy anywhere else, so those could never be sent whole; the custom
+/// fonts could be (their L4 atlas is a file in external flash) and the GLYPHS
+/// flag is reserved for that, but until then a sink lays text out with the
+/// device's real height and advances and draws it with a face of its own.
+///
+/// @return: body length, or 0 when there is no such font.
+static uint16_t font_body_build(uint32_t id) {
+	uint16_t ret = 0;
+	bool mono = ((id & 0x80u) != 0u);
+	uint8_t index = (uint8_t) (id & 0x7Fu);
+	const ui_font_st *font = NULL;
+
+	if (index < UI_MAX_FONT_COUNT) {
+#if CONFIG_UI_OPENGL || CONFIG_UI_X11
+		font = mono ? &ui_mono_fonts[index] : &ui_fonts[index];
+#else
+		// one font table on the device; a mono request resolves to the same
+		(void) mono;
+		font = &ui_fonts[index];
+#endif
+	}
+	else {
+	}
+
+	if ((font != NULL) && (font->char_height > 0)) {
+		uint8_t *p = this->font_body;
+		p[0] = (uint8_t) (font->char_height & 0xFFu);
+		p[1] = (uint8_t) ((font->char_height >> 8) & 0xFFu);
+		p[2] = 0;			// flags: no glyph atlas
+		p[3] = 0; p[4] = 0;	// stride
+		p[5] = 0; p[6] = 0;	// glyph cell width
+		memset(&p[7], 0, UV_UI_REMOTE_FONT_WIDTHS);
+#if CONFIG_UI_OPENGL
+		// the host backend measures every glyph when it builds its atlas
+		for (uint16_t i = 0; i < UV_UI_REMOTE_FONT_WIDTHS; i++) {
+			int16_t adv = font->ft_char[i].advance;
+			p[7 + i] = (adv < 0) ? 0 : ((adv > 255) ? 255 : (uint8_t) adv);
+		}
+#elif CONFIG_FT81X
+		// the widths are the first 128 bytes of the font's metric block,
+		// whether that is the ROM one or a custom font's
+		(void) uv_ft81x_font_widths(index, &p[7]);
+#else
+		// no per-glyph metrics on this backend; height alone still helps
+#endif
+		ret = UV_UI_REMOTE_FONT_BODY_HDR_LEN;
+	}
+	else {
+	}
+	return ret;
+}
+
+
 void uv_ui_remote_set_asset_provider(uv_ui_remote_asset_size_t size_callb,
 		uv_ui_remote_asset_read_t read_callb) {
 	this->asset_size_callb = size_callb;
@@ -403,9 +468,14 @@ static void asset_start_next(void) {
 			this->tx_asset.kind = this->wanted[i].kind;
 			this->tx_asset.id = this->wanted[i].id;
 			this->wanted[i].pending = false;
-			this->tx_asset.total = (this->asset_size_callb != NULL) ?
-					this->asset_size_callb(this->tx_asset.kind,
-							this->tx_asset.id) : 0;
+			if (this->tx_asset.kind == UV_UI_REMOTE_ASSET_KIND_FONT) {
+				this->tx_asset.total = font_body_build(this->tx_asset.id);
+			}
+			else {
+				this->tx_asset.total = (this->asset_size_callb != NULL) ?
+						this->asset_size_callb(this->tx_asset.kind,
+								this->tx_asset.id) : 0;
+			}
 			this->tx_asset.offset = 0;
 			this->tx_asset.active = true;
 		}
@@ -449,7 +519,14 @@ static void asset_prepare_chunk(void) {
 			uint32_t want = (left > UV_UI_REMOTE_ASSET_CHUNK) ?
 					UV_UI_REMOTE_ASSET_CHUNK : left;
 			uint32_t got = 0;
-			if ((want > 0) && (this->asset_read_callb != NULL)) {
+			if (want == 0) {
+			}
+			else if (this->tx_asset.kind == UV_UI_REMOTE_ASSET_KIND_FONT) {
+				memcpy(&this->tx_asset.buf[n],
+						&this->font_body[this->tx_asset.offset], want);
+				got = want;
+			}
+			else if (this->asset_read_callb != NULL) {
 				got = this->asset_read_callb(this->tx_asset.kind,
 						this->tx_asset.id, this->tx_asset.offset,
 						&this->tx_asset.buf[n], want);

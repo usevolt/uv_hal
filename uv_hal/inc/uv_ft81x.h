@@ -204,6 +204,15 @@ typedef struct __attribute__((packed)) {
 } uv_ft81x_font_header_st;
 
 
+/// @brief: Reads the font's per-character width table (128 bytes) into *dest*,
+/// from the custom metric block when one is installed and from the ROM font's
+/// metrics otherwise. Used to tell a mirroring sink how this device lays text
+/// out, so it can match the spacing with a face of its own.
+///
+/// @return: false when the index is out of range or *dest* is NULL.
+bool uv_ft81x_font_widths(uint8_t ui_font_index, uint8_t *dest);
+
+
 /// @brief: Downloads a custom anti-aliased (L4) font from external memory into
 /// FT81X RAM_G and installs it over the built-in ROM font on the ui_fonts[]
 /// slot's bitmap handle. The font is a ".bin" file (see uv_ft81x_font_header_st)

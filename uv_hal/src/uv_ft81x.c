@@ -1095,6 +1095,36 @@ __attribute__((weak)) void uv_ui_load_custom_fonts(void) {
 // bytes streamed from external memory to RAM_G per chunk
 #define FONT_LOAD_CHUNK		512
 
+bool uv_ft81x_font_widths(uint8_t ui_font_index, uint8_t *dest) {
+	bool ret = false;
+	if ((ui_font_index < UI_MAX_FONT_COUNT) && (dest != NULL)) {
+		// A font's metric block opens with one width byte per character. For a
+		// custom font that block sits in RAM_G where load_custom_font() put it;
+		// otherwise it is the ROM font's, at the fixed metrics table.
+		uint32_t addr = ui_fonts[ui_font_index].custom_metric_addr;
+		if (addr == 0) {
+			addr = FONT_METRICS_BASE_ADDR +
+					(10u + ui_font_index) * FONT_METRICS_FONT_LEN;
+		}
+		else {
+		}
+		// read32 is all the chip offers, so 128 bytes is 32 reads - done once
+		// per font when a sink asks for it, not per frame
+		for (uint8_t i = 0; i < 32u; i++) {
+			uint32_t w = read32(addr + ((uint32_t) i * 4u));
+			dest[(i * 4u) + 0u] = (uint8_t) (w & 0xFFu);
+			dest[(i * 4u) + 1u] = (uint8_t) ((w >> 8) & 0xFFu);
+			dest[(i * 4u) + 2u] = (uint8_t) ((w >> 16) & 0xFFu);
+			dest[(i * 4u) + 3u] = (uint8_t) ((w >> 24) & 0xFFu);
+		}
+		ret = true;
+	}
+	else {
+	}
+	return ret;
+}
+
+
 bool uv_ft81x_load_custom_font(uint8_t ui_font_index, uv_w25q128_st *exmem,
 		const char *filename) {
 	bool ret = false;

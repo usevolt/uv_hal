@@ -62,8 +62,10 @@ typedef enum {
 	// Reverse input event (sink -> source), fixed length:
 	// [0x85][UI_INPUT][action][x:2][y:2][scroll][key]
 	REMOTE_MSG_TYPE_UI_INPUT,
-	// Sink -> source: request an asset (bitmap/font) it lacks by id:
-	// [0x85][UI_ASSET_REQ][asset_kind][id:2]
+	// Sink -> source: request an asset (bitmap/font) it lacks:
+	// [0x85][UI_ASSET_REQ][asset_kind][id:4]
+	// A font is asked for by the font_id the STRING op already carries; a
+	// bitmap by the hash of its file name.
 	REMOTE_MSG_TYPE_UI_ASSET_REQ,
 	// Chunked asset stream (source -> sink), same chunk shape as UI
 	REMOTE_MSG_TYPE_UI_ASSET,
@@ -134,7 +136,7 @@ typedef struct {
 // state machine patches the exact length from the chunk_len byte (index 2).
 #define REMOTE_MSG_TYPE_UI_LEN					REMOTE_UI_MSG_MAX_LEN
 #define REMOTE_MSG_TYPE_UI_INPUT_LEN			9
-#define REMOTE_MSG_TYPE_UI_ASSET_REQ_LEN		5
+#define REMOTE_MSG_TYPE_UI_ASSET_REQ_LEN		7
 #define REMOTE_MSG_TYPE_UI_ASSET_LEN			REMOTE_UI_MSG_MAX_LEN
 #define REMOTE_MSG_TYPE_IOT_CTRL_LEN			3
 #define REMOTE_MSG_TYPE_IOT_STATUS_LEN			4

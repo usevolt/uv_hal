@@ -111,9 +111,11 @@ typedef enum {
 #define UV_UI_REMOTE_ASSET_KIND_FONT	0
 #define UV_UI_REMOTE_ASSET_KIND_BITMAP	1
 
-/// @brief: Asset payload bytes per chunk. Chosen so a chunk plus the transport's
-/// own header still fits the 200-byte UI chunk the link carries.
-#define UV_UI_REMOTE_ASSET_CHUNK		192
+/// @brief: Asset payload bytes per chunk. The link carries at most 200 bytes per
+/// UI chunk, and the first asset chunk spends 9 of them on the header below, so
+/// every chunk is sized for the worst case and fits whichever it turns out to
+/// be.
+#define UV_UI_REMOTE_ASSET_CHUNK		191
 
 /// @brief: The first chunk of an asset opens with this header, the rest are raw
 /// continuation bytes:
