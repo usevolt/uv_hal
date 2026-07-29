@@ -133,6 +133,8 @@ typedef enum {
 
 /// @brief: Body of a font asset, following the header above:
 ///   [height:2][flags:1][stride:2][width:2][widths:128][glyph atlas]
+/// Height and widths are whole pixels - a backend holding them in some other
+/// unit converts before filling this in.
 /// The atlas is 4 bits per pixel, *stride* bytes per row, *height* rows per
 /// glyph, 128 glyph slots, indexed by uv_ui_codepoint_glyph(). It is present
 /// only when UV_UI_REMOTE_FONT_FLAG_GLYPHS is set: the FT81X ROM fonts have no

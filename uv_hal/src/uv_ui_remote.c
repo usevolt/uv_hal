@@ -378,9 +378,12 @@ static uint16_t font_body_build(uint32_t id) {
 		p[5] = 0; p[6] = 0;	// glyph cell width
 		memset(&p[7], 0, UV_UI_REMOTE_FONT_WIDTHS);
 #if CONFIG_UI_OPENGL
-		// the host backend measures every glyph when it builds its atlas
+		// The host backend measures every glyph when it builds its atlas, and
+		// keeps what FreeType gave it: 26.6 fixed point, sixty-fourths of a
+		// pixel. Everything else that reads ft_char[].advance divides by 64,
+		// and so must this - the wire carries whole pixels.
 		for (uint16_t i = 0; i < UV_UI_REMOTE_FONT_WIDTHS; i++) {
-			int16_t adv = font->ft_char[i].advance;
+			int32_t adv = (int32_t) font->ft_char[i].advance / 64;
 			p[7 + i] = (adv < 0) ? 0 : ((adv > 255) ? 255 : (uint8_t) adv);
 		}
 #elif CONFIG_FT81X
