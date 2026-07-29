@@ -53,6 +53,7 @@
 // Visible unconditionally alongside the opcodes below.
 /// @brief: Wire value returned for an unknown / unregisterable bitmap or font.
 #define UV_UI_REMOTE_ASSET_INVALID		0xFFFFu
+#define UV_UI_REMOTE_ASSET_INVALID_ID	0xFFFFFFFFu
 #define UV_UI_REMOTE_FONT_UNKNOWN		0xFFu
 
 // Visible unconditionally: a sink decodes this stream without compiling the
@@ -65,7 +66,7 @@
 ///
 ///   FRAME_BEGIN (5):  [op:1][color:4]
 ///   FRAME_BEGIN_KEEP (1): [op:1]
-///   BITMAP     (19):  [op:1][bitmap_id:2][x:2][y:2][w:2][h:2][wrap:4][color:4]
+///   BITMAP     (21):  [op:1][bitmap_id:4][x:2][y:2][w:2][h:2][wrap:4][color:4]
 ///   POINT      (11):  [op:1][x:2][y:2][diameter:2][color:4]
 ///   RRECT      (15):  [op:1][x:2][y:2][w:2][h:2][radius:2][color:4]
 ///   LINE       (15):  [op:1][sx:2][sy:2][ex:2][ey:2][width:2][color:4]
@@ -199,20 +200,31 @@ void uv_ui_remote_set_enabled(bool enabled);
 /// @brief: True when mirroring is active (a sink is connected).
 bool uv_ui_remote_active(void);
 
-/// @brief: Assigns / returns the compact wire id of a bitmap asset.
-/// Returns UV_UI_REMOTE_ASSET_INVALID if the registry is full or m is NULL.
-uint16_t uv_ui_remote_register_bitmap(uv_uimedia_st *bitmap);
+/// @brief: The wire id of a bitmap: a hash of its file name.
+///
+/// Derived rather than assigned, which is what lets this module keep no table
+/// of bitmaps at all. It also means the id is the same on both ends of a
+/// reconnect and the same after a reboot, so a sink's cache survives both, and
+/// that two bitmaps loaded from one file share it.
+///
+/// Returns UV_UI_REMOTE_ASSET_INVALID_ID for a bitmap with no file name.
+uint32_t uv_ui_remote_bitmap_id(const uv_uimedia_st *bitmap);
 
 
 // --- serving assets ----------------------------------------------------------
 
-/// @brief: Total size in bytes of asset (*kind*, *id*), or 0 when this device
-/// cannot serve it.
-typedef uint32_t (*uv_ui_remote_asset_size_t)(uint8_t kind, uint32_t id);
+/// @brief: Total size in bytes of the asset stored under *name*, or 0 when this
+/// device cannot serve it.
+typedef uint32_t (*uv_ui_remote_asset_size_t)(uint8_t kind, const char *name);
 
-/// @brief: Reads at most *len* bytes of asset (*kind*, *id*) from *offset* into
-/// *dest*. Returns the number of bytes read; 0 ends the transfer.
-typedef uint32_t (*uv_ui_remote_asset_read_t)(uint8_t kind, uint32_t id,
+/// @brief: Reads at most *len* bytes of the asset stored under *name* from
+/// *offset* into *dest*. Returns the number of bytes read; 0 ends the transfer.
+///
+/// The asset is named, not numbered, because the id on the wire is only a hash:
+/// it cannot be turned back into a file. The name is captured where the bitmap
+/// is drawn, which is the one place it is known, so no table is needed to get
+/// from one to the other.
+typedef uint32_t (*uv_ui_remote_asset_read_t)(uint8_t kind, const char *name,
 		uint32_t offset, void *dest, uint32_t len);
 
 /// @brief: Installs the callbacks that produce asset bytes. Where they come

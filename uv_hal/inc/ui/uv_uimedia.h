@@ -78,9 +78,13 @@ typedef struct {
 		/// or a pointer to cairo_surface_t on simulator target. For CONFIG_UI_X11 only
 		void *surface_ptr;
 	};
-#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
+	/// @brief: The file this bitmap was loaded from. Must have static lifetime -
+	/// every caller passes a literal - because it is kept, not copied.
+	///
+	/// It identifies the bitmap: a mirroring sink refers to it by a hash of this
+	/// name, which is what lets an image be sent to a remote view without
+	/// anything keeping a table of every bitmap ever loaded.
 	const char *filename;
-#endif
 } uv_uimedia_st;
 
 

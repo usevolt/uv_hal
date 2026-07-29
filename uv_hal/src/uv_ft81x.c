@@ -466,6 +466,17 @@ typedef struct {
 
 ui_font_st ui_fonts[UI_MAX_FONT_COUNT];
 
+// The external memory the media was loaded from, kept so an image can be read
+// out again when a mirroring sink asks for it.
+static uv_w25q128_st *media_exmem;
+
+#if CONFIG_UI_REMOTE
+// defined further down, next to the media loading they read back
+static uint32_t ft81x_asset_size(uint8_t kind, const char *name);
+static uint32_t ft81x_asset_read(uint8_t kind, const char *name,
+		uint32_t offset, void *dest, uint32_t len);
+#endif
+
 uv_ft81x_st ft81x;
 #define this (&ft81x)
 
@@ -585,6 +596,10 @@ bool uv_ui_init(void) {
 		// let the project install custom fonts (ASCII + Nordic glyphs) over the
 		// ROM fonts on the slots that render translatable text
 		uv_ui_load_custom_fonts();
+#if CONFIG_UI_REMOTE
+		// a mirroring sink asks for images by name; this is what fetches them
+		uv_ui_remote_set_asset_provider(&ft81x_asset_size, &ft81x_asset_read);
+#endif
 
 		// lastly wait until the screen is not pressed.
 		uv_delay_st d;
@@ -1095,6 +1110,40 @@ __attribute__((weak)) void uv_ui_load_custom_fonts(void) {
 // bytes streamed from external memory to RAM_G per chunk
 #define FONT_LOAD_CHUNK		512
 
+#if CONFIG_UI_REMOTE
+/// @brief: Answers a mirroring sink's request for an image, by reading the file
+/// it was loaded from straight out of external memory.
+///
+/// Called on the UI task at a frame boundary, which is what keeps these reads
+/// off the display's own bus while it is being drawn to.
+static uint32_t ft81x_asset_size(uint8_t kind, const char *name) {
+	uint32_t ret = 0;
+	uv_fd_st fd;
+	if ((kind == UV_UI_REMOTE_ASSET_KIND_BITMAP) && (media_exmem != NULL) &&
+			(name != NULL) && uv_exmem_find(media_exmem, (char*) name, &fd)) {
+		ret = fd.file_size;
+	}
+	else {
+	}
+	return ret;
+}
+
+
+static uint32_t ft81x_asset_read(uint8_t kind, const char *name,
+		uint32_t offset, void *dest, uint32_t len) {
+	uint32_t ret = 0;
+	uv_fd_st fd;
+	if ((kind == UV_UI_REMOTE_ASSET_KIND_BITMAP) && (media_exmem != NULL) &&
+			(name != NULL) && uv_exmem_find(media_exmem, (char*) name, &fd)) {
+		ret = uv_exmem_read_fd(media_exmem, &fd, dest, len, offset);
+	}
+	else {
+	}
+	return ret;
+}
+#endif
+
+
 bool uv_ft81x_font_widths(uint8_t ui_font_index, uint8_t *dest) {
 	bool ret = false;
 	if ((ui_font_index < UI_MAX_FONT_COUNT) && (dest != NULL)) {
@@ -1231,6 +1280,16 @@ uint32_t uv_uimedia_newbitmapexmem(uv_uimedia_st *bitmap,
 	uint32_t size = 0;
 	uint32_t header_addr = ft81x_alloc_next;
 	uint32_t pixel_addr = header_addr + FT81X_ALLOC_HEADER_SIZE;
+
+	// The bitmap keeps the name it was loaded from: it is what identifies it to
+	// a mirroring sink, and the only way back to the file when one asks for the
+	// image itself. Every caller passes a literal, so keeping the pointer is
+	// enough - see uv_uimedia_st.
+	bitmap->filename = filename;
+	// The provider below needs the same external memory this load came from.
+	// Every project loads all its media from one chip, so remembering the last
+	// one is remembering the only one.
+	media_exmem = exmem;
 
 	bool found = uv_exmem_find(exmem, (char*) filename, &fd);
 
@@ -1446,6 +1505,12 @@ uint32_t uv_uimedia_newbitmapexmem(uv_uimedia_st *bitmap,
 
 
 void uv_uimedia_free(uv_uimedia_st *bitmap) {
+#if CONFIG_UI_REMOTE
+	// the image is about to stop existing, so abandon any transfer of it; the
+	// sink asks again if it ever sees it drawn again
+	uv_ui_remote_asset_cancel(UV_UI_REMOTE_ASSET_KIND_BITMAP,
+			uv_ui_remote_bitmap_id(bitmap));
+#endif
 	if (bitmap->addr < FT81X_ALLOC_HEADER_SIZE) {
 		memset(bitmap, 0, sizeof(*bitmap));
 	}

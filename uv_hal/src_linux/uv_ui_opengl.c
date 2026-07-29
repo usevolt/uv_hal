@@ -1220,6 +1220,43 @@ int16_t uv_ui_get_string_width(char *str, ui_font_st *font) {
 }
 
 
+#if CONFIG_UI_REMOTE
+/// @brief: Answers a mirroring sink's request for an image by reading the file
+/// it was loaded from. The simulator's media is on disk, where the device's is
+/// in external flash; both are just a name and an offset.
+static uint32_t opengl_asset_size(uint8_t kind, const char *name) {
+	uint32_t ret = 0;
+	if ((kind == UV_UI_REMOTE_ASSET_KIND_BITMAP) && (name != NULL)) {
+		FILE *f = fopen(name, "rb");
+		if (f != NULL) {
+			if (fseek(f, 0, SEEK_END) == 0) {
+				long n = ftell(f);
+				ret = (n > 0) ? (uint32_t) n : 0;
+			}
+			fclose(f);
+		}
+	}
+	return ret;
+}
+
+
+static uint32_t opengl_asset_read(uint8_t kind, const char *name,
+		uint32_t offset, void *dest, uint32_t len) {
+	uint32_t ret = 0;
+	if ((kind == UV_UI_REMOTE_ASSET_KIND_BITMAP) && (name != NULL)) {
+		FILE *f = fopen(name, "rb");
+		if (f != NULL) {
+			if (fseek(f, (long) offset, SEEK_SET) == 0) {
+				ret = (uint32_t) fread(dest, 1, len, f);
+			}
+			fclose(f);
+		}
+	}
+	return ret;
+}
+#endif
+
+
 uint32_t uv_uimedia_newbitmapexmem(uv_uimedia_st *bitmap,
 		uv_w25q128_st *exmem, const char *filename) {
 	uint32_t ret = 0;
@@ -1299,6 +1336,11 @@ uint32_t uv_uimedia_newbitmapexmem_mem(uv_uimedia_st *bitmap,
 
 
 void uv_uimedia_free(uv_uimedia_st *bitmap) {
+#if CONFIG_UI_REMOTE
+	// abandon any transfer of an image that is going away
+	uv_ui_remote_asset_cancel(UV_UI_REMOTE_ASSET_KIND_BITMAP,
+			uv_ui_remote_bitmap_id(bitmap));
+#endif
 	memset(bitmap, 0, sizeof(*bitmap));
 }
 
@@ -1852,6 +1894,11 @@ bool uv_ui_init(void) {
 			// Make the window's context current
 			glfwMakeContextCurrent(this->window);
 			// add key listener
+		#if CONFIG_UI_REMOTE
+			// a mirroring sink asks for images by name; this fetches them
+			uv_ui_remote_set_asset_provider(&opengl_asset_size,
+					&opengl_asset_read);
+#endif
 			glfwSetKeyCallback(this->window, &key_callback);
 			glfwSetCharCallback(this->window, &char_callback);
 			// add cursor position listener

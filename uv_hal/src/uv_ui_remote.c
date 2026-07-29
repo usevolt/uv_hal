@@ -61,9 +61,12 @@ static struct {
 	// hash of the last transmitted frame, for send-on-change suppression
 	uint32_t last_hash;
 
-	// bitmap asset registry (pointer -> sequential wire id)
-	uv_uimedia_st *assets[CONFIG_UI_REMOTE_ASSET_MAX];
-	uint16_t asset_count;
+	// A bitmap the sink asked for, caught as it was drawn. That is the only
+	// place its file name is known - the id on the wire is a hash and cannot be
+	// turned back into a file - so it is kept here until the frame ends and the
+	// transfer can open.
+	const char *pending_name;
+	uint32_t pending_id;
 
 	// --- assets the sink has asked for --------------------------------------
 	// Written by the transport task, read and cleared by the UI task.
@@ -88,6 +91,8 @@ static struct {
 		bool active;
 		uint8_t kind;
 		uint32_t id;
+		// what the provider is asked for; NULL for a font, which is built here
+		const char *name;
 		uint32_t total;
 		uint32_t offset;
 	} tx_asset;
@@ -203,7 +208,7 @@ void uv_ui_remote_reset(void) {
 	this->overflow = false;
 	this->state = REMOTE_UI_IDLE;
 	this->last_hash = 0;
-	this->asset_count = 0;
+	this->pending_name = NULL;
 	for (uint8_t i = 0; i < CONFIG_UI_REMOTE_ASSET_REQ_MAX; i++) {
 		this->wanted[i].pending = false;
 	}
@@ -243,23 +248,19 @@ bool uv_ui_remote_active(void) {
 }
 
 
-uint16_t uv_ui_remote_register_bitmap(uv_uimedia_st *bitmap) {
-	uint16_t id = UV_UI_REMOTE_ASSET_INVALID;
-	if (bitmap != NULL) {
-		for (uint16_t i = 0; i < this->asset_count; i++) {
-			if (this->assets[i] == bitmap) {
-				id = i;
-			}
-		}
-		if ((id == UV_UI_REMOTE_ASSET_INVALID) &&
-				(this->asset_count < CONFIG_UI_REMOTE_ASSET_MAX)) {
-			this->assets[this->asset_count] = bitmap;
-			id = this->asset_count;
-			this->asset_count++;
-		}
+uint32_t uv_ui_remote_bitmap_id(const uv_uimedia_st *bitmap) {
+	uint32_t id = UV_UI_REMOTE_ASSET_INVALID_ID;
+	if ((bitmap != NULL) && (bitmap->filename != NULL) &&
+			(bitmap->filename[0] != '\0')) {
+		id = fnv1a((const uint8_t *) bitmap->filename,
+				(uint16_t) strlen(bitmap->filename));
+	}
+	else {
 	}
 	return id;
 }
+
+
 
 
 // --- transport pull interface ----------------------------------------------
@@ -462,20 +463,32 @@ void uv_ui_remote_asset_cancel(uint8_t kind, uint32_t id) {
 /// An asset the provider cannot size is answered with an empty one, which tells
 /// the sink to stop asking rather than leaving it to guess.
 static void asset_start_next(void) {
+	// a bitmap caught while it was being drawn goes first: its name is in hand
+	if (this->pending_name != NULL) {
+		this->tx_asset.kind = UV_UI_REMOTE_ASSET_KIND_BITMAP;
+		this->tx_asset.id = this->pending_id;
+		this->tx_asset.name = this->pending_name;
+		this->pending_name = NULL;
+		this->tx_asset.total = (this->asset_size_callb != NULL) ?
+				this->asset_size_callb(UV_UI_REMOTE_ASSET_KIND_BITMAP,
+						this->tx_asset.name) : 0;
+		this->tx_asset.offset = 0;
+		this->tx_asset.active = true;
+	}
+	else {
+	}
+
+	// a font can be answered without waiting to see it drawn, since it is
+	// described by ui_fonts[] rather than by anything in storage
 	for (uint8_t i = 0;
 			(i < CONFIG_UI_REMOTE_ASSET_REQ_MAX) && !this->tx_asset.active; i++) {
-		if (this->wanted[i].pending) {
+		if (this->wanted[i].pending &&
+				(this->wanted[i].kind == UV_UI_REMOTE_ASSET_KIND_FONT)) {
 			this->tx_asset.kind = this->wanted[i].kind;
 			this->tx_asset.id = this->wanted[i].id;
+			this->tx_asset.name = NULL;
 			this->wanted[i].pending = false;
-			if (this->tx_asset.kind == UV_UI_REMOTE_ASSET_KIND_FONT) {
-				this->tx_asset.total = font_body_build(this->tx_asset.id);
-			}
-			else {
-				this->tx_asset.total = (this->asset_size_callb != NULL) ?
-						this->asset_size_callb(this->tx_asset.kind,
-								this->tx_asset.id) : 0;
-			}
+			this->tx_asset.total = font_body_build(this->tx_asset.id);
 			this->tx_asset.offset = 0;
 			this->tx_asset.active = true;
 		}
@@ -526,9 +539,10 @@ static void asset_prepare_chunk(void) {
 						&this->font_body[this->tx_asset.offset], want);
 				got = want;
 			}
-			else if (this->asset_read_callb != NULL) {
+			else if ((this->asset_read_callb != NULL) &&
+					(this->tx_asset.name != NULL)) {
 				got = this->asset_read_callb(this->tx_asset.kind,
-						this->tx_asset.id, this->tx_asset.offset,
+						this->tx_asset.name, this->tx_asset.offset,
 						&this->tx_asset.buf[n], want);
 			}
 			else {
@@ -733,8 +747,30 @@ void uv_ui_remote_encode_mask(int16_t x, int16_t y, int16_t width, int16_t heigh
 void uv_ui_remote_encode_bitmap(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 		int16_t w, int16_t h, uint32_t wrap, color_t color) {
 	if (gathering()) {
+		uint32_t id = uv_ui_remote_bitmap_id(bitmap);
+
+		// The sink asked for this one. Right here is the only place its file
+		// name is in reach, so take it now; the frame boundary opens the
+		// transfer.
+		if ((this->pending_name == NULL) && (bitmap != NULL)) {
+			for (uint8_t i = 0; i < CONFIG_UI_REMOTE_ASSET_REQ_MAX; i++) {
+				if (this->wanted[i].pending &&
+						(this->wanted[i].kind ==
+								UV_UI_REMOTE_ASSET_KIND_BITMAP) &&
+						(this->wanted[i].id == id)) {
+					this->pending_name = bitmap->filename;
+					this->pending_id = id;
+					this->wanted[i].pending = false;
+				}
+				else {
+				}
+			}
+		}
+		else {
+		}
+
 		ap8((uint8_t) UV_UI_REMOTE_OP_BITMAP);
-		ap16(uv_ui_remote_register_bitmap(bitmap));
+		ap32(id);
 		ap16((uint16_t) x);
 		ap16((uint16_t) y);
 		ap16((uint16_t) w);
