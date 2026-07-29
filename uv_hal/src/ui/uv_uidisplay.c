@@ -284,7 +284,13 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 
 	// if refreshing was requested in the step functions, draw the whole screen
 	if (((uv_uiobject_st *) this)->refresh || ret == UIOBJECT_RETURN_REFRESH ||
-			uv_ui_get_refresh_request()) {
+			uv_ui_get_refresh_request()
+#if CONFIG_UI_REMOTE
+			// a mirroring sink is showing a screen this device has already
+			// moved on from, and nothing else is going to redraw it
+			|| uv_ui_remote_redraw_wanted()
+#endif
+			) {
 		((uv_uiobject_st*) this)->refresh = true;
 		_uv_uiobject_draw(this, uv_uibb(this));
 	}

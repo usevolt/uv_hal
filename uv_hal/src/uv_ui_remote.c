@@ -61,6 +61,12 @@ static struct {
 	// hash of the last transmitted frame, for send-on-change suppression
 	uint32_t last_hash;
 
+	// The display was drawn while this buffer was busy with an earlier frame,
+	// so what the sink is looking at is out of date. Only ever set by a screen
+	// that was actually drawn and actually missed: a display that is not
+	// changing sets it never, and cannot ask for a redraw it does not need.
+	bool missed;
+
 	// A bitmap the sink asked for, caught as it was drawn. That is the only
 	// place its file name is known - the id on the wire is a hash and cannot be
 	// turned back into a file - so it is kept here until the frame ends and the
@@ -214,6 +220,7 @@ void uv_ui_remote_reset(void) {
 	}
 	this->tx_asset.ready = false;
 	this->tx_asset.active = false;
+	this->missed = false;
 	this->in_touched = false;
 	this->in_scroll = 0;
 	this->in_key = '\0';
@@ -245,6 +252,15 @@ void uv_ui_remote_set_enabled(bool enabled) {
 
 bool uv_ui_remote_active(void) {
 	return this->enabled;
+}
+
+
+bool uv_ui_remote_redraw_wanted(void) {
+	// Not while transmitting: a redraw then could not be captured either, and
+	// would only be work thrown away. Once the buffer frees up the answer turns
+	// true and stays true until a screen has actually been captured.
+	return this->enabled && this->missed &&
+			((this->state == REMOTE_UI_IDLE) || (this->state == REMOTE_UI_WAIT));
 }
 
 
@@ -596,8 +612,16 @@ void uv_ui_remote_asset_chunk_sent(void) {
 // --- encode hooks -----------------------------------------------------------
 
 void uv_ui_remote_encode_clear(color_t c) {
+	// WAIT is included on purpose. It means the transport has just finished and
+	// we are waiting for a clean boundary to start capturing again - and a
+	// clear IS that boundary, whatever the drawing was doing when the transport
+	// finished. Resuming here is what keeps an ordinary screen from being lost
+	// to that window at all; only a screen that never clears, which is what a
+	// dialog draws, still has to wait for the swap.
 	if (this->enabled &&
-			((this->state == REMOTE_UI_IDLE) || (this->state == REMOTE_UI_GATHER))) {
+			((this->state == REMOTE_UI_IDLE) ||
+			 (this->state == REMOTE_UI_GATHER) ||
+			 (this->state == REMOTE_UI_WAIT))) {
 		this->buf_len = 0;
 		this->overflow = false;
 		ap8((uint8_t) UV_UI_REMOTE_OP_FRAME_BEGIN);
@@ -612,11 +636,16 @@ void uv_ui_remote_encode_frame_end(void) {
 		if (this->state == REMOTE_UI_GATHER) {
 			ap8((uint8_t) UV_UI_REMOTE_OP_FRAME_END);
 			if (this->overflow) {
-				// frame did not fit; drop it and realign at the next clear
+				// frame did not fit; drop it and realign at the next clear.
+				// The sink is now behind by a screen it will never be sent.
 				this->state = REMOTE_UI_IDLE;
+				this->missed = true;
 			}
 			else {
 				uint32_t hash = fnv1a(this->buf, this->buf_len);
+				// this screen was captured, so nothing is owed for it - even
+				// when it turns out to be the one the sink already has
+				this->missed = false;
 				if (hash == this->last_hash) {
 					// unchanged screen, nothing to send
 					this->state = REMOTE_UI_IDLE;
@@ -629,11 +658,18 @@ void uv_ui_remote_encode_frame_end(void) {
 		}
 		else if (this->state == REMOTE_UI_WAIT) {
 			// previous frame finished transmitting; this dlswap is the clean
-			// boundary at which we may resume capturing the next frame
+			// boundary at which we may resume capturing the next frame. The
+			// screen just drawn went past uncaptured.
 			this->state = REMOTE_UI_IDLE;
+			this->missed = true;
+		}
+		else if (this->state == REMOTE_UI_TX) {
+			// a whole screen drawn while the transport was still draining the
+			// last one: it could not be captured and is now owed
+			this->missed = true;
 		}
 		else {
-			// IDLE or TX: nothing to close
+			// IDLE: a swap with nothing drawn, so nothing was missed
 		}
 
 		// A frame boundary is the one moment the UI task is not drawing, so it

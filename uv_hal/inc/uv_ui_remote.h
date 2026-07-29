@@ -202,6 +202,22 @@ void uv_ui_remote_set_enabled(bool enabled);
 /// @brief: True when mirroring is active (a sink is connected).
 bool uv_ui_remote_active(void);
 
+
+/// @brief: True when the screen should be drawn again for the sink's benefit.
+///
+/// Only one frame is held at a time, so a screen drawn while the transport is
+/// still sending the last one cannot be captured and is lost. That is normally
+/// harmless - the screen after it is captured instead - but if the display then
+/// stops changing there is no screen after it, and the sink is left showing
+/// something the device moved on from, indefinitely.
+///
+/// This asks for one more draw in exactly that case: a screen was drawn, it was
+/// missed, and no later one has replaced it. A display that is not changing
+/// never sets that condition, so it can never ask for a redraw of its own
+/// accord. uv_uidisplay_step() consults this alongside the reasons it already
+/// has for redrawing.
+bool uv_ui_remote_redraw_wanted(void);
+
 /// @brief: The wire id of a bitmap: a hash of its file name.
 ///
 /// Derived rather than assigned, which is what lets this module keep no table
