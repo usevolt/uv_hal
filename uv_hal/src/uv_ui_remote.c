@@ -239,10 +239,8 @@ void uv_ui_remote_set_enabled(bool enabled) {
 		this->enabled = true;
 		this->state = REMOTE_UI_IDLE;
 		this->last_hash = 0;
-		// A sink that has just connected has nothing at all, so it is owed a
-		// screen by definition. Without this the device would send one only
-		// when something next changed, and a display sitting still would leave
-		// the sink looking at nothing for as long as it stayed still.
+		// a sink that has just connected has nothing at all, so it is owed a
+		// screen by definition
 		this->missed = true;
 	}
 	else if (!enabled && this->enabled) {
@@ -257,6 +255,11 @@ void uv_ui_remote_set_enabled(bool enabled) {
 
 bool uv_ui_remote_active(void) {
 	return this->enabled;
+}
+
+
+void uv_ui_remote_request_frame(void) {
+	this->missed = true;
 }
 
 

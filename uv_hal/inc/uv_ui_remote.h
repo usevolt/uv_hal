@@ -203,6 +203,17 @@ void uv_ui_remote_set_enabled(bool enabled);
 bool uv_ui_remote_active(void);
 
 
+/// @brief: Asks for the screen to be drawn again and sent, because a sink is
+/// waiting on one.
+///
+/// A sink that has just asked to be shown the display has nothing, and the
+/// device only draws when something changes - so a display sitting still would
+/// leave it with nothing to show for as long as it kept still. Since a frame
+/// can also simply be lost on the way, this is what a sink asking again gets:
+/// another screen, rather than silence.
+void uv_ui_remote_request_frame(void);
+
+
 /// @brief: True when the screen should be drawn again for the sink's benefit.
 ///
 /// Only one frame is held at a time, so a screen drawn while the transport is
