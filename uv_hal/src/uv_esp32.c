@@ -1316,12 +1316,18 @@ static void rxtx_task(void *me_ptr) {
 }
 
 
+static void mqtt_slots_bind(uv_esp32_st *this);
+
+
 uv_errors_e uv_esp32_init(uv_esp32_st *this,
 		uv_gpios_e reset_io,
 		uv_uarts_e uart,
 		uint16_t *wifi_flags,
 		char *wifi_ssid,
 		char *wifi_passwd) {
+	// every slot needs its backing buffer before anything publishes
+	mqtt_slots_bind(this);
+
 	this->wifi_flags = wifi_flags;
 	this->wifi_ssid = wifi_ssid;
 	this->wifi_passwd = wifi_passwd;
@@ -1424,6 +1430,38 @@ void uv_esp32_mqtt_init(uv_esp32_st *this,
 }
 
 
+/// @brief: Backing buffers for the publish slots. Slot 0 is the large one, the
+/// rest are small: one producer needs to hand over a big payload whole and the
+/// others send little and often, so giving them all the big buffer would spend
+/// most of the RAM on capacity nothing uses.
+static uint8_t mqtt_pub_buf_large[ESP32_MQTT_PAYLOAD_MAX_LEN];
+#if ESP32_MQTT_PUBLISH_SLOT_COUNT > 1
+static uint8_t mqtt_pub_buf_small[ESP32_MQTT_PUBLISH_SLOT_COUNT - 1]
+							  [ESP32_MQTT_PAYLOAD_SMALL_LEN];
+#endif
+
+
+/// @brief: Points every slot at its backing buffer. Called before the pool is
+/// used for the first time.
+static void mqtt_slots_bind(uv_esp32_st *this) {
+	for (uint8_t i = 0; i < ESP32_MQTT_PUBLISH_SLOT_COUNT; i++) {
+		if (i == 0) {
+			this->mqtt_pub_slots[i].data = mqtt_pub_buf_large;
+			this->mqtt_pub_slots[i].capacity = ESP32_MQTT_PAYLOAD_MAX_LEN;
+		}
+#if ESP32_MQTT_PUBLISH_SLOT_COUNT > 1
+		else {
+			this->mqtt_pub_slots[i].data = mqtt_pub_buf_small[i - 1];
+			this->mqtt_pub_slots[i].capacity = ESP32_MQTT_PAYLOAD_SMALL_LEN;
+		}
+#else
+		else {
+		}
+#endif
+	}
+}
+
+
 static void mqtt_slot_fill(uv_esp32_mqtt_slot_st *slot,
 		const char *topic, const uint8_t *data, uint16_t datalen,
 		uint8_t qos, bool retain,
@@ -1465,6 +1503,7 @@ uv_errors_e uv_esp32_mqtt_publish(uv_esp32_st *this,
 		uv_esp32_mqtt_prio_e priority,
 		uint16_t stream_id) {
 	uv_errors_e ret = ERR_NONE;
+	// the largest slot bounds what can be published at all
 	if (datalen > ESP32_MQTT_PAYLOAD_MAX_LEN) {
 		ret = ERR_BUFFER_OVERFLOW;
 	}
@@ -1483,7 +1522,8 @@ uv_errors_e uv_esp32_mqtt_publish(uv_esp32_st *this,
 			for (uint8_t i = 0; i < ESP32_MQTT_PUBLISH_SLOT_COUNT; i++) {
 				uv_esp32_mqtt_slot_st *s = &this->mqtt_pub_slots[i];
 				if (s->in_use && s->stream_id == stream_id &&
-						s->phase == MQTT_PUB_PHASE_IDLE) {
+						(s->phase == MQTT_PUB_PHASE_IDLE) &&
+						(datalen <= s->capacity)) {
 					target = s;
 					break;
 				}
@@ -1500,12 +1540,14 @@ uv_errors_e uv_esp32_mqtt_publish(uv_esp32_st *this,
 					priority, stream_id);
 		}
 		else {
-			// Allocate a fresh slot.
+			// Allocate a fresh slot: the smallest free one that can take this
+			// payload, so a small message does not sit in the large buffer and
+			// leave a big one with nowhere to go.
 			for (uint8_t i = 0; i < ESP32_MQTT_PUBLISH_SLOT_COUNT; i++) {
 				uv_esp32_mqtt_slot_st *s = &this->mqtt_pub_slots[i];
-				if (!s->in_use) {
+				if (!s->in_use && (datalen <= s->capacity) &&
+						((target == NULL) || (s->capacity < target->capacity))) {
 					target = s;
-					break;
 				}
 				else {
 				}

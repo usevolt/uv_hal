@@ -39,6 +39,12 @@
 #define ESP32_MQTT_DEFAULT_KEEPALIVE_S	60
 #define ESP32_MQTT_LINK_ID				0
 
+/// Payload capacity of the ONE large publish slot, and of the receive
+/// reassembly buffer. Only one producer usually needs a big payload - on a
+/// display device that is the mirrored UI, which hands over a whole screen at
+/// once - so sizing every slot for it wastes most of what it costs. The rest of
+/// the slots get ESP32_MQTT_PAYLOAD_SMALL_LEN.
+///
 /// Largest MQTT payload that can be published or received in one message.
 /// Costs RAM twice over: once per publish slot (see the slot pool below) and
 /// once for the single receive-reassembly buffer. Override with
@@ -50,6 +56,14 @@
 #define CONFIG_ESP32_MQTT_PAYLOAD_MAX_LEN		256
 #endif
 #define ESP32_MQTT_PAYLOAD_MAX_LEN		CONFIG_ESP32_MQTT_PAYLOAD_MAX_LEN
+
+/// Payload capacity of every slot except the large one. Sized for the small
+/// periodic traffic - status, heartbeats, batched CAN frames - which is what
+/// the other producers send.
+#ifndef CONFIG_ESP32_MQTT_PAYLOAD_SMALL_LEN
+#define CONFIG_ESP32_MQTT_PAYLOAD_SMALL_LEN		256
+#endif
+#define ESP32_MQTT_PAYLOAD_SMALL_LEN	CONFIG_ESP32_MQTT_PAYLOAD_SMALL_LEN
 
 /// Depth of the publish slot pool. Each slot owns its own topic + payload
 /// buffer, so this trades RAM for tolerance to bursts of uncoalesced events
@@ -89,7 +103,12 @@ typedef struct {
 	uint16_t stream_id;	///< 0 = uncoalesced event; non-zero = coalescing key
 	uint32_t seq;	///< monotonic insertion order, FIFO tiebreak within priority
 	char topic[ESP32_MQTT_TOPIC_MAX_LEN];
-	uint8_t data[ESP32_MQTT_PAYLOAD_MAX_LEN];
+	/// @brief: Points at this slot's own backing buffer, which is not the same
+	/// size for every slot - see capacity.
+	uint8_t *data;
+	/// @brief: How much *data* holds. A payload is only ever put in a slot that
+	/// can take it whole.
+	uint16_t capacity;
 	uint16_t datalen;
 	uint8_t qos;
 	bool retain;
