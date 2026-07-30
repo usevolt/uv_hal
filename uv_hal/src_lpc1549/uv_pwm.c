@@ -260,8 +260,12 @@ uv_errors_e uv_pwm_set(uv_pwm_channel_t chn, uint16_t value) {
 	uint8_t module = PWMEXT_GET_MODULE(chn);
 	if (module == PWMEXT_MODULE_THIS &&
 			PWMEXT_GET_CHN(chn) != 0) {
+		// round to the nearest tick rather than truncating. Truncating here and
+		// in uv_pwm_get both lose, so a value written and read straight back
+		// came out one duty cycle unit lower than it went in. See uv_pwm_get.
+		uint32_t ticks = Chip_SCTPWM_GetTicksPerCycle(this->modules[PWM_GET_MODULE(chn)]);
 		Chip_SCTPWM_SetDutyCycle(this->modules[PWM_GET_MODULE(chn)], PWM_GET_CHANNEL(chn) + 1,
-				Chip_SCTPWM_GetTicksPerCycle(this->modules[PWM_GET_MODULE(chn)]) * value / PWM_MAX_VALUE);
+				(ticks * value + PWM_MAX_VALUE / 2) / PWM_MAX_VALUE);
 	}
 #if CONFIG_PWMEXT_MODULE_COUNT
 	else if (module <= CONFIG_PWMEXT_MODULE_COUNT) {
@@ -284,9 +288,24 @@ uint16_t uv_pwm_get(uv_pwm_channel_t chn) {
 	uint8_t module = PWMEXT_GET_MODULE(chn);
 	if (module == PWMEXT_MODULE_THIS &&
 			PWMEXT_GET_CHN(chn) != 0) {
-		ret = PWM_MAX_VALUE * Chip_SCTPWM_GetDutyCycle(this->modules[PWM_GET_MODULE(chn)],
-				PWM_GET_CHANNEL(chn) + 1) /
-				Chip_SCTPWM_GetTicksPerCycle(this->modules[PWM_GET_MODULE(chn)]);
+		// Round to the nearest duty cycle unit rather than truncating.
+		//
+		// The value is stored as timer ticks, so reading it back is a second
+		// conversion. Truncating both ways loses on both, and the result was
+		// that a value written and read straight back came out exactly one
+		// unit lower than it went in, for every value. That matters because
+		// uv_solenoid_output applies its PID output as an increment on top of
+		// what it reads back here: the loop lost one duty cycle unit per step
+		// cycle, and the PID had to keep making it up just to hold station.
+		uint32_t ticks = Chip_SCTPWM_GetTicksPerCycle(this->modules[PWM_GET_MODULE(chn)]);
+		if (ticks != 0) {
+			ret = ((uint32_t) PWM_MAX_VALUE *
+					Chip_SCTPWM_GetDutyCycle(this->modules[PWM_GET_MODULE(chn)],
+							PWM_GET_CHANNEL(chn) + 1) + ticks / 2) / ticks;
+		}
+		else {
+			// the module has not been started, there is no duty cycle yet
+		}
 	}
 #if CONFIG_PWMEXT_MODULE_COUNT
 	else if (module <= CONFIG_PWMEXT_MODULE_COUNT) {
