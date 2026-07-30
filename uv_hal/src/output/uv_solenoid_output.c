@@ -27,7 +27,6 @@
  */
 
 
-
 #include "uv_solenoid_output.h"
 
 
@@ -46,14 +45,25 @@ static uint16_t current_func(void *this_ptr, uint16_t adc) {
 	// if the adc would be sampled when the PWM output was active (high). As this kind
 	// of synchronization is not available, we measure the average current and
 	// compensate the PWM output **off** time out from the value
-	uint16_t pwmdc = uv_moving_aver_get_val(&this->pwmaver);
+	int32_t pwmdc = uv_moving_aver_get_val(&this->pwmaver);
 	if (pwmdc > 10) {
-		current = (int32_t) current * PWM_MAX_VALUE / pwmdc;
+		// Clamp the divisor. The duty cycle average follows the PWM output far
+		// faster than the hardware current sense filter follows the actual
+		// current, so right after the duty cycle drops the compensation divides
+		// an already measured high current with an already dropped duty cycle.
+		// Without a clamp that briefly reports a current many times greater than
+		// what can physically flow, which shows up as a false fault trip and as
+		// a big erroneous error value for the current PID controller.
+		if (pwmdc < SOLENOID_OUTPUT_PWM_COMP_MIN_DC) {
+			pwmdc = SOLENOID_OUTPUT_PWM_COMP_MIN_DC;
+		}
+		current = current * PWM_MAX_VALUE / pwmdc;
 	}
+	// saturate rather than wrap around, the return value is 16-bit
+	LIMIT_MAX(current, UINT16_MAX);
 
 	return current;
 }
-
 
 
 void uv_solenoid_output_conf_reset(uv_solenoid_output_conf_st *conf,
@@ -63,7 +73,6 @@ void uv_solenoid_output_conf_reset(uv_solenoid_output_conf_st *conf,
 	limitconf->max = CONFIG_SOLENOID_MAX_CURRENT_DEF;
 	limitconf->min = 0;
 }
-
 
 
 void uv_solenoid_output_init(uv_solenoid_output_st *this,
@@ -104,9 +113,13 @@ void uv_solenoid_output_init(uv_solenoid_output_st *this,
 
 	uv_delay_init(&this->openloop_delay, OPENLOOP_DELAY_MS);
 
+	this->driver_fault_count = 0;
+	uv_delay_end(&this->fault_delay);
+
 	uv_pid_init(&this->ma_pid, CONFIG_SOLENOID_MA_P, CONFIG_SOLENOID_MA_I, 0);
 
 }
+
 
 void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 	uv_output_step((uv_output_st *)this, step_ms);
@@ -118,11 +131,20 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 			1000 : CONFIG_SOLENOID_MAX_CURRENT_DEF);
 	LIMIT_MAX(this->limitconf->min, this->limitconf->max);
 
+	// Cooldown after a driver fault. OUTPUT_STATE_FAULT can only be left
+	// through OUTPUT_STATE_OFF, so holding the OFF transition back here keeps
+	// the output shut down. Together with the target having to reach zero it
+	// means a driver fault needs the request to be released and the cooldown to
+	// expire before the output can be driven again, instead of retrying
+	// straight back into a driver that is already against a hardware limit.
+	uv_delay(&this->fault_delay, step_ms);
+
 	// set output to OFF state when target is zero and either PWM or ADC value is zero.
 	// This disables the ADC current measuring, even when there's open load.
 	if ((!!this->target == 0) &&
 			((this->pwm == 0) ||
-					((uv_solenoid_output_get_current(this) == 0) && !this->force_set))) {
+					((uv_solenoid_output_get_current(this) == 0) && !this->force_set)) &&
+			uv_delay_has_ended(&this->fault_delay)) {
 		uv_solenoid_output_set_state(this, OUTPUT_STATE_OFF);
 	}
 	else {
@@ -153,7 +175,7 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 			uv_delay_init(&this->delay, this->dither_ms);
 		}
 
-		int16_t output = 0;
+		int32_t output = 0;
 
 		LIMIT_MAX(this->target, 1000);
 
@@ -178,21 +200,92 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 			uv_pid_set_target(&this->ma_pid, target_ma);
 
 
-
 			// milliamp PID controller
 			// we calculate current by ourselves because uv_output_st adds averaging
 			// which we dont need here. Average value should only be shown to the end user
 			// to make an assumption that the current measurement is precise
-			uint16_t current = ((uv_output_st*) this)->current_func(this,
-					uv_adc_read(((uv_output_st*) this)->adc_chn));
-			uv_pid_step(&this->ma_pid, step_ms, current);
+			uint16_t adc = uv_adc_read(((uv_output_st*) this)->adc_chn);
+			// Raw, uncompensated sense reading. The high side driver reports
+			// overtemperature and overcurrent by forcing a large current into
+			// its current sense output, so the fault flag has to be recognised
+			// from the raw reading, before the pwm compensation scales it by a
+			// duty cycle dependent amount.
+			int32_t raw_ma = (int32_t) adc *
+					((uv_output_st*) this)->sense_ampl / 1000;
+			uint16_t current = ((uv_output_st*) this)->current_func(this, adc);
 
-			output = uv_pwm_get(this->pwm_chn) +
-				uv_pid_get_output(&this->ma_pid) +
-				this->dither_ampl / 2;
+			// The load cannot produce a raw reading above the current the loop
+			// is limited to, so anything above that level is the driver
+			// reporting overtemperature or overcurrent through its current
+			// sense output. Shut the output down: a high side driver held
+			// against a hardware limit destroys itself.
+			int32_t fault_level = (int32_t) this->limitconf->max *
+					SOLENOID_OUTPUT_DRIVER_FAULT_NUM /
+					SOLENOID_OUTPUT_DRIVER_FAULT_DEN;
+			if (raw_ma > fault_level) {
+				if (this->driver_fault_count < UINT16_MAX) {
+					this->driver_fault_count++;
+				}
+			}
+			else {
+				this->driver_fault_count = 0;
+			}
+			bool driver_fault =
+					(this->driver_fault_count >= SOLENOID_OUTPUT_DRIVER_FAULT_CNT);
 
-			if (abs(uv_pid_get_output(&this->ma_pid)) > 400 &&
-					abs(uv_output_get_current((uv_output_st*) this)) < 20) {
+			uint16_t pwm_get = uv_pwm_get(this->pwm_chn);
+			// error sum from before this step, restored by the anti-windup below
+			int32_t pid_sum = uv_pid_get_sum(&this->ma_pid);
+
+			if (driver_fault) {
+				// Cut the drive in this same step cycle rather than letting the
+				// PID react to the fault level as if it were a measurement.
+				// OUTPUT_STATE_FAULT sends the fault EMCY and latches, and the
+				// cooldown below keeps it down until the request is released.
+				output = 0;
+				this->pwm = 0;
+				uv_pwm_set(this->pwm_chn, 0);
+				uv_delay_init(&this->fault_delay,
+						SOLENOID_OUTPUT_DRIVER_FAULT_COOLDOWN_MS);
+				uv_output_set_state((uv_output_st*) this, OUTPUT_STATE_FAULT);
+			}
+			else {
+				uv_pid_step(&this->ma_pid, step_ms, current);
+
+				output = (int32_t) pwm_get +
+					uv_pid_get_output(&this->ma_pid) +
+					this->dither_ampl / 2;
+			}
+
+
+			// Anti-windup. The PID output is applied as an increment to the PWM
+			// duty cycle, so whenever the requested duty cycle saturates, the
+			// increment is silently discarded but the error stays integrated.
+			// Discard the error that was just integrated when it would only
+			// drive the output further into the saturation it is already in.
+			//
+			// Without this the error sum keeps growing for as long as the duty
+			// cycle is stuck at a rail. Once the current finally reaches the
+			// target and the error changes sign, the accumulated sum first holds
+			// the output at the rail and then slams it to the opposite one, and
+			// the output ends up oscillating between full current and zero at
+			// roughly 1 Hz. It is triggered by target currents that need a duty
+			// cycle close to the maximum, which is where the loop saturates.
+			int32_t err = (int32_t) target_ma - (int32_t) current;
+			if (((output > PWM_MAX_VALUE) && (err > 0)) ||
+					((output < 0) && (err < 0))) {
+				uv_pid_set_sum(&this->ma_pid, pid_sum);
+			}
+			else {
+
+			}
+
+			// Open loop detection. The output asks for the maximum duty cycle
+			// but no current flows. Note that this cannot be detected from the
+			// magnitude of the PID output, as the anti-windup above keeps the
+			// error sum bounded.
+			if ((output >= PWM_MAX_VALUE) &&
+					(abs(uv_output_get_current((uv_output_st*) this)) < 20)) {
 				if (uv_delay(&this->openloop_delay, step_ms)) {
 					// pid seems to be unable to drive to the target value.
 					// This indicates open loop
@@ -260,11 +353,10 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 		break;
 	}
 
+
 	this->force_set = false;
 
 }
-
-
 
 
 void uv_solenoid_output_disable(uv_solenoid_output_st *this) {
@@ -285,8 +377,6 @@ void uv_solenoid_output_force_set_pwm(uv_solenoid_output_st *this, uint16_t pwm)
 	this->force_set = true;
 	this->pwm = pwm;
 }
-
-
 
 
 #endif

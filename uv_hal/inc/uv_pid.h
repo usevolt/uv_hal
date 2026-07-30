@@ -124,6 +124,20 @@ static inline void uv_pid_set_min_sum(uv_pid_st *this, int32_t value) {
 	this->min_sum = value;
 }
 
+/// @brief: Returns the accumulated error sum, i.e. the state of the I term
+static inline int32_t uv_pid_get_sum(uv_pid_st *this) {
+	return this->sum;
+}
+
+/// @brief: Sets the accumulated error sum, i.e. the state of the I term.
+///
+/// @note: Can be used to implement anti-windup: store the sum before calling
+/// *uv_pid_step* and restore it afterwards when the PID output could not be
+/// applied to the process because of an output saturation.
+static inline void uv_pid_set_sum(uv_pid_st *this, int32_t value) {
+	this->sum = value;
+}
+
 /// @brief: Return the I factor. Valid range is from 0 to 65535.
 static inline uint32_t uv_pid_get_i(uv_pid_st *this) {
 	return this->i;

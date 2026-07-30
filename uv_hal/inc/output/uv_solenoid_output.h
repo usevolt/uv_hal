@@ -43,8 +43,41 @@
 #define SOLENOID_OUTPUT_PWMAVG_COUNT	10
 #define SOLENOID_OUTPUT_MAAVG_COUNT		100
 
+/// @brief: Smallest duty cycle the measured current is compensated with. The
+/// compensation divides the measured average current by the duty cycle, so
+/// below this the amplification is clamped instead of growing without bound.
+#define SOLENOID_OUTPUT_PWM_COMP_MIN_DC	(PWM_MAX_VALUE / 10)
+
 
 #define SOLENOID_OUTPUT_CONF_MAX		UINT8_MAX
+
+/// @brief: Driver fault level, as a fraction of the configured maximum current,
+/// applied to the RAW uncompensated sense reading.
+///
+/// The current sense only conducts while the output is on, so the raw reading
+/// is the load current scaled down by the duty cycle and can never exceed the
+/// current the loop is limited to. A raw reading above that limit therefore
+/// cannot come from the load at all: the VND5T100 high side driver reports
+/// overtemperature and overcurrent by pushing a large fixed current into its
+/// current sense output, and that is what this catches.
+///
+/// The level has to be checked on the raw reading. The pwm compensation scales
+/// the reading by 1000/duty cycle, so checking a fixed level on the compensated
+/// value means the same hardware fault flag lands on a completely different
+/// number depending on the duty cycle the output happens to be running at.
+#define SOLENOID_OUTPUT_DRIVER_FAULT_NUM		5
+#define SOLENOID_OUTPUT_DRIVER_FAULT_DEN		4
+
+/// @brief: Consecutive samples above the driver fault level before the output
+/// is shut down. At a 2 ms step cycle this is milliseconds, orders of magnitude
+/// faster than the driver's thermal time constant, while still not letting a
+/// single anomalous sample shut down a working machine.
+#define SOLENOID_OUTPUT_DRIVER_FAULT_CNT		3
+
+/// @brief: The output stays shut down for at least this long after a driver
+/// fault, and the request has to be released before it can be driven again.
+/// Retrying into a driver that is already against a hardware limit destroys it.
+#define SOLENOID_OUTPUT_DRIVER_FAULT_COOLDOWN_MS	1000
 
 #if !CONFIG_PID
 #error "uv_solenoid_output requires uv_pid_st to be enabled with CONFIG_PID defined as 1."
@@ -86,7 +119,6 @@ typedef enum {
 #define SOLENOID_OUTPUT_CONF_SUBINDEX_COUNT			2
 
 
-
 /// @brief: Data structure for solenoid output configuration data.
 /// This can be stored in non-volatile memory.
 typedef struct {
@@ -106,7 +138,6 @@ typedef struct {
 /// @brief: Resets the output values to defaults
 void uv_solenoid_output_conf_reset(uv_solenoid_output_conf_st *conf,
 		uv_solenoid_output_limitconf_st *limitconf);
-
 
 
 typedef struct {
@@ -146,6 +177,12 @@ typedef struct {
 	int16_t maxspeed_scaler;
 
 	uv_delay_st openloop_delay;
+
+	/// @brief: Consecutive samples the raw sense reading has been above the
+	/// driver fault level
+	uint16_t driver_fault_count;
+	/// @brief: Keeps the output shut down for a while after a driver fault
+	uv_delay_st fault_delay;
 
 	// true for 1 step cycle if pwm was forcefully set
 	bool force_set;
@@ -199,10 +236,8 @@ static inline int16_t uv_solenoid_output_get_maxspeed_scaler(uv_solenoid_output_
 }
 
 
-
 /// @brief: Step funtion
 void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms);
-
 
 
 #define SOLENOID_OUTPUT_TARGET_MAX	1000
@@ -229,7 +264,6 @@ static inline void uv_solenoid_output_set_state(uv_solenoid_output_st *this,
 }
 
 
-
 /// @brief: Freezes the fault detection for *ms* given time. This can be used
 /// to prevent unintentional faults.
 ///
@@ -239,7 +273,6 @@ static inline void uv_solenoid_output_freeze_fault_detection(
 		uv_solenoid_output_st *this, uint32_t ms) {
 	uv_output_freeze_fault_detection((uv_output_st*) this, ms);
 }
-
 
 
 /// @brief: Disables the output. Output can be enabled only by calling
@@ -309,11 +342,8 @@ static inline uint16_t uv_solenoid_output_get_pwm_dc(uv_solenoid_output_st *this
 }
 
 
-
 /// @brief: Overrides all other functionality and sets the PWM
 void uv_solenoid_output_force_set_pwm(uv_solenoid_output_st *this, uint16_t pwm);
-
-
 
 
 #endif
