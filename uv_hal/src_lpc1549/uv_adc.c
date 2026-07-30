@@ -104,6 +104,12 @@ uv_errors_e _uv_adc_init() {
 
 
 
+/// @brief: Upper bound for the conversion busy wait. A conversion takes a
+/// couple of microseconds, this only exists so that a hardware failure cannot
+/// hang the read with the interrupts disabled.
+#define ADC_CONV_TIMEOUT		2000
+
+
 int16_t uv_adc_read(uv_adc_channels_e channel) {
 	int16_t ret = -1;
 
@@ -113,28 +119,41 @@ int16_t uv_adc_read(uv_adc_channels_e channel) {
 	// channel 1
 	if (channel != 0 &&
 			channel < ADC1_0) {
+		// The sequencer is a single shared resource that is reconfigured for
+		// every single read. Two tasks reading different channels corrupt each
+		// other's conversion: whoever gets preempted between starting the
+		// sequencer and reading the result gets the other channel's conversion,
+		// or a stale value out of its own data register. This shows up as one
+		// individual wildly wrong sample every now and then. On a current
+		// controlled solenoid output such a sample makes the PID slam the duty
+		// cycle to zero, which is enough to kick the current loop into a
+		// self sustaining oscillation.
+		//
+		// A yield inside the wait loop makes it worse rather than better, as it
+		// is an explicit invitation to switch tasks in the middle of the
+		// conversion. Keep the whole sequence atomic instead. It only takes a
+		// couple of microseconds.
+		uv_enter_critical();
+
 		Chip_ADC_DisableSequencer(LPC_ADC0, ADC_SEQA_IDX);
 		Chip_ADC_SetupSequencer(LPC_ADC0, ADC_SEQA_IDX,
 				ADC_SEQ_CTRL_CHANSEL(channel - 1) | ADC_SEQ_CTRL_HWTRIG_POLPOS);
-		// for some reason LPC1549 needs a bit time for ADC1 sequencer to setup.
-		// 24.10.2025 __NOP() command changed to freertos yield so that
-		// other tasks dont interrupt because of this
-//		uv_ts_st ts;
-//		uv_ts_init(&ts);
-//		for (uint16_t i = 0; i < 0x400; i++) {
-//			uv_ts_step(&ts);
-//			if (uv_ts_get_step_ms(&ts)) {
-//				break;
-//			}
-//			uv_rtos_task_yield();
-//		}
+		// Consume a data valid flag possibly left over from an earlier
+		// conversion. Without this the wait below returns immediately and the
+		// previous conversion's result is read instead of this one's.
+		(void) LPC_ADC0->SEQ_GDAT[ADC_SEQA_IDX];
 		Chip_ADC_EnableSequencer(LPC_ADC0, ADC_SEQA_IDX);
 		Chip_ADC_StartSequencer(LPC_ADC0, ADC_SEQA_IDX);
 		// wait for the conversion to finish
-		while (!(LPC_ADC0->SEQ_GDAT[ADC_SEQA_IDX] & (1 << 31))) {
-			uv_rtos_task_yield();
+		uint32_t timeout = ADC_CONV_TIMEOUT;
+		while ((!(LPC_ADC0->SEQ_GDAT[ADC_SEQA_IDX] & (1 << 31))) &&
+				(timeout != 0)) {
+			timeout--;
 		}
 		uint32_t raw = Chip_ADC_GetDataReg(LPC_ADC0, channel - 1);
+
+		uv_exit_critical();
+
 		ret = ADC_DR_RESULT(raw);
 	}
 #endif
@@ -142,16 +161,25 @@ int16_t uv_adc_read(uv_adc_channels_e channel) {
 	// channel 2
 	if (channel >= ADC1_0 && channel < ADC_COUNT) {
 		channel -= ADC1_0 - 1;
+		// see the comment in the ADC0 branch above
+		uv_enter_critical();
+
 		Chip_ADC_DisableSequencer(LPC_ADC1, ADC_SEQA_IDX);
 		Chip_ADC_SetupSequencer(LPC_ADC1, ADC_SEQA_IDX,
 				ADC_SEQ_CTRL_CHANSEL(channel - 1) | ADC_SEQ_CTRL_HWTRIG_POLPOS);
+		(void) LPC_ADC1->SEQ_GDAT[ADC_SEQA_IDX];
 		Chip_ADC_EnableSequencer(LPC_ADC1, ADC_SEQA_IDX);
 		Chip_ADC_StartSequencer(LPC_ADC1, ADC_SEQA_IDX);
 		// wait for the conversion to finish
-		while (!(LPC_ADC1->SEQ_GDAT[ADC_SEQA_IDX] & (1 << 31))) {
-			uv_rtos_task_yield();
+		uint32_t timeout = ADC_CONV_TIMEOUT;
+		while ((!(LPC_ADC1->SEQ_GDAT[ADC_SEQA_IDX] & (1 << 31))) &&
+				(timeout != 0)) {
+			timeout--;
 		}
 		uint32_t raw = Chip_ADC_GetDataReg(LPC_ADC1, channel - 1);
+
+		uv_exit_critical();
+
 		ret = ADC_DR_RESULT(raw);
 	}
 #endif
