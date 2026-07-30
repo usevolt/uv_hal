@@ -249,6 +249,25 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 						SOLENOID_OUTPUT_DRIVER_FAULT_COOLDOWN_MS);
 				uv_output_set_state((uv_output_st*) this, OUTPUT_STATE_FAULT);
 			}
+			else if (target_ma == 0) {
+				// Nothing is asked from this output, release it in this same step
+				// cycle instead of letting the PID walk the duty cycle down.
+				//
+				// The PID output is applied as an increment to the duty cycle, so
+				// the duty cycle only comes down while the error stays negative.
+				// With no load there is no current to produce that error: driving
+				// an open load integrates the error sum up until the anti-windup
+				// below bounds it, and when the target is then removed the error
+				// is zero, leaving the remaining I term to hold the duty cycle at
+				// the rail. The output was released only once the heavily averaged
+				// current measurement had decayed to zero, which takes hundreds of
+				// milliseconds. As uv_dual_solenoid_output waits for the other
+				// direction's duty cycle to reach zero before it energizes the
+				// opposite solenoid, changing the direction of an output with
+				// nothing connected to it was delayed for that same time.
+				uv_pid_init(&this->ma_pid, CONFIG_SOLENOID_MA_P, CONFIG_SOLENOID_MA_I, 0);
+				output = 0;
+			}
 			else {
 				uv_pid_step(&this->ma_pid, step_ms, current);
 
@@ -296,13 +315,6 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 				uv_delay_init(&this->openloop_delay, OPENLOOP_DELAY_MS);
 			}
 
-			// since current_func applies PWM correction, it can lead
-			// to a situation where pwm dc is non-zero but target is zero.
-			// Here we prevent that from happening.
-			if (this->target == 0 &&
-					uv_pid_get_output(&this->ma_pid) == 0) {
-				output = 0;
-			}
 
 		}
 		// solenoid is PWM driven
