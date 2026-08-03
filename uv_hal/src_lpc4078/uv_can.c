@@ -75,6 +75,12 @@ typedef struct {
 			uv_can_msg_types_e type);
 	void (*clear_rx_callb)(uv_can_channels_e chn);
 
+	// True while the acceptance filter is bypassed, i.e. every message on the
+	// bus is taken. Kept here because uv_can_config_rx_message() puts the
+	// filter back into normal mode when it is done, which would silently undo
+	// it (see uv_can_set_rx_all()).
+	bool rx_all;
+
 	#if CONFIG_TERMINAL_CAN
 	uv_ring_buffer_st char_buffer;
 	char char_buffer_data[CONFIG_TERMINAL_BUFFER_SIZE];
@@ -99,7 +105,8 @@ static can_st _this __attribute__((section (".data_RAM2"))) = {
 			}
 		},
 		.config_rx_callb = NULL,
-		.clear_rx_callb = NULL
+		.clear_rx_callb = NULL,
+		.rx_all = false
 };
 #if defined(this)
 #undef this
@@ -390,7 +397,10 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e chn,
 		}
 	}
 
-	Chip_CAN_SetAFMode(LPC_CANAF, CAN_AF_NORMAL_MODE);
+	// back to whichever mode was in effect: adding a filter entry while the
+	// whole bus is being accepted must not quietly stop accepting it
+	Chip_CAN_SetAFMode(LPC_CANAF,
+			this->rx_all ? CAN_AF_BYBASS_MODE : CAN_AF_NORMAL_MODE);
 
 	NVIC_EnableIRQ(CAN_IRQn);
 
@@ -401,6 +411,22 @@ uv_errors_e uv_can_config_rx_message(uv_can_channels_e chn,
 	return ret;
 }
 
+
+
+uv_errors_e uv_can_set_rx_all(uv_can_channels_e chn, bool value) {
+	// The acceptance filter is one peripheral for both controllers, so this
+	// opens up (or closes) every channel at once. Nothing on this chip uses the
+	// second one, and a filter that took a channel argument would be lying.
+	(void) chn;
+
+	NVIC_DisableIRQ(CAN_IRQn);
+	this->rx_all = value;
+	Chip_CAN_SetAFMode(LPC_CANAF,
+			value ? CAN_AF_BYBASS_MODE : CAN_AF_NORMAL_MODE);
+	NVIC_EnableIRQ(CAN_IRQn);
+
+	return ERR_NONE;
+}
 
 
 uv_errors_e uv_can_config_rx_message_no_callb(

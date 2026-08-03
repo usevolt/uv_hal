@@ -246,6 +246,52 @@ uv_errors_e uv_can_config_rx_message_no_callb(
 		unsigned int mask,
 		uv_can_msg_types_e type);
 
+
+/// @brief: Accepts every message on the bus, regardless of what has been
+/// configured with uv_can_config_rx_message().
+///
+/// For mirroring a whole bus somewhere else, which no id range can express: a
+/// mask with no bits set cannot be turned into a range at all. The configured
+/// filter list is left untouched, so switching this back off returns the
+/// channel to exactly what it accepted before.
+///
+/// Costs one interrupt per frame on the bus, so it is meant to be on only while
+/// something is actually listening to all of it.
+///
+/// @param value: true to accept everything, false to go back to the configured
+/// filters.
+uv_errors_e uv_can_set_rx_all(uv_can_channels_e chn, bool value);
+
+
+#if CONFIG_TARGET_LINUX
+
+/// @brief: Longest interface name these take, including the terminator. The
+/// kernel's own limit is IFNAMSIZ (16).
+#define UV_CAN_IFNAME_MAX_LEN		16
+
+/// @brief: Creates the virtual CAN interface *name* and brings it up, or
+/// leaves it alone if it is already there.
+///
+/// For representing a bus that is not on this machine — a remote one carried
+/// over some link — as a netdev, so every CAN tool can reach it.
+///
+/// Needs privileges, and gets them in increasing order of nuisance: as root it
+/// just runs; then passwordless sudo, which asks nobody anything; then pkexec,
+/// which puts a dialog on the screen; then plain sudo, which asks on whatever
+/// terminal the program was started from.
+///
+/// @param err: filled with what went wrong when this returns false. May be
+/// NULL if the caller does not care.
+/// @return: true when the interface exists and is up afterwards.
+bool uv_can_create_vcan(const char *name, char *err, size_t err_len);
+
+
+/// @brief: Removes a virtual CAN interface. Succeeds when it is already gone —
+/// the point is that it is not there afterwards.
+bool uv_can_delete_vcan(const char *name, char *err, size_t err_len);
+
+#endif
+
 /// @brief: Registers a callback function that is called when rx message
 /// is configured and a callback that is called when rx messages are cleared
 void uv_can_set_rx_msg_callbacks(void (*config_callb)(uv_can_channels_e chn,

@@ -330,97 +330,6 @@ static void confwindow_next_vcan_name(char *dst, size_t dstlen) {
 }
 
 
-/// @brief: True when *name* is safe to hand to the shell as an interface name.
-/// It is user input on its way into a command line, and the kernel would not
-/// take anything else anyway.
-static bool confwindow_ifname_valid(const char *name) {
-	bool ret = ((name != NULL) && (name[0] != '\0') &&
-			(strlen(name) < CONFWINDOW_IFNAME_LEN));
-	for (size_t i = 0; (ret) && (name[i] != '\0'); i++) {
-		char c = name[i];
-		if (!(((c >= 'a') && (c <= 'z')) || ((c >= 'A') && (c <= 'Z')) ||
-				((c >= '0') && (c <= '9')) || (c == '_') || (c == '-'))) {
-			ret = false;
-		}
-	}
-	return ret;
-}
-
-
-/// @brief: Creates the virtual CAN interface *name* and brings it up.
-///
-/// Needs privileges, and gets them in increasing order of nuisance: as root it
-/// just runs; then passwordless sudo, which asks nobody anything; then pkexec,
-/// which puts a dialog on the screen; then plain sudo, which asks on whatever
-/// terminal uvcan was started from. Trying the silent options first means a
-/// machine set up for it never sees a prompt at all.
-///
-/// Whatever went wrong is reported rather than swallowed - "nothing happened"
-/// is the worst possible answer to pressing a button.
-///
-/// @return: true when the interface exists and is up afterwards.
-static bool confwindow_create_vcan(const char *name, char *err, size_t err_len) {
-	bool ret = false;
-	err[0] = '\0';
-	if (!confwindow_ifname_valid(name)) {
-		snprintf(err, err_len, "'%s' is not a usable interface name "
-				"(letters, digits, '_' and '-', under %d characters).",
-				name, CONFWINDOW_IFNAME_LEN);
-	}
-	else {
-		// vcan may not be loaded yet on a machine that has never used one
-		char inner[256];
-		snprintf(inner, sizeof(inner),
-				"modprobe vcan 2>/dev/null; "
-				"ip link add dev %s type vcan && ip link set up %s",
-				name, name);
-
-		const char *prefixes[3];
-		uint8_t n = 0;
-		if (geteuid() == 0) {
-			prefixes[n++] = "";
-		}
-		else {
-			prefixes[n++] = "sudo -n ";
-			if (getenv("DISPLAY") != NULL) {
-				prefixes[n++] = "pkexec ";
-			}
-			prefixes[n++] = "sudo ";
-		}
-
-		char out[256] = { '\0' };
-		for (uint8_t i = 0; (i < n) && !ret; i++) {
-			char cmd[640];
-			snprintf(cmd, sizeof(cmd), "%ssh -c '%s' 2>&1", prefixes[i], inner);
-			FILE *f = popen(cmd, "r");
-			if (f != NULL) {
-				// keep the last line: that is where ip puts its complaint
-				char line[256];
-				while (fgets(line, sizeof(line), f) != NULL) {
-					line[strcspn(line, "\r\n")] = '\0';
-					if (line[0] != '\0') {
-						strncpy(out, line, sizeof(out) - 1);
-						out[sizeof(out) - 1] = '\0';
-					}
-				}
-				if (pclose(f) == 0) {
-					ret = true;
-				}
-			}
-		}
-		if (!ret) {
-			if (out[0] != '\0') {
-				snprintf(err, err_len, "%s", out);
-			}
-			else {
-				snprintf(err, err_len,
-						"Could not create '%s' (no privileges?).", name);
-			}
-		}
-	}
-	return ret;
-}
-
 #endif
 
 
@@ -611,7 +520,7 @@ static uv_uiobject_ret_e confwindow_step(void *me, uint16_t step_ms) {
 		name[sizeof(name) - 1] = '\0';
 
 		char err[128];
-		if (confwindow_create_vcan(name, err, sizeof(err))) {
+		if (uv_can_create_vcan(name, err, sizeof(err))) {
 			snprintf(this->confwindow.vcan_status_str,
 					sizeof(this->confwindow.vcan_status_str),
 					"Created '%s'.", name);

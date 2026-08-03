@@ -392,6 +392,163 @@ uv_errors_e uv_can_config_rx_message_no_callb(
 }
 
 
+uv_errors_e uv_can_set_rx_all(uv_can_channels_e chn, bool value) {
+	// A SocketCAN raw socket already receives everything on its interface —
+	// nothing here filters in the first place, so there is nothing to open up.
+	(void) chn;
+	(void) value;
+	return ERR_NONE;
+}
+
+
+/// @brief: True when *name* is safe to hand to the shell as an interface name.
+/// It may be user input on its way into a command line, and the kernel would
+/// not take anything else anyway.
+static bool ifname_valid(const char *name) {
+	bool ret = ((name != NULL) && (name[0] != '\0') &&
+			(strlen(name) < UV_CAN_IFNAME_MAX_LEN));
+	for (size_t i = 0; (ret) && (name[i] != '\0'); i++) {
+		char c = name[i];
+		if (!(((c >= 'a') && (c <= 'z')) || ((c >= 'A') && (c <= 'Z')) ||
+				((c >= '0') && (c <= '9')) || (c == '_') || (c == '-'))) {
+			ret = false;
+		}
+		else {
+		}
+	}
+	return ret;
+}
+
+
+/// @brief: Runs *inner* as a shell command with whatever privilege escalation
+/// this machine will give up most quietly, keeping the last line of output as
+/// the explanation if every attempt fails.
+///
+/// Trying the silent options first means a machine set up for passwordless sudo
+/// never sees a prompt at all, and whatever went wrong is reported rather than
+/// swallowed — "nothing happened" is the worst possible answer.
+static bool run_privileged(const char *inner, char *err, size_t err_len) {
+	const char *prefixes[3];
+	uint8_t n = 0;
+	bool ret = false;
+
+	if (geteuid() == 0) {
+		prefixes[n++] = "";
+	}
+	else {
+		prefixes[n++] = "sudo -n ";
+		if (getenv("DISPLAY") != NULL) {
+			prefixes[n++] = "pkexec ";
+		}
+		else {
+		}
+		prefixes[n++] = "sudo ";
+	}
+
+	char out[256] = { '\0' };
+	for (uint8_t i = 0; (i < n) && !ret; i++) {
+		char cmd[640];
+		snprintf(cmd, sizeof(cmd), "%ssh -c '%s' 2>&1", prefixes[i], inner);
+		FILE *f = popen(cmd, "r");
+		if (f != NULL) {
+			// keep the last line: that is where ip puts its complaint
+			char line[256];
+			while (fgets(line, sizeof(line), f) != NULL) {
+				line[strcspn(line, "\r\n")] = '\0';
+				if (line[0] != '\0') {
+					strncpy(out, line, sizeof(out) - 1);
+					out[sizeof(out) - 1] = '\0';
+				}
+				else {
+				}
+			}
+			if (pclose(f) == 0) {
+				ret = true;
+			}
+			else {
+			}
+		}
+		else {
+		}
+	}
+
+	if (!ret && (err != NULL)) {
+		if (out[0] != '\0') {
+			snprintf(err, err_len, "%s", out);
+		}
+		else {
+			snprintf(err, err_len, "Command failed (no privileges?).");
+		}
+	}
+	else {
+	}
+
+	return ret;
+}
+
+
+bool uv_can_create_vcan(const char *name, char *err, size_t err_len) {
+	bool ret = false;
+	if (err != NULL) {
+		err[0] = '\0';
+	}
+	else {
+	}
+
+	if (!ifname_valid(name)) {
+		if (err != NULL) {
+			snprintf(err, err_len, "'%s' is not a usable interface name "
+					"(letters, digits, '_' and '-', under %d characters).",
+					(name != NULL) ? name : "", UV_CAN_IFNAME_MAX_LEN);
+		}
+		else {
+		}
+	}
+	else {
+		// vcan may not be loaded yet on a machine that has never used one, and
+		// an interface that is already there is not an error: what matters is
+		// that it exists and is up when this returns
+		char inner[320];
+		snprintf(inner, sizeof(inner),
+				"modprobe vcan 2>/dev/null; "
+				"ip link show %s >/dev/null 2>&1 || "
+				"ip link add dev %s type vcan; "
+				"ip link set up %s",
+				name, name, name);
+		ret = run_privileged(inner, err, err_len);
+	}
+	return ret;
+}
+
+
+bool uv_can_delete_vcan(const char *name, char *err, size_t err_len) {
+	bool ret = false;
+	if (err != NULL) {
+		err[0] = '\0';
+	}
+	else {
+	}
+
+	if (!ifname_valid(name)) {
+		if (err != NULL) {
+			snprintf(err, err_len, "'%s' is not a usable interface name.",
+					(name != NULL) ? name : "");
+		}
+		else {
+		}
+	}
+	else {
+		char inner[320];
+		snprintf(inner, sizeof(inner),
+				"ip link show %s >/dev/null 2>&1 && ip link del dev %s; "
+				"! ip link show %s >/dev/null 2>&1",
+				name, name, name);
+		ret = run_privileged(inner, err, err_len);
+	}
+	return ret;
+}
+
+
 uv_errors_e _uv_can_init() {
 	uv_errors_e ret = ERR_NONE;
 
