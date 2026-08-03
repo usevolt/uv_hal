@@ -46,6 +46,17 @@ typedef struct {
 } remote_stream_st;
 
 
+/// @brief: Writes *msg* into *dest* as a whole REMOTE_MSG_TYPE_CAN message.
+/// *dest* must hold at least REMOTE_MSG_TYPE_CAN_MAX_LEN bytes; the message is
+/// REMOTE_MSG_TYPE_CAN_LEN(msg->data_length) long.
+void remote_can_msg_encode(const uv_can_msg_st *msg, uint8_t *dest);
+
+
+/// @brief: Reads a CAN message back out of one. *data* points at the whole
+/// message, start byte and all — i.e. at what the framer hands its callback.
+void remote_can_msg_decode(const uint8_t *data, uv_can_msg_st *dest);
+
+
 /// @brief: Largest transport payload a batch of messages is packed into. On the
 /// iot link this is one MQTT message; batching matters there because a publish
 /// costs a full AT round trip regardless of size. Override per project.

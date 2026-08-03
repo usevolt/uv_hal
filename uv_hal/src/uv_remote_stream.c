@@ -27,8 +27,41 @@ const uint8_t remote_msg_type_len[REMOTE_MSG_TYPE_COUNT + 1] = {
 		REMOTE_MSG_TYPE_IOT_CTRL_LEN,
 		REMOTE_MSG_TYPE_IOT_STATUS_LEN,
 		REMOTE_MSG_TYPE_UI_INFO_LEN,
+		REMOTE_MSG_TYPE_CLOSE_LEN,
+		REMOTE_MSG_TYPE_CAN_STATS_LEN,
 		0
 };
+
+
+// The CAN codec sits with the framing rather than with either end's transport:
+// the sink decodes what a device encodes, and a byte laid out differently at
+// one end is a bug nobody can see from the other.
+
+void remote_can_msg_encode(const uv_can_msg_st *msg, uint8_t *dest) {
+	dest[0] = REMOTE_MSG_START_BYTE;
+	dest[1] = REMOTE_MSG_TYPE_CAN;
+	dest[2] = msg->data_length;
+	uint32_t id = msg->id |
+			((msg->type == CAN_EXT) ? REMOTE_CAN_ID_EXT_FLAG : 0u);
+	memcpy(&dest[3], &id, sizeof(id));
+	memcpy(&dest[7], msg->data_8bit, msg->data_length);
+}
+
+
+void remote_can_msg_decode(const uint8_t *data, uv_can_msg_st *dest) {
+	uint32_t id;
+	memcpy(&id, &data[3], sizeof(id));
+	dest->type = ((id & REMOTE_CAN_ID_EXT_FLAG) != 0u) ? CAN_EXT : CAN_STD;
+	dest->id = id & 0x1FFFFFFFu;
+	dest->data_length = data[2];
+	if (dest->data_length > 8u) {
+		// the framer bounds this, but a decode must never write past the union
+		dest->data_length = 8u;
+	}
+	else {
+	}
+	memcpy(dest->data_8bit, &data[7], dest->data_length);
+}
 
 
 void remote_stream_reset(remote_stream_st *this) {

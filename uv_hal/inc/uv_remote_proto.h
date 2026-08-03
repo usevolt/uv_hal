@@ -85,6 +85,19 @@ typedef enum {
 	// stream itself carries no absolute dimensions.
 	// [0x85][UI_INFO][width:2][height:2]
 	REMOTE_MSG_TYPE_UI_INFO,
+	// The device closes the session (device -> server), carrying nothing but
+	// the type. Sent when the machine operator ends remote access from the
+	// device's own screen, which also switches every feature off locally — so
+	// this is not what stops the stream, it is what lets the server say why the
+	// stream stopped instead of showing a view that has silently gone dead.
+	// [0x85][CLOSE]
+	REMOTE_MSG_TYPE_CLOSE,
+	// Per-class CAN forwarding statistics (device -> sink), sent about once a
+	// second while CAN forwarding is on. What the far end cannot work out for
+	// itself: how much the device chose not to send, and which class it came
+	// out of. Payload is remote_can_stats_st verbatim.
+	// [0x85][CAN_STATS][remote_can_stats_st]
+	REMOTE_MSG_TYPE_CAN_STATS,
 	REMOTE_MSG_TYPE_COUNT
 } remote_msg_types_e;
 
@@ -116,11 +129,118 @@ typedef enum {
 /// @brief: Structure for masking can messages that should be sent via remote.
 /// Copied verbatim in and out of a RXCONF message, so it is part of the wire
 /// format rather than an implementation detail.
+///
+/// A mask of zero means "every id of this type": it is the only way to ask for
+/// a whole bus, and the receiving device switches its acceptance filter to
+/// accept-all for it rather than trying to express it as an id range.
 typedef struct {
 	uint32_t id;
 	uint32_t mask;
 	uv_can_msg_types_e type;
 } remote_can_rxconf_st;
+
+
+// --- CAN forwarding ---------------------------------------------------------
+
+/// @brief: Bit set in the id field of a CAN message to mark it as extended.
+/// The same bit CANopen uses for it (CANOPEN_PDO_EXT), spelled out here so the
+/// framing needs no CANopen headers — a 29 bit id never reaches it.
+#define REMOTE_CAN_ID_EXT_FLAG			(1u << 29)
+
+
+/// @brief: What a forwarded CAN frame is worth, which decides how hard the
+/// device tries to get it across a link that cannot carry everything.
+///
+/// The classes are not a preference order alone: each one is published on its
+/// own link slot, so a class that saturates can only ever stall itself. A
+/// firmware download flooding the SDO class does not delay a heartbeat.
+typedef enum {
+	/// NMT, EMCY and heartbeat. Rare, urgent, and what tells the far end the
+	/// machine is still there at all. Sent whole and in order, first.
+	REMOTE_CAN_CLASS_CTRL = 0,
+	/// SDO in both directions. Must stay in order and must not be coalesced —
+	/// a transfer is a conversation, not a value — but it is the one class that
+	/// can genuinely flood the link, so it drops before the classes above it.
+	REMOTE_CAN_CLASS_SDO,
+	/// Process data, SYNC, and every extended (J1939) frame. Periodic
+	/// broadcasts whose newest value is the only one worth having, so these are
+	/// staged latest-value per id rather than queued.
+	REMOTE_CAN_CLASS_BULK,
+	REMOTE_CAN_CLASS_COUNT
+} remote_can_class_e;
+
+
+/// @brief: Classifies a CAN frame by its COB-id, the way CANopen assigns
+/// function codes. Both ends classify identically, so the sink can label what
+/// it receives without being told.
+///
+/// Every extended frame is bulk whatever its id: extended ids are J1939 or
+/// application traffic, which is periodic broadcast by nature and carries none
+/// of the CANopen function codes.
+static inline remote_can_class_e remote_can_class_of(uint32_t id,
+		uv_can_msg_types_e type) {
+	remote_can_class_e ret;
+	if (type != CAN_STD) {
+		ret = REMOTE_CAN_CLASS_BULK;
+	}
+	else {
+		uint32_t fc = id & 0x780u;
+		if ((id == 0x000u) ||
+				// 0x080 on its own is SYNC, which is periodic; only 0x081-0x0FF
+				// is an emergency from a node
+				((fc == 0x080u) && ((id & 0x7Fu) != 0u)) ||
+				(fc == 0x700u)) {
+			ret = REMOTE_CAN_CLASS_CTRL;
+		}
+		else if ((fc == 0x580u) || (fc == 0x600u)) {
+			ret = REMOTE_CAN_CLASS_SDO;
+		}
+		else {
+			ret = REMOTE_CAN_CLASS_BULK;
+		}
+	}
+	return ret;
+}
+
+
+static inline const char *remote_can_class_to_str(remote_can_class_e cls) {
+	const char *ret = "?";
+	switch (cls) {
+	case REMOTE_CAN_CLASS_CTRL:
+		ret = "ctrl";
+		break;
+	case REMOTE_CAN_CLASS_SDO:
+		ret = "sdo";
+		break;
+	case REMOTE_CAN_CLASS_BULK:
+		ret = "bulk";
+		break;
+	default:
+		break;
+	}
+	return ret;
+}
+
+
+/// @brief: The whole bus is being accepted, i.e. a mask-zero rxconf is in
+/// effect and the acceptance filter has been opened up for it.
+#define REMOTE_CAN_STATS_FLAG_RX_ALL	(1u << 0)
+
+/// @brief: What the device has done with the CAN traffic it was asked to
+/// forward, per class. Sent verbatim as REMOTE_MSG_TYPE_CAN_STATS.
+///
+/// *dropped* is the number the device threw away because the link could not
+/// keep up — the one thing the sink has no way of noticing on its own, since a
+/// dropped frame looks exactly like a frame that was never sent.
+typedef struct __attribute__((packed)) {
+	uint32_t forwarded[REMOTE_CAN_CLASS_COUNT];
+	uint32_t dropped[REMOTE_CAN_CLASS_COUNT];
+	uint16_t queued[REMOTE_CAN_CLASS_COUNT];
+	/// frames received from the sink and put on the device's own bus
+	uint32_t injected;
+	uint8_t rxconf_count;
+	uint8_t flags;
+} remote_can_stats_st;
 
 
 #define REMOTE_MSG_TYPE_CONNECT_LEN				(sizeof(uint64_t) + sizeof(uint8_t) + 2)
@@ -141,6 +261,8 @@ typedef struct {
 #define REMOTE_MSG_TYPE_IOT_CTRL_LEN			3
 #define REMOTE_MSG_TYPE_IOT_STATUS_LEN			4
 #define REMOTE_MSG_TYPE_UI_INFO_LEN				6
+#define REMOTE_MSG_TYPE_CLOSE_LEN				2
+#define REMOTE_MSG_TYPE_CAN_STATS_LEN			(2 + sizeof(remote_can_stats_st))
 #define REMOTE_MSG_TYPE_MAX_LEN					(MAX(\
 		REMOTE_MSG_TYPE_UI_LEN, \
 		MAX(REMOTE_MSG_TYPE_CONNECT_LEN, \
@@ -190,6 +312,12 @@ static inline const char *remote_msg_type_to_str(remote_msg_types_e type) {
 		break;
 	case REMOTE_MSG_TYPE_UI_INFO:
 		ret = "UI_INFO";
+		break;
+	case REMOTE_MSG_TYPE_CLOSE:
+		ret = "CLOSE";
+		break;
+	case REMOTE_MSG_TYPE_CAN_STATS:
+		ret = "CAN_STATS";
 		break;
 	default:
 		break;
