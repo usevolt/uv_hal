@@ -141,12 +141,20 @@ static inline uv_uidigitedit_mode_e uv_uidigitedit_get_mode(void *me) {
 
 
 /// @brief: Inc step is used in UIDIGITEDIT_MODE_INCDEC
+///
+/// @note: *modedata* is a union shared by every mode, so writing a member that
+/// doesn't belong to the active mode would silently corrupt that mode's data.
+/// Calls made in a wrong mode are therefore ignored. The mode has to be set
+/// before this, as uv_uidigitedit_set_mode resets the inc step back to 1.
 static inline void uv_uidigitedit_set_inc_step(void *me, int16_t value) {
-	this->modedata.incdec.inc_step = value;
+	if (this->mode == UIDIGITEDIT_MODE_INCDEC) {
+		this->modedata.incdec.inc_step = value;
+	}
 }
 
 static inline int16_t uv_uidigitedit_get_inc_step(void *me) {
-	return this->modedata.incdec.inc_step;
+	return (this->mode == UIDIGITEDIT_MODE_INCDEC) ?
+			this->modedata.incdec.inc_step : 0;
 }
 /// @brief Sets the display to hexadecimal. Only valid if divider == 0
 void uv_uidigitedit_set_hex(void *me, bool value);
@@ -166,8 +174,12 @@ static inline char *uv_uidigitedit_get_title(void *me) {
 }
 
 /// @brief: Sets the string for the numpad dialog which opens when the uidigitedit is clicked
+///
+/// @note: Only available in UIDIGITEDIT_MODE_NORMAL, see uv_uidigitedit_set_inc_step
 static inline void uv_uidigitedit_set_numpad_title(void *me, char *value) {
-	this->modedata.normal.numpaddialog_title = value;
+	if (this->mode == UIDIGITEDIT_MODE_NORMAL) {
+		this->modedata.normal.numpaddialog_title = value;
+	}
 }
 
 /// @brief: Returns true on the step cycle when the value was changed
@@ -216,13 +228,17 @@ static inline uv_font_st *uv_uidigitedit_get_font(void *me) {
 }
 
 
-/// @brief Sets the title font. Only available for type RODIGIT
+/// @brief Sets the title font. Only available for type RODIGIT,
+/// see uv_uidigitedit_set_inc_step
 static inline void uv_uidigitedit_rodigit_set_title_font(void *me, uv_font_st *font) {
-	this->modedata.rodigit.title_font = font;
+	if (this->mode == UIDIGITEDIT_MODE_RODIGIT) {
+		this->modedata.rodigit.title_font = font;
+	}
 }
 
 static inline uv_font_st *uv_uidigitedit_rodigit_get_title_font(void *me) {
-	return this->modedata.rodigit.title_font;
+	return (this->mode == UIDIGITEDIT_MODE_RODIGIT) ?
+			this->modedata.rodigit.title_font : NULL;
 }
 
 void uv_uidigitedit_draw(void *me, const uv_bounding_box_st *pbb);
