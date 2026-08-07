@@ -9,7 +9,7 @@
 
 /// @file: The REMOTE message framing, shared by every end of the link.
 ///
-/// A device speaks this over whatever transport it has — a raw XB3 byte pipe or
+/// A device speaks this over whatever transport it has — a raw byte pipe or
 /// the payloads of MQTT messages — and a sink (the uvcan desktop tool) speaks it
 /// back. Both ends need the identical definitions, and they live in uv_hal
 /// because that is the only module every project shares: the uvcan control

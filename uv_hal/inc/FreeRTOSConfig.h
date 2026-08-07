@@ -183,7 +183,7 @@ standard names - or at least those used in the unmodified vector table. */
 #define configUSE_TICK_HOOK			0
 #define configTICK_RATE_HZ			( ( portTickType ) 1000 )
 // note: Min stack size increased to 256 since
-// debugging XB3 caused it hard to printf from interrupts
+// debugging the RF module caused it hard to printf from interrupts
 #define configMINIMAL_STACK_SIZE	( ( unsigned short ) 256 )
 #define configSUPPORT_DYNAMIC_ALLOCATION	1
 #define configTOTAL_HEAP_SIZE 		CONFIG_RTOS_HEAP_SIZE

@@ -10,7 +10,7 @@
 /// @file: Turns a stream of bytes back into whole REMOTE messages, and batches
 /// whole messages into one transport payload.
 ///
-/// Transport agnostic on purpose: a device feeds the framer from an XB3 byte
+/// Transport agnostic on purpose: a device feeds the framer from a raw byte
 /// pipe or from MQTT payloads, and the desktop sink feeds it from MQTT too.
 /// Both ends need identical framing — the variable length patching in
 /// particular is easy to get subtly wrong — so it lives here rather than being
