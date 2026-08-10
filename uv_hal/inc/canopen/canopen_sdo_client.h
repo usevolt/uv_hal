@@ -33,6 +33,7 @@
 #include <uv_hal_config.h>
 #include "canopen/canopen_common.h"
 #include "uv_can.h"
+#include "uv_rtos.h"
 #include "canopen/canopen_sdo.h"
 
 
@@ -61,8 +62,35 @@
 
 #if CONFIG_CANOPEN
 
+/// @brief: State of the single SDO client this device owns.
+///
+/// @note: There is exactly one client, so the blocking transfer functions
+/// (_uv_canopen_sdo_client_write / _read / _block_write / _block_read) are
+/// serialized against each other with *mutex*: a caller that finds a transfer
+/// already in flight waits for it to finish instead of failing. Waiters are not
+/// served in any particular order.
+///
+/// Two rules follow from that, and both must hold for the wait to be bounded:
+///
+/// 1. Code running in the CANopen task context must never start an SDO
+///    transfer. That task (canopen_task on the embedded targets, hal_task in the
+///    Linux simulator) is the only thing that advances this state machine, via
+///    _uv_canopen_sdo_client_step() for the timeout abort and
+///    _uv_canopen_sdo_client_rx() for the server's answers. If it blocked on
+///    *mutex* the in-flight transfer could never complete nor time out. This
+///    applies to every callback invoked from there, i.e. the CAN rx callback
+///    (uv_canopen_set_can_callback) and the SDO server write callback
+///    (_uv_canopen_sdo_server_add_write_callb).
+///
+/// 2. The *wait_callb* set with uv_canopen_sdo_client_set_wait_callback() must
+///    never start an SDO transfer either. It is called from inside the
+///    transfer's own wait loop, i.e. in the calling task with *mutex* already
+///    held, and the mutex is not recursive.
 typedef struct {
 	canopen_sdo_state_e state;
+	// Serializes the blocking transfer functions against each other. See the
+	// note on this struct for the two rules that keep the wait bounded.
+	uv_mutex_st mutex;
 	// stores the last error encountered while reading or writing data
 	uv_sdo_error_codes_e last_err_code;
 	uint8_t server_node_id;
@@ -129,6 +157,11 @@ uv_sdo_error_codes_e _uv_canopen_sdo_get_error_code(void);
 /// @brief: Sets the callback function that is called with a time delay always
 /// when an SDO request is active. Can be used to, for example, update GUI when
 /// waiting for SDO request to complete.
+///
+/// @note: The callback runs in the task that started the transfer, while that
+/// transfer holds the SDO client mutex. It must therefore not start an SDO
+/// transfer of its own - the mutex is not recursive and the callback would
+/// deadlock against itself.
 void uv_canopen_sdo_client_set_wait_callback(void (*callb)(uint16_t, uint8_t));
 
 

@@ -98,6 +98,12 @@ static inline bool sdo_client_retryable(uint32_t err_code) {
 
 void _uv_canopen_sdo_client_init(void) {
 	this->state = CANOPEN_SDO_STATE_READY;
+	// Created here and never again: _uv_canopen_sdo_client_reset() must not
+	// touch the mutex, as re-creating it would leak the old semaphore and
+	// could hand the lock to a second task while a transfer still owns it.
+	// This runs from _uv_canopen_init() before any task has been started, so
+	// no transfer can race the creation.
+	uv_mutex_init(&this->mutex);
 	this->delay = -1;
 	this->last_err_code = CANOPEN_SDO_ERROR_NONE;
 	this->wait_callb = NULL;
@@ -483,11 +489,21 @@ uv_errors_e _uv_canopen_sdo_client_write(uint8_t node_id,
 	SET_MINDEX(&msg, mindex);
 	SET_SINDEX(&msg, sindex);
 
+	// Only one transfer at a time can use the single SDO client, so wait here
+	// for a transfer started by another task to finish instead of failing the
+	// caller. See the note on _uv_canopen_sdo_client_st for why this wait is
+	// bounded. Taken before the rx filter is configured, which is shared state
+	// as well.
+	uv_mutex_lock(&this->mutex);
+
 	// configure to receive target device's SDO response messages
 	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
 			CANOPEN_SDO_RESPONSE_ID + node_id, CAN_ID_MASK_DEFAULT, CAN_STD);
 
 	if (this->state != CANOPEN_SDO_STATE_READY) {
+		// Unreachable as long as every transfer holds the mutex: each of them
+		// leaves the state machine READY before releasing it. Kept as a guard
+		// against a state machine left mid-transfer by something else.
 		ret = ERR_HW_BUSY;
 	}
 	else {
@@ -565,6 +581,7 @@ uv_errors_e _uv_canopen_sdo_client_write(uint8_t node_id,
 		}
 	}
 
+	uv_mutex_unlock(&this->mutex);
 
 	return ret;
 }
@@ -585,6 +602,14 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 	memset(&msg.data_32bit[1], 0, 4);
 	SET_MINDEX(&msg, mindex);
 	SET_SINDEX(&msg, sindex);
+
+	// Wait for any transfer another task started, see the write path. Taken
+	// before the request state below is written: those writes are the live
+	// state of whatever transfer is currently in flight, so doing them without
+	// the lock corrupted that transfer even when this call went on to bail out
+	// with ERR_HW_BUSY.
+	uv_mutex_lock(&this->mutex);
+
 	this->server_node_id = node_id;
 	this->mindex = mindex;
 	this->sindex = sindex;
@@ -598,6 +623,7 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 			CANOPEN_SDO_RESPONSE_ID + node_id, CAN_ID_MASK_DEFAULT, CAN_STD);
 
 	if (this->state != CANOPEN_SDO_STATE_READY) {
+		// See the write path: unreachable while every transfer holds the mutex.
 		ret = ERR_HW_BUSY;
 	}
 	else {
@@ -653,6 +679,8 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 		// data should now be copied and transfer is finished
 	}
 
+	uv_mutex_unlock(&this->mutex);
+
 	return ret;
 }
 
@@ -669,6 +697,14 @@ uv_errors_e _uv_canopen_sdo_client_block_write(uint8_t node_id,
 	memset(&msg.data_32bit[1], 0, 4);
 	SET_MINDEX(&msg, mindex);
 	SET_SINDEX(&msg, sindex);
+
+	// Wait for any transfer another task started, see the write path. This
+	// replaces the "while (state != READY) yield()" spin that used to sit below:
+	// that spin was the racy version of exactly this wait, as two tasks could
+	// both observe READY and leave it together. Taken before the request state
+	// is written for the same reason as in the read path.
+	uv_mutex_lock(&this->mutex);
+
 	this->server_node_id = node_id;
 	this->mindex = mindex;
 	this->sindex = sindex;
@@ -681,9 +717,6 @@ uv_errors_e _uv_canopen_sdo_client_block_write(uint8_t node_id,
 	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
 			CANOPEN_SDO_RESPONSE_ID + node_id, CAN_ID_MASK_DEFAULT, CAN_STD);
 
-	while (this->state != CANOPEN_SDO_STATE_READY) {
-		uv_rtos_task_yield();
-	}
 	uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 
 	this->state = CANOPEN_SDO_STATE_BLOCK_DOWNLOAD;
@@ -702,6 +735,8 @@ uv_errors_e _uv_canopen_sdo_client_block_write(uint8_t node_id,
 		ret = ERR_ABORTED;
 	}
 
+	uv_mutex_unlock(&this->mutex);
+
 	return ret;
 }
 
@@ -716,6 +751,12 @@ uv_errors_e _uv_canopen_sdo_client_block_read(uint8_t node_id,
 	memset(&msg.data_32bit[1], 0, 4);
 	SET_MINDEX(&msg, mindex);
 	SET_SINDEX(&msg, sindex);
+
+	// Wait for any transfer another task started, see the write path. Taken
+	// before the request state is written for the same reason as in the read
+	// path.
+	uv_mutex_lock(&this->mutex);
+
 	this->server_node_id = node_id;
 	this->mindex = mindex;
 	this->sindex = sindex;
@@ -730,6 +771,7 @@ uv_errors_e _uv_canopen_sdo_client_block_read(uint8_t node_id,
 			CANOPEN_SDO_RESPONSE_ID + node_id, CAN_ID_MASK_DEFAULT, CAN_STD);
 
 	if (this->state != CANOPEN_SDO_STATE_READY) {
+		// See the write path: unreachable while every transfer holds the mutex.
 		ret = ERR_HW_BUSY;
 	}
 	else {
@@ -752,6 +794,8 @@ uv_errors_e _uv_canopen_sdo_client_block_read(uint8_t node_id,
 		}
 		// data should now be copied and transfer is finished
 	}
+
+	uv_mutex_unlock(&this->mutex);
 
 	return ret;
 }
