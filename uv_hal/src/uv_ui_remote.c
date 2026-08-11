@@ -260,6 +260,12 @@ bool uv_ui_remote_active(void) {
 
 void uv_ui_remote_request_frame(void) {
 	this->missed = true;
+	// Whoever asks for a frame is looking at nothing, so what was sent last is
+	// no measure of what they have. Without forgetting it, a redraw of an
+	// unchanged screen hashes the same as the one already sent and is dropped
+	// as a duplicate - and the sink that just asked keeps its empty window
+	// until something on the display happens to move.
+	this->last_hash = 0;
 }
 
 
@@ -463,6 +469,20 @@ void uv_ui_remote_asset_requested(uint8_t kind, uint32_t id) {
 		this->wanted[0].pending = true;
 	}
 	else {
+	}
+
+	if (kind == UV_UI_REMOTE_ASSET_KIND_BITMAP) {
+		// A bitmap can only be answered from inside the draw that uses it: that
+		// is the one moment its file name is in reach. A screen that has
+		// settled is not going to be drawn again by itself, so a request for
+		// one of its images would sit in the queue for ever, and the sink would
+		// keep looking at an outline where the icon belongs. Owing the sink a
+		// screen is exactly what *missed* means, so say so and the next display
+		// step draws one.
+		this->missed = true;
+	}
+	else {
+		// a font is built from ui_fonts[] and needs nothing drawn
 	}
 }
 

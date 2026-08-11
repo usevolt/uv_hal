@@ -105,13 +105,35 @@ static void set_value(void *me, int32_t value, bool forced_update) {
 				form /= 10;
 				decimals++;
 			}
-			strcpy(format, "%i.%0");
-			sprintf(format + strlen(format), "%u", decimals);
-			strcat(format, "u %s");
+			// In INCDEC mode the inc step defines the smallest possible change,
+			// so decimals which can never change are hidden. As an example,
+			// with a divider of 1000 and an inc step of 100 the value 1100
+			// is shown as "1.1" instead of "1.100".
+			uint32_t decimal_div = 1;
+			if (this->mode == UIDIGITEDIT_MODE_INCDEC) {
+				uint32_t step = abs(this->modedata.incdec.inc_step);
+				while ((decimals != 0) &&
+						(step >= 10) &&
+						((step % 10) == 0)) {
+					step /= 10;
+					decimal_div *= 10;
+					decimals--;
+				}
+			}
 
-			sprintf(this->str, format, (int) value / this->divider,
-					(unsigned int) value % this->divider,
-					(this->unit) ? this->unit : "");
+			if (decimals == 0) {
+				sprintf(this->str, "%i %s", (int) (value / this->divider),
+						(this->unit) ? this->unit : "");
+			}
+			else {
+				strcpy(format, "%i.%0");
+				sprintf(format + strlen(format), "%u", decimals);
+				strcat(format, "u %s");
+
+				sprintf(this->str, format, (int) (value / this->divider),
+						(unsigned int) ((value % this->divider) / decimal_div),
+						(this->unit) ? this->unit : "");
+			}
 		}
 		uv_uilabel_set_text(this, this->str);
 		uv_ui_refresh(this);
@@ -264,6 +286,15 @@ static void touch(void *me, uv_touch_st *touch) {
 	}
 	else {
 		// no touch for UIDIGITEDIT_MODE_RODIGIT
+	}
+}
+
+
+void uv_uidigitedit_set_inc_step(void *me, int16_t value) {
+	if (this->mode == UIDIGITEDIT_MODE_INCDEC) {
+		this->modedata.incdec.inc_step = value;
+		// the inc step affects the shown decimal count
+		set_value(this, this->value, true);
 	}
 }
 

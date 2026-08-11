@@ -146,11 +146,12 @@ static inline uv_uidigitedit_mode_e uv_uidigitedit_get_mode(void *me) {
 /// doesn't belong to the active mode would silently corrupt that mode's data.
 /// Calls made in a wrong mode are therefore ignored. The mode has to be set
 /// before this, as uv_uidigitedit_set_mode resets the inc step back to 1.
-static inline void uv_uidigitedit_set_inc_step(void *me, int16_t value) {
-	if (this->mode == UIDIGITEDIT_MODE_INCDEC) {
-		this->modedata.incdec.inc_step = value;
-	}
-}
+///
+/// @note: Together with the divider the inc step also defines how many decimals
+/// are shown; decimals smaller than the inc step can never change and are
+/// hidden. As an example, a divider of 1000 and an inc step of 100 shows
+/// the value 1100 as "1.1" instead of "1.100".
+void uv_uidigitedit_set_inc_step(void *me, int16_t value);
 
 static inline int16_t uv_uidigitedit_get_inc_step(void *me) {
 	return (this->mode == UIDIGITEDIT_MODE_INCDEC) ?
