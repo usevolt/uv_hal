@@ -339,6 +339,12 @@ typedef struct {
 	canopen_identity_object_st identity;
 	uv_delay_st heartbeat_time;
 	uint8_t current_node_id;
+	// The node id _uv_canopen_init() was forced to take into use, i.e. the
+	// simulator's -n command line option, and 0 when the node id was read from
+	// the non-volatile settings as usual. A forced node id is re-applied on
+	// every boot, so it cannot be changed at run time - see
+	// uv_canopen_set_our_nodeid().
+	uint8_t forced_node_id;
 #if CONFIG_UV_BOOTLOADER
 	uint8_t prog_control;
 #endif
@@ -628,12 +634,28 @@ static inline uint8_t uv_canopen_get_our_nodeid(void) {
 	return _canopen.current_node_id;
 }
 
+/// @brief: Returns true when the node id in use was forced by _uv_canopen_init()
+/// instead of being read from the non-volatile settings, i.e. the simulator was
+/// started with the -n command line option. Such a node id cannot be changed at
+/// run time, since it is re-applied on every boot.
+static inline bool uv_canopen_nodeid_is_forced(void) {
+	return (_canopen.forced_node_id != 0);
+}
+
 /// @brief: Sets the nodeid of this device. The change comes valid
 /// after saving non-volatile settings and resetting the device. Nothing
 /// on the bus moves before that, PDO cob_ids included: they are linked to
 /// the node id at boot by uv_canopen_pdo_cobid_update().
 ///
 /// @note: Values outside 0x1 ... 0x7F are rejected
+///
+/// @note: On the simulator, moving away from a node id which was forced with the
+/// -n command line option is a fatal error: the forced node id is re-applied on
+/// the next boot, so the change could never take effect. This is what a node id
+/// collision looks like from here, and the caller's cure for it - take the next
+/// node id, save, reset - would repeat forever. The collision is reported and the
+/// simulator asserts instead. Check uv_canopen_nodeid_is_forced() to avoid this
+/// where a refusal is the better answer.
 void uv_canopen_set_our_nodeid(uint8_t nodeid);
 
 void uv_canopen_set_our_nodeid_isr(uint8_t nodeid);

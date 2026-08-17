@@ -381,6 +381,18 @@ void uv_terminal_nodeid_callb(void *me, unsigned int cmd, unsigned int args, arg
 				argv[0].number > 0x7F) {
 			printf("Invalid node id given: 0x%x\n", (unsigned int) argv[0].number);
 		}
+		else if (uv_canopen_nodeid_is_forced() &&
+				(argv[0].number != uv_canopen_get_our_nodeid())) {
+			// the node id was forced with the -n command line option, which is
+			// re-applied on every boot: the change could not take effect, so say
+			// so instead of reporting a success which never happens. Refused here
+			// rather than in uv_canopen_set_our_nodeid(), which treats the same
+			// write as a fatal node id collision.
+			printf("Node ID 0x%x was forced with the -n command line option and "
+					"cannot be changed.\n"
+					"Restart without -n (or with -n 0x%x) to change it.\n",
+					uv_canopen_get_our_nodeid(), (unsigned int) argv[0].number);
+		}
 		else {
 			uv_canopen_set_our_nodeid(argv[0].number);
 			printf("Node ID set to 0x%x. Save and reset required.\n", (unsigned int) argv[0].number);

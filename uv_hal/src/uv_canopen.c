@@ -37,9 +37,9 @@
 #include "uv_memory.h"
 #include CONFIG_MAIN_H
 #include <string.h>
+#include <stdio.h>
 #if CONFIG_CANOPEN_LOG
 #include <stdarg.h>
-#include <stdio.h>
 #include <stdlib.h>
 #endif
 
@@ -79,6 +79,10 @@ void _uv_canopen_init(uint8_t nodeid) {
 	if (this->current_node_id > 0x7F) {
 		this->current_node_id = 0x7F;
 	}
+	// remember whether the node id was forced on us (the simulator's -n option)
+	// rather than read from the non-volatile settings: a forced node id is
+	// restored on every boot and thus cannot be changed at run time
+	this->forced_node_id = (nodeid == 0) ? 0 : this->current_node_id;
 	// Link the PDO cob_ids to the node id in use. This is done here rather than
 	// when the node id is written, so that a node id change takes effect only
 	// after saving and resetting, all of the node's CAN ID's at once. Done
@@ -334,6 +338,34 @@ uv_errors_e uv_canopen_sdo_store_params(uint8_t node_id, memory_scope_e_ param_s
 
 
 void uv_canopen_set_our_nodeid(uint8_t nodeid) {
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
+	// A node id forced with the -n command line option overrides the stored one
+	// on every boot, so moving away from it is impossible: this write would be
+	// saved, the device would reset, and -n would put it right back. The only
+	// caller that ever wants to move is the same-nodeid collision handler, whose
+	// remedy - next node id, save, reset - then repeats for as long as the
+	// colliding device keeps transmitting. That is the endless reboot loop this
+	// guard exists to prevent, and there is nothing sensible to fall back to: two
+	// simulators were started on the same node id, which is a configuration error
+	// the simulator cannot resolve on its own. Report it and assert.
+	if ((this->forced_node_id != 0) && (nodeid != this->forced_node_id)) {
+		printf("\n*** CANopen node id collision on node id 0x%x ***\n"
+				"Another device on the bus transmits with our node id, and moving to "
+				"node id 0x%x\n"
+				"is not possible: this node id was forced with the -n command line "
+				"option and\n"
+				"would be restored on the next boot, so the collision would repeat "
+				"forever.\n"
+				"Check that no two devices of the system are configured with the same "
+				"node id.\n",
+				(unsigned int) this->forced_node_id, (unsigned int) nodeid);
+		fflush(stdout);
+		configASSERT(false);
+	}
+	else {
+
+	}
+#endif
 	// The node id in use, the PDO cob_ids included, is resolved at boot only,
 	// thus nothing else has to be done here. Save and reset to take this into use.
 	if (nodeid != 0 &&
