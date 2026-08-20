@@ -543,6 +543,20 @@ static inline uv_errors_e uv_canopen_sdo_read(uint8_t node_id,
 }
 
 
+/// @brief: Returns the byte count the server announced for the object read by
+/// the last uv_canopen_sdo_read(), or 0 if it announced none.
+///
+/// @note: A read is clamped to what the server offers, but a write is not: the
+/// server aborts one that runs past the end of the object rather than writing
+/// the part that fits. So when the length of an object on another device is not
+/// known in advance - a string whose size differs between firmware versions,
+/// say - read a few bytes of it first and ask here how long it really is,
+/// instead of writing an assumed length and having the transfer abort partway.
+static inline uint32_t uv_canopen_sdo_get_obj_size(void) {
+	return _uv_canopen_sdo_client_get_obj_size();
+}
+
+
 #if CONFIG_CANOPEN_SDO_BLOCK_TRANSFER
 
 static inline uv_errors_e uv_canopen_sdo_block_read(uint8_t node_id,

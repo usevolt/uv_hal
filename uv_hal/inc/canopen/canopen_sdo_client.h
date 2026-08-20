@@ -97,6 +97,13 @@ typedef struct {
 	uint8_t sindex;
 	uint16_t mindex;
 	void *data_ptr;
+	// Size the server announced for the object of the last read, in bytes.
+	// Segmented uploads carry it in the initiate reply and expedited ones in
+	// the command byte, so a read can be used to ask how big an object on
+	// another device actually is - which matters for a write, since the server
+	// aborts one that runs past the object instead of clamping it.
+	// Zero when the last read got no size out of the server.
+	uint32_t obj_size;
 	// callback that is called with CANOPEN_SDO_CLIENT_WAIT_CALLB_DELAY_MS step time
 	// always when SDO transfer is currently active
 	void (*wait_callb)(uint16_t mindex, uint8_t sindex);
@@ -150,6 +157,11 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 /// @brief: Returns the last encountered error code. This should correspond to the
 /// errors encountered during the SDO transfer.
 uv_sdo_error_codes_e _uv_canopen_sdo_get_error_code(void);
+
+
+/// @brief: Returns the byte count the server announced for the object read by
+/// the last _uv_canopen_sdo_client_read(), or 0 if it announced none.
+uint32_t _uv_canopen_sdo_client_get_obj_size(void);
 
 
 
