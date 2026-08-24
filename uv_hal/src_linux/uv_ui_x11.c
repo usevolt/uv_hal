@@ -173,8 +173,9 @@ void uv_ui_confwindow_exec(const uv_uistyle_st *style) {
 	bb = uv_uistrlayout_find(&layout, "can");
 	uint32_t index = 0;
 	uint32_t count = 0;
-	// load the list of CAN devices
-	uv_can_set_baudrate(uv_can_get_dev(), 250000);
+	// load the list of CAN devices. Setting the baudrate re-reads the interface
+	// list as a side effect, which is what fills the list below
+	uv_can_set_baudrate(uv_can_get_dev(), uv_can_get_baudrate(uv_can_get_dev()));
 	this->confwindow.can_listbutton_content[0] = "NONE";
 	// list the CAN devices ordered: physical "can*" first, then virtual "vcan*",
 	// then any others, so the most relevant interfaces appear at the top
@@ -203,9 +204,19 @@ void uv_ui_confwindow_exec(const uv_uistyle_st *style) {
 	uv_uidialog_add(&this->confwindow.display, &this->confwindow.can_listbutton, &bb);
 
 	bb = uv_uistrlayout_find(&layout, "baud");
-	uv_uidigitedit_init(&this->confwindow.baud_digiedit,
-			uv_can_get_baudrate(uv_can_get_dev()) / 1000,
-			style);
+	// show what the selected interface is already set to: it is usually already
+	// running on a bus, and anything else would take it off that bus when this
+	// window closes. An interface with no baudrate of its own - one nobody has
+	// configured, or a virtual bus, which has no bit timing at all - gets the
+	// 250 kbaud default.
+	unsigned int baud = uv_can_get_netdev_baudrate(
+			this->confwindow.can_listbutton_content[index]);
+	if (baud == 0) {
+		baud = 250000;
+	}
+	else {
+	}
+	uv_uidigitedit_init(&this->confwindow.baud_digiedit, baud / 1000, style);
 	uv_uidigitedit_set_title(&this->confwindow.baud_digiedit, "CAN baudrate (kBaud)");
 	uv_uidigitedit_set_limits(&this->confwindow.baud_digiedit, 0, 1000);
 	uv_uidigitedit_set_mode(&this->confwindow.baud_digiedit, UIDIGITEDIT_MODE_INCDEC);
@@ -241,6 +252,15 @@ static uv_uiobject_ret_e confwindow_step(void *me, uint16_t step_ms) {
 	if (uv_uilistbutton_clicked(&this->confwindow.can_listbutton)) {
 		uv_can_set_dev(this->confwindow.can_listbutton_content[
 		   uv_uilistbutton_get_current_index(&this->confwindow.can_listbutton)]);
+		// another interface, another baudrate: follow the one it is set to
+		// instead of carrying the previous interface's value over
+		unsigned int baud = uv_can_get_netdev_baudrate(uv_can_get_dev());
+		if (baud == 0) {
+			baud = 250000;
+		}
+		else {
+		}
+		uv_uidigitedit_set_value(&this->confwindow.baud_digiedit, baud / 1000);
 		uv_can_set_baudrate(uv_can_get_dev(),
 				uv_uidigitedit_get_value(&this->confwindow.baud_digiedit) * 1000);
 	}

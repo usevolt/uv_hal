@@ -392,6 +392,14 @@ bool uv_can_set_baudrate(uv_can_channels_e channel, unsigned int baudrate);
 
 unsigned int uv_can_get_baudrate(uv_can_channels_e channel);
 
+/// @brief: Returns the baudrate the network interface *channel* is already
+/// configured with, or 0 when it has none. Unlike uv_can_get_baudrate, which
+/// answers with the value this module would apply, this asks the system:
+/// an interface that somebody else brought up at 500k reports 500k here even
+/// though nothing has called uv_can_set_baudrate yet. Interfaces that carry no
+/// baudrate setting at all, such as virtual buses, answer 0.
+unsigned int uv_can_get_netdev_baudrate(uv_can_channels_e channel);
+
 struct timeval uv_can_get_rx_time(void);
 
 /// @brief: Returns the name of *i*'th CAN interface device found

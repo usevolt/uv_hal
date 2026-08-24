@@ -277,6 +277,13 @@ unsigned int uv_can_get_baudrate(uv_can_channels_e channel) {
 }
 
 
+unsigned int uv_can_get_netdev_baudrate(uv_can_channels_e channel) {
+	// A PCAN channel carries no baudrate until this application initializes it,
+	// so there is never an existing setting to report.
+	return 0;
+}
+
+
 struct timeval uv_can_get_rx_time(void) {
 	return this->lastrxtime;
 }

@@ -143,6 +143,7 @@ void uv_can_set_rx_msg_callbacks(void (*config_callb)(uv_can_channels_e chn,
 void _uv_can_hal_send(uv_can_channels_e chn);
 static bool cclose(void);
 static bool copen(void);
+static bool ifname_valid(const char *name);
 
 char *uv_can_get_device_name(int32_t i) {
 	if (i < this->dev_count) {
@@ -356,6 +357,34 @@ bool uv_can_set_baudrate(uv_can_channels_e channel, unsigned int baudrate) {
 
 unsigned int uv_can_get_baudrate(uv_can_channels_e channel) {
 	return this->baudrate;
+}
+
+
+unsigned int uv_can_get_netdev_baudrate(uv_can_channels_e channel) {
+	unsigned int ret = 0;
+	char cmd[128];
+
+	// the name ends up on a command line; anything the kernel would not accept
+	// as an interface name has no baudrate to report anyway
+	if (ifname_valid(channel)) {
+		snprintf(cmd, sizeof(cmd),
+				"ip -det link show %s 2>/dev/null | grep bitrate | awk '{print $2}'",
+				channel);
+		if (popen_read_line(cmd, cmd, sizeof(cmd))) {
+			long baud = strtol(cmd, NULL, 0);
+			if (baud > 0) {
+				ret = (unsigned int) baud;
+			}
+			else {
+			}
+		}
+		else {
+		}
+	}
+	else {
+	}
+
+	return ret;
 }
 
 

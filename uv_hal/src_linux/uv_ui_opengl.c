@@ -342,6 +342,45 @@ static const unsigned int baud_listbutton_values[] = {
 };
 #define BAUD_LISTBUTTON_COUNT \
 	(sizeof(baud_listbutton_values) / sizeof(baud_listbutton_values[0]))
+// selected for an interface that carries no baudrate of its own
+#define BAUD_LISTBUTTON_DEFAULT		250000
+
+
+#if CONFIG_CAN
+
+/// @brief: Returns the index of *baudrate* in the baud listbutton, or
+/// BAUD_LISTBUTTON_COUNT when it is not one of the offered values.
+static uint8_t baud_listbutton_index(unsigned int baudrate) {
+	uint8_t ret = BAUD_LISTBUTTON_COUNT;
+	for (uint8_t i = 0; i < BAUD_LISTBUTTON_COUNT; i++) {
+		if (baud_listbutton_values[i] == baudrate) {
+			ret = i;
+		}
+		else {
+		}
+	}
+	return ret;
+}
+
+
+/// @brief: Returns the baud listbutton entry to show for interface *dev*: the
+/// baudrate it is already configured with.
+///
+/// The interface is usually already running on a bus, and picking anything else
+/// would take it off that bus the moment the window is closed. Only when the
+/// interface has no baudrate of its own - a netdev nobody has configured, or a
+/// virtual bus, which has no bit timing at all - is the default offered.
+static uint8_t confwindow_baud_index(uv_can_channels_e dev) {
+	uint8_t ret = baud_listbutton_index(uv_can_get_netdev_baudrate(dev));
+	if (ret >= BAUD_LISTBUTTON_COUNT) {
+		ret = baud_listbutton_index(BAUD_LISTBUTTON_DEFAULT);
+	}
+	else {
+	}
+	return ret;
+}
+
+#endif
 
 
 /// @brief: Builds (or rebuilds) the configuration window's contents.
@@ -413,14 +452,10 @@ static void confwindow_build(const uv_uistyle_st *style) {
 	uv_uidialog_add(&this->confwindow.display, &this->confwindow.can_listbutton, &bb);
 
 	bb = uv_uistrlayout_find(&layout, "baud");
-	// select the listbutton entry matching the current baudrate, defaulting to the first
-	uint8_t baud_index = 0;
-	unsigned int cur_baud = uv_can_get_baudrate(uv_can_get_dev());
-	for (uint8_t i = 0; i < BAUD_LISTBUTTON_COUNT; i++) {
-		if (baud_listbutton_values[i] == cur_baud) {
-			baud_index = i;
-		}
-	}
+	// show what the selected interface is already set to, not what this module
+	// last happened to be told
+	uint8_t baud_index =
+			confwindow_baud_index(this->confwindow.can_listbutton_content[index]);
 	uv_uilistbutton_init(&this->confwindow.baud_listbutton, baud_listbutton_content,
 			BAUD_LISTBUTTON_COUNT, baud_index, style);
 	uv_uilistbutton_set_content_type_arrayofpointers(&this->confwindow.baud_listbutton);
@@ -471,9 +506,8 @@ void uv_ui_confwindow_exec(const uv_uistyle_st *style) {
 
 	this->confwindow.terminate = false;
 	this->confwindow.vcan_status_str[0] = '\0';
-#if CONFIG_CAN
-	uv_can_set_baudrate(uv_can_get_dev(), 250000);
-#endif
+	// the interface list is read by confwindow_build, which also picks the
+	// baudrate to show from the interface it selects
 	confwindow_build(style);
 
 	while (true) {
@@ -504,6 +538,10 @@ static uv_uiobject_ret_e confwindow_step(void *me, uint16_t step_ms) {
 	if (uv_uilistbutton_clicked(&this->confwindow.can_listbutton)) {
 		uv_can_set_dev(this->confwindow.can_listbutton_content[
 		   uv_uilistbutton_get_current_index(&this->confwindow.can_listbutton)]);
+		// another interface, another baudrate: follow the one it is set to
+		// instead of carrying the previous interface's selection over
+		uv_uilistbutton_set_current_index(&this->confwindow.baud_listbutton,
+				confwindow_baud_index(uv_can_get_dev()));
 		uv_can_set_baudrate(uv_can_get_dev(),
 				baud_listbutton_values[
 				uv_uilistbutton_get_current_index(&this->confwindow.baud_listbutton)]);
