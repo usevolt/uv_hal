@@ -284,6 +284,21 @@ unsigned int uv_can_get_netdev_baudrate(uv_can_channels_e channel) {
 }
 
 
+bool uv_can_create_vcan(const char *name, char *err, size_t err_len) {
+	// A virtual CAN bus is a Linux netdev; here the channels are the PCAN
+	// hardware the driver reports, and there is nothing to create.
+	(void) name;
+	if (err != NULL) {
+		snprintf(err, err_len,
+				"Virtual CAN buses are a Linux feature and cannot be created "
+				"on Windows.");
+	}
+	else {
+	}
+	return false;
+}
+
+
 struct timeval uv_can_get_rx_time(void) {
 	return this->lastrxtime;
 }
