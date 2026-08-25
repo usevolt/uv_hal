@@ -96,6 +96,12 @@ void uv_canopen_emcy_send(const uv_emcy_codes_e err_code, uint32_t data) {
 			if (this->emcy_callb != NULL) {
 				this->emcy_callb(err_code, data);
 			}
+
+			// Re-arm the inhibit time. Without this the delay ends once after
+			// the boot up and never blocks anything again, which lets a
+			// repeating error source flood the bus with EMCY messages.
+			uv_delay_init(&this->emcy_inihbit_delay,
+					CONFIG_CANOPEN_EMCY_INHIBIT_TIME_MS);
 		}
 		// todo: add error code to [1003]
 	}
