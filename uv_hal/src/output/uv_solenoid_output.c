@@ -343,8 +343,24 @@ void uv_solenoid_output_step(uv_solenoid_output_st *this, uint16_t step_ms) {
 			// set the output value
 			this->pwm = output;
 		}
-		// set output state depending if the output is active
-		uv_output_set_state((uv_output_st *) this, (output) ? OUTPUT_STATE_ON : OUTPUT_STATE_OFF);
+		// Set output state depending if the output is active. A latched fault
+		// state must not be cleared here. OUTPUT_STATE_FAULT is left through
+		// OUTPUT_STATE_OFF only, and the driver fault above cuts the drive in
+		// this same step cycle, which would make the OFF transition release the
+		// latch in the very cycle the fault was detected. The output would then
+		// be driven again on the next cycle, run into the same fault, and keep
+		// repeating the fault EMCY every few cycles instead of sending it once
+		// and staying down. The latch is released in the beginning of the step
+		// cycle, once the target has been released and the cooldown has expired.
+		uv_output_state_e curstate = uv_solenoid_output_get_state(this);
+		if ((curstate != OUTPUT_STATE_FAULT) &&
+				(curstate != OUTPUT_STATE_OPENLOOP)) {
+			uv_output_set_state((uv_output_st *) this,
+					(output) ? OUTPUT_STATE_ON : OUTPUT_STATE_OFF);
+		}
+		else {
+
+		}
 	}
 
 	// set the output pwm
