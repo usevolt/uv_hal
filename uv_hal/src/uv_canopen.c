@@ -381,29 +381,66 @@ void uv_canopen_set_our_nodeid_isr(uint8_t nodeid) {
 	uv_canopen_set_our_nodeid(nodeid);
 }
 
+#if defined(CONFIG_CANOPEN_INITIALIZER)
+/// @brief: The compile time communication parameters of the PDO's, i.e. the
+/// PDO's as they are defined for CONFIG_CANOPEN_DEFAULT_NODE_ID
+#define TXPDO_COM_DEF(i)	(&CONFIG_CANOPEN_INITIALIZER.txpdo_coms[(i)])
+#define RXPDO_COM_DEF(i)	(&CONFIG_CANOPEN_INITIALIZER.rxpdo_coms[(i)])
+#else
+// The PDO's are defined with preprocessor macros in uv_hal_config and their
+// defaults are not reachable from here. The linkage falls back to shifting the
+// stored cob_id by the difference to the node id it was last linked to.
+#define TXPDO_COM_DEF(i)	NULL
+#define RXPDO_COM_DEF(i)	NULL
+#endif
+
 /// @brief: Links a single PDO's cob_id to *nodeid*, if the linkage to our
 /// node id hasn't been broken by configuring the cob_id explicitly.
 ///
-/// The cob_id is shifted by the difference to the node id it is currently
-/// linked to, so that a PDO specific offset from the node id (e.g. a PDO
-/// defined as CANOPEN_TXPDO1_ID + NODEID + 1) is kept. The linkage is
-/// stamped into the com parameter, which makes this idempotent, and lets
-/// the linkage be resolved at boot even though the stored node id itself
-/// was changed after the cob_ids were last linked.
-static void com_link(canopen_pdo_com_parameter_st *com, uint8_t nodeid) {
+/// *def* is the PDO's compile time communication parameter, i.e. its cob_id as
+/// it is defined for CONFIG_CANOPEN_DEFAULT_NODE_ID, or NULL when this build
+/// doesn't provide the defaults. When the default is known, the cob_id is
+/// resolved from it. That keeps any PDO specific offset from the node id (e.g.
+/// a PDO defined as CANOPEN_TXPDO1_ID + NODEID + 1) and makes the result depend
+/// on the node id taken into use only, which is what makes the linkage self
+/// correcting: cob_ids which don't match the node id in the non-volatile data
+/// (data restored from another device, or written by a firmware which linked
+/// the cob_ids differently) are put back to the cob_ids of our node id at boot,
+/// instead of the error being carried over every following node id change.
+///
+/// Without the default the cob_id is shifted by the difference to the node id
+/// it is currently linked to. The linkage is stamped into the com parameter,
+/// which makes this idempotent, and lets the linkage be resolved at boot even
+/// though the stored node id itself was changed after the cob_ids were last
+/// linked.
+static void com_link(canopen_pdo_com_parameter_st *com,
+		const canopen_pdo_com_parameter_st *def, uint8_t nodeid) {
 	if (!(com->reserved & CANOPEN_PDO_RESERVED_FLAGS_BREAKNODEIDLINKAGE)) {
-		uint8_t linked = (com->reserved & CANOPEN_PDO_RESERVED_LINKEDNODEID_MASK) >>
-				CANOPEN_PDO_RESERVED_LINKEDNODEID_SHIFT;
-		if (linked == 0) {
-			// Not stamped: either the defaults, or non-volatile data stored
-			// before the linkage was stamped. Both follow the stored node id.
-			linked = CONFIG_NON_VOLATILE_START.id & 0x7F;
+		uint32_t defcobid = (def != NULL) ?
+				(def->cob_id & ~((uint32_t) CANOPEN_PDO_DISABLED |
+						(uint32_t) CANOPEN_PDO_EXT)) : 0;
+		if (defcobid != 0) {
+			// The disabled flag is kept as it is stored, since the application
+			// can disable a PDO at run time without configuring its cob_id,
+			// i.e. without breaking the linkage.
+			com->cob_id = (com->cob_id & (uint32_t) CANOPEN_PDO_DISABLED) |
+					(def->cob_id & (uint32_t) CANOPEN_PDO_EXT) |
+					(defcobid - CONFIG_CANOPEN_DEFAULT_NODE_ID + nodeid);
 		}
 		else {
+			uint8_t linked = (com->reserved & CANOPEN_PDO_RESERVED_LINKEDNODEID_MASK) >>
+					CANOPEN_PDO_RESERVED_LINKEDNODEID_SHIFT;
+			if (linked == 0) {
+				// Not stamped: either the defaults, or non-volatile data stored
+				// before the linkage was stamped. Both follow the stored node id.
+				linked = CONFIG_NON_VOLATILE_START.id & 0x7F;
+			}
+			else {
 
+			}
+			com->cob_id -= linked;
+			com->cob_id += nodeid;
 		}
-		com->cob_id -= linked;
-		com->cob_id += nodeid;
 		com->reserved = (com->reserved & ~CANOPEN_PDO_RESERVED_LINKEDNODEID_MASK) |
 				(((int32_t) nodeid) << CANOPEN_PDO_RESERVED_LINKEDNODEID_SHIFT);
 	}
@@ -415,10 +452,12 @@ static void com_link(canopen_pdo_com_parameter_st *com, uint8_t nodeid) {
 /// @brief: Links the cob_id of every PDO which follows our node id to *nodeid*
 static void cobid_link(uint8_t nodeid) {
 	for (uint8_t i = 0; i < CONFIG_CANOPEN_TXPDO_COUNT; i++) {
-		com_link(&dev.data_start.canopen_data.txpdo_coms[i], nodeid);
+		com_link(&dev.data_start.canopen_data.txpdo_coms[i],
+				TXPDO_COM_DEF(i), nodeid);
 	}
 	for (uint8_t i = 0; i < CONFIG_CANOPEN_RXPDO_COUNT; i++) {
-		com_link(&dev.data_start.canopen_data.rxpdo_coms[i], nodeid);
+		com_link(&dev.data_start.canopen_data.rxpdo_coms[i],
+				RXPDO_COM_DEF(i), nodeid);
 	}
 }
 
