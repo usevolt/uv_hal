@@ -191,6 +191,72 @@ static void on_message(struct mosquitto *m, void *userdata,
 #endif
 
 
+// Weak default: no certificate embedded. See the declaration in uv_esp32.h for
+// when an application overrides this with a strong definition of its own.
+__attribute__((weak)) const char *uv_esp32_mqtt_ca_pem = NULL;
+
+
+// Path of the temporary file the embedded certificate is spilled into, and
+// whether it currently exists. File scope so the exit handler can remove it.
+static char ca_pem_path[] = "/tmp/uv_mqtt_ca_XXXXXX";
+static bool ca_pem_written = false;
+
+
+/// @brief: Removes the temporary CA file on process exit.
+static void ca_pem_cleanup(void) {
+	if (ca_pem_written) {
+		(void) remove(ca_pem_path);
+		ca_pem_written = false;
+	}
+	else {
+	}
+}
+
+
+/// @brief: Spills the embedded CA certificate into a temporary file and returns
+/// its path, or NULL if there is no embedded certificate or it could not be
+/// written.
+///
+/// libmosquitto takes the CA as a path, not as memory, so the certificate has
+/// to exist as a file for as long as the connection lasts — it is read when
+/// mosquitto connects, not when it is handed the path. Written once per process
+/// and removed on exit.
+static const char *ca_pem_file(uv_esp32_st *this) {
+	static bool tried = false;
+
+	if (tried ||
+			(uv_esp32_mqtt_ca_pem == NULL) ||
+			(uv_esp32_mqtt_ca_pem[0] == '\0')) {
+		/* already spilled, or nothing to spill */
+	}
+	else {
+		tried = true;
+		int fd = mkstemp(ca_pem_path);
+		if (fd < 0) {
+			ESP32_DEBUG(this, "ESP32(linux): could not create a temporary file "
+					"for the embedded CA\n");
+		}
+		else {
+			size_t len = strlen(uv_esp32_mqtt_ca_pem);
+			ssize_t w = write(fd, uv_esp32_mqtt_ca_pem, len);
+			close(fd);
+			if ((w < 0) ||
+					((size_t) w != (ssize_t) len)) {
+				(void) remove(ca_pem_path);
+				ESP32_DEBUG(this, "ESP32(linux): could not write the embedded CA "
+						"to '%s'\n", ca_pem_path);
+			}
+			else {
+				ca_pem_written = true;
+				atexit(&ca_pem_cleanup);
+			}
+		}
+	}
+
+	return ca_pem_written ? ca_pem_path : NULL;
+}
+
+
 static void apply_tls(uv_esp32_st *this) {
 	// `scheme` follows the ESP-AT AT+MQTTUSERCFG spec: 1 = TCP, 2..5 = TLS
 	// variants. Schemes 2 and 4 skip server-cert verification; schemes 3
@@ -210,19 +276,30 @@ static void apply_tls(uv_esp32_st *this) {
 		// its own — calling it alone leaves a plain TCP connection, which then
 		// fails silently against a TLS-only port such as the broker's 8883.
 		int rc;
+		const char *embedded = NULL;
 		if (access(ca, R_OK) == 0) {
 			rc = mosquitto_tls_set(s_mosq, ca, NULL, NULL, NULL, NULL);
 			ESP32_DEBUG(this, "ESP32(linux): TLS with CA '%s'%s\n",
 					ca, insecure ? " (host name not checked)" : "");
 		}
+		else if ((embedded = ca_pem_file(this)) != NULL) {
+			// No CA file where we expected one — which is the normal case when
+			// the simulator runs out of a device package, whose working
+			// directory holds no certificates. Use the certificate the build
+			// embedded instead.
+			rc = mosquitto_tls_set(s_mosq, embedded, NULL, NULL, NULL, NULL);
+			ESP32_DEBUG(this, "ESP32(linux): CA '%s' not readable, "
+					"using the embedded CA%s\n",
+					ca, insecure ? " (host name not checked)" : "");
+		}
 		else {
-			// The private CA is not where we expected. Fall back to the host
-			// trust store so a publicly signed broker still works, and say so —
-			// against the Usevolt broker this will fail the handshake.
+			// Nothing embedded either. Fall back to the host trust store so a
+			// publicly signed broker still works, and say so — against the
+			// Usevolt broker this will fail the handshake.
 			rc = mosquitto_tls_set(s_mosq, NULL, "/etc/ssl/certs",
 					NULL, NULL, NULL);
-			ESP32_DEBUG(this, "ESP32(linux): CA '%s' not readable, "
-					"falling back to the system trust store\n", ca);
+			ESP32_DEBUG(this, "ESP32(linux): CA '%s' not readable and none "
+					"embedded, falling back to the system trust store\n", ca);
 		}
 		if (rc != MOSQ_ERR_SUCCESS) {
 			ESP32_DEBUG(this, "ESP32(linux): mosquitto_tls_set rc=%d (%s)\n",

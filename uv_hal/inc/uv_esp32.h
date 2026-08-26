@@ -505,6 +505,23 @@ uv_errors_e uv_esp32_mqtt_unsubscribe(uv_esp32_st *this, const char *topic);
 void uv_esp32_mqtt_set_rx_callb(uv_esp32_st *this, uv_esp32_mqtt_rx_callb_t cb);
 
 
+#if CONFIG_TARGET_LINUX
+/// @brief: CA certificate, in PEM form, that the broker is verified against
+/// when no CA *file* can be found.
+///
+/// The driver looks for a CA file first (UV_MQTT_CA in the environment, then
+/// the compiled-in UV_MQTT_CA_FILE path) and only falls back to this. Its
+/// purpose is the simulator shipped inside a device package: the package
+/// carries no certificate directory and is run with the package as the working
+/// directory, so the relative file path resolves to nothing there.
+///
+/// Defined weak as NULL by the driver, so a build that embeds no certificate
+/// links unchanged. An application embeds one by providing a strong definition
+/// of this symbol.
+extern const char *uv_esp32_mqtt_ca_pem;
+#endif
+
+
 #endif
 
 #endif /* UV_HAL_UV_HAL_INC_UV_ESP32_H_ */
