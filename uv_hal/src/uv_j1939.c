@@ -76,15 +76,29 @@ uv_errors_e uv_j1939_dm1_get_dtc(j1939_dtc_st *dest,
 								 uint16_t data_len,
 								 uint8_t dtc_index) {
 	uv_errors_e ret = ERR_NONE;
+	// the DTC is 4 bytes long and it starts after the 2 lamp bytes
 	if (dest != NULL &&
-			data_len >= dtc_index * 4 + 2) {
+			data_len >= dtc_index * 4 + 6) {
 		uint16_t i = 2 + dtc_index * 4;
-		dest->spn = raw_data[i] +
-				(raw_data[i + 1] << 8) +
-				((raw_data[i + 2] >> 5) & 0b111);
 		dest->fmi = (raw_data[i + 2] & 0x1F);
 		dest->cm = (raw_data[i + 3] >> 7);
 		dest->oc = raw_data[i + 3] & 0x7F;
+		// the 3 most significant SPN bits are stored in the same byte as FMI
+		uint32_t spn_msb = (raw_data[i + 2] >> 5) & 0b111;
+		if (dest->cm) {
+			// conversion method 1, i.e. DTC version 1: SPN in Motorola format
+			dest->spn = ((uint32_t) raw_data[i] << 11) +
+					((uint32_t) raw_data[i + 1] << 3) +
+					spn_msb;
+		}
+		else {
+			// conversion method 0, i.e. DTC version 4: SPN in Intel format.
+			// Note that the proprietary SPNs, such as all Kubota specific
+			// codes, don't fit into 16 bits.
+			dest->spn = (uint32_t) raw_data[i] +
+					((uint32_t) raw_data[i + 1] << 8) +
+					(spn_msb << 16);
+		}
 	}
 	else {
 		ret = ERR_BUFFER_OVERFLOW;
