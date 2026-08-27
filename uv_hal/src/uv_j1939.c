@@ -18,23 +18,26 @@ void uv_j1939_transport_init(uv_j1939_transport_st *this,
 	this->pgn = pgn;
 	this->dest_max_count = dest_max_count;
 
-	// config rx objects
+	// config rx objects. The mask leaves the priority bits out, as the
+	// priority of the transport messages is not fixed: Kubota for example
+	// sends them with priority 7 instead of the 6 given in J1939.
 	// multipackage protocol start msg
 	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
-							 0x18ECFF00,
-							 CAN_ID_MASK_DEFAULT,
+							 J1939_TRANSPORT_CONNECTION_MANAGEMENT,
+							 UV_J1939_PGN_MASK,
 							 CAN_EXT);
 	// multipacket protocol data
 	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
-							 0x18EBFF00,
-							 CAN_ID_MASK_DEFAULT,
+							 J1939_TRANSPORT_DATA_TRANSFER,
+							 UV_J1939_PGN_MASK,
 							 CAN_EXT);
 }
 
 bool uv_j1939_transport_rx(uv_j1939_transport_st *this, uv_can_msg_st *msg) {
 	if (msg->type == CAN_EXT) {
-		switch (msg->id) {
-			case J1939_TRANSPORT_CONNECTION_MANAGEMENT:
+		// compare without the priority bits, see uv_j1939_transport_init
+		switch (msg->id & UV_J1939_PGN_MASK) {
+			case (J1939_TRANSPORT_CONNECTION_MANAGEMENT & UV_J1939_PGN_MASK):
 				if (msg->data_length == 8) {
 					uint16_t pgn = msg->data_8bit[5] | (msg->data_16bit[3] << 8);
 					if (!this->pgn) {
@@ -49,7 +52,7 @@ bool uv_j1939_transport_rx(uv_j1939_transport_st *this, uv_can_msg_st *msg) {
 					}
 				}
 				break;
-			case J1939_TRANSPORT_DATA_TRANSFER:
+			case (J1939_TRANSPORT_DATA_TRANSFER & UV_J1939_PGN_MASK):
 				for (uint8_t i = 1; i < msg->data_length; i++) {
 					if (this->byte_index < this->dest_max_count &&
 							this->byte_index < this->byte_count) {

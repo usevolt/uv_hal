@@ -22,7 +22,12 @@ typedef enum {
 	J1939_TRANSPORT_CONNECTION_MANAGEMENT = 0x18ECFF00,
 	J1939_TRANSPORT_DATA_TRANSFER = 0x18EBFF00,
 	J1939_ENGINE_DIAGNOSTICS_MSG = 0x18FECA00,
-	J1939_REQ_ENGINE_HOURS = 0x18FEE500
+	J1939_REQ_ENGINE_HOURS = 0x18FEE500,
+	// diesel particulate filter control 1
+	J1939_ENGINE_DPFC1 = 0x18FD7C00,
+	// aftertreatment 1 diesel particulate filter status. Holds the DPF
+	// soot and ash load percentages. Sent only when requested.
+	J1939_ENGINE_AT1S = 0x18FD7B00
 } j1939_ids_e;
 
 typedef enum {
