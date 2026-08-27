@@ -438,8 +438,15 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 				if (msg->data_8bit[1] == this->seq) {
 					// transfer finished correctly
 					if (this->data_index >= this->data_count) {
-						// end the transfer
-						uint8_t n = 7 - (this->data_count % 7);
+						// end the transfer. "n" is the number of bytes of the
+						// last segment that do NOT contain data, so it is zero
+						// when the transfer ends exactly on a segment boundary.
+						// Computing it as 7 - (count % 7) gave 7 for a transfer
+						// whose size is a multiple of 7, telling the server to
+						// throw away a full segment of real data - which cost
+						// the last bytes of every such firmware image.
+						uint8_t n = (this->data_count % 7) ?
+								(7 - (this->data_count % 7)) : 0;
 						SET_CMD_BYTE(&reply_msg, END_BLOCK_DOWNLOAD | (n << 2));
 						uint16_t crc = uv_memory_calc_crc(this->data_ptr, this->data_count);
 						reply_msg.data_8bit[1] = crc;

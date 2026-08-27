@@ -542,7 +542,12 @@ void _uv_canopen_sdo_server_rx(const uv_can_message_st *msg, sdo_request_type_e 
 		else {
 			if (this->data_index >= this->obj->string_len) {
 				// end block transfer
-				SET_CMD_BYTE(&reply_msg, END_BLOCK_UPLOAD | ((7 - (this->obj->string_len % 7)) << 2));
+				// "n" counts the bytes of the last segment that do NOT contain
+				// data, so it is zero on an exact segment boundary. See the
+				// same fix in the client's end of block download.
+				uint8_t n = (this->obj->string_len % 7) ?
+						(7 - (this->obj->string_len % 7)) : 0;
+				SET_CMD_BYTE(&reply_msg, END_BLOCK_UPLOAD | (n << 2));
 				uint16_t crc = uv_memory_calc_crc(this->obj->data_ptr, this->data_index);
 				reply_msg.data_8bit[1] = crc;
 				reply_msg.data_8bit[2] = crc / 256;
