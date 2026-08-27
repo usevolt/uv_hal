@@ -41,15 +41,26 @@
 
 /// @brief: Number of additional attempts the SDO client makes when an
 /// expedited/segmented read or write aborts because the server did not
-/// respond within CONFIG_CANOPEN_SDO_TIMEOUT_MS. A value of 0 disables
-/// retries (single attempt); the default of 1 gives 2 total attempts.
-/// Retries trigger on a protocol timeout (device not responding) and when
-/// the server was busy serving another SDO transfer
-/// (CANOPEN_SDO_ERROR_CMD_SPECIFIER_NOT_FOUND); every other server-side abort
-/// code is a permanent error and is surfaced to the caller immediately. The
-/// default may be overridden from uv_hal_config.h.
+/// respond within CONFIG_CANOPEN_SDO_TIMEOUT_MS. A value of 0 disables those
+/// retries (single attempt); the default of 1 gives 2 total attempts. Kept
+/// low, as an attempt of a device that is not on the bus at all costs a full
+/// timeout. The default may be overridden from uv_hal_config.h.
 #ifndef CONFIG_CANOPEN_SDO_CLIENT_RETRY_COUNT
 #define CONFIG_CANOPEN_SDO_CLIENT_RETRY_COUNT	1
+#endif
+
+/// @brief: Number of additional attempts the SDO client makes when the server
+/// answers, but refuses to serve the transfer now: it is busy with another
+/// transfer (CANOPEN_SDO_ERROR_CMD_SPECIFIER_NOT_FOUND), or it dropped one of
+/// ours it had already accepted. Both are the normal outcome of another client
+/// on the bus using the same server's SDO channel, and both clear up on their
+/// own. Retrying them costs only CONFIG_CANOPEN_SDO_CLIENT_RETRY_DELAY_MS, as
+/// the server answers right away, so this budget is larger than the timeout one
+/// above. Every other server-side abort code is a permanent refusal of the
+/// object and is surfaced to the caller immediately. The default may be
+/// overridden from uv_hal_config.h.
+#ifndef CONFIG_CANOPEN_SDO_CLIENT_BUSY_RETRY_COUNT
+#define CONFIG_CANOPEN_SDO_CLIENT_BUSY_RETRY_COUNT	5
 #endif
 
 /// @brief: Delay in milliseconds the SDO client waits before re-sending a
@@ -96,6 +107,13 @@ typedef struct {
 	uint8_t server_node_id;
 	uint8_t sindex;
 	uint16_t mindex;
+	// True once the server has answered the initiate request of the transfer
+	// in progress. The SDO channel is shared by every client on the bus, so
+	// until our own transfer is running, a segment answer arriving on it
+	// belongs to somebody else's transfer and has to be ignored. Segment
+	// answers carry no object index, which is why the state alone cannot tell
+	// them apart. Cleared on every (re)send of an initiate request.
+	bool initiated;
 	void *data_ptr;
 	// Size the server announced for the object of the last read, in bytes.
 	// Segmented uploads carry it in the initiate reply and expedited ones in

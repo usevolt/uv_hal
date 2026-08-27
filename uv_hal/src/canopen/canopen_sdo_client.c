@@ -85,19 +85,113 @@ static inline void sdo_client_abort(uint16_t main_index,
 }
 
 
-/// @brief: Returns true if a transfer that aborted with *err_code* is worth
-/// retrying. Retrying makes sense when the server gave no answer at all
-/// (protocol timeout) or when it was busy serving another SDO transfer, in
-/// which case it replies with CMD_SPECIFIER_NOT_FOUND. Every other abort code
-/// is a permanent error that a retry would only reproduce.
-static inline bool sdo_client_retryable(uint32_t err_code) {
-	return (err_code == CANOPEN_SDO_ERROR_SDO_PROTOCOL_TIMED_OUT) ||
-			(err_code == CANOPEN_SDO_ERROR_CMD_SPECIFIER_NOT_FOUND);
+/// @brief: Returns the backoff in milliseconds to wait before re-sending a
+/// transfer the server would not serve, *attempt* being the number of retries
+/// already made.
+///
+/// A backoff of a fixed length phase-locks this client to the other one
+/// sharing the server: if that client polls the server at a period near ours,
+/// every retry lands on one of its transfers again and the whole retry budget
+/// is spent on the very same collision. The backoff therefore grows with the
+/// attempt count, and carries a jitter taken from the RTOS tick count, which
+/// has nothing to do with the other client's period.
+static uint32_t sdo_client_retry_delay(uint8_t attempt) {
+	uint32_t base = CONFIG_CANOPEN_SDO_CLIENT_RETRY_DELAY_MS;
+	uint32_t jitter = (base != 0) ? (uv_rtos_get_tick_count() % (base / 2 + 1)) : 0;
+	return ((base * ((uint32_t) attempt + 1)) / 2) + jitter;
+}
+
+
+/// @brief: Remaining retry attempts of a transfer, see sdo_client_take_retry().
+typedef struct {
+	uint8_t timeout;
+	uint8_t busy;
+} sdo_client_retries_st;
+
+
+/// @brief: Returns true if the aborted transfer is worth another attempt, and
+/// spends one attempt of the budget it belongs to.
+///
+/// The budgets are kept apart because the failures behind them cost a
+/// different amount of time.
+///
+/// A server that was busy with another transfer refuses ours right away, and
+/// so does one that dropped a transfer of ours it had already accepted
+/// (*initiated*): that abort says nothing about the object - the server
+/// answered the initiate request for it - so what failed is the transfer
+/// itself. Both are the normal outcome of sharing a server's SDO channel with
+/// another client on the bus, both clear up on their own, and retrying them
+/// costs only the backoff, so they retry from the *busy* budget.
+///
+/// A transfer that timed out instead got no answer at all, from a device that
+/// may not even be there, and every further attempt costs a full timeout. Those
+/// retry from the smaller *timeout* budget.
+///
+/// Any other abort is the server refusing this very object, which is permanent:
+/// a retry would only reproduce it.
+static inline bool sdo_client_take_retry(sdo_client_retries_st *retries,
+				uint32_t err_code, bool initiated) {
+	bool ret;
+	if (err_code == CANOPEN_SDO_ERROR_SDO_PROTOCOL_TIMED_OUT) {
+		ret = (retries->timeout != 0);
+		if (ret) {
+			retries->timeout--;
+		}
+	}
+	else if (initiated ||
+			(err_code == CANOPEN_SDO_ERROR_CMD_SPECIFIER_NOT_FOUND)) {
+		ret = (retries->busy != 0);
+		if (ret) {
+			retries->busy--;
+		}
+	}
+	else {
+		ret = false;
+	}
+	return ret;
+}
+
+
+/// @brief: Returns true if a server answer of type *sdo_type* carries the
+/// object multiplexer (main index + sub index) in the data bytes 1...3.
+///
+/// Segment answers carry payload in those bytes instead, so there is nothing
+/// in them to match against the transfer in progress. Block transfer answers
+/// are left out on purpose: their command specifiers overlap with each other
+/// and are told apart by the block state machine only.
+static inline bool sdo_msg_has_mux(sdo_request_type_e sdo_type) {
+	return ((sdo_type == ABORT_DOMAIN_TRANSFER) ||
+			(sdo_type == INITIATE_DOMAIN_DOWNLOAD_REPLY) ||
+			(sdo_type == INITIATE_DOMAIN_UPLOAD));
+}
+
+
+/// @brief: Returns true if *msg* is an answer to the transfer this client
+/// currently has in flight.
+///
+/// The SDO channel of a server is shared by every client on the bus: answers
+/// to another client's transfer of the same server arrive here with the exact
+/// same COB-ID as the answers to ours. Following one of them would make this
+/// client read the wrong object (or, for an abort, give up on a transfer the
+/// server is still serving), so the object the answer names has to match the
+/// one we asked for.
+static inline bool sdo_msg_is_for_transfer(const uv_can_message_st *msg,
+				sdo_request_type_e sdo_type) {
+	bool ret = (GET_NODEID(msg) == this->server_node_id);
+	if (ret && sdo_msg_has_mux(sdo_type)) {
+		ret = ((GET_MINDEX(msg) == this->mindex) &&
+				(GET_SINDEX(msg) == this->sindex));
+	}
+	else {
+		// segment answers name no object, they are matched with *initiated*
+	}
+	return ret;
 }
 
 
 void _uv_canopen_sdo_client_init(void) {
 	this->state = CANOPEN_SDO_STATE_READY;
+	this->initiated = false;
 	// Created here and never again: _uv_canopen_sdo_client_reset() must not
 	// touch the mutex, as re-creating it would leak the old semaphore and
 	// could hand the lock to a second task while a transfer still owns it.
@@ -155,7 +249,7 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 	SET_SINDEX(&reply_msg, GET_SINDEX(msg));
 
 	if ((this->state != CANOPEN_SDO_STATE_READY) &&
-			(GET_NODEID(msg) == this->server_node_id)) {
+			sdo_msg_is_for_transfer(msg, sdo_type)) {
 		// aborted transfers
 		if (sdo_type == ABORT_DOMAIN_TRANSFER) {
 			this->state = CANOPEN_SDO_STATE_TRANSFER_ABORTED;
@@ -172,6 +266,9 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 		// start of segmented download
 		else if ((this->state == CANOPEN_SDO_STATE_SEGMENTED_DOWNLOAD) &&
 				(sdo_type == INITIATE_DOMAIN_DOWNLOAD_REPLY)) {
+			// the server answered our own initiate request: from here on the
+			// segment answers arriving on the shared channel are ours
+			this->initiated = true;
 			int32_t n = 7 - (this->data_count - this->data_index);
 			uint8_t c = (n < 0) ? 0 : 1;
 			if (n < 0) {
@@ -190,7 +287,8 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 		}
 		// segmented downloads
 		else if ((this->state == CANOPEN_SDO_STATE_SEGMENTED_DOWNLOAD) &&
-				(sdo_type == DOWNLOAD_DOMAIN_SEGMENT_REPLY)) {
+				(sdo_type == DOWNLOAD_DOMAIN_SEGMENT_REPLY) &&
+				this->initiated) {
 			if (((GET_CMD_BYTE(msg) & (1 << 4)) >> 4) == this->toggle) {
 				sdo_client_abort(this->mindex, this->sindex,
 						CANOPEN_SDO_ERROR_SDO_TOGGLE_BIT_NOT_ALTERED);
@@ -222,6 +320,9 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 		// start of segmented upload
 		else if ((this->state == CANOPEN_SDO_STATE_SEGMENTED_UPLOAD) &&
 				(sdo_type == INITIATE_DOMAIN_UPLOAD)) {
+			// the server answered our own initiate request: from here on the
+			// segment answers arriving on the shared channel are ours
+			this->initiated = true;
 
 			if (GET_CMD_BYTE(msg) & (1 << 1)) {
 				// client returned as expedited transfer, segmented transfer is finished
@@ -247,7 +348,8 @@ void _uv_canopen_sdo_client_rx(const uv_can_message_st *msg,
 		}
 		// segmented upload
 		else if ((this->state == CANOPEN_SDO_STATE_SEGMENTED_UPLOAD) &&
-				(sdo_type == UPLOAD_DOMAIN_SEGMENT_REPLY)) {
+				(sdo_type == UPLOAD_DOMAIN_SEGMENT_REPLY) &&
+				this->initiated) {
 			bool finished = false;
 			// first check the toggle bit
 			if (((GET_CMD_BYTE(msg) & (1 << 4)) >> 4) == this->toggle) {
@@ -512,14 +614,18 @@ uv_errors_e _uv_canopen_sdo_client_write(uint8_t node_id,
 		this->mindex = mindex;
 		this->sindex = sindex;
 
-		// Retry loop: re-send the request if the transfer aborted because
-		// the server did not respond in time (CANOPEN_SDO_ERROR_SDO_PROTOCOL_TIMED_OUT).
-		// Total attempts = 1 + CONFIG_CANOPEN_SDO_CLIENT_RETRY_COUNT.
-		// Other abort codes (server-side refusal) are surfaced immediately.
-		for (uint8_t attempt = 0;
-				attempt <= CONFIG_CANOPEN_SDO_CLIENT_RETRY_COUNT;
-				attempt++) {
+		// Retry loop: re-send the request if the transfer aborted for a
+		// reason another attempt can get past, see sdo_client_take_retry().
+		// A server-side refusal of this object is surfaced immediately.
+		sdo_client_retries_st retries = {
+				.timeout = CONFIG_CANOPEN_SDO_CLIENT_RETRY_COUNT,
+				.busy = CONFIG_CANOPEN_SDO_CLIENT_BUSY_RETRY_COUNT
+		};
+		uint8_t attempt = 0;
+		while (true) {
 			uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
+			// no answer to this attempt's initiate request seen yet
+			this->initiated = false;
 
 			if (data_len <= 4) {
 				// expedited write
@@ -565,15 +671,14 @@ uv_errors_e _uv_canopen_sdo_client_write(uint8_t node_id,
 			if (this->state == CANOPEN_SDO_STATE_TRANSFER_ABORTED) {
 				this->state = CANOPEN_SDO_STATE_READY;
 				ret = ERR_ABORTED;
-				// Retry protocol timeouts (no answer) and server-busy
-				// aborts (CMD_SPECIFIER_NOT_FOUND); every other abort
-				// reason is permanent and a retry would just reproduce it.
-				if (!sdo_client_retryable(this->last_err_code)) {
+				if (!sdo_client_take_retry(&retries, this->last_err_code,
+						this->initiated)) {
 					break;
 				}
 				// back off so a busy server can finish the other transfer
 				// before we re-send.
-				uv_rtos_task_delay(CONFIG_CANOPEN_SDO_CLIENT_RETRY_DELAY_MS);
+				uv_rtos_task_delay(sdo_client_retry_delay(attempt));
+				attempt++;
 			}
 			else {
 				ret = ERR_NONE;
@@ -629,12 +734,14 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 		ret = ERR_HW_BUSY;
 	}
 	else {
-		// Retry loop: re-send the upload request if the transfer aborts
-		// because the server did not respond in time. See the write path
-		// for the rationale on retrying only protocol timeouts.
-		for (uint8_t attempt = 0;
-				attempt <= CONFIG_CANOPEN_SDO_CLIENT_RETRY_COUNT;
-				attempt++) {
+		// Retry loop: re-send the upload request if the transfer aborts for
+		// a reason another attempt can get past. See the write path.
+		sdo_client_retries_st retries = {
+				.timeout = CONFIG_CANOPEN_SDO_CLIENT_RETRY_COUNT,
+				.busy = CONFIG_CANOPEN_SDO_CLIENT_BUSY_RETRY_COUNT
+		};
+		uint8_t attempt = 0;
+		while (true) {
 			// Reset the per-attempt state machine fields so each retry
 			// starts from a clean slate (data_index was reset before the
 			// loop but a partial segmented upload may have advanced it).
@@ -642,6 +749,8 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 			this->data_count = data_len;
 			this->obj_size = 0;
 			this->toggle = 0;
+			// no answer to this attempt's initiate request seen yet
+			this->initiated = false;
 			uv_delay_init(&this->delay, CONFIG_CANOPEN_SDO_TIMEOUT_MS);
 
 			// just in case put us to segmented upload state.
@@ -664,15 +773,14 @@ uv_errors_e _uv_canopen_sdo_client_read(uint8_t node_id,
 			if (this->state == CANOPEN_SDO_STATE_TRANSFER_ABORTED) {
 				this->state = CANOPEN_SDO_STATE_READY;
 				ret = ERR_ABORTED;
-				// Retry protocol timeouts (no answer) and server-busy
-				// aborts (CMD_SPECIFIER_NOT_FOUND); every other abort
-				// reason is permanent and a retry would just reproduce it.
-				if (!sdo_client_retryable(this->last_err_code)) {
+				if (!sdo_client_take_retry(&retries, this->last_err_code,
+						this->initiated)) {
 					break;
 				}
 				// back off so a busy server can finish the other transfer
 				// before we re-send.
-				uv_rtos_task_delay(CONFIG_CANOPEN_SDO_CLIENT_RETRY_DELAY_MS);
+				uv_rtos_task_delay(sdo_client_retry_delay(attempt));
+				attempt++;
 			}
 			else {
 				ret = ERR_NONE;
@@ -715,6 +823,7 @@ uv_errors_e _uv_canopen_sdo_client_block_write(uint8_t node_id,
 	this->data_count = data_len;
 	this->data_index = 0;
 	this->seq = 0;
+	this->initiated = false;
 
 	// configure to receive target device's SDO response messages
 	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
@@ -768,6 +877,7 @@ uv_errors_e _uv_canopen_sdo_client_block_read(uint8_t node_id,
 	this->data_index = 0;
 	this->new_data = false;
 	this->seq = 0;
+	this->initiated = false;
 
 	// configure to receive target device's SDO response messages
 	uv_can_config_rx_message(CONFIG_CANOPEN_CHANNEL,
