@@ -92,9 +92,9 @@ typedef struct {
 /// specific file, e.g. by double-clicking it in a file manager, since the file
 /// manager gives the process no meaningful working directory of its own.
 ///
-/// The chooser keeps this up to date by itself: the directory of the file the
-/// user picks becomes the new default, so consecutive dialogs open where the
-/// previous one left off. On MCU targets this does nothing.
+/// The setting is the only thing the choosers follow: picking a file does not
+/// change it, so every dialog opens at the same place instead of wherever the
+/// previous one was left. On MCU targets this does nothing.
 void uv_uifiledialog_set_default_dir(const char *path);
 
 

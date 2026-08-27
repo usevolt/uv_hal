@@ -69,9 +69,10 @@ static void touch(void *me, uv_touch_st *touch);
 
 #if CONFIG_TARGET_WIN || CONFIG_TARGET_LINUX
 
-/// @brief: Directory the next chooser opens in, empty when unset. Written by
-/// uv_uifiledialog_set_default_dir() and refreshed to the containing directory
-/// of whatever the user picks.
+/// @brief: Directory every chooser opens in, empty when unset. Written only by
+/// uv_uifiledialog_set_default_dir(); the choosers never update it themselves,
+/// so a dialog does not open where the previous one was left, but always at the
+/// same place.
 static char filedialog_dir[512] = "";
 
 
@@ -196,8 +197,6 @@ static bool filedialog_open(const char *title,
 	if (ok) {
 		WideCharToMultiByte(CP_UTF8, 0, file, -1, out, out_len, NULL, NULL);
 		out[out_len - 1] = '\0';
-		// the next dialog opens where this one left off
-		filedialog_store_dir(out);
 		ret = true;
 	}
 	return ret;
@@ -380,8 +379,6 @@ static bool filedialog_open(const char *title,
 			if (l > 0) {
 				strncpy(out, line, out_len - 1);
 				out[out_len - 1] = '\0';
-				// the next dialog opens where this one left off
-				filedialog_store_dir(out);
 				ret = true;
 			}
 		}
