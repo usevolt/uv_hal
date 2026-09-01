@@ -40,6 +40,7 @@
 #include "lodepng.h"
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 #include <signal.h>
 #include <pthread.h>
@@ -162,6 +163,10 @@ typedef struct {
 	uv_ring_buffer_st key_press;
 	char key_press_buffer[20];
 	uint8_t brightness;
+	// true when OpenGL is served by a software rasterizer (llvmpipe & co).
+	// Every pixel then costs CPU time, so the expensive full-screen effects
+	// are turned off - see renderer_is_software()
+	bool software_renderer;
 
 	GLFWwindow* window;
 	unsigned int text_shader_program;
@@ -774,18 +779,59 @@ void uv_ui_draw_bitmap_ext_impl(uv_uimedia_st *bitmap, int16_t x, int16_t y,
 
 
 
+// Circles and rounded corners are tessellated so that the sagitta - the gap
+// between the arc and the chord that replaces it - stays below this many
+// *physical* pixels. Deriving the segment count from the shape's on-screen
+// radius rather than from the window height keeps the vertex count (and the
+// immediate mode submission cost) proportional to what is actually visible,
+// instead of growing with the window even for shapes that stay tiny.
+#define CIRCLE_MAX_SAG_PX	0.35
+#define CIRCLE_SEG_MIN		8u
+#define CIRCLE_SEG_MAX		128u
+
+
+/// @brief: Returns the number of segments a full circle of *radius* (in UI
+/// coordinates) should be split into to look smooth at the current window scale
+static uint32_t circle_segments(double radius) {
+	uint32_t ret;
+	double r_px = fabs(radius) * this->scale;
+
+	if (r_px <= CIRCLE_MAX_SAG_PX) {
+		ret = CIRCLE_SEG_MIN;
+	}
+	else {
+		// sagitta of a segment spanning angle t is r * (1 - cos(t / 2)),
+		// so t = 2 * acos(1 - sag / r) and the full circle needs 2 * PI / t
+		double segs = M_PI / acos(1.0 - (CIRCLE_MAX_SAG_PX / r_px));
+		if (segs < (double) CIRCLE_SEG_MIN) {
+			ret = CIRCLE_SEG_MIN;
+		}
+		else if (segs > (double) CIRCLE_SEG_MAX) {
+			ret = CIRCLE_SEG_MAX;
+		}
+		else {
+			ret = (uint32_t) (segs + 0.5);
+		}
+	}
+
+	return ret;
+}
+
+
 void uv_ui_draw_point_impl(int16_t x, int16_t y, color_t col, uint16_t diameter) {
 
 	color_st c = uv_uic(col);
     glColor4ub(c.r, c.g, c.b, c.a);
     glBegin(GL_TRIANGLE_FAN);
 
-    double r = diameter / 2;
+    double r = (double) diameter / 2.0;
+    uint32_t segments = circle_segments(r);
     glVertex2i(x, y); // Center
-	int resolution = MAX(this->height / 50 * diameter / 100, 30);
-    for(int i = 0; i <= 360; i += MAX(360 / resolution, 1))
-            glVertex2f(r * cosf(M_PI * i / 180.0) + (double) x,
-            		r * sinf(M_PI * i / 180.0) + (double) y);
+    for (uint32_t i = 0; i <= segments; i++) {
+    	double a = (2.0 * M_PI * (double) i) / (double) segments;
+    	glVertex2f((float) ((r * cos(a)) + (double) x),
+    			(float) ((r * sin(a)) + (double) y));
+    }
     glEnd();
 }
 
@@ -809,25 +855,28 @@ void uv_ui_draw_rrect_impl(const int16_t x, const int16_t y,
 		glEnd();
 	}
 	else {
+		// one quadrant's worth of a full circle's segments per corner
+		uint32_t segments = (circle_segments((double) radius) + 3u) / 4u;
+		// arc centres, walked counter-clockwise from the right-top corner so
+		// the sweep angle runs continuously from 0 to 2 * PI
+		const float cx[4] = {
+				(float) x + w - radius, (float) x + radius,
+				(float) x + radius, (float) x + w - radius };
+		const float cy[4] = {
+				(float) y + radius, (float) y + radius,
+				(float) y + h - radius, (float) y + h - radius };
+
 		glBegin(GL_TRIANGLE_FAN);
-		glVertex2i(x + w, y + radius);
-		int resolution = MAX(this->height / 50, 3);
-		for (int i = 0; i < 90; i += MAX(90 / resolution, 1)) {
-			glVertex2f((float) x + w - radius + radius * cosf(M_PI * i / 180),
-					(float) y + radius - radius * sinf(M_PI * i / 180));
+		for (uint32_t q = 0; q < 4u; q++) {
+			for (uint32_t i = 0; i < segments; i++) {
+				double a = (M_PI / 2.0) *
+						((double) q + ((double) i / (double) segments));
+				glVertex2f(cx[q] + (float) ((double) radius * cos(a)),
+						cy[q] - (float) ((double) radius * sin(a)));
+			}
 		}
-		for (int i = 0; i < 90; i += MAX(90 / resolution, 1)) {
-			glVertex2f((float) x + radius + radius * cosf(M_PI / 2 + M_PI * i / 180),
-					(float) y + radius - radius * sinf(M_PI / 2 + M_PI * i / 180));
-		}
-		for (int i = 0; i < 90; i += MAX(90 / resolution, 1)) {
-			glVertex2f((float) x + radius + radius * cosf(M_PI + M_PI * i / 180),
-					(float) y + h - radius - radius * sinf(M_PI + M_PI * i / 180));
-		}
-		for (int i = 0; i < 90; i += MAX(90 / resolution, 1)) {
-			glVertex2f((float) x + w - radius + radius * cosf(M_PI / 2 * 3 + M_PI * i / 180),
-					(float) y + h - radius - radius * sinf(M_PI / 2  *3 + M_PI * i / 180));
-		}
+		// close the fan back onto its first vertex
+		glVertex2f(cx[0] + (float) radius, cy[0]);
 		glEnd();
 	}
 }
@@ -1316,7 +1365,7 @@ void uv_ui_dlswap_impl(void) {
 			glClearStencil(1);
 		    // clear the full back buffer, not just the last mask rectangle
 		    glDisable(GL_SCISSOR_TEST);
-		    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+		    glClear(GL_COLOR_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 		    this->refresh = false;
 
 		    if (this->resized) {
@@ -1791,6 +1840,37 @@ static GLint get_attrib(GLuint shader_program, const char *name) {
 }
 
 
+/// @brief: Returns true when OpenGL is served by a software rasterizer.
+///
+/// GL_RENDERER can only be read once a context exists, so a 1x1 hidden window
+/// is created just to ask and then thrown away. Knowing this up front lets the
+/// real window be created with the multisampling hint that suits the renderer,
+/// which cannot be changed afterwards.
+static bool renderer_is_software(void) {
+	bool ret = false;
+
+	glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+	GLFWwindow *probe = glfwCreateWindow(1, 1, "", NULL, NULL);
+	if (probe != NULL) {
+		glfwMakeContextCurrent(probe);
+		const char *renderer = (const char *) glGetString(GL_RENDERER);
+		if (renderer != NULL) {
+			printf("OPENGL renderer %s\n", renderer);
+			ret = ((strstr(renderer, "llvmpipe") != NULL) ||
+					(strstr(renderer, "softpipe") != NULL) ||
+					(strstr(renderer, "SWR") != NULL) ||
+					(strstr(renderer, "swrast") != NULL));
+		}
+		glfwMakeContextCurrent(NULL);
+		glfwDestroyWindow(probe);
+	}
+	// the probe hints must not leak into the real window
+	glfwDefaultWindowHints();
+
+	return ret;
+}
+
+
 bool uv_ui_init(void) {
 	bool ret = true;
 	this->refresh = false;
@@ -1824,12 +1904,25 @@ bool uv_ui_init(void) {
 		ret = false;
 	}
 	else {
-	    //Makes 3D drawing work when something is in front of something else
-	    glEnable(GL_DEPTH_TEST);
-
 		printf("Creating GLFW window, version %s\n", glfwGetVersionString());
-		// 4x multisampling for anti-aliasing
-		glfwWindowHint(GLFW_SAMPLES, 8);
+
+		this->software_renderer = renderer_is_software();
+		if (this->software_renderer) {
+			// Multisampling makes a software rasterizer shade every pixel
+			// several times over, which is what makes a stretched simulator
+			// window crawl. The aliasing it costs is a fair trade there.
+			printf("Software OpenGL rasterizer, multisampling disabled. "
+					"Check that the X server supports DRI3 for hardware "
+					"accelerated rendering.\n");
+			glfwWindowHint(GLFW_SAMPLES, 0);
+		}
+		else {
+			// 8x multisampling for anti-aliasing
+			glfwWindowHint(GLFW_SAMPLES, 8);
+		}
+		// nothing in this 2D renderer depth tests, so skip allocating and
+		// clearing a depth buffer for every pixel of the window
+		glfwWindowHint(GLFW_DEPTH_BITS, 0);
 		/* Create a windowed mode window and its OpenGL context */
 		this->window = glfwCreateWindow(CONFIG_FT81X_HSIZE, CONFIG_FT81X_VSIZE,
 				CONFIG_UI_NAME, NULL, NULL);
@@ -1871,7 +1964,12 @@ bool uv_ui_init(void) {
 				glLoadIdentity();
 
 				// enable multisampling for anti-aliasing
-				glEnable(GL_MULTISAMPLE);
+				if (this->software_renderer) {
+					glDisable(GL_MULTISAMPLE);
+				}
+				else {
+					glEnable(GL_MULTISAMPLE);
+				}
 
 				// enable stencil testing to masking
 				glEnable(GL_STENCIL_TEST);
@@ -1892,7 +1990,7 @@ bool uv_ui_init(void) {
 						"shaders/bitmap_shader.vs", bitmap_shader_vs_src,
 						"shaders/bitmap_shader.ts", bitmap_shader_fs_src);
 
-				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+				glClear(GL_COLOR_BUFFER_BIT);
 			}
 			else {
 				printf("GLEW init failed\n");
