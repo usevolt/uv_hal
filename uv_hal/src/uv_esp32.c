@@ -104,11 +104,13 @@ static void esp32_reset(uv_esp32_st *this) {
 	uv_streambuffer_clear(&this->tx_streambuffer);
 	uv_streambuffer_clear(&this->rx_datastream);
 	at_resp_reset(this);
+#if CONFIG_ESP32_MQTT
 	// the rx stream is gone, so any half-captured MQTT payload is unrecoverable
 	this->mqtt_subrecv.active = false;
 	this->mqtt_subrecv.received_len = 0;
 	this->mqtt_subrecv.expected_len = 0;
 	this->mqtt_subrecv.drop = false;
+#endif
 	this->rx_at_cmd = NULL;
 	uv_mutex_unlock(&this->txstream_mutex);
 	uv_mutex_unlock(&this->tx_mutex);
@@ -165,6 +167,7 @@ static void send_at_cmd(uv_esp32_st *this, const char *cmd,
 }
 
 
+#if CONFIG_ESP32_MQTT
 /// @brief: Sends a fully-formed AT command line followed by \r\n via
 /// tx_streambuffer. The caller is responsible for any escaping inside the
 /// composed line. Used for multi-arg AT commands that don't fit the
@@ -178,6 +181,7 @@ static void send_at_cmd_raw(uv_esp32_st *this, const char *line) {
 	uv_mutex_unlock(&this->txstream_mutex);
 	at_resp_reset(this);
 }
+#endif
 
 
 /// @brief: Accumulates a character into the AT response buffer, handling
@@ -227,8 +231,10 @@ static bool at_resp_accumulate(uv_esp32_st *this, char c) {
 }
 
 
+#if CONFIG_ESP32_MQTT
 // Forward decl — defined below.
 static void mqtt_set_state(uv_esp32_st *this, uv_esp32_mqtt_states_e state);
+#endif
 
 
 /// @brief: Recognizes async +MQTT* event lines in this->at_resp and reacts.
@@ -236,6 +242,7 @@ static void mqtt_set_state(uv_esp32_st *this, uv_esp32_mqtt_states_e state);
 /// false otherwise (so the line remains for AT-cmd response matching).
 static bool dispatch_mqtt_line(uv_esp32_st *this) {
 	bool dispatched = false;
+#if CONFIG_ESP32_MQTT
 	if (strstr(this->at_resp, "+MQTTCONNECTED") != NULL) {
 		ESP32_DEBUG(this, "ESP32: +MQTTCONNECTED\n");
 		if (this->mqtt_state == ESP32_MQTT_STATE_CONN) {
@@ -255,7 +262,9 @@ static bool dispatch_mqtt_line(uv_esp32_st *this) {
 		}
 		dispatched = true;
 	}
-	else if (strstr(this->at_resp, "+CWJAP:") != NULL) {
+	else
+#endif
+	if (strstr(this->at_resp, "+CWJAP:") != NULL) {
 		// Answer to the periodic signal strength query:
 		// +CWJAP:<ssid>,<bssid>,<channel>,<rssi>[,...]. The ssid is quoted and
 		// may contain commas and (once the line parser has decoded the escapes)
@@ -290,6 +299,8 @@ static bool dispatch_mqtt_line(uv_esp32_st *this) {
 	return dispatched;
 }
 
+
+#if CONFIG_ESP32_MQTT
 
 /// @brief: Ends a raw payload capture, delivering it to the subscriber unless
 /// it was too big for the buffer.
@@ -395,6 +406,8 @@ static bool subrecv_try_start(uv_esp32_st *this) {
 	return ret;
 }
 
+#endif
+
 
 /// @brief: Feeds one received character into either the raw MQTT payload
 /// capture or the AT line parser, starting a capture when a +MQTTSUBRECV
@@ -403,6 +416,7 @@ static bool subrecv_try_start(uv_esp32_st *this) {
 /// @return: true if a complete AT line is now in at_resp.
 static bool at_feed_char(uv_esp32_st *this, char c) {
 	bool line_complete = false;
+#if CONFIG_ESP32_MQTT
 	if (this->mqtt_subrecv.active) {
 		subrecv_feed(this, c);
 	}
@@ -415,6 +429,14 @@ static bool at_feed_char(uv_esp32_st *this, char c) {
 	}
 	else {
 	}
+#else
+	if (at_resp_accumulate(this, c)) {
+		this->at_resp_i = 0;
+		line_complete = true;
+	}
+	else {
+	}
+#endif
 	return line_complete;
 }
 
@@ -590,6 +612,8 @@ static void set_state(uv_esp32_st *this, uv_esp32_states_e state) {
 	}
 }
 
+
+#if CONFIG_ESP32_MQTT
 
 const char *uv_esp32_mqtt_state_to_str(uv_esp32_mqtt_states_e state) {
 	const char *str;
@@ -821,6 +845,8 @@ static void mqtt_sub_finish(uv_esp32_st *this, bool ok) {
 	}
 }
 
+#endif
+
 
 static void rxtx_task(void *me_ptr) {
 	uv_esp32_st *this = me_ptr;
@@ -834,6 +860,7 @@ static void rxtx_task(void *me_ptr) {
 		tx(this);
 		rx(this, uv_streambuffer_get_len(&this->rx_datastream) ? 0 : 1);
 
+#if CONFIG_ESP32_MQTT
 		// Drain async +MQTT events. Skipped during the publish AT-prompt phase
 		// because we need to read the bare ">" byte directly from rx_datastream
 		// (it is not a line and would otherwise be swallowed into at_resp).
@@ -845,6 +872,9 @@ static void rxtx_task(void *me_ptr) {
 		}
 		else {
 		}
+#else
+		pump_mqtt_async(this);
+#endif
 
 		switch (this->state) {
 
@@ -940,6 +970,7 @@ static void rxtx_task(void *me_ptr) {
 			// next round.
 			if (uv_delay(&this->rssi_delay, uv_ts_get_step_ms(&ts))) {
 				uv_delay_init(&this->rssi_delay, ESP32_RSSI_POLL_MS);
+#if CONFIG_ESP32_MQTT
 				if ((active_slot == NULL) &&
 						(this->mqtt_sub_active == NULL) &&
 						((this->mqtt_state == ESP32_MQTT_STATE_CONNECTED) ||
@@ -948,6 +979,9 @@ static void rxtx_task(void *me_ptr) {
 				}
 				else {
 				}
+#else
+				send_at_cmd(this, "AT+CWJAP?", NULL, NULL);
+#endif
 			}
 			else {
 			}
@@ -1067,6 +1101,7 @@ static void rxtx_task(void *me_ptr) {
 		}
 
 
+#if CONFIG_ESP32_MQTT
 		// MQTT state machine. Runs alongside the main esp32 state machine.
 		// Progresses only while Wi-Fi is joined; drops to DISABLED otherwise so
 		// it cleanly re-enters INIT on rejoin.
@@ -1299,6 +1334,7 @@ static void rxtx_task(void *me_ptr) {
 			else {
 			}
 		}
+#endif
 
 
 		// Discard any pending non-async line that no state consumed this
@@ -1316,7 +1352,9 @@ static void rxtx_task(void *me_ptr) {
 }
 
 
+#if CONFIG_ESP32_MQTT
 static void mqtt_slots_bind(uv_esp32_st *this);
+#endif
 
 
 uv_errors_e uv_esp32_init(uv_esp32_st *this,
@@ -1325,12 +1363,15 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 		uint16_t *wifi_flags,
 		char *wifi_ssid,
 		char *wifi_passwd) {
+#if CONFIG_ESP32_MQTT
 	// every slot needs its backing buffer before anything publishes
 	mqtt_slots_bind(this);
+#endif
 
 	this->wifi_flags = wifi_flags;
 	this->wifi_ssid = wifi_ssid;
 	this->wifi_passwd = wifi_passwd;
+#if CONFIG_ESP32_MQTT
 	this->mqtt_broker_url = NULL;
 	this->mqtt_client_id = NULL;
 	this->mqtt_user = NULL;
@@ -1340,6 +1381,7 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 	this->mqtt_ca_id = 0;
 	this->mqtt_cert_key_id = 0;
 	this->mqtt_keepalive_s = 0;
+#endif
 	this->uart = uart;
 	this->reset_io = reset_io;
 	this->state = ESP32_STATE_INIT;
@@ -1349,6 +1391,7 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 	this->written_byte_count = 0;
 	this->transmitted_byte_count = 0;
 
+#if CONFIG_ESP32_MQTT
 	this->mqtt_state = ESP32_MQTT_STATE_DISABLED;
 	this->mqtt_retry_backoff_s = 0;
 	this->mqtt_rx_callb = NULL;
@@ -1362,6 +1405,7 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 	this->mqtt_sub_phase = MQTT_SUB_PHASE_IDLE;
 	uv_mutex_init(&this->mqtt_sub_mutex);
 	uv_mutex_unlock(&this->mqtt_sub_mutex);
+#endif
 	this->at_resp_has_pending = false;
 
 	uv_streambuffer_init_static(&this->tx_streambuffer,
@@ -1407,6 +1451,8 @@ void uv_esp32_step(uv_esp32_st *this, uint16_t step_ms) {
 
 
 
+
+#if CONFIG_ESP32_MQTT
 
 void uv_esp32_mqtt_init(uv_esp32_st *this,
 		const char *broker_url,
@@ -1653,6 +1699,8 @@ uv_errors_e uv_esp32_mqtt_unsubscribe(uv_esp32_st *this, const char *topic) {
 void uv_esp32_mqtt_set_rx_callb(uv_esp32_st *this, uv_esp32_mqtt_rx_callb_t cb) {
 	this->mqtt_rx_callb = cb;
 }
+
+#endif
 
 
 uv_errors_e uv_esp32_get_data(uv_esp32_st *this, char *dest) {

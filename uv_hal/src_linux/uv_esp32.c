@@ -17,7 +17,9 @@
 
 #if CONFIG_ESP32 && CONFIG_TARGET_LINUX
 
+#if CONFIG_ESP32_MQTT
 #include <mosquitto.h>
+#endif
 
 
 // Signal strength reported while "joined" on the simulator. The host OS owns
@@ -33,6 +35,8 @@
 		} \
 	} while (0)
 
+
+#if CONFIG_ESP32_MQTT
 
 // libmosquitto is process-global (mosquitto_lib_init is reference-counted but
 // uv_esp32_st has no platform-specific field for the handle). Keep one instance
@@ -315,6 +319,9 @@ static void apply_tls(uv_esp32_st *this) {
 }
 
 
+#endif
+
+
 uv_errors_e uv_esp32_init(uv_esp32_st *this,
 		uv_gpios_e reset_io,
 		uv_uarts_e uart,
@@ -329,19 +336,25 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 	this->wifi_ssid = wifi_ssid;
 	this->wifi_passwd = wifi_passwd;
 	this->state = ESP32_STATE_INIT;
+#if CONFIG_ESP32_MQTT
 	this->mqtt_state = ESP32_MQTT_STATE_DISABLED;
 	this->mqtt_rx_callb = NULL;
+#endif
 
 	// The handle is created lazily in uv_esp32_step, not here: libmosquitto
 	// fixes the client id at mosquitto_new() time and the id is not known yet
 	// (uv_esp32_mqtt_init has not been called). Creating it with a NULL id
 	// would give us a random one, and the broker ACL scopes an anonymous device
 	// by its client id (`pattern ... %c`), so every publish would be denied.
+#if CONFIG_ESP32_MQTT
 	mosquitto_lib_init();
+#endif
 
 	return ret;
 }
 
+
+#if CONFIG_ESP32_MQTT
 
 /// @brief: Creates the process-wide mosquitto handle, bound to the configured
 /// client id. Returns false if it could not be created.
@@ -404,7 +417,11 @@ static void mqtt_sub_drain(uv_esp32_st *this) {
 }
 
 
+#endif
+
+
 void uv_esp32_step(uv_esp32_st *this, uint16_t step_ms) {
+#if CONFIG_ESP32_MQTT
 
 	// Lazy-connect once an MQTT broker URL has been configured.
 	if (this->mqtt_state == ESP32_MQTT_STATE_DISABLED &&
@@ -484,8 +501,11 @@ void uv_esp32_step(uv_esp32_st *this, uint16_t step_ms) {
 		else {
 		}
 	}
+#endif
 }
 
+
+#if CONFIG_ESP32_MQTT
 
 uv_errors_e uv_esp32_mqtt_publish(uv_esp32_st *this,
 		const char *topic, const uint8_t *data, uint16_t datalen,
@@ -618,14 +638,22 @@ uv_errors_e uv_esp32_mqtt_unsubscribe(uv_esp32_st *this, const char *topic) {
 }
 
 
+#endif
+
+
+#if CONFIG_ESP32_MQTT
 void uv_esp32_mqtt_set_rx_callb(uv_esp32_st *this, uv_esp32_mqtt_rx_callb_t cb) {
 	this->mqtt_rx_callb = cb;
 }
 
 
+#endif
+
+
 /* --- WiFi side: host OS owns the link --- */
 
 void uv_esp32_reset(uv_esp32_st *this) {
+#if CONFIG_ESP32_MQTT
 	if (s_mosq != NULL) {
 		mosquitto_disconnect(s_mosq);
 	}
@@ -633,6 +661,7 @@ void uv_esp32_reset(uv_esp32_st *this) {
 		/* nothing to disconnect */
 	}
 	this->mqtt_state = ESP32_MQTT_STATE_DISABLED;
+#endif
 	this->state = ESP32_STATE_INIT;
 }
 
@@ -777,6 +806,8 @@ const char *uv_esp32_state_to_str(uv_esp32_states_e state) {
 }
 
 
+#if CONFIG_ESP32_MQTT
+
 const char *uv_esp32_mqtt_state_to_str(uv_esp32_mqtt_states_e state) {
 	const char *str = "UNKNOWN";
 	switch (state) {
@@ -813,6 +844,8 @@ void uv_esp32_mqtt_init(uv_esp32_st *this,
 	this->mqtt_cert_key_id = cert_key_id;
 	this->mqtt_keepalive_s = keepalive_s;
 }
+
+#endif
 
 
 #endif

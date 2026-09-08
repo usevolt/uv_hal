@@ -39,6 +39,18 @@
 #define ESP32_MQTT_DEFAULT_KEEPALIVE_S	60
 #define ESP32_MQTT_LINK_ID				0
 
+/// Set to 0 to leave the MQTT client out of the build. The WiFi side and the
+/// AT transport are unaffected, only the publish / subscribe machinery and its
+/// buffers go away - worth about 2 kB of RAM. An application that uses the
+/// ESP32 as a plain transport has no use for the client and should turn this
+/// off; the uv_esp32_mqtt_* functions are then not declared at all, so a
+/// caller that still needs them fails to build rather than silently doing
+/// nothing.
+#ifndef CONFIG_ESP32_MQTT
+#define CONFIG_ESP32_MQTT				1
+#endif
+
+
 /// Payload capacity of the ONE large publish slot, and of the receive
 /// reassembly buffer. Only one producer usually needs a big payload - on a
 /// display device that is the mirrored UI, which hands over a whole screen at
@@ -173,7 +185,9 @@ typedef enum {
 } uv_esp32_mqtt_states_e;
 
 
+#if CONFIG_ESP32_MQTT
 const char *uv_esp32_mqtt_state_to_str(uv_esp32_mqtt_states_e state);
+#endif
 
 
 /// @brief: Invoked from the rxtx task when an MQTT message arrives on a
@@ -213,6 +227,7 @@ typedef struct {
 	char *wifi_ssid;
 	char *wifi_passwd;
 
+#if CONFIG_ESP32_MQTT
 	const char *mqtt_broker_url;
 	const char *mqtt_client_id;
 	const char *mqtt_user;
@@ -222,6 +237,7 @@ typedef struct {
 	uint16_t mqtt_ca_id;
 	uint16_t mqtt_cert_key_id;
 	uint16_t mqtt_keepalive_s;
+#endif
 
 	uv_uarts_e uart;
 	uv_gpios_e reset_io;
@@ -248,6 +264,7 @@ typedef struct {
 	uv_esp32_states_e scan_return_state;
 	uv_delay_st timeout;
 
+#if CONFIG_ESP32_MQTT
 	uv_esp32_mqtt_states_e mqtt_state;
 	uv_delay_st mqtt_timeout;
 	uint8_t mqtt_retry_backoff_s;
@@ -290,6 +307,7 @@ typedef struct {
 	uv_mutex_st mqtt_pub_mutex;
 	uint32_t mqtt_publish_seq;
 	uv_esp32_mqtt_slot_st mqtt_pub_slots[ESP32_MQTT_PUBLISH_SLOT_COUNT];
+#endif
 
 	// Pending-line buffer used by at_get_line. When pump_mqtt_async pops a
 	// completed line that is not an MQTT async event, the line is held here
@@ -349,6 +367,8 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 		char *wifi_passwd);
 
 
+#if CONFIG_ESP32_MQTT
+
 /// @brief: Configures the MQTT(S) client. Caller-owned string pointers must
 /// outlive the driver; the driver reads them each time it transitions
 /// through the MQTT state machine. Scheme follows the ESP-AT spec (see the
@@ -364,6 +384,8 @@ void uv_esp32_mqtt_init(uv_esp32_st *this,
 		uint16_t ca_id,
 		uint16_t cert_key_id,
 		uint16_t keepalive_s);
+
+#endif
 
 
 /// @brief: Step function
@@ -431,6 +453,8 @@ uv_errors_e uv_esp32_network_scan(uv_esp32_st *this, bool blocking);
 void uv_esp32_terminal(uv_esp32_st *this,
 		unsigned int args, argument_st *argv);
 
+
+#if CONFIG_ESP32_MQTT
 
 /// @brief: Returns the current MQTT state.
 static inline uv_esp32_mqtt_states_e uv_esp32_mqtt_state_get(uv_esp32_st *this) {
@@ -503,6 +527,8 @@ uv_errors_e uv_esp32_mqtt_unsubscribe(uv_esp32_st *this, const char *topic);
 /// @brief: Registers a callback to be invoked when an MQTT message arrives
 /// on a subscribed topic. Pass NULL to clear.
 void uv_esp32_mqtt_set_rx_callb(uv_esp32_st *this, uv_esp32_mqtt_rx_callb_t cb);
+
+#endif
 
 
 #if CONFIG_TARGET_LINUX
