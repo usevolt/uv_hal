@@ -89,7 +89,12 @@ typedef struct {
 
 
 
-static can_st _this __attribute__((section (".data_RAM2"))) = {
+// Peripheral RAM (RamPeriph32), to keep the rx/tx message rings out of the
+// 64 kB main SRAM. The section name has to be the one the linker script
+// matches -- *(.data.$RAM2) -- and not the name of the output section:
+// ".data_RAM2" is caught by *(.data*) in the main .data section first and
+// silently ends up in RamLoc64.
+static can_st _this __attribute__((section (".data.$RAM2"))) = {
 		.can = {
 			{
 				.init = false,
