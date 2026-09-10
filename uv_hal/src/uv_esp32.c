@@ -36,6 +36,17 @@
 // the slow poll is a read, not a resync.
 #define ESP32_SNTP_POLL_MS			2000
 #define ESP32_SNTP_REFRESH_MS		60000
+// How often the SNTP client is restarted while the clock is still unknown. The
+// first configuration goes out the moment the network is joined; a restart
+// covers that command being lost, answered with ERROR, the module having reset
+// quietly -- and, the common case, the first NTP request itself going nowhere.
+// That last one is why the first interval is short: a request that is going to
+// be answered is answered in well under a second, but lwIP does not retry one
+// that was dropped for 15-30 s, and AT+CIPSNTPCFG restarting the client is
+// what sends a fresh request instead of waiting out that backoff. The interval
+// doubles up to the ceiling so an unreachable server is not hammered.
+#define ESP32_SNTP_CFG_RETRY_MIN_MS	5000
+#define ESP32_SNTP_CFG_RETRY_MS		30000
 // Year from which the module's answer is taken to be a real clock rather than
 // the epoch-based one it reports before the first sync.
 #define ESP32_SNTP_MIN_YEAR			2024
@@ -44,6 +55,10 @@
 #define SNTPTIME_PREFIX_LEN			13
 #define SYSTIMESTAMP_PREFIX			"+SYSTIMESTAMP:"
 #define SYSTIMESTAMP_PREFIX_LEN		14
+// The station address line of AT+CIPSTA?, which also answers with the gateway
+// and the netmask; only this one is ours.
+#define CIPSTA_IP_PREFIX			"+CIPSTA:ip:"
+#define CIPSTA_IP_PREFIX_LEN		11
 // Unix time below which the module is considered not to have a clock yet. The
 // module answers both time queries from power-on, counting up from the epoch,
 // so a plausible date is the only thing separating a set clock from an unset
@@ -169,6 +184,15 @@ static void tx_push_escaped(uv_esp32_st *this, const char *str) {
 /// If arg2 is not NULL, appends ,"arg2" with arg2 escaped.
 static void send_at_cmd(uv_esp32_st *this, const char *cmd,
 		const char *arg1, const char *arg2) {
+	// The wifi password is the second argument of AT+CWJAP and nothing else
+	// here carries a secret, so it is the one field worth hiding: a debug log
+	// is read over the CAN terminal and pasted into bug reports.
+	ESP32_DEBUG(this, "ESP32 -> %s%s%s%s%s\n", cmd,
+			(arg1 != NULL) ? "=\"" : "",
+			(arg1 != NULL) ? arg1 : "",
+			(arg2 != NULL) ? "\",\"" : ((arg1 != NULL) ? "\"" : ""),
+			(arg2 != NULL) ?
+					((strstr(cmd, "CWJAP") != NULL) ? "***\"" : arg2) : "");
 	uv_mutex_lock(&this->txstream_mutex);
 	uv_streambuffer_push(&this->tx_streambuffer,
 			(char *) cmd, strlen(cmd), 100);
@@ -200,6 +224,15 @@ static void send_at_cmd(uv_esp32_st *this, const char *cmd,
 /// "AT+CMD=\"arg1\",\"arg2\"" shape (e.g. AT+MQTTUSERCFG, AT+MQTTCONN,
 /// AT+CIPSNTPCFG).
 static void send_at_cmd_raw(uv_esp32_st *this, const char *line) {
+	// AT+MQTTUSERCFG carries the broker password inline, so that one is shown
+	// only up to its command word. Everything else composed this way is
+	// addresses and numbers.
+	if (strstr(line, "MQTTUSERCFG") != NULL) {
+		ESP32_DEBUG(this, "ESP32 -> AT+MQTTUSERCFG=... (credentials hidden)\n");
+	}
+	else {
+		ESP32_DEBUG(this, "ESP32 -> %s\n", line);
+	}
 	uv_mutex_lock(&this->txstream_mutex);
 	uv_streambuffer_push(&this->tx_streambuffer,
 			(char *) line, strlen(line), 100);
@@ -339,6 +372,32 @@ static bool dispatch_mqtt_line(uv_esp32_st *this) {
 				!this->time_synced) {
 			this->time_synced = true;
 			ESP32_DEBUG(this, "ESP32: network time %s\n", this->time_str);
+		}
+		else {
+		}
+		dispatched = true;
+	}
+	else if (strstr(this->at_resp, CIPSTA_IP_PREFIX) != NULL) {
+		// +CIPSTA:ip:"192.168.1.23"
+		char *addr = strstr(this->at_resp, CIPSTA_IP_PREFIX) +
+				CIPSTA_IP_PREFIX_LEN;
+		char *start = strchr(addr, '"');
+		if (start != NULL) {
+			start++;
+			char *end = strchr(start, '"');
+			if (end != NULL) {
+				uint16_t len = (uint16_t) (end - start);
+				if (len >= sizeof(this->ip_str)) {
+					len = sizeof(this->ip_str) - 1;
+				}
+				else {
+				}
+				memcpy(this->ip_str, start, len);
+				this->ip_str[len] = '\0';
+				ESP32_DEBUG(this, "ESP32: address %s\n", this->ip_str);
+			}
+			else {
+			}
 		}
 		else {
 		}
@@ -689,15 +748,22 @@ static void set_state(uv_esp32_st *this, uv_esp32_states_e state) {
 			// ask for the signal strength right away rather than after a full
 			// poll interval of showing "not known"
 			uv_delay_init(&this->rssi_delay, 0);
+			// a new join means a new address
+			this->ip_str[0] = '\0';
 #if CONFIG_ESP32_SNTP
-			// (Re)configure SNTP on every join: it costs one AT command and
-			// covers a module that was reset without us noticing.
+			// (Re)configure SNTP on every join, first thing: it costs one AT
+			// command, and nothing else the device does over TLS can work
+			// until the clock is set.
 			this->sntp_cfg_sent = false;
+			this->sntp_query_alt = false;
+			this->sntp_cfg_retry_ms = ESP32_SNTP_CFG_RETRY_MIN_MS;
+			uv_delay_init(&this->sntp_cfg_retry, this->sntp_cfg_retry_ms);
 #endif
 			break;
 		case ESP32_STATE_LEFT_NETWORK:
 			uv_delay_init(&this->timeout, ESP32_RECONNECT_MS);
 			this->rssi = 0;
+			this->ip_str[0] = '\0';
 			break;
 		default:
 			break;
@@ -994,11 +1060,17 @@ static void rxtx_task(void *me_ptr) {
 		// query (signal strength, network time) can be injected without
 		// stealing the response another state machine is waiting for.
 #if CONFIG_ESP32_MQTT
-		bool at_idle = ((active_slot == NULL) &&
-				(this->mqtt_sub_active == NULL) &&
+		// No publish or (un)subscribe in flight: the exchanges that a command
+		// arriving mid-transaction would actually corrupt.
+		bool at_free = ((active_slot == NULL) &&
+				(this->mqtt_sub_active == NULL));
+		// ...and the MQTT machine is somewhere it is not waiting for a reply,
+		// so an injected query cannot be mistaken for the answer it wants.
+		bool at_idle = (at_free &&
 				((this->mqtt_state == ESP32_MQTT_STATE_CONNECTED) ||
 				(this->mqtt_state == ESP32_MQTT_STATE_DISABLED)));
 #else
+		bool at_free = true;
 		bool at_idle = true;
 #endif
 
@@ -1097,7 +1169,14 @@ static void rxtx_task(void *me_ptr) {
 			if (uv_delay(&this->rssi_delay, uv_ts_get_step_ms(&ts))) {
 				uv_delay_init(&this->rssi_delay, ESP32_RSSI_POLL_MS);
 				if (at_idle) {
-					send_at_cmd(this, "AT+CWJAP?", NULL, NULL);
+					// The address is asked for only until it is known: it does
+					// not change while joined, and a rejoin clears it.
+					if (this->ip_str[0] == '\0') {
+						send_at_cmd(this, "AT+CIPSTA?", NULL, NULL);
+					}
+					else {
+						send_at_cmd(this, "AT+CWJAP?", NULL, NULL);
+					}
 				}
 				else {
 				}
@@ -1110,29 +1189,63 @@ static void rxtx_task(void *me_ptr) {
 			// certificate validity is checked against that clock, so this runs
 			// as soon as the network is joined and the MQTT client waits for
 			// its result (see mqtt_tls_time_ok).
-			if (!this->sntp_cfg_sent) {
-				if (at_idle) {
-					char line[128];
-					snprintf(line, sizeof(line), "AT+CIPSNTPCFG=1,%i,%s",
-							(int) ESP32_SNTP_TIMEZONE, ESP32_SNTP_SERVERS);
-					send_at_cmd_raw(this, line);
-					ESP32_DEBUG(this, "ESP32: SNTP servers %s\n",
-							ESP32_SNTP_SERVERS);
-					this->sntp_cfg_sent = true;
-					uv_delay_init(&this->sntp_delay, ESP32_SNTP_POLL_MS);
+			// Unlike the signal strength above, this does not wait for the
+			// MQTT machine to be in a quiet state: a TLS session cannot come up
+			// before the clock is set, so making the clock wait on MQTT is a
+			// loop with no way out. It still never injects into a publish or a
+			// (un)subscribe, which are the exchanges that would actually be
+			// corrupted by a command arriving mid-transaction.
+			if (at_free && !this->sntp_cfg_sent) {
+				char line[128];
+				snprintf(line, sizeof(line), "AT+CIPSNTPCFG=1,%i,%s",
+						(int) ESP32_SNTP_TIMEZONE, ESP32_SNTP_SERVERS);
+				send_at_cmd_raw(this, line);
+				ESP32_DEBUG(this, "ESP32: SNTP servers %s\n",
+						ESP32_SNTP_SERVERS);
+				this->sntp_cfg_sent = true;
+				uv_delay_init(&this->sntp_cfg_retry, this->sntp_cfg_retry_ms);
+				uv_delay_init(&this->sntp_delay, ESP32_SNTP_POLL_MS);
+			}
+			else if (at_free && !this->time_synced &&
+					uv_delay(&this->sntp_cfg_retry,
+							uv_ts_get_step_ms(&ts))) {
+				// Nothing has come back in this long, so restart the client:
+				// re-arm the setter above and let it re-send the whole
+				// configuration on the next round. A restart issues a fresh
+				// NTP request there and then, which is the point -- whatever
+				// the first request met (a lost packet, DNS that was not up
+				// yet when the join completed, SNTP never enabled at all) is
+				// answered by asking again rather than by waiting.
+				this->sntp_cfg_sent = false;
+				if (this->sntp_cfg_retry_ms < (ESP32_SNTP_CFG_RETRY_MS / 2)) {
+					this->sntp_cfg_retry_ms =
+							(uint16_t) (this->sntp_cfg_retry_ms * 2);
 				}
 				else {
+					this->sntp_cfg_retry_ms = ESP32_SNTP_CFG_RETRY_MS;
 				}
 			}
 			else if (uv_delay(&this->sntp_delay, uv_ts_get_step_ms(&ts))) {
 				uv_delay_init(&this->sntp_delay, this->time_synced ?
 						ESP32_SNTP_REFRESH_MS : ESP32_SNTP_POLL_MS);
-				if (at_idle) {
-					// Both stamps: the string for anything that displays the
-					// time, the epoch for anything that compares dates. Two
-					// fire-and-forget queries, answered independently.
-					send_at_cmd(this, "AT+CIPSNTPTIME?", NULL, NULL);
-					send_at_cmd(this, "AT+SYSTIMESTAMP?", NULL, NULL);
+				if (at_free) {
+					// ONE query per round: sending both together loses at
+					// least one of the answers, because each send resets the
+					// AT line buffer and the second command lands while the
+					// first reply is still coming in over the UART.
+					// While the clock is unknown only the epoch is asked for.
+					// It is the one the TLS gate keys on, and alternating with
+					// the asctime string -- which is for display and can wait
+					// -- would leave the clock up to two poll intervals stale
+					// exactly when the wait is being measured. Once the clock
+					// is set the two alternate, refreshing both slowly.
+					if (!this->time_synced || !this->sntp_query_alt) {
+						send_at_cmd(this, "AT+SYSTIMESTAMP?", NULL, NULL);
+					}
+					else {
+						send_at_cmd(this, "AT+CIPSNTPTIME?", NULL, NULL);
+					}
+					this->sntp_query_alt = !this->sntp_query_alt;
 				}
 				else {
 				}
@@ -1202,12 +1315,23 @@ static void rxtx_task(void *me_ptr) {
 							}
 							else {
 							}
-							memcpy(this->state_data.scan.networks[this->state_data.scan.network_count].ssid,
-									ssid_start, len);
-							this->state_data.scan.networks[this->state_data.scan.network_count].ssid[len] = '\0';
-							char *rssi_str = ssid_end + 2;
-							this->state_data.scan.networks[this->state_data.scan.network_count].rssi = strtol(rssi_str, NULL, 10);
-							this->state_data.scan.network_count++;
+							// A nameless network cannot be joined: AT+CWJAP
+							// takes an SSID, so a blank row in the list is one
+							// nobody can tap. Hidden networks are reported this
+							// way -- the name is simply not broadcast -- and so
+							// is a scan line that arrived damaged. Neither
+							// belongs on screen.
+							if (len == 0) {
+								/* nothing to show, nothing to join */
+							}
+							else {
+								memcpy(this->state_data.scan.networks[this->state_data.scan.network_count].ssid,
+										ssid_start, len);
+								this->state_data.scan.networks[this->state_data.scan.network_count].ssid[len] = '\0';
+								char *rssi_str = ssid_end + 2;
+								this->state_data.scan.networks[this->state_data.scan.network_count].rssi = strtol(rssi_str, NULL, 10);
+								this->state_data.scan.network_count++;
+							}
 						}
 						else {
 						}
@@ -1543,6 +1667,7 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 	this->state = ESP32_STATE_INIT;
 	this->mac = 0;
 	this->rssi = 0;
+	this->ip_str[0] = '\0';
 	uv_delay_init(&this->rssi_delay, ESP32_RSSI_POLL_MS);
 #if CONFIG_ESP32_SNTP
 	this->time_str[0] = '\0';
@@ -1550,6 +1675,8 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 	this->time_year = 0;
 	this->time_synced = false;
 	this->sntp_cfg_sent = false;
+	this->sntp_query_alt = false;
+	uv_delay_init(&this->sntp_cfg_retry, ESP32_SNTP_CFG_RETRY_MS);
 	uv_delay_init(&this->sntp_delay, ESP32_SNTP_POLL_MS);
 #endif
 	this->written_byte_count = 0;
@@ -1637,6 +1764,86 @@ void uv_esp32_mqtt_init(uv_esp32_st *this,
 	this->mqtt_ca_id = ca_id;
 	this->mqtt_cert_key_id = cert_key_id;
 	this->mqtt_keepalive_s = keepalive_s;
+}
+
+
+void uv_esp32_mqtt_print_slots(uv_esp32_st *this) {
+	// Snapshot under the lock and print outside it: printf takes a lock of its
+	// own and can block for as long as the terminal needs, which is not
+	// something to hold the publish pool for.
+	struct {
+		bool in_use;
+		uint8_t phase;
+		uint8_t priority;
+		uint16_t stream_id;
+		uint16_t capacity;
+		uint16_t datalen;
+		uint32_t seq;
+	} snap[ESP32_MQTT_PUBLISH_SLOT_COUNT];
+	uv_mutex_lock(&this->mqtt_pub_mutex);
+	for (uint8_t i = 0; i < ESP32_MQTT_PUBLISH_SLOT_COUNT; i++) {
+		uv_esp32_mqtt_slot_st *s = &this->mqtt_pub_slots[i];
+		snap[i].in_use = s->in_use;
+		snap[i].phase = s->phase;
+		snap[i].priority = (uint8_t) s->priority;
+		snap[i].stream_id = s->stream_id;
+		snap[i].capacity = s->capacity;
+		snap[i].datalen = s->datalen;
+		snap[i].seq = s->seq;
+	}
+	uv_mutex_unlock(&this->mqtt_pub_mutex);
+
+	printf("    publish slots:\n");
+	for (uint8_t i = 0; i < ESP32_MQTT_PUBLISH_SLOT_COUNT; i++) {
+		if (snap[i].in_use) {
+			const char *phase = "idle";
+			if (snap[i].phase == MQTT_PUB_PHASE_AT_SENT) {
+				phase = "at-sent";
+			}
+			else if (snap[i].phase == MQTT_PUB_PHASE_DATA_SENT) {
+				phase = "data-sent";
+			}
+			else {
+			}
+			printf("        %u: %u/%u B, stream %u, prio %u, seq %u, %s\n",
+					(unsigned int) i,
+					(unsigned int) snap[i].datalen,
+					(unsigned int) snap[i].capacity,
+					(unsigned int) snap[i].stream_id,
+					(unsigned int) snap[i].priority,
+					(unsigned int) snap[i].seq,
+					phase);
+		}
+		else {
+			printf("        %u: free, %u B\n",
+					(unsigned int) i, (unsigned int) snap[i].capacity);
+		}
+	}
+
+	// The subscribe machine shares the AT link and owns it outright while a
+	// subscribe is in flight, so a pool that is not draining is as likely to be
+	// waiting on this as on the publish itself.
+	const char *sub_phase = "idle";
+	if (this->mqtt_sub_phase == MQTT_SUB_PHASE_AT_SENT) {
+		sub_phase = "at-sent";
+	}
+	else if (this->mqtt_sub_phase == MQTT_SUB_PHASE_BACKOFF) {
+		sub_phase = "backoff";
+	}
+	else {
+	}
+	printf("    subscribe: %s\n", sub_phase);
+	for (uint8_t i = 0; i < ESP32_MQTT_SUBSCRIPTION_COUNT; i++) {
+		uv_esp32_mqtt_sub_st *s = &this->mqtt_subs[i];
+		if (s->in_use) {
+			printf("        %u: %s qos %u, %s%s\n",
+					(unsigned int) i, s->topic, (unsigned int) s->qos,
+					s->sent ? "acked" : "not acked",
+					(s == this->mqtt_sub_active) ? ", in flight" : "");
+		}
+		else {
+		}
+	}
 }
 
 
@@ -1753,14 +1960,36 @@ uv_errors_e uv_esp32_mqtt_publish(uv_esp32_st *this,
 			// Allocate a fresh slot: the smallest free one that can take this
 			// payload, so a small message does not sit in the large buffer and
 			// leave a big one with nowhere to go.
+			uint8_t free_count = 0;
 			for (uint8_t i = 0; i < ESP32_MQTT_PUBLISH_SLOT_COUNT; i++) {
 				uv_esp32_mqtt_slot_st *s = &this->mqtt_pub_slots[i];
-				if (!s->in_use && (datalen <= s->capacity) &&
-						((target == NULL) || (s->capacity < target->capacity))) {
-					target = s;
+				if (!s->in_use) {
+					free_count++;
+					if ((datalen <= s->capacity) &&
+							((target == NULL) ||
+									(s->capacity < target->capacity))) {
+						target = s;
+					}
+					else {
+					}
 				}
 				else {
 				}
+			}
+			// The last free slot is not for the low priority to take.
+			// Priorities decide the order the drainer serves the pool in, but
+			// that is worth nothing if the pool is already full by the time a
+			// higher-priority message is written: the periodic process data
+			// streams publish every step and would hold every slot, so an
+			// announce or a command -- sent once, seconds apart -- would find
+			// the pool full every single time and be refused for good. A
+			// stream that already holds a slot is unaffected: it coalesces
+			// into its own slot above rather than coming through here.
+			if ((target != NULL) && (free_count <= 1) &&
+					(priority >= UV_ESP32_MQTT_PRIO_LOW)) {
+				target = NULL;
+			}
+			else {
 			}
 			if (target == NULL) {
 				ret = ERR_BUFFER_OVERFLOW;

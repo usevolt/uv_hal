@@ -337,6 +337,11 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 	this->wifi_ssid = wifi_ssid;
 	this->wifi_passwd = wifi_passwd;
 	this->state = ESP32_STATE_INIT;
+	// The simulator has no MAC, but callers use a non-zero one as "the module
+	// has identified itself" -- which is true here from the start, since the
+	// identity is the pid and user name (see uv_esp32_mac_get_str). Zero would
+	// hold anything waiting for an identity forever.
+	this->mac = (uint64_t) getpid();
 #if CONFIG_ESP32_SNTP
 	// nothing to sync here: see sntp_from_host below
 	this->time_str[0] = '\0';
@@ -344,6 +349,7 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 	this->time_year = 0;
 	this->time_synced = false;
 	this->sntp_cfg_sent = true;
+	this->sntp_query_alt = false;
 #endif
 #if CONFIG_ESP32_MQTT
 	this->mqtt_state = ESP32_MQTT_STATE_DISABLED;
@@ -687,6 +693,16 @@ uv_errors_e uv_esp32_mqtt_unsubscribe(uv_esp32_st *this, const char *topic) {
 
 
 #if CONFIG_ESP32_MQTT
+void uv_esp32_mqtt_print_slots(uv_esp32_st *this) {
+	// There is no slot pool here: uv_esp32_mqtt_publish hands straight to
+	// libmosquitto, which has an outbound queue of its own. What the device
+	// side reports per slot has no counterpart, so say so rather than print an
+	// empty pool that would read as "nothing queued".
+	(void) this;
+	printf("    publish slots: none (host mosquitto transport)\n");
+}
+
+
 void uv_esp32_mqtt_set_rx_callb(uv_esp32_st *this, uv_esp32_mqtt_rx_callb_t cb) {
 	this->mqtt_rx_callb = cb;
 }

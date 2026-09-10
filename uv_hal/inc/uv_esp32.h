@@ -234,6 +234,8 @@ typedef void (*uv_esp32_mqtt_rx_callb_t)(
 
 
 #define ESP32_MAC_STR_LEN	18
+/// Room for "255.255.255.255" and its terminator.
+#define ESP32_IP_STR_LEN	16
 
 
 
@@ -366,6 +368,11 @@ typedef struct {
 	int8_t rssi;
 	uv_delay_st rssi_delay;
 
+	// The address the AP gave us, from AT+CIPSTA?. Empty while not joined, or
+	// until the answer arrives. Worth showing: it is the first thing anyone
+	// needs when the device is on the network but nothing can reach it.
+	char ip_str[ESP32_IP_STR_LEN];
+
 #if CONFIG_ESP32_SNTP
 	// Network time as reported by AT+CIPSNTPTIME?, in the asctime shape
 	// "Thu Aug 21 14:27:00 2026". Empty until the first answer arrives.
@@ -382,6 +389,18 @@ typedef struct {
 	bool time_synced;
 	/// AT+CIPSNTPCFG has been sent on the *current* join.
 	bool sntp_cfg_sent;
+	/// Restarts the SNTP client while the clock is still unknown, so a request
+	/// that was lost -- or a module that reset without us noticing -- does not
+	/// leave the device waiting for a time that will never arrive.
+	uv_delay_st sntp_cfg_retry;
+	/// Interval of the restart above. Starts short and doubles, so the usual
+	/// case of one dropped first request costs seconds rather than lwIP's own
+	/// 15-30 s backoff, without hammering a server that is simply not there.
+	uint16_t sntp_cfg_retry_ms;
+	/// Alternates the two time queries. They must not be sent together: each
+	/// send resets the AT line buffer, so a second command issued while the
+	/// first answer is still arriving truncates it.
+	bool sntp_query_alt;
 	uv_delay_st sntp_delay;
 #endif
 
@@ -414,6 +433,13 @@ static inline uint8_t uv_esp32_get_network_count(uv_esp32_st *this) {
 ///                     as wifi_ssid.
 ///
 /// @ref: ERR_NONE if initialized succesfully
+/// @brief: Prints the publish slot pool: what each slot holds, and for
+/// whom. A publish is refused when no slot with room is free, so when a
+/// producer reports drops this is what says which stream is holding the
+/// pool and whether the drainer is stuck on one of them (phase != idle).
+void uv_esp32_mqtt_print_slots(uv_esp32_st *this);
+
+
 uv_errors_e uv_esp32_init(uv_esp32_st *this,
 		uv_gpios_e reset_io,
 		uv_uarts_e uart,
@@ -459,6 +485,12 @@ static inline uv_esp32_states_e uv_esp32_state_get(uv_esp32_st *this) {
 /// values run from about -40 (next to the AP) to -90 (barely usable).
 static inline int8_t uv_esp32_get_rssi(uv_esp32_st *this) {
 	return this->rssi;
+}
+
+/// @brief: The station's own IP address as a string, empty while not joined
+/// or not yet answered.
+static inline const char *uv_esp32_ip_get_str(uv_esp32_st *this) {
+	return this->ip_str;
 }
 
 
@@ -508,6 +540,14 @@ static inline uint64_t uv_esp32_get_mac(uv_esp32_st *this) {
 /// (e.g. "aa:bb:cc:dd:ee:ff"). *dest* should be at least
 /// ESP32_MAC_STR_LEN (18) bytes.
 void uv_esp32_mac_get_str(uv_esp32_st *this, char *dest);
+
+/// @brief: The module's MAC as a number, 0 until it has answered
+/// AT+CIPSTAMAC?. Anything deriving an identity from the MAC has to wait for
+/// this: a zero here formats as "00:00:00:00:00:00", which is a perfectly
+/// valid looking name for something that is not the device.
+static inline uint64_t uv_esp32_mac_get(uv_esp32_st *this) {
+	return this->mac;
+}
 
 /// @brief: Returns the connected network's SSID
 char *uv_esp32_get_connected_ssid(uv_esp32_st *this);
