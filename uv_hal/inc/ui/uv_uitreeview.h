@@ -58,6 +58,19 @@ struct   _uv_uitreeobject_st {
 
 	color_t text_c;
 	uv_font_st *font;
+	/// @brief: Whether this object is open, i.e. showing its contents.
+	///
+	/// Deliberately NOT the uiobject's `enabled` flag, which this used to reuse.
+	/// `enabled` means "takes input and is drawn normally": a disabled object is
+	/// greyed out by _uv_uiobject_draw() and is skipped by uv_uiwindow's touch
+	/// dispatch entirely. Closing an object by disabling it therefore greyed it
+	/// and made it unclickable, so it could never be opened again.
+	bool open;
+	/// @brief: Height of this object's content, i.e. what it occupies below the
+	/// header row when it is open. Remembered because the object's own height is
+	/// shrunk to the header row while it is closed, so that a closed object takes
+	/// up (and reacts to touches over) only its own row.
+	int16_t content_h;
 };
 
 
@@ -97,9 +110,14 @@ static inline void uv_uitreeobject_set_content_bb(void *me,
 	uv_uiwindow_set_contentbb(me, width, height + CONFIG_UI_TREEVIEW_ITEM_HEIGHT);
 }
 
-static inline void uv_uitreeobject_clear(void *me) {
-	uv_uiwindow_clear(me);
-}
+/// @brief: Removes all objects added to this treeobject.
+///
+/// NOT an inline onto uv_uiwindow_clear(): that ends with
+/// uv_uiobject_set_draw_callb(me, &_uv_uiwindow_draw), which would replace the
+/// treeobject's own draw function and with it the +/- marker, the name and the
+/// separator line. A cleared treeobject is still a treeobject, so the callback
+/// is put back afterwards.
+void uv_uitreeobject_clear(void *me);
 static inline void uv_uitreeobject_set_step_callback(void *me,
 		uv_uiobject_ret_e (*step)(void *user_ptr, const uint16_t step_ms),
 		void *user_ptr) {

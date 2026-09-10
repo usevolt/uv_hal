@@ -51,6 +51,7 @@ void uv_uitreeobject_init(void *me, uv_uiobject_st **object_array,
 	this->font = style->font;
 	this->name = name;
 	this->show_callb = show_callb;
+	this->open = false;
 	((uv_uiobject_st*) this)->step_callb = &uv_uiwindow_step;
 	uv_uiobject_set_draw_callb(this, &uv_uitreeobject_draw);
 	uv_uiobject_set_touch_callb(this, &touch);
@@ -64,7 +65,7 @@ static void touch(void *me, uv_touch_st *touch) {
 	if (touch->action == TOUCH_CLICKED) {
 		if ((touch->y >= 0) && (touch->y < CONFIG_UI_TREEVIEW_ITEM_HEIGHT)) {
 			if (((uv_uiobject_st*) this)->parent != NULL) {
-				if (((uv_uiobject_st *) this)->enabled) {
+				if (this->open) {
 					uv_uitreeview_close(((uv_uiobject_st*) this)->parent, this);
 				}
 				else {
@@ -78,13 +79,26 @@ static void touch(void *me, uv_touch_st *touch) {
 
 
 
+void uv_uitreeobject_clear(void *me) {
+	uv_uiwindow_clear(me);
+	// uv_uiwindow_clear() ends by installing the plain window draw function,
+	// which would cost this object its +/- marker, its name and its separator
+	// line - and, since the children keep being drawn, leave the rows of an
+	// open object floating with no header above them. Clearing the contents
+	// does not stop it being a treeobject, so put the draw callback back.
+	uv_uiobject_set_draw_callb(this, &uv_uitreeobject_draw);
+}
+
+
 static void uv_uitreeobject_draw(void *me, const uv_bounding_box_st *pbb) {
 
 	int16_t x = uv_ui_get_xglobal(this);
 	int16_t y = uv_ui_get_yglobal(this);
 	int16_t w = uv_uibb(this)->width;
-	if (!((uv_uiobject_st*) this)->enabled) {
-		uv_ui_draw_string("-", this->font,
+	// '+' means "opens", '-' means "closes": the marker shows what a click
+	// would do, so a closed object carries the '+'.
+	if (!this->open) {
+		uv_ui_draw_string("+", this->font,
 				x + XOFFSET, y + CONFIG_UI_TREEVIEW_ITEM_HEIGHT / 2, ALIGN_CENTER_LEFT,
 				this->text_c);
 	}
@@ -92,7 +106,7 @@ static void uv_uitreeobject_draw(void *me, const uv_bounding_box_st *pbb) {
 		// super draw function
 		uv_uiwindow_draw(this, pbb);
 
-		uv_ui_draw_string("+", this->font,
+		uv_ui_draw_string("-", this->font,
 				x + XOFFSET, y + CONFIG_UI_TREEVIEW_ITEM_HEIGHT / 2,
 				ALIGN_CENTER_LEFT, this->text_c);
 	}
@@ -103,7 +117,7 @@ static void uv_uitreeobject_draw(void *me, const uv_bounding_box_st *pbb) {
 			y + CONFIG_UI_TREEVIEW_ITEM_HEIGHT / 2,
 			ALIGN_CENTER_LEFT, this->text_c);
 
-	if (((uv_uiobject_st*) this)->enabled) {
+	if (this->open) {
 		y += uv_uibb(this)->height;
 	}
 	else {
@@ -112,10 +126,16 @@ static void uv_uitreeobject_draw(void *me, const uv_bounding_box_st *pbb) {
 	uv_ui_draw_line(x, y - 1, x + w, y - 1, 1,
 			uv_uic_brighten(((uv_uiwindow_st*) this)->bg_c, 30));
 
-	_uv_uiwindow_draw_children(this, pbb);
+	// Only while open. Drawing them unconditionally meant closing an object
+	// hid nothing: its rows stayed on screen, without the window background
+	// that the open branch above paints, so closing merely made the contents
+	// look dimmed instead of collapsing them.
+	if (this->open) {
+		_uv_uiwindow_draw_children(this, pbb);
 
-	// scroll bars on top of the children
-	uv_uiwindow_draw_scrollbars(this, pbb);
+		// scroll bars on top of the children
+		uv_uiwindow_draw_scrollbars(this, pbb);
+	}
 }
 
 
@@ -144,13 +164,16 @@ void uv_uitreeview_init(void *me,
 void uv_uitreeview_open(void *me, uv_uitreeobject_st *obj) {
 	if (this->one_active) {
 		for (uint16_t i = 0; i < ((uv_uiwindow_st*)this)->objects_count; i++) {
-			if (((uv_uiobject_st*) ((uv_uiwindow_st*) this)->objects[i])->enabled) {
+			if (((uv_uitreeobject_st*) ((uv_uiwindow_st*) this)->objects[i])->open) {
 				uv_uitreeview_close(this,
 						(uv_uitreeobject_st*) ((uv_uiwindow_st*)this)->objects[i]);
 			}
 		}
 	}
-	((uv_uiobject_st*) obj)->enabled = true;
+	obj->open = true;
+	// Back to the full height, so the rows below it are laid out (and can be
+	// touched) again.
+	uv_uibb(obj)->height = CONFIG_UI_TREEVIEW_ITEM_HEIGHT + obj->content_h;
 	uitreeview_recalc_height(this);
 	uv_uiwindow_content_move_to(this, 0, uv_uibb(obj)->y);
 	if (obj->show_callb) {
@@ -160,7 +183,11 @@ void uv_uitreeview_open(void *me, uv_uitreeobject_st *obj) {
 
 
 void uv_uitreeview_close(void *me, uv_uitreeobject_st *obj) {
-	((uv_uiobject_st*) obj)->enabled = false;
+	obj->open = false;
+	// Shrink to the header row. Without this a closed object keeps the height of
+	// its open state, so it still covers the rows beneath it: its own hidden
+	// children stay in the way of touches meant for the objects below.
+	uv_uibb(obj)->height = CONFIG_UI_TREEVIEW_ITEM_HEIGHT;
 	uitreeview_recalc_height(this);
 }
 
@@ -170,6 +197,8 @@ void uv_uitreeview_add(void *me, uv_uitreeobject_st * const object,
 	uv_uiwindow_addxy((uv_uiwindow_st*) this, object, 0,
 			CONFIG_UI_TREEVIEW_ITEM_HEIGHT * ((uv_uiwindow_st*)this)->objects_count,
 			uv_uiwindow_get_contentbb(this).width, CONFIG_UI_TREEVIEW_ITEM_HEIGHT + content_height);
+	// Remembered so opening it again can restore the height that closing shrinks.
+	object->content_h = content_height;
 	if (active) {
 		uv_uitreeview_open(this, object);
 	}
@@ -184,7 +213,7 @@ static void uitreeview_recalc_height(void *me) {
 	uv_uitreeobject_st ** const objs = (uv_uitreeobject_st ** const) ((uv_uiwindow_st*) this)->objects;
 	for (int i = 0; i < ((uv_uiwindow_st*) this)->objects_count; i++) {
 		uv_uibb(objs[i])->y = content_height;
-		content_height += (((uv_uiobject_st*) objs[i])->enabled) ?
+		content_height += (objs[i]->open) ?
 				uv_uibb(objs[i])->height : CONFIG_UI_TREEVIEW_ITEM_HEIGHT;
 	}
 	uv_uiwindow_set_contentbb(this, uv_uibb(this)->width, content_height);
