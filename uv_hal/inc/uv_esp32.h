@@ -97,6 +97,42 @@
 #define ESP32_MQTT_SUBSCRIPTION_COUNT	CONFIG_ESP32_MQTT_SUBSCRIPTION_COUNT
 
 
+/// Network time (SNTP). The module has no battery-backed clock: it boots at
+/// the epoch and learns the wall clock only from the network. The AT firmware
+/// is built with MBEDTLS_HAVE_TIME_DATE, so mbedTLS checks certificate
+/// validity dates against that clock - an MQTTS (scheme >= 2) connect made
+/// before the clock is set fails the handshake with the server certificate
+/// "not yet valid", no matter how correct the CA is. The driver therefore
+/// configures SNTP on every join and holds the MQTT state machine until the
+/// module reports a plausible year. Set to 0 to leave the whole thing out;
+/// only sensible on a device that never uses TLS.
+#ifndef CONFIG_ESP32_SNTP
+#define CONFIG_ESP32_SNTP				1
+#endif
+
+/// Servers the module syncs from, as the ready-made tail of the
+/// AT+CIPSNTPCFG argument list: each name quoted, up to three of them,
+/// comma separated. Two by default, because a device that cannot reach a
+/// time server cannot open a TLS connection at all, and networks that block
+/// or hijack NTP to one particular host are common enough to plan for.
+#ifndef CONFIG_ESP32_SNTP_SERVERS
+#define CONFIG_ESP32_SNTP_SERVERS		"\"pool.ntp.org\",\"time.google.com\""
+#endif
+#define ESP32_SNTP_SERVERS				CONFIG_ESP32_SNTP_SERVERS
+
+/// Timezone passed to AT+CIPSNTPCFG, in whole hours east of UTC. Certificate
+/// validity is compared in UTC, so the default leaves the module there;
+/// override only if the application shows this time to a user.
+#ifndef CONFIG_ESP32_SNTP_TIMEZONE
+#define CONFIG_ESP32_SNTP_TIMEZONE		0
+#endif
+#define ESP32_SNTP_TIMEZONE				CONFIG_ESP32_SNTP_TIMEZONE
+
+/// Room for the asctime-style stamp AT+CIPSNTPTIME? answers with, e.g.
+/// "Thu Aug 21 14:27:00 2026": 24 characters plus terminator, rounded up.
+#define ESP32_TIME_STR_LEN				32
+
+
 /// @brief: Publish priority. Lower numeric value drains first. Within a
 /// priority, ties break by FIFO (oldest seq wins).
 typedef enum {
@@ -330,6 +366,25 @@ typedef struct {
 	int8_t rssi;
 	uv_delay_st rssi_delay;
 
+#if CONFIG_ESP32_SNTP
+	// Network time as reported by AT+CIPSNTPTIME?, in the asctime shape
+	// "Thu Aug 21 14:27:00 2026". Empty until the first answer arrives.
+	// time_synced is what the TLS gate keys on: the module answers the query
+	// from power-on onwards, so before the first sync it reports a 1970 date
+	// and only the year separates that from a clock that has really been set.
+	char time_str[ESP32_TIME_STR_LEN];
+	/// Unix time from AT+SYSTIMESTAMP, seconds since 1970-01-01 UTC. 0 until
+	/// the clock is set. This is the form anything comparing dates wants --
+	/// certificate validity, log stamps -- so it is read separately rather
+	/// than parsed out of the asctime string above.
+	uint32_t time_epoch;
+	uint16_t time_year;
+	bool time_synced;
+	/// AT+CIPSNTPCFG has been sent on the *current* join.
+	bool sntp_cfg_sent;
+	uv_delay_st sntp_delay;
+#endif
+
 	uint32_t written_byte_count;
 	uint32_t transmitted_byte_count;
 
@@ -405,6 +460,31 @@ static inline uv_esp32_states_e uv_esp32_state_get(uv_esp32_st *this) {
 static inline int8_t uv_esp32_get_rssi(uv_esp32_st *this) {
 	return this->rssi;
 }
+
+
+#if CONFIG_ESP32_SNTP
+
+/// @brief: True once the module's clock has been set from the network. TLS
+/// connections made before this fail certificate validation, so the MQTT
+/// state machine waits for it whenever the scheme is a TLS one.
+static inline bool uv_esp32_time_synced(uv_esp32_st *this) {
+	return this->time_synced;
+}
+
+/// @brief: Last network time read from the module, as
+/// "Www Mmm dd hh:mm:ss yyyy". Empty string while the clock is unknown.
+static inline const char *uv_esp32_time_get_str(uv_esp32_st *this) {
+	return this->time_str;
+}
+
+/// @brief: Network time as seconds since the Unix epoch, UTC. Zero while the
+/// clock is unknown -- check uv_esp32_time_synced() before doing arithmetic on
+/// it, or a device that has never seen a time server looks like 1970.
+static inline uint32_t uv_esp32_time_get_epoch(uv_esp32_st *this) {
+	return this->time_epoch;
+}
+
+#endif
 
 
 /// @brief: Get data from connected device

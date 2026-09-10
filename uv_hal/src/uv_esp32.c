@@ -29,6 +29,26 @@
 // the query shares the AT channel with the MQTT publish drainer, and signal
 // strength is a slowly changing, purely informational value.
 #define ESP32_RSSI_POLL_MS			10000
+// Network time polling. While the clock is unknown the answer is asked for
+// often -- a TLS MQTT connect waits for it -- and rarely once it is known,
+// only to keep time_str fresh for whatever displays it. The module keeps
+// itself in sync on its own after AT+CIPSNTPCFG (lwIP re-syncs hourly), so
+// the slow poll is a read, not a resync.
+#define ESP32_SNTP_POLL_MS			2000
+#define ESP32_SNTP_REFRESH_MS		60000
+// Year from which the module's answer is taken to be a real clock rather than
+// the epoch-based one it reports before the first sync.
+#define ESP32_SNTP_MIN_YEAR			2024
+
+#define SNTPTIME_PREFIX				"+CIPSNTPTIME:"
+#define SNTPTIME_PREFIX_LEN			13
+#define SYSTIMESTAMP_PREFIX			"+SYSTIMESTAMP:"
+#define SYSTIMESTAMP_PREFIX_LEN		14
+// Unix time below which the module is considered not to have a clock yet. The
+// module answers both time queries from power-on, counting up from the epoch,
+// so a plausible date is the only thing separating a set clock from an unset
+// one. 2024-01-01, comfortably before any firmware carrying this code ran.
+#define ESP32_SNTP_MIN_EPOCH		1704067200u
 
 // Pending-line buffer state, used to coordinate async-event dispatch and
 // AT-response matching without double-consuming lines from rx_datastream.
@@ -97,6 +117,12 @@ static void at_resp_reset(uv_esp32_st *this) {
 	this->at_resp_i = 0;
 	this->at_resp[0] = '\0';
 	this->at_resp_escape = false;
+	// A line that completed before this command was sent belongs to the
+	// previous exchange -- typically the trailing OK of a fire-and-forget
+	// query such as AT+CWJAP? or AT+CIPSNTPTIME?. Dropping it here keeps the
+	// next rx_at_match from taking it for the answer to the command we are
+	// about to send.
+	this->at_resp_has_pending = false;
 }
 
 
@@ -167,11 +193,12 @@ static void send_at_cmd(uv_esp32_st *this, const char *cmd,
 }
 
 
-#if CONFIG_ESP32_MQTT
+#if CONFIG_ESP32_MQTT || CONFIG_ESP32_SNTP
 /// @brief: Sends a fully-formed AT command line followed by \r\n via
 /// tx_streambuffer. The caller is responsible for any escaping inside the
 /// composed line. Used for multi-arg AT commands that don't fit the
-/// "AT+CMD=\"arg1\",\"arg2\"" shape (e.g. AT+MQTTUSERCFG, AT+MQTTCONN).
+/// "AT+CMD=\"arg1\",\"arg2\"" shape (e.g. AT+MQTTUSERCFG, AT+MQTTCONN,
+/// AT+CIPSNTPCFG).
 static void send_at_cmd_raw(uv_esp32_st *this, const char *line) {
 	uv_mutex_lock(&this->txstream_mutex);
 	uv_streambuffer_push(&this->tx_streambuffer,
@@ -290,6 +317,57 @@ static bool dispatch_mqtt_line(uv_esp32_st *this) {
 		}
 		dispatched = true;
 	}
+#if CONFIG_ESP32_SNTP
+	else if (strstr(this->at_resp, SNTPTIME_PREFIX) != NULL) {
+		// Answer to the network time query:
+		// +CIPSNTPTIME:Thu Aug 21 14:27:00 2026. The stamp is fixed-shape, so
+		// the year is simply the last space-separated field. The module answers
+		// this from power-on onwards, reporting an epoch-based date until SNTP
+		// has actually reached a server, which is why the year is what decides
+		// whether the clock can be trusted.
+		char *stamp = strstr(this->at_resp, SNTPTIME_PREFIX) + SNTPTIME_PREFIX_LEN;
+		strncpy(this->time_str, stamp, sizeof(this->time_str) - 1);
+		this->time_str[sizeof(this->time_str) - 1] = '\0';
+		char *year = strrchr(this->time_str, ' ');
+		if (year != NULL) {
+			this->time_year = (uint16_t) strtol(year + 1, NULL, 10);
+		}
+		else {
+			this->time_year = 0;
+		}
+		if ((this->time_year >= ESP32_SNTP_MIN_YEAR) &&
+				!this->time_synced) {
+			this->time_synced = true;
+			ESP32_DEBUG(this, "ESP32: network time %s\n", this->time_str);
+		}
+		else {
+		}
+		dispatched = true;
+	}
+	else if (strstr(this->at_resp, SYSTIMESTAMP_PREFIX) != NULL) {
+		// +SYSTIMESTAMP:<seconds since the epoch>. Asked for alongside the
+		// asctime stamp because callers that compare dates -- certificate
+		// validity, most of all -- want a number, and converting the asctime
+		// back into one on the MCU is calendar arithmetic for no reason.
+		char *stamp = strstr(this->at_resp, SYSTIMESTAMP_PREFIX) +
+				SYSTIMESTAMP_PREFIX_LEN;
+		uint32_t epoch = (uint32_t) strtoul(stamp, NULL, 10);
+		if (epoch >= ESP32_SNTP_MIN_EPOCH) {
+			this->time_epoch = epoch;
+			if (!this->time_synced) {
+				this->time_synced = true;
+				ESP32_DEBUG(this, "ESP32: network time set, epoch %u\n",
+						(unsigned int) epoch);
+			}
+			else {
+			}
+		}
+		else {
+			// the module is still counting up from the epoch
+		}
+		dispatched = true;
+	}
+#endif
 	else {
 		// Note: +MQTTSUBRECV never reaches here. Its payload is raw binary and
 		// is captured off rx_datastream by at_feed_char below, before the line
@@ -582,6 +660,16 @@ static void set_state(uv_esp32_st *this, uv_esp32_states_e state) {
 	if (this->state != state) {
 		this->state = state;
 		switch (state) {
+		case ESP32_STATE_INIT:
+#if CONFIG_ESP32_SNTP
+			// the module is about to be reset and its clock goes with it
+			this->time_synced = false;
+			this->time_epoch = 0;
+			this->time_year = 0;
+			this->time_str[0] = '\0';
+			this->sntp_cfg_sent = false;
+#endif
+			break;
 		case ESP32_STATE_WAIT_READY:
 		case ESP32_STATE_TEST_AT:
 		case ESP32_STATE_DISABLE_ECHO:
@@ -601,6 +689,11 @@ static void set_state(uv_esp32_st *this, uv_esp32_states_e state) {
 			// ask for the signal strength right away rather than after a full
 			// poll interval of showing "not known"
 			uv_delay_init(&this->rssi_delay, 0);
+#if CONFIG_ESP32_SNTP
+			// (Re)configure SNTP on every join: it costs one AT command and
+			// covers a module that was reset without us noticing.
+			this->sntp_cfg_sent = false;
+#endif
 			break;
 		case ESP32_STATE_LEFT_NETWORK:
 			uv_delay_init(&this->timeout, ESP32_RECONNECT_MS);
@@ -848,6 +941,27 @@ static void mqtt_sub_finish(uv_esp32_st *this, bool ok) {
 #endif
 
 
+#if CONFIG_ESP32_MQTT
+/// @brief: True when the module's clock is good enough for the configured
+/// MQTT scheme. Certificate validity dates are compared against that clock, so
+/// a TLS scheme (>= 2) connecting before SNTP has set it fails the handshake
+/// with the server certificate reported as not yet valid; plain TCP (scheme 1)
+/// does not care. Without SNTP support built in nothing can be checked, and
+/// the answer is "as good as it gets".
+static bool mqtt_tls_time_ok(uv_esp32_st *this) {
+	bool ret = true;
+#if CONFIG_ESP32_SNTP
+	if (this->mqtt_scheme >= 2) {
+		ret = this->time_synced;
+	}
+	else {
+	}
+#endif
+	return ret;
+}
+#endif
+
+
 static void rxtx_task(void *me_ptr) {
 	uv_esp32_st *this = me_ptr;
 	uv_ts_st ts;
@@ -874,6 +988,18 @@ static void rxtx_task(void *me_ptr) {
 		}
 #else
 		pump_mqtt_async(this);
+#endif
+
+		// True when no AT exchange of ours is in flight, so a fire-and-forget
+		// query (signal strength, network time) can be injected without
+		// stealing the response another state machine is waiting for.
+#if CONFIG_ESP32_MQTT
+		bool at_idle = ((active_slot == NULL) &&
+				(this->mqtt_sub_active == NULL) &&
+				((this->mqtt_state == ESP32_MQTT_STATE_CONNECTED) ||
+				(this->mqtt_state == ESP32_MQTT_STATE_DISABLED)));
+#else
+		bool at_idle = true;
 #endif
 
 		switch (this->state) {
@@ -970,21 +1096,50 @@ static void rxtx_task(void *me_ptr) {
 			// next round.
 			if (uv_delay(&this->rssi_delay, uv_ts_get_step_ms(&ts))) {
 				uv_delay_init(&this->rssi_delay, ESP32_RSSI_POLL_MS);
-#if CONFIG_ESP32_MQTT
-				if ((active_slot == NULL) &&
-						(this->mqtt_sub_active == NULL) &&
-						((this->mqtt_state == ESP32_MQTT_STATE_CONNECTED) ||
-						(this->mqtt_state == ESP32_MQTT_STATE_DISABLED))) {
+				if (at_idle) {
 					send_at_cmd(this, "AT+CWJAP?", NULL, NULL);
 				}
 				else {
 				}
-#else
-				send_at_cmd(this, "AT+CWJAP?", NULL, NULL);
-#endif
 			}
 			else {
 			}
+#if CONFIG_ESP32_SNTP
+			// Network time, on the same fire-and-forget terms. The module has
+			// no clock of its own until SNTP is pointed at a server, and TLS
+			// certificate validity is checked against that clock, so this runs
+			// as soon as the network is joined and the MQTT client waits for
+			// its result (see mqtt_tls_time_ok).
+			if (!this->sntp_cfg_sent) {
+				if (at_idle) {
+					char line[128];
+					snprintf(line, sizeof(line), "AT+CIPSNTPCFG=1,%i,%s",
+							(int) ESP32_SNTP_TIMEZONE, ESP32_SNTP_SERVERS);
+					send_at_cmd_raw(this, line);
+					ESP32_DEBUG(this, "ESP32: SNTP servers %s\n",
+							ESP32_SNTP_SERVERS);
+					this->sntp_cfg_sent = true;
+					uv_delay_init(&this->sntp_delay, ESP32_SNTP_POLL_MS);
+				}
+				else {
+				}
+			}
+			else if (uv_delay(&this->sntp_delay, uv_ts_get_step_ms(&ts))) {
+				uv_delay_init(&this->sntp_delay, this->time_synced ?
+						ESP32_SNTP_REFRESH_MS : ESP32_SNTP_POLL_MS);
+				if (at_idle) {
+					// Both stamps: the string for anything that displays the
+					// time, the epoch for anything that compares dates. Two
+					// fire-and-forget queries, answered independently.
+					send_at_cmd(this, "AT+CIPSNTPTIME?", NULL, NULL);
+					send_at_cmd(this, "AT+SYSTIMESTAMP?", NULL, NULL);
+				}
+				else {
+				}
+			}
+			else {
+			}
+#endif
 			break;
 
 		case ESP32_STATE_GET_MAC: {
@@ -1109,7 +1264,8 @@ static void rxtx_task(void *me_ptr) {
 			switch (this->mqtt_state) {
 			case ESP32_MQTT_STATE_DISABLED:
 				if (this->mqtt_broker_url != NULL &&
-						this->mqtt_broker_url[0] != '\0') {
+						this->mqtt_broker_url[0] != '\0' &&
+						mqtt_tls_time_ok(this)) {
 					mqtt_set_state(this, ESP32_MQTT_STATE_INIT);
 				}
 				else {
@@ -1388,6 +1544,14 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 	this->mac = 0;
 	this->rssi = 0;
 	uv_delay_init(&this->rssi_delay, ESP32_RSSI_POLL_MS);
+#if CONFIG_ESP32_SNTP
+	this->time_str[0] = '\0';
+	this->time_epoch = 0;
+	this->time_year = 0;
+	this->time_synced = false;
+	this->sntp_cfg_sent = false;
+	uv_delay_init(&this->sntp_delay, ESP32_SNTP_POLL_MS);
+#endif
 	this->written_byte_count = 0;
 	this->transmitted_byte_count = 0;
 

@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <time.h>
 
 #if CONFIG_ESP32 && CONFIG_TARGET_LINUX
 
@@ -336,6 +337,14 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 	this->wifi_ssid = wifi_ssid;
 	this->wifi_passwd = wifi_passwd;
 	this->state = ESP32_STATE_INIT;
+#if CONFIG_ESP32_SNTP
+	// nothing to sync here: see sntp_from_host below
+	this->time_str[0] = '\0';
+	this->time_epoch = 0;
+	this->time_year = 0;
+	this->time_synced = false;
+	this->sntp_cfg_sent = true;
+#endif
 #if CONFIG_ESP32_MQTT
 	this->mqtt_state = ESP32_MQTT_STATE_DISABLED;
 	this->mqtt_rx_callb = NULL;
@@ -420,7 +429,43 @@ static void mqtt_sub_drain(uv_esp32_st *this) {
 #endif
 
 
+#if CONFIG_ESP32_SNTP
+
+/// How often the host clock is re-read into time_str. Only the string is
+/// refreshed; the clock itself is never out of sync on a PC.
+#define ESP32_SNTP_HOST_REFRESH_MS		1000
+
+/// @brief: The simulator has a real system clock, so there is no SNTP step to
+/// run: report the time as synced (the device build makes the MQTT client wait
+/// for that) and keep time_str in the same asctime shape, and the same UTC
+/// timezone, that AT+CIPSNTPTIME? answers with on the module.
+static void sntp_from_host(uv_esp32_st *this, uint16_t step_ms) {
+	if (!this->time_synced ||
+			uv_delay(&this->sntp_delay, step_ms)) {
+		uv_delay_init(&this->sntp_delay, ESP32_SNTP_HOST_REFRESH_MS);
+		time_t now = time(NULL);
+		struct tm tm_buf;
+		if (gmtime_r(&now, &tm_buf) != NULL) {
+			(void) strftime(this->time_str, sizeof(this->time_str),
+					"%a %b %d %H:%M:%S %Y", &tm_buf);
+			this->time_year = (uint16_t) (tm_buf.tm_year + 1900);
+			this->time_epoch = (uint32_t) now;
+			this->time_synced = true;
+		}
+		else {
+		}
+	}
+	else {
+	}
+}
+
+#endif
+
+
 void uv_esp32_step(uv_esp32_st *this, uint16_t step_ms) {
+#if CONFIG_ESP32_SNTP
+	sntp_from_host(this, step_ms);
+#endif
 #if CONFIG_ESP32_MQTT
 
 	// Lazy-connect once an MQTT broker URL has been configured.
