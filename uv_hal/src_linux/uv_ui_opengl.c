@@ -868,7 +868,18 @@ void uv_ui_draw_rrect_impl(const int16_t x, const int16_t y,
 
 		glBegin(GL_TRIANGLE_FAN);
 		for (uint32_t q = 0; q < 4u; q++) {
-			for (uint32_t i = 0; i < segments; i++) {
+			// i runs up to and including segments, so that the arc reaches the
+			// tangent point where the straight edge to the next corner starts.
+			// Stopping one segment short left that edge running from a point a
+			// fraction of a pixel off the axis, i.e. sloping: the row along it
+			// then crossed the pixel centres partway along the rectangle, and
+			// the top and the bottom row of every button, tab and window were
+			// drawn for only a part of their length.
+			//
+			// Both ends are needed: each corner has an arc centre of its own,
+			// so a quadrant's first vertex is the near end of the edge, not a
+			// repeat of the far end the previous quadrant finished at.
+			for (uint32_t i = 0; i <= segments; i++) {
 				double a = (M_PI / 2.0) *
 						((double) q + ((double) i / (double) segments));
 				glVertex2f(cx[q] + (float) ((double) radius * cos(a)),

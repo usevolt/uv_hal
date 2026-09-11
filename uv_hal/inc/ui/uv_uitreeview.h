@@ -92,7 +92,13 @@ void uv_uitreeobject_init(void *me, uv_uiobject_st **object_array,
 
 
 /// @brief: Adds objects to the uitreeobject. This should be called
-/// in a uitreeiobject's show-callback
+/// in a uitreeiobject's show-callback.
+///
+/// The coordinates are the content's own: (0, 0) is the top left corner of what
+/// this object shows below its header row, indented under the header's name so
+/// that the rows read as belonging to it. That indent is taken off the width
+/// available, so lay the children out inside uv_uitreeobject_get_content_bb()
+/// rather than inside the object's own bounding box.
 static inline void uv_uitreeobject_addxy(void *me, void* obj,
 		int16_t x, int16_t y, uint16_t width, uint16_t height) {
 	uv_uiwindow_addxy(me, obj, x, y, width, height);
@@ -103,6 +109,8 @@ static inline void uv_uitreeobject_add(void *me, void* obj,
 	uv_uiwindow_add(me, obj, bb);
 }
 
+/// @brief: The area the object's children live in: the object's own box less the
+/// header row and less the indent the content starts at.
 uv_bounding_box_st uv_uitreeobject_get_content_bb(void *me);
 
 static inline void uv_uitreeobject_set_content_bb(void *me,
