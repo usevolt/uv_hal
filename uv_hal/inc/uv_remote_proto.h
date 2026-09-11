@@ -102,13 +102,26 @@ typedef enum {
 } remote_msg_types_e;
 
 
-/// @brief: Remotely switchable features of the iot submodule. Both default to
+/// @brief: Remotely switchable features of the iot submodule. All default to
 /// off at boot and after every broker reconnect; only the server turns them on,
 /// with REMOTE_MSG_TYPE_IOT_CTRL.
 #define REMOTE_IOT_FEATURE_UI			(1 << 0)
 #define REMOTE_IOT_FEATURE_CAN			(1 << 1)
+/// Narrows CAN forwarding to what a parameter transfer needs, which is most of
+/// the point of forwarding at all over a link this thin: a machine bus is
+/// almost entirely process data, and a load or a save of the parameters cares
+/// about none of it. Only meaningful together with REMOTE_IOT_FEATURE_CAN, and
+/// dropped from the applied mask without it, so the two can never disagree
+/// about whether anything is being forwarded.
+///
+/// What still goes across is the SDO class and the CTRL class. The control
+/// frames are what tells the far end the node is there at all -- without the
+/// heartbeats every device reads as offline and the tool refuses to talk to it
+/// -- and they are rare enough to cost nothing next to what this drops.
+#define REMOTE_IOT_FEATURE_CAN_SDO		(1 << 2)
 #define REMOTE_IOT_FEATURE_ALL			(REMOTE_IOT_FEATURE_UI | \
-										 REMOTE_IOT_FEATURE_CAN)
+										 REMOTE_IOT_FEATURE_CAN | \
+										 REMOTE_IOT_FEATURE_CAN_SDO)
 
 
 // --- UI mirroring wire constants --------------------------------------------
