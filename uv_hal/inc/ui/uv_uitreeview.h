@@ -66,10 +66,18 @@ struct   _uv_uitreeobject_st {
 	/// dispatch entirely. Closing an object by disabling it therefore greyed it
 	/// and made it unclickable, so it could never be opened again.
 	bool open;
+	/// @brief: Whether the child NODES of this object keep one open at a time,
+	/// as uv_uitreeview_st::one_active does for the nodes at the root. A node
+	/// holds a branch of the same tree, so it behaves like the root does.
+	bool one_active;
 	/// @brief: Height of this object's content, i.e. what it occupies below the
 	/// header row when it is open. Remembered because the object's own height is
 	/// shrunk to the header row while it is closed, so that a closed object takes
 	/// up (and reacts to touches over) only its own row.
+	///
+	/// A floor rather than the figure itself: the layout measures what the object
+	/// actually holds, and this is what an object that builds its rows only when
+	/// it is opened is worth until it has them.
 	int16_t content_h;
 };
 
@@ -91,6 +99,16 @@ void uv_uitreeobject_init(void *me, uv_uiobject_st **object_array,
 		const char *name, void (*show_callb)(uv_uitreeobject_st *me_ptr), const uv_uistyle_st* style);
 
 
+/// @brief: Adds a child NODE to a tree object, i.e. a subtree hanging off it.
+///
+/// The same call as uv_uitreeview_add() -- see it for the arguments -- and it
+/// is listed separately only because the container is a node rather than the
+/// tree view. Nodes are laid out below whatever plain widgets the object also
+/// holds, so an object can show rows of its own and subtrees under them.
+#define uv_uitreeobject_add_node(me, object, content_height, active) \
+	uv_uitreeview_add((me), (object), (content_height), (active))
+
+
 /// @brief: Adds objects to the uitreeobject. This should be called
 /// in a uitreeiobject's show-callback.
 ///
@@ -108,6 +126,15 @@ static inline void uv_uitreeobject_add(void *me, void* obj,
 		uv_bounding_box_st *bb) {
 	uv_uiwindow_add(me, obj, bb);
 }
+
+/// @brief: Sets the font the object's header row -- its open/close marker and
+/// its name -- is drawn with. Defaults to the style's font.
+///
+/// The content is indented by the marker's width, so it moves with the font:
+/// call this before laying the children out, and lay them out inside the
+/// uv_uitreeobject_get_content_bb() that follows the call.
+void uv_uitreeobject_set_font(void *me, uv_font_st *font);
+
 
 /// @brief: The area the object's children live in: the object's own box less the
 /// header row and less the indent the content starts at.
@@ -152,11 +179,10 @@ void uv_uitreeview_open(void *me, uv_uitreeobject_st *obj);
 void uv_uitreeview_close(void *me, uv_uitreeobject_st *obj);
 
 
-/// @brief: By default only 1 object can be active (== open) at one time
-static inline void uv_uitreeview_set_oneactive(void *me, bool value) {
-	((uv_uitreeview_st*) me)->one_active = value;
-	uv_ui_refresh(me);
-}
+/// @brief: By default only 1 object can be active (== open) at one time.
+/// Takes either the tree view or one of its nodes, and sets it for the children
+/// of whichever it is given.
+void uv_uitreeview_set_oneactive(void *me, bool value);
 
 
 static inline void uv_uitreeview_set_stepcallb(void *me,
@@ -166,9 +192,14 @@ static inline void uv_uitreeview_set_stepcallb(void *me,
 
 
 
-/// @brief: Adds a new object to the treeview
+/// @brief: Adds a new object to the treeview, or to one of its nodes (see
+/// uv_uitreeobject_add_node).
 ///
 /// @param object: Pointer to the object to be added
+/// @param content_height: what the object shows below its header row once it is
+/// open, in pixels. A floor: an object holding subtrees is measured by what
+/// they come to, so pass 0 for one that holds nothing else.
+/// @param active: whether to add it open
 void uv_uitreeview_add(void *me, uv_uitreeobject_st * const object,
 		const int16_t content_height, const bool active);
 

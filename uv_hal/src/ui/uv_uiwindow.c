@@ -127,17 +127,30 @@ void uv_uiwindow_draw_scrollbars(void *me, const uv_bounding_box_st *pbb) {
 	}
 }
 
-void _uv_uiwindow_draw_children(void *me, const uv_bounding_box_st *pbb) {
-
-	uv_bounding_box_st bb = *uv_uibb(this);
-	int16_t globx = uv_ui_get_xglobal(this);
-	int16_t globy = uv_ui_get_yglobal(this);
-	bb.x = globx;
-	bb.y = globy;
+/// @brief: The area the children of *me* may draw in, in global coordinates:
+/// this window's own content area, clipped to what the parent allows.
+///
+/// The content area starts at the content box's default position, which is
+/// where a window that reserves a strip of itself puts its children -- the tab
+/// window's header, the frame window's border, the tree object's header row.
+/// That strip belongs to the window itself and the children are laid out below
+/// and to the right of it, so it is no part of what they may paint on: without
+/// it a scrolled tree drew its rows straight over the tabs above it.
+static uv_bounding_box_st children_bb(void *me, const uv_bounding_box_st *pbb) {
+	uv_bounding_box_st bb;
+	bb.x = uv_ui_get_xglobal(this) + this->content_bb_xdef;
+	bb.y = uv_ui_get_yglobal(this) + this->content_bb_ydef;
+	bb.width = uv_uibb(this)->width - this->content_bb_xdef;
+	bb.height = uv_uibb(this)->height - this->content_bb_ydef;
+	// clip to the parent's area. Moving an edge in has to take the same off the
+	// width or height, or the far edge moves out by as much as the near one
+	// moved in.
 	if (bb.x < pbb->x) {
+		bb.width -= pbb->x - bb.x;
 		bb.x = pbb->x;
 	}
 	if (bb.y < pbb->y) {
+		bb.height -= pbb->y - bb.y;
 		bb.y = pbb->y;
 	}
 	if ((bb.x + bb.width) > (pbb->x + pbb->width)) {
@@ -146,15 +159,40 @@ void _uv_uiwindow_draw_children(void *me, const uv_bounding_box_st *pbb) {
 	if ((bb.y + bb.height) > (pbb->y + pbb->height)) {
 		bb.height -= (bb.y + bb.height) - (pbb->y + pbb->height);
 	}
+	if (bb.width < 0) {
+		bb.width = 0;
+	}
+	if (bb.height < 0) {
+		bb.height = 0;
+	}
+	return bb;
+}
+
+
+void _uv_uiwindow_draw_children(void *me, const uv_bounding_box_st *pbb) {
+
+	// What the children are clipped to. Handed down as their parent bounding
+	// box, so that a child window clips its own children against it in turn,
+	// and restored as the scissor mask after any child that drew, because a
+	// child is free to narrow the mask for itself and several of them do.
+	//
+	// This is the window's own content area and not the box it was given: a
+	// child that overflows its window -- one scrolled halfway out of view, say
+	// -- is cut at the window's edge instead of painting over whatever the
+	// window happens to sit on.
+	uv_bounding_box_st bb = children_bb(this, pbb);
+	// before the first child as well: a leaf object draws under whatever mask it
+	// is handed, and uv_uiwindow_draw() left one that still covers the strip the
+	// content area excludes
+	uv_ui_set_mask(bb.x, bb.y, bb.width, bb.height);
 
 	for (int16_t i = 0; i < this->objects_count; i++) {
 		((uv_uiobject_st*) this->objects[i])->refresh = true;
-		bool ret = _uv_uiobject_draw(this->objects[i], pbb);
+		bool ret = _uv_uiobject_draw(this->objects[i], &bb);
 
 		// ensure that scissors mask is not changed by child object
 		if (ret) {
-			uv_ui_set_mask(globx, globy,
-					uv_uibb(this)->width, uv_uibb(this)->height);
+			uv_ui_set_mask(bb.x, bb.y, bb.width, bb.height);
 		}
 	}
 }

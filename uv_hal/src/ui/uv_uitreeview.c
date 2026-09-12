@@ -49,7 +49,7 @@
 #define GUIDE_C		C(0xFFFFFFFF)
 
 
-static void uitreeview_recalc_height(void *me);
+static int16_t uitreeview_recalc_height(void *me);
 static void uv_uitreeobject_draw(void *me, const uv_bounding_box_st *pbb);
 static void uitreeobject_draw_guides(void *me);
 static void touch(void *me, uv_touch_st *touch);
@@ -69,6 +69,7 @@ void uv_uitreeobject_init(void *me, uv_uiobject_st **object_array,
 	this->name = name;
 	this->show_callb = show_callb;
 	this->open = false;
+	this->one_active = true;
 	((uv_uiobject_st*) this)->step_callb = &uv_uiwindow_step;
 	uv_uiobject_set_draw_callb(this, &uv_uitreeobject_draw);
 	uv_uiobject_set_touch_callb(this, &touch);
@@ -235,6 +236,19 @@ static void uv_uitreeobject_draw(void *me, const uv_bounding_box_st *pbb) {
 }
 
 
+void uv_uitreeobject_set_font(void *me, uv_font_st *font) {
+	if (font != NULL) {
+		this->font = font;
+		// the indent is a marker's width, so it follows the font
+		uv_uiwindow_set_content_bb_default_pos(this,
+				INDENT(this->font), CONFIG_UI_TREEVIEW_ITEM_HEIGHT);
+		uv_ui_refresh(this);
+	}
+	else {
+	}
+}
+
+
 uv_bounding_box_st uv_uitreeobject_get_content_bb(void *me) {
 	uv_bounding_box_st bb = uv_uiwindow_get_contentbb(this);
 	bb.height -= CONFIG_UI_TREEVIEW_ITEM_HEIGHT;
@@ -249,6 +263,129 @@ uv_bounding_box_st uv_uitreeobject_get_content_bb(void *me) {
 #define this ((uv_uitreeview_st*) me)
 
 
+/// @brief: True when *obj* is a node of the tree, as opposed to a plain widget
+/// or the tree view at its root.
+///
+/// The draw callback is what tells them apart: uv_uitreeobject_init() installs
+/// it and nothing else does, which is also why uv_uitreeobject_clear() puts it
+/// back. A node and the tree view both extend uv_uiwindow_st but carry
+/// different fields after it, so reading one as if it were the other is exactly
+/// what this exists to prevent -- a nested node's container is another node,
+/// and before this the open/close path read its name pointer as the tree view's
+/// one_active flag.
+static bool is_treeobject(const void *obj) {
+	return ((obj != NULL) &&
+			(((const uv_uiobject_st*) obj)->vrtl_draw == &uv_uitreeobject_draw));
+}
+
+
+/// @brief: Whether *container* keeps one of its child nodes open at a time. A
+/// node holds a branch of the same tree, so it behaves the way the root does.
+static bool container_one_active(const void *container) {
+	return is_treeobject(container) ?
+			((const uv_uitreeobject_st*) container)->one_active :
+			((const uv_uitreeview_st*) container)->one_active;
+}
+
+
+/// @brief: The width a container's child nodes are given: its content area,
+/// which for a node is already short of the indent its content starts at.
+static int16_t container_content_width(void *container) {
+	return is_treeobject(container) ?
+			uv_uitreeobject_get_content_bb(container).width :
+			uv_uiwindow_get_contentbb(container).width;
+}
+
+
+/// @brief: The tree view the whole thing hangs off, found by walking up for as
+/// long as the container is still a node.
+///
+/// Opening a node changes the height of every node above it and of the view
+/// itself, so the layout is always redone from the root rather than from the
+/// container the node happens to sit in.
+static void *tree_root(void *container) {
+	void *ret = container;
+	while (is_treeobject(ret) &&
+			(((uv_uiobject_st*) ret)->parent != NULL)) {
+		ret = ((uv_uiobject_st*) ret)->parent;
+	}
+	return ret;
+}
+
+
+/// @brief: Lays out *container*'s child nodes and returns what its content
+/// comes to in pixels.
+///
+/// The nodes are stacked in the order they were added, below whatever plain
+/// widgets the container also holds: a directory's own rows come first and the
+/// subdirectories follow them, so the rows keep the positions the application
+/// gave them however the subtrees below them are opened and closed.
+///
+/// Recursive, because an open node is as tall as its own content and that is in
+/// turn whatever its children come to. Which is what lets a node several levels
+/// down push everything below it -- all the way up to the root -- into place.
+static int16_t uitreeview_recalc_height(void *me) {
+	uv_uiwindow_st *win = (uv_uiwindow_st*) me;
+	int16_t h = 0;
+	for (uint16_t i = 0; i < win->objects_count; i++) {
+		uv_uiobject_st *obj = win->objects[i];
+		if (obj->visible && !is_treeobject(obj)) {
+			int16_t bottom = uv_uibb(obj)->y + uv_uibb(obj)->height;
+			if (bottom > h) {
+				h = bottom;
+			}
+			else {
+			}
+		}
+		else {
+		}
+	}
+	for (uint16_t i = 0; i < win->objects_count; i++) {
+		uv_uiobject_st *obj = win->objects[i];
+		if (obj->visible && is_treeobject(obj)) {
+			uv_uitreeobject_st *node = (uv_uitreeobject_st*) obj;
+			uv_uibb(node)->y = h;
+			// re-measured rather than kept from when the node was added: the
+			// content narrows by the scroll bar's width the moment the tree grows
+			// taller than its window, and rows added on either side of that point
+			// would otherwise end at different places
+			uv_uibb(node)->width = container_content_width(me);
+			int16_t node_h = CONFIG_UI_TREEVIEW_ITEM_HEIGHT;
+			if (node->open) {
+				int16_t content = uitreeview_recalc_height(node);
+				// the height declared when the node was added is a floor, for
+				// one that builds its rows only when it is opened
+				if (node->content_h > content) {
+					content = node->content_h;
+				}
+				else {
+				}
+				node_h += content;
+			}
+			else {
+				// Closed: the header row alone. Without this a closed node
+				// keeps the height of its open state, so it still covers the
+				// rows beneath it and its own hidden children stay in the way
+				// of touches meant for them.
+			}
+			uv_uibb(node)->height = node_h;
+			h += node_h;
+		}
+		else {
+		}
+	}
+	return h;
+}
+
+
+/// @brief: Redoes the layout of the whole tree *container* belongs to and sizes
+/// the root's content box to match, so the scroll bar follows what is open.
+static void uitreeview_relayout(void *container) {
+	void *root = tree_root(container);
+	int16_t h = uitreeview_recalc_height(root);
+	uv_uiwindow_set_contentbb(root, uv_uibb(root)->width, h);
+	uv_ui_refresh(root);
+}
 
 
 void uv_uitreeview_init(void *me,
@@ -258,64 +395,78 @@ void uv_uitreeview_init(void *me,
 }
 
 
+void uv_uitreeview_set_oneactive(void *me, bool value) {
+	if (is_treeobject(me)) {
+		((uv_uitreeobject_st*) me)->one_active = value;
+	}
+	else {
+		((uv_uitreeview_st*) me)->one_active = value;
+	}
+	uv_ui_refresh(me);
+}
 
 
 void uv_uitreeview_open(void *me, uv_uitreeobject_st *obj) {
-	if (this->one_active) {
-		for (uint16_t i = 0; i < ((uv_uiwindow_st*)this)->objects_count; i++) {
-			if (((uv_uitreeobject_st*) ((uv_uiwindow_st*) this)->objects[i])->open) {
-				uv_uitreeview_close(this,
-						(uv_uitreeobject_st*) ((uv_uiwindow_st*)this)->objects[i]);
+	uv_uiwindow_st *win = (uv_uiwindow_st*) me;
+	if (container_one_active(me)) {
+		for (uint16_t i = 0; i < win->objects_count; i++) {
+			// the nodes only: a container may hold plain widgets as well, and
+			// they have no open state to close
+			if (is_treeobject(win->objects[i]) &&
+					(win->objects[i] != (uv_uiobject_st*) obj) &&
+					((uv_uitreeobject_st*) win->objects[i])->open) {
+				uv_uitreeview_close(me, (uv_uitreeobject_st*) win->objects[i]);
+			}
+			else {
 			}
 		}
 	}
+	else {
+	}
 	obj->open = true;
-	// Back to the full height, so the rows below it are laid out (and can be
-	// touched) again.
-	uv_uibb(obj)->height = CONFIG_UI_TREEVIEW_ITEM_HEIGHT + obj->content_h;
-	uitreeview_recalc_height(this);
-	uv_uiwindow_content_move_to(this, 0, uv_uibb(obj)->y);
+	// before the layout, not after it: an object that builds its rows when it
+	// is opened has to have them before there is anything to measure
 	if (obj->show_callb) {
 		obj->show_callb(obj);
 	}
+	else {
+	}
+	uitreeview_relayout(me);
+
+	// Scroll the tree so the node that was just opened is at the top of the
+	// view. Accumulated up to the root, because the node may sit several levels
+	// down and it is the root that scrolls; each level adds its own position
+	// and the offset its content starts at.
+	int16_t y = uv_uibb(obj)->y;
+	void *c = me;
+	while (is_treeobject(c)) {
+		y += ((uv_uiwindow_st*) c)->content_bb.y + uv_uibb(c)->y;
+		c = ((uv_uiobject_st*) c)->parent;
+	}
+	uv_uiwindow_content_move_to(c, 0, y);
 }
 
 
 void uv_uitreeview_close(void *me, uv_uitreeobject_st *obj) {
 	obj->open = false;
-	// Shrink to the header row. Without this a closed object keeps the height of
-	// its open state, so it still covers the rows beneath it: its own hidden
-	// children stay in the way of touches meant for the objects below.
-	uv_uibb(obj)->height = CONFIG_UI_TREEVIEW_ITEM_HEIGHT;
-	uitreeview_recalc_height(this);
+	uitreeview_relayout(me);
 }
 
 
 void uv_uitreeview_add(void *me, uv_uitreeobject_st * const object,
 		const int16_t content_height, const bool active) {
-	uv_uiwindow_addxy((uv_uiwindow_st*) this, object, 0,
-			CONFIG_UI_TREEVIEW_ITEM_HEIGHT * ((uv_uiwindow_st*)this)->objects_count,
-			uv_uiwindow_get_contentbb(this).width, CONFIG_UI_TREEVIEW_ITEM_HEIGHT + content_height);
-	// Remembered so opening it again can restore the height that closing shrinks.
+	// the position is settled by the layout below; the height likewise, and
+	// the one passed here is what the object is worth until it holds anything
+	uv_uiwindow_addxy((uv_uiwindow_st*) me, object, 0, 0,
+			container_content_width(me),
+			CONFIG_UI_TREEVIEW_ITEM_HEIGHT + content_height);
 	object->content_h = content_height;
 	if (active) {
-		uv_uitreeview_open(this, object);
+		uv_uitreeview_open(me, object);
 	}
 	else {
-		uv_uitreeview_close(this, object);
+		uv_uitreeview_close(me, object);
 	}
-}
-
-
-static void uitreeview_recalc_height(void *me) {
-	uint16_t content_height = 0;
-	uv_uitreeobject_st ** const objs = (uv_uitreeobject_st ** const) ((uv_uiwindow_st*) this)->objects;
-	for (int i = 0; i < ((uv_uiwindow_st*) this)->objects_count; i++) {
-		uv_uibb(objs[i])->y = content_height;
-		content_height += (objs[i]->open) ?
-				uv_uibb(objs[i])->height : CONFIG_UI_TREEVIEW_ITEM_HEIGHT;
-	}
-	uv_uiwindow_set_contentbb(this, uv_uibb(this)->width, content_height);
 }
 
 
