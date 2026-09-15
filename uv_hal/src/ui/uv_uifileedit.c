@@ -157,13 +157,47 @@ static void build_win_filter(const uv_uifileedit_filter_st *filters,
 	dst[di] = L'\0';	// final list terminator
 }
 
+// Appends *dir*, followed by a backslash and *name* when *name* is not NULL, to
+// the newline-separated path list in *out* which holds *used* bytes. Returns the
+// new length of the list; a path which does not fit is left out.
+static size_t append_win_path(char *out, uint16_t out_len, size_t used,
+		const wchar_t *dir, const wchar_t *name) {
+	wchar_t wpath[1024];
+	wcsncpy(wpath, dir, sizeof(wpath) / sizeof(wpath[0]) - 1);
+	wpath[sizeof(wpath) / sizeof(wpath[0]) - 1] = L'\0';
+	if (name != NULL) {
+		size_t l = wcslen(wpath);
+		wcsncat(wpath, L"\\", sizeof(wpath) / sizeof(wpath[0]) - 1 - l);
+		l = wcslen(wpath);
+		wcsncat(wpath, name, sizeof(wpath) / sizeof(wpath[0]) - 1 - l);
+	}
+	char path[1024];
+	int n = WideCharToMultiByte(CP_UTF8, 0, wpath, -1, path, sizeof(path),
+			NULL, NULL);
+	if (n > 1) {
+		size_t l = (size_t) n - 1;
+		size_t sep = (used != 0) ? 1 : 0;
+		if ((used + sep + l + 1) <= out_len) {
+			if (sep != 0) {
+				out[used++] = '\n';
+			}
+			memcpy(out + used, path, l + 1);
+			used += l;
+		}
+	}
+	return used;
+}
+
 static bool filedialog_open(const char *title,
 		const uv_uifileedit_filter_st *filters, uint8_t filter_count,
-		bool save, char *out, uint16_t out_len) {
+		bool save, bool multiple, char *out, uint16_t out_len) {
 	if ((out == NULL) || (out_len == 0)) {
 		return false;
 	}
-	wchar_t file[1024] = L"";
+	// static: a multiple selection needs room for many names, too much for the
+	// stack. The chooser is modal, so there is only ever one of them open.
+	static wchar_t file[8192];
+	file[0] = L'\0';
 	wchar_t wtitle[256];
 	wchar_t wfilter[512];
 	wchar_t wdir[512];
@@ -180,7 +214,8 @@ static bool filedialog_open(const char *title,
 	// the dialog would silently chdir() the whole application. For "save as" the
 	// file need not exist; prompt before overwriting an existing one instead.
 	ofn.Flags = OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR |
-			(save ? OFN_OVERWRITEPROMPT : OFN_FILEMUSTEXIST);
+			(save ? OFN_OVERWRITEPROMPT : OFN_FILEMUSTEXIST) |
+			((multiple && !save) ? (OFN_ALLOWMULTISELECT | OFN_EXPLORER) : 0);
 	if (title != NULL) {
 		MultiByteToWideChar(CP_UTF8, 0, title, -1, wtitle,
 				sizeof(wtitle) / sizeof(wtitle[0]));
@@ -194,10 +229,30 @@ static bool filedialog_open(const char *title,
 
 	bool ret = false;
 	BOOL ok = save ? GetSaveFileNameW(&ofn) : GetOpenFileNameW(&ofn);
-	if (ok) {
+	if (ok && !(multiple && !save)) {
 		WideCharToMultiByte(CP_UTF8, 0, file, -1, out, out_len, NULL, NULL);
 		out[out_len - 1] = '\0';
 		ret = true;
+	}
+	else if (ok) {
+		// Several files picked: the buffer holds their directory and then each
+		// file name, every one null-terminated and the list ended by an empty
+		// string. A single file picked is one full path, as without multiselect.
+		const wchar_t *name = file + wcslen(file) + 1;
+		size_t used = 0;
+		out[0] = '\0';
+		if (*name == L'\0') {
+			used = append_win_path(out, out_len, used, file, NULL);
+		}
+		else {
+			while (*name != L'\0') {
+				used = append_win_path(out, out_len, used, file, name);
+				name += wcslen(name) + 1;
+			}
+		}
+		ret = (used != 0);
+	}
+	else {
 	}
 	return ret;
 }
@@ -286,10 +341,12 @@ static void append_linux_filters(char *cmd, size_t cmdlen, int *n,
 
 static bool filedialog_open(const char *title,
 		const uv_uifileedit_filter_st *filters, uint8_t filter_count,
-		bool save, char *out, uint16_t out_len) {
+		bool save, bool multiple, char *out, uint16_t out_len) {
 	if ((out == NULL) || (out_len == 0)) {
 		return false;
 	}
+	// a "save as" chooser names a single file
+	multiple = multiple && !save;
 	char qtitle[256];
 	shell_quote((title != NULL) ? title : "Select file", qtitle, sizeof(qtitle));
 
@@ -343,8 +400,11 @@ static bool filedialog_open(const char *title,
 		int n = 0;
 		if (backends[i].type == BACKEND_ZENITY) {
 			n += snprintf(cmd + n, sizeof(cmd) - n,
-					"%s --file-selection --title=%s%s", backends[i].bin, qtitle,
-					save ? " --save --confirm-overwrite" : "");
+					"%s --file-selection --title=%s%s%s", backends[i].bin, qtitle,
+					save ? " --save --confirm-overwrite" : "",
+					// one path per line: the default separator '|' can be part
+					// of a file name, a newline hardly ever is
+					multiple ? " --multiple --separator='\n'" : "");
 			if (qstart[0] != '\0') {
 				n += snprintf(cmd + n, (n < (int) sizeof(cmd)) ? sizeof(cmd) - n : 0,
 						" --filename=%s", qstart);
@@ -353,8 +413,9 @@ static bool filedialog_open(const char *title,
 		else {
 			// kdialog always wants a startDir argument; "." is its working directory
 			n += snprintf(cmd + n, sizeof(cmd) - n,
-					"%s --title %s %s %s", backends[i].bin, qtitle,
+					"%s --title %s %s%s %s", backends[i].bin, qtitle,
 					save ? "--getsavefilename" : "--getopenfilename",
+					multiple ? " --multiple --separate-output" : "",
 					(qstart[0] != '\0') ? qstart : ".");
 		}
 		append_linux_filters(cmd, sizeof(cmd), &n, backends[i].type,
@@ -366,25 +427,32 @@ static bool filedialog_open(const char *title,
 		if (p == NULL) {
 			continue;
 		}
+		// the chooser prints one path per line; nothing when the user cancelled.
+		// A multiple selection collects every line into *out*, separated by
+		// newlines; a path which does not fit is left out.
 		char line[1024];
-		line[0] = '\0';
-		char *r = fgets(line, sizeof(line), p);
-		pclose(p);
-		if ((r != NULL) && (line[0] != '\0') && (line[0] != '\n')) {
+		size_t used = 0;
+		out[0] = '\0';
+		while (fgets(line, sizeof(line), p) != NULL) {
 			// strip the trailing newline the dialog prints
 			size_t l = strlen(line);
 			while ((l > 0) && ((line[l - 1] == '\n') || (line[l - 1] == '\r'))) {
 				line[--l] = '\0';
 			}
-			if (l > 0) {
-				strncpy(out, line, out_len - 1);
-				out[out_len - 1] = '\0';
-				ret = true;
+			size_t sep = (used != 0) ? 1 : 0;
+			if ((l > 0) && ((used + sep + l + 1) <= out_len)) {
+				if (sep != 0) {
+					out[used++] = '\n';
+				}
+				memcpy(out + used, line, l + 1);
+				used += l;
+				if (!multiple) {
+					break;
+				}
 			}
 		}
-		else {
-			// dialog was shown but the user cancelled (no output)
-		}
+		pclose(p);
+		ret = (used != 0);
 		// a chooser was found and displayed; do not fall through to another one
 		break;
 	}
@@ -401,11 +469,12 @@ static bool filedialog_open(const char *title,
 // MCU targets have no host file system; the field is inert.
 static bool filedialog_open(const char *title,
 		const uv_uifileedit_filter_st *filters, uint8_t filter_count,
-		bool save, char *out, uint16_t out_len) {
+		bool save, bool multiple, char *out, uint16_t out_len) {
 	(void) title;
 	(void) filters;
 	(void) filter_count;
 	(void) save;
+	(void) multiple;
 	(void) out;
 	(void) out_len;
 	return false;
@@ -421,6 +490,7 @@ struct filedialog_async {
 	const uv_uifileedit_filter_st *filters;
 	uint8_t filter_count;
 	bool save;
+	bool multiple;
 	char *out;
 	uint16_t out_len;
 	volatile bool done;
@@ -439,7 +509,7 @@ static void *filedialog_thread(void *arg) {
 	pthread_sigmask(SIG_BLOCK, &set, NULL);
 
 	a->result = filedialog_open(a->title, a->filters, a->filter_count,
-			a->save, a->out, a->out_len);
+			a->save, a->multiple, a->out, a->out_len);
 	a->done = true;
 	return NULL;
 }
@@ -456,9 +526,11 @@ void uv_uifiledialog_set_default_dir(const char *path) {
 }
 
 
-bool uv_uifiledialog_exec(const char *title,
+// Opens the native chooser, shared by uv_uifiledialog_exec() and
+// uv_uifiledialog_exec_multi(); see them.
+static bool filedialog_exec(const char *title,
 		const uv_uifileedit_filter_st *filters, uint8_t filter_count,
-		bool save, char *out, uint16_t out_len) {
+		bool save, bool multiple, char *out, uint16_t out_len) {
 #if CONFIG_TARGET_LINUX
 	// The native chooser is modal and blocks its caller until dismissed. Running it
 	// inline on the UI task would stop the task from stepping, so the GL window
@@ -466,12 +538,13 @@ bool uv_uifiledialog_exec(const char *title,
 	// responding". Instead run it on a background thread and, meanwhile, keep the
 	// UI task pumping window events and yielding to other tasks until it returns.
 	struct filedialog_async a = {
-		title, filters, filter_count, save, out, out_len, false, false
+		title, filters, filter_count, save, multiple, out, out_len, false, false
 	};
 	pthread_t tid;
 	if (pthread_create(&tid, NULL, &filedialog_thread, &a) != 0) {
 		// could not spawn the helper: fall back to a direct (blocking) call
-		return filedialog_open(title, filters, filter_count, save, out, out_len);
+		return filedialog_open(title, filters, filter_count, save, multiple,
+				out, out_len);
 	}
 	while (!a.done) {
 		int16_t x, y;
@@ -486,12 +559,30 @@ bool uv_uifiledialog_exec(const char *title,
 	// The Win32 chooser is modal and runs its own message pump; disable the
 	// scheduler tick around it so the blocking call is not interrupted (EINTR).
 	portDISABLE_INTERRUPTS();
-	bool ret = filedialog_open(title, filters, filter_count, save, out, out_len);
+	bool ret = filedialog_open(title, filters, filter_count, save, multiple,
+			out, out_len);
 	portENABLE_INTERRUPTS();
 	return ret;
 #else
-	return filedialog_open(title, filters, filter_count, save, out, out_len);
+	return filedialog_open(title, filters, filter_count, save, multiple,
+			out, out_len);
 #endif
+}
+
+
+bool uv_uifiledialog_exec(const char *title,
+		const uv_uifileedit_filter_st *filters, uint8_t filter_count,
+		bool save, char *out, uint16_t out_len) {
+	return filedialog_exec(title, filters, filter_count, save, false,
+			out, out_len);
+}
+
+
+bool uv_uifiledialog_exec_multi(const char *title,
+		const uv_uifileedit_filter_st *filters, uint8_t filter_count,
+		char *out, uint16_t out_len) {
+	return filedialog_exec(title, filters, filter_count, false, true,
+			out, out_len);
 }
 
 

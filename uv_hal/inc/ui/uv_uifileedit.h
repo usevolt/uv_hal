@@ -109,6 +109,16 @@ bool uv_uifiledialog_exec(const char *title,
 		bool save, char *out, uint16_t out_len);
 
 
+/// @brief: Like uv_uifiledialog_exec() with an "open existing" chooser, but the
+/// user can pick several files at once. The chosen paths are written into *out*
+/// one per line, separated by '\n' (no trailing newline); a path which does not
+/// fit into *out_len* is left out. Returns true if the user picked at least one
+/// file.
+bool uv_uifiledialog_exec_multi(const char *title,
+		const uv_uifileedit_filter_st *filters, uint8_t filter_count,
+		char *out, uint16_t out_len);
+
+
 /// @brief: Initializes the fileedit. *buffer* must remain valid for the
 /// lifetime of the widget. If *buffer* does not yet contain a null-terminated
 /// string, it is initialized to a zero-length string.
