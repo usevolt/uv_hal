@@ -248,7 +248,16 @@ typedef struct {
 } uv_esp32_network_st;
 
 
+/// The whole of a publish payload is pushed into the tx buffer at once, from
+/// the same task that drains it, so the buffer must hold the largest payload
+/// together with the AT+MQTTPUBRAW line that may still be in it. Anything that
+/// does not fit is lost, and a payload short by even one byte leaves the module
+/// swallowing the following AT commands as the rest of it.
+#if CONFIG_ESP32_MQTT
+#define ESP32_TX_BUF_SIZE		(ESP32_MQTT_PAYLOAD_MAX_LEN + 300)
+#else
 #define ESP32_TX_BUF_SIZE		(700)
+#endif
 #define ESP32_RX_BUF_SIZE		(300)
 #define ESP32_AT_RESP_LEN		(96)
 

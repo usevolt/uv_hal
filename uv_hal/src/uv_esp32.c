@@ -98,6 +98,15 @@ static void tx(uv_esp32_st *this) {
 	uv_mutex_lock(&this->tx_mutex);
 
 	int32_t tx_count = uv_streambuffer_get_len(&this->tx_streambuffer);
+	// Only as much as the UART can take: a byte is popped before it is sent,
+	// so one refused by a full UART ring would be lost for good, and the
+	// module would read whatever follows as part of what it is waiting for.
+	int32_t tx_room = uv_uart_get_tx_free_space(this->uart);
+	if (tx_count > tx_room) {
+		tx_count = tx_room;
+	}
+	else {
+	}
 	if (tx_count > 0) {
 		char c;
 		int32_t i;
@@ -1537,11 +1546,21 @@ static void rxtx_task(void *me_ptr) {
 						}
 						if (prompt_seen) {
 							uv_mutex_lock(&this->txstream_mutex);
-							uv_streambuffer_push(&this->tx_streambuffer,
+							uint32_t pushed = uv_streambuffer_push(
+									&this->tx_streambuffer,
 									(char *) active_slot->data,
 									active_slot->datalen,
 									100);
 							uv_mutex_unlock(&this->txstream_mutex);
+							if (pushed != active_slot->datalen) {
+								ESP32_DEBUG(this,
+										"ESP32: MQTT publish short write "
+										"%u / %u\n",
+										(unsigned int) pushed,
+										(unsigned int) active_slot->datalen);
+							}
+							else {
+							}
 							uv_delay_init(&this->mqtt_timeout,
 									ESP32_MQTT_AT_TIMEOUT_MS);
 							active_slot->phase = MQTT_PUB_PHASE_DATA_SENT;
@@ -1643,11 +1662,6 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 		uint16_t *wifi_flags,
 		char *wifi_ssid,
 		char *wifi_passwd) {
-#if CONFIG_ESP32_MQTT
-	// every slot needs its backing buffer before anything publishes
-	mqtt_slots_bind(this);
-#endif
-
 	this->wifi_flags = wifi_flags;
 	this->wifi_ssid = wifi_ssid;
 	this->wifi_passwd = wifi_passwd;
@@ -1688,6 +1702,10 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 	this->mqtt_rx_callb = NULL;
 	memset(&this->mqtt_subrecv, 0, sizeof(this->mqtt_subrecv));
 	memset(this->mqtt_pub_slots, 0, sizeof(this->mqtt_pub_slots));
+	// every slot needs its backing buffer before anything publishes. Bound
+	// after the memset above, which would otherwise zero every capacity and
+	// have each publish refused.
+	mqtt_slots_bind(this);
 	this->mqtt_publish_seq = 0;
 	uv_mutex_init(&this->mqtt_pub_mutex);
 	uv_mutex_unlock(&this->mqtt_pub_mutex);
