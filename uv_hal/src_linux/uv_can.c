@@ -664,12 +664,45 @@ static uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message
 
 
 
+/// @brief: Puts the characters of a terminal message into the terminal's own
+/// buffer. Returns true when *msg* was one, false when it is left for the
+/// CANopen stack.
+static bool receive_terminal(uv_can_msg_st *msg) {
+	bool ret = false;
+#if CONFIG_TERMINAL_CAN
+	if (msg->id == UV_TERMINAL_CAN_RX_ID + uv_canopen_get_our_nodeid() &&
+			msg->type == CAN_STD &&
+			msg->data_8bit[0] == 0x22 &&
+			msg->data_8bit[1] == (UV_TERMINAL_CAN_INDEX & 0xFF) &&
+			msg->data_8bit[2] == UV_TERMINAL_CAN_INDEX >> 8 &&
+			msg->data_8bit[3] == UV_TERMINAL_CAN_SUBINDEX &&
+			msg->data_length > 4) {
+		uint8_t i;
+		for (i = 0; i < msg->data_length - 4; i++) {
+			uv_ring_buffer_push(&this->char_buffer,
+					(char*) &msg->data_8bit[4 + i]);
+		}
+		ret = true;
+	}
+#else
+	(void) msg;
+#endif
+	return ret;
+}
+
+
 uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 		can_send_flags_e flags) {
 	uv_errors_e ret = ERR_NONE;
 	uv_disable_int();
 	if (flags & CAN_SEND_FLAGS_LOCAL) {
-		ret = uv_ring_buffer_push(&this->rx_buffer, msg);
+		// handled as if received from the bus, terminal characters included,
+		// so a terminal session arriving by remote CAN is heard as well
+		if (!receive_terminal(msg)) {
+			ret = uv_ring_buffer_push(&this->rx_buffer, msg);
+		}
+		else {
+		}
 	}
 	if ((flags & CAN_SEND_FLAGS_SYNC) ||
 			(flags & CAN_SEND_FLAGS_NORMAL)) {
@@ -742,30 +775,15 @@ void _uv_can_hal_step(unsigned int step_ms) {
 
 						}
 						else {
-#if CONFIG_TERMINAL_CAN
 							// terminal characters are sent to their specific buffer
-							if (msg.id == UV_TERMINAL_CAN_RX_ID + uv_canopen_get_our_nodeid() &&
-									msg.type == CAN_STD &&
-									msg.data_8bit[0] == 0x22 &&
-									msg.data_8bit[1] == (UV_TERMINAL_CAN_INDEX & 0xFF) &&
-									msg.data_8bit[2] == UV_TERMINAL_CAN_INDEX >> 8 &&
-									msg.data_8bit[3] == UV_TERMINAL_CAN_SUBINDEX &&
-									msg.data_length > 4) {
-								uint8_t i;
-								for (i = 0; i < msg.data_length - 4; i++) {
-									uv_ring_buffer_push(&this->char_buffer,
-											(char*) &msg.data_8bit[4 + i]);
-								}
+							if (receive_terminal(&msg)) {
+							}
+							else if (uv_ring_buffer_push(&this->rx_buffer, &msg) != ERR_NONE) {
+								PRINT("** CAN RX buffer full**\n");
+								fflush(stdout);
 							}
 							else {
-#endif
-								if (uv_ring_buffer_push(&this->rx_buffer, &msg) != ERR_NONE) {
-									PRINT("** CAN RX buffer full**\n");
-									fflush(stdout);
-								}
-#if CONFIG_TERMINAL_CAN
 							}
-#endif
 						}
 
 

@@ -332,6 +332,19 @@ static inline uv_errors_e uv_can_send(uv_can_channels_e channel, uv_can_message_
 	return uv_can_send_flags(channel, msg, CAN_SEND_FLAGS_NORMAL);
 }
 
+/// @brief: True when nothing is on its way out on *chn*: the transmit buffer is
+/// empty and the CAN controller is not transmitting, so a message sent now goes
+/// straight onto the bus.
+///
+/// @note: Implemented on LPC40XX.
+bool uv_can_tx_idle(uv_can_channels_e chn);
+
+/// @brief: True when the transmit buffer of *chn* has no room for another
+/// message sent with CAN_SEND_FLAGS_NORMAL.
+///
+/// @note: Implemented on LPC40XX.
+bool uv_can_tx_full(uv_can_channels_e chn);
+
 /// @brief: Pops the lastly received message from the RX buffer and returns it in
 /// *message* parameter
 ///

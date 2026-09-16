@@ -593,33 +593,29 @@ void _uv_can_hal_send(uv_can_channels_e chn) {
 	if (chn);
 
 	uv_can_message_st msg;
+	uint32_t all_free = CAN_SR_TBS(0) | CAN_SR_TBS(1) | CAN_SR_TBS(2);
 
 	NVIC_DisableIRQ(CAN_IRQn);
 
-	uv_errors_e e = uv_ring_buffer_pop(&this->can[chn].tx_buffer, &msg);
-
-	if (e == ERR_NONE) {
-		// wait until tx msg obj is free
-		uint8_t txbuf;
-		while ((txbuf = Chip_CAN_GetFreeTxBuf(this->can[chn].lpc_can)) ==
-				CAN_BUFFER_LAST) {
-			// if CAN bus is in error state, stop and return
-			e = uv_can_get_error_state(chn);
-			if (e != CAN_ERROR_ACTIVE) {
-				break;
-			}
-		}
-
+	// One message in the controller at a time. With several transmit buffers
+	// loaded at once the controller sends the lowest numbered buffer first, not
+	// the oldest message, so a message queued behind another could overtake it
+	// -- scrambling the characters of a terminal line or the segments of an SDO
+	// transfer. The transmit interrupt of the message on its way sends the next.
+	if ((Chip_CAN_GetStatus(this->can[chn].lpc_can) & all_free) == all_free) {
+		uv_errors_e e = uv_ring_buffer_pop(&this->can[chn].tx_buffer, &msg);
 		if (e == ERR_NONE) {
-			// send msg
 			CAN_MSG_T m;
 			m.DLC = msg.data_length;
 			memcpy(m.Data, msg.data_8bit, 8);
 			m.ID = msg.id | ((msg.type == CAN_EXT) ? CAN_EXTEND_ID_USAGE : 0);
 			m.Type = 0;
-			// call tx callback
-			Chip_CAN_Send(this->can[chn].lpc_can, txbuf, &m);
+			Chip_CAN_Send(this->can[chn].lpc_can, CAN_BUFFER_1, &m);
 		}
+		else {
+		}
+	}
+	else {
 	}
 	NVIC_EnableIRQ(CAN_IRQn);
 }
@@ -727,13 +723,45 @@ uv_errors_e uv_can_get_char(char *dest) {
 
 
 
+bool uv_can_tx_idle(uv_can_channels_e chn) {
+	uint32_t all_free = CAN_SR_TBS(0) | CAN_SR_TBS(1) | CAN_SR_TBS(2);
+	uv_disable_int();
+	bool ret = (uv_ring_buffer_empty(&this->can[chn].tx_buffer) &&
+			((Chip_CAN_GetStatus(this->can[chn].lpc_can) & all_free) == all_free));
+	uv_enable_int();
+	return ret;
+}
+
+
+bool uv_can_tx_full(uv_can_channels_e chn) {
+	uv_disable_int();
+	bool ret = uv_ring_buffer_is_full(&this->can[chn].tx_buffer);
+	uv_enable_int();
+	return ret;
+}
+
+
 uv_errors_e uv_can_send_flags(uv_can_channels_e chn, uv_can_msg_st *msg,
 		can_send_flags_e flags) {
 	uv_errors_e ret = ERR_NONE;
 	uv_disable_int();
 	if (flags & CAN_SEND_FLAGS_LOCAL) {
-		// pushing to receive buffer never triggers rx_callback
-		ret |= uv_ring_buffer_push(&this->can[chn].rx_buffer, msg);
+		// A local message is handled as if it had been received from the bus,
+		// terminal characters included: they go to their own buffer, as the
+		// rx interrupt does with them, or a terminal session arriving by any
+		// other route than the bus (e.g. remote CAN) would never be heard.
+#if CONFIG_TERMINAL_CAN
+		bool terminal = ((chn == CONFIG_TERMINAL_CAN_CHN) &&
+				receive_terminal(msg));
+#else
+		bool terminal = false;
+#endif
+		if (!terminal) {
+			// pushing to receive buffer never triggers rx_callback
+			ret |= uv_ring_buffer_push(&this->can[chn].rx_buffer, msg);
+		}
+		else {
+		}
 	}
 	if (flags & CAN_SEND_FLAGS_SYNC) {
 		ret |= uv_can_send_sync(chn, msg);
