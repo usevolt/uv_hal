@@ -93,5 +93,20 @@ void remote_pack_clear(remote_pack_st *this);
 bool remote_pack_append(remote_pack_st *this, const uint8_t *frame,
 		uint8_t len);
 
+/// @brief: Reserves *len* bytes at the end of the pack and returns where they
+/// start, so a message can be built where it will be sent from instead of in a
+/// buffer of its own. Returns NULL when it does not fit — flush and retry, as
+/// with remote_pack_append().
+///
+/// This is what lets a device answer an offloaded SDO read without a buffer for
+/// the data: the reply header is written into the reserved bytes and the SDO
+/// client reads straight into the rest of them. A caller that then finds it has
+/// nothing to send takes the reservation back with remote_pack_rewind().
+uint8_t *remote_pack_reserve(remote_pack_st *this, uint8_t len);
+
+/// @brief: Gives back the last *len* bytes reserved, leaving the pack as it was
+/// before. Only valid when nothing has been appended since the reservation.
+void remote_pack_rewind(remote_pack_st *this, uint8_t len);
+
 
 #endif /* UV_HAL_INC_UV_REMOTE_STREAM_H_ */

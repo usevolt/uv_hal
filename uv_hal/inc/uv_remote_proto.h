@@ -98,6 +98,29 @@ typedef enum {
 	// out of. Payload is remote_can_stats_st verbatim.
 	// [0x85][CAN_STATS][remote_can_stats_st]
 	REMOTE_MSG_TYPE_CAN_STATS,
+	// SDO offload (sink -> device): run a whole SDO transfer on the device's
+	// own bus and send back only its result.
+	// [0x85][SDO_REQ][payload_len][flags][node][mindex:2][sindex][data_len:2]
+	//       [data: data_len]
+	//
+	// An SDO transfer is a conversation of one frame at a time, each waiting
+	// for the answer to the last. Carried frame by frame over a link with tens
+	// of milliseconds of latency, a transfer costs that latency once per frame
+	// - which is what makes a parameter load over the fleet link take minutes.
+	// Run at the device's end it costs one round trip, whatever the transfer.
+	//
+	// *flags* is REMOTE_SDO_FLAG_*; *data_len* is the bytes written on a write,
+	// and on a read the most the sink will take back.
+	REMOTE_MSG_TYPE_SDO_REQ,
+	// The result of one SDO_REQ (device -> sink), in the same order the
+	// requests arrived.
+	// [0x85][SDO_RES][payload_len][flags][node][mindex:2][sindex][data_len:2]
+	//       [abort:4][data: data_len]
+	//
+	// *abort* is 0 when the transfer succeeded, otherwise the CANopen abort
+	// code the device ended it with (see REMOTE_SDO_ABORT_*). The object is
+	// echoed back so a late answer cannot be taken for the one being waited on.
+	REMOTE_MSG_TYPE_SDO_RES,
 	REMOTE_MSG_TYPE_COUNT
 } remote_msg_types_e;
 
@@ -119,9 +142,21 @@ typedef enum {
 /// heartbeats every device reads as offline and the tool refuses to talk to it
 /// -- and they are rare enough to cost nothing next to what this drops.
 #define REMOTE_IOT_FEATURE_CAN_SDO		(1 << 2)
+/// The device runs whole SDO transfers on the sink's behalf
+/// (REMOTE_MSG_TYPE_SDO_REQ) instead of the sink driving them one frame at a
+/// time across the link. Independent of the CAN forwarding above: the sink
+/// bridges the bus as before and only the SDO conversations are handed over,
+/// which is why this is a bit of its own rather than another narrowing of
+/// REMOTE_IOT_FEATURE_CAN.
+///
+/// A sink offloads only to a device that reports this applied. One that does
+/// not - firmware older than the offload - is driven frame by frame exactly as
+/// before, so the two ends need not be updated together.
+#define REMOTE_IOT_FEATURE_SDO			(1 << 3)
 #define REMOTE_IOT_FEATURE_ALL			(REMOTE_IOT_FEATURE_UI | \
 										 REMOTE_IOT_FEATURE_CAN | \
-										 REMOTE_IOT_FEATURE_CAN_SDO)
+										 REMOTE_IOT_FEATURE_CAN_SDO | \
+										 REMOTE_IOT_FEATURE_SDO)
 
 
 // --- UI mirroring wire constants --------------------------------------------
@@ -276,12 +311,54 @@ typedef struct __attribute__((packed)) {
 #define REMOTE_MSG_TYPE_UI_INFO_LEN				6
 #define REMOTE_MSG_TYPE_CLOSE_LEN				2
 #define REMOTE_MSG_TYPE_CAN_STATS_LEN			(2 + sizeof(remote_can_stats_st))
+
+// --- SDO offload wire constants ---------------------------------------------
+
+/// @brief: Most data bytes one offloaded transfer carries, in either
+/// direction. Override per project.
+///
+/// Deliberately small. It bounds REMOTE_MSG_TYPE_MAX_LEN, which is the size of
+/// the framer's receive buffer in every remote_stream_st on every device, so a
+/// generous cap here is RAM spent by everything that speaks this protocol. The
+/// parameters a load writes are a few bytes each; an object larger than this is
+/// left to cross the link frame by frame, as it did before the offload existed.
+#ifndef CONFIG_REMOTE_SDO_DATA_MAX
+#define CONFIG_REMOTE_SDO_DATA_MAX		128
+#endif
+#define REMOTE_SDO_DATA_MAX				CONFIG_REMOTE_SDO_DATA_MAX
+
+/// @brief: The transfer writes the object. Clear = it reads it.
+#define REMOTE_SDO_FLAG_WRITE			(1 << 0)
+
+/// @brief: Abort codes of the offload's own making, in the same space as the
+/// CANopen ones a device answers with, so a sink has one field to report.
+/// Busy: the device is already running a transfer for someone. Too long: the
+/// object does not fit REMOTE_SDO_DATA_MAX, so the sink must drive it itself.
+#define REMOTE_SDO_ABORT_BUSY			0x08000022ul
+#define REMOTE_SDO_ABORT_TOO_LONG		0x05040005ul
+
+/// @brief: Header bytes before the data, counted from the start byte:
+/// [start][type][payload_len][flags][node][mindex:2][sindex][data_len:2] and,
+/// on a result, the abort code as well.
+#define REMOTE_MSG_TYPE_SDO_REQ_HDR_LEN			10
+#define REMOTE_MSG_TYPE_SDO_RES_HDR_LEN			14
+#define REMOTE_MSG_TYPE_SDO_REQ_LEN(data_len)	\
+		(REMOTE_MSG_TYPE_SDO_REQ_HDR_LEN + (data_len))
+#define REMOTE_MSG_TYPE_SDO_RES_LEN(data_len)	\
+		(REMOTE_MSG_TYPE_SDO_RES_HDR_LEN + (data_len))
+#define REMOTE_MSG_TYPE_SDO_REQ_MAX_LEN			\
+		REMOTE_MSG_TYPE_SDO_REQ_LEN(REMOTE_SDO_DATA_MAX)
+#define REMOTE_MSG_TYPE_SDO_RES_MAX_LEN			\
+		REMOTE_MSG_TYPE_SDO_RES_LEN(REMOTE_SDO_DATA_MAX)
+
 #define REMOTE_MSG_TYPE_MAX_LEN					(MAX(\
 		REMOTE_MSG_TYPE_UI_LEN, \
+		MAX(REMOTE_MSG_TYPE_SDO_REQ_MAX_LEN, \
+		MAX(REMOTE_MSG_TYPE_SDO_RES_MAX_LEN, \
 		MAX(REMOTE_MSG_TYPE_CONNECT_LEN, \
 		MAX(REMOTE_MSG_TYPE_CAN_MAX_LEN,\
 				MAX(REMOTE_MSG_TYPE_RXCONF_LEN,\
-						REMOTE_MSG_TYPE_RXCLEAR_LEN)))))
+						REMOTE_MSG_TYPE_RXCLEAR_LEN)))))))
 
 
 static inline const char *remote_msg_type_to_str(remote_msg_types_e type) {

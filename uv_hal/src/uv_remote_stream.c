@@ -29,6 +29,8 @@ const uint8_t remote_msg_type_len[REMOTE_MSG_TYPE_COUNT + 1] = {
 		REMOTE_MSG_TYPE_UI_INFO_LEN,
 		REMOTE_MSG_TYPE_CLOSE_LEN,
 		REMOTE_MSG_TYPE_CAN_STATS_LEN,
+		REMOTE_MSG_TYPE_SDO_REQ_MAX_LEN,
+		REMOTE_MSG_TYPE_SDO_RES_MAX_LEN,
 		0
 };
 
@@ -133,6 +135,25 @@ static void stream_feed_byte(remote_stream_st *s, uint8_t c,
 			else {
 			}
 		}
+		else if (((s->receiving_type == REMOTE_MSG_TYPE_SDO_REQ) ||
+				(s->receiving_type == REMOTE_MSG_TYPE_SDO_RES)) &&
+				(s->byte_count == 3)) {
+			// byte index 2 of an offloaded SDO transfer is the payload length:
+			// what follows it, header and data both
+			bool req = (s->receiving_type == REMOTE_MSG_TYPE_SDO_REQ);
+			uint8_t max = req ? REMOTE_MSG_TYPE_SDO_REQ_MAX_LEN :
+					REMOTE_MSG_TYPE_SDO_RES_MAX_LEN;
+			uint8_t hdr = req ? REMOTE_MSG_TYPE_SDO_REQ_HDR_LEN :
+					REMOTE_MSG_TYPE_SDO_RES_HDR_LEN;
+			s->msg_len = (uint8_t) (3 + c);
+			// too long for the buffer, or too short to hold the header the
+			// reader goes on to trust: either way not a message we can use
+			if ((s->msg_len > max) || (s->msg_len < hdr)) {
+				remote_stream_reset(s);
+			}
+			else {
+			}
+		}
 		else if (s->byte_count == s->msg_len) {
 			remote_msg_types_e type = s->receiving_type;
 			uint8_t len = s->msg_len;
@@ -181,4 +202,29 @@ bool remote_pack_append(remote_pack_st *this, const uint8_t *frame,
 		ret = true;
 	}
 	return ret;
+}
+
+
+uint8_t *remote_pack_reserve(remote_pack_st *this, uint8_t len) {
+	uint8_t *ret;
+	if (((uint16_t) this->len + (uint16_t) len) > REMOTE_PACK_MAX_LEN) {
+		ret = NULL;
+	}
+	else {
+		ret = &this->buf[this->len];
+		this->len = (uint16_t) (this->len + len);
+	}
+	return ret;
+}
+
+
+void remote_pack_rewind(remote_pack_st *this, uint8_t len) {
+	if (this->len >= len) {
+		this->len = (uint16_t) (this->len - len);
+	}
+	else {
+		// more given back than was ever taken; the caller is confused about
+		// what it reserved, and emptying is the only safe reading of it
+		this->len = 0;
+	}
 }
