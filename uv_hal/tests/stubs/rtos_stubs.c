@@ -27,6 +27,8 @@
  */
 
 #include <stdint.h>
+#include <FreeRTOS.h>
+#include <queue.h>
 
 /// @file: The complete set of RTOS symbols the modules under test reference at
 /// link time. Keeping this list short is intentional and is a useful signal in
@@ -37,13 +39,34 @@
 /// a monotonic counter. No test currently depends on its value.
 
 
-static uint32_t fake_ticks = 0;
+static TickType_t fake_ticks = 0;
 
 
-uint32_t xTaskGetTickCount(void);
-
-
-uint32_t xTaskGetTickCount(void) {
+TickType_t xTaskGetTickCount(void) {
 	fake_ticks++;
 	return fake_ticks;
+}
+
+
+/// The uv_mutex_* helpers in uv_rtos.h are inline wrappers around FreeRTOS
+/// binary semaphores, which are queues underneath. The tests are single
+/// threaded, so a mutex never contends: creating one hands out a dummy
+/// non-NULL handle and every give and take succeeds.
+static uint8_t fake_queue;
+
+
+QueueHandle_t xQueueGenericCreate(const UBaseType_t uxQueueLength,
+		const UBaseType_t uxItemSize, const uint8_t ucQueueType) {
+	return (QueueHandle_t) &fake_queue;
+}
+
+
+BaseType_t xQueueGenericSend(QueueHandle_t xQueue, const void * const pvItemToQueue,
+		TickType_t xTicksToWait, const BaseType_t xCopyPosition) {
+	return pdPASS;
+}
+
+
+BaseType_t xQueueSemaphoreTake(QueueHandle_t xQueue, TickType_t xTicksToWait) {
+	return pdPASS;
 }
