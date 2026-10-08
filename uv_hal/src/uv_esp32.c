@@ -1045,6 +1045,27 @@ static void rxtx_task(void *me_ptr) {
 	uv_delay_init(&this->timeout, ESP32_AT_TIMEOUT_MS);
 
 	while (true) {
+		if (this->disabled) {
+			// Drop whatever session there was, so that nothing above keeps
+			// believing in it, and start over from a reset once resumed.
+			set_state(this, ESP32_STATE_INIT);
+#if CONFIG_ESP32_MQTT
+			mqtt_set_state(this, ESP32_MQTT_STATE_DISABLED);
+#endif
+			ESP32_DEBUG(this, "ESP32: disabled\n");
+			while (this->disabled) {
+				// Released, not floating: the module must keep running for
+				// whoever is talking to it over USB.
+				uv_gpio_set(this->reset_io, true);
+				uv_streambuffer_clear(&this->rx_datastream);
+				uv_rtos_task_delay(100);
+			}
+			ESP32_DEBUG(this, "ESP32: enabled\n");
+			uv_ts_init(&ts);
+		}
+		else {
+		}
+
 		uv_ts_step(&ts);
 		tx(this);
 		rx(this, uv_streambuffer_get_len(&this->rx_datastream) ? 0 : 1);
@@ -1695,6 +1716,7 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 #endif
 	this->written_byte_count = 0;
 	this->transmitted_byte_count = 0;
+	this->disabled = false;
 
 #if CONFIG_ESP32_MQTT
 	this->mqtt_state = ESP32_MQTT_STATE_DISABLED;
@@ -2173,6 +2195,11 @@ void uv_esp32_reset(uv_esp32_st *this) {
 }
 
 
+void uv_esp32_set_disabled(uv_esp32_st *this, bool value) {
+	this->disabled = value;
+}
+
+
 void uv_esp32_network_leave(uv_esp32_st *this) {
 	if (this->wifi_ssid != NULL) {
 		this->wifi_ssid[0] = '\0';
@@ -2224,6 +2251,19 @@ void uv_esp32_terminal(uv_esp32_st *this,
 				}
 			}
 		}
+		else if (strcmp(argv[0].str, "comm") == 0) {
+			// Lets the module be reflashed over its own USB port while the
+			// host runs: otherwise the "ready" timeout resets it every few
+			// seconds and the flasher loses its port. Not stored on purpose,
+			// so a forgotten "off" is undone by the next reboot.
+			if (args > 1) {
+				uv_esp32_set_disabled(this, !argv[1].number);
+			}
+			else {
+			}
+			printf("ESP32 communication: %s\n",
+					this->disabled ? "off" : "on");
+		}
 		else if (strcmp(argv[0].str, "at") == 0) {
 			if (args > 1 &&
 					argv[1].type == ARG_STRING) {
@@ -2257,11 +2297,13 @@ void uv_esp32_terminal(uv_esp32_st *this,
 				"    state: %s\n"
 				"    mac: %s\n"
 				"    debug: %u\n"
-				"    echo: %u\n",
+				"    echo: %u\n"
+				"    comm: %s\n",
 					uv_esp32_state_to_str(this->state),
 					mac_str,
 					!!(flags & ESP32_CONF_FLAGS_DEBUG),
-					!!(flags & ESP32_CONF_FLAGS_ECHO));
+					!!(flags & ESP32_CONF_FLAGS_ECHO),
+					this->disabled ? "off" : "on");
 	}
 }
 

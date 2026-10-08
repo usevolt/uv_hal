@@ -727,6 +727,12 @@ void uv_esp32_reset(uv_esp32_st *this) {
 }
 
 
+void uv_esp32_set_disabled(uv_esp32_st *this, bool value) {
+	// There is no module to reflash on the host, so only the flag is kept.
+	this->disabled = value;
+}
+
+
 void uv_esp32_network_leave(uv_esp32_st *this) {
 	this->rssi = 0;
 	if (this->wifi_ssid != NULL) {

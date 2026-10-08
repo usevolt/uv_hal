@@ -309,6 +309,9 @@ typedef struct {
 
 	uv_esp32_states_e state;
 	uv_esp32_states_e scan_return_state;
+	/// @brief: Set with uv_esp32_set_disabled. While true the driver task
+	/// leaves the module alone: no AT traffic and no resets.
+	volatile bool disabled;
 	uv_delay_st timeout;
 
 #if CONFIG_ESP32_MQTT
@@ -564,6 +567,18 @@ char *uv_esp32_get_connected_ssid(uv_esp32_st *this);
 
 /// @brief: Resets the current network connection
 void uv_esp32_reset(uv_esp32_st *this);
+
+/// @brief: Stops (true) or resumes (false) all communication with the module.
+/// While stopped the reset line is held released and nothing is sent, so the
+/// module can be reflashed over its own USB port without the driver resetting
+/// it under the flasher. Resuming resets the module and starts over.
+/// Not stored: a reboot always starts enabled.
+void uv_esp32_set_disabled(uv_esp32_st *this, bool value);
+
+/// @brief: True while communication is stopped with uv_esp32_set_disabled.
+static inline bool uv_esp32_get_disabled(uv_esp32_st *this) {
+	return this->disabled;
+}
 
 /// @brief: Leaves current network
 void uv_esp32_network_leave(uv_esp32_st *this);
