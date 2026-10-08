@@ -525,4 +525,45 @@ void uv_lsm6dsv_step(uv_lsm6dsv_st *this, uint16_t step_ms) {
 }
 
 
+void uv_lsm6dsv_stat(uv_lsm6dsv_st *this) {
+	const char *state_str;
+	switch (this->state) {
+	case LSM6DSV_STATE_UNINITIALIZED:
+		state_str = "uninitialized";
+		break;
+	case LSM6DSV_STATE_OK:
+		state_str = "OK";
+		break;
+	case LSM6DSV_STATE_FAULT:
+		state_str = "FAULT";
+		break;
+	default:
+		state_str = "unknown";
+		break;
+	}
+
+	printf("    LSM6DSV state: %s%s, timeout: %u ms\n"
+			"    Config: ODR %u Hz, acc FS %u g, gyro FS %u dps\n"
+			"    Temp: %i (0.1 C)\n"
+			"    Acc (mg): x %i y %i z %i\n"
+			"    Gyro (mdps): x %i y %i z %i\n",
+			state_str,
+			LSM6DSV_SIMULATED ? " (simulated)" : "",
+			(unsigned int) this->timeout_ms,
+			(unsigned int) CONFIG_LSM6DSV_ODR_HZ,
+			(unsigned int) CONFIG_LSM6DSV_ACC_FS_G,
+			(unsigned int) CONFIG_LSM6DSV_GYRO_FS_DPS,
+			(int) this->temp,
+			(int) this->acc.x, (int) this->acc.y, (int) this->acc.z,
+			(int) this->gyro.x, (int) this->gyro.y, (int) this->gyro.z);
+#if CONFIG_LSM6DSV_TILT
+	printf("    Roll: %i Pitch: %i (0.1 deg)%s\n"
+			"    Zero offset roll: %i pitch: %i (0.001 deg)\n",
+			(int) this->roll, (int) this->pitch,
+			this->tiltinit ? "" : " (not initialized)",
+			(int) this->rolloffset, (int) this->pitchoffset);
+#endif
+}
+
+
 #endif

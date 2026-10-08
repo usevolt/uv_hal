@@ -152,6 +152,11 @@ uv_errors_e uv_lsm6dsv_init(uv_lsm6dsv_st *this, spi_e spi, spi_slaves_e ssel);
 void uv_lsm6dsv_step(uv_lsm6dsv_st *this, uint16_t step_ms);
 
 
+/// @brief: Logs the state, the configuration and the latest measurement
+/// data of the module to stdout
+void uv_lsm6dsv_stat(uv_lsm6dsv_st *this);
+
+
 /// @brief: Returns the state of the module. The measurement data is valid
 /// only when this returns LSM6DSV_STATE_OK.
 static inline uv_lsm6dsv_state_e uv_lsm6dsv_get_state(uv_lsm6dsv_st *this) {
