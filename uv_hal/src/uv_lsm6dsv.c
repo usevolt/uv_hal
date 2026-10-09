@@ -34,7 +34,9 @@
 #if CONFIG_LSM6DSV
 
 
-/// @brief: The LSM6DSV register addresses used by this module
+/// @brief: The register addresses used by this module.
+/// The LSM6DS3 family shares the reset, ID, status and output registers with
+/// the LSM6DSV, but the control registers are laid out differently, see DS3_*.
 #define REG_IF_CFG				0x03
 #define REG_WHO_AM_I			0x0F
 #define REG_CTRL1				0x10
@@ -47,6 +49,18 @@
 
 /// @brief: The fixed device ID found from WHO_AM_I
 #define WHO_AM_I_VALUE			0x70
+/// @brief: The device IDs of the LSM6DS3 family (LSM6DS3, LSM6DS3US: 0x69,
+/// LSM6DS3TR-C: 0x6A). These are accepted as a fallback for boards assembled
+/// with an LSM6DS3 variant in place of the LSM6DSV.
+#define DS3_WHO_AM_I_VALUE		0x69
+#define DS3TRC_WHO_AM_I_VALUE	0x6A
+
+/// @brief: LSM6DS3 control registers. CTRL1_XL and CTRL2_G pack the ODR,
+/// the full scale and the bandwidth into a single register each.
+#define DS3_REG_CTRL1_XL		0x10
+#define DS3_REG_CTRL2_G			0x11
+#define DS3_REG_CTRL4_C			0x13
+#define DS3_CTRL4_I2C_DISABLE	(1 << 2)
 
 /// @brief: Set on the address byte to read instead of write
 #define READ_BIT				0x80
@@ -78,68 +92,98 @@
 
 /* Configuration defines mapped to the register values and to the sensitivities */
 
+// The LSM6DS3 doesn't have the same output data rates. The closest slower
+// one is used: 12.5, 26, 52, 104, 208, 416 or 833 Hz.
 #if (CONFIG_LSM6DSV_ODR_HZ == 15)
 #define ODR_BITS				0x3
+#define DS3_ODR_BITS			0x1
+#define DS3_ODR_HZ				12
 #elif (CONFIG_LSM6DSV_ODR_HZ == 30)
 #define ODR_BITS				0x4
+#define DS3_ODR_BITS			0x2
+#define DS3_ODR_HZ				26
 #elif (CONFIG_LSM6DSV_ODR_HZ == 60)
 #define ODR_BITS				0x5
+#define DS3_ODR_BITS			0x3
+#define DS3_ODR_HZ				52
 #elif (CONFIG_LSM6DSV_ODR_HZ == 120)
 #define ODR_BITS				0x6
+#define DS3_ODR_BITS			0x4
+#define DS3_ODR_HZ				104
 #elif (CONFIG_LSM6DSV_ODR_HZ == 240)
 #define ODR_BITS				0x7
+#define DS3_ODR_BITS			0x5
+#define DS3_ODR_HZ				208
 #elif (CONFIG_LSM6DSV_ODR_HZ == 480)
 #define ODR_BITS				0x8
+#define DS3_ODR_BITS			0x6
+#define DS3_ODR_HZ				416
 #elif (CONFIG_LSM6DSV_ODR_HZ == 960)
 #define ODR_BITS				0x9
+#define DS3_ODR_BITS			0x7
+#define DS3_ODR_HZ				833
 #else
 #error "Unsupported CONFIG_LSM6DSV_ODR_HZ. Should be one of 15, 30, 60, 120, 240, 480 or 960."
 #endif
 
-// accelerometer sensitivity in ug / LSB
+// accelerometer sensitivity in ug / LSB. The sensitivities are the same on
+// the LSM6DS3, only the full scale bits are in a different order.
 #if (CONFIG_LSM6DSV_ACC_FS_G == 2)
 #define FS_XL_BITS				0x0
+#define DS3_FS_XL_BITS			0x0
 #define ACC_SENS_UG				61
 #elif (CONFIG_LSM6DSV_ACC_FS_G == 4)
 #define FS_XL_BITS				0x1
+#define DS3_FS_XL_BITS			0x2
 #define ACC_SENS_UG				122
 #elif (CONFIG_LSM6DSV_ACC_FS_G == 8)
 #define FS_XL_BITS				0x2
+#define DS3_FS_XL_BITS			0x3
 #define ACC_SENS_UG				244
 #elif (CONFIG_LSM6DSV_ACC_FS_G == 16)
 #define FS_XL_BITS				0x3
+#define DS3_FS_XL_BITS			0x1
 #define ACC_SENS_UG				488
 #else
 #error "Unsupported CONFIG_LSM6DSV_ACC_FS_G. Should be one of 2, 4, 8 or 16."
 #endif
 
-// gyroscope sensitivity in mdps / LSB, as a fraction to avoid 64 bit arithmetics
+// gyroscope sensitivity in mdps / LSB, as a fraction to avoid 64 bit arithmetics.
+// The sensitivities are the same on the LSM6DS3. Its CTRL2_G has FS_G[1:0] on
+// bits 3:2 and FS_125 on bit 1, DS3_FS_G_BITS is the value of the bits 3:1.
 #if (CONFIG_LSM6DSV_GYRO_FS_DPS == 125)
 #define FS_G_BITS				0x0
+#define DS3_FS_G_BITS			0x1
 #define GYRO_SENS_NUM			35
 #define GYRO_SENS_DEN			8
 #elif (CONFIG_LSM6DSV_GYRO_FS_DPS == 250)
 #define FS_G_BITS				0x1
+#define DS3_FS_G_BITS			0x0
 #define GYRO_SENS_NUM			35
 #define GYRO_SENS_DEN			4
 #elif (CONFIG_LSM6DSV_GYRO_FS_DPS == 500)
 #define FS_G_BITS				0x2
+#define DS3_FS_G_BITS			0x2
 #define GYRO_SENS_NUM			35
 #define GYRO_SENS_DEN			2
 #elif (CONFIG_LSM6DSV_GYRO_FS_DPS == 1000)
 #define FS_G_BITS				0x3
+#define DS3_FS_G_BITS			0x4
 #define GYRO_SENS_NUM			35
 #define GYRO_SENS_DEN			1
 #elif (CONFIG_LSM6DSV_GYRO_FS_DPS == 2000)
 #define FS_G_BITS				0x4
+#define DS3_FS_G_BITS			0x6
 #define GYRO_SENS_NUM			70
 #define GYRO_SENS_DEN			1
 #else
 #error "Unsupported CONFIG_LSM6DSV_GYRO_FS_DPS. Should be one of 125, 250, 500, 1000 or 2000."
 #endif
 
-/// @brief: Temperature sensitivity is 256 LSB / celsius and 0 LSB equals to 25 celsius
+/// @brief: Temperature sensitivity is 256 LSB / celsius and 0 LSB equals to 25 celsius.
+/// On the LSM6DS3 the sensitivity is 16 LSB / celsius.
 #define TEMP_SENS_LSB			256
+#define DS3_TEMP_SENS_LSB		16
 #define TEMP_OFFSET_DC			250
 
 
@@ -151,6 +195,14 @@
 #else
 #define LSM6DSV_SIMULATED		1
 #endif
+
+
+
+/// @brief: Returns true if the device is one of the LSM6DS3 family
+static inline bool is_ds3(uv_lsm6dsv_st *this) {
+	return ((this->whoami == DS3_WHO_AM_I_VALUE) ||
+			(this->whoami == DS3TRC_WHO_AM_I_VALUE));
+}
 
 
 
@@ -229,10 +281,28 @@ static uv_errors_e configure(uv_lsm6dsv_st *this) {
 		else if (!read_regs(this, REG_WHO_AM_I, &d, 1)) {
 			ret = ERR_NOT_RESPONDING;
 		}
+		else if ((d == DS3_WHO_AM_I_VALUE) || (d == DS3TRC_WHO_AM_I_VALUE)) {
+			this->whoami = d;
+			if (write_reg(this, DS3_REG_CTRL4_C, DS3_CTRL4_I2C_DISABLE) &&
+					write_reg(this, REG_CTRL3, CTRL3_BDU | CTRL3_IF_INC) &&
+					// writing a nonzero ODR starts the measurements. The
+					// high-performance mode is the default on both sensors.
+					write_reg(this, DS3_REG_CTRL1_XL,
+							(DS3_ODR_BITS << 4) | (DS3_FS_XL_BITS << 2)) &&
+					write_reg(this, DS3_REG_CTRL2_G,
+							(DS3_ODR_BITS << 4) | (DS3_FS_G_BITS << 1))) {
+
+			}
+			else {
+				ret = ERR_NOT_RESPONDING;
+			}
+		}
 		else if (d != WHO_AM_I_VALUE) {
+			this->whoami = d;
 			ret = ERR_HARDWARE_NOT_SUPPORTED;
 		}
 		else {
+			this->whoami = d;
 			// note: IF_CFG is not affected by the software reset
 			if (write_reg(this, REG_IF_CFG, IF_CFG_I2C_I3C_DISABLE) &&
 					// block data update keeps the LSB and MSB of a single
@@ -437,6 +507,7 @@ uv_errors_e uv_lsm6dsv_init(uv_lsm6dsv_st *this, spi_e spi, spi_slaves_e ssel) {
 	memset(&this->acc, 0, sizeof(this->acc));
 	memset(&this->gyro, 0, sizeof(this->gyro));
 	this->temp = TEMP_OFFSET_DC;
+	this->whoami = 0;
 #if CONFIG_LSM6DSV_TILT
 	this->rollval = 0;
 	this->pitchval = 0;
@@ -449,6 +520,7 @@ uv_errors_e uv_lsm6dsv_init(uv_lsm6dsv_st *this, spi_e spi, spi_slaves_e ssel) {
 
 #if LSM6DSV_SIMULATED
 	this->acc.z = 1000;
+	this->whoami = WHO_AM_I_VALUE;
 	this->state = LSM6DSV_STATE_OK;
 #else
 	ret = configure(this);
@@ -481,7 +553,8 @@ void uv_lsm6dsv_step(uv_lsm6dsv_st *this, uint16_t step_ms) {
 			}
 
 			this->temp = (int16_t) (TEMP_OFFSET_DC +
-					(((int32_t) raw[0] * 10) / TEMP_SENS_LSB));
+					(((int32_t) raw[0] * 10) / (is_ds3(this) ?
+							DS3_TEMP_SENS_LSB : TEMP_SENS_LSB)));
 
 			this->gyro.x = ((int32_t) raw[1] * GYRO_SENS_NUM) / GYRO_SENS_DEN;
 			this->gyro.y = ((int32_t) raw[2] * GYRO_SENS_NUM) / GYRO_SENS_DEN;
@@ -542,15 +615,32 @@ void uv_lsm6dsv_stat(uv_lsm6dsv_st *this) {
 		break;
 	}
 
-	printf("    LSM6DSV state: %s%s, timeout: %u ms\n"
+	const char *dev_str;
+	if (this->whoami == WHO_AM_I_VALUE) {
+		dev_str = "LSM6DSV";
+	}
+	else if (this->whoami == DS3_WHO_AM_I_VALUE) {
+		dev_str = "LSM6DS3";
+	}
+	else if (this->whoami == DS3TRC_WHO_AM_I_VALUE) {
+		dev_str = "LSM6DS3TR-C";
+	}
+	else {
+		dev_str = "unknown";
+	}
+
+	printf("    Device: %s (WHO_AM_I 0x%02x)\n"
+			"    State: %s%s, timeout: %u ms\n"
 			"    Config: ODR %u Hz, acc FS %u g, gyro FS %u dps\n"
 			"    Temp: %i (0.1 C)\n"
 			"    Acc (mg): x %i y %i z %i\n"
 			"    Gyro (mdps): x %i y %i z %i\n",
+			dev_str,
+			(unsigned int) this->whoami,
 			state_str,
 			LSM6DSV_SIMULATED ? " (simulated)" : "",
 			(unsigned int) this->timeout_ms,
-			(unsigned int) CONFIG_LSM6DSV_ODR_HZ,
+			(unsigned int) (is_ds3(this) ? DS3_ODR_HZ : CONFIG_LSM6DSV_ODR_HZ),
 			(unsigned int) CONFIG_LSM6DSV_ACC_FS_G,
 			(unsigned int) CONFIG_LSM6DSV_GYRO_FS_DPS,
 			(int) this->temp,

@@ -113,6 +113,9 @@ typedef struct {
 	uv_lsm6dsv_axes_st gyro;
 	/// @brief: The measured device temperature in 0.1 degrees of celsius
 	int16_t temp;
+	/// @brief: The device ID read from the WHO_AM_I register. Besides the LSM6DSV,
+	/// the LSM6DS3 family (LSM6DS3, LSM6DS3US, LSM6DS3TR-C) is supported.
+	uint8_t whoami;
 
 #if CONFIG_LSM6DSV_TILT
 	/// @brief: The filtered orientation in 0.001 degrees, without the zero offset
@@ -136,8 +139,13 @@ typedef struct {
 /// clock mode 3 (CONFIG_SPIx_CLOCK_POL and CONFIG_SPIx_CLOCK_PHASE both as 1)
 /// and with a maximum of 10 MHz baudrate.
 ///
+/// The LSM6DS3 family is detected from its ID and configured accordingly.
+/// It doesn't have the same output data rates as the LSM6DSV, so the closest
+/// slower one is used, e.g. 52 Hz in place of 60 Hz.
+///
 /// @return: ERR_NONE if the device was found and configured,
-/// ERR_HARDWARE_NOT_SUPPORTED if the device answered with a wrong ID, or
+/// ERR_HARDWARE_NOT_SUPPORTED if the device answered with an unknown ID
+/// (stored to *whoami*), or
 /// ERR_NOT_RESPONDING if the device didn't answer at all.
 ///
 /// @param spi: SPI channel where the device is connected
