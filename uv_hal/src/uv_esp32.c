@@ -150,6 +150,34 @@ static void at_resp_reset(uv_esp32_st *this) {
 }
 
 
+/// @brief: at_resp_reset() for a command being sent, which must not cost a
+/// line the module is in the middle of sending of its own accord.
+///
+/// A reply still arriving belongs to the exchange before this one and goes,
+/// as with at_resp_reset(), so it cannot be taken for the answer to the new
+/// command. But the module's unsolicited lines -- "+..." events, above all the
+/// header of a +MQTTSUBRECV, and "WIFI ..." -- arrive whenever they please, and
+/// with a publish going out for every forwarded frame, one was often half
+/// received when the next AT+MQTTPUBRAW was sent. Cutting a +MQTTSUBRECV
+/// header in two left the rest of it unrecognisable, so the payload behind it
+/// was read as a garbage line and the frame it carried was lost: one in a few
+/// dozen frames to the device while its bus was busy, which is enough to make
+/// a firmware flash over the remote link impossible.
+static void at_resp_reset_for_cmd(uv_esp32_st *this) {
+	uint8_t n = (this->at_resp_i < 4U) ? this->at_resp_i : 4U;
+	bool unsolicited = ((this->at_resp_i > 0U) &&
+			((this->at_resp[0] == '+') ||
+			(strncmp(this->at_resp, "WIFI", n) == 0)));
+	if (unsolicited) {
+		// keep the line, only the completed one waiting for a reader goes
+		this->at_resp_has_pending = false;
+	}
+	else {
+		at_resp_reset(this);
+	}
+}
+
+
 static void esp32_reset(uv_esp32_st *this) {
 	uv_streambuffer_clear(&this->tx_streambuffer);
 	uv_streambuffer_clear(&this->rx_datastream);
@@ -222,7 +250,7 @@ static void send_at_cmd(uv_esp32_st *this, const char *cmd,
 	uv_streambuffer_push(&this->tx_streambuffer,
 			"\r\n", 2, 100);
 	uv_mutex_unlock(&this->txstream_mutex);
-	at_resp_reset(this);
+	at_resp_reset_for_cmd(this);
 }
 
 
@@ -248,7 +276,7 @@ static void send_at_cmd_raw(uv_esp32_st *this, const char *line) {
 	uv_streambuffer_push(&this->tx_streambuffer,
 			"\r\n", 2, 100);
 	uv_mutex_unlock(&this->txstream_mutex);
-	at_resp_reset(this);
+	at_resp_reset_for_cmd(this);
 }
 #endif
 
