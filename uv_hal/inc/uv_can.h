@@ -34,6 +34,10 @@
 #include "uv_gpio.h"
 #include <stdint.h>
 #include <stdbool.h>
+#if CONFIG_TARGET_LINUX || CONFIG_TARGET_WIN
+// struct timeval, which uv_can_get_rx_time() returns
+#include <sys/time.h>
+#endif
 /// @file: CAN implementation on top of the HAL layer
 /// Provides the basic CAN interface.
 /// Note that this module takes full ownership of the CAN HAL layer interface.

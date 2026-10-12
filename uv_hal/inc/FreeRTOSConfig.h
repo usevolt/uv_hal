@@ -279,7 +279,13 @@ standard names - or at least those used in the unmodified vector table. */
  * http://www.freertos.org/a00110.html
  *----------------------------------------------------------*/
 
+#if CONFIG_TARGET_WEB
+// A web browser build: the tasks run in turn on the page's one thread (see
+// portable/ThirdParty/GCC/Emscripten/port.c), so nothing preempts them
+#define configUSE_PREEMPTION					0
+#else
 #define configUSE_PREEMPTION					1
+#endif
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION	0
 #define configUSE_IDLE_HOOK						1
 #define configUSE_TICK_HOOK						1
@@ -316,7 +322,11 @@ configMAX_PRIORITIES - 1. */
 /* Run time stats gathering configuration options. */
 unsigned long ulGetRunTimeCounterValue( void ); /* Prototype of function that returns run time counter. */
 void vConfigureTimerForRunTimeStats( void );	/* Prototype of function that initialises the run time counter. */
+#if CONFIG_TARGET_WEB
+#define configGENERATE_RUN_TIME_STATS			0
+#else
 #define configGENERATE_RUN_TIME_STATS			1
+#endif
 
 /* Co-routine related configuration options. */
 #define configUSE_CO_ROUTINES 					0

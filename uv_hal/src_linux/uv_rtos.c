@@ -250,8 +250,13 @@ void vApplicationIdleHook(void) {
 		this->idle_task(__uv_get_user_ptr());
 	}
 	else {
+#if !CONFIG_TARGET_WEB
 		// wait for 1 tick step time to reduce the processor power consumption of the idle task
 		usleep(1000000 / configTICK_RATE_HZ);
+#else
+		// a web page's idle time is the browser's: the scheduler hands the
+		// thread back to it whenever only this task has anything to do
+#endif
 	}
 }
 
