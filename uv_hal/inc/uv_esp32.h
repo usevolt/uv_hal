@@ -309,6 +309,13 @@ typedef struct {
 
 	uv_esp32_states_e state;
 	uv_esp32_states_e scan_return_state;
+	/// @brief: Set by the module's unsolicited "WIFI DISCONNECT": the AP was
+	/// lost. While joined this drops the driver to LEFT_NETWORK, from where it
+	/// scans for the configured network and rejoins once it is seen again.
+	bool wifi_lost;
+	/// @brief: The last network scan saw the configured SSID, so a join
+	/// attempt has something to join.
+	bool wifi_ssid_seen;
 	/// @brief: Set with uv_esp32_set_disabled. While true the driver task
 	/// leaves the module alone: no AT traffic and no resets.
 	volatile bool disabled;

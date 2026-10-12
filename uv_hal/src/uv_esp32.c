@@ -304,6 +304,7 @@ static bool at_resp_accumulate(uv_esp32_st *this, char c) {
 // Forward decl — defined below.
 static void mqtt_set_state(uv_esp32_st *this, uv_esp32_mqtt_states_e state);
 #endif
+static void set_state(uv_esp32_st *this, uv_esp32_states_e state);
 
 
 /// @brief: Recognizes async +MQTT* event lines in this->at_resp and reacts.
@@ -357,6 +358,23 @@ static bool dispatch_mqtt_line(uv_esp32_st *this) {
 		}
 		else {
 		}
+		dispatched = true;
+	}
+	else if (strstr(this->at_resp, "WIFI DISCONNECT") != NULL) {
+		// Unsolicited: the AP is gone. A join in progress may report the
+		// previous AP going the same way, so this is only acted on while
+		// joined (see rxtx_task) and cleared when a join completes.
+		ESP32_DEBUG(this, "ESP32: WIFI DISCONNECT\n");
+		this->wifi_lost = true;
+		dispatched = true;
+	}
+	else if ((this->state == ESP32_STATE_LEFT_NETWORK) &&
+			(strstr(this->at_resp, "WIFI GOT IP") != NULL)) {
+		// The module rejoined the AP on its own. Only while left: during
+		// CONNECT_WIFI this line is the answer the join is waiting for.
+		ESP32_DEBUG(this, "ESP32: WiFi rejoined by the module\n");
+		this->wifi_lost = false;
+		set_state(this, ESP32_STATE_JOINED_NETWORK);
 		dispatched = true;
 	}
 #if CONFIG_ESP32_SNTP
@@ -1104,6 +1122,18 @@ static void rxtx_task(void *me_ptr) {
 		bool at_idle = true;
 #endif
 
+		// The AP was lost while joined: leave, and let LEFT_NETWORK look for
+		// it. A scan started from the joined state returns there first and
+		// is caught on the next round.
+		if (this->wifi_lost && (this->state == ESP32_STATE_JOINED_NETWORK)) {
+			ESP32_DEBUG(this, "ESP32: WiFi connection lost\n");
+			this->wifi_lost = false;
+			this->wifi_ssid_seen = false;
+			set_state(this, ESP32_STATE_LEFT_NETWORK);
+		}
+		else {
+		}
+
 		switch (this->state) {
 
 		case ESP32_STATE_INIT:
@@ -1174,6 +1204,8 @@ static void rxtx_task(void *me_ptr) {
 			if (match == 1) {
 				uv_uart_clear_rx_buffer(this->uart);
 				uv_streambuffer_clear(&this->rx_datastream);
+				// a disconnect reported during the join was the old AP
+				this->wifi_lost = false;
 				set_state(this, ESP32_STATE_JOINED_NETWORK);
 				ESP32_DEBUG(this, "ESP32: WiFi connected\n");
 			}
@@ -1332,14 +1364,23 @@ static void rxtx_task(void *me_ptr) {
 				else {
 				}
 				at_consume_line(this);
-				if (strstr(this->at_resp, "+CWLAP:") != NULL &&
-						this->state_data.scan.network_count < ESP32_SCAN_MAX_NETWORKS) {
+				if (strstr(this->at_resp, "+CWLAP:") != NULL) {
 					char *ssid_start = strchr(this->at_resp, '"');
 					if (ssid_start != NULL) {
 						ssid_start++;
 						char *ssid_end = strchr(ssid_start, '"');
 						if (ssid_end != NULL) {
 							uint16_t len = ssid_end - ssid_start;
+							// the configured network is looked for in every
+							// line, also the ones past a full list
+							if ((this->wifi_ssid != NULL) &&
+									(len > 0U) &&
+									(len == strlen(this->wifi_ssid)) &&
+									(strncmp(ssid_start, this->wifi_ssid, len) == 0)) {
+								this->wifi_ssid_seen = true;
+							}
+							else {
+							}
 							if (len >= SSID_STR_MAX_LEN) {
 								len = SSID_STR_MAX_LEN - 1;
 							}
@@ -1351,8 +1392,9 @@ static void rxtx_task(void *me_ptr) {
 							// way -- the name is simply not broadcast -- and so
 							// is a scan line that arrived damaged. Neither
 							// belongs on screen.
-							if (len == 0) {
-								/* nothing to show, nothing to join */
+							if ((len == 0) || (this->state_data.scan.network_count >=
+									ESP32_SCAN_MAX_NETWORKS)) {
+								/* nothing to show, or no room to show it */
 							}
 							else {
 								memcpy(this->state_data.scan.networks[this->state_data.scan.network_count].ssid,
@@ -1394,13 +1436,29 @@ static void rxtx_task(void *me_ptr) {
 		}
 
 		case ESP32_STATE_LEFT_NETWORK:
-			if (this->wifi_ssid != NULL && this->wifi_ssid[0] != '\0' &&
-					uv_delay(&this->timeout, uv_ts_get_step_ms(&ts))) {
-				ESP32_DEBUG(this, "ESP32: reconnecting to '%s'\n",
-						this->wifi_ssid);
-				send_at_cmd(this, "AT+CWJAP",
-						this->wifi_ssid, this->wifi_passwd);
-				set_state(this, ESP32_STATE_CONNECT_WIFI);
+			// With a network configured, scan for it now and then and join
+			// only once it is seen. A blind AT+CWJAP to an AP that is not
+			// there ties the module up for the whole join timeout, while a
+			// scan is over in a few seconds. A scan started from the UI
+			// counts as well.
+			if ((this->wifi_ssid != NULL) && (this->wifi_ssid[0] != '\0')) {
+				if (this->wifi_ssid_seen) {
+					ESP32_DEBUG(this, "ESP32: '%s' in range, joining\n",
+							this->wifi_ssid);
+					this->wifi_ssid_seen = false;
+					send_at_cmd(this, "AT+CWJAP",
+							this->wifi_ssid, this->wifi_passwd);
+					set_state(this, ESP32_STATE_CONNECT_WIFI);
+				}
+				else if (uv_delay(&this->timeout, uv_ts_get_step_ms(&ts))) {
+					ESP32_DEBUG(this, "ESP32: looking for '%s'\n",
+							this->wifi_ssid);
+					(void) uv_esp32_network_scan(this, false);
+				}
+				else {
+				}
+			}
+			else {
 			}
 			break;
 
@@ -1700,6 +1758,8 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 	this->uart = uart;
 	this->reset_io = reset_io;
 	this->state = ESP32_STATE_INIT;
+	this->wifi_lost = false;
+	this->wifi_ssid_seen = false;
 	this->mac = 0;
 	this->rssi = 0;
 	this->ip_str[0] = '\0';
@@ -2175,6 +2235,7 @@ uv_errors_e uv_esp32_network_scan(uv_esp32_st *this, bool blocking) {
 	if (this->state == ESP32_STATE_JOINED_NETWORK ||
 			this->state == ESP32_STATE_LEFT_NETWORK) {
 		this->state_data.scan.network_count = 0;
+		this->wifi_ssid_seen = false;
 		this->scan_return_state = this->state;
 		send_at_cmd(this, "AT+CWLAP", NULL, NULL);
 		ESP32_DEBUG(this, "ESP32: starting network scan\n");
