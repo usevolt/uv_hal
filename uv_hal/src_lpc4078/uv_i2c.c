@@ -60,15 +60,29 @@ static void transmit_next(i2c_e channel);
 static void i2c_transfer_int_callb(uint32_t err_code, uint32_t n);
 
 
-// Maximum number of no-progress poll iterations the blocking master transfer
-// will spin before it gives up, resets the peripheral and aborts. This guards
-// against a missing or stuck I2C slave (e.g. an unpopulated RTC) hanging the
-// calling task – and thus the whole system – forever. The value only needs to
-// be far larger than the idle-poll count of a legitimate byte transfer
-// (a few thousand at normal baudrates), which it is by a wide margin.
-#if !defined(CONFIG_I2C_POLL_TIMEOUT)
-#define CONFIG_I2C_POLL_TIMEOUT			1000000
+// How long a blocking master transfer may go without any bus progress before
+// it gives up, resets the peripheral and aborts. This guards against a missing
+// or stuck I2C slave (e.g. an unpopulated RTC) stalling the calling task. A
+// legitimate byte takes tens of microseconds, so a couple of milliseconds is
+// a wide margin while keeping a failed transfer short.
+#if !defined(CONFIG_I2C_TIMEOUT_MS)
+#define CONFIG_I2C_TIMEOUT_MS			2
 #endif
+
+// Backstop on the number of no-progress poll iterations, for transfers made
+// before the RTOS scheduler runs and the tick count does not advance. Roughly
+// 10 ms at 120 MHz, still far above the few thousand iterations a legitimate
+// byte needs at 100 kHz.
+#if !defined(CONFIG_I2C_POLL_TIMEOUT)
+#define CONFIG_I2C_POLL_TIMEOUT			100000
+#endif
+
+
+// Returns the timeout as RTOS ticks. One tick is added since the first
+// tick may come right after the timeout starts.
+static uint32_t timeout_ticks(void) {
+	return ((CONFIG_I2C_TIMEOUT_MS * uv_rtos_get_tick_rate_hz()) / 1000U) + 1U;
+}
 
 
 // Returns the register block for the given I2C channel.
@@ -104,9 +118,10 @@ static volatile bool i2c_xfer_done[I2C_NUM_INTERFACE];
 
 
 // Custom polling master event handler. Mirrors Chip_I2C_EventHandlerPolling but
-// bails out after CONFIG_I2C_POLL_TIMEOUT iterations with no bus state change,
-// so an absent/stuck slave cannot block the transfer forever. On timeout it
-// resets the peripheral to free the bus and aborts the transfer.
+// bails out after CONFIG_I2C_TIMEOUT_MS with no bus state change, so an
+// absent/stuck slave cannot block the transfer for long. On timeout it resets
+// the peripheral to free the bus and aborts the transfer, leaving its status
+// to I2C_STATUS_BUSY.
 static void i2c_master_event_handler(I2C_ID_T id, I2C_EVENT_T event) {
 	if (event == I2C_EVENT_DONE) {
 		i2c_xfer_done[id] = true;
@@ -114,15 +129,18 @@ static void i2c_master_event_handler(I2C_ID_T id, I2C_EVENT_T event) {
 	else if (event == I2C_EVENT_WAIT) {
 		i2c_xfer_done[id] = false;
 		uint32_t idle = 0;
+		uint32_t start = uv_rtos_get_tick_count();
 		while (!i2c_xfer_done[id]) {
 			if (Chip_I2C_IsStateChanged(id)) {
 				// bus made progress: service the state machine
 				Chip_I2C_MasterStateHandler(id);
 				idle = 0;
+				start = uv_rtos_get_tick_count();
 			}
 			else {
 				idle++;
-				if (idle >= CONFIG_I2C_POLL_TIMEOUT) {
+				if ((idle >= CONFIG_I2C_POLL_TIMEOUT) ||
+						((uv_rtos_get_tick_count() - start) >= timeout_ticks())) {
 					// slave missing / bus stuck: give up and recover
 					i2c_bus_reset(id);
 					i2c_xfer_done[id] = true;
@@ -136,6 +154,48 @@ static void i2c_master_event_handler(I2C_ID_T id, I2C_EVENT_T event) {
 	else {
 		// I2C_EVENT_LOCK / I2C_EVENT_UNLOCK are not used in polling mode
 	}
+}
+
+
+// Waits for an ongoing transfer to finish, but doesn't hang if the bus was
+// left stuck by a missing/unresponsive slave: resets it and continues
+static void wait_master_idle(i2c_e channel) {
+	uint32_t start = uv_rtos_get_tick_count();
+	uint32_t busywait = 0;
+	while (Chip_I2C_IsMasterActive(channel)) {
+		busywait++;
+		if ((busywait >= CONFIG_I2C_POLL_TIMEOUT) ||
+				((uv_rtos_get_tick_count() - start) >= timeout_ticks())) {
+			i2c_bus_reset(channel);
+			break;
+		}
+		else {
+			uv_rtos_task_yield();
+		}
+	}
+}
+
+
+// Runs a master transfer, retrying on lost arbitration, and maps its result
+// to an error code
+static uv_errors_e master_transfer(i2c_e channel, I2C_XFER_T *xfer) {
+	uv_errors_e ret;
+	I2C_STATUS_T status;
+	do {
+		status = (I2C_STATUS_T) Chip_I2C_MasterTransfer(channel, xfer);
+	} while (status == I2C_STATUS_ARBLOST);
+
+	if (status == I2C_STATUS_DONE) {
+		ret = ERR_NONE;
+	}
+	else if (status == I2C_STATUS_NAK) {
+		ret = ERR_NACK;
+	}
+	else {
+		// timed out or bus error
+		ret = ERR_NOT_RESPONDING;
+	}
+	return ret;
 }
 
 
@@ -237,19 +297,8 @@ uv_errors_e uv_i2cm_read(i2c_e channel, uint8_t *tx_buffer, uint16_t tx_len,
 		uint8_t *rx_buffer, uint16_t rx_len) {
 	uv_errors_e ret = ERR_NONE;
 
-	// wait for any ongoing transfer to finish, but don't hang forever if the
-	// bus was left stuck by a missing/unresponsive slave: reset and continue
-	uint32_t busywait = 0;
-	while (Chip_I2C_IsMasterActive(channel)) {
-		busywait++;
-		if (busywait >= CONFIG_I2C_POLL_TIMEOUT) {
-			i2c_bus_reset(channel);
-			break;
-		}
-		else {
-			uv_rtos_task_yield();
-		}
-	}
+	wait_master_idle(channel);
+
 	I2C_XFER_T xfer = {};
 	if (tx_len) {
 		// slave address is read from txbuffer first byte
@@ -274,8 +323,7 @@ uv_errors_e uv_i2cm_read(i2c_e channel, uint8_t *tx_buffer, uint16_t tx_len,
 		xfer.txSz = 0;
 		xfer.txBuff = NULL;
 	}
-	while (Chip_I2C_MasterTransfer(channel, &xfer) == I2C_STATUS_ARBLOST) {}
-
+	ret = master_transfer(channel, &xfer);
 
 	return ret;
 }
@@ -286,11 +334,12 @@ uv_errors_e uv_i2cm_write(i2c_e channel, uint8_t *tx_buffer, uint16_t tx_len) {
 	uv_errors_e ret = ERR_NONE;
 
 	if (tx_len > 1) {
+		wait_master_idle(channel);
 		I2C_XFER_T xfer = {};
 		xfer.slaveAddr = ((tx_buffer[0]) >> 1);
 		xfer.txBuff = tx_buffer + 1;
 		xfer.txSz = tx_len - 1;
-		while (Chip_I2C_MasterTransfer(channel, &xfer) == I2C_STATUS_ARBLOST) {}
+		ret = master_transfer(channel, &xfer);
 	}
 	else {
 		ret = ERR_ABORTED;
