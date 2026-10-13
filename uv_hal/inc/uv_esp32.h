@@ -474,6 +474,8 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 /// through the MQTT state machine. Scheme follows the ESP-AT spec (see the
 /// header-level scheme comment). May be called again to retarget — if MQTT
 /// is currently connected, the change takes effect on the next reconnect.
+/// An empty (or NULL) *broker_url* keeps the client from connecting, and
+/// closes a session that is already open.
 void uv_esp32_mqtt_init(uv_esp32_st *this,
 		const char *broker_url,
 		uint16_t broker_port,

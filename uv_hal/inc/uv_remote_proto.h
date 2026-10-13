@@ -121,6 +121,18 @@ typedef enum {
 	// code the device ended it with (see REMOTE_SDO_ABORT_*). The object is
 	// echoed back so a late answer cannot be taken for the one being waited on.
 	REMOTE_MSG_TYPE_SDO_RES,
+	// Asks the device for its identification name (sink -> device), carrying
+	// nothing but the type. A device that does not know the message drops it
+	// and answers nothing, which is how the sink tells it has no name to give.
+	// [0x85][NAME_REQ]
+	REMOTE_MSG_TYPE_NAME_REQ,
+	// The device's identification name (device -> sink): the name the machine
+	// operator gave it, so that a fleet can be told apart by more than MAC
+	// addresses. Sent in answer to NAME_REQ, and unprompted whenever the
+	// broker session opens or the name changes. Fixed length, null padded;
+	// an empty name means the operator has not named the device yet.
+	// [0x85][NAME][name: REMOTE_DEV_NAME_MAX_LEN]
+	REMOTE_MSG_TYPE_NAME,
 	REMOTE_MSG_TYPE_COUNT
 } remote_msg_types_e;
 
@@ -311,6 +323,11 @@ typedef struct __attribute__((packed)) {
 #define REMOTE_MSG_TYPE_UI_INFO_LEN				6
 #define REMOTE_MSG_TYPE_CLOSE_LEN				2
 #define REMOTE_MSG_TYPE_CAN_STATS_LEN			(2 + sizeof(remote_can_stats_st))
+/// @brief: Room for the identification name in REMOTE_MSG_TYPE_NAME,
+/// terminator included. The name can be shorter than this but not longer.
+#define REMOTE_DEV_NAME_MAX_LEN					32
+#define REMOTE_MSG_TYPE_NAME_REQ_LEN			2
+#define REMOTE_MSG_TYPE_NAME_LEN				(2 + REMOTE_DEV_NAME_MAX_LEN)
 
 // --- SDO offload wire constants ---------------------------------------------
 
@@ -408,6 +425,18 @@ static inline const char *remote_msg_type_to_str(remote_msg_types_e type) {
 		break;
 	case REMOTE_MSG_TYPE_CAN_STATS:
 		ret = "CAN_STATS";
+		break;
+	case REMOTE_MSG_TYPE_SDO_REQ:
+		ret = "SDO_REQ";
+		break;
+	case REMOTE_MSG_TYPE_SDO_RES:
+		ret = "SDO_RES";
+		break;
+	case REMOTE_MSG_TYPE_NAME_REQ:
+		ret = "NAME_REQ";
+		break;
+	case REMOTE_MSG_TYPE_NAME:
+		ret = "NAME";
 		break;
 	default:
 		break;

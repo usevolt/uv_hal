@@ -474,8 +474,22 @@ void uv_esp32_step(uv_esp32_st *this, uint16_t step_ms) {
 #endif
 #if CONFIG_ESP32_MQTT
 
+	// The broker address was withdrawn (uv_esp32_mqtt_init() with an empty
+	// url): close the session and stay closed until one is given again.
+	if ((this->mqtt_state != ESP32_MQTT_STATE_DISABLED) &&
+			((this->mqtt_broker_url == NULL) ||
+					(this->mqtt_broker_url[0] == '\0'))) {
+		if (s_mosq != NULL) {
+			(void) mosquitto_disconnect(s_mosq);
+		}
+		else {
+		}
+		this->mqtt_state = ESP32_MQTT_STATE_DISABLED;
+		mqtt_sub_invalidate(this);
+		ESP32_DEBUG(this, "ESP32(linux): MQTT broker url withdrawn\n");
+	}
 	// Lazy-connect once an MQTT broker URL has been configured.
-	if (this->mqtt_state == ESP32_MQTT_STATE_DISABLED &&
+	else if (this->mqtt_state == ESP32_MQTT_STATE_DISABLED &&
 			this->mqtt_broker_url != NULL &&
 			this->mqtt_broker_url[0] != '\0' &&
 			mosq_ensure(this)) {

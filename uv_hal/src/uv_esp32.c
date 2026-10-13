@@ -1500,7 +1500,34 @@ static void rxtx_task(void *me_ptr) {
 		// MQTT state machine. Runs alongside the main esp32 state machine.
 		// Progresses only while Wi-Fi is joined; drops to DISABLED otherwise so
 		// it cleanly re-enters INIT on rejoin.
-		if (this->state == ESP32_STATE_JOINED_NETWORK) {
+		bool mqtt_no_url = ((this->mqtt_broker_url == NULL) ||
+				(this->mqtt_broker_url[0] == '\0'));
+		if ((this->state == ESP32_STATE_JOINED_NETWORK) &&
+				mqtt_no_url &&
+				(((this->mqtt_state == ESP32_MQTT_STATE_CONNECTED) &&
+				((active_slot == NULL) ||
+						(active_slot->phase == MQTT_PUB_PHASE_IDLE)) &&
+				(this->mqtt_sub_active == NULL)) ||
+				(this->mqtt_state == ESP32_MQTT_STATE_INIT) ||
+				(this->mqtt_state == ESP32_MQTT_STATE_ERROR))) {
+			// The broker address was withdrawn (uv_esp32_mqtt_init() with an
+			// empty url): close the session and stay closed until one is given
+			// again. A session is only closed between AT exchanges, and one
+			// still being opened is let finish first, so no reply that a state
+			// below waits for is taken by the close.
+			if (this->mqtt_state == ESP32_MQTT_STATE_CONNECTED) {
+				char line[32];
+				snprintf(line, sizeof(line), "AT+MQTTCLEAN=%d",
+						ESP32_MQTT_LINK_ID);
+				send_at_cmd_raw(this, line);
+			}
+			else {
+			}
+			ESP32_DEBUG(this, "ESP32: MQTT broker url withdrawn\n");
+			mqtt_slot_clear_all(this);
+			mqtt_set_state(this, ESP32_MQTT_STATE_DISABLED);
+		}
+		else if (this->state == ESP32_STATE_JOINED_NETWORK) {
 			switch (this->mqtt_state) {
 			case ESP32_MQTT_STATE_DISABLED:
 				if (this->mqtt_broker_url != NULL &&
