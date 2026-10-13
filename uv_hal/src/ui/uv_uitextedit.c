@@ -149,6 +149,9 @@ void uv_uitextedit_draw(void *me, const uv_bounding_box_st *pbb) {
 	uv_ui_draw_shadowrrect(x, y, uv_uibb(this)->width, height, 0,
 			this->bg_color, uv_uic_brighten(this->bg_color, -30),
 			uv_uic_brighten(this->bg_color, 30));
+#if CONFIG_TARGET_WEB
+	uv_ui_web_text_field(x, y, uv_uibb(this)->width, height);
+#endif
 #if CONFIG_UI_ENABLEFOCUS
 	if (uv_uiobject_get_focused(this)) {
 		// around the entry box only: the title below it is not typed into

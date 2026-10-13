@@ -554,6 +554,15 @@ const char *uv_ui_get_clipboard(void);
 char uv_ui_peek_key_press(void);
 
 
+#if CONFIG_TARGET_WEB
+/// @brief: Tells the browser backend where a text field is in the frame being
+/// drawn, in display pixels. A touch on one brings up the phone's on-screen
+/// keyboard, which a canvas cannot otherwise do. Called by the text fields as
+/// they draw.
+void uv_ui_web_text_field(int16_t x, int16_t y, int16_t width, int16_t height);
+#endif
+
+
 /// @brief: Sets the color mode for the ft81x. The mode affects  how different colors
 /// are drawn on the screen.
 void uv_ui_set_color_mode(ui_color_modes_e value);

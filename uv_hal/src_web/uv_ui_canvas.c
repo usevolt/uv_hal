@@ -134,6 +134,15 @@ EM_JS(void, js_init, (int w, int h, int bg), {
 		pressed: false,
 		x: 0,
 		y: 0,
+		// whether uv_ui has seen the press, and how many more polls a
+		// cancelled one is reported dragged away for (see js_get_touch)
+		seen: false,
+		cancel: 0,
+		// the text fields of the frame on screen and of the one being drawn,
+		// as [x, y, w, h] in UI pixels (see uv_ui_web_text_field())
+		fields: [],
+		fieldsNext: [],
+		kbd: null,
 		scroll: 0,
 		keys: [],
 		refresh: true,
@@ -165,16 +174,151 @@ EM_JS(void, js_init, (int w, int h, int bg), {
 		ui.x = Math.round((e.clientX - r.left - ui.ox) / ui.scale);
 		ui.y = Math.round((e.clientY - r.top - ui.oy) / ui.scale);
 	}
+	// A press which turns out to be the start of a pinch. uv_ui clicks where
+	// the press started, whatever happens after, so simply letting go would
+	// click whatever the first finger landed on. Instead the press is dragged
+	// half the screen over for a couple of polls first, which uv_ui takes as a
+	// drag that ended: no click.
+	function cancel() {
+		if (ui.pressed && ui.seen) {
+			ui.cancel = 2;
+		}
+		else {
+			ui.pressed = false;
+		}
+	}
+
+	// A phone shows its keyboard only for a real text input which has the
+	// focus, and only when it is given the focus during a touch. This one sits
+	// over whichever text field was touched, out of sight, and what is typed
+	// into it is passed on as key presses. Its value always starts with
+	// KBD_SENT, so that a backspace has something to delete even when nothing
+	// has been typed.
+	const KBD_SENT = ' ';
+	const kbd = document.createElement('input');
+	kbd.type = 'text';
+	kbd.autocomplete = 'off';
+	kbd.setAttribute('autocorrect', 'off');
+	kbd.setAttribute('autocapitalize', 'off');
+	kbd.spellcheck = false;
+	kbd.enterKeyHint = 'send';
+	// 16px or more, or iOS zooms the page in on focus
+	kbd.style.cssText = 'position:fixed;opacity:0;pointer-events:none;' +
+		'border:0;padding:0;font-size:16px;caret-color:transparent;' +
+		'left:0;top:0;width:1px;height:1px;';
+	kbd.value = KBD_SENT;
+	document.body.appendChild(kbd);
+	ui.kbd = kbd;
+	let kbdPrev = KBD_SENT;
+	function kbdReset() {
+		kbd.value = KBD_SENT;
+		kbdPrev = KBD_SENT;
+	}
+	// What was typed is worked out from how the value changed, rather than
+	// from key events: the keyboards of phones compose words and rewrite them,
+	// and send no usable key codes while at it.
+	kbd.addEventListener('input', () => {
+		const v = kbd.value;
+		let p = 0;
+		while ((p < v.length) && (p < kbdPrev.length) && (v[p] === kbdPrev[p])) {
+			p++;
+		}
+		for (let i = p; i < kbdPrev.length; i++) {
+			ui.keys.push(8);
+		}
+		for (const ch of v.slice(p)) {
+			const c = ch.charCodeAt(0);
+			if (ch === '\n') {
+				ui.keys.push(10);
+			}
+			else if ((c >= 0x20) && (c < 0x7F)) {
+				ui.keys.push(c);
+			}
+		}
+		if (!v.startsWith(KBD_SENT)) {
+			kbdReset();
+		}
+		else {
+			kbdPrev = v;
+		}
+	});
+	kbd.addEventListener('keydown', (e) => {
+		let c = -1;
+		if (e.key === 'Enter') {
+			c = 10;
+			kbdReset();
+		}
+		else if ((e.key in special) && (e.key !== 'Backspace') && (e.key !== 'Delete')) {
+			c = special[e.key];
+		}
+		if (c >= 0) {
+			ui.keys.push(c);
+			e.preventDefault();
+		}
+	});
+	// the text field at UI pixel (x, y), or null
+	function fieldAt(x, y) {
+		return ui.fields.find((f) => (x >= f[0]) && (x < f[0] + f[2]) &&
+				(y >= f[1]) && (y < f[1] + f[3])) || null;
+	}
+	function kbdShow(f) {
+		const r = canvas.getBoundingClientRect();
+		kbd.style.left = (r.left + ui.ox + f[0] * ui.scale) + 'px';
+		kbd.style.top = (r.top + ui.oy + f[1] * ui.scale) + 'px';
+		kbd.style.width = Math.max(1, f[2] * ui.scale) + 'px';
+		kbd.style.height = Math.max(1, f[3] * ui.scale) + 'px';
+		if (document.activeElement !== kbd) {
+			kbdReset();
+			kbd.focus();
+		}
+	}
+	ui.kbdHide = () => {
+		if (document.activeElement === kbd) {
+			kbd.blur();
+		}
+	};
+
 	canvas.addEventListener('pointerdown', (e) => {
-		canvas.focus();
-		canvas.setPointerCapture(e.pointerId);
+		if (ui.pressed) {
+			// a second finger: a pinch is starting, if the browser has not
+			// already said so
+			cancel();
+			return;
+		}
 		pos(e);
+		if (e.pointerType === 'mouse') {
+			canvas.focus();
+		}
+		else {
+			// a touch on a text field brings up the keyboard, and one
+			// anywhere else puts it away
+			const f = fieldAt(ui.x, ui.y);
+			if (f !== null) {
+				kbdShow(f);
+			}
+			else {
+				ui.kbdHide();
+			}
+		}
+		canvas.setPointerCapture(e.pointerId);
 		ui.pressed = true;
+		ui.seen = false;
+		ui.cancel = 0;
 		e.preventDefault();
 	});
-	canvas.addEventListener('pointermove', (e) => { pos(e); });
-	canvas.addEventListener('pointerup', (e) => { pos(e); ui.pressed = false; });
-	canvas.addEventListener('pointercancel', () => { ui.pressed = false; });
+	canvas.addEventListener('pointermove', (e) => {
+		if (ui.cancel === 0) {
+			pos(e);
+		}
+	});
+	canvas.addEventListener('pointerup', (e) => {
+		if (ui.cancel === 0) {
+			pos(e);
+			ui.pressed = false;
+		}
+	});
+	// the browser took the touch over, for a pinch
+	canvas.addEventListener('pointercancel', cancel);
 	canvas.addEventListener('wheel', (e) => {
 		// one notch per event, positive away from the user like GLFW's
 		ui.scroll += (e.deltaY < 0) ? 1 : ((e.deltaY > 0) ? -1 : 0);
@@ -237,8 +381,20 @@ EM_JS(bool, js_take_refresh, (void), {
 
 EM_JS(int, js_get_touch, (void), {
 	const ui = Module.uvui;
+	let x = ui.x;
+	if (ui.cancel > 0) {
+		// a cancelled press, dragged half the screen over (see cancel() in
+		// js_init)
+		x += (x < ui.w / 2) ? (ui.w >> 1) : -(ui.w >> 1);
+		ui.cancel--;
+		if (ui.cancel === 0) {
+			ui.pressed = false;
+		}
+		return (1 << 31) | ((x & 0x7FFF) << 15) | (ui.y & 0x7FFF);
+	}
+	ui.seen = ui.pressed;
 	// x and y in 15 bits each, pressed in bit 31
-	return ((ui.pressed ? 1 : 0) << 31) | ((ui.x & 0x7FFF) << 15) | (ui.y & 0x7FFF);
+	return ((ui.pressed ? 1 : 0) << 31) | ((x & 0x7FFF) << 15) | (ui.y & 0x7FFF);
 });
 
 EM_JS(int, js_take_scroll, (void), {
@@ -269,6 +425,20 @@ EM_JS(void, js_begin_frame, (void), {
 	ctx.setTransform(ui.scale * ui.dpr, 0, 0, ui.scale * ui.dpr,
 			ui.ox * ui.dpr, ui.oy * ui.dpr);
 	ctx.save();
+	ui.fieldsNext = [];
+});
+
+EM_JS(void, js_end_frame, (void), {
+	const ui = Module.uvui;
+	ui.fields = ui.fieldsNext;
+	if (ui.fields.length === 0) {
+		// the field typed into is gone, and the keyboard with it
+		ui.kbdHide();
+	}
+});
+
+EM_JS(void, js_text_field, (int x, int y, int w, int h), {
+	Module.uvui.fieldsNext.push([x, y, w, h]);
 });
 
 EM_JS(void, js_set_bg, (int r, int g, int b), {
@@ -717,7 +887,15 @@ void uv_ui_touchscreen_set_transform_matrix(ui_transfmat_st *transform_matrix) {
 void uv_ui_dlswap_impl(void) {
 	// The browser presents the canvas by itself, as it is when the thread is
 	// handed back. The frame is left there until the next one starts.
+	if (!this->frame_done) {
+		js_end_frame();
+	}
 	this->frame_done = true;
+}
+
+
+void uv_ui_web_text_field(int16_t x, int16_t y, int16_t width, int16_t height) {
+	js_text_field(x, y, width, height);
 }
 
 
