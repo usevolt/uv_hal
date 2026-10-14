@@ -136,6 +136,19 @@ int32_t uv_can_get_device_count(void) {
 }
 
 
+bool uv_can_device_is_can(const char *name) {
+	// every device listed here is a PCAN channel
+	(void) name;
+	return true;
+}
+
+
+bool uv_can_device_is_virtual(const char *name) {
+	(void) name;
+	return false;
+}
+
+
 void uv_can_set_dev(uv_can_channels_e can_dev) {
 	strcpy(this->dev, can_dev);
 }

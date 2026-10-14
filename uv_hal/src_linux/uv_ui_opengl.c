@@ -304,62 +304,6 @@ uimedia_ll_st *uimedia_ll_st_find(const char *filename) {
 
 #if CONFIG_CAN
 
-/// @brief: Reads the integer in /sys/class/net/<name>/<attr>. False when the
-/// interface has no such attribute (or there is no sysfs at all, on Windows).
-static bool confwindow_read_sysfs_int(const char *name, const char *attr,
-		long *dst) {
-	bool ret = false;
-	char path[128];
-	snprintf(path, sizeof(path), "/sys/class/net/%s/%s", name, attr);
-	FILE *f = fopen(path, "r");
-	if (f != NULL) {
-		ret = (fscanf(f, "%ld", dst) == 1);
-		fclose(f);
-	}
-	return ret;
-}
-
-
-/// @brief: True for the interfaces the CAN device list offers: the real ones
-/// and the virtual ones. Every host has a pile of other netdevs (lo, ethernet,
-/// wifi, docker bridges) that cannot carry CAN frames at all, and offering them
-/// only invites picking one.
-///
-/// On Linux the link type tells, whatever the interface is called: a CAN netdev
-/// is ARPHRD_CAN (280). That is what finds the ones not named "can*" / "vcan*",
-/// such as the uvremote0 bridge to a remote device's bus. Without sysfs the
-/// name is all there is to go by.
-static bool confwindow_is_can_dev(const char *name) {
-	bool ret;
-	long type = 0;
-	if (confwindow_read_sysfs_int(name, "type", &type)) {
-		ret = (type == 280);
-	}
-	else {
-		ret = ((strncmp(name, "can", 3) == 0) ||
-				(strncmp(name, "vcan", 4) == 0));
-	}
-	return ret;
-}
-
-
-/// @brief: True for a CAN interface with no hardware behind it: a vcan, or a
-/// bridge like uvremote0. A hardware interface has a "device" link in sysfs.
-static bool confwindow_is_virtual_can_dev(const char *name) {
-	bool ret;
-	char path[128];
-	snprintf(path, sizeof(path), "/sys/class/net/%s", name);
-	if (access(path, F_OK) == 0) {
-		snprintf(path, sizeof(path), "/sys/class/net/%s/device", name);
-		ret = (access(path, F_OK) != 0);
-	}
-	else {
-		ret = (strncmp(name, "vcan", 4) == 0);
-	}
-	return ret;
-}
-
-
 /// @brief: Suggests the name for a new virtual bus: "vcan" followed by the
 /// lowest free index, so pressing the button repeatedly makes vcan0, vcan1, …
 /// rather than failing on a name that is already taken.
@@ -470,8 +414,8 @@ static void confwindow_build(const uv_uistyle_st *style) {
 				(i < uv_can_get_device_count()) &&
 				(count < CONFWINDOW_MAX_CAN_DEVS); i++) {
 			const char *name = uv_can_get_device_name(i);
-			bool is_vcan = confwindow_is_virtual_can_dev(name);
-			bool match = confwindow_is_can_dev(name) &&
+			bool is_vcan = uv_can_device_is_virtual(name);
+			bool match = uv_can_device_is_can(name) &&
 					((pass == 0) ? !is_vcan : is_vcan);
 			if (match) {
 				strncpy(this->confwindow.can_listbutton_names[count], name,

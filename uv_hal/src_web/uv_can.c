@@ -218,6 +218,18 @@ int32_t uv_can_get_device_count(void) {
 }
 
 
+bool uv_can_device_is_can(const char *name) {
+	(void) name;
+	return false;
+}
+
+
+bool uv_can_device_is_virtual(const char *name) {
+	(void) name;
+	return false;
+}
+
+
 bool uv_can_is_connected(void) {
 	return false;
 }

@@ -170,6 +170,53 @@ uv_can_channels_e uv_can_get_dev(void) {
 }
 
 
+/// @brief: Reads the integer in /sys/class/net/<name>/<attr>. False when the
+/// interface has no such attribute.
+static bool sysfs_read_int(const char *name, const char *attr, long *dst) {
+	bool ret = false;
+	char path[128];
+	snprintf(path, sizeof(path), "/sys/class/net/%s/%s", name, attr);
+	FILE *f = fopen(path, "r");
+	if (f != NULL) {
+		ret = (fscanf(f, "%ld", dst) == 1);
+		fclose(f);
+	}
+	return ret;
+}
+
+
+bool uv_can_device_is_can(const char *name) {
+	bool ret;
+	long type = 0;
+	if (sysfs_read_int(name, "type", &type)) {
+		// ARPHRD_CAN
+		ret = (type == 280);
+	}
+	else {
+		// no sysfs to ask: the name is all there is to go by
+		ret = ((strncmp(name, "can", 3) == 0) ||
+				(strncmp(name, "vcan", 4) == 0));
+	}
+	return ret;
+}
+
+
+bool uv_can_device_is_virtual(const char *name) {
+	bool ret;
+	char path[128];
+	snprintf(path, sizeof(path), "/sys/class/net/%s", name);
+	if (access(path, F_OK) == 0) {
+		// a hardware interface has a "device" link to what it sits on
+		snprintf(path, sizeof(path), "/sys/class/net/%s/device", name);
+		ret = (access(path, F_OK) != 0);
+	}
+	else {
+		ret = (strncmp(name, "vcan", 4) == 0);
+	}
+	return ret;
+}
+
+
 
 /// @brief: Opens a socket to a SocketCAN device
 static bool copen(void) {

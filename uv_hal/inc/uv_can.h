@@ -425,6 +425,17 @@ char *uv_can_get_device_name(int32_t i);
 /// @brief: Returns the count of found CAN interface devices
 int32_t uv_can_get_device_count(void);
 
+/// @brief: True when the interface *name* (one of uv_can_get_device_name())
+/// carries CAN frames. A host lists every network interface it has (loopback,
+/// ethernet, wifi, bridges), and only these are worth offering as a CAN bus.
+/// On Linux the interface's link type decides, whatever it is called, so a
+/// virtual bus named something other than can* / vcan* is found too.
+bool uv_can_device_is_can(const char *name);
+
+/// @brief: True for a CAN interface with no hardware behind it (a vcan, or a
+/// bridge to a bus somewhere else). Lists show the hardware interfaces first.
+bool uv_can_device_is_virtual(const char *name);
+
 /// @brief: Returns true if the connection to the CAN dev is open
 bool uv_can_is_connected(void);
 
