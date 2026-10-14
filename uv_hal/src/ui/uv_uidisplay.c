@@ -57,16 +57,20 @@ void uv_uidisplay_draw(void *me) {
 
 void uv_uidisplay_draw_touch_ind(void *me) {
 	if (this->touch_ind) {
-		if (!uv_delay_has_ended(&this->touch_ind_delay)) {
-			int16_t reli = uv_reli(this->touch_ind_delay, 0, TOUCH_IND_DELAY_MS);
+		if (this->touch_ind_held ||
+				!uv_delay_has_ended(&this->touch_ind_delay)) {
+			// solid while touched, fades and shrinks away after the release
+			int16_t reli = uv_reli((this->touch_ind_held) ?
+					TOUCH_IND_DELAY_MS : this->touch_ind_delay,
+					0, TOUCH_IND_DELAY_MS);
 			color_st c = {
 					.r = 0xFF,
 					.g = 0xFF,
 					.b = 0xFF,
 					.a = uv_lerpi(reli, 0x0, 0xFF)
 			};
-			uv_ui_draw_point(this->press_x,
-					this->press_y,
+			uv_ui_draw_point(this->touch_ind_x,
+					this->touch_ind_y,
 					c.color,
 					uv_lerpi(
 						reli,
@@ -105,6 +109,9 @@ void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *
 	uv_uibb(me)->height = LCD_H_PX;
 	this->display_c = style->display_c;
 	this->touch_ind = true;
+	this->touch_ind_held = false;
+	this->touch_ind_x = 0;
+	this->touch_ind_y = 0;
 	uv_delay_end(&this->touch_ind_delay);
 	uv_ui_refresh_parent(this);
 	uv_uiobject_set_draw_callb(this, &_uv_uidisplay_draw);
@@ -217,8 +224,25 @@ uv_uiobject_ret_e uv_uidisplay_step(void *me, uint32_t step_ms) {
 			this->press_state = RELEASED;
 		}
 	}
-	if (this->touch.action == TOUCH_PRESSED) {
+	if (this->press_state != RELEASED) {
+		// the dot is shown solid while touched and follows the drag
+		int16_t x = (this->press_state == DRAGGING) ? this->drag_x : this->press_x;
+		int16_t y = (this->press_state == DRAGGING) ? this->drag_y : this->press_y;
+		if (this->touch_ind &&
+				(!this->touch_ind_held ||
+				(x != this->touch_ind_x) ||
+				(y != this->touch_ind_y))) {
+			uv_ui_refresh(this);
+		}
+		this->touch_ind_x = x;
+		this->touch_ind_y = y;
+		this->touch_ind_held = true;
+	}
+	else if (this->touch_ind_held) {
+		// released: the dot starts to fade away where the finger left it
+		this->touch_ind_held = false;
 		uv_delay_init(&this->touch_ind_delay, TOUCH_IND_DELAY_MS);
+		uv_ui_refresh(this);
 	}
 	else {
 		if (uv_delay(&this->touch_ind_delay, step_ms) ||

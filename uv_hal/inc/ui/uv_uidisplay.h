@@ -87,6 +87,11 @@ typedef struct {
 	color_t display_c;
 	// when true, small dot indicates touch position on screen
 	bool touch_ind;
+	// true while the screen is touched: the dot is drawn solid and follows
+	// the finger. touch_ind_delay fades it away once released.
+	bool touch_ind_held;
+	int16_t touch_ind_x;
+	int16_t touch_ind_y;
 	uv_delay_st touch_ind_delay;
 	uv_touch_st touch;
 #endif
