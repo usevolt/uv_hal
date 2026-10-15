@@ -52,6 +52,25 @@
 #define IS_SDO_REQUEST(msg_ptr)			(((msg_ptr)->id & (~0x7F)) == CANOPEN_SDO_REQUEST_ID)
 #define IS_SDO_RESPONSE(msg_ptr)		(((msg_ptr)->id & (~0x7F)) == CANOPEN_SDO_RESPONSE_ID)
 
+#if CONFIG_TARGET_LPC40XX
+/// @brief: How long _uv_canopen_sdo_send() waits for room in a full CAN
+/// transmit buffer before it gives the frame up.
+#define SDO_SEND_WAIT_MS				20
+#endif
+
+
+/// @brief: The last frame our SDO client sent to our own SDO server. Such a
+/// transfer is kept off the bus, see _uv_canopen_sdo_send(). Written by the
+/// task running the client, read by the CANopen task.
+static volatile struct {
+	uv_can_msg_st msg;
+	bool valid;
+} sdo_self_req = { .valid = false };
+
+/// @brief: True while the SDO server is answering a request our own client
+/// sent, so that its replies stay off the bus as well.
+static volatile bool sdo_server_reply_local = false;
+
 
 sdo_request_type_e _canopen_sdo_get_request_type(const uv_can_message_st *msg) {
 	sdo_request_type_e ret;
@@ -147,6 +166,23 @@ void _uv_canopen_sdo_rx(const uv_can_message_st *msg) {
 			if ((GET_NODEID(msg) == NODEID) &&
 					IS_SDO_REQUEST(msg)) {
 	#if CONFIG_CANOPEN_SDO_SERVER
+				// a request our own client sent is answered locally only. A
+				// request from anyone else, a frame the remote module injected
+				// on a remote sink's behalf included, is answered on the bus.
+				bool local = false;
+				uv_disable_int();
+				if (sdo_self_req.valid &&
+						(sdo_self_req.msg.id == msg->id) &&
+						(sdo_self_req.msg.type == msg->type) &&
+						(sdo_self_req.msg.data_length == msg->data_length) &&
+						(sdo_self_req.msg.data_64bit == msg->data_64bit)) {
+					sdo_self_req.valid = false;
+					local = true;
+				}
+				else {
+				}
+				uv_enable_int();
+				sdo_server_reply_local = local;
 				_uv_canopen_sdo_server_rx(msg, msg_type);
 	#endif
 			}
@@ -260,13 +296,58 @@ bool _canopen_write_data(const canopen_object_st *dest,
 
 
 
+/// @brief: Sends an SDO frame of either the client or the server.
+///
+/// A transfer between our own client and our own server runs entirely in the
+/// receive buffer: the client's requests (CANOPEN_SDO_REQUEST_ID + NODEID can
+/// only come from our client) and the server's replies to them are delivered
+/// locally and never reach the bus or the tx callback. Putting them on the
+/// bus as well did nothing but harm: both ends answer each other at once from
+/// the receive buffer, much faster than the bus can carry the copies, so a
+/// burst of self-reads filled the transmit buffer and the frames queued
+/// behind it - a request to another node among them - were lost.
+///
+/// Every other frame goes on the bus and through the tx callback, a server
+/// reply to another client also locally as before. On LPC40XX, should the
+/// transmit buffer be full, the frame waits up to SDO_SEND_WAIT_MS for room
+/// instead of being dropped: a lost SDO frame costs the full SDO timeout of
+/// the transfer. The wait is bounded, as with no other node on the bus to
+/// acknowledge them the frames never drain.
 void _uv_canopen_sdo_send(uv_can_msg_st *msg) {
-	uv_can_send(CONFIG_CANOPEN_CHANNEL, msg);
-	if ((msg->id & 0x7F) == NODEID) {
-		// send reply also locally if it was directed to us
+	bool to_us = ((msg->id & 0x7F) == NODEID);
+	bool self_req = to_us && IS_SDO_REQUEST(msg);
+	bool self_reply = to_us && IS_SDO_RESPONSE(msg) && sdo_server_reply_local;
+
+	if (self_req) {
+		// remembered before it is delivered, so that the server knows it
+		uv_disable_int();
+		memcpy((void*) &sdo_self_req.msg, msg, sizeof(*msg));
+		sdo_self_req.valid = true;
+		uv_enable_int();
+	}
+	else if (!self_reply) {
+#if CONFIG_TARGET_LPC40XX
+		// waited for before sending rather than retried after a failure:
+		// uv_can_send() runs the tx callback even when the buffer is full, and
+		// a retry would hand the remote module the same frame twice
+		uint16_t waited_ms = 0;
+		while (uv_can_tx_full(CONFIG_CANOPEN_CHANNEL) &&
+				(waited_ms < SDO_SEND_WAIT_MS)) {
+			uv_rtos_task_delay(1);
+			waited_ms++;
+		}
+#endif
+		uv_can_send(CONFIG_CANOPEN_CHANNEL, msg);
+	}
+	else {
+	}
+
+	if (to_us) {
 		uv_can_send_flags(CONFIG_CANOPEN_CHANNEL, msg,
 				CAN_SEND_FLAGS_LOCAL |
 				CAN_SEND_FLAGS_NO_TX_CALLB);
+	}
+	else {
 	}
 }
 
