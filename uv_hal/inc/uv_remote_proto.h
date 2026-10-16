@@ -111,9 +111,14 @@ typedef enum {
 	//
 	// *flags* is REMOTE_SDO_FLAG_*; *data_len* is the bytes written on a write,
 	// and on a read the most the sink will take back.
+	//
+	// The device runs one transfer at a time. A request arriving while one runs
+	// is dropped if it is the same request again (the sink retrying), and
+	// otherwise answered at once with REMOTE_SDO_FLAG_BUSY set: another admin's
+	// transfer is running.
 	REMOTE_MSG_TYPE_SDO_REQ,
 	// The result of one SDO_REQ (device -> sink), in the same order the
-	// requests arrived.
+	// requests arrived. *flags* is the request's own, echoed back.
 	// [0x85][SDO_RES][payload_len][flags][node][mindex:2][sindex][data_len:2]
 	//       [abort:4][data: data_len]
 	//
@@ -346,6 +351,22 @@ typedef struct __attribute__((packed)) {
 
 /// @brief: The transfer writes the object. Clear = it reads it.
 #define REMOTE_SDO_FLAG_WRITE			(1 << 0)
+
+/// @brief: Bits 1-6 of *flags* are the sender's tag: a number the sink picks
+/// for itself, which the device does not interpret and echoes back unchanged in
+/// the SDO_RES. Every admin connected to the broker receives every SDO_RES of
+/// a device, so the tag is how a sink tells its own answers from the ones to
+/// another admin's transfers. A sink tags with anything but 0; 0 is what a sink
+/// older than the tag sends.
+#define REMOTE_SDO_FLAG_TAG_SHIFT		1
+#define REMOTE_SDO_FLAG_TAG_MASK		(0x3F << REMOTE_SDO_FLAG_TAG_SHIFT)
+
+/// @brief: Set by the device in an SDO_RES that answers a request it did not
+/// run because it was running another sender's transfer. The abort code is
+/// then REMOTE_SDO_ABORT_BUSY and nothing touched the bus, so the sink can send
+/// the same request again. Never set in an SDO_REQ. The flag is what tells this
+/// apart from a node that itself answered with the same abort code.
+#define REMOTE_SDO_FLAG_BUSY			(1 << 7)
 
 /// @brief: Abort codes of the offload's own making, in the same space as the
 /// CANopen ones a device answers with, so a sink has one field to report.
