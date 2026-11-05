@@ -352,8 +352,11 @@ static bool dispatch_mqtt_line(uv_esp32_st *this) {
 	}
 	else if (strstr(this->at_resp, "+MQTTDISCONNECTED") != NULL) {
 		ESP32_DEBUG(this, "ESP32: +MQTTDISCONNECTED\n");
+		// The close sent from CLEAN may report the link it tears down; that
+		// is the close succeeding, not a session lost.
 		if (this->mqtt_state != ESP32_MQTT_STATE_DISABLED &&
-				this->mqtt_state != ESP32_MQTT_STATE_INIT) {
+				this->mqtt_state != ESP32_MQTT_STATE_INIT &&
+				this->mqtt_state != ESP32_MQTT_STATE_CLEAN) {
 			mqtt_set_state(this, ESP32_MQTT_STATE_ERROR);
 		}
 		else {
@@ -857,6 +860,9 @@ const char *uv_esp32_mqtt_state_to_str(uv_esp32_mqtt_states_e state) {
 	case ESP32_MQTT_STATE_ERROR:
 		str = "ERROR";
 		break;
+	case ESP32_MQTT_STATE_CLEAN:
+		str = "CLEAN";
+		break;
 	default:
 		str = "UNKNOWN";
 		break;
@@ -897,6 +903,7 @@ static void mqtt_set_state(uv_esp32_st *this, uv_esp32_mqtt_states_e state) {
 		this->mqtt_state = state;
 		mqtt_sub_invalidate(this);
 		switch (state) {
+		case ESP32_MQTT_STATE_CLEAN:
 		case ESP32_MQTT_STATE_USERCFG:
 		case ESP32_MQTT_STATE_CONNCFG:
 			uv_delay_init(&this->mqtt_timeout, ESP32_MQTT_AT_TIMEOUT_MS);
@@ -1570,6 +1577,32 @@ static void rxtx_task(void *me_ptr) {
 				}
 				break;
 			case ESP32_MQTT_STATE_INIT: {
+				// Close whatever link the module still holds before
+				// configuring a new one. AT+MQTTCONN is sent with
+				// reconnect=1, so a link given up on here -- a CONN that
+				// timed out, a session dropped with the Wi-Fi -- lives on
+				// in ESP-AT, which keeps reconnecting it on its own. Its
+				// AT+MQTTUSERCFG then answers ERROR, and a +MQTTCONNECTED
+				// arriving outside CONN is ignored, so every retry failed
+				// the same way until the module was reset.
+				char line[32];
+				snprintf(line, sizeof(line), "AT+MQTTCLEAN=%d",
+						ESP32_MQTT_LINK_ID);
+				send_at_cmd_raw(this, line);
+				mqtt_set_state(this, ESP32_MQTT_STATE_CLEAN);
+				break;
+			}
+			case ESP32_MQTT_STATE_CLEAN: {
+				// ERROR is the usual answer: there was no link to close.
+				// Either way, or with no answer at all, go on configuring.
+				uint8_t match = rx_at_match(this, "OK", "ERROR");
+				if ((match == 0) &&
+						!uv_delay(&this->mqtt_timeout,
+								uv_ts_get_step_ms(&ts))) {
+					break;
+				}
+				else {
+				}
 				char line[256];
 				snprintf(line, sizeof(line),
 						"AT+MQTTUSERCFG=%d,%u,\"%s\",\"%s\",\"%s\",%u,%u,\"\"",
