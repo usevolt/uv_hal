@@ -881,6 +881,7 @@ const char *uv_esp32_state_to_str(uv_esp32_states_e state) {
 	case ESP32_STATE_LEFT_NETWORK:		str = "LEFT"; break;
 	case ESP32_STATE_SCAN_NETWORKS:		str = "SCAN"; break;
 	case ESP32_STATE_GET_MAC:			str = "GET_MAC"; break;
+	case ESP32_STATE_SET_CWLAPOPT:		str = "SET_CWLAPOPT"; break;
 	default:							break;
 	}
 	return str;

@@ -762,6 +762,9 @@ const char *uv_esp32_state_to_str(uv_esp32_states_e state) {
 	case ESP32_STATE_GET_MAC:
 		str = "GET_MAC";
 		break;
+	case ESP32_STATE_SET_CWLAPOPT:
+		str = "SET_CWLAPOPT";
+		break;
 	default:
 		str = "UNKNOWN";
 		break;
@@ -788,6 +791,7 @@ static void set_state(uv_esp32_st *this, uv_esp32_states_e state) {
 		case ESP32_STATE_TEST_AT:
 		case ESP32_STATE_DISABLE_ECHO:
 		case ESP32_STATE_SET_CWMODE:
+		case ESP32_STATE_SET_CWLAPOPT:
 			uv_delay_init(&this->timeout, ESP32_AT_TIMEOUT_MS);
 			break;
 		case ESP32_STATE_CONNECT_WIFI:
@@ -1215,9 +1219,16 @@ static void rxtx_task(void *me_ptr) {
 
 		case ESP32_STATE_SET_CWMODE:
 			if (rx_at_match(this, "OK", NULL)) {
-				ESP32_DEBUG(this, "ESP32: CWMODE set, reading MAC\n");
-				send_at_cmd(this, "AT+CIPSTAMAC?", NULL, NULL);
-				set_state(this, ESP32_STATE_GET_MAC);
+				// AT+CWLAP lists networks in the order the scan found them,
+				// roughly by channel, and only the first
+				// ESP32_SCAN_MAX_NETWORKS fit in the list. Sorted by RSSI the
+				// list keeps the strongest ones instead, so a phone hotspot
+				// next to the machine is not pushed out by distant APs on
+				// lower channels. Mask 2047 keeps every field, the same
+				// line format as the default.
+				ESP32_DEBUG(this, "ESP32: CWMODE set, sorting scans by RSSI\n");
+				send_at_cmd(this, "AT+CWLAPOPT=1,2047", NULL, NULL);
+				set_state(this, ESP32_STATE_SET_CWLAPOPT);
 			}
 			else if (uv_delay(&this->timeout, uv_ts_get_step_ms(&ts))) {
 				ESP32_DEBUG(this, "ESP32: CWMODE timeout, resetting\n");
@@ -1226,6 +1237,26 @@ static void rxtx_task(void *me_ptr) {
 			else {
 			}
 			break;
+
+		case ESP32_STATE_SET_CWLAPOPT: {
+			// Sorting only changes which networks make it to the list, so
+			// an ERROR or no answer leaves the scans unsorted rather than
+			// resetting the module.
+			uint8_t match = rx_at_match(this, "OK", "ERROR");
+			if (match == 1) {
+				ESP32_DEBUG(this, "ESP32: CWLAPOPT set, reading MAC\n");
+			}
+			else if ((match == 2) ||
+					uv_delay(&this->timeout, uv_ts_get_step_ms(&ts))) {
+				ESP32_DEBUG(this, "ESP32: CWLAPOPT failed, scans unsorted\n");
+			}
+			else {
+				break;
+			}
+			send_at_cmd(this, "AT+CIPSTAMAC?", NULL, NULL);
+			set_state(this, ESP32_STATE_GET_MAC);
+			break;
+		}
 
 		case ESP32_STATE_CONNECT_WIFI: {
 			uint8_t match = rx_at_match(this, "WIFI GOT IP", "ERROR");
