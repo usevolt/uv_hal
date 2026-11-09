@@ -1783,7 +1783,7 @@ static GLuint compile_shader(GLenum shader_type, const char *src) {
 // otherwise fall back to the *embedded* source compiled into the binary.
 static GLuint load_shader(GLenum shader_type, const char *path, const char *embedded) {
 	char *file_src = NULL;
-	FILE *f = fopen(path, "r");
+	FILE *f = (path != NULL) ? fopen(path, "r") : NULL;
 	if (f != NULL) {
 		fseek(f, 0, SEEK_END);
 		int32_t size = ftell(f);
@@ -1800,7 +1800,7 @@ static GLuint load_shader(GLenum shader_type, const char *path, const char *embe
 }
 
 
-static unsigned int load_shader_program(const char *vertex_path, const char *vertex_src,
+static unsigned int link_shader_program(const char *vertex_path, const char *vertex_src,
 		const char *fragment_path, const char *fragment_src) {
 	unsigned int ret = 0;
 	GLuint vertex = load_shader(GL_VERTEX_SHADER, vertex_path, vertex_src);
@@ -1819,6 +1819,49 @@ static unsigned int load_shader_program(const char *vertex_path, const char *ver
 	}
 	else {
 		printf("ERROR loading vertex & fragment shaders\n");
+	}
+	return ret;
+}
+
+// Build a shader program, preferring the override files under shaders/ in the
+// working directory. *uniforms* is a NULL-terminated list of the uniforms the
+// drawing code sets on this program. An override that fails to build or lacks
+// any of them is an out-of-date copy (e.g. a stale shaders/ folder next to a
+// .uvsys file opened from a file manager), so it is dropped and the embedded
+// sources are used instead.
+static unsigned int load_shader_program(const char *vertex_path, const char *vertex_src,
+		const char *fragment_path, const char *fragment_src, const char *const *uniforms) {
+	unsigned int ret = 0;
+	if (access(vertex_path, R_OK) == 0 || access(fragment_path, R_OK) == 0) {
+		ret = link_shader_program(vertex_path, vertex_src, fragment_path, fragment_src);
+		const char *missing = (ret == 0) ? "" : NULL;
+		for (const char *const *u = uniforms; ret != 0 && missing == NULL && *u != NULL; u++) {
+			if (glGetUniformLocation(ret, *u) == -1) {
+				missing = *u;
+			}
+			else {
+			}
+		}
+		if (missing != NULL) {
+			printf("WARNING: shader override '%s' / '%s' is unusable%s%s, "
+					"using the built-in shaders\n", vertex_path, fragment_path,
+					(missing[0] != '\0') ? ": no uniform " : "", missing);
+			if (ret != 0) {
+				glDeleteProgram(ret);
+			}
+			else {
+			}
+			ret = 0;
+		}
+		else {
+		}
+	}
+	else {
+	}
+	if (ret == 0) {
+		ret = link_shader_program(NULL, vertex_src, NULL, fragment_src);
+	}
+	else {
 	}
 	return ret;
 }
@@ -1983,13 +2026,15 @@ bool uv_ui_init(void) {
 
 				this->text_shader_program = load_shader_program(
 						"shaders/text_shader.vs", text_shader_vs_src,
-						"shaders/text_shader.ts", text_shader_fs_src);
+						"shaders/text_shader.ts", text_shader_fs_src,
+						(const char *const[]) { "tex", "color", NULL });
 				// Create the vertex buffer object
 				glGenBuffers(1, &this->text_vbo);
 
 				this->bitmap_shader_program = load_shader_program(
 						"shaders/bitmap_shader.vs", bitmap_shader_vs_src,
-						"shaders/bitmap_shader.ts", bitmap_shader_fs_src);
+						"shaders/bitmap_shader.ts", bitmap_shader_fs_src,
+						(const char *const[]) { "blendColor", NULL });
 
 				glClear(GL_COLOR_BUFFER_BIT);
 			}
