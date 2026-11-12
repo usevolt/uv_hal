@@ -192,6 +192,31 @@ typedef struct {
 
 
 
+/// AT UART setup. The module boots at the baudrate of its AT firmware's
+/// factory parameters (CONFIG_ESP32_UART_BOOT_BAUDRATE, which the UART has to
+/// be initialized to) with flow control off. When either of the two settings
+/// below differs from that, every reset is followed by AT+UART_CUR, and the
+/// UART follows once the module has answered (its OK still comes at the old
+/// rate). Neither is saved in the module's flash.
+#ifndef CONFIG_ESP32_UART_BOOT_BAUDRATE
+#define CONFIG_ESP32_UART_BOOT_BAUDRATE		115200
+#endif
+/// Baudrate used after the setup. Pick one both ends make exactly, e.g. on an
+/// LPC4078 with 60 MHz PCLK 1250000, 1875000 or 3750000 (PCLK / 16 / n).
+#ifndef CONFIG_ESP32_UART_BAUDRATE
+#define CONFIG_ESP32_UART_BAUDRATE			CONFIG_ESP32_UART_BOOT_BAUDRATE
+#endif
+/// RTS/CTS hardware flow control. The UART's CTS input is ignored until the
+/// module has accepted it, since the module's RTS pin is not driven before.
+/// Needs CONFIG_UARTx_CTS_IO and CONFIG_UARTx_RTS_IO of the UART, and the
+/// CTS/RTS pins in the AT firmware's factory parameters.
+#ifndef CONFIG_ESP32_UART_FLOW_CONTROL
+#define CONFIG_ESP32_UART_FLOW_CONTROL		0
+#endif
+#define ESP32_UART_SETUP	(CONFIG_ESP32_UART_FLOW_CONTROL || \
+		(CONFIG_ESP32_UART_BAUDRATE != CONFIG_ESP32_UART_BOOT_BAUDRATE))
+
+
 typedef enum {
 	ESP32_STATE_INIT = 0,
 	ESP32_STATE_WAIT_READY,
@@ -203,7 +228,8 @@ typedef enum {
 	ESP32_STATE_LEFT_NETWORK,
 	ESP32_STATE_SCAN_NETWORKS,
 	ESP32_STATE_GET_MAC,
-	ESP32_STATE_SET_CWLAPOPT
+	ESP32_STATE_SET_CWLAPOPT,
+	ESP32_STATE_SET_UART
 } uv_esp32_states_e;
 
 

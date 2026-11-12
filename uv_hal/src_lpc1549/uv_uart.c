@@ -53,12 +53,56 @@ typedef struct {
 	void (*callback[UART_COUNT])(void*, uv_uarts_e);
 	uv_streambuffer_st rx_buffer[UART_COUNT];
 	uv_streambuffer_st tx_buffer[UART_COUNT];
+	// false makes the transmitter ignore the CTS input, see
+	// uv_uart_set_cts_enabled()
+	bool cts_enabled[UART_COUNT];
 } uart_st;
 
 
-static uart_st _this = {};
+static uart_st _this = {
+		.cts_enabled = { true, true, true }
+};
 
 #define this (&_this)
+
+
+// RTS is raised ("stop sending") when fewer than this many bytes are free in
+// the RX ring. The USART has no RX FIFO, so this only has to cover the byte
+// or two the peer still has in flight when it sees RTS.
+#define UART_RTS_HIGH_WATER			8
+
+
+static uint8_t get_i(uv_uarts_e uart);
+static inline bool cts(uv_uarts_e uart);
+
+
+/// @brief: Drives RTS from the RX ring fill level. Called with the UART
+/// interrupt masked (ISR or critical section) so that the level read and
+/// the pin written cannot be overtaken by a byte the ISR pushes in between.
+static inline void update_rts(uv_uarts_e uart) {
+#if CONFIG_UART0 && CONFIG_UART0_RTS_IO
+	if (uart == UART0) {
+		uv_gpio_set(CONFIG_UART0_RTS_IO,
+					uv_streambuffer_get_free_space(&this->rx_buffer[0]) <
+					UART_RTS_HIGH_WATER);
+	}
+#endif
+#if CONFIG_UART1 && CONFIG_UART1_RTS_IO
+	if (uart == UART1) {
+		uv_gpio_set(CONFIG_UART1_RTS_IO,
+					uv_streambuffer_get_free_space(&this->rx_buffer[1]) <
+					UART_RTS_HIGH_WATER);
+	}
+#endif
+#if CONFIG_UART2 && CONFIG_UART2_RTS_IO
+	if (uart == UART2) {
+		uv_gpio_set(CONFIG_UART2_RTS_IO,
+					uv_streambuffer_get_free_space(&this->rx_buffer[2]) <
+					UART_RTS_HIGH_WATER);
+	}
+#endif
+	(void) uart;
+}
 
 
 //UART interrupt handlers
@@ -68,6 +112,7 @@ void UART0_IRQHandler(void) {
 	if (Chip_UART_GetIntStatus(LPC_USART0) & UART_INTEN_RXRDY) {
 		if (Chip_UART_Read(LPC_USART0, &c, 1)) {
 			uv_streambuffer_push_isr(&this->rx_buffer[0], &c, 1);
+			update_rts(UART0);
 			if (this->callback[0]) {
 				this->callback[0](__uv_get_user_ptr(), (uv_uarts_e) LPC_USART0);
 			}
@@ -76,7 +121,10 @@ void UART0_IRQHandler(void) {
 	else {
 		// UART_INTEN_TXRDY
 	   if (Chip_UART_GetStatus(LPC_USART0) & UART_STAT_TXRDY) {
-		   if (uv_streambuffer_pop_isr(&this->tx_buffer[0], &c, 1)) {
+		   // CTS is checked before every byte, not only when a transmission
+		   // is started. Held back by CTS, the hal step restarts it.
+		   if (cts(UART0) &&
+				   uv_streambuffer_pop_isr(&this->tx_buffer[0], &c, 1)) {
 				Chip_UART_SendByte(LPC_USART0, c);
 		   }
 		   else {
@@ -100,6 +148,7 @@ void UART2_IRQHandler(void) {
 
 static uint8_t get_i(uv_uarts_e uart) {
 	uint8_t i = 0;
+	(void) uart;
 #if CONFIG_UART1
 	if (uart == UART1) {
 		i = 1;
@@ -153,7 +202,7 @@ static inline bool cts(uv_uarts_e uart) {
 		cts = CONFIG_UART3_CTS_IO;
 	}
 #endif
-	if (cts) {
+	if (cts && this->cts_enabled[get_i(uart)]) {
 		ret = !uv_gpio_get(cts);
 	}
 	return ret;
@@ -195,6 +244,10 @@ uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 				uv_gpio_get_pin(CONFIG_UART0_RX_PIN));
 #if CONFIG_UART0_CTS_IO
 		uv_gpio_init_input(CONFIG_UART0_CTS_IO, PULL_DOWN_ENABLED);
+#endif
+#if CONFIG_UART0_RTS_IO
+		// RTS low: there is room in the rx buffer
+		uv_gpio_init_output(CONFIG_UART0_RTS_IO, false);
 #endif
 		NVIC_SetPriority(UART0_IRQn, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY);
 		NVIC_EnableIRQ(UART0_IRQn);
@@ -256,7 +309,8 @@ uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 uv_errors_e uv_uart_send_char(uv_uarts_e uart, char buffer) {
 	uv_errors_e ret = ERR_NONE;
 
-	uv_streambuffer_push((void*) uart, &buffer, 1, 0);
+	// sent from the hal step, like uv_uart_send_str() always did
+	uv_streambuffer_push(&this->tx_buffer[get_i(uart)], &buffer, 1, 0);
 
 	return ret;
 }
@@ -280,12 +334,15 @@ int32_t uv_uart_send(uv_uarts_e uart, char *buffer, uint32_t length) {
 	int32_t len = 0;
 
 	if (length) {
-		uv_enter_critical_isr();
+		// Not the _isr variants: from a task those discard the saved mask
+		// and unmask everything on exit, even inside an outer critical
+		// section.
+		uv_enter_critical();
 		// Note: When calling FreeRTOS API functions from critical sections,
 		// wait_ms has to be 0!
 		len = uv_streambuffer_push(&this->tx_buffer[i], buffer, length, 0);
 		send_next_byte(uart);
-		uv_exit_critical_isr();
+		uv_exit_critical();
 	}
 
 
@@ -327,6 +384,9 @@ int32_t uv_uart_get(uv_uarts_e uart, char *dest, uint32_t max_len, int wait_ms) 
 #endif
 
 	ret = uv_streambuffer_pop(&this->rx_buffer[i], dest, max_len, wait_ms);
+	uv_enter_critical();
+	update_rts(uart);
+	uv_exit_critical();
 
 	return ret;
 }
@@ -365,7 +425,18 @@ void uv_uart_clear_rx_buffer(uv_uarts_e uart) {
 	if (uart == UART2) { i = 2; }
 #endif
 	uv_streambuffer_clear(&this->rx_buffer[i]);
+	uv_enter_critical();
+	update_rts(uart);
+	uv_exit_critical();
+}
 
+
+void uv_uart_set_cts_enabled(uv_uarts_e uart, bool value) {
+	uv_enter_critical();
+	this->cts_enabled[get_i(uart)] = value;
+	// restart a transmission that CTS had stalled
+	send_next_byte(uart);
+	uv_exit_critical();
 }
 
 

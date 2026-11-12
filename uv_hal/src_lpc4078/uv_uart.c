@@ -54,7 +54,27 @@ typedef struct {
 	uv_streambuffer_st tx_buffer;
 	LPC_USART_T *uart;
 	uv_gpios_e cts;
+	// false makes the transmitter ignore the CTS input. A peer that only
+	// starts to drive its RTS output once flow control is negotiated
+	// (ESP-AT before AT+UART_CUR) leaves the line floating until then.
+	bool cts_enabled;
 } uart_st;
+
+
+// RTS is raised ("stop sending") when fewer than this many bytes are free in
+// the RX ring. Everything that sits in the 16-byte hardware RX FIFO when RTS
+// goes up, plus the byte or two the peer still has in flight, has to fit.
+#define UART_RTS_HIGH_WATER			32
+
+// Bytes written to the 16-byte TX FIFO per THRE interrupt. CTS is checked
+// before each, but bytes already in the FIFO go out even if the peer raises
+// its RTS meanwhile. ESP-AT raises RTS at 120 bytes in its 128-byte RX FIFO,
+// so up to 4 queued bytes plus the one in the shift register still fit.
+#define UART_TX_BURST				4
+
+// The RX FIFO interrupts at 4 bytes (or after a 3.5 - 4.5 character idle
+// time with fewer), leaving 12 bytes of headroom for interrupt latency.
+#define UART_FCR_CONFIG				(UART_FCR_FIFO_EN | UART_FCR_TRG_LEV1)
 
 #if CONFIG_UART0
 static uart_st uart0 = {
@@ -62,7 +82,8 @@ static uart_st uart0 = {
 		.callback = NULL
 #ifdef CONFIG_UART0_CTS_IO
 		,
-		.cts = CONFIG_UART0_CTS_IO
+		.cts = CONFIG_UART0_CTS_IO,
+		.cts_enabled = true
 #endif
 };
 #endif
@@ -72,7 +93,8 @@ static uart_st uart1 = {
 		.callback = NULL
 #ifdef CONFIG_UART1_CTS_IO
 		,
-		.cts = CONFIG_UART1_CTS_IO
+		.cts = CONFIG_UART1_CTS_IO,
+		.cts_enabled = true
 #endif
 };
 #endif
@@ -82,7 +104,8 @@ static uart_st uart2 = {
 		.callback = NULL
 #ifdef CONFIG_UART2_CTS_IO
 		,
-		.cts = CONFIG_UART2_CTS_IO
+		.cts = CONFIG_UART2_CTS_IO,
+		.cts_enabled = true
 #endif
 };
 #endif
@@ -92,7 +115,8 @@ static uart_st uart3 = {
 		.callback = NULL
 #ifdef CONFIG_UART3_CTS_IO
 		,
-		.cts = CONFIG_UART3_CTS_IO
+		.cts = CONFIG_UART3_CTS_IO,
+		.cts_enabled = true
 #endif
 };
 #endif
@@ -127,10 +151,24 @@ static uart_st* u[UART_COUNT] = {
 
 static inline bool cts(uart_st *uart) {
 	bool ret = true;
-	if (uart->cts) {
+	if (uart->cts && uart->cts_enabled) {
 		ret = !uv_gpio_get(uart->cts);
 	}
 	return ret;
+}
+
+
+/// @brief: Drives RTS from the RX ring fill level. Called with the UART
+/// interrupt masked (ISR or critical section) so that the level read and
+/// the pin written cannot be overtaken by a byte the ISR pushes in between.
+static inline void update_rts(uv_uarts_e uart) {
+#if CONFIG_UART0 && (CONFIG_UART0_RTS_IO != 0)
+	if (uart == UART0) {
+		uv_gpio_set(CONFIG_UART0_RTS_IO,
+					uv_streambuffer_get_free_space(&u[0]->rx_buffer) <
+					UART_RTS_HIGH_WATER);
+	}
+#endif
 }
 
 
@@ -138,26 +176,40 @@ static inline bool cts(uart_st *uart) {
 #if CONFIG_UART0
 void UART0_IRQHandler(void) {
 	char c;
-	if (Chip_UART_ReadLineStatus(u[0]->uart) & UART_LSR_RDR) {
-		if (Chip_UART_Read(LPC_UART0, &c, 1)) {
-			uv_streambuffer_push_isr((void*) &u[0]->rx_buffer, &c, 1);
-#if CONFIG_UART0_RTS_IO != 0
-			uv_gpio_set(CONFIG_UART0_RTS_IO,
-						uv_streambuffer_get_free_space(&u[0]->rx_buffer) < 2);
-#endif
-			if (u[0]->callback) {
-				u[0]->callback(__uv_get_user_ptr(), UART0);
-			}
+	bool received = false;
+	// Drain the whole RX FIFO: it interrupts at its trigger level or on a
+	// character timeout, and both are cleared by reading it empty.
+	while (Chip_UART_ReadLineStatus(LPC_UART0) & UART_LSR_RDR) {
+		c = (char) Chip_UART_ReadByte(LPC_UART0);
+		uv_streambuffer_push_isr((void*) &u[0]->rx_buffer, &c, 1);
+		received = true;
+	}
+	if (received) {
+		update_rts(UART0);
+		if (u[0]->callback) {
+			u[0]->callback(__uv_get_user_ptr(), UART0);
 		}
 	}
+	else {
+	}
 	// UART_INTEN_TXRDY
-	if (Chip_UART_ReadLineStatus(u[0]->uart) & UART_LSR_THRE) {
-		if (cts(u[0]) &&
-				uv_streambuffer_pop_isr((void*) &u[0]->tx_buffer, &c, 1)) {
-			Chip_UART_SendByte(LPC_UART0, c);
+	if (Chip_UART_ReadLineStatus(LPC_UART0) & UART_LSR_THRE) {
+		uint32_t i;
+		for (i = 0; i < UART_TX_BURST; i++) {
+			if (cts(u[0]) &&
+					uv_streambuffer_pop_isr((void*) &u[0]->tx_buffer, &c, 1)) {
+				Chip_UART_SendByte(LPC_UART0, c);
+			}
+			else {
+				break;
+			}
+		}
+		if (i == 0) {
+			// nothing to send, or CTS holds it back: the hal step restarts
+			// the transmission
+			Chip_UART_IntDisable(LPC_UART0, UART_IER_THREINT);
 		}
 		else {
-			Chip_UART_IntDisable(LPC_UART0, UART_IER_THREINT);
 		}
 	}
 }
@@ -179,6 +231,52 @@ void UART2_IRQHandler(void) {
 void uv_uart_add_callback(uv_uarts_e uart,
 		void (*callback_function)(void* user_ptr, uv_uarts_e uart)) {
 	this->callback = callback_function;
+}
+
+
+/// @brief: Sets the divisor latch and the fractional divider for the rate
+/// closest to *baudrate*:
+/// baud = PCLK / (16 * DL * (1 + DIVADDVAL / MULVAL)).
+/// Replaces Chip_UART_SetBaudFDR, which writes MULVAL 0 (not allowed) when
+/// the rate divides PCLK evenly, and misses closer settings otherwise
+/// (115200 came out 1.7 % fast at 60 MHz PCLK).
+static void set_baud(LPC_USART_T *uart, uint32_t baudrate) {
+	uint32_t pclk = Chip_Clock_GetPeripheralClockRate();
+	uint32_t best_err = UINT32_MAX;
+	uint32_t best_dl = 1;
+	uint32_t best_mul = 1;
+	uint32_t best_div = 0;
+	uint32_t mul;
+	for (mul = 1; mul <= 15; mul++) {
+		uint32_t div;
+		for (div = 0; div < mul; div++) {
+			// DL = PCLK * MUL / (16 * baud * (MUL + DIV)), rounded
+			uint64_t den = (uint64_t) 16 * baudrate * (mul + div);
+			uint32_t dl = (uint32_t) (((uint64_t) pclk * mul + den / 2) / den);
+			// with the fractional divider on, DL has to be at least 3
+			if ((dl >= ((div == 0) ? 1U : 3U)) && (dl <= 0xFFFF)) {
+				uint32_t actual = (uint32_t) (((uint64_t) pclk * mul) /
+						((uint64_t) 16 * dl * (mul + div)));
+				uint32_t err = (actual > baudrate) ?
+						(actual - baudrate) : (baudrate - actual);
+				if (err < best_err) {
+					best_err = err;
+					best_dl = dl;
+					best_mul = mul;
+					best_div = div;
+				}
+				else {
+				}
+			}
+			else {
+			}
+		}
+	}
+	Chip_UART_EnableDivisorAccess(uart);
+	Chip_UART_SetDivisorLatches(uart, UART_LOAD_DLL(best_dl),
+								UART_LOAD_DLM(best_dl));
+	Chip_UART_DisableDivisorAccess(uart);
+	uart->FDR = (UART_FDR_MULVAL(best_mul) | UART_FDR_DIVADDVAL(best_div));
 }
 
 
@@ -241,7 +339,9 @@ uv_errors_e _uv_uart_init(uv_uarts_e uart) {
 #endif
 
 	Chip_UART_Init(this->uart);
-	Chip_UART_SetBaudFDR(this->uart, baud);
+	Chip_UART_SetupFIFOS(this->uart, UART_FCR_CONFIG |
+						 UART_FCR_RX_RS | UART_FCR_TX_RS);
+	set_baud(this->uart, baud);
 	Chip_UART_TXEnable(this->uart);
 	Chip_UART_IntEnable(this->uart, UART_IER_RBRINT);
 
@@ -308,13 +408,13 @@ int32_t uv_uart_get_tx_free_space(uv_uarts_e uart) {
 int32_t uv_uart_get(uv_uarts_e uart, char *dest, uint32_t max_len, int wait_ms) {
 	int32_t ret = 0;
 
-	uv_enter_critical();
+	// Not inside a critical section: a blocking receive must be able to
+	// block. The ring has a single reader (this) and a single writer (the
+	// ISR), which FreeRTOS stream buffers support without extra locking.
 	ret = uv_streambuffer_pop((void*) &this->rx_buffer, dest, max_len, wait_ms);
+	uv_enter_critical();
+	update_rts(uart);
 	uv_exit_critical();
-#if CONFIG_UART0_RTS_IO != 0
-	uv_gpio_set(CONFIG_UART0_RTS_IO,
-				uv_streambuffer_get_free_space(&this->rx_buffer) < 2);
-#endif
 
 	return ret;
 }
@@ -342,13 +442,30 @@ bool uv_uart_receive_cmp(uv_uarts_e uart, char *str, uint32_t max_len, int wait_
 
 
 void uv_uart_set_baudrate(uv_uarts_e uart, unsigned int baudrate) {
-	Chip_UART_SetBaud(this->uart, baudrate);
+	uv_enter_critical();
+	// let the byte being shifted out finish at the old rate
+	while (!(Chip_UART_ReadLineStatus(this->uart) & UART_LSR_TEMT)) {
+	}
+	set_baud(this->uart, baudrate);
+	uv_exit_critical();
 }
 
 
 void uv_uart_clear_rx_buffer(uv_uarts_e uart) {
 	uv_streambuffer_clear((void*) &this->rx_buffer);
+	uv_enter_critical();
+	update_rts(uart);
+	uv_exit_critical();
+}
 
+
+void uv_uart_set_cts_enabled(uv_uarts_e uart, bool value) {
+	uv_enter_critical();
+	this->cts_enabled = value;
+	// restart a transmission that CTS had stalled, rather than waiting for
+	// the next hal step
+	send_next_byte(uart);
+	uv_exit_critical();
 }
 
 
