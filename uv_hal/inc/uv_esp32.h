@@ -254,6 +254,64 @@ const char *uv_esp32_mqtt_state_to_str(uv_esp32_mqtt_states_e state);
 #endif
 
 
+/// @brief: The last thing that went wrong in the driver, kept for diagnostics
+/// only: none of it changes what the driver does, which retries on its own.
+/// Without it, everything below shows up only in the debug log -- and that is
+/// not on when someone at the machine asks why it is not on the server.
+///
+/// The values are part of the remote module's diagnostics object, so a
+/// display can name the error of a peer it reads over SDO: append, never
+/// renumber.
+typedef enum {
+	ESP32_ERR_NONE = 0,
+	// AT+CWJAP answered ERROR or never got an IP: wrong password, or the AP
+	// refused us
+	ESP32_ERR_WIFI_JOIN,
+	// AT+MQTTUSERCFG refused or unanswered: client id / scheme / certificate
+	// ids the module does not accept
+	ESP32_ERR_MQTT_USERCFG,
+	ESP32_ERR_MQTT_CONNCFG,
+	// AT+MQTTCONN refused or timed out: broker unreachable, TLS handshake
+	// failed or the broker refused the session
+	ESP32_ERR_MQTT_CONN,
+	// an open session was dropped (+MQTTDISCONNECTED)
+	ESP32_ERR_MQTT_LOST,
+	// the module answered a publish with ERROR
+	ESP32_ERR_MQTT_PUB,
+	// a publish got no prompt or no answer in time
+	ESP32_ERR_MQTT_PUB_TIMEOUT,
+	// a subscribe was refused or unanswered
+	ESP32_ERR_MQTT_SUB,
+	ESP32_ERR_COUNT
+} uv_esp32_err_e;
+
+const char *uv_esp32_err_to_str(uv_esp32_err_e err);
+
+
+/// @brief: Diagnostic counters, all from power-on. Written by the driver task
+/// only; each is a single aligned word, so a reader on another task sees
+/// either the old value or the new one.
+typedef struct {
+	// module resets the driver has done (power-on included), i.e. times the
+	// ESP32 was found unresponsive or was asked to start over
+	uint32_t module_resets;
+	uint32_t wifi_join_fails;
+	// broker sessions opened
+	uint32_t mqtt_connects;
+	// attempts to open one that failed, at any step of the way
+	uint32_t mqtt_conn_fails;
+	// open sessions that were dropped
+	uint32_t mqtt_lost;
+	// publishes the module confirmed, and those it refused or never answered
+	uint32_t mqtt_pub_ok;
+	uint32_t mqtt_pub_fails;
+	uint32_t mqtt_sub_fails;
+	uv_esp32_err_e last_err;
+	// uv_rtos_get_tick_count() when last_err was set
+	uint32_t last_err_tick;
+} uv_esp32_diag_st;
+
+
 /// @brief: Invoked from the rxtx task when an MQTT message arrives on a
 /// subscribed topic. The buffers are owned by the driver and only valid for
 /// the duration of the callback.
@@ -454,7 +512,19 @@ typedef struct {
 	uint32_t written_byte_count;
 	uint32_t transmitted_byte_count;
 
+	uv_esp32_diag_st diag;
+
 } uv_esp32_st;
+
+
+/// @brief: The driver's diagnostic counters, see uv_esp32_diag_st.
+static inline const uv_esp32_diag_st *uv_esp32_diag_get(uv_esp32_st *this) {
+	return &this->diag;
+}
+
+/// @brief: Records *err* as the last error. Driver-internal, shared by the
+/// embedded and the simulator drivers.
+void uv_esp32_diag_err(uv_esp32_st *this, uv_esp32_err_e err);
 
 
 static inline uint32_t uv_esp32_get_transmitted_byte_count(uv_esp32_st *this) {

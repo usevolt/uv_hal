@@ -344,6 +344,7 @@ static bool dispatch_mqtt_line(uv_esp32_st *this) {
 	if (strstr(this->at_resp, "+MQTTCONNECTED") != NULL) {
 		ESP32_DEBUG(this, "ESP32: +MQTTCONNECTED\n");
 		if (this->mqtt_state == ESP32_MQTT_STATE_CONN) {
+			this->diag.mqtt_connects++;
 			mqtt_set_state(this, ESP32_MQTT_STATE_CONNECTED);
 		}
 		else {
@@ -357,6 +358,15 @@ static bool dispatch_mqtt_line(uv_esp32_st *this) {
 		if (this->mqtt_state != ESP32_MQTT_STATE_DISABLED &&
 				this->mqtt_state != ESP32_MQTT_STATE_INIT &&
 				this->mqtt_state != ESP32_MQTT_STATE_CLEAN) {
+			if (this->mqtt_state == ESP32_MQTT_STATE_CONNECTED) {
+				this->diag.mqtt_lost++;
+				uv_esp32_diag_err(this, ESP32_ERR_MQTT_LOST);
+			}
+			else {
+				// refused while opening: the broker or the TLS handshake
+				this->diag.mqtt_conn_fails++;
+				uv_esp32_diag_err(this, ESP32_ERR_MQTT_CONN);
+			}
 			mqtt_set_state(this, ESP32_MQTT_STATE_ERROR);
 		}
 		else {
@@ -838,6 +848,35 @@ static void set_state(uv_esp32_st *this, uv_esp32_states_e state) {
 }
 
 
+const char *uv_esp32_err_to_str(uv_esp32_err_e err) {
+	// Short: shown on a single label line with the error's age beside it.
+	static const char *const strs[ESP32_ERR_COUNT] = {
+			"none",
+			"WiFi join",
+			"MQTT usercfg",
+			"MQTT conncfg",
+			"MQTT connect",
+			"MQTT lost",
+			"MQTT publish",
+			"MQTT pub timeout",
+			"MQTT subscribe"
+	};
+	const char *str = "unknown";
+	if ((uint32_t) err < (uint32_t) ESP32_ERR_COUNT) {
+		str = strs[err];
+	}
+	else {
+	}
+	return str;
+}
+
+
+void uv_esp32_diag_err(uv_esp32_st *this, uv_esp32_err_e err) {
+	this->diag.last_err = err;
+	this->diag.last_err_tick = uv_rtos_get_tick_count();
+}
+
+
 #if CONFIG_ESP32_MQTT
 
 const char *uv_esp32_mqtt_state_to_str(uv_esp32_mqtt_states_e state) {
@@ -1057,6 +1096,8 @@ static void mqtt_sub_finish(uv_esp32_st *this, bool ok) {
 		}
 		else {
 			ESP32_DEBUG(this, "ESP32: MQTT SUB '%s' failed\n", s->topic);
+			this->diag.mqtt_sub_fails++;
+			uv_esp32_diag_err(this, ESP32_ERR_MQTT_SUB);
 		}
 		uv_mutex_unlock(&this->mqtt_sub_mutex);
 	}
@@ -1191,6 +1232,7 @@ static void rxtx_task(void *me_ptr) {
 			uv_uart_set_baudrate(this->uart, CONFIG_ESP32_UART_BOOT_BAUDRATE);
 #endif
 			esp32_reset(this);
+			this->diag.module_resets++;
 			set_state(this, ESP32_STATE_WAIT_READY);
 			ESP32_DEBUG(this, "ESP32: waiting for ready\n");
 			break;
@@ -1326,6 +1368,8 @@ static void rxtx_task(void *me_ptr) {
 			else if (match == 2 ||
 					uv_delay(&this->timeout, uv_ts_get_step_ms(&ts))) {
 				ESP32_DEBUG(this, "ESP32: WiFi connection failed\n");
+				this->diag.wifi_join_fails++;
+				uv_esp32_diag_err(this, ESP32_ERR_WIFI_JOIN);
 				set_state(this, ESP32_STATE_LEFT_NETWORK);
 			}
 			else {
@@ -1685,6 +1729,8 @@ static void rxtx_task(void *me_ptr) {
 						uv_delay(&this->mqtt_timeout,
 								uv_ts_get_step_ms(&ts))) {
 					ESP32_DEBUG(this, "ESP32: MQTT USERCFG failed\n");
+					this->diag.mqtt_conn_fails++;
+					uv_esp32_diag_err(this, ESP32_ERR_MQTT_USERCFG);
 					mqtt_set_state(this, ESP32_MQTT_STATE_ERROR);
 				}
 				else {
@@ -1707,6 +1753,8 @@ static void rxtx_task(void *me_ptr) {
 						uv_delay(&this->mqtt_timeout,
 								uv_ts_get_step_ms(&ts))) {
 					ESP32_DEBUG(this, "ESP32: MQTT CONNCFG failed\n");
+					this->diag.mqtt_conn_fails++;
+					uv_esp32_diag_err(this, ESP32_ERR_MQTT_CONNCFG);
 					mqtt_set_state(this, ESP32_MQTT_STATE_ERROR);
 				}
 				else {
@@ -1722,6 +1770,8 @@ static void rxtx_task(void *me_ptr) {
 						uv_delay(&this->mqtt_timeout,
 								uv_ts_get_step_ms(&ts))) {
 					ESP32_DEBUG(this, "ESP32: MQTT CONN failed\n");
+					this->diag.mqtt_conn_fails++;
+					uv_esp32_diag_err(this, ESP32_ERR_MQTT_CONN);
 					mqtt_set_state(this, ESP32_MQTT_STATE_ERROR);
 				}
 				else {
@@ -1815,6 +1865,8 @@ static void rxtx_task(void *me_ptr) {
 								uv_ts_get_step_ms(&ts))) {
 							ESP32_DEBUG(this,
 									"ESP32: MQTT publish prompt timeout\n");
+							this->diag.mqtt_pub_fails++;
+							uv_esp32_diag_err(this, ESP32_ERR_MQTT_PUB_TIMEOUT);
 							mqtt_slot_release(this, active_slot);
 						}
 						else {
@@ -1826,11 +1878,19 @@ static void rxtx_task(void *me_ptr) {
 						if (match != 0 ||
 								uv_delay(&this->mqtt_timeout,
 										uv_ts_get_step_ms(&ts))) {
-							if (match == 2) {
+							if (match == 1) {
+								this->diag.mqtt_pub_ok++;
+							}
+							else if (match == 2) {
 								ESP32_DEBUG(this,
 										"ESP32: MQTT publish ERROR\n");
+								this->diag.mqtt_pub_fails++;
+								uv_esp32_diag_err(this, ESP32_ERR_MQTT_PUB);
 							}
 							else {
+								this->diag.mqtt_pub_fails++;
+								uv_esp32_diag_err(this,
+										ESP32_ERR_MQTT_PUB_TIMEOUT);
 							}
 							mqtt_slot_release(this, active_slot);
 						}
@@ -1944,6 +2004,7 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 	this->written_byte_count = 0;
 	this->transmitted_byte_count = 0;
 	this->disabled = false;
+	memset(&this->diag, 0, sizeof(this->diag));
 
 #if CONFIG_ESP32_MQTT
 	this->mqtt_state = ESP32_MQTT_STATE_DISABLED;

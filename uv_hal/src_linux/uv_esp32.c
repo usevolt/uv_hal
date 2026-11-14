@@ -83,6 +83,7 @@ static void on_connect(struct mosquitto *m, void *userdata, int rc) {
 	uv_esp32_st *this = (uv_esp32_st *) userdata;
 	if (rc == 0) {
 		this->mqtt_state = ESP32_MQTT_STATE_CONNECTED;
+		this->diag.mqtt_connects++;
 		this->state = ESP32_STATE_JOINED_NETWORK;
 		// The host OS owns the WiFi link here, so there is no AP to measure.
 		// Report a strong-but-not-perfect value so the signal strength symbol
@@ -94,6 +95,8 @@ static void on_connect(struct mosquitto *m, void *userdata, int rc) {
 	}
 	else {
 		mqtt_enter_error(this);
+		this->diag.mqtt_conn_fails++;
+		uv_esp32_diag_err(this, ESP32_ERR_MQTT_CONN);
 		ESP32_DEBUG(this, "ESP32(linux): MQTT connect rc=%d (%s)\n",
 				rc, mosquitto_connack_string(rc));
 	}
@@ -107,6 +110,14 @@ static void on_disconnect(struct mosquitto *m, void *userdata, int rc) {
 		this->mqtt_state = ESP32_MQTT_STATE_DISABLED;
 	}
 	else {
+		if (this->mqtt_state == ESP32_MQTT_STATE_CONNECTED) {
+			this->diag.mqtt_lost++;
+			uv_esp32_diag_err(this, ESP32_ERR_MQTT_LOST);
+		}
+		else {
+			this->diag.mqtt_conn_fails++;
+			uv_esp32_diag_err(this, ESP32_ERR_MQTT_CONN);
+		}
 		mqtt_enter_error(this);
 	}
 	mqtt_sub_invalidate(this);
@@ -141,7 +152,8 @@ static int s_last_pub_mid = -1;
 
 static void on_publish(struct mosquitto *m, void *userdata, int mid) {
 	(void) m;
-	(void) userdata;
+	uv_esp32_st *this = (uv_esp32_st *) userdata;
+	this->diag.mqtt_pub_ok++;
 	s_last_pub_mid = mid;
 	for (uint8_t i = 0; i < ESP32_LINUX_STREAM_MAX; i++) {
 		if (s_pending[i].mid == mid) {
@@ -421,6 +433,8 @@ static void mqtt_sub_drain(uv_esp32_st *this) {
 				ESP32_DEBUG(this, "ESP32(linux): subscribed '%s'\n", s->topic);
 			}
 			else {
+				this->diag.mqtt_sub_fails++;
+				uv_esp32_diag_err(this, ESP32_ERR_MQTT_SUB);
 				ESP32_DEBUG(this, "ESP32(linux): subscribe '%s' rc=%d (%s)\n",
 						s->topic, rc, mosquitto_strerror(rc));
 			}
@@ -519,6 +533,8 @@ void uv_esp32_step(uv_esp32_st *this, uint16_t step_ms) {
 		}
 		else {
 			mqtt_enter_error(this);
+			this->diag.mqtt_conn_fails++;
+			uv_esp32_diag_err(this, ESP32_ERR_MQTT_CONN);
 			ESP32_DEBUG(this, "ESP32(linux): mosquitto_connect_async rc=%d\n",
 					rc);
 		}
@@ -550,6 +566,8 @@ void uv_esp32_step(uv_esp32_st *this, uint16_t step_ms) {
 				uv_delay(&this->mqtt_timeout, step_ms)) {
 			ESP32_DEBUG(this, "ESP32(linux): MQTT connect timeout\n");
 			(void) mosquitto_disconnect(s_mosq);
+			this->diag.mqtt_conn_fails++;
+			uv_esp32_diag_err(this, ESP32_ERR_MQTT_CONN);
 			mqtt_enter_error(this);
 		}
 		else if ((this->mqtt_state == ESP32_MQTT_STATE_ERROR) &&
@@ -619,6 +637,8 @@ uv_errors_e uv_esp32_mqtt_publish(uv_esp32_st *this,
 		if (rc != MOSQ_ERR_SUCCESS) {
 			ESP32_DEBUG(this, "ESP32(linux): publish rc=%d (%s)\n",
 					rc, mosquitto_strerror(rc));
+			this->diag.mqtt_pub_fails++;
+			uv_esp32_diag_err(this, ESP32_ERR_MQTT_PUB);
 			ret = ERR_NOT_RESPONDING;
 		}
 		else {
@@ -867,6 +887,35 @@ void uv_esp32_terminal(uv_esp32_st *this,
 
 
 /* --- shared helpers (state strings + conf reset) --- */
+
+const char *uv_esp32_err_to_str(uv_esp32_err_e err) {
+	// Short: shown on a single label line with the error's age beside it.
+	static const char *const strs[ESP32_ERR_COUNT] = {
+			"none",
+			"WiFi join",
+			"MQTT usercfg",
+			"MQTT conncfg",
+			"MQTT connect",
+			"MQTT lost",
+			"MQTT publish",
+			"MQTT pub timeout",
+			"MQTT subscribe"
+	};
+	const char *str = "unknown";
+	if ((uint32_t) err < (uint32_t) ESP32_ERR_COUNT) {
+		str = strs[err];
+	}
+	else {
+	}
+	return str;
+}
+
+
+void uv_esp32_diag_err(uv_esp32_st *this, uv_esp32_err_e err) {
+	this->diag.last_err = err;
+	this->diag.last_err_tick = uv_rtos_get_tick_count();
+}
+
 
 const char *uv_esp32_state_to_str(uv_esp32_states_e state) {
 	const char *str = "UNKNOWN";
