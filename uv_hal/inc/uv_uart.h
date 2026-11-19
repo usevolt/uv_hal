@@ -175,6 +175,14 @@ void uv_uart_set_baudrate(uv_uarts_e uart, unsigned int baudrate);
 
 void uv_uart_clear_rx_buffer(uv_uarts_e uart);
 
+
+/// @brief: Enables or disables honouring the CTS input of *uart*. Has effect
+/// only when CONFIG_UARTx_CTS_IO is defined, and is enabled by default. Lets a
+/// driver ignore CTS until the peer has been told to drive its RTS output.
+///
+/// @note: Implemented on LPC4078 and LPC1549.
+void uv_uart_set_cts_enabled(uv_uarts_e uart, bool value);
+
 /// @brief: Registers a receive callback function when anything is received via uart
 ///
 ///@note: The callback function is called from the ISR and thus it should be kept

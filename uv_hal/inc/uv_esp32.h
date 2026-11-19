@@ -192,6 +192,31 @@ typedef struct {
 
 
 
+/// AT UART setup. The module boots at the baudrate of its AT firmware's
+/// factory parameters (CONFIG_ESP32_UART_BOOT_BAUDRATE, which the UART has to
+/// be initialized to) with flow control off. When either of the two settings
+/// below differs from that, every reset is followed by AT+UART_CUR, and the
+/// UART follows once the module has answered (its OK still comes at the old
+/// rate). Neither is saved in the module's flash.
+#ifndef CONFIG_ESP32_UART_BOOT_BAUDRATE
+#define CONFIG_ESP32_UART_BOOT_BAUDRATE		115200
+#endif
+/// Baudrate used after the setup. Pick one both ends make exactly, e.g. on an
+/// LPC4078 with 60 MHz PCLK 1250000, 1875000 or 3750000 (PCLK / 16 / n).
+#ifndef CONFIG_ESP32_UART_BAUDRATE
+#define CONFIG_ESP32_UART_BAUDRATE			CONFIG_ESP32_UART_BOOT_BAUDRATE
+#endif
+/// RTS/CTS hardware flow control. The UART's CTS input is ignored until the
+/// module has accepted it, since the module's RTS pin is not driven before.
+/// Needs CONFIG_UARTx_CTS_IO and CONFIG_UARTx_RTS_IO of the UART, and the
+/// CTS/RTS pins in the AT firmware's factory parameters.
+#ifndef CONFIG_ESP32_UART_FLOW_CONTROL
+#define CONFIG_ESP32_UART_FLOW_CONTROL		0
+#endif
+#define ESP32_UART_SETUP	(CONFIG_ESP32_UART_FLOW_CONTROL || \
+		(CONFIG_ESP32_UART_BAUDRATE != CONFIG_ESP32_UART_BOOT_BAUDRATE))
+
+
 typedef enum {
 	ESP32_STATE_INIT = 0,
 	ESP32_STATE_WAIT_READY,
@@ -203,7 +228,8 @@ typedef enum {
 	ESP32_STATE_LEFT_NETWORK,
 	ESP32_STATE_SCAN_NETWORKS,
 	ESP32_STATE_GET_MAC,
-	ESP32_STATE_SET_CWLAPOPT
+	ESP32_STATE_SET_CWLAPOPT,
+	ESP32_STATE_SET_UART
 } uv_esp32_states_e;
 
 
@@ -226,6 +252,64 @@ typedef enum {
 #if CONFIG_ESP32_MQTT
 const char *uv_esp32_mqtt_state_to_str(uv_esp32_mqtt_states_e state);
 #endif
+
+
+/// @brief: The last thing that went wrong in the driver, kept for diagnostics
+/// only: none of it changes what the driver does, which retries on its own.
+/// Without it, everything below shows up only in the debug log -- and that is
+/// not on when someone at the machine asks why it is not on the server.
+///
+/// The values are part of the remote module's diagnostics object, so a
+/// display can name the error of a peer it reads over SDO: append, never
+/// renumber.
+typedef enum {
+	ESP32_ERR_NONE = 0,
+	// AT+CWJAP answered ERROR or never got an IP: wrong password, or the AP
+	// refused us
+	ESP32_ERR_WIFI_JOIN,
+	// AT+MQTTUSERCFG refused or unanswered: client id / scheme / certificate
+	// ids the module does not accept
+	ESP32_ERR_MQTT_USERCFG,
+	ESP32_ERR_MQTT_CONNCFG,
+	// AT+MQTTCONN refused or timed out: broker unreachable, TLS handshake
+	// failed or the broker refused the session
+	ESP32_ERR_MQTT_CONN,
+	// an open session was dropped (+MQTTDISCONNECTED)
+	ESP32_ERR_MQTT_LOST,
+	// the module answered a publish with ERROR
+	ESP32_ERR_MQTT_PUB,
+	// a publish got no prompt or no answer in time
+	ESP32_ERR_MQTT_PUB_TIMEOUT,
+	// a subscribe was refused or unanswered
+	ESP32_ERR_MQTT_SUB,
+	ESP32_ERR_COUNT
+} uv_esp32_err_e;
+
+const char *uv_esp32_err_to_str(uv_esp32_err_e err);
+
+
+/// @brief: Diagnostic counters, all from power-on. Written by the driver task
+/// only; each is a single aligned word, so a reader on another task sees
+/// either the old value or the new one.
+typedef struct {
+	// module resets the driver has done (power-on included), i.e. times the
+	// ESP32 was found unresponsive or was asked to start over
+	uint32_t module_resets;
+	uint32_t wifi_join_fails;
+	// broker sessions opened
+	uint32_t mqtt_connects;
+	// attempts to open one that failed, at any step of the way
+	uint32_t mqtt_conn_fails;
+	// open sessions that were dropped
+	uint32_t mqtt_lost;
+	// publishes the module confirmed, and those it refused or never answered
+	uint32_t mqtt_pub_ok;
+	uint32_t mqtt_pub_fails;
+	uint32_t mqtt_sub_fails;
+	uv_esp32_err_e last_err;
+	// uv_rtos_get_tick_count() when last_err was set
+	uint32_t last_err_tick;
+} uv_esp32_diag_st;
 
 
 /// @brief: Invoked from the rxtx task when an MQTT message arrives on a
@@ -428,7 +512,19 @@ typedef struct {
 	uint32_t written_byte_count;
 	uint32_t transmitted_byte_count;
 
+	uv_esp32_diag_st diag;
+
 } uv_esp32_st;
+
+
+/// @brief: The driver's diagnostic counters, see uv_esp32_diag_st.
+static inline const uv_esp32_diag_st *uv_esp32_diag_get(uv_esp32_st *this) {
+	return &this->diag;
+}
+
+/// @brief: Records *err* as the last error. Driver-internal, shared by the
+/// embedded and the simulator drivers.
+void uv_esp32_diag_err(uv_esp32_st *this, uv_esp32_err_e err);
 
 
 static inline uint32_t uv_esp32_get_transmitted_byte_count(uv_esp32_st *this) {
