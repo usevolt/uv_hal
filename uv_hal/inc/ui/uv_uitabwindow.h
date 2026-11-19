@@ -83,6 +83,7 @@ typedef struct   {
 void uv_uitabwindow_init(void *me, int16_t tab_count,
 		const uv_uistyle_st *style,
 		uv_uiobject_st **obj_array,
+		uint16_t obj_array_len,
 		void *tab_names);
 
 

@@ -75,7 +75,7 @@ typedef struct {
 /// @brief: Initializes the frame window. *obj_array* holds pointers to the child
 /// objects, exactly like uv_uiwindow_init.
 void uv_uiframewindow_init(void *me, uv_uiobject_st **obj_array,
-		const uv_uistyle_st *style);
+		uint16_t obj_array_len, const uv_uistyle_st *style);
 
 
 /// @brief: Sets the title drawn on the top frame line (NULL or "" for none).

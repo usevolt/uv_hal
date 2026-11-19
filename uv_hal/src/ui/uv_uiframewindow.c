@@ -91,8 +91,8 @@ static int16_t top_inset(uv_uiframewindow_st *me) {
 
 
 void uv_uiframewindow_init(void *me, uv_uiobject_st **obj_array,
-		const uv_uistyle_st *style) {
-	uv_uiwindow_init(this, obj_array, style);
+		uint16_t obj_array_len, const uv_uistyle_st *style) {
+	uv_uiwindow_init(this, obj_array, obj_array_len, style);
 	// transparent by default so the frame and children overlay the parent's
 	// background instead of painting an opaque fill over it
 	uv_uiwindow_set_transparent(this, true);

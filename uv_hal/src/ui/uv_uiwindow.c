@@ -205,7 +205,8 @@ static void _uv_uiwindow_draw(void *me, const uv_bounding_box_st *pbb) {
 }
 
 
-void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array, const uv_uistyle_st *style) {
+void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array,
+		uint16_t object_array_len, const uv_uistyle_st *style) {
 	uv_uiobject_init((uv_uiobject_st*) this);
 	uv_bounding_box_init(&this->content_bb, 0, 0, 0, 0);
 	this->content_bb_xdef = 0;
@@ -213,6 +214,7 @@ void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array, const uv_ui
 	this->content_autogrow = false;
 	this->objects = object_array;
 	this->objects_count = 0;
+	this->objects_max = object_array_len;
 	this->bg_c = style->window_c;
 	this->handle_c = style->bg_c;
 	this->dragging = false;
@@ -231,32 +233,40 @@ void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array, const uv_ui
 
 
 void uv_uiwindow_add(void *me, void *object, uv_bounding_box_st *bb) {
-	uv_bounding_box_init(&((uv_uiobject_st*) object)->bb, bb->x, bb->y, bb->width, bb->height);
-	((uv_uiobject_st*) object)->parent = this;
-	uv_ui_refresh(object);
-	this->objects[this->objects_count++] = object;
-	// grow the content bounding box to encompass this child (measured from the
-	// content origin), so a scroll bar appears and dragging scrolls when the
-	// children overflow the window. This is opt-in (uv_uiwindow_set_content_autogrow):
-	// most windows are fixed layouts that must never scroll even if a child sits
-	// on - or a pixel past - an edge. Explicit uv_uiwindow_set_contentbb() still
-	// enables scrolling regardless of this flag.
-	if (this->content_autogrow) {
-		int16_t child_right = bb->x + bb->width;
-		int16_t child_bottom = bb->y + bb->height;
-		if (this->content_bb.width < child_right) {
-			this->content_bb.width = child_right;
-		}
-		if (this->content_bb.height < child_bottom) {
-			this->content_bb.height = child_bottom;
-		}
+	if (this->objects_count >= this->objects_max) {
+		// the object array is full. Writing past it would corrupt whatever
+		// follows the array in memory, thus the object is not added.
+		printf("uiwindow: object buffer full (%u objects), object not added\n",
+				(unsigned int) this->objects_max);
 	}
-	// the content box is never smaller than the window itself
-	if (this->content_bb.width < uv_uibb(this)->width) {
-		this->content_bb.width = uv_uibb(this)->width;
-	}
-	if (this->content_bb.height < uv_uibb(this)->height) {
-		this->content_bb.height = uv_uibb(this)->height;
+	else {
+		uv_bounding_box_init(&((uv_uiobject_st*) object)->bb, bb->x, bb->y, bb->width, bb->height);
+		((uv_uiobject_st*) object)->parent = this;
+		uv_ui_refresh(object);
+		this->objects[this->objects_count++] = object;
+		// grow the content bounding box to encompass this child (measured from the
+		// content origin), so a scroll bar appears and dragging scrolls when the
+		// children overflow the window. This is opt-in (uv_uiwindow_set_content_autogrow):
+		// most windows are fixed layouts that must never scroll even if a child sits
+		// on - or a pixel past - an edge. Explicit uv_uiwindow_set_contentbb() still
+		// enables scrolling regardless of this flag.
+		if (this->content_autogrow) {
+			int16_t child_right = bb->x + bb->width;
+			int16_t child_bottom = bb->y + bb->height;
+			if (this->content_bb.width < child_right) {
+				this->content_bb.width = child_right;
+			}
+			if (this->content_bb.height < child_bottom) {
+				this->content_bb.height = child_bottom;
+			}
+		}
+		// the content box is never smaller than the window itself
+		if (this->content_bb.width < uv_uibb(this)->width) {
+			this->content_bb.width = uv_uibb(this)->width;
+		}
+		if (this->content_bb.height < uv_uibb(this)->height) {
+			this->content_bb.height = uv_uibb(this)->height;
+		}
 	}
 }
 

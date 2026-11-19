@@ -53,9 +53,10 @@ static void draw(void *me, const uv_bounding_box_st *pbb) {
 
 
 
-void uv_uidialog_init(void *me, uv_uiobject_st **object_array, const uv_uistyle_st* style) {
+void uv_uidialog_init(void *me, uv_uiobject_st **object_array,
+		uint16_t object_array_len, const uv_uistyle_st* style) {
 
-	uv_uidisplay_init(this, object_array, style);
+	uv_uidisplay_init(this, object_array, object_array_len, style);
 	// dialog defaults to non-transparent.
 	uv_uidialog_set_transparent(this, false);
 	uv_uiobject_set_draw_callb(this, &draw);

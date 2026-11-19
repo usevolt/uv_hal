@@ -100,8 +100,9 @@ static void _uv_uidisplay_draw(void *me, const uv_bounding_box_st *pbb) {
 }
 
 
-void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *style) {
-	uv_uiwindow_init(me, objects, style);
+void uv_uidisplay_init(void *me, uv_uiobject_st **objects,
+		uint16_t objects_len, const uv_uistyle_st *style) {
+	uv_uiwindow_init(me, objects, objects_len, style);
 	// display fills the whole screen
 	uv_uibb(me)->x = 0;
 	uv_uibb(me)->y = 0;

@@ -29,7 +29,8 @@ uv_uiacceptdialog_ret_e uv_uiacceptdialog_exec(uv_uiacceptdialog_st *this,
 		char *info_str, char *yes_str, char *no_str, const uv_uistyle_st *style) {
 	this->ret = UIACCEPTDIALOG_RET_NO;
 
-	uv_uidialog_init(&this->dialog, this->buffer, style);
+	uv_uidialog_init(&this->dialog, this->buffer,
+			UV_UIWINDOW_BUFFER_LEN(this->buffer), style);
 	uv_uidialog_set_stepcallback(&this->dialog, &step, this);
 
 	uv_uigridlayout_st grid;

@@ -76,8 +76,11 @@ struct   _uv_uiwindow_st {
 	/// The first index is the back-most object,
 	/// and the last index is the top-most object on the display.
 	uv_uiobject_st **objects;
-	/// @brief: Object array length
+	/// @brief: The count of objects currently in *objects*
 	uint16_t objects_count;
+	/// @brief: The length of *objects*, e.g. the maximum count of objects that
+	/// can be added to this window. Given in uv_uiwindow_init.
+	uint16_t objects_max;
 	/// @brief: Indicates dragging has been started for this window
 	bool dragging;
 	/// @brief: Set to false if window should have a background. That is,
@@ -143,8 +146,18 @@ void uv_uiwindow_set_focus(void *obj);
 #define this ((uv_uiwindow_st *)me)
 
 
+/// @brief: Returns the length of an object array. *buffer* has to be an array,
+/// not a pointer (GCC warns with -Wsizeof-pointer-div).
+#define UV_UIWINDOW_BUFFER_LEN(buffer)	(sizeof(buffer) / sizeof((buffer)[0]))
+
+
 /// @brief: initializes the window
-void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array, const uv_uistyle_st * style);
+///
+/// @param object_array: The array holding the pointers to the child objects
+/// @param object_array_len: The length of *object_array*. At most this many
+/// objects can be added to the window, the rest are refused by uv_uiwindow_add.
+void uv_uiwindow_init(void *me, uv_uiobject_st **const object_array,
+		uint16_t object_array_len, const uv_uistyle_st * style);
 
 
 /// @brief: Returns the content bounding box

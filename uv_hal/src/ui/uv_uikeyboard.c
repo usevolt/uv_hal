@@ -378,7 +378,8 @@ bool uv_uikeyboard_show(const char *title, char *buffer,
 	bool ret;
 	uv_uikeyboard_st me;
 	this = &me;
-	uv_uidisplay_init(this, this->bfr, &uv_uistyles[0]);
+	uv_uidisplay_init(this, this->bfr, UV_UIWINDOW_BUFFER_LEN(this->bfr),
+			&uv_uistyles[0]);
 	uv_uiobject_set_draw_callb(this, &draw);
 	this->shift = false;
 	this->autocaps = true;

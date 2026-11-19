@@ -435,7 +435,8 @@ int32_t uv_uinumpaddialog_exec(const char *title,
 	uv_uidialog_st d;
 	uv_uiobject_st *bfr;
 	uv_uinumpad_st numpad;
-	uv_uidialog_init(&d, &bfr, style);
+	// bfr holds a single object
+	uv_uidialog_init(&d, &bfr, 1, style);
 	uv_uidialog_set_stepcallback(&d, &exec_callb, &numpad);
 
 	uv_uinumpad_init(&numpad, title, &uv_uistyles[0]);

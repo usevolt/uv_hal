@@ -51,7 +51,8 @@ typedef struct   {
 
 
 /// @brief: Initializes the uidialog
-void uv_uidialog_init(void *me, uv_uiobject_st **object_array, const uv_uistyle_st* style);
+void uv_uidialog_init(void *me, uv_uiobject_st **object_array,
+		uint16_t object_array_len, const uv_uistyle_st* style);
 
 
 /// @brief: Executes the uidialog. This function returns only when

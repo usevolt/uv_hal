@@ -385,7 +385,8 @@ static uint8_t confwindow_baud_index(uv_can_channels_e dev) {
 /// widgets are being made. Building it again is simpler, and more obviously
 /// correct, than reaching into a live listbutton to extend it.
 static void confwindow_build(const uv_uistyle_st *style) {
-	uv_uidisplay_init(&this->confwindow.display, this->confwindow.display_buffer, style);
+	uv_uidisplay_init(&this->confwindow.display, this->confwindow.display_buffer,
+			UV_UIWINDOW_BUFFER_LEN(this->confwindow.display_buffer), style);
 	uv_uiwindow_set_stepcallback(&this->confwindow.display, &confwindow_step, NULL);
 
 	uv_uistrlayout_st layout;

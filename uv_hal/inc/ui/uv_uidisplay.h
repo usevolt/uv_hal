@@ -107,7 +107,8 @@ typedef struct {
 
 
 /// @brief: initializes the display
-void uv_uidisplay_init(void *me, uv_uiobject_st **objects, const uv_uistyle_st *style);
+void uv_uidisplay_init(void *me, uv_uiobject_st **objects,
+		uint16_t objects_len, const uv_uistyle_st *style);
 
 
 #if !defined(this)

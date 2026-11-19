@@ -67,8 +67,9 @@ char *get_tab_name(void *me, uint16_t tab_i) {
 void uv_uitabwindow_init(void *me, int16_t tab_count,
 		const uv_uistyle_st *style,
 		uv_uiobject_st **obj_array,
+		uint16_t obj_array_len,
 		void *tab_names) {
-	uv_uiwindow_init(this, obj_array, style);
+	uv_uiwindow_init(this, obj_array, obj_array_len, style);
 	uv_uiwindow_set_transparent(this, false);
 	uv_uiwindow_set_content_bb_default_pos(this, 0, CONFIG_UI_TABWINDOW_HEADER_HEIGHT);
 	this->font = style->font;

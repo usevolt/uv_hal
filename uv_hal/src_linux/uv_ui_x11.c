@@ -156,7 +156,8 @@ void uv_ui_confwindow_exec(const uv_uistyle_st *style) {
 	uv_ui_init();
 
 	this->confwindow.terminate = false;
-	uv_uidisplay_init(&this->confwindow.display, this->confwindow.display_buffer, style);
+	uv_uidisplay_init(&this->confwindow.display, this->confwindow.display_buffer,
+			UV_UIWINDOW_BUFFER_LEN(this->confwindow.display_buffer), style);
 	uv_uiwindow_set_stepcallback(&this->confwindow.display, &confwindow_step, NULL);
 
 	uv_uistrlayout_st layout;

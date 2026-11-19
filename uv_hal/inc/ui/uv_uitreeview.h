@@ -96,7 +96,7 @@ typedef struct {
 /// @brief: Initializes uitreeobject. This should be called for all uitreeviewobjects which
 /// are not defined as constants.
 void uv_uitreeobject_init(void *me, uv_uiobject_st **object_array,
-		const char *name, void (*show_callb)(uv_uitreeobject_st *me_ptr), const uv_uistyle_st* style);
+		uint16_t object_array_len, const char *name, void (*show_callb)(uv_uitreeobject_st *me_ptr), const uv_uistyle_st* style);
 
 
 /// @brief: Adds a child NODE to a tree object, i.e. a subtree hanging off it.
@@ -168,7 +168,8 @@ static inline void uv_uitreeobject_set_step_callback(void *me,
 /// @param object_array: Pointer to an array of child structures which contain a pointer
 /// to the window structure and it's name.
 void uv_uitreeview_init(void *me,
-		uv_uitreeobject_st ** const object_array, const uv_uistyle_st * style);
+		uv_uitreeobject_st ** const object_array, uint16_t object_array_len,
+		const uv_uistyle_st * style);
 
 
 

@@ -57,8 +57,9 @@ static void touch(void *me, uv_touch_st *touch);
 
 
 void uv_uitreeobject_init(void *me, uv_uiobject_st **object_array,
-		const char *name, void (*show_callb)(uv_uitreeobject_st *me_ptr), const uv_uistyle_st* style) {
-	uv_uiwindow_init(this, object_array, style);
+		uint16_t object_array_len, const char *name,
+		void (*show_callb)(uv_uitreeobject_st *me_ptr), const uv_uistyle_st* style) {
+	uv_uiwindow_init(this, object_array, object_array_len, style);
 	this->text_c = style->text_color;
 	this->font = style->font;
 	// the content sits below the header row and indented under the header's
@@ -389,8 +390,10 @@ static void uitreeview_relayout(void *container) {
 
 
 void uv_uitreeview_init(void *me,
-		uv_uitreeobject_st ** const object_array, const uv_uistyle_st * style) {
-	uv_uiwindow_init(this, (uv_uiobject_st ** const) object_array, style);
+		uv_uitreeobject_st ** const object_array, uint16_t object_array_len,
+		const uv_uistyle_st * style) {
+	uv_uiwindow_init(this, (uv_uiobject_st ** const) object_array,
+			object_array_len, style);
 	this->one_active = true;
 }
 
