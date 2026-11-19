@@ -689,6 +689,20 @@ static uv_errors_e uv_can_send_message(uv_can_channels_e channel, uv_can_message
 			uv_can_set_up(false);
 			retval = write(this->soc, &frame, sizeof(struct can_frame));
 		}
+		// ENOBUFS means the netdev's tx queue is full. That happens on bursts
+		// such as SDO block transfers when the interface was brought up by
+		// someone else with the kernel's default txqueuelen of 10. The queue
+		// drains at bus speed (~0.5 ms per frame at 250 kbit/s), so wait and
+		// retry instead of dropping the frame. Give up after ~200 ms, which
+		// only happens when nothing drains the queue (no ACK on the bus).
+		for (uint32_t i = 0;
+				retval != sizeof(struct can_frame) && errno == ENOBUFS && i < 200;
+				i++) {
+			struct timespec ts = { 0, 1000000 };
+			while (nanosleep(&ts, &ts) != 0 && errno == EINTR) {
+			}
+			retval = write(this->soc, &frame, sizeof(struct can_frame));
+		}
 		// Only inspect errno when the write actually failed. A successful write
 		// leaves errno untouched, so it may hold a stale value from an earlier
 		// unrelated syscall (e.g. ENOTTY from the isatty() in the logging macros
