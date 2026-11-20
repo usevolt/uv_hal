@@ -326,11 +326,17 @@ typedef void (*uv_esp32_mqtt_rx_callb_t)(
 
 
 
-#define ESP32_SCAN_MAX_NETWORKS		8
-
-typedef struct {
+/// @brief: One network of a WiFi scan.
+///
+/// Laid out to be mapped to a CANopen ARRAY16 object as it is, so a scan can
+/// be written straight into the memory the object dictionary points at: the
+/// name takes 17 16-bit words and the signal strength one more. The pad byte
+/// makes up the last word; without it every entry after the first would sit
+/// one byte off from where the dictionary looks for it.
+typedef struct __attribute__((packed)) {
 	char ssid[SSID_STR_MAX_LEN];
 	int8_t rssi;
+	uint8_t reserved;
 } uv_esp32_network_st;
 
 
@@ -458,12 +464,21 @@ typedef struct {
 	char at_resp_pending[ESP32_AT_RESP_LEN];
 	bool at_resp_has_pending;
 
-	union {
-		struct {
-			uv_esp32_network_st networks[ESP32_SCAN_MAX_NETWORKS];
-			uint8_t network_count;
-		} scan;
-	} state_data;
+	/// @brief: Where a scan started with uv_esp32_network_scan() stores the
+	/// networks it sees, set with uv_esp32_set_scan_buffer(). The driver keeps
+	/// no list of its own: the caller's buffer is usually the memory an object
+	/// dictionary entry points at, so the results need no second copy. NULL
+	/// stores nothing.
+	uv_esp32_network_st *scan_buf;
+	/// @brief: How many networks scan_buf holds. AT+CWLAPOPT sorts the scan by
+	/// signal strength, so the networks that fit are the strongest ones.
+	uint8_t scan_buf_len;
+	/// @brief: Networks stored by the latest scan
+	uint8_t scan_count;
+	/// @brief: The running scan stores its results. The driver's own scans for
+	/// the configured network (see ESP32_STATE_LEFT_NETWORK) only look for it,
+	/// and leave alone a list someone may be showing.
+	bool scan_store;
 
 	uint64_t mac;
 
@@ -531,8 +546,21 @@ static inline uint32_t uv_esp32_get_transmitted_byte_count(uv_esp32_st *this) {
 	return this->transmitted_byte_count;
 }
 
+/// @brief: Returns how many networks the latest scan stored in the scan buffer
 static inline uint8_t uv_esp32_get_network_count(uv_esp32_st *this) {
-	return this->state_data.scan.network_count;
+	return this->scan_count;
+}
+
+/// @brief: Sets where uv_esp32_network_scan() stores the networks it sees.
+///
+/// @param buf: Room for *len* networks, or NULL to store none. It has to stay
+/// valid for as long as scans are made. Call after uv_esp32_init(), which
+/// clears it.
+static inline void uv_esp32_set_scan_buffer(uv_esp32_st *this,
+		uv_esp32_network_st *buf, uint8_t len) {
+	this->scan_buf = buf;
+	this->scan_buf_len = (buf != NULL) ? len : 0u;
+	this->scan_count = 0;
 }
 
 
@@ -695,8 +723,9 @@ void uv_esp32_network_join(uv_esp32_st *this, char ssid[32],
 
 
 
-/// @brief: Starts a WiFi network scan. Results are stored in
-/// Results are stored in state_data.scan when scan completes.
+/// @brief: Starts a WiFi network scan. The networks it sees are stored in the
+/// buffer given with uv_esp32_set_scan_buffer(), strongest first, and
+/// uv_esp32_get_network_count() tells how many once the scan is over.
 uv_errors_e uv_esp32_network_scan(uv_esp32_st *this, bool blocking);
 
 

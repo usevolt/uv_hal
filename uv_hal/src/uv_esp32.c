@@ -328,6 +328,9 @@ static bool at_resp_accumulate(uv_esp32_st *this, char c) {
 }
 
 
+static uv_errors_e network_scan_start(uv_esp32_st *this,
+		bool blocking, bool store);
+
 #if CONFIG_ESP32_MQTT
 // Forward decl — defined below.
 static void mqtt_set_state(uv_esp32_st *this, uv_esp32_mqtt_states_e state);
@@ -1317,8 +1320,8 @@ static void rxtx_task(void *me_ptr) {
 		case ESP32_STATE_SET_CWMODE:
 			if (rx_at_match(this, "OK", NULL)) {
 				// AT+CWLAP lists networks in the order the scan found them,
-				// roughly by channel, and only the first
-				// ESP32_SCAN_MAX_NETWORKS fit in the list. Sorted by RSSI the
+				// roughly by channel, and only as many as the scan buffer
+				// holds fit in the list. Sorted by RSSI the
 				// list keeps the strongest ones instead, so a phone hotspot
 				// next to the machine is not pushed out by distant APs on
 				// lower channels. Mask 2047 keeps every field, the same
@@ -1550,17 +1553,20 @@ static void rxtx_task(void *me_ptr) {
 							// way -- the name is simply not broadcast -- and so
 							// is a scan line that arrived damaged. Neither
 							// belongs on screen.
-							if ((len == 0) || (this->state_data.scan.network_count >=
-									ESP32_SCAN_MAX_NETWORKS)) {
-								/* nothing to show, or no room to show it */
+							if ((len == 0) || !this->scan_store ||
+									(this->scan_count >= this->scan_buf_len)) {
+								/* nothing to show, nobody to show it to, or
+								 * no room to show it */
 							}
 							else {
-								memcpy(this->state_data.scan.networks[this->state_data.scan.network_count].ssid,
-										ssid_start, len);
-								this->state_data.scan.networks[this->state_data.scan.network_count].ssid[len] = '\0';
+								uv_esp32_network_st *net =
+										&this->scan_buf[this->scan_count];
+								memset(net, 0, sizeof(*net));
+								memcpy(net->ssid, ssid_start, len);
+								net->ssid[len] = '\0';
 								char *rssi_str = ssid_end + 2;
-								this->state_data.scan.networks[this->state_data.scan.network_count].rssi = strtol(rssi_str, NULL, 10);
-								this->state_data.scan.network_count++;
+								net->rssi = (int8_t) strtol(rssi_str, NULL, 10);
+								this->scan_count++;
 							}
 						}
 						else {
@@ -1570,8 +1576,8 @@ static void rxtx_task(void *me_ptr) {
 					}
 				}
 				else if (strstr(this->at_resp, "OK") != NULL) {
-					ESP32_DEBUG(this, "ESP32: scan complete, %u networks found\n",
-							this->state_data.scan.network_count);
+					ESP32_DEBUG(this, "ESP32: scan complete, %u networks stored\n",
+							this->scan_count);
 					set_state(this, this->scan_return_state);
 					break;
 				}
@@ -1611,7 +1617,7 @@ static void rxtx_task(void *me_ptr) {
 				else if (uv_delay(&this->timeout, uv_ts_get_step_ms(&ts))) {
 					ESP32_DEBUG(this, "ESP32: looking for '%s'\n",
 							this->wifi_ssid);
-					(void) uv_esp32_network_scan(this, false);
+					(void) network_scan_start(this, false, false);
 				}
 				else {
 				}
@@ -2458,11 +2464,22 @@ char *uv_esp32_get_connected_ssid(uv_esp32_st *this) {
 }
 
 
-uv_errors_e uv_esp32_network_scan(uv_esp32_st *this, bool blocking) {
+/// @brief: Starts a network scan.
+///
+/// @param store: The scan stores the networks it sees in the scan buffer.
+/// False for the driver's own scans for the configured network, which must not
+/// overwrite a list started from outside and possibly on screen.
+static uv_errors_e network_scan_start(uv_esp32_st *this,
+		bool blocking, bool store) {
 	uv_errors_e ret = ERR_NOT_READY;
 	if (this->state == ESP32_STATE_JOINED_NETWORK ||
 			this->state == ESP32_STATE_LEFT_NETWORK) {
-		this->state_data.scan.network_count = 0;
+		this->scan_store = store;
+		if (store) {
+			this->scan_count = 0;
+		}
+		else {
+		}
 		this->wifi_ssid_seen = false;
 		this->scan_return_state = this->state;
 		send_at_cmd(this, "AT+CWLAP", NULL, NULL);
@@ -2476,6 +2493,11 @@ uv_errors_e uv_esp32_network_scan(uv_esp32_st *this, bool blocking) {
 		ret = ERR_NONE;
 	}
 	return ret;
+}
+
+
+uv_errors_e uv_esp32_network_scan(uv_esp32_st *this, bool blocking) {
+	return network_scan_start(this, blocking, true);
 }
 
 

@@ -808,18 +808,18 @@ uv_errors_e uv_esp32_network_scan(uv_esp32_st *this, bool blocking) {
 			{ "sim-ap-weak",   -84 },
 	};
 	uint8_t count = (uint8_t) (sizeof(sim_nets) / sizeof(sim_nets[0]));
-	if (count > ESP32_SCAN_MAX_NETWORKS) {
-		count = ESP32_SCAN_MAX_NETWORKS;
+	if (count > this->scan_buf_len) {
+		count = this->scan_buf_len;
 	}
 	else {
 	}
 	for (uint8_t i = 0; i < count; i++) {
-		strncpy(this->state_data.scan.networks[i].ssid, sim_nets[i].ssid,
-				SSID_STR_MAX_LEN - 1);
-		this->state_data.scan.networks[i].ssid[SSID_STR_MAX_LEN - 1] = '\0';
-		this->state_data.scan.networks[i].rssi = sim_nets[i].rssi;
+		uv_esp32_network_st *net = &this->scan_buf[i];
+		memset(net, 0, sizeof(*net));
+		strncpy(net->ssid, sim_nets[i].ssid, SSID_STR_MAX_LEN - 1);
+		net->rssi = sim_nets[i].rssi;
 	}
-	this->state_data.scan.network_count = count;
+	this->scan_count = count;
 	return ERR_NONE;
 }
 
