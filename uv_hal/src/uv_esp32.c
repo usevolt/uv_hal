@@ -1622,16 +1622,10 @@ static void espnow_step(uv_esp32_st *this, uint16_t step_ms, bool link_free) {
 				// a new peer) keeps sends going: they queue behind it.
 			}
 		}
-		else if (e->tx_pending) {
-			e->state = ESP32_ESPNOW_STATE_READY;
-			char line[32];
-			snprintf(line, sizeof(line), "AT+ENOWSEND=%u",
-					(unsigned int) e->tx_len);
-			send_at_cmd_raw(this, line);
-			e->phase = ESPNOW_PHASE_SEND_AT_SENT;
-			uv_delay_init(&e->timeout, ESP32_ESPNOW_AT_TIMEOUT_MS);
-		}
 		else if (e->disc_req) {
+			// Before frames: a discovery is asked for rarely, and a producer
+			// that always has a frame ready would otherwise hold it off for
+			// ever.
 			e->state = ESP32_ESPNOW_STATE_READY;
 			char line[40];
 			if (e->disc_channel != 0U) {
@@ -1647,6 +1641,15 @@ static void espnow_step(uv_esp32_st *this, uint16_t step_ms, bool link_free) {
 			e->phase = ESPNOW_PHASE_DISC_SENT;
 			uv_delay_init(&e->timeout,
 					(uint16_t) (e->disc_ms + ESP32_ESPNOW_AT_TIMEOUT_MS));
+		}
+		else if (e->tx_pending) {
+			e->state = ESP32_ESPNOW_STATE_READY;
+			char line[32];
+			snprintf(line, sizeof(line), "AT+ENOWSEND=%u",
+					(unsigned int) e->tx_len);
+			send_at_cmd_raw(this, line);
+			e->phase = ESPNOW_PHASE_SEND_AT_SENT;
+			uv_delay_init(&e->timeout, ESP32_ESPNOW_AT_TIMEOUT_MS);
 		}
 		else {
 			e->state = ESP32_ESPNOW_STATE_READY;
@@ -3505,17 +3508,23 @@ void uv_esp32_terminal(uv_esp32_st *this,
 		char mac_str[ESP32_MAC_STR_LEN];
 		uv_esp32_mac_get_str(this, mac_str);
 		uint16_t flags = (this->wifi_flags != NULL) ? *(this->wifi_flags) : 0;
+		uint32_t overruns = 0;
+		uint32_t drops = 0;
+		uv_uart_get_rx_lost(this->uart, &overruns, &drops);
 		printf("ESP32:\n"
 				"    state: %s\n"
 				"    mac: %s\n"
 				"    debug: %u\n"
 				"    echo: %u\n"
-				"    comm: %s\n",
+				"    comm: %s\n"
+				"    uart: %u baud, rx lost %u overruns / %u buffer full\n",
 					uv_esp32_state_to_str(this->state),
 					mac_str,
 					!!(flags & ESP32_CONF_FLAGS_DEBUG),
 					!!(flags & ESP32_CONF_FLAGS_ECHO),
-					this->disabled ? "off" : "on");
+					this->disabled ? "off" : "on",
+					(unsigned int) CONFIG_ESP32_UART_BAUDRATE,
+					(unsigned int) overruns, (unsigned int) drops);
 #if CONFIG_ESP32_ESPNOW
 		const uv_esp32_espnow_st *e = &this->espnow;
 		printf("    espnow: %s%s, ch %u (want %u), v%u\n"

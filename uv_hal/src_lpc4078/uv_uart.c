@@ -485,3 +485,21 @@ void _uv_uart_hal_step(uint16_t step_ms) {
 	send_next_byte(UART0);
 	uv_exit_critical();
 }
+
+
+void uv_uart_get_rx_lost(uv_uarts_e uart, uint32_t *overruns, uint32_t *drops) {
+	// not counted on this target
+	(void) uart;
+	if (overruns != NULL) {
+		*overruns = 0;
+	}
+	else {
+	}
+	if (drops != NULL) {
+		*drops = 0;
+	}
+	else {
+	}
+}
+
+

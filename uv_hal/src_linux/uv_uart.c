@@ -120,4 +120,20 @@ void uv_uart_break_start(uv_uarts_e uart) {
 void uv_uart_break_stop(uv_uarts_e uart) {
 }
 
+void uv_uart_get_rx_lost(uv_uarts_e uart, uint32_t *overruns, uint32_t *drops) {
+	// not counted on this target
+	(void) uart;
+	if (overruns != NULL) {
+		*overruns = 0;
+	}
+	else {
+	}
+	if (drops != NULL) {
+		*drops = 0;
+	}
+	else {
+	}
+}
+
+
 #endif

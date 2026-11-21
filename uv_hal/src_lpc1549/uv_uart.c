@@ -56,6 +56,9 @@ typedef struct {
 	// false makes the transmitter ignore the CTS input, see
 	// uv_uart_set_cts_enabled()
 	bool cts_enabled[UART_COUNT];
+	// see uv_uart_get_rx_lost()
+	uint32_t rx_overruns[UART_COUNT];
+	uint32_t rx_drops[UART_COUNT];
 } uart_st;
 
 
@@ -109,9 +112,21 @@ static inline void update_rts(uv_uarts_e uart) {
 #if CONFIG_UART0
 void UART0_IRQHandler(void) {
 	char c;
+	// The USART has no rx FIFO: a byte not fetched before the next one is
+	// complete is lost, and the hardware flags it
+	if (Chip_UART_GetStatus(LPC_USART0) & UART_STAT_OVERRUNINT) {
+		Chip_UART_ClearStatus(LPC_USART0, UART_STAT_OVERRUNINT);
+		this->rx_overruns[0]++;
+	}
+	else {
+	}
 	if (Chip_UART_GetIntStatus(LPC_USART0) & UART_INTEN_RXRDY) {
 		if (Chip_UART_Read(LPC_USART0, &c, 1)) {
-			uv_streambuffer_push_isr(&this->rx_buffer[0], &c, 1);
+			if (uv_streambuffer_push_isr(&this->rx_buffer[0], &c, 1) == 0) {
+				this->rx_drops[0]++;
+			}
+			else {
+			}
 			update_rts(UART0);
 			if (this->callback[0]) {
 				this->callback[0](__uv_get_user_ptr(), (uv_uarts_e) LPC_USART0);
@@ -428,6 +443,21 @@ void uv_uart_clear_rx_buffer(uv_uarts_e uart) {
 	uv_enter_critical();
 	update_rts(uart);
 	uv_exit_critical();
+}
+
+
+void uv_uart_get_rx_lost(uv_uarts_e uart, uint32_t *overruns, uint32_t *drops) {
+	uint8_t i = get_i(uart);
+	if (overruns != NULL) {
+		*overruns = this->rx_overruns[i];
+	}
+	else {
+	}
+	if (drops != NULL) {
+		*drops = this->rx_drops[i];
+	}
+	else {
+	}
 }
 
 

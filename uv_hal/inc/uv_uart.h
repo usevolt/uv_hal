@@ -164,7 +164,11 @@ bool uv_uart_receive_cmp(uv_uarts_e uart, char *str, uint32_t max_len, int wait_
 /// @brief: Sets the baudrate on-the-go
 #if CONFIG_TARGET_LPC15XX
 static inline void uv_uart_set_baudrate(uv_uarts_e uart, unsigned int baudrate) {
+	// the baud rate generator is changed with the USART disabled, so no
+	// character is clocked half at the old rate and half at the new one
+	Chip_UART_Disable((LPC_USART_T*) uart);
 	Chip_UART_SetBaud((LPC_USART_T*) uart, baudrate);
+	Chip_UART_Enable((LPC_USART_T*) uart);
 }
 #else
 void uv_uart_set_baudrate(uv_uarts_e uart, unsigned int baudrate);
@@ -174,6 +178,17 @@ void uv_uart_set_baudrate(uv_uarts_e uart, unsigned int baudrate);
 
 
 void uv_uart_clear_rx_buffer(uv_uarts_e uart);
+
+
+/// @brief: Received bytes lost since power-on, for diagnosing a link that
+/// runs faster than its receiver keeps up with: *overruns* the hardware
+/// reported (a byte arrived before the interrupt fetched the one before it),
+/// *drops* those fetched with no room left in the rx buffer (whoever reads
+/// the UART fell behind). Either kind corrupts whatever the bytes belonged
+/// to. Both are 0 on a target that does not count them.
+///
+/// @note: Counted on LPC1549 only.
+void uv_uart_get_rx_lost(uv_uarts_e uart, uint32_t *overruns, uint32_t *drops);
 
 
 /// @brief: Enables or disables honouring the CTS input of *uart*. Has effect
