@@ -128,6 +128,37 @@
 #endif
 #define ESP32_SNTP_TIMEZONE				CONFIG_ESP32_SNTP_TIMEZONE
 
+/// ESP-NOW: a direct link to one other ESP32 without any AP, through the
+/// AT+ENOW* commands of the Usevolt AT firmware (github.com/usevolt/uv3d_uvesp,
+/// README_UV.md there). Set to 1 to build it in; off by default, as it needs
+/// that firmware and costs two payload buffers of RAM. It works with or without
+/// CONFIG_ESP32_MQTT, and next to it: both share the AT link, one exchange at a
+/// time, and an ESP-NOW send goes ahead of any queued publish.
+#ifndef CONFIG_ESP32_ESPNOW
+#define CONFIG_ESP32_ESPNOW				0
+#endif
+
+/// Largest ESP-NOW payload sent or received, in bytes. Costs RAM twice, the
+/// send buffer and the receive buffer. ESP-NOW v2 frames carry up to 1470
+/// bytes, of which the firmware's own header takes 3; a received frame larger
+/// than this is dropped whole.
+#ifndef CONFIG_ESP32_ESPNOW_PAYLOAD_MAX_LEN
+#define CONFIG_ESP32_ESPNOW_PAYLOAD_MAX_LEN	250
+#endif
+#define ESP32_ESPNOW_PAYLOAD_MAX_LEN	CONFIG_ESP32_ESPNOW_PAYLOAD_MAX_LEN
+#if CONFIG_ESP32_ESPNOW && ((ESP32_ESPNOW_PAYLOAD_MAX_LEN < 1) || \
+		(ESP32_ESPNOW_PAYLOAD_MAX_LEN > 1467))
+#error "CONFIG_ESP32_ESPNOW_PAYLOAD_MAX_LEN has to be 1...1467"
+#endif
+
+/// Longest discovery name and group, without the terminating null. The
+/// firmware refuses longer ones (AT_ESPNOW_NAME_MAX_LEN / _GROUP_MAX_LEN), so
+/// the setters cut them to these.
+#define ESP32_ESPNOW_NAME_MAX_LEN		21
+#define ESP32_ESPNOW_GROUP_MAX_LEN		32
+#define ESP32_ESPNOW_CHANNEL_MAX		13
+
+
 /// Room for the asctime-style stamp AT+CIPSNTPTIME? answers with, e.g.
 /// "Thu Aug 21 14:27:00 2026": 24 characters plus terminator, rounded up.
 #define ESP32_TIME_STR_LEN				32
@@ -254,6 +285,23 @@ const char *uv_esp32_mqtt_state_to_str(uv_esp32_mqtt_states_e state);
 #endif
 
 
+/// @brief: ESP-NOW state, advances alongside the main state once the module
+/// is up (joined to an AP or not).
+typedef enum {
+	// not enabled, or the module is not up yet
+	ESP32_ESPNOW_STATE_DISABLED = 0,
+	// sending the settings: channel, name, group, discoverability, peer
+	ESP32_ESPNOW_STATE_CONFIG,
+	// sends and discoveries go
+	ESP32_ESPNOW_STATE_READY,
+	// the module refused a setting or did not answer; retried after a while
+	ESP32_ESPNOW_STATE_ERROR,
+	ESP32_ESPNOW_STATE_COUNT
+} uv_esp32_espnow_states_e;
+
+const char *uv_esp32_espnow_state_to_str(uv_esp32_espnow_states_e state);
+
+
 /// @brief: The last thing that went wrong in the driver, kept for diagnostics
 /// only: none of it changes what the driver does, which retries on its own.
 /// Without it, everything below shows up only in the debug log -- and that is
@@ -282,6 +330,9 @@ typedef enum {
 	ESP32_ERR_MQTT_PUB_TIMEOUT,
 	// a subscribe was refused or unanswered
 	ESP32_ERR_MQTT_SUB,
+	// an ESP-NOW setting was refused or unanswered: usually firmware without
+	// the AT+ENOW* commands
+	ESP32_ERR_ESPNOW_CMD,
 	ESP32_ERR_COUNT
 } uv_esp32_err_e;
 
@@ -324,6 +375,115 @@ typedef void (*uv_esp32_mqtt_rx_callb_t)(
 #define ESP32_IP_STR_LEN	16
 
 
+#if CONFIG_ESP32_ESPNOW
+
+/// @brief: Invoked from the driver task when a frame arrives from the peer.
+/// *data* is the driver's and valid only for the duration of the callback.
+/// *rssi* is the frame's signal strength in dBm.
+typedef void (*uv_esp32_espnow_rx_callb_t)(
+		const uint8_t *data, uint16_t len, int8_t rssi);
+
+/// @brief: Invoked from the driver task for each device a discovery finds,
+/// once per device and discovery. *mac* is "aa:bb:cc:dd:ee:ff", *channel* the
+/// one the device's radio is on, *name* its discovery name. The strings are
+/// valid only for the duration of the callback.
+typedef void (*uv_esp32_espnow_dev_callb_t)(
+		const char *mac, int8_t rssi, uint8_t channel, const char *name);
+
+/// @brief: The settings the driver sends the module, in the order it sends
+/// them: AT+ENOWINIT starts ESP-NOW, which the others need. Driver-internal.
+typedef enum {
+	ESP32_ESPNOW_SET_CHANNEL = 0,
+	// AT+ENOWINIT?, for the channel the radio really is on
+	ESP32_ESPNOW_SET_QUERY,
+	ESP32_ESPNOW_SET_NAME,
+	ESP32_ESPNOW_SET_GROUP,
+	ESP32_ESPNOW_SET_DISCOVERABLE,
+	ESP32_ESPNOW_SET_PEER,
+	ESP32_ESPNOW_SET_COUNT
+} uv_esp32_espnow_set_e;
+
+/// @brief: ESP-NOW counters from power-on, written by the driver task only.
+typedef struct {
+	// frames the peer acknowledged, and those it did not or that never left
+	uint32_t tx_ok;
+	uint32_t tx_fail;
+	// frames received from the peer, and those dropped as too large
+	uint32_t rx;
+	uint32_t rx_drop;
+	// settings the module refused or did not answer
+	uint32_t cmd_fails;
+} uv_esp32_espnow_diag_st;
+
+/// @brief: The ESP-NOW side of the driver. Settings are copied in by the
+/// setters and sent to the module by the driver task, again after every
+/// module reset, as the module keeps none of them.
+typedef struct {
+	bool enabled;
+	uv_esp32_espnow_states_e state;
+	/// ESPNOW_PHASE_* internal to uv_esp32.c: the AT exchange in flight
+	uint8_t phase;
+	/// Settings still to be sent, one flag each rather than a mask: the setters
+	/// raise them on the caller's task and the driver task lowers them, and a
+	/// read-modify-write of a shared mask would lose one now and then.
+	volatile bool dirty[ESP32_ESPNOW_SET_COUNT];
+	/// the setting whose command is in flight, ESP32_ESPNOW_SET_COUNT for none
+	uv_esp32_espnow_set_e sending;
+	/// channel used while not joined to an AP, 1...13, or 0 for wherever the
+	/// radio happens to be. While joined the AP's channel is used.
+	uint8_t channel;
+	/// the channel the module reported, 0 until it has
+	uint8_t cur_channel;
+	/// ESP-NOW version the module reported, 2 carries frames up to 1470 bytes
+	uint8_t version;
+	bool discoverable;
+	char name[ESP32_ESPNOW_NAME_MAX_LEN + 1];
+	char group[ESP32_ESPNOW_GROUP_MAX_LEN + 1];
+	/// the paired device, "aa:bb:cc:dd:ee:ff", empty for none
+	char peer[ESP32_MAC_STR_LEN];
+	uv_delay_st timeout;
+
+	/// a discovery is asked for (disc_ms, disc_channel) or running
+	volatile bool disc_req;
+	uint16_t disc_ms;
+	uint8_t disc_channel;
+	uv_esp32_espnow_dev_callb_t dev_callb;
+
+	/// tx_data holds a frame to send. Set by uv_esp32_espnow_send, cleared by
+	/// the driver task once the frame went or failed.
+	volatile bool tx_pending;
+	bool tx_last_ok;
+	uint16_t tx_len;
+	uint8_t tx_data[ESP32_ESPNOW_PAYLOAD_MAX_LEN];
+
+	/// Raw capture of a +ENOWRECV payload, the same way as +MQTTSUBRECV: the
+	/// header is read through the line parser, the payload after its last comma
+	/// straight off the rx stream.
+	struct {
+		uint8_t data[ESP32_ESPNOW_PAYLOAD_MAX_LEN];
+		uint16_t expected_len;
+		uint16_t received_len;
+		int8_t rssi;
+		bool active;
+		bool drop;
+	} rx;
+	uv_esp32_espnow_rx_callb_t rx_callb;
+	/// uv_rtos_get_tick_count() of the last frame from the peer
+	uint32_t rx_tick;
+	bool rx_seen;
+	/// background WiFi scans skipped since the last one, see LEFT_NETWORK
+	uint8_t scan_skips;
+	/// A frame just went while a publish was waiting: the next turn on the AT
+	/// link is the publish's. ESP-NOW goes first, but a producer that always
+	/// has a frame ready would otherwise keep the MQTT client off the link.
+	bool yield;
+
+	uv_esp32_espnow_diag_st diag;
+} uv_esp32_espnow_st;
+
+#endif
+
+
 
 
 /// @brief: One network of a WiFi scan.
@@ -346,9 +506,15 @@ typedef struct __attribute__((packed)) {
 /// does not fit is lost, and a payload short by even one byte leaves the module
 /// swallowing the following AT commands as the rest of it.
 #if CONFIG_ESP32_MQTT
-#define ESP32_TX_BUF_SIZE		(ESP32_MQTT_PAYLOAD_MAX_LEN + 300)
+#define ESP32_TX_BUF_BASE		(ESP32_MQTT_PAYLOAD_MAX_LEN + 300)
 #else
-#define ESP32_TX_BUF_SIZE		(700)
+#define ESP32_TX_BUF_BASE		(700)
+#endif
+// an ESP-NOW frame goes into the tx buffer whole as well
+#if CONFIG_ESP32_ESPNOW && ((ESP32_ESPNOW_PAYLOAD_MAX_LEN + 300) > ESP32_TX_BUF_BASE)
+#define ESP32_TX_BUF_SIZE		(ESP32_ESPNOW_PAYLOAD_MAX_LEN + 300)
+#else
+#define ESP32_TX_BUF_SIZE		ESP32_TX_BUF_BASE
 #endif
 #define ESP32_RX_BUF_SIZE		(300)
 #define ESP32_AT_RESP_LEN		(96)
@@ -463,6 +629,16 @@ typedef struct {
 	// so the state machine's next at_get_line call can consume it.
 	char at_resp_pending[ESP32_AT_RESP_LEN];
 	bool at_resp_has_pending;
+	/// @brief: Running after a command nobody waits the answer of: a
+	/// fire-and-forget query, or a join or leave. The module processes one
+	/// command at a time and drops ("busy p...") one arriving meanwhile, and its
+	/// OK would be taken for the answer to the next one, so the next command
+	/// that is not an answer to anything waits for this to run out.
+	uv_delay_st at_quiet_delay;
+	/// @brief: The module answered "busy p..." since the last command was
+	/// sent: it was still processing the one before, and dropped ours. The OK
+	/// that follows is the earlier command's, not an answer to ours.
+	bool at_busy;
 
 	/// @brief: Where a scan started with uv_esp32_network_scan() stores the
 	/// networks it sees, set with uv_esp32_set_scan_buffer(). The driver keeps
@@ -479,6 +655,19 @@ typedef struct {
 	/// the configured network (see ESP32_STATE_LEFT_NETWORK) only look for it,
 	/// and leave alone a list someone may be showing.
 	bool scan_store;
+	/// @brief: uv_esp32_network_scan() asked for a scan, storing its results
+	/// if scan_req_store. Started by the driver task once no AT exchange is in
+	/// flight: an AT+CWLAP sent into the middle of one corrupts both.
+	volatile bool scan_req;
+	bool scan_req_store;
+	/// @brief: uv_esp32_network_join() / _leave() asked to join or leave
+	/// (ESP32_WIFI_REQ_*, internal to uv_esp32.c), carried out by the driver
+	/// task between exchanges for the same reason as scan_req.
+	volatile uint8_t wifi_req;
+
+#if CONFIG_ESP32_ESPNOW
+	uv_esp32_espnow_st espnow;
+#endif
 
 	uint64_t mac;
 
@@ -807,6 +996,104 @@ uv_errors_e uv_esp32_mqtt_unsubscribe(uv_esp32_st *this, const char *topic);
 /// @brief: Registers a callback to be invoked when an MQTT message arrives
 /// on a subscribed topic. Pass NULL to clear.
 void uv_esp32_mqtt_set_rx_callb(uv_esp32_st *this, uv_esp32_mqtt_rx_callb_t cb);
+
+#endif
+
+
+#if CONFIG_ESP32_ESPNOW
+
+/// @brief: Starts (true) or stops (false) ESP-NOW. Started, the driver sends
+/// the settings below to the module whenever it is up, and again after each of
+/// its resets. Stopping takes effect at the next module reset; until then the
+/// driver only stops sending. Callable from any task.
+void uv_esp32_espnow_set_enabled(uv_esp32_st *this, bool value);
+
+/// @brief: The channel, 1...13, the radio is put on while the station is not
+/// joined to an AP. While joined the AP decides, and the peer has to find that
+/// channel by discovery. 0 leaves the radio wherever it is.
+void uv_esp32_espnow_set_channel(uv_esp32_st *this, uint8_t channel);
+
+/// @brief: The name this device answers discovery with. Cut to
+/// ESP32_ESPNOW_NAME_MAX_LEN characters.
+void uv_esp32_espnow_set_name(uv_esp32_st *this, const char *name);
+
+/// @brief: Only devices of the same group find each other. Cut to
+/// ESP32_ESPNOW_GROUP_MAX_LEN characters.
+void uv_esp32_espnow_set_group(uv_esp32_st *this, const char *group);
+
+/// @brief: Whether this device answers discovery
+void uv_esp32_espnow_set_discoverable(uv_esp32_st *this, bool value);
+
+/// @brief: The paired device as "aa:bb:cc:dd:ee:ff", or "" / NULL for none.
+/// Frames are sent only to it and taken only from it.
+void uv_esp32_espnow_set_peer(uv_esp32_st *this, const char *mac);
+
+/// @brief: Looks for devices of the same group for *ms* (10...5000) on
+/// *channel*, or on the current channel with 0. Each one found is handed to the
+/// callback set with uv_esp32_espnow_set_dev_callb(), and
+/// uv_esp32_espnow_discovering() is true until the discovery is over. A channel
+/// other than the joined AP's fails the discovery. The radio is back on its
+/// channel afterwards; frames from the peer are missed meanwhile.
+///
+/// @return: ERR_NONE when queued, ERR_NOT_READY if ESP-NOW is not READY,
+/// ERR_HW_BUSY if a discovery is already queued or running.
+uv_errors_e uv_esp32_espnow_discover(uv_esp32_st *this,
+		uint16_t ms, uint8_t channel);
+
+/// @brief: True while a discovery is queued or running
+static inline bool uv_esp32_espnow_discovering(uv_esp32_st *this) {
+	return this->espnow.disc_req;
+}
+
+/// @brief: Queues one frame to the peer. Returns immediately; the driver task
+/// sends it ahead of any queued MQTT publish, and the peer acknowledges it
+/// within 100 ms or it counts as failed. Only one frame is queued at a time,
+/// so a producer collects what it has into one frame while the last one goes.
+///
+/// @return: ERR_NONE when queued; ERR_BUFFER_OVERFLOW if *len* is 0 or over
+/// ESP32_ESPNOW_PAYLOAD_MAX_LEN; ERR_NOT_READY without a peer or before
+/// ESP-NOW is READY; ERR_HW_BUSY while the previous frame is still going.
+uv_errors_e uv_esp32_espnow_send(uv_esp32_st *this,
+		const uint8_t *data, uint16_t len);
+
+/// @brief: True while a frame given to uv_esp32_espnow_send() has not gone yet
+static inline bool uv_esp32_espnow_send_pending(uv_esp32_st *this) {
+	return this->espnow.tx_pending;
+}
+
+/// @brief: Whether the peer acknowledged the last frame that went
+static inline bool uv_esp32_espnow_last_send_ok(uv_esp32_st *this) {
+	return this->espnow.tx_last_ok;
+}
+
+/// @brief: Registers the callback for frames from the peer, NULL to clear
+void uv_esp32_espnow_set_rx_callb(uv_esp32_st *this,
+		uv_esp32_espnow_rx_callb_t cb);
+
+/// @brief: Registers the callback for the devices a discovery finds, NULL to
+/// clear
+void uv_esp32_espnow_set_dev_callb(uv_esp32_st *this,
+		uv_esp32_espnow_dev_callb_t cb);
+
+static inline uv_esp32_espnow_states_e uv_esp32_espnow_state_get(
+		uv_esp32_st *this) {
+	return this->espnow.state;
+}
+
+/// @brief: The channel the radio is on as the module last reported it, 0
+/// while not known
+static inline uint8_t uv_esp32_espnow_get_channel(uv_esp32_st *this) {
+	return this->espnow.cur_channel;
+}
+
+/// @brief: Milliseconds since the last frame from the peer, UINT32_MAX if
+/// none has come since the module was last reset
+uint32_t uv_esp32_espnow_rx_age_ms(uv_esp32_st *this);
+
+static inline const uv_esp32_espnow_diag_st *uv_esp32_espnow_diag_get(
+		uv_esp32_st *this) {
+	return &this->espnow.diag;
+}
 
 #endif
 

@@ -899,7 +899,8 @@ const char *uv_esp32_err_to_str(uv_esp32_err_e err) {
 			"MQTT lost",
 			"MQTT publish",
 			"MQTT pub timeout",
-			"MQTT subscribe"
+			"MQTT subscribe",
+			"ESP-NOW command"
 	};
 	const char *str = "unknown";
 	if ((uint32_t) err < (uint32_t) ESP32_ERR_COUNT) {
@@ -975,6 +976,104 @@ void uv_esp32_mqtt_init(uv_esp32_st *this,
 	this->mqtt_ca_id = ca_id;
 	this->mqtt_cert_key_id = cert_key_id;
 	this->mqtt_keepalive_s = keepalive_s;
+}
+
+#endif
+
+
+#if CONFIG_ESP32_ESPNOW
+
+/* --- ESP-NOW ---
+ * Not simulated: there is no radio, and the rf link has no simulator support.
+ * The settings are kept so that the terminal shows what the application asked
+ * for, but the state stays DISABLED and nothing is ever sent or received. */
+
+const char *uv_esp32_espnow_state_to_str(uv_esp32_espnow_states_e state) {
+	static const char *const strs[ESP32_ESPNOW_STATE_COUNT] = {
+			"DISABLED",
+			"CONFIG",
+			"READY",
+			"ERROR"
+	};
+	const char *str = "UNKNOWN";
+	if ((uint32_t) state < (uint32_t) ESP32_ESPNOW_STATE_COUNT) {
+		str = strs[state];
+	}
+	else {
+	}
+	return str;
+}
+
+
+void uv_esp32_espnow_set_enabled(uv_esp32_st *this, bool value) {
+	this->espnow.enabled = value;
+}
+
+
+void uv_esp32_espnow_set_channel(uv_esp32_st *this, uint8_t channel) {
+	this->espnow.channel = (channel > ESP32_ESPNOW_CHANNEL_MAX) ? 0U : channel;
+}
+
+
+void uv_esp32_espnow_set_name(uv_esp32_st *this, const char *name) {
+	strncpy(this->espnow.name, (name != NULL) ? name : "",
+			sizeof(this->espnow.name) - 1U);
+	this->espnow.name[sizeof(this->espnow.name) - 1U] = '\0';
+}
+
+
+void uv_esp32_espnow_set_group(uv_esp32_st *this, const char *group) {
+	strncpy(this->espnow.group, (group != NULL) ? group : "",
+			sizeof(this->espnow.group) - 1U);
+	this->espnow.group[sizeof(this->espnow.group) - 1U] = '\0';
+}
+
+
+void uv_esp32_espnow_set_discoverable(uv_esp32_st *this, bool value) {
+	this->espnow.discoverable = value;
+}
+
+
+void uv_esp32_espnow_set_peer(uv_esp32_st *this, const char *mac) {
+	strncpy(this->espnow.peer, (mac != NULL) ? mac : "",
+			sizeof(this->espnow.peer) - 1U);
+	this->espnow.peer[sizeof(this->espnow.peer) - 1U] = '\0';
+}
+
+
+uv_errors_e uv_esp32_espnow_discover(uv_esp32_st *this,
+		uint16_t ms, uint8_t channel) {
+	(void) this;
+	(void) ms;
+	(void) channel;
+	return ERR_NOT_READY;
+}
+
+
+uv_errors_e uv_esp32_espnow_send(uv_esp32_st *this,
+		const uint8_t *data, uint16_t len) {
+	(void) this;
+	(void) data;
+	(void) len;
+	return ERR_NOT_READY;
+}
+
+
+void uv_esp32_espnow_set_rx_callb(uv_esp32_st *this,
+		uv_esp32_espnow_rx_callb_t cb) {
+	this->espnow.rx_callb = cb;
+}
+
+
+void uv_esp32_espnow_set_dev_callb(uv_esp32_st *this,
+		uv_esp32_espnow_dev_callb_t cb) {
+	this->espnow.dev_callb = cb;
+}
+
+
+uint32_t uv_esp32_espnow_rx_age_ms(uv_esp32_st *this) {
+	(void) this;
+	return UINT32_MAX;
 }
 
 #endif

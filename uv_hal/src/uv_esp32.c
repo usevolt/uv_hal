@@ -90,8 +90,48 @@
 
 #define ESP32_MQTT_SUB_RETRY_MS		5000
 
+// Time given to the answer of a command nobody waits for (a fire-and-forget
+// query, a join, a leave) before the next such command or an ESP-NOW exchange
+// goes, see uv_esp32_st::at_quiet_delay. They answer in a few milliseconds.
+#define ESP32_AT_QUIET_MS			100
+
+// network_join / network_leave requests, see uv_esp32_st::wifi_req
+#define ESP32_WIFI_REQ_NONE			0
+#define ESP32_WIFI_REQ_JOIN			1
+#define ESP32_WIFI_REQ_LEAVE		2
+
 #define SUBRECV_PREFIX				"+MQTTSUBRECV:"
 #define SUBRECV_PREFIX_LEN			13
+
+// ESP-NOW exchanges, one at a time, see espnow_step
+#define ESPNOW_PHASE_IDLE			0
+// a setting (or AT+ENOWDEINIT) sent, waiting for OK / ERROR
+#define ESPNOW_PHASE_CMD_SENT		1
+// AT+ENOWDISC sent: +ENOWDEV lines, then OK / ERROR
+#define ESPNOW_PHASE_DISC_SENT		2
+// AT+ENOWSEND sent, waiting for the '>' prompt
+#define ESPNOW_PHASE_SEND_AT_SENT	3
+// the frame written, waiting for SEND OK / SEND FAIL
+#define ESPNOW_PHASE_SEND_DATA_SENT	4
+
+#define ESP32_ESPNOW_AT_TIMEOUT_MS	1000
+// The module waits up to 100 ms for the peer's acknowledgement before it
+// answers, and the frame has to cross the UART first.
+#define ESP32_ESPNOW_SEND_TIMEOUT_MS	1000
+#define ESP32_ESPNOW_RETRY_MS		5000
+// While frames come from the peer this often, the link is in use: a WiFi
+// scan takes the radio off its channel for seconds, so the driver's own scans
+// for the configured network are made only every ESP32_ESPNOW_SCAN_SKIPS
+// reconnect intervals then, instead of every one.
+#define ESP32_ESPNOW_LINK_ALIVE_MS	5000
+#define ESP32_ESPNOW_SCAN_SKIPS		6
+
+#define ENOWRECV_PREFIX				"+ENOWRECV:"
+#define ENOWRECV_PREFIX_LEN			10
+#define ENOWDEV_PREFIX				"+ENOWDEV:"
+#define ENOWDEV_PREFIX_LEN			9
+#define ENOWINIT_PREFIX				"+ENOWINIT:"
+#define ENOWINIT_PREFIX_LEN			10
 
 
 static void tx(uv_esp32_st *this) {
@@ -164,6 +204,7 @@ static void at_resp_reset(uv_esp32_st *this) {
 /// dozen frames to the device while its bus was busy, which is enough to make
 /// a firmware flash over the remote link impossible.
 static void at_resp_reset_for_cmd(uv_esp32_st *this) {
+	this->at_busy = false;
 	uint8_t n = (this->at_resp_i < 4U) ? this->at_resp_i : 4U;
 	bool unsolicited = ((this->at_resp_i > 0U) &&
 			((this->at_resp[0] == '+') ||
@@ -189,7 +230,36 @@ static void esp32_reset(uv_esp32_st *this) {
 	this->mqtt_subrecv.expected_len = 0;
 	this->mqtt_subrecv.drop = false;
 #endif
+#if CONFIG_ESP32_ESPNOW
+	// The module forgets every ESP-NOW setting with the reset, so all of them
+	// are sent again, and whatever was in flight is gone.
+	this->espnow.rx.active = false;
+	this->espnow.rx.received_len = 0;
+	this->espnow.rx.expected_len = 0;
+	this->espnow.rx.drop = false;
+	this->espnow.phase = ESPNOW_PHASE_IDLE;
+	this->espnow.sending = ESP32_ESPNOW_SET_COUNT;
+	this->espnow.state = ESP32_ESPNOW_STATE_DISABLED;
+	this->espnow.cur_channel = 0;
+	this->espnow.version = 0;
+	this->espnow.rx_seen = false;
+	this->espnow.disc_req = false;
+	for (uint8_t i = 0; i < (uint8_t) ESP32_ESPNOW_SET_COUNT; i++) {
+		this->espnow.dirty[i] = true;
+	}
+	if (this->espnow.tx_pending) {
+		this->espnow.diag.tx_fail++;
+		this->espnow.tx_last_ok = false;
+		this->espnow.tx_pending = false;
+	}
+	else {
+	}
+#endif
 	this->rx_at_cmd = NULL;
+	// a scan asked for is not made by a module starting over. A join is: the
+	// module joins the configured network on its own once it is up.
+	this->scan_req = false;
+	this->wifi_req = ESP32_WIFI_REQ_NONE;
 	uv_mutex_unlock(&this->txstream_mutex);
 	uv_mutex_unlock(&this->tx_mutex);
 
@@ -254,7 +324,7 @@ static void send_at_cmd(uv_esp32_st *this, const char *cmd,
 }
 
 
-#if CONFIG_ESP32_MQTT || CONFIG_ESP32_SNTP
+#if CONFIG_ESP32_MQTT || CONFIG_ESP32_SNTP || CONFIG_ESP32_ESPNOW
 /// @brief: Sends a fully-formed AT command line followed by \r\n via
 /// tx_streambuffer. The caller is responsible for any escaping inside the
 /// composed line. Used for multi-arg AT commands that don't fit the
@@ -328,14 +398,161 @@ static bool at_resp_accumulate(uv_esp32_st *this, char c) {
 }
 
 
-static uv_errors_e network_scan_start(uv_esp32_st *this,
-		bool blocking, bool store);
+static void network_scan_start(uv_esp32_st *this, bool store);
 
 #if CONFIG_ESP32_MQTT
 // Forward decl — defined below.
 static void mqtt_set_state(uv_esp32_st *this, uv_esp32_mqtt_states_e state);
 #endif
 static void set_state(uv_esp32_st *this, uv_esp32_states_e state);
+
+
+#if CONFIG_ESP32_ESPNOW
+
+/// @brief: Parses the part after "+ENOWDEV:" of a device found by discovery,
+/// "<mac>",<rssi>,<channel>,"<name>", and hands it to the callback.
+static void espnow_parse_dev(uv_esp32_st *this, char *p) {
+	// the MAC is fixed length: a quote, 17 characters, a quote
+	if ((strlen(p) > 20U) && (p[0] == '"') && (p[18] == '"') &&
+			(p[19] == ',')) {
+		char mac[ESP32_MAC_STR_LEN];
+		memcpy(mac, &p[1], ESP32_MAC_STR_LEN - 1);
+		mac[ESP32_MAC_STR_LEN - 1] = '\0';
+		char *q = &p[20];
+		int8_t rssi = (int8_t) strtol(q, &q, 10);
+		uint8_t channel = 0;
+		char *name = NULL;
+		if (*q == ',') {
+			channel = (uint8_t) strtoul(q + 1, &q, 10);
+			if ((q[0] == ',') && (q[1] == '"')) {
+				name = &q[2];
+				// the name is the rest of the line up to its last quote, so
+				// one with quotes or commas of its own comes through whole
+				char *end = strrchr(name, '"');
+				if (end != NULL) {
+					*end = '\0';
+				}
+				else {
+				}
+			}
+			else {
+			}
+		}
+		else {
+		}
+		if (name != NULL) {
+			ESP32_DEBUG(this, "ESP32: ESP-NOW found %s '%s', ch %u, %i dBm\n",
+					mac, name, (unsigned int) channel, (int) rssi);
+			if (this->espnow.dev_callb != NULL) {
+				this->espnow.dev_callb(mac, rssi, channel, name);
+			}
+			else {
+			}
+		}
+		else {
+		}
+	}
+	else {
+	}
+}
+
+
+/// @brief: Ends a raw +ENOWRECV payload capture, delivering it unless it was
+/// too big for the buffer.
+static void enowrecv_finish(uv_esp32_st *this) {
+	uv_esp32_espnow_st *e = &this->espnow;
+	if (e->rx.drop) {
+		e->diag.rx_drop++;
+	}
+	else {
+		e->diag.rx++;
+		e->rx_tick = uv_rtos_get_tick_count();
+		e->rx_seen = true;
+		if (e->rx_callb != NULL) {
+			e->rx_callb(e->rx.data, e->rx.expected_len, e->rx.rssi);
+		}
+		else {
+		}
+	}
+	e->rx.active = false;
+	e->rx.received_len = 0;
+	e->rx.expected_len = 0;
+	e->rx.drop = false;
+}
+
+
+/// @brief: Consumes one raw payload byte of the capture in progress.
+static void enowrecv_feed(uv_esp32_st *this, char c) {
+	uv_esp32_espnow_st *e = &this->espnow;
+	if (!e->rx.drop &&
+			(e->rx.received_len < ESP32_ESPNOW_PAYLOAD_MAX_LEN)) {
+		e->rx.data[e->rx.received_len] = (uint8_t) c;
+	}
+	else {
+		// oversized payload: still counted, so the stream stays in sync
+	}
+	e->rx.received_len++;
+	if (e->rx.received_len >= e->rx.expected_len) {
+		enowrecv_finish(this);
+	}
+	else {
+	}
+}
+
+
+/// @brief: Called right after a ',' has been accumulated into at_resp. If the
+/// partial line is now a complete '+ENOWRECV:<rssi>,<len>,' header, switches
+/// the receiver into raw payload capture for <len> bytes.
+///
+/// @return: true if a capture was started.
+static bool enowrecv_try_start(uv_esp32_st *this) {
+	bool ret = false;
+	// see subrecv_try_start
+	this->at_resp[this->at_resp_i] = '\0';
+	if (strncmp(this->at_resp, ENOWRECV_PREFIX, ENOWRECV_PREFIX_LEN) == 0) {
+		char *rssi_start = &this->at_resp[ENOWRECV_PREFIX_LEN];
+		char *rssi_end = NULL;
+		long rssi = strtol(rssi_start, &rssi_end, 10);
+		if ((rssi_end != rssi_start) && (rssi_end[0] == ',')) {
+			char *len_start = &rssi_end[1];
+			char *len_end = NULL;
+			unsigned long datalen = strtoul(len_start, &len_end, 10);
+			// the header ends exactly at the comma just accumulated
+			if ((len_end != len_start) &&
+					(len_end[0] == ',') &&
+					(len_end[1] == '\0')) {
+				uv_esp32_espnow_st *e = &this->espnow;
+				e->rx.rssi = (int8_t) rssi;
+				e->rx.expected_len = (uint16_t) datalen;
+				e->rx.received_len = 0;
+				e->rx.drop = (datalen > ESP32_ESPNOW_PAYLOAD_MAX_LEN);
+				e->rx.active = true;
+				if (e->rx.drop) {
+					ESP32_DEBUG(this, "ESP32: ESP-NOW frame of %u B exceeds "
+							"the buffer, dropping\n", (unsigned int) datalen);
+				}
+				else {
+				}
+				at_resp_reset(this);
+				if (e->rx.expected_len == 0) {
+					enowrecv_finish(this);
+				}
+				else {
+				}
+				ret = true;
+			}
+			else {
+			}
+		}
+		else {
+		}
+	}
+	else {
+	}
+	return ret;
+}
+
+#endif
 
 
 /// @brief: Recognizes async +MQTT* event lines in this->at_resp and reacts.
@@ -404,6 +621,13 @@ static bool dispatch_mqtt_line(uv_esp32_st *this) {
 		}
 		dispatched = true;
 	}
+	else if (strncmp(this->at_resp, "busy p", 6) == 0) {
+		// The command just sent arrived while the module was still processing
+		// the one before it, and was dropped. Noted for whoever sent it.
+		ESP32_DEBUG(this, "ESP32: module busy, command dropped\n");
+		this->at_busy = true;
+		dispatched = true;
+	}
 	else if (strstr(this->at_resp, "WIFI DISCONNECT") != NULL) {
 		// Unsolicited: the AP is gone. A join in progress may report the
 		// previous AP going the same way, so this is only acted on while
@@ -421,6 +645,31 @@ static bool dispatch_mqtt_line(uv_esp32_st *this) {
 		set_state(this, ESP32_STATE_JOINED_NETWORK);
 		dispatched = true;
 	}
+#if CONFIG_ESP32_ESPNOW
+	else if (strncmp(this->at_resp, ENOWDEV_PREFIX, ENOWDEV_PREFIX_LEN) == 0) {
+		espnow_parse_dev(this, &this->at_resp[ENOWDEV_PREFIX_LEN]);
+		dispatched = true;
+	}
+	else if (strncmp(this->at_resp, ENOWINIT_PREFIX, ENOWINIT_PREFIX_LEN) == 0) {
+		// +ENOWINIT:<inited>,<channel>,<version>
+		char *p = &this->at_resp[ENOWINIT_PREFIX_LEN];
+		(void) strtoul(p, &p, 10);
+		if (*p == ',') {
+			this->espnow.cur_channel = (uint8_t) strtoul(p + 1, &p, 10);
+			if (*p == ',') {
+				this->espnow.version = (uint8_t) strtoul(p + 1, NULL, 10);
+			}
+			else {
+			}
+			ESP32_DEBUG(this, "ESP32: ESP-NOW v%u on channel %u\n",
+					(unsigned int) this->espnow.version,
+					(unsigned int) this->espnow.cur_channel);
+		}
+		else {
+		}
+		dispatched = true;
+	}
+#endif
 #if CONFIG_ESP32_SNTP
 	else if (strstr(this->at_resp, SNTPTIME_PREFIX) != NULL) {
 		// Answer to the network time query:
@@ -628,25 +877,60 @@ static bool at_feed_char(uv_esp32_st *this, char c) {
 	if (this->mqtt_subrecv.active) {
 		subrecv_feed(this, c);
 	}
-	else if (at_resp_accumulate(this, c)) {
-		this->at_resp_i = 0;
-		line_complete = true;
+	else
+#endif
+#if CONFIG_ESP32_ESPNOW
+	if (this->espnow.rx.active) {
+		enowrecv_feed(this, c);
 	}
-	else if (c == ',') {
-		(void) subrecv_try_start(this);
-	}
-	else {
-	}
-#else
+	else
+#endif
 	if (at_resp_accumulate(this, c)) {
 		this->at_resp_i = 0;
 		line_complete = true;
 	}
+	else if (c == ',') {
+		bool started = false;
+#if CONFIG_ESP32_MQTT
+		started = subrecv_try_start(this);
+#endif
+#if CONFIG_ESP32_ESPNOW
+		if (!started) {
+			started = enowrecv_try_start(this);
+		}
+		else {
+		}
+#endif
+		(void) started;
+	}
+	else {
+	}
+	return line_complete;
+}
+
+
+#if CONFIG_ESP32_MQTT || CONFIG_ESP32_ESPNOW
+/// @brief: True while a binary payload is being captured off the rx stream,
+/// in which a '>' is data and not a prompt.
+static bool raw_capture_active(uv_esp32_st *this) {
+	bool ret = false;
+#if CONFIG_ESP32_MQTT
+	if (this->mqtt_subrecv.active) {
+		ret = true;
+	}
 	else {
 	}
 #endif
-	return line_complete;
+#if CONFIG_ESP32_ESPNOW
+	if (this->espnow.rx.active) {
+		ret = true;
+	}
+	else {
+	}
+#endif
+	return ret;
 }
+#endif
 
 
 /// @brief: Returns true with a complete line in this->at_resp.
@@ -745,6 +1029,48 @@ static uint8_t rx_at_match(uv_esp32_st *this,
 }
 
 
+#if CONFIG_ESP32_MQTT || CONFIG_ESP32_ESPNOW
+/// @brief: Reads the rx stream up to the bare '>' prompt of a raw data
+/// command (AT+MQTTPUBRAW, AT+ENOWSEND). The prompt is not a line, so the
+/// line parser would swallow it; everything before it is fed through the
+/// parser instead of being thrown away, so that a message arriving meanwhile
+/// is not lost: complete lines go to the async dispatcher or are held for the
+/// AT matcher.
+///
+/// @param error: If not NULL, set when an ERROR line comes instead: the
+/// command was refused and no prompt follows. NULL leaves such a line for the
+/// AT matcher like any other.
+/// @return: true once the prompt was read.
+static bool rx_wait_prompt(uv_esp32_st *this, bool *error) {
+	char c;
+	bool prompt_seen = false;
+	while (!prompt_seen &&
+			uv_streambuffer_pop(&this->rx_datastream, &c, 1, 0)) {
+		if (!raw_capture_active(this) && (c == '>')) {
+			prompt_seen = true;
+		}
+		else if (at_feed_char(this, c)) {
+			if (dispatch_mqtt_line(this)) {
+				at_consume_line(this);
+			}
+			else if ((error != NULL) &&
+					(strstr(this->at_resp, "ERROR") != NULL)) {
+				at_consume_line(this);
+				*error = true;
+				break;
+			}
+			else {
+				at_save_pending(this);
+			}
+		}
+		else {
+		}
+	}
+	return prompt_seen;
+}
+#endif
+
+
 const char *uv_esp32_state_to_str(uv_esp32_states_e state) {
 	const char *str;
 	switch (state) {
@@ -824,6 +1150,14 @@ static void set_state(uv_esp32_st *this, uv_esp32_states_e state) {
 			uv_delay_init(&this->timeout, ESP32_AT_TIMEOUT_MS);
 			break;
 		case ESP32_STATE_JOINED_NETWORK:
+#if CONFIG_ESP32_ESPNOW
+			// the AP decides the channel now, and a scan just made may have
+			// left the radio anywhere
+			this->espnow.dirty[ESP32_ESPNOW_SET_CHANNEL] = true;
+			this->espnow.dirty[ESP32_ESPNOW_SET_QUERY] = true;
+#endif
+			// the join's own OK comes after "WIFI GOT IP"
+			uv_delay_init(&this->at_quiet_delay, ESP32_AT_QUIET_MS);
 			// ask for the signal strength right away rather than after a full
 			// poll interval of showing "not known"
 			uv_delay_init(&this->rssi_delay, 0);
@@ -840,6 +1174,13 @@ static void set_state(uv_esp32_st *this, uv_esp32_states_e state) {
 #endif
 			break;
 		case ESP32_STATE_LEFT_NETWORK:
+#if CONFIG_ESP32_ESPNOW
+			// back on our own channel, see ESP32_STATE_JOINED_NETWORK
+			this->espnow.dirty[ESP32_ESPNOW_SET_CHANNEL] = true;
+			this->espnow.dirty[ESP32_ESPNOW_SET_QUERY] = true;
+#endif
+			// entered right after AT+CWQAP, whose answer is still to come
+			uv_delay_init(&this->at_quiet_delay, ESP32_AT_QUIET_MS);
 			uv_delay_init(&this->timeout, ESP32_RECONNECT_MS);
 			this->rssi = 0;
 			this->ip_str[0] = '\0';
@@ -862,7 +1203,8 @@ const char *uv_esp32_err_to_str(uv_esp32_err_e err) {
 			"MQTT lost",
 			"MQTT publish",
 			"MQTT pub timeout",
-			"MQTT subscribe"
+			"MQTT subscribe",
+			"ESP-NOW command"
 	};
 	const char *str = "unknown";
 	if ((uint32_t) err < (uint32_t) ESP32_ERR_COUNT) {
@@ -1142,6 +1484,296 @@ static bool mqtt_tls_time_ok(uv_esp32_st *this) {
 #endif
 
 
+#if CONFIG_ESP32_ESPNOW
+
+const char *uv_esp32_espnow_state_to_str(uv_esp32_espnow_states_e state) {
+	static const char *const strs[ESP32_ESPNOW_STATE_COUNT] = {
+			"DISABLED",
+			"CONFIG",
+			"READY",
+			"ERROR"
+	};
+	const char *str = "UNKNOWN";
+	if ((uint32_t) state < (uint32_t) ESP32_ESPNOW_STATE_COUNT) {
+		str = strs[state];
+	}
+	else {
+	}
+	return str;
+}
+
+
+/// @brief: Sends the first setting still to be sent. Returns false when all
+/// of them have been.
+static bool espnow_config_next(uv_esp32_st *this) {
+	uv_esp32_espnow_st *e = &this->espnow;
+	uv_esp32_espnow_set_e set = ESP32_ESPNOW_SET_COUNT;
+	for (uint8_t i = 0; i < (uint8_t) ESP32_ESPNOW_SET_COUNT; i++) {
+		if (e->dirty[i]) {
+			set = (uv_esp32_espnow_set_e) i;
+			break;
+		}
+		else {
+		}
+	}
+	if (set != ESP32_ESPNOW_SET_COUNT) {
+		// lowered before the value is read: a setter writing meanwhile raises
+		// it again, and the new value is sent next
+		e->dirty[set] = false;
+		char line[64];
+		switch (set) {
+		case ESP32_ESPNOW_SET_CHANNEL:
+			// joined, the AP has the channel and 0 keeps it
+			snprintf(line, sizeof(line), "AT+ENOWINIT=%u",
+					(this->state == ESP32_STATE_JOINED_NETWORK) ?
+							0U : (unsigned int) e->channel);
+			break;
+		case ESP32_ESPNOW_SET_QUERY:
+			snprintf(line, sizeof(line), "AT+ENOWINIT?");
+			break;
+		case ESP32_ESPNOW_SET_DISCOVERABLE:
+			snprintf(line, sizeof(line), "AT+ENOWDISCOVERABLE=%u",
+					e->discoverable ? 1U : 0U);
+			break;
+		default:
+			line[0] = '\0';
+			break;
+		}
+		if (set == ESP32_ESPNOW_SET_NAME) {
+			send_at_cmd(this, "AT+ENOWNAME", e->name, NULL);
+		}
+		else if (set == ESP32_ESPNOW_SET_GROUP) {
+			send_at_cmd(this, "AT+ENOWGROUP", e->group, NULL);
+		}
+		else if (set == ESP32_ESPNOW_SET_PEER) {
+			send_at_cmd(this, "AT+ENOWPEER", e->peer, NULL);
+		}
+		else {
+			send_at_cmd_raw(this, line);
+		}
+		e->sending = set;
+		e->phase = ESPNOW_PHASE_CMD_SENT;
+		uv_delay_init(&e->timeout, ESP32_ESPNOW_AT_TIMEOUT_MS);
+	}
+	else {
+	}
+	return (set != ESP32_ESPNOW_SET_COUNT);
+}
+
+
+/// @brief: Ends the frame in flight
+static void espnow_send_finish(uv_esp32_st *this, bool ok) {
+	uv_esp32_espnow_st *e = &this->espnow;
+	if (ok) {
+		e->diag.tx_ok++;
+	}
+	else {
+		e->diag.tx_fail++;
+	}
+	e->tx_last_ok = ok;
+	e->phase = ESPNOW_PHASE_IDLE;
+	e->tx_pending = false;
+	e->yield = true;
+}
+
+
+/// @brief: The ESP-NOW state machine, one AT exchange at a time.
+///
+/// @param link_free: No other exchange is in flight on the AT link. An
+/// exchange of ours only starts then, and while ours is in flight nobody
+/// else starts one (see rxtx_task), as the answers -- OK, ERROR -- cannot be
+/// told apart.
+static void espnow_step(uv_esp32_st *this, uint16_t step_ms, bool link_free) {
+	uv_esp32_espnow_st *e = &this->espnow;
+	// AT+CWJAP and AT+CWLAP hold the module for seconds, and before it is up
+	// there is nothing to talk to
+	bool module_up = ((this->state == ESP32_STATE_JOINED_NETWORK) ||
+			(this->state == ESP32_STATE_LEFT_NETWORK));
+
+	switch (e->phase) {
+	case ESPNOW_PHASE_IDLE:
+		if (!module_up || !link_free ||
+				!uv_delay_has_ended(&this->at_quiet_delay)) {
+			// wait
+		}
+		else if (!e->enabled) {
+			if (e->state != ESP32_ESPNOW_STATE_DISABLED) {
+				send_at_cmd(this, "AT+ENOWDEINIT", NULL, NULL);
+				e->sending = ESP32_ESPNOW_SET_COUNT;
+				e->phase = ESPNOW_PHASE_CMD_SENT;
+				uv_delay_init(&e->timeout, ESP32_ESPNOW_AT_TIMEOUT_MS);
+			}
+			else {
+			}
+		}
+		else if (e->state == ESP32_ESPNOW_STATE_ERROR) {
+			if (uv_delay(&e->timeout, step_ms)) {
+				e->state = ESP32_ESPNOW_STATE_CONFIG;
+			}
+			else {
+			}
+		}
+		else if (espnow_config_next(this)) {
+			if (e->state != ESP32_ESPNOW_STATE_READY) {
+				e->state = ESP32_ESPNOW_STATE_CONFIG;
+			}
+			else {
+				// A setting changing while ready (the channel after a join,
+				// a new peer) keeps sends going: they queue behind it.
+			}
+		}
+		else if (e->tx_pending) {
+			e->state = ESP32_ESPNOW_STATE_READY;
+			char line[32];
+			snprintf(line, sizeof(line), "AT+ENOWSEND=%u",
+					(unsigned int) e->tx_len);
+			send_at_cmd_raw(this, line);
+			e->phase = ESPNOW_PHASE_SEND_AT_SENT;
+			uv_delay_init(&e->timeout, ESP32_ESPNOW_AT_TIMEOUT_MS);
+		}
+		else if (e->disc_req) {
+			e->state = ESP32_ESPNOW_STATE_READY;
+			char line[40];
+			if (e->disc_channel != 0U) {
+				snprintf(line, sizeof(line), "AT+ENOWDISC=%u,%u",
+						(unsigned int) e->disc_ms,
+						(unsigned int) e->disc_channel);
+			}
+			else {
+				snprintf(line, sizeof(line), "AT+ENOWDISC=%u",
+						(unsigned int) e->disc_ms);
+			}
+			send_at_cmd_raw(this, line);
+			e->phase = ESPNOW_PHASE_DISC_SENT;
+			uv_delay_init(&e->timeout,
+					(uint16_t) (e->disc_ms + ESP32_ESPNOW_AT_TIMEOUT_MS));
+		}
+		else {
+			e->state = ESP32_ESPNOW_STATE_READY;
+		}
+		break;
+
+	case ESPNOW_PHASE_CMD_SENT: {
+		uint8_t match = rx_at_match(this, "OK", "ERROR");
+		if (this->at_busy) {
+			// dropped unanswered: sent again once the module is done
+			if (e->sending != ESP32_ESPNOW_SET_COUNT) {
+				e->dirty[e->sending] = true;
+			}
+			else {
+			}
+			e->phase = ESPNOW_PHASE_IDLE;
+			uv_delay_init(&this->at_quiet_delay, ESP32_AT_QUIET_MS);
+		}
+		else if (match == 1) {
+			e->phase = ESPNOW_PHASE_IDLE;
+			if (!e->enabled) {
+				// that was AT+ENOWDEINIT: everything is sent again once
+				// enabled
+				e->state = ESP32_ESPNOW_STATE_DISABLED;
+				for (uint8_t i = 0; i < (uint8_t) ESP32_ESPNOW_SET_COUNT; i++) {
+					e->dirty[i] = true;
+				}
+			}
+			else {
+			}
+		}
+		else if ((match == 2) || uv_delay(&e->timeout, step_ms)) {
+			ESP32_DEBUG(this, "ESP32: ESP-NOW setting %u %s\n",
+					(unsigned int) e->sending,
+					(match == 2) ? "refused" : "unanswered");
+			e->diag.cmd_fails++;
+			uv_esp32_diag_err(this, ESP32_ERR_ESPNOW_CMD);
+			if (e->sending != ESP32_ESPNOW_SET_COUNT) {
+				e->dirty[e->sending] = true;
+			}
+			else {
+			}
+			e->phase = ESPNOW_PHASE_IDLE;
+			e->state = ESP32_ESPNOW_STATE_ERROR;
+			uv_delay_init(&e->timeout, ESP32_ESPNOW_RETRY_MS);
+		}
+		else {
+		}
+		break;
+	}
+
+	case ESPNOW_PHASE_DISC_SENT: {
+		// the devices found arrive before the OK, see espnow_parse_dev
+		uint8_t match = rx_at_match(this, "OK", "ERROR");
+		if (this->at_busy) {
+			// dropped: disc_req stays, so it is sent again
+			e->phase = ESPNOW_PHASE_IDLE;
+			uv_delay_init(&this->at_quiet_delay, ESP32_AT_QUIET_MS);
+		}
+		else if ((match != 0) || uv_delay(&e->timeout, step_ms)) {
+			if (match != 1) {
+				ESP32_DEBUG(this, "ESP32: ESP-NOW discovery failed\n");
+			}
+			else {
+			}
+			e->phase = ESPNOW_PHASE_IDLE;
+			e->disc_req = false;
+		}
+		else {
+		}
+		break;
+	}
+
+	case ESPNOW_PHASE_SEND_AT_SENT: {
+		bool error = false;
+		bool prompt = rx_wait_prompt(this, &error);
+		if (this->at_busy) {
+			// dropped before any prompt: tx_pending stays, so it goes again
+			e->phase = ESPNOW_PHASE_IDLE;
+			uv_delay_init(&this->at_quiet_delay, ESP32_AT_QUIET_MS);
+		}
+		else if (prompt) {
+			uv_mutex_lock(&this->txstream_mutex);
+			uint32_t pushed = uv_streambuffer_push(&this->tx_streambuffer,
+					(char *) e->tx_data, e->tx_len, 100);
+			uv_mutex_unlock(&this->txstream_mutex);
+			if (pushed != e->tx_len) {
+				ESP32_DEBUG(this, "ESP32: ESP-NOW short write %u / %u\n",
+						(unsigned int) pushed, (unsigned int) e->tx_len);
+			}
+			else {
+			}
+			e->phase = ESPNOW_PHASE_SEND_DATA_SENT;
+			uv_delay_init(&e->timeout, ESP32_ESPNOW_SEND_TIMEOUT_MS);
+		}
+		else if (error || uv_delay(&e->timeout, step_ms)) {
+			// refused: no peer on the module's side, or a length it does not
+			// take. Sent again with the peer, should it have been lost.
+			ESP32_DEBUG(this, "ESP32: ESP-NOW send %s\n",
+					error ? "refused" : "prompt timeout");
+			e->dirty[ESP32_ESPNOW_SET_PEER] = true;
+			espnow_send_finish(this, false);
+		}
+		else {
+		}
+		break;
+	}
+
+	case ESPNOW_PHASE_SEND_DATA_SENT: {
+		uint8_t match = rx_at_match(this, "SEND OK", "SEND FAIL");
+		if ((match != 0) || uv_delay(&e->timeout, step_ms)) {
+			espnow_send_finish(this, (match == 1));
+		}
+		else {
+		}
+		break;
+	}
+
+	default:
+		e->phase = ESPNOW_PHASE_IDLE;
+		break;
+	}
+}
+
+#endif
+
+
 static void rxtx_task(void *me_ptr) {
 	uv_esp32_st *this = me_ptr;
 	uv_ts_st ts;
@@ -1172,6 +1804,7 @@ static void rxtx_task(void *me_ptr) {
 		}
 
 		uv_ts_step(&ts);
+		(void) uv_delay(&this->at_quiet_delay, uv_ts_get_step_ms(&ts));
 		tx(this);
 		rx(this, uv_streambuffer_get_len(&this->rx_datastream) ? 0 : 1);
 
@@ -1180,16 +1813,44 @@ static void rxtx_task(void *me_ptr) {
 		// because we need to read the bare ">" byte directly from rx_datastream
 		// (it is not a line and would otherwise be swallowed into at_resp).
 		uv_esp32_mqtt_slot_st *active_slot = mqtt_select_slot(this);
-		bool in_pub_at_sent = (active_slot != NULL &&
+		bool in_prompt = (active_slot != NULL &&
 				active_slot->phase == MQTT_PUB_PHASE_AT_SENT);
-		if (!in_pub_at_sent) {
+#else
+		bool in_prompt = false;
+#endif
+#if CONFIG_ESP32_ESPNOW
+		// the same for an ESP-NOW frame
+		if (this->espnow.phase == ESPNOW_PHASE_SEND_AT_SENT) {
+			in_prompt = true;
+		}
+		else {
+		}
+		bool espnow_xchg = (this->espnow.phase != ESPNOW_PHASE_IDLE);
+#else
+		bool espnow_xchg = false;
+#endif
+		if (!in_prompt) {
 			pump_mqtt_async(this);
 		}
 		else {
 		}
+
+		// An AT exchange of the MQTT client is in flight: a publish or a
+		// (un)subscribe past its first command, or a connect in progress.
+#if CONFIG_ESP32_MQTT
+		bool mqtt_xchg = (((active_slot != NULL) &&
+				(active_slot->phase != MQTT_PUB_PHASE_IDLE)) ||
+				(this->mqtt_sub_active != NULL) ||
+				(this->mqtt_state == ESP32_MQTT_STATE_CLEAN) ||
+				(this->mqtt_state == ESP32_MQTT_STATE_USERCFG) ||
+				(this->mqtt_state == ESP32_MQTT_STATE_CONNCFG) ||
+				(this->mqtt_state == ESP32_MQTT_STATE_CONN));
 #else
-		pump_mqtt_async(this);
+		bool mqtt_xchg = false;
 #endif
+		// Nobody waits for an answer on the AT link, so a command of anyone's
+		// can go.
+		bool link_free = (!mqtt_xchg && !espnow_xchg);
 
 		// True when no AT exchange of ours is in flight, so a fire-and-forget
 		// query (signal strength, network time) can be injected without
@@ -1198,15 +1859,15 @@ static void rxtx_task(void *me_ptr) {
 		// No publish or (un)subscribe in flight: the exchanges that a command
 		// arriving mid-transaction would actually corrupt.
 		bool at_free = ((active_slot == NULL) &&
-				(this->mqtt_sub_active == NULL));
+				(this->mqtt_sub_active == NULL) && !espnow_xchg);
 		// ...and the MQTT machine is somewhere it is not waiting for a reply,
 		// so an injected query cannot be mistaken for the answer it wants.
 		bool at_idle = (at_free &&
 				((this->mqtt_state == ESP32_MQTT_STATE_CONNECTED) ||
 				(this->mqtt_state == ESP32_MQTT_STATE_DISABLED)));
 #else
-		bool at_free = true;
-		bool at_idle = true;
+		bool at_free = !espnow_xchg;
+		bool at_idle = at_free;
 #endif
 
 		// The AP was lost while joined: leave, and let LEFT_NETWORK look for
@@ -1217,6 +1878,34 @@ static void rxtx_task(void *me_ptr) {
 			this->wifi_lost = false;
 			this->wifi_ssid_seen = false;
 			set_state(this, ESP32_STATE_LEFT_NETWORK);
+		}
+		else {
+		}
+
+		// A join or leave asked for from outside, carried out only between
+		// exchanges. Before the module is up the request is dropped: the
+		// configured network is what it joins once it is.
+		if ((this->wifi_req != ESP32_WIFI_REQ_NONE) && link_free &&
+				((this->state == ESP32_STATE_JOINED_NETWORK) ||
+				(this->state == ESP32_STATE_LEFT_NETWORK))) {
+			if (this->wifi_req == ESP32_WIFI_REQ_JOIN) {
+				send_at_cmd(this, "AT+CWJAP", this->wifi_ssid, this->wifi_passwd);
+				set_state(this, ESP32_STATE_CONNECT_WIFI);
+			}
+			else {
+				send_at_cmd(this, "AT+CWQAP", NULL, NULL);
+				set_state(this, ESP32_STATE_LEFT_NETWORK);
+			}
+			this->wifi_req = ESP32_WIFI_REQ_NONE;
+		}
+		// A scan asked for from outside, started only between exchanges
+		else if (this->scan_req && link_free &&
+				((this->state == ESP32_STATE_JOINED_NETWORK) ||
+				(this->state == ESP32_STATE_LEFT_NETWORK))) {
+			// started before the request is lowered, so a caller waiting for
+			// the scan never sees neither
+			network_scan_start(this, this->scan_req_store);
+			this->scan_req = false;
 		}
 		else {
 		}
@@ -1389,20 +2078,21 @@ static void rxtx_task(void *me_ptr) {
 			// in flight, so the query is never injected into someone else's
 			// exchange; a sample missed that way is simply picked up on the
 			// next round.
-			if (uv_delay(&this->rssi_delay, uv_ts_get_step_ms(&ts))) {
+			// Due once the delay has run out, and sent as soon as the link
+			// is idle and the last fire-and-forget command has been answered.
+			(void) uv_delay(&this->rssi_delay, uv_ts_get_step_ms(&ts));
+			if (uv_delay_has_ended(&this->rssi_delay) && at_idle &&
+					uv_delay_has_ended(&this->at_quiet_delay)) {
 				uv_delay_init(&this->rssi_delay, ESP32_RSSI_POLL_MS);
-				if (at_idle) {
-					// The address is asked for only until it is known: it does
-					// not change while joined, and a rejoin clears it.
-					if (this->ip_str[0] == '\0') {
-						send_at_cmd(this, "AT+CIPSTA?", NULL, NULL);
-					}
-					else {
-						send_at_cmd(this, "AT+CWJAP?", NULL, NULL);
-					}
+				// The address is asked for only until it is known: it does
+				// not change while joined, and a rejoin clears it.
+				if (this->ip_str[0] == '\0') {
+					send_at_cmd(this, "AT+CIPSTA?", NULL, NULL);
 				}
 				else {
+					send_at_cmd(this, "AT+CWJAP?", NULL, NULL);
 				}
+				uv_delay_init(&this->at_quiet_delay, ESP32_AT_QUIET_MS);
 			}
 			else {
 			}
@@ -1418,11 +2108,13 @@ static void rxtx_task(void *me_ptr) {
 			// loop with no way out. It still never injects into a publish or a
 			// (un)subscribe, which are the exchanges that would actually be
 			// corrupted by a command arriving mid-transaction.
-			if (at_free && !this->sntp_cfg_sent) {
+			if (at_free && !this->sntp_cfg_sent &&
+					uv_delay_has_ended(&this->at_quiet_delay)) {
 				char line[128];
 				snprintf(line, sizeof(line), "AT+CIPSNTPCFG=1,%i,%s",
 						(int) ESP32_SNTP_TIMEZONE, ESP32_SNTP_SERVERS);
 				send_at_cmd_raw(this, line);
+				uv_delay_init(&this->at_quiet_delay, ESP32_AT_QUIET_MS);
 				ESP32_DEBUG(this, "ESP32: SNTP servers %s\n",
 						ESP32_SNTP_SERVERS);
 				this->sntp_cfg_sent = true;
@@ -1451,7 +2143,7 @@ static void rxtx_task(void *me_ptr) {
 			else if (uv_delay(&this->sntp_delay, uv_ts_get_step_ms(&ts))) {
 				uv_delay_init(&this->sntp_delay, this->time_synced ?
 						ESP32_SNTP_REFRESH_MS : ESP32_SNTP_POLL_MS);
-				if (at_free) {
+				if (at_free && uv_delay_has_ended(&this->at_quiet_delay)) {
 					// ONE query per round: sending both together loses at
 					// least one of the answers, because each send resets the
 					// AT line buffer and the second command lands while the
@@ -1468,6 +2160,7 @@ static void rxtx_task(void *me_ptr) {
 					else {
 						send_at_cmd(this, "AT+CIPSNTPTIME?", NULL, NULL);
 					}
+					uv_delay_init(&this->at_quiet_delay, ESP32_AT_QUIET_MS);
 					this->sntp_query_alt = !this->sntp_query_alt;
 				}
 				else {
@@ -1502,6 +2195,8 @@ static void rxtx_task(void *me_ptr) {
 			else {
 				break;
 			}
+			// what a join asked for before the module was up is this one
+			this->wifi_req = ESP32_WIFI_REQ_NONE;
 			if (this->wifi_ssid != NULL && this->wifi_ssid[0] != '\0') {
 				ESP32_DEBUG(this, "ESP32: joining '%s'\n",
 						this->wifi_ssid);
@@ -1605,7 +2300,12 @@ static void rxtx_task(void *me_ptr) {
 			// there ties the module up for the whole join timeout, while a
 			// scan is over in a few seconds. A scan started from the UI
 			// counts as well.
-			if ((this->wifi_ssid != NULL) && (this->wifi_ssid[0] != '\0')) {
+			if ((this->wifi_ssid == NULL) || (this->wifi_ssid[0] == '\0') ||
+					!link_free) {
+				// nothing to look for, or the AT link is taken: an AT+CWJAP
+				// or AT+CWLAP sent now would land in someone's exchange
+			}
+			else {
 				if (this->wifi_ssid_seen) {
 					ESP32_DEBUG(this, "ESP32: '%s' in range, joining\n",
 							this->wifi_ssid);
@@ -1615,14 +2315,30 @@ static void rxtx_task(void *me_ptr) {
 					set_state(this, ESP32_STATE_CONNECT_WIFI);
 				}
 				else if (uv_delay(&this->timeout, uv_ts_get_step_ms(&ts))) {
-					ESP32_DEBUG(this, "ESP32: looking for '%s'\n",
-							this->wifi_ssid);
-					(void) network_scan_start(this, false, false);
+#if CONFIG_ESP32_ESPNOW
+					// A scan takes the radio off the ESP-NOW channel for a few
+					// seconds, so while the peer is talking to us look for the
+					// network only every few rounds.
+					if ((uv_esp32_espnow_rx_age_ms(this) <
+							ESP32_ESPNOW_LINK_ALIVE_MS) &&
+							(this->espnow.scan_skips <
+									ESP32_ESPNOW_SCAN_SKIPS)) {
+						this->espnow.scan_skips++;
+						uv_delay_init(&this->timeout, ESP32_RECONNECT_MS);
+					}
+					else
+#endif
+					{
+#if CONFIG_ESP32_ESPNOW
+						this->espnow.scan_skips = 0;
+#endif
+						ESP32_DEBUG(this, "ESP32: looking for '%s'\n",
+								this->wifi_ssid);
+						network_scan_start(this, false);
+					}
 				}
 				else {
 				}
-			}
-			else {
 			}
 			break;
 
@@ -1632,13 +2348,34 @@ static void rxtx_task(void *me_ptr) {
 		}
 
 
+#if CONFIG_ESP32_ESPNOW
+		// Ahead of the MQTT client, so a frame waiting goes before a queued
+		// publish: both only start an exchange with the link free, and
+		// whichever starts first has it.
+#if CONFIG_ESP32_MQTT
+		// a publish waiting gets every other turn, see espnow.yield
+		bool espnow_turn = !(this->espnow.yield && (active_slot != NULL) &&
+				(this->mqtt_state == ESP32_MQTT_STATE_CONNECTED));
+#else
+		bool espnow_turn = true;
+#endif
+		espnow_step(this, uv_ts_get_step_ms(&ts), link_free && espnow_turn);
+		espnow_xchg = (this->espnow.phase != ESPNOW_PHASE_IDLE);
+#endif
+
+
 #if CONFIG_ESP32_MQTT
 		// MQTT state machine. Runs alongside the main esp32 state machine.
 		// Progresses only while Wi-Fi is joined; drops to DISABLED otherwise so
 		// it cleanly re-enters INIT on rejoin.
 		bool mqtt_no_url = ((this->mqtt_broker_url == NULL) ||
 				(this->mqtt_broker_url[0] == '\0'));
-		if ((this->state == ESP32_STATE_JOINED_NETWORK) &&
+		if (espnow_xchg && (this->state == ESP32_STATE_JOINED_NETWORK)) {
+			// An ESP-NOW exchange has the AT link. Nothing of the client's is
+			// in flight -- it only starts with the link free -- so it simply
+			// waits; its timeouts are not run meanwhile.
+		}
+		else if ((this->state == ESP32_STATE_JOINED_NETWORK) &&
 				mqtt_no_url &&
 				(((this->mqtt_state == ESP32_MQTT_STATE_CONNECTED) &&
 				((active_slot == NULL) ||
@@ -1666,9 +2403,11 @@ static void rxtx_task(void *me_ptr) {
 		else if (this->state == ESP32_STATE_JOINED_NETWORK) {
 			switch (this->mqtt_state) {
 			case ESP32_MQTT_STATE_DISABLED:
+				// after the join's own answer, see at_quiet_delay
 				if (this->mqtt_broker_url != NULL &&
 						this->mqtt_broker_url[0] != '\0' &&
-						mqtt_tls_time_ok(this)) {
+						mqtt_tls_time_ok(this) &&
+						uv_delay_has_ended(&this->at_quiet_delay)) {
 					mqtt_set_state(this, ESP32_MQTT_STATE_INIT);
 				}
 				else {
@@ -1800,9 +2539,24 @@ static void rxtx_task(void *me_ptr) {
 					else {
 					}
 				}
+				else if ((active_slot != NULL) &&
+						(active_slot->phase == MQTT_PUB_PHASE_IDLE) &&
+						!uv_delay_has_ended(&this->at_quiet_delay)) {
+					// A fire-and-forget query was just sent, and the module
+					// drops ("busy p...") a command arriving before it has
+					// answered: the publish would then wait out its whole
+					// prompt timeout. It goes once the answer is in.
+				}
 				else if (active_slot != NULL) {
 					if (active_slot->phase == MQTT_PUB_PHASE_IDLE) {
 						char line[200];
+						// The length is read and the slot taken out of
+						// coalescing in one go: uv_esp32_mqtt_publish()
+						// overwrites an idle slot in place, and a payload
+						// replaced after its length went out is pushed with
+						// a length the module does not expect -- after which
+						// it takes the following commands as payload.
+						uv_mutex_lock(&this->mqtt_pub_mutex);
 						snprintf(line, sizeof(line),
 								"AT+MQTTPUBRAW=%d,\"%s\",%u,%u,%u",
 								ESP32_MQTT_LINK_ID,
@@ -1811,42 +2565,19 @@ static void rxtx_task(void *me_ptr) {
 								(unsigned int) active_slot->qos,
 								(unsigned int)
 										(active_slot->retain ? 1 : 0));
+						active_slot->phase = MQTT_PUB_PHASE_AT_SENT;
+						uv_mutex_unlock(&this->mqtt_pub_mutex);
+#if CONFIG_ESP32_ESPNOW
+						// the turn is taken, ESP-NOW goes first again
+						this->espnow.yield = false;
+#endif
 						send_at_cmd_raw(this, line);
 						uv_delay_init(&this->mqtt_timeout,
 								ESP32_MQTT_AT_TIMEOUT_MS);
-						active_slot->phase = MQTT_PUB_PHASE_AT_SENT;
 					}
 					else if (active_slot->phase ==
 							MQTT_PUB_PHASE_AT_SENT) {
-						char c;
-						bool prompt_seen = false;
-						while (uv_streambuffer_pop(
-								&this->rx_datastream, &c, 1, 0)) {
-							if (!this->mqtt_subrecv.active &&
-									(c == '>')) {
-								prompt_seen = true;
-								break;
-							}
-							else {
-								// Not the prompt (or a '>' byte inside a binary
-								// payload). Feed it through the normal parser
-								// rather than discarding it, so a message
-								// arriving in this window is not silently
-								// eaten; complete lines are handed to the async
-								// dispatcher or held for the AT matcher.
-								if (at_feed_char(this, c)) {
-									if (dispatch_mqtt_line(this)) {
-										at_consume_line(this);
-									}
-									else {
-										at_save_pending(this);
-									}
-								}
-								else {
-								}
-							}
-						}
-						if (prompt_seen) {
+						if (rx_wait_prompt(this, NULL)) {
 							uv_mutex_lock(&this->txstream_mutex);
 							uint32_t pushed = uv_streambuffer_push(
 									&this->tx_streambuffer,
@@ -1919,7 +2650,9 @@ static void rxtx_task(void *me_ptr) {
 					}
 					else {
 					}
-					if (this->mqtt_sub_phase == MQTT_SUB_PHASE_IDLE) {
+					// see at_quiet_delay above
+					if ((this->mqtt_sub_phase == MQTT_SUB_PHASE_IDLE) &&
+							uv_delay_has_ended(&this->at_quiet_delay)) {
 						mqtt_sub_start_next(this);
 					}
 					else {
@@ -2032,6 +2765,20 @@ uv_errors_e uv_esp32_init(uv_esp32_st *this,
 	uv_mutex_unlock(&this->mqtt_sub_mutex);
 #endif
 	this->at_resp_has_pending = false;
+	this->scan_req = false;
+	this->scan_req_store = false;
+	this->wifi_req = ESP32_WIFI_REQ_NONE;
+	this->at_busy = false;
+	uv_delay_end(&this->at_quiet_delay);
+#if CONFIG_ESP32_ESPNOW
+	memset(&this->espnow, 0, sizeof(this->espnow));
+	this->espnow.state = ESP32_ESPNOW_STATE_DISABLED;
+	this->espnow.phase = ESPNOW_PHASE_IDLE;
+	this->espnow.sending = ESP32_ESPNOW_SET_COUNT;
+	for (uint8_t i = 0; i < (uint8_t) ESP32_ESPNOW_SET_COUNT; i++) {
+		this->espnow.dirty[i] = true;
+	}
+#endif
 
 	uv_streambuffer_init_static(&this->tx_streambuffer,
 								this->tx_buffer,
@@ -2430,6 +3177,142 @@ void uv_esp32_mqtt_set_rx_callb(uv_esp32_st *this, uv_esp32_mqtt_rx_callb_t cb) 
 #endif
 
 
+#if CONFIG_ESP32_ESPNOW
+
+void uv_esp32_espnow_set_enabled(uv_esp32_st *this, bool value) {
+	this->espnow.enabled = value;
+}
+
+
+void uv_esp32_espnow_set_channel(uv_esp32_st *this, uint8_t channel) {
+	uint8_t ch = (channel > ESP32_ESPNOW_CHANNEL_MAX) ? 0U : channel;
+	if (ch != this->espnow.channel) {
+		this->espnow.channel = ch;
+		this->espnow.dirty[ESP32_ESPNOW_SET_CHANNEL] = true;
+		this->espnow.dirty[ESP32_ESPNOW_SET_QUERY] = true;
+	}
+	else {
+	}
+}
+
+
+/// @brief: Copies *src* into a setting of *size* bytes, raising its flag if
+/// the value changed. NULL is taken as an empty string.
+static void espnow_set_str(uv_esp32_st *this, char *dest, size_t size,
+		const char *src, uv_esp32_espnow_set_e set) {
+	const char *str = (src != NULL) ? src : "";
+	if (strncmp(dest, str, size - 1U) != 0) {
+		strncpy(dest, str, size - 1U);
+		dest[size - 1U] = '\0';
+		this->espnow.dirty[set] = true;
+	}
+	else {
+	}
+}
+
+
+void uv_esp32_espnow_set_name(uv_esp32_st *this, const char *name) {
+	espnow_set_str(this, this->espnow.name, sizeof(this->espnow.name),
+			name, ESP32_ESPNOW_SET_NAME);
+}
+
+
+void uv_esp32_espnow_set_group(uv_esp32_st *this, const char *group) {
+	espnow_set_str(this, this->espnow.group, sizeof(this->espnow.group),
+			group, ESP32_ESPNOW_SET_GROUP);
+}
+
+
+void uv_esp32_espnow_set_discoverable(uv_esp32_st *this, bool value) {
+	if (value != this->espnow.discoverable) {
+		this->espnow.discoverable = value;
+		this->espnow.dirty[ESP32_ESPNOW_SET_DISCOVERABLE] = true;
+	}
+	else {
+	}
+}
+
+
+void uv_esp32_espnow_set_peer(uv_esp32_st *this, const char *mac) {
+	espnow_set_str(this, this->espnow.peer, sizeof(this->espnow.peer),
+			mac, ESP32_ESPNOW_SET_PEER);
+}
+
+
+uv_errors_e uv_esp32_espnow_discover(uv_esp32_st *this,
+		uint16_t ms, uint8_t channel) {
+	uv_errors_e ret = ERR_NONE;
+	uv_esp32_espnow_st *e = &this->espnow;
+	if (!e->enabled ||
+			((e->state != ESP32_ESPNOW_STATE_READY) &&
+			(e->state != ESP32_ESPNOW_STATE_CONFIG))) {
+		ret = ERR_NOT_READY;
+	}
+	else if (e->disc_req) {
+		ret = ERR_HW_BUSY;
+	}
+	else {
+		// the firmware's limits, rather than an ERROR for the caller to puzzle
+		// over
+		e->disc_ms = (ms < 10U) ? 10U : ((ms > 5000U) ? 5000U : ms);
+		e->disc_channel = (channel > ESP32_ESPNOW_CHANNEL_MAX) ? 0U : channel;
+		e->disc_req = true;
+	}
+	return ret;
+}
+
+
+uv_errors_e uv_esp32_espnow_send(uv_esp32_st *this,
+		const uint8_t *data, uint16_t len) {
+	uv_errors_e ret = ERR_NONE;
+	uv_esp32_espnow_st *e = &this->espnow;
+	if ((len == 0U) || (len > ESP32_ESPNOW_PAYLOAD_MAX_LEN)) {
+		ret = ERR_BUFFER_OVERFLOW;
+	}
+	else if (!e->enabled || (e->peer[0] == '\0') ||
+			((e->state != ESP32_ESPNOW_STATE_READY) &&
+			(e->state != ESP32_ESPNOW_STATE_CONFIG))) {
+		ret = ERR_NOT_READY;
+	}
+	else if (e->tx_pending) {
+		ret = ERR_HW_BUSY;
+	}
+	else {
+		memcpy(e->tx_data, data, len);
+		e->tx_len = len;
+		// last: the driver task takes the frame once this is up
+		e->tx_pending = true;
+	}
+	return ret;
+}
+
+
+void uv_esp32_espnow_set_rx_callb(uv_esp32_st *this,
+		uv_esp32_espnow_rx_callb_t cb) {
+	this->espnow.rx_callb = cb;
+}
+
+
+void uv_esp32_espnow_set_dev_callb(uv_esp32_st *this,
+		uv_esp32_espnow_dev_callb_t cb) {
+	this->espnow.dev_callb = cb;
+}
+
+
+uint32_t uv_esp32_espnow_rx_age_ms(uv_esp32_st *this) {
+	uint32_t ret = UINT32_MAX;
+	if (this->espnow.rx_seen) {
+		ret = (uv_rtos_get_tick_count() - this->espnow.rx_tick) *
+				UV_RTOS_TICK_PERIOD_MS;
+	}
+	else {
+	}
+	return ret;
+}
+
+#endif
+
+
 uv_errors_e uv_esp32_get_data(uv_esp32_st *this, char *dest) {
 	return ERR_NONE;
 }
@@ -2464,40 +3347,58 @@ char *uv_esp32_get_connected_ssid(uv_esp32_st *this) {
 }
 
 
-/// @brief: Starts a network scan.
+/// @brief: Starts a network scan. Driver task only, with no AT exchange in
+/// flight, in JOINED_NETWORK or LEFT_NETWORK.
 ///
 /// @param store: The scan stores the networks it sees in the scan buffer.
 /// False for the driver's own scans for the configured network, which must not
 /// overwrite a list started from outside and possibly on screen.
-static uv_errors_e network_scan_start(uv_esp32_st *this,
-		bool blocking, bool store) {
-	uv_errors_e ret = ERR_NOT_READY;
-	if (this->state == ESP32_STATE_JOINED_NETWORK ||
-			this->state == ESP32_STATE_LEFT_NETWORK) {
-		this->scan_store = store;
-		if (store) {
-			this->scan_count = 0;
-		}
-		else {
-		}
-		this->wifi_ssid_seen = false;
-		this->scan_return_state = this->state;
-		send_at_cmd(this, "AT+CWLAP", NULL, NULL);
-		ESP32_DEBUG(this, "ESP32: starting network scan\n");
-		set_state(this, ESP32_STATE_SCAN_NETWORKS);
-		if (blocking) {
-			while (this->state == ESP32_STATE_SCAN_NETWORKS) {
-				uv_rtos_task_delay(10);
-			}
-		}
-		ret = ERR_NONE;
+static void network_scan_start(uv_esp32_st *this, bool store) {
+	this->scan_store = store;
+	if (store) {
+		this->scan_count = 0;
 	}
-	return ret;
+	else {
+	}
+	this->wifi_ssid_seen = false;
+	this->scan_return_state = this->state;
+	send_at_cmd(this, "AT+CWLAP", NULL, NULL);
+	ESP32_DEBUG(this, "ESP32: starting network scan\n");
+	set_state(this, ESP32_STATE_SCAN_NETWORKS);
 }
 
 
+// Longest a blocking uv_esp32_network_scan() waits: for an exchange in flight
+// to end -- a broker connect is the longest -- and then for the scan.
+#define ESP32_SCAN_WAIT_MS		(ESP32_MQTT_CONN_TIMEOUT_MS + \
+								 ESP32_SCAN_TIMEOUT_MS + ESP32_AT_TIMEOUT_MS)
+
+
 uv_errors_e uv_esp32_network_scan(uv_esp32_st *this, bool blocking) {
-	return network_scan_start(this, blocking, true);
+	uv_errors_e ret = ERR_NOT_READY;
+	if ((this->state == ESP32_STATE_JOINED_NETWORK) ||
+			(this->state == ESP32_STATE_LEFT_NETWORK)) {
+		// Only asked for: the driver task starts it between exchanges, as an
+		// AT+CWLAP sent from here could land in the middle of a publish or an
+		// ESP-NOW send.
+		this->scan_req_store = true;
+		this->scan_req = true;
+		if (blocking) {
+			uint32_t waited_ms = 0;
+			while ((this->scan_req ||
+					(this->state == ESP32_STATE_SCAN_NETWORKS)) &&
+					(waited_ms < ESP32_SCAN_WAIT_MS)) {
+				uv_rtos_task_delay(10);
+				waited_ms += 10U;
+			}
+		}
+		else {
+		}
+		ret = ERR_NONE;
+	}
+	else {
+	}
+	return ret;
 }
 
 
@@ -2518,8 +3419,8 @@ void uv_esp32_network_leave(uv_esp32_st *this) {
 	if (this->wifi_passwd != NULL) {
 		this->wifi_passwd[0] = '\0';
 	}
-	send_at_cmd(this, "AT+CWQAP", NULL, NULL);
-	set_state(this, ESP32_STATE_LEFT_NETWORK);
+	// see wifi_req
+	this->wifi_req = ESP32_WIFI_REQ_LEAVE;
 }
 
 
@@ -2533,8 +3434,8 @@ void uv_esp32_network_join(uv_esp32_st *this, char ssid[32],
 		strncpy(this->wifi_passwd, passwd, PASSWD_STR_MAX_LEN - 1);
 		this->wifi_passwd[PASSWD_STR_MAX_LEN - 1] = '\0';
 	}
-	send_at_cmd(this, "AT+CWJAP", this->wifi_ssid, this->wifi_passwd);
-	set_state(this, ESP32_STATE_CONNECT_WIFI);
+	// see wifi_req
+	this->wifi_req = ESP32_WIFI_REQ_JOIN;
 }
 
 
@@ -2615,6 +3516,22 @@ void uv_esp32_terminal(uv_esp32_st *this,
 					!!(flags & ESP32_CONF_FLAGS_DEBUG),
 					!!(flags & ESP32_CONF_FLAGS_ECHO),
 					this->disabled ? "off" : "on");
+#if CONFIG_ESP32_ESPNOW
+		const uv_esp32_espnow_st *e = &this->espnow;
+		printf("    espnow: %s%s, ch %u (want %u), v%u\n"
+				"        name '%s', group '%s', peer '%s'%s\n"
+				"        tx %u ok / %u fail, rx %u / %u dropped, "
+				"%u cmd fails\n",
+				uv_esp32_espnow_state_to_str(e->state),
+				e->enabled ? "" : " (off)",
+				(unsigned int) e->cur_channel, (unsigned int) e->channel,
+				(unsigned int) e->version,
+				e->name, e->group, e->peer,
+				e->discoverable ? ", discoverable" : "",
+				(unsigned int) e->diag.tx_ok, (unsigned int) e->diag.tx_fail,
+				(unsigned int) e->diag.rx, (unsigned int) e->diag.rx_drop,
+				(unsigned int) e->diag.cmd_fails);
+#endif
 	}
 }
 
